@@ -11,6 +11,8 @@ export interface PiModelCatalogEntry {
   readonly model: PiRpcModel;
   readonly thinkingLevels: ReadonlyArray<string>;
   readonly currentThinkingLevel?: string | undefined;
+  /** Pi's currently selected model at the time the catalog was probed. */
+  readonly isDefault?: boolean | undefined;
 }
 
 export interface PiModelSelection {
@@ -102,7 +104,11 @@ export function mapPiModelCatalog(
   const seen = new Set<string>();
   const models: ServerProviderModel[] = [];
 
-  for (const entry of catalog) {
+  const orderedCatalog = [...catalog].toSorted(
+    (left, right) => Number(right.isDefault === true) - Number(left.isDefault === true),
+  );
+
+  for (const entry of orderedCatalog) {
     const provider = entry.model.provider.trim();
     const modelId = entry.model.id.trim();
     const name = entry.model.name.trim() || modelId;

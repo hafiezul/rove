@@ -212,8 +212,22 @@ function piToolCallEvent(value: unknown):
     return undefined;
   }
   if (value.type === "toolcall_start") {
-    const toolCallId = nonEmptyString(value.id);
-    const toolName = nonEmptyString(value.toolName);
+    const partial = isRecord(value.partial) ? value.partial : undefined;
+    const partialToolCall = isRecord(partial?.toolCall)
+      ? partial.toolCall
+      : Array.isArray(partial?.content)
+        ? partial.content.find(
+            (part) => isRecord(part) && (part.type === "toolCall" || part.type === "tool_call"),
+          )
+        : undefined;
+    const toolCallId =
+      nonEmptyString(value.id) ??
+      (isRecord(partialToolCall) ? nonEmptyString(partialToolCall.id) : undefined);
+    const toolName =
+      nonEmptyString(value.toolName) ??
+      (isRecord(partialToolCall)
+        ? (nonEmptyString(partialToolCall.name) ?? nonEmptyString(partialToolCall.toolName))
+        : undefined);
     return toolCallId && toolName
       ? { type: "start", contentIndex: value.contentIndex, toolCallId, toolName }
       : undefined;

@@ -731,8 +731,17 @@ describe("PiAdapter", () => {
         assistantMessageEvent: {
           type: "toolcall_start",
           contentIndex: 0,
-          id: "call-constructed-status",
-          toolName: "bash",
+          partial: {
+            role: "assistant",
+            content: [
+              {
+                type: "toolCall",
+                id: "call-constructed-status",
+                name: "bash",
+                arguments: {},
+              },
+            ],
+          },
         },
       });
       yield* runtime.emit({

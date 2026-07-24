@@ -61,6 +61,25 @@ describe("Pi model catalog mapping", () => {
     ]);
   });
 
+  it("puts Pi's currently selected model first for the provider default", () => {
+    const models = mapPiModelCatalog([
+      {
+        model: { provider: "anthropic", id: "unused", name: "Unused" },
+        thinkingLevels: ["off"],
+      },
+      {
+        model: { provider: "custom-gateway", id: "team/coder", name: "Team Coder" },
+        thinkingLevels: ["off", "high"],
+        isDefault: true,
+      },
+    ]);
+
+    expect(models.map((model) => model.slug)).toEqual([
+      "custom-gateway/team%2Fcoder",
+      "anthropic/unused",
+    ]);
+  });
+
   it("round-trips a picker model slug back to Pi's provider/model selection", () => {
     expect(parsePiModelSlug("custom-gateway/team%2Fcoder")).toEqual({
       provider: "custom-gateway",

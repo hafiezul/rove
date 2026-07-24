@@ -48,7 +48,7 @@ export const discoverPiModelCatalog: PiModelCatalogProbe<
         cwd: input.cwd,
         environment: input.environment,
       });
-      yield* runtime.start();
+      const initialState = yield* runtime.start();
       const models = yield* runtime.getAvailableModels();
       return yield* Effect.forEach(
         models,
@@ -59,10 +59,13 @@ export const discoverPiModelCatalog: PiModelCatalogProbe<
               [runtime.getAvailableThinkingLevels(), runtime.getState()],
               { concurrency: 1 },
             );
+            const isDefault =
+              initialState.model?.provider === model.provider && initialState.model.id === model.id;
             return {
               model,
               thinkingLevels,
               ...(state.thinkingLevel ? { currentThinkingLevel: state.thinkingLevel } : {}),
+              ...(isDefault ? { isDefault: true } : {}),
             } satisfies PiModelCatalogEntry;
           }),
         { concurrency: 1 },

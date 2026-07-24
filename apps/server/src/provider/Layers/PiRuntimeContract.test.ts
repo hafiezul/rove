@@ -357,8 +357,17 @@ describe("Pi runtime contract", () => {
               assistantMessageEvent: {
                 type: "toolcall_start",
                 contentIndex: 1,
-                id: "call-status",
-                toolName: "bash",
+                partial: {
+                  role: "assistant",
+                  content: [
+                    {
+                      type: "toolCall",
+                      id: "call-status",
+                      name: "bash",
+                      arguments: {},
+                    },
+                  ],
+                },
               },
             });
             yield* controlled.emit({
