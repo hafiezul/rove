@@ -410,6 +410,19 @@ export function runtimeEventToActivities(
     }
 
     case "runtime.warning": {
+      // Adapters may attach structured detail about a recoverable tool failure
+      // (e.g. Pi tool execution errors). Surface the toolCallId so clients can
+      // correlate the warning row with the failed tool row.
+      const warningDetail =
+        event.payload.detail !== null &&
+        typeof event.payload.detail === "object" &&
+        !Array.isArray(event.payload.detail)
+          ? (event.payload.detail as Record<string, unknown>)
+          : undefined;
+      const warningToolCallId =
+        typeof warningDetail?.toolCallId === "string" && warningDetail.toolCallId.trim().length > 0
+          ? warningDetail.toolCallId
+          : undefined;
       return [
         {
           id: event.eventId,
@@ -421,6 +434,7 @@ export function runtimeEventToActivities(
           summary: truncateDetail(event.payload.message, 120),
           payload: {
             message: truncateDetail(event.payload.message),
+            ...(warningToolCallId !== undefined ? { toolCallId: warningToolCallId } : {}),
             ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,
