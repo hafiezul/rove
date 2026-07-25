@@ -632,6 +632,18 @@ describe("workEntryIndicatesToolFailure", () => {
     label: "Read",
   };
 
+  it("is false for runtime.warning rows announcing a continuing run", () => {
+    expect(
+      workEntryIndicatesToolFailure({
+        ...base,
+        label: "Pi tool 'edit' failed; the run is continuing.",
+        tone: "tool",
+        sourceActivityKind: "runtime.warning",
+        warning: "oldText does not match the current file content.",
+      }),
+    ).toBe(false);
+  });
+
   it("is true for error tone", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -694,6 +706,19 @@ describe("workEntryIndicatesToolFailure", () => {
     ).toBe(false);
   });
 
+  it("marks runtime.warning continuation rows as success candidates", () => {
+    const warningEntry = {
+      ...base,
+      label: "Pi tool 'edit' failed; the run is continuing.",
+      tone: "tool" as const,
+      sourceActivityKind: "runtime.warning" as const,
+      warning: "oldText does not match the current file content.",
+    };
+    expect(workEntryIndicatesToolFailure(warningEntry)).toBe(false);
+    expect(workEntryIndicatesToolNeutralStatus(warningEntry)).toBe(false);
+    expect(workEntryIndicatesToolSuccess(warningEntry)).toBe(true);
+  });
+
   it("treats successful tool rows as success candidates", () => {
     expect(
       workEntryIndicatesToolSuccess({
@@ -743,6 +768,82 @@ describe("workEntryIndicatesToolFailure", () => {
 });
 
 describe("deriveWorkLogEntries", () => {
+  it("keeps the failed tool row visible with a recoverable continuation warning", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "tool-failed",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "tool.completed",
+        summary: "edit failed",
+        tone: "error",
+        payload: {
+          itemType: "file_change",
+          status: "failed",
+          title: "edit",
+          detail: "oldText does not match the current file content.",
+          data: {
+            toolCallId: "call-edit-1",
+            toolName: "edit",
+          },
+        },
+      }),
+      makeActivity({
+        id: "tool-warning",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "runtime.warning",
+        summary: "Pi tool 'edit' failed; the run is continuing.",
+        tone: "info",
+        payload: {
+          message: "Pi tool 'edit' failed; the run is continuing.",
+          toolCallId: "call-edit-1",
+          detail: {
+            toolCallId: "call-edit-1",
+            toolName: "edit",
+            error: "oldText does not match the current file content.",
+          },
+        },
+      }),
+      makeActivity({
+        id: "tool-retried",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "runtime.warning",
+        summary: "Pi retried 'edit' successfully; the run is continuing.",
+        tone: "info",
+        payload: {
+          message: "Pi retried 'edit' successfully; the run is continuing.",
+          detail: {
+            retriedToolName: "edit",
+            failedToolCallId: "call-edit-1",
+            failedToolName: "edit",
+          },
+        },
+      }),
+    ];
+
+    const entries = deriveWorkLogEntries(activities);
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "tool-failed",
+      "tool-warning",
+      "tool-retried",
+    ]);
+
+    const failed = entries[0]!;
+    expect(failed.toolLifecycleStatus).toBe("failed");
+    expect(workEntryIndicatesToolFailure(failed)).toBe(true);
+
+    const warning = entries[1]!;
+    expect(warning.sourceActivityKind).toBe("runtime.warning");
+    expect(warning.label).toBe("Pi tool 'edit' failed; the run is continuing.");
+    expect(warning.warning).toBe("oldText does not match the current file content.");
+    expect(warning.tone).toBe("tool");
+    expect(workEntryIndicatesToolFailure(warning)).toBe(false);
+
+    const retried = entries[2]!;
+    expect(retried.label).toBe("Pi retried 'edit' successfully; the run is continuing.");
+    expect(retried.warning).toBeUndefined();
+    expect(workEntryIndicatesToolFailure(retried)).toBe(false);
+  });
+
   it("omits tool started entries and keeps completed entries", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({

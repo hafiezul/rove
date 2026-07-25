@@ -640,4 +640,64 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain("lucide-x");
     expect(markup).toContain('aria-label="Tool call failed"');
   });
+
+  it("renders a continuing-run warning row without failure chrome after a failed tool", async () => {
+    const { MessagesTimeline } = await import("./MessagesTimeline");
+    const markup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        activeTurnInProgress={true}
+        timelineEntries={[
+          {
+            id: "entry-1",
+            kind: "work",
+            createdAt: "2026-03-17T19:12:31.000Z",
+            entry: {
+              id: "work-1",
+              createdAt: "2026-03-17T19:12:31.000Z",
+              label: "edit",
+              tone: "tool",
+              toolLifecycleStatus: "failed",
+              detail: "edit failed with exit code 1: oldText does not match",
+            },
+          },
+          {
+            id: "entry-2",
+            kind: "work",
+            createdAt: "2026-03-17T19:12:32.000Z",
+            entry: {
+              id: "work-2",
+              createdAt: "2026-03-17T19:12:32.000Z",
+              label: "read",
+              tone: "tool",
+              toolLifecycleStatus: "completed",
+              detail: "export const config = {};",
+            },
+          },
+          {
+            id: "entry-3",
+            kind: "work",
+            createdAt: "2026-03-17T19:12:33.000Z",
+            entry: {
+              id: "work-3",
+              createdAt: "2026-03-17T19:12:33.000Z",
+              label: "Pi tool 'edit' failed; the run is continuing.",
+              tone: "tool",
+              sourceActivityKind: "runtime.warning",
+              warning: "oldText does not match the current file content.",
+            },
+          },
+        ]}
+      />,
+    );
+
+    // The continuation warning is the latest, always-visible work-log row and
+    // shows the failed tool's exact error detail below it.
+    expect(markup).toContain("Pi tool &#x27;edit&#x27; failed; the run is continuing.");
+    expect(markup).toContain("oldText does not match the current file content.");
+    // The failed tool row is preserved but collapsed behind the overflow toggle
+    // rather than surfacing as a conversation-level failure.
+    expect(markup).toContain("+2 previous tool calls");
+    expect(markup).not.toContain('aria-label="Tool call failed"');
+  });
 });

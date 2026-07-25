@@ -799,6 +799,225 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect(
+    "keeps the turn running after a failed Pi tool call and announces the successful retry",
+    () =>
+      Effect.gen(function* () {
+        const runtime = yield* makeRuntimeFactory();
+        const adapter = yield* makePiAdapter(decodePiSettings({}), {
+          instanceId: INSTANCE_A,
+          sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+          makeRuntime: runtime.factory,
+        });
+        const events: Array<{ readonly type: string; readonly payload: unknown }> = [];
+        yield* adapter.streamEvents.pipe(
+          Stream.runForEach((event) =>
+            Effect.sync(() => {
+              events.push(event);
+            }),
+          ),
+          Effect.forkScoped,
+        );
+        yield* adapter.startSession(sessionStart(INSTANCE_A));
+        yield* Effect.yieldNow;
+        yield* adapter.sendTurn({
+          threadId: THREAD_ID,
+          input: "Edit the config file",
+          attachments: [],
+        });
+
+        yield* runtime.emit({
+          type: "tool_execution_end",
+          toolCallId: "call-edit-1",
+          toolName: "edit",
+          args: { path: "/workspace/project/config.ts" },
+          result: {
+            content: [{ type: "text", text: "oldText does not match the current file content." }],
+          },
+          isError: true,
+        });
+        // Pi continues the run by retrying the failed edit, successfully this
+        // time under a new toolCallId.
+        yield* runtime.emit({
+          type: "tool_execution_end",
+          toolCallId: "call-edit-2",
+          toolName: "edit",
+          args: { path: "/workspace/project/config.ts" },
+          result: {
+            content: [
+              { type: "text", text: "The file /workspace/project/config.ts has been updated." },
+            ],
+          },
+          isError: false,
+        });
+        // Pi then moves on to another tool before the run settles.
+        yield* runtime.emit({
+          type: "tool_execution_end",
+          toolCallId: "call-read-1",
+          toolName: "read",
+          args: { path: "/workspace/project/config.ts" },
+          result: { content: [{ type: "text", text: "export const config = {};" }] },
+          isError: false,
+        });
+        yield* runtime.emit({
+          type: "agent_end",
+          messages: [
+            {
+              role: "assistant",
+              stopReason: "stop",
+              content: [{ type: "text", text: "Done." }],
+            },
+          ],
+        });
+        yield* runtime.emit({ type: "agent_settled" });
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+
+        expect(events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "item.completed",
+              itemId: "call-edit-1",
+              payload: expect.objectContaining({
+                status: "failed",
+                title: "edit",
+                detail: "oldText does not match the current file content.",
+              }),
+            }),
+            expect.objectContaining({
+              type: "runtime.warning",
+              payload: expect.objectContaining({
+                message: "Pi tool 'edit' failed; the run is continuing.",
+                detail: expect.objectContaining({
+                  toolCallId: "call-edit-1",
+                  toolName: "edit",
+                  error: "oldText does not match the current file content.",
+                }),
+              }),
+            }),
+            expect.objectContaining({
+              type: "runtime.warning",
+              payload: expect.objectContaining({
+                message: "Pi retried 'edit' successfully; the run is continuing.",
+                detail: expect.objectContaining({
+                  retriedToolName: "edit",
+                  failedToolCallId: "call-edit-1",
+                  failedToolName: "edit",
+                }),
+              }),
+            }),
+            expect.objectContaining({
+              type: "turn.completed",
+              payload: { state: "completed" },
+            }),
+          ]),
+        );
+
+        // The recoverable tool failure must not surface as a conversation-level
+        // error or fail the session.
+        const runtimeErrors = events.filter((event) => event.type === "runtime.error");
+        expect(runtimeErrors).toHaveLength(0);
+        const sessionStates = events.filter(
+          (event) =>
+            event.type === "session.state.changed" &&
+            event.payload !== null &&
+            typeof event.payload === "object" &&
+            "state" in event.payload &&
+            event.payload.state === "error",
+        );
+        expect(sessionStates).toHaveLength(0);
+      }).pipe(Effect.scoped),
+  );
+
+  it.effect(
+    "announces that the run is continuing when Pi sends an assistant message after a failed tool",
+    () =>
+      Effect.gen(function* () {
+        const runtime = yield* makeRuntimeFactory();
+        const adapter = yield* makePiAdapter(decodePiSettings({}), {
+          instanceId: INSTANCE_A,
+          sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+          makeRuntime: runtime.factory,
+        });
+        const events: Array<{ readonly type: string; readonly payload: unknown }> = [];
+        yield* adapter.streamEvents.pipe(
+          Stream.runForEach((event) =>
+            Effect.sync(() => {
+              events.push(event);
+            }),
+          ),
+          Effect.forkScoped,
+        );
+        yield* adapter.startSession(sessionStart(INSTANCE_A));
+        yield* Effect.yieldNow;
+        yield* adapter.sendTurn({
+          threadId: THREAD_ID,
+          input: "Edit the config file",
+          attachments: [],
+        });
+
+        yield* runtime.emit({
+          type: "tool_execution_end",
+          toolCallId: "call-edit-1",
+          toolName: "edit",
+          result: {
+            content: [{ type: "text", text: "oldText does not match the current file content." }],
+          },
+          isError: true,
+        });
+        yield* runtime.emit({ type: "message_start", message: { role: "assistant" } });
+        yield* runtime.emit({
+          type: "message_update",
+          message: { role: "assistant" },
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "The edit failed, let me re-read the file.",
+          },
+        });
+        yield* runtime.emit({ type: "message_end", message: { role: "assistant" } });
+        yield* runtime.emit({ type: "agent_settled" });
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+
+        expect(events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "runtime.warning",
+              payload: expect.objectContaining({
+                message: "Pi tool 'edit' failed; the run is continuing.",
+              }),
+            }),
+            expect.objectContaining({
+              type: "runtime.warning",
+              payload: expect.objectContaining({
+                message: "Pi continued after the failed 'edit' tool call.",
+                detail: expect.objectContaining({
+                  failedToolCallId: "call-edit-1",
+                  failedToolName: "edit",
+                  error: "oldText does not match the current file content.",
+                }),
+              }),
+            }),
+          ]),
+        );
+
+        const retryWarnings = events.filter(
+          (event) =>
+            event.type === "runtime.warning" &&
+            event.payload !== null &&
+            typeof event.payload === "object" &&
+            "message" in event.payload &&
+            typeof event.payload.message === "string" &&
+            event.payload.message.includes("retried"),
+        );
+        expect(retryWarnings).toHaveLength(0);
+        expect(events.some((event) => event.type === "runtime.error")).toBe(false);
+      }).pipe(Effect.scoped),
+  );
+
   it.effect("maps Pi constructed tool calls before native execution begins", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory();

@@ -2526,6 +2526,64 @@ describe("ProviderRuntimeIngestion", () => {
     expect(thread.session?.lastError).toBeNull();
   });
 
+  it("surfaces runtime.warning tool-call correlation for continuing runs", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-warning-turn-started"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-tool-warning"),
+      payload: {},
+    });
+
+    harness.emit({
+      type: "runtime.warning",
+      eventId: asEventId("evt-warning-tool-failure"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-tool-warning"),
+      payload: {
+        message: "Pi tool 'edit' failed; the run is continuing.",
+        detail: {
+          toolCallId: "call-edit-1",
+          toolName: "edit",
+          error: "oldText does not match the current file content.",
+        },
+      },
+    });
+
+    const thread = await waitForThread(
+      harness.readModel,
+      (entry) =>
+        entry.session?.status === "running" &&
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) => activity.id === "evt-warning-tool-failure",
+        ),
+    );
+    expect(thread.session?.status).toBe("running");
+    expect(thread.session?.lastError).toBeNull();
+    const activity = thread.activities.find(
+      (entry: ProviderRuntimeTestActivity) => entry.id === "evt-warning-tool-failure",
+    );
+    const activityPayload =
+      activity?.payload && typeof activity.payload === "object"
+        ? (activity.payload as Record<string, unknown>)
+        : undefined;
+    expect(activity?.kind).toBe("runtime.warning");
+    expect(activityPayload?.message).toBe("Pi tool 'edit' failed; the run is continuing.");
+    expect(activityPayload?.toolCallId).toBe("call-edit-1");
+    expect(activityPayload?.detail).toEqual({
+      toolCallId: "call-edit-1",
+      toolName: "edit",
+      error: "oldText does not match the current file content.",
+    });
+  });
+
   it("maps session/thread lifecycle and item.started into session/activity projections", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";

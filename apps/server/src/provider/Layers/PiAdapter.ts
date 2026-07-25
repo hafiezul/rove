@@ -134,6 +134,13 @@ interface PiAdapterSessionContext {
   compactionItemId: RuntimeItemId | undefined;
   readonly retryTaskIds: Map<number, RuntimeTaskId>;
   summarizationRetryTaskId: RuntimeTaskId | undefined;
+  lastFailedToolCall:
+    | {
+        readonly toolCallId: string;
+        readonly toolName: string;
+        readonly detail?: string;
+      }
+    | undefined;
   readonly pendingExtensionDialogs: Map<ApprovalRequestId, PiExtensionDialog>;
   nextSyntheticItemId: number;
   nextSyntheticTaskId: number;
@@ -652,6 +659,7 @@ export function makePiAdapter<R>(
         context.toolCalls.clear();
         context.toolCallIdsByContentIndex.clear();
         context.terminalOutcome = undefined;
+        context.lastFailedToolCall = undefined;
         const { activeTurnId: _activeTurnId, ...readySession } = context.session;
         context.session = {
           ...readySession,
@@ -926,10 +934,32 @@ export function makePiAdapter<R>(
             if (piAssistantMessageRole(raw.message) !== "assistant") {
               return;
             }
+            // An assistant message following a failed tool call means the model
+            // reacted to the tool failure, so the run is visibly continuing.
+            const failedToolCall = context.lastFailedToolCall;
+            context.lastFailedToolCall = undefined;
             const turnId = context.activeTurnId;
             const itemId = context.assistantItemId;
             if (!turnId || !itemId) {
               return;
+            }
+            if (failedToolCall) {
+              yield* publishRuntimeEvent({
+                type: "runtime.warning",
+                ...(yield* makeEventStamp()),
+                provider: PROVIDER,
+                threadId: context.threadId,
+                turnId,
+                payload: {
+                  message: `Pi continued after the failed '${failedToolCall.toolName}' tool call.`,
+                  detail: {
+                    failedToolCallId: failedToolCall.toolCallId,
+                    failedToolName: failedToolCall.toolName,
+                    ...(failedToolCall.detail ? { error: failedToolCall.detail } : {}),
+                  },
+                },
+                raw: rawPiEvent(raw, type),
+              });
             }
             context.assistantItemId = undefined;
             yield* publishRuntimeEvent({
@@ -1062,18 +1092,59 @@ export function makePiAdapter<R>(
               raw: rawPiEvent(raw, type),
             });
             if (failed) {
+              // A failed Pi tool call is recoverable: Pi receives the error
+              // result and usually continues, so the failed row must not mark
+              // the session/turn failed. Emit a warning instead and remember
+              // the failure so a later successful retry of the same tool can
+              // announce that the conversation recovered.
+              context.lastFailedToolCall = {
+                toolCallId: execution.toolCallId,
+                toolName: execution.toolName,
+                ...(detail ? { detail } : {}),
+              };
               yield* publishRuntimeEvent({
-                type: "runtime.error",
+                type: "runtime.warning",
                 ...(yield* makeEventStamp()),
                 provider: PROVIDER,
                 threadId: context.threadId,
                 turnId,
                 payload: {
-                  message: `Pi tool '${execution.toolName}' failed.`,
-                  ...(detail ? { detail } : {}),
+                  message: `Pi tool '${execution.toolName}' failed; the run is continuing.`,
+                  detail: {
+                    toolCallId: execution.toolCallId,
+                    toolName: execution.toolName,
+                    ...(detail ? { error: detail } : {}),
+                  },
                 },
                 raw: rawPiEvent(raw, type),
               });
+            } else {
+              const lastFailedToolCall = context.lastFailedToolCall;
+              context.lastFailedToolCall = undefined;
+              if (lastFailedToolCall) {
+                const retried =
+                  lastFailedToolCall.toolCallId !== execution.toolCallId &&
+                  lastFailedToolCall.toolName === execution.toolName;
+                yield* publishRuntimeEvent({
+                  type: "runtime.warning",
+                  ...(yield* makeEventStamp()),
+                  provider: PROVIDER,
+                  threadId: context.threadId,
+                  turnId,
+                  payload: {
+                    message: retried
+                      ? `Pi retried '${execution.toolName}' successfully; the run is continuing.`
+                      : `Pi continued after the failed '${lastFailedToolCall.toolName}' tool call.`,
+                    detail: {
+                      ...(retried ? { retriedToolName: execution.toolName } : {}),
+                      failedToolCallId: lastFailedToolCall.toolCallId,
+                      failedToolName: lastFailedToolCall.toolName,
+                      ...(lastFailedToolCall.detail ? { error: lastFailedToolCall.detail } : {}),
+                    },
+                  },
+                  raw: rawPiEvent(raw, type),
+                });
+              }
             }
             const constructedToolCall = context.toolCalls.get(execution.toolCallId);
             context.toolCalls.delete(execution.toolCallId);
@@ -1743,6 +1814,7 @@ export function makePiAdapter<R>(
             compactionItemId: undefined,
             retryTaskIds: new Map(),
             summarizationRetryTaskId: undefined,
+            lastFailedToolCall: undefined,
             pendingExtensionDialogs: new Map(),
             nextSyntheticItemId: 0,
             nextSyntheticTaskId: 0,

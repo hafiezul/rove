@@ -70,6 +70,8 @@ export interface WorkLogEntry {
   rawCommand?: string;
   changedFiles?: ReadonlyArray<string>;
   tone: "thinking" | "tool" | "info" | "error";
+  /** Non-fatal warning text shown below the label (e.g. recoverable tool failure). */
+  warning?: string;
   toolTitle?: string;
   toolData?: unknown;
   itemType?: ToolLifecycleItemType;
@@ -201,6 +203,11 @@ function toolDetailTextLooksLikeFailure(text: string): boolean {
 
 /** True when the row should show a failure affordance (explicit status/tone or error-shaped tool output). */
 export function workEntryIndicatesToolFailure(entry: WorkLogEntry): boolean {
+  // A runtime.warning row announces a recoverable provider hiccup (e.g. a Pi
+  // tool failed but the run continued). It is not a failure row.
+  if (entry.sourceActivityKind === "runtime.warning") {
+    return false;
+  }
   if (entry.tone === "error") {
     return true;
   }
@@ -712,7 +719,14 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       : null
     : extractToolDetail(payload, title ?? activity.summary);
   const taskId = isTaskActivity ? asTrimmedString(payload?.taskId) : null;
-  const toolCallId = isTaskActivity ? null : extractToolCallId(payload);
+  const isWarningActivity = activity.kind === "runtime.warning";
+  // Runtime warnings surface the failed toolCallId at the payload top level so
+  // the warning row can be correlated with the failed tool row.
+  const toolCallId = isTaskActivity
+    ? null
+    : isWarningActivity
+      ? asTrimmedString(payload?.toolCallId)
+      : extractToolCallId(payload);
   const entry: DerivedWorkLogEntry = {
     id: activity.id,
     createdAt: activity.createdAt,
@@ -721,11 +735,26 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     tone:
       activity.kind === "task.progress"
         ? "thinking"
-        : activity.tone === "approval"
-          ? "info"
-          : activity.tone,
+        : isWarningActivity
+          ? "tool"
+          : activity.tone === "approval"
+            ? "info"
+            : activity.tone,
     activityKind: activity.kind,
   };
+  if (isWarningActivity) {
+    // Warning rows carry their message in the label and the provider-supplied
+    // error detail in the expandable body below the row.
+    const warningMessage = asTrimmedString(payload?.message);
+    if (warningMessage) {
+      entry.label = warningMessage;
+    }
+    const detailRecord = asRecord(payload?.detail);
+    const warningError = asTrimmedString(detailRecord?.error);
+    if (warningError && warningError !== entry.label) {
+      entry.warning = warningError;
+    }
+  }
   const itemType = extractWorkLogItemType(payload);
   const requestKind = extractWorkLogRequestKind(payload);
   if (detail) {
@@ -839,9 +868,11 @@ function mergeDerivedWorkLogEntries(
   const toolCallId = next.toolCallId ?? previous.toolCallId;
   const toolLifecycleStatus = next.toolLifecycleStatus ?? previous.toolLifecycleStatus;
   const toolData = next.toolData ?? previous.toolData;
+  const warning = next.warning ?? previous.warning;
   return {
     ...previous,
     ...next,
+    ...(warning ? { warning } : {}),
     ...(detail ? { detail } : {}),
     ...(command ? { command } : {}),
     ...(rawCommand ? { rawCommand } : {}),

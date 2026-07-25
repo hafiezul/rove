@@ -1897,6 +1897,9 @@ function buildToolCallExpandedBody(
   workspaceRoot: string | undefined,
 ): string | null {
   const blocks: string[] = [];
+  if (workEntry.warning?.trim()) {
+    blocks.push(workEntry.warning.trim());
+  }
   if (workEntry.itemType === "mcp_tool_call" && workEntry.toolData !== undefined) {
     blocks.push(`MCP call\n${JSON.stringify(workEntry.toolData, null, 2)}`);
   }
@@ -1990,6 +1993,9 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
   const expandedBody = buildToolCallExpandedBody(workEntry, workspaceRoot);
   const canExpand = expandedBody !== null;
   const showFailedIndicator = workEntryIndicatesToolFailure(workEntry);
+  // runtime.warning rows announce recoverable failures where the run
+  // continued, so they must not get the destructive row chrome reserved for
+  // conversation-level failures.
   const showDestructiveRowStyle =
     showFailedIndicator &&
     (workEntry.sourceActivityKind === "runtime.error" || !workLogEntryIsToolLike(workEntry));
@@ -2052,6 +2058,11 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
                 <span className="min-w-0 flex-1 truncate text-muted-foreground/55">{preview}</span>
               )}
             </p>
+            {workEntry.warning && (
+              <p className="mt-0.5 line-clamp-2 w-full text-[11px] leading-4 text-warning/90">
+                {workEntry.warning}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-px text-muted-foreground/55">
             <span
