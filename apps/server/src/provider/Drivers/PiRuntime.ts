@@ -1,6 +1,8 @@
 import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
 
-export const PI_MINIMUM_VERSION = "0.81.1";
+// 0.82.0 moved `get_commands` skill provenance from `path`/`location` to
+// structured `sourceInfo`, which the T3 skill probe relies on.
+export const PI_MINIMUM_VERSION = "0.82.0";
 
 const MANAGED_FLAGS = new Set([
   "continue",
@@ -14,6 +16,11 @@ const MANAGED_FLAGS = new Set([
   "session-id",
 ]);
 const MANAGED_SHORT_FLAGS = new Set(["-c", "-r"]);
+
+// Project-trust overrides (`--approve` / `--no-approve`) are intentionally not
+// managed: they are the only way to let the no-session probe (and sessions)
+// see project-level skills and other trusted resources in RPC mode, where Pi
+// never shows a trust prompt.
 
 export type PiLaunchPlan =
   | {
@@ -65,6 +72,11 @@ export function buildPiLaunchPlan(input: {
   };
 }
 
+/**
+ * Launch plan for the no-session probe process. The probe issues
+ * `get_available_models`, per-model thinking-level queries, and
+ * `get_commands` (skill discovery) and must not create a native session.
+ */
 export function buildPiModelProbeLaunchPlan(input: {
   readonly configDirectory: string;
   readonly launchArgs: string;

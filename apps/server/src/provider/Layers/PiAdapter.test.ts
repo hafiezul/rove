@@ -69,6 +69,7 @@ function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<st
           Effect.sync(() => {
             thinkingCalls.push(level);
           }),
+        getCommands: () => Effect.succeed([]),
         prompt: (prompt) =>
           Effect.sync(() => {
             prompts.push(prompt);
@@ -255,6 +256,104 @@ describe("PiAdapter", () => {
         resumeCursor: { schemaVersion: 1, sessionId: "thread-native" },
       });
       expect(started.turnId).toBeTruthy();
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("rewrites sole-content $name tokens into Pi /skill: invocations", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        getSkillNames: () => Effect.succeed(["code-review", "grill-me"]),
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+
+      yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "$code-review main",
+        attachments: [],
+      });
+
+      expect(runtime.prompts).toEqual([{ message: "/skill:code-review main" }]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("rewrites known mid-text tokens and passes unknown tokens through", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        getSkillNames: () => Effect.succeed(["code-review"]),
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+
+      yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "please $code-review this diff; ignore $unknown-skill prose",
+        attachments: [],
+      });
+
+      expect(runtime.prompts).toEqual([
+        {
+          message:
+            "/skill:code-review\nplease /skill:code-review this diff; ignore $unknown-skill prose",
+        },
+      ]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("leaves prompts untouched when no skills are known", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+
+      yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "$code-review main",
+        attachments: [],
+      });
+
+      expect(runtime.prompts).toEqual([{ message: "$code-review main" }]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("reflects snapshot skill updates on later turns", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      let skills: ReadonlyArray<string> = [];
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        getSkillNames: () => Effect.sync(() => skills),
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+
+      yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "$code-review main",
+        attachments: [],
+      });
+      skills = ["code-review"];
+      yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "$code-review HEAD~2",
+        attachments: [],
+      });
+
+      expect(runtime.prompts).toEqual([
+        { message: "$code-review main" },
+        { message: "/skill:code-review HEAD~2", streamingBehavior: "followUp" },
+      ]);
     }).pipe(Effect.scoped),
   );
 

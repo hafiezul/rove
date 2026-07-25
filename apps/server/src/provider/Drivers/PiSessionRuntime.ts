@@ -15,6 +15,7 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 
 import type { PiRpcModel } from "./PiModels.ts";
 import { buildPiLaunchPlan, buildPiModelProbeLaunchPlan } from "./PiRuntime.ts";
+import { parsePiGetCommandsResponse, type PiRpcSkillCommand } from "./PiSkills.ts";
 
 const PI_RPC_REQUEST_TIMEOUT = "15 seconds" as const;
 const PI_RPC_START_TIMEOUT = "30 seconds" as const;
@@ -105,6 +106,11 @@ export interface PiSessionRuntimeShape {
     PiSessionRuntimeError
   >;
   readonly setThinkingLevel: (level: string) => Effect.Effect<void, PiSessionRuntimeError>;
+  /** List loaded skill commands via Pi RPC `get_commands` (source === "skill"). */
+  readonly getCommands: () => Effect.Effect<
+    ReadonlyArray<PiRpcSkillCommand>,
+    PiSessionRuntimeError
+  >;
   /** Accept a normal Pi RPC prompt; lifecycle events continue asynchronously. */
   readonly prompt: (input: PiPromptInput) => Effect.Effect<void, PiSessionRuntimeError>;
   /** Invoke Pi's native abort command for the active operation. */
@@ -624,6 +630,9 @@ export const makePiSessionRuntime = (
     const setThinkingLevel = (level: string) =>
       request({ type: "set_thinking_level", level }).pipe(Effect.asVoid);
 
+    const getCommands = () =>
+      request({ type: "get_commands" }).pipe(Effect.map(parsePiGetCommandsResponse));
+
     const prompt = (input: PiPromptInput) =>
       request({
         type: "prompt",
@@ -680,6 +689,7 @@ export const makePiSessionRuntime = (
       setModel,
       getAvailableThinkingLevels,
       setThinkingLevel,
+      getCommands,
       prompt,
       abort,
       respondToExtensionUI,

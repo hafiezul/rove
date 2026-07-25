@@ -7,6 +7,7 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 import { ProcessRunner } from "../../processRunner.ts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
 import { mapPiModelCatalog, type PiModelCatalogEntry } from "./PiModels.ts";
+import { mapPiSkillsToServerProviderSkills, type PiRpcSkillCommand } from "./PiSkills.ts";
 import { makePiSessionRuntime, type PiSessionRuntimeError } from "./PiSessionRuntime.ts";
 import { parsePiVersion, PI_MINIMUM_VERSION, validatePiLaunchArgs } from "./PiRuntime.ts";
 
@@ -19,7 +20,7 @@ const PI_PRESENTATION = {
     "Pi manages enabled tool access; Pi tools can run without a T3 Code per-tool confirmation.",
 } as const;
 
-export interface PiModelCatalogProbeInput {
+export interface PiCatalogProbeInput {
   readonly binaryPath: string;
   readonly configDirectory: string;
   readonly launchArgs: string;
@@ -27,18 +28,25 @@ export interface PiModelCatalogProbeInput {
   readonly environment: NodeJS.ProcessEnv;
 }
 
-export type PiModelCatalogProbe<R = never> = (
-  input: PiModelCatalogProbeInput,
-) => Effect.Effect<ReadonlyArray<PiModelCatalogEntry>, PiSessionRuntimeError, R>;
+/** Result of one no-session Pi RPC probe: the model catalog plus loaded skills. */
+export interface PiCatalogProbeResult {
+  readonly models: ReadonlyArray<PiModelCatalogEntry>;
+  readonly skills: ReadonlyArray<PiRpcSkillCommand>;
+}
+
+export type PiCatalogProbe<R = never> = (
+  input: PiCatalogProbeInput,
+) => Effect.Effect<PiCatalogProbeResult, PiSessionRuntimeError, R>;
 
 /**
- * Discover the exact model + thinking catalog from Pi RPC without creating a
- * native session. Each catalog entry is selected before querying its valid
- * thinking levels because Pi exposes that capability for the active model.
+ * Discover the exact model + thinking catalog and the loaded skill commands
+ * from Pi RPC without creating a native session. Each catalog entry is
+ * selected before querying its valid thinking levels because Pi exposes that
+ * capability for the active model. Skills come from Pi's own `get_commands`
+ * surface so the snapshot reflects exactly what the configured Pi binary
+ * loaded (settings, flags, and trust rules already applied).
  */
-export const discoverPiModelCatalog: PiModelCatalogProbe<
-  ChildProcessSpawner.ChildProcessSpawner
-> = (input) =>
+export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessSpawner> = (input) =>
   Effect.scoped(
     Effect.gen(function* () {
       const runtime = yield* makePiSessionRuntime({
@@ -49,8 +57,11 @@ export const discoverPiModelCatalog: PiModelCatalogProbe<
         environment: input.environment,
       });
       const initialState = yield* runtime.start();
-      const models = yield* runtime.getAvailableModels();
-      return yield* Effect.forEach(
+      const [models, skills] = yield* Effect.all(
+        [runtime.getAvailableModels(), runtime.getCommands()],
+        { concurrency: 1 },
+      );
+      const catalog = yield* Effect.forEach(
         models,
         (model) =>
           Effect.gen(function* () {
@@ -70,6 +81,7 @@ export const discoverPiModelCatalog: PiModelCatalogProbe<
           }),
         { concurrency: 1 },
       );
+      return { models: catalog, skills } satisfies PiCatalogProbeResult;
     }),
   );
 
@@ -77,6 +89,7 @@ function piSnapshot(input: {
   readonly enabled: boolean;
   readonly checkedAt: string;
   readonly models?: ServerProviderDraft["models"];
+  readonly skills?: ServerProviderDraft["skills"];
   readonly installed: boolean;
   readonly version: string | null;
   readonly status: "ready" | "warning" | "error";
@@ -88,6 +101,7 @@ function piSnapshot(input: {
     enabled: input.enabled,
     checkedAt: input.checkedAt,
     models: input.models ?? [],
+    ...(input.skills ? { skills: input.skills } : {}),
     probe: {
       installed: input.installed,
       version: input.version,
@@ -116,7 +130,7 @@ export const makePendingPiProvider = (settings: PiSettings): Effect.Effect<Serve
 export function checkPiProviderStatus<R = never>(
   settings: PiSettings,
   environment: NodeJS.ProcessEnv,
-  discoverModels?: PiModelCatalogProbe<R>,
+  discoverCatalog?: PiCatalogProbe<R>,
   cwd = process.cwd(),
 ): Effect.Effect<ServerProviderDraft, never, ProcessRunner | R> {
   return Effect.gen(function* () {
@@ -202,7 +216,7 @@ export function checkPiProviderStatus<R = never>(
       });
     }
 
-    if (!discoverModels) {
+    if (!discoverCatalog) {
       return piSnapshot({
         enabled: true,
         checkedAt,
@@ -213,7 +227,7 @@ export function checkPiProviderStatus<R = never>(
     }
 
     const catalogExit = yield* Effect.exit(
-      discoverModels({
+      discoverCatalog({
         binaryPath: settings.binaryPath || "pi",
         configDirectory: settings.configDirectory,
         launchArgs: settings.launchArgs,
@@ -239,7 +253,8 @@ export function checkPiProviderStatus<R = never>(
       installed: true,
       version: parsedVersion.version,
       status: "ready",
-      models: mapPiModelCatalog(catalogExit.value),
+      models: mapPiModelCatalog(catalogExit.value.models),
+      skills: mapPiSkillsToServerProviderSkills(catalogExit.value.skills),
     });
   });
 }
