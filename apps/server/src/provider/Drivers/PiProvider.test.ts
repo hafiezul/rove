@@ -23,7 +23,7 @@ describe("checkPiProviderStatus", () => {
   it.effect("reports a usable supported Pi binary", () =>
     withProcessResult(
       Effect.succeed({
-        stdout: "pi 0.81.1\n",
+        stdout: "pi 0.82.0\n",
         stderr: "",
         code: ChildProcessSpawner.ExitCode(0),
         timedOut: false,
@@ -35,7 +35,7 @@ describe("checkPiProviderStatus", () => {
         Effect.sync(() => {
           expect(snapshot.installed).toBe(true);
           expect(snapshot.status).toBe("ready");
-          expect(snapshot.version).toBe("0.81.1");
+          expect(snapshot.version).toBe("0.82.0");
           expect(snapshot.showRuntimeModeSelector).toBe(false);
           expect(snapshot.toolAccessDescription).toContain("Pi manages enabled tool access");
         }),
@@ -45,24 +45,27 @@ describe("checkPiProviderStatus", () => {
 
   it.effect("discovers Pi provider/model groups and their valid thinking levels", () =>
     checkPiProviderStatus(settings(), process.env, () =>
-      Effect.succeed([
-        {
-          model: {
-            provider: "custom-gateway",
-            id: "team/coder",
-            name: "Team Coder",
+      Effect.succeed({
+        models: [
+          {
+            model: {
+              provider: "custom-gateway",
+              id: "team/coder",
+              name: "Team Coder",
+            },
+            thinkingLevels: ["off", "high", "max"],
+            currentThinkingLevel: "high",
           },
-          thinkingLevels: ["off", "high", "max"],
-          currentThinkingLevel: "high",
-        },
-      ]),
+        ],
+        skills: [],
+      }),
     ).pipe(
       Effect.provideService(
         ProcessRunner,
         ProcessRunner.of({
           run: () =>
             Effect.succeed({
-              stdout: "pi 0.81.1\\n",
+              stdout: "pi 0.82.0\\n",
               stderr: "",
               code: ChildProcessSpawner.ExitCode(0),
               timedOut: false,
@@ -96,6 +99,52 @@ describe("checkPiProviderStatus", () => {
     ),
   );
 
+  it.effect("populates the snapshot skills from the catalog probe", () =>
+    checkPiProviderStatus(settings(), process.env, () =>
+      Effect.succeed({
+        models: [],
+        skills: [
+          {
+            name: "code-review",
+            description: "Review the changes since a fixed point.",
+            scope: "user",
+            path: "/Users/example/.agents/skills/code-review/SKILL.md",
+          },
+          { name: "bare", path: "/x/bare/SKILL.md" },
+        ],
+      }),
+    ).pipe(
+      Effect.provideService(
+        ProcessRunner,
+        ProcessRunner.of({
+          run: () =>
+            Effect.succeed({
+              stdout: "pi 0.82.0\n",
+              stderr: "",
+              code: ChildProcessSpawner.ExitCode(0),
+              timedOut: false,
+              stdoutTruncated: false,
+              stderrTruncated: false,
+            }),
+        }),
+      ),
+      Effect.tap((snapshot) =>
+        Effect.sync(() => {
+          expect(snapshot.skills).toEqual([
+            {
+              name: "code-review",
+              description: "Review the changes since a fixed point.",
+              scope: "user",
+              path: "/Users/example/.agents/skills/code-review/SKILL.md",
+              enabled: true,
+            },
+            { name: "bare", path: "/x/bare/SKILL.md", enabled: true },
+          ]);
+        }),
+      ),
+    ),
+  );
+
   it.effect("passes the selected Pi config directory to the status probe", () => {
     let receivedEnvironment: NodeJS.ProcessEnv | undefined;
     return checkPiProviderStatus(settings({ configDirectory: "/Users/example/.pi-work" }), {
@@ -107,7 +156,7 @@ describe("checkPiProviderStatus", () => {
           run: (input) => {
             receivedEnvironment = input.env;
             return Effect.succeed({
-              stdout: "pi 0.81.1\n",
+              stdout: "pi 0.82.0\n",
               stderr: "",
               code: ChildProcessSpawner.ExitCode(0),
               timedOut: false,
@@ -158,7 +207,7 @@ describe("checkPiProviderStatus", () => {
         Effect.sync(() => {
           expect(snapshot.installed).toBe(true);
           expect(snapshot.status).toBe("error");
-          expect(snapshot.message).toContain("Upgrade to v0.81.1");
+          expect(snapshot.message).toContain("Upgrade to v0.82.0");
         }),
       ),
     ),
@@ -200,7 +249,7 @@ describe("checkPiProviderStatus", () => {
   it.effect("does not treat a failed version command as usable", () =>
     withProcessResult(
       Effect.succeed({
-        stdout: "pi 0.81.1\n",
+        stdout: "pi 0.82.0\n",
         stderr: "fatal error",
         code: ChildProcessSpawner.ExitCode(1),
         timedOut: false,

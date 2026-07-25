@@ -133,15 +133,26 @@ describe("validatePiLaunchArgs", () => {
     expect(validatePiLaunchArgs("--no-extensions")).toContain("managed by T3 Code");
     expect(validatePiLaunchArgs("--verbose")).toBeUndefined();
   });
+
+  it("allows project-trust overrides so the probe can load project skills", () => {
+    expect(validatePiLaunchArgs("--approve")).toBeUndefined();
+    expect(validatePiLaunchArgs("--no-approve")).toBeUndefined();
+    expect(buildPiModelProbeLaunchPlan({ configDirectory: "", launchArgs: "--approve" })).toEqual({
+      _tag: "Success",
+      args: ["--approve", "--mode", "rpc", "--no-extensions", "--no-session"],
+      environment: {},
+    });
+  });
 });
 
 describe("parsePiVersion", () => {
-  it("accepts Pi 0.81.1 and newer", () => {
-    expect(parsePiVersion("pi 0.81.1")).toEqual({ _tag: "Supported", version: PI_MINIMUM_VERSION });
-    expect(parsePiVersion("pi 0.82.0")).toEqual({ _tag: "Supported", version: "0.82.0" });
+  it("accepts Pi 0.82.0 and newer", () => {
+    expect(parsePiVersion("pi 0.82.0")).toEqual({ _tag: "Supported", version: PI_MINIMUM_VERSION });
+    expect(parsePiVersion("pi 0.83.1")).toEqual({ _tag: "Supported", version: "0.83.1" });
   });
 
   it("reports an upgrade requirement for older Pi versions", () => {
+    expect(parsePiVersion("pi 0.81.1")).toEqual({ _tag: "Unsupported", version: "0.81.1" });
     expect(parsePiVersion("pi 0.81.0")).toEqual({ _tag: "Unsupported", version: "0.81.0" });
     expect(parsePiVersion("pi 0.80.99")).toEqual({ _tag: "Unsupported", version: "0.80.99" });
   });

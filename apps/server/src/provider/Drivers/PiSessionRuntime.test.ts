@@ -74,6 +74,16 @@ function handle(command) {
     case "get_available_thinking_levels":
       respond(command, { levels: ["off", "high", "max"] });
       return;
+    case "get_commands":
+      respond(command, {
+        commands: [
+          { name: "llama", description: "Manage llama.cpp router models", source: "extension", sourceInfo: { path: "<inline:llama.cpp>", source: "inline", scope: "temporary" } },
+          { name: "skill:code-review", description: "Review the changes since a fixed point.", source: "skill", sourceInfo: { path: "/Users/example/.agents/skills/code-review/SKILL.md", source: "auto", scope: "user", origin: "top-level" } },
+          { name: "skill:probe", source: "skill", sourceInfo: { path: "/workspace/project/.agents/skills/probe/SKILL.md", source: "auto", scope: "project" } },
+          { name: "fix-tests", description: "Fix failing tests", source: "prompt", sourceInfo: { path: "/workspace/project/.pi/prompts/fix-tests.md", source: "auto", scope: "project" } },
+        ],
+      });
+      return;
     case "set_thinking_level":
       thinkingLevel = command.level;
       respond(command);
@@ -155,6 +165,19 @@ it.effect("starts Pi persistent mode with a stable native ID and drives model RP
     });
     yield* runtime.setModel({ provider: "custom", modelId: "team/coder" });
     expect(yield* runtime.getAvailableThinkingLevels()).toEqual(["off", "high", "max"]);
+    expect(yield* runtime.getCommands()).toEqual([
+      {
+        name: "code-review",
+        description: "Review the changes since a fixed point.",
+        scope: "user",
+        path: "/Users/example/.agents/skills/code-review/SKILL.md",
+      },
+      {
+        name: "probe",
+        scope: "project",
+        path: "/workspace/project/.agents/skills/probe/SKILL.md",
+      },
+    ]);
     yield* runtime.setThinkingLevel("max");
     yield* runtime.prompt({ message: "Persist the first native Pi turn" });
     const sessionFile = NodePath.join(sessionDirectory, "thread-native.jsonl");

@@ -64,6 +64,7 @@ function makePiRuntimeFactory() {
           setModel: () => Effect.void,
           getAvailableThinkingLevels: () => Effect.succeed(["off", "high"]),
           setThinkingLevel: () => Effect.void,
+          getCommands: () => Effect.succeed([]),
           prompt: (input) =>
             Effect.sync(() => {
               prompts.push(input);

@@ -36,6 +36,7 @@ import {
   type ProviderAdapterError,
 } from "../Errors.ts";
 import { parsePiModelSlug, makePiModelSlug } from "../Drivers/PiModels.ts";
+import { rewritePiSkillTokens } from "../Drivers/PiSkills.ts";
 import {
   isPiRpcTransportFailureEvent,
   isPiSessionRuntimeTransportError,
@@ -68,6 +69,12 @@ export interface PiAdapterOptions<R = never> {
   readonly nativeEventLogger?: EventNdjsonLogger | undefined;
   /** Resolves persisted T3 image attachments into Pi's native prompt images. */
   readonly loadImageAttachment?: PiImageAttachmentLoader | undefined;
+  /**
+   * Skill names loaded by the configured Pi binary (from the provider
+   * snapshot). Composer `$name` tokens matching one of these are rewritten
+   * into Pi's native `/skill:name` invocation before prompt delivery.
+   */
+  readonly getSkillNames?: (() => Effect.Effect<ReadonlyArray<string>>) | undefined;
   readonly makeRuntime: PiRuntimeFactory<R>;
 }
 
@@ -1798,6 +1805,14 @@ export function makePiAdapter<R>(
             const images = loadImageAttachment
               ? yield* Effect.forEach(attachments, loadImageAttachment)
               : [];
+            const skillNames = options.getSkillNames ? yield* options.getSkillNames() : [];
+            const rewrittenInput = rewritePiSkillTokens(input.input ?? "", new Set(skillNames));
+            if (rewrittenInput.invokedSkills.length > 0) {
+              yield* Effect.logInfo("Rewrote Pi $ skill tokens into /skill: invocations.", {
+                threadId: input.threadId,
+                skills: rewrittenInput.invokedSkills,
+              });
+            }
             const activeTurnId = context.activeTurnId;
             const turnId = activeTurnId ?? TurnId.make(NodeCrypto.randomUUID());
             const updatedAt = yield* Effect.map(DateTime.now, DateTime.formatIso);
@@ -1825,7 +1840,7 @@ export function makePiAdapter<R>(
             }
             yield* context.runtime
               .prompt({
-                message: input.input ?? "",
+                message: rewrittenInput.text,
                 ...(images.length > 0 ? { images } : {}),
                 ...(activeTurnId ? { streamingBehavior: "followUp" as const } : {}),
               })

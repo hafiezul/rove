@@ -9,6 +9,7 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
+import * as Stream from "effect/Stream";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 
 import { ServerConfig } from "../../config.ts";
@@ -33,11 +34,7 @@ import {
   makeProviderSnapshotSettingsSource,
   type ProviderSnapshotSettings,
 } from "../providerUpdateSettings.ts";
-import {
-  checkPiProviderStatus,
-  discoverPiModelCatalog,
-  makePendingPiProvider,
-} from "./PiProvider.ts";
+import { checkPiProviderStatus, discoverPiCatalog, makePendingPiProvider } from "./PiProvider.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 const DRIVER_KIND = ProviderDriverKind.make("pi");
@@ -139,6 +136,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         instanceId,
         join: path.join,
       });
+      const skillNamesRef: { current: ReadonlyArray<string> } = { current: [] };
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
         sessionDirectory,
@@ -148,13 +146,17 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
           attachmentsDir: serverConfig.attachmentsDir,
           fileSystem,
         }),
+        // Bound to the managed snapshot below, once both exist. The adapter
+        // only reads skill names per sendTurn, so the late binding still
+        // reflects every snapshot refresh.
+        getSkillNames: () => Effect.succeed(skillNamesRef.current),
         makeRuntime: makePiSessionRuntime,
       }).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, childProcessSpawner));
       const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
         processEnv,
-        discoverPiModelCatalog,
+        discoverPiCatalog,
         serverConfig.cwd,
       ).pipe(
         Effect.provideService(ProcessRunner, processRunner),
@@ -183,6 +185,16 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
               cause,
             }),
         ),
+      );
+      const trackSkillNames = (provider: {
+        readonly skills: ReadonlyArray<{ readonly name: string }>;
+      }) => {
+        skillNamesRef.current = provider.skills.map((skill) => skill.name);
+      };
+      trackSkillNames(yield* snapshot.getSnapshot);
+      yield* snapshot.streamChanges.pipe(
+        Stream.runForEach((next) => Effect.sync(() => trackSkillNames(next))),
+        Effect.forkScoped,
       );
 
       return {
