@@ -103,11 +103,14 @@ const makeOpenCodeConfig = (overrides: Partial<OpenCodeSettings>): OpenCodeSetti
   ...overrides,
 });
 
-const makePiConfig = (overrides: Partial<PiSettings>): PiSettings => ({
+// The registry decodes instance configs from their persisted wire shape, so
+// newline-separated trustedExtensions must be supplied as a string here.
+const makePiConfig = (overrides: Partial<PiSettings>) => ({
   enabled: false,
   binaryPath: "pi",
   configDirectory: "",
   launchArgs: "",
+  trustedExtensions: "",
   ...overrides,
 });
 

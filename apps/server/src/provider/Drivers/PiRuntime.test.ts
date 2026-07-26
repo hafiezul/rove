@@ -13,6 +13,7 @@ describe("Pi runtime launch plan", () => {
     const plan = buildPiLaunchPlan({
       configDirectory: "/Users/example/.pi-work",
       launchArgs: "--verbose",
+      trustedExtensions: [],
       sessionDirectory: "/tmp/t3/pi/work",
       sessionId: "thread_123",
     });
@@ -33,10 +34,11 @@ describe("Pi runtime launch plan", () => {
     });
   });
 
-  it("disables discovered extensions when no config directory is selected", () => {
+  it("disables discovered extensions when no trusted extension is selected", () => {
     const plan = buildPiLaunchPlan({
       configDirectory: "",
       launchArgs: "",
+      trustedExtensions: [],
       sessionDirectory: "/tmp/t3/pi/work",
       sessionId: "thread_123",
     });
@@ -59,22 +61,26 @@ describe("Pi runtime launch plan", () => {
     }
   });
 
-  it("keeps explicit extension paths while disabling extension discovery", () => {
+  it("loads only the selected trusted extensions alongside --no-extensions", () => {
     expect(
       buildPiLaunchPlan({
         configDirectory: "",
-        launchArgs: "--extension /tmp/t3-pi-extension.ts",
+        launchArgs: "--verbose",
+        trustedExtensions: ["/tmp/t3-pi-extension.ts", " ~/pi-extensions/guard.ts "],
         sessionDirectory: "/tmp/t3/pi/work",
         sessionId: "thread_123",
       }),
     ).toEqual({
       _tag: "Success",
       args: [
-        "--extension",
-        "/tmp/t3-pi-extension.ts",
+        "--verbose",
         "--mode",
         "rpc",
         "--no-extensions",
+        "--extension",
+        "/tmp/t3-pi-extension.ts",
+        "--extension",
+        "~/pi-extensions/guard.ts",
         "--session-dir",
         "/tmp/t3/pi/work",
         "--session-id",
@@ -82,6 +88,51 @@ describe("Pi runtime launch plan", () => {
       ],
       environment: {},
     });
+  });
+
+  it("adds the env escape hatch extension after the selected trusted extensions", () => {
+    expect(
+      buildPiLaunchPlan({
+        configDirectory: "",
+        launchArgs: "",
+        trustedExtensions: ["/tmp/t3-pi-extension.ts"],
+        sessionDirectory: "/tmp/t3/pi/work",
+        sessionId: "thread_123",
+        environment: { T3CODE_PI_EXTENSION: " /tmp/env-extension.ts " },
+      }),
+    ).toEqual({
+      _tag: "Success",
+      args: [
+        "--mode",
+        "rpc",
+        "--no-extensions",
+        "--extension",
+        "/tmp/t3-pi-extension.ts",
+        "--extension",
+        "/tmp/env-extension.ts",
+        "--session-dir",
+        "/tmp/t3/pi/work",
+        "--session-id",
+        "thread_123",
+      ],
+      environment: {},
+    });
+  });
+
+  it("ignores blank trusted extension entries", () => {
+    const plan = buildPiLaunchPlan({
+      configDirectory: "",
+      launchArgs: "",
+      trustedExtensions: ["  "],
+      sessionDirectory: "/tmp/t3/pi/work",
+      sessionId: "thread_123",
+    });
+
+    if (plan._tag !== "Success") {
+      throw new Error("expected a successful launch plan");
+    }
+    expect(plan.args).toContain("--no-extensions");
+    expect(plan.args).not.toContain("--extension");
   });
 
   it.each([
@@ -92,6 +143,8 @@ describe("Pi runtime launch plan", () => {
     "--session-id=other",
     "--no-session",
     "--no-extensions",
+    "--extension /tmp/t3-pi-extension.ts",
+    "--extension=/tmp/t3-pi-extension.ts",
     "--continue",
     "-c",
     "--resume",
@@ -102,6 +155,7 @@ describe("Pi runtime launch plan", () => {
       buildPiLaunchPlan({
         configDirectory: "",
         launchArgs,
+        trustedExtensions: [],
         sessionDirectory: "/tmp/t3/pi/work",
         sessionId: "thread_123",
       }),
@@ -115,10 +169,19 @@ describe("Pi model probe launch plan", () => {
       buildPiModelProbeLaunchPlan({
         configDirectory: "/Users/example/.pi-work",
         launchArgs: "--verbose",
+        trustedExtensions: ["/tmp/t3-pi-extension.ts"],
       }),
     ).toEqual({
       _tag: "Success",
-      args: ["--verbose", "--mode", "rpc", "--no-extensions", "--no-session"],
+      args: [
+        "--verbose",
+        "--mode",
+        "rpc",
+        "--no-extensions",
+        "--extension",
+        "/tmp/t3-pi-extension.ts",
+        "--no-session",
+      ],
       environment: { PI_CODING_AGENT_DIR: "/Users/example/.pi-work" },
     });
   });
@@ -131,15 +194,33 @@ describe("validatePiLaunchArgs", () => {
     expect(validatePiLaunchArgs("--session-id=other")).toContain("managed by T3 Code");
     expect(validatePiLaunchArgs("--no-session")).toContain("managed by T3 Code");
     expect(validatePiLaunchArgs("--no-extensions")).toContain("managed by T3 Code");
+    expect(validatePiLaunchArgs("--extension /tmp/t3-pi-extension.ts")).toContain(
+      "managed by T3 Code",
+    );
     expect(validatePiLaunchArgs("--verbose")).toBeUndefined();
   });
 
   it("allows project-trust overrides so the probe can load project skills", () => {
     expect(validatePiLaunchArgs("--approve")).toBeUndefined();
     expect(validatePiLaunchArgs("--no-approve")).toBeUndefined();
-    expect(buildPiModelProbeLaunchPlan({ configDirectory: "", launchArgs: "--approve" })).toEqual({
+    expect(
+      buildPiModelProbeLaunchPlan({
+        configDirectory: "",
+        launchArgs: "--approve",
+        trustedExtensions: [],
+        environment: { T3CODE_PI_EXTENSION: "/tmp/env-extension.ts" },
+      }),
+    ).toEqual({
       _tag: "Success",
-      args: ["--approve", "--mode", "rpc", "--no-extensions", "--no-session"],
+      args: [
+        "--approve",
+        "--mode",
+        "rpc",
+        "--no-extensions",
+        "--extension",
+        "/tmp/env-extension.ts",
+        "--no-session",
+      ],
       environment: {},
     });
   });

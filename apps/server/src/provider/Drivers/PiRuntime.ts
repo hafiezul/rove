@@ -4,8 +4,12 @@ import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
 // structured `sourceInfo`, which the T3 skill probe relies on.
 export const PI_MINIMUM_VERSION = "0.82.0";
 
+// Extension loading is managed through the per-instance trusted-extension
+// setting: T3 Code owns every --extension argument so raw launch arguments
+// cannot bypass the trusted-extension policy.
 const MANAGED_FLAGS = new Set([
   "continue",
+  "extension",
   "fork",
   "mode",
   "no-extensions",
@@ -41,11 +45,35 @@ export function validatePiLaunchArgs(launchArgs: string): string | undefined {
     : undefined;
 }
 
+/**
+ * Environment escape hatch for an extra trusted extension path without
+ * editing settings, mirroring how Pi's own escape hatches work. Instance
+ * environment is merged into the probe/session environment by the driver.
+ */
+export const T3CODE_PI_EXTENSION_ENV = "T3CODE_PI_EXTENSION";
+
+/** The only --extension arguments Pi ever receives: the selected trusted paths. */
+const trustedExtensionArgs = (trustedExtensions: ReadonlyArray<string>): ReadonlyArray<string> =>
+  trustedExtensions.flatMap((path) => {
+    const trimmed = path.trim();
+    return trimmed.length > 0 ? ["--extension", trimmed] : [];
+  });
+
+const resolveTrustedExtensions = (input: {
+  readonly trustedExtensions: ReadonlyArray<string>;
+  readonly environment: NodeJS.ProcessEnv;
+}): ReadonlyArray<string> => {
+  const envExtension = input.environment[T3CODE_PI_EXTENSION_ENV]?.trim();
+  return envExtension ? [...input.trustedExtensions, envExtension] : input.trustedExtensions;
+};
+
 export function buildPiLaunchPlan(input: {
   readonly configDirectory: string;
   readonly launchArgs: string;
+  readonly trustedExtensions: ReadonlyArray<string>;
   readonly sessionDirectory: string;
   readonly sessionId: string;
+  readonly environment?: NodeJS.ProcessEnv;
 }): PiLaunchPlan {
   const userArgs = tokenizeCliArgs(input.launchArgs);
   const validationError = validatePiLaunchArgs(input.launchArgs);
@@ -56,6 +84,11 @@ export function buildPiLaunchPlan(input: {
     };
   }
 
+  const trustedExtensions = resolveTrustedExtensions({
+    trustedExtensions: input.trustedExtensions,
+    environment: input.environment ?? {},
+  });
+
   return {
     _tag: "Success",
     args: [
@@ -63,6 +96,7 @@ export function buildPiLaunchPlan(input: {
       "--mode",
       "rpc",
       "--no-extensions",
+      ...trustedExtensionArgs(trustedExtensions),
       "--session-dir",
       input.sessionDirectory,
       "--session-id",
@@ -80,6 +114,8 @@ export function buildPiLaunchPlan(input: {
 export function buildPiModelProbeLaunchPlan(input: {
   readonly configDirectory: string;
   readonly launchArgs: string;
+  readonly trustedExtensions: ReadonlyArray<string>;
+  readonly environment?: NodeJS.ProcessEnv;
 }): PiLaunchPlan {
   const validationError = validatePiLaunchArgs(input.launchArgs);
   if (validationError) {
@@ -89,6 +125,11 @@ export function buildPiModelProbeLaunchPlan(input: {
     };
   }
 
+  const trustedExtensions = resolveTrustedExtensions({
+    trustedExtensions: input.trustedExtensions,
+    environment: input.environment ?? {},
+  });
+
   return {
     _tag: "Success",
     args: [
@@ -96,6 +137,7 @@ export function buildPiModelProbeLaunchPlan(input: {
       "--mode",
       "rpc",
       "--no-extensions",
+      ...trustedExtensionArgs(trustedExtensions),
       "--no-session",
     ],
     environment: input.configDirectory ? { PI_CODING_AGENT_DIR: input.configDirectory } : {},

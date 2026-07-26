@@ -280,13 +280,36 @@ export const PiSettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "Launch arguments",
         description:
-          "Additional Pi arguments. T3 Code disables discovered extensions; use --extension <path> to load a specific trusted extension. RPC mode, session directory, and session ID are managed by T3 Code.",
+          "Additional Pi arguments. RPC mode, session directory, session ID, and extension selection are managed by T3 Code.",
         providerSettingsForm: { placeholder: "e.g. --verbose", clearWhenEmpty: "omit" },
+      }),
+    ),
+    // Newline-separated in the settings form (one path per line), decoded to
+    // the per-instance trusted-extension selection.
+    trustedExtensions: TrimmedString.pipe(
+      Schema.decodeTo(
+        Schema.mutable(Schema.Array(TrimmedNonEmptyString)),
+        SchemaTransformation.transformOrFail({
+          decode: (value) =>
+            Effect.succeed(value.split("\n").filter((line) => line.trim().length > 0)),
+          encode: (value) => Effect.succeed(value.join("\n")),
+        }),
+      ),
+      Schema.withDecodingDefault(Effect.succeed("")),
+      Schema.annotateKey({
+        title: "Trusted extensions",
+        description:
+          "Extension paths this runtime intentionally loads, one per line. Discovered extensions never load; Pi receives --no-extensions plus only these --extension <path> arguments. A T3CODE_PI_EXTENSION entry in the instance environment appends one extra trusted path.",
+        providerSettingsForm: {
+          control: "textarea",
+          placeholder: "~/pi-extensions/guard.ts",
+          clearWhenEmpty: "omit",
+        },
       }),
     ),
   },
   {
-    order: ["binaryPath", "configDirectory", "launchArgs"],
+    order: ["binaryPath", "configDirectory", "trustedExtensions", "launchArgs"],
   },
 );
 export type PiSettings = typeof PiSettings.Type;
@@ -532,6 +555,7 @@ const PiSettingsPatch = Schema.Struct({
   binaryPath: Schema.optionalKey(TrimmedString),
   configDirectory: Schema.optionalKey(TrimmedString),
   launchArgs: Schema.optionalKey(TrimmedString),
+  trustedExtensions: Schema.optionalKey(Schema.Array(TrimmedNonEmptyString)),
 });
 
 const CursorSettingsPatch = Schema.Struct({

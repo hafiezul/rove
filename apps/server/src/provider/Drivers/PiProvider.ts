@@ -9,7 +9,12 @@ import { buildServerProvider, type ServerProviderDraft } from "../providerSnapsh
 import { mapPiModelCatalog, type PiModelCatalogEntry } from "./PiModels.ts";
 import { mapPiSkillsToServerProviderSkills, type PiRpcSkillCommand } from "./PiSkills.ts";
 import { makePiSessionRuntime, type PiSessionRuntimeError } from "./PiSessionRuntime.ts";
-import { parsePiVersion, PI_MINIMUM_VERSION, validatePiLaunchArgs } from "./PiRuntime.ts";
+import {
+  parsePiVersion,
+  PI_MINIMUM_VERSION,
+  T3CODE_PI_EXTENSION_ENV,
+  validatePiLaunchArgs,
+} from "./PiRuntime.ts";
 
 const PI_DRIVER = ProviderDriverKind.make("pi");
 const PI_PRESENTATION = {
@@ -24,6 +29,7 @@ export interface PiCatalogProbeInput {
   readonly binaryPath: string;
   readonly configDirectory: string;
   readonly launchArgs: string;
+  readonly trustedExtensions: ReadonlyArray<string>;
   readonly cwd: string;
   readonly environment: NodeJS.ProcessEnv;
 }
@@ -37,6 +43,15 @@ export interface PiCatalogProbeResult {
 export type PiCatalogProbe<R = never> = (
   input: PiCatalogProbeInput,
 ) => Effect.Effect<PiCatalogProbeResult, PiSessionRuntimeError, R>;
+
+/** Resolve the instance's trusted-extension selection, including the env escape hatch. */
+export const resolvePiTrustedExtensions = (
+  trustedExtensions: ReadonlyArray<string>,
+  environment: NodeJS.ProcessEnv,
+): ReadonlyArray<string> => {
+  const envExtension = environment[T3CODE_PI_EXTENSION_ENV]?.trim();
+  return envExtension ? [...trustedExtensions, envExtension] : trustedExtensions;
+};
 
 /**
  * Discover the exact model + thinking catalog and the loaded skill commands
@@ -53,6 +68,7 @@ export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessS
         binaryPath: input.binaryPath,
         configDirectory: input.configDirectory,
         launchArgs: input.launchArgs,
+        trustedExtensions: input.trustedExtensions,
         cwd: input.cwd,
         environment: input.environment,
       });
@@ -231,6 +247,7 @@ export function checkPiProviderStatus<R = never>(
         binaryPath: settings.binaryPath || "pi",
         configDirectory: settings.configDirectory,
         launchArgs: settings.launchArgs,
+        trustedExtensions: resolvePiTrustedExtensions(settings.trustedExtensions, environment),
         cwd,
         environment,
       }),
