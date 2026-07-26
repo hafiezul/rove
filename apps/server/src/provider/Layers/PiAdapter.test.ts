@@ -69,7 +69,7 @@ function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<st
           Effect.sync(() => {
             thinkingCalls.push(level);
           }),
-        getCommands: () => Effect.succeed([]),
+        getCommands: () => Effect.succeed({ skills: [], extensionCommands: [] }),
         prompt: (prompt) =>
           Effect.sync(() => {
             prompts.push(prompt);
@@ -523,6 +523,50 @@ describe("PiAdapter", () => {
       expect(runtime.getExtensionUiResponses()).toEqual([
         { id: "dialog-input-cancel", cancelled: true },
       ]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("surfaces Pi extension notify as a neutral extension.notice event", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "notify-fast",
+        method: "notify",
+        message: "Fast mode: ON",
+        notifyType: "info",
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "extension.notice",
+            payload: { message: "Fast mode: ON", notifyType: "info" },
+          }),
+        ]),
+      );
+      // Notify is neutral feedback, not a recoverable failure: it must not
+      // produce a runtime.warning row.
+      expect(events.some((event) => event.type === "runtime.warning")).toBe(false);
     }).pipe(Effect.scoped),
   );
 

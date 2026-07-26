@@ -166,19 +166,28 @@ it.effect("starts Pi persistent mode with a stable native ID and drives model RP
     });
     yield* runtime.setModel({ provider: "custom", modelId: "team/coder" });
     expect(yield* runtime.getAvailableThinkingLevels()).toEqual(["off", "high", "max"]);
-    expect(yield* runtime.getCommands()).toEqual([
-      {
-        name: "code-review",
-        description: "Review the changes since a fixed point.",
-        scope: "user",
-        path: "/Users/example/.agents/skills/code-review/SKILL.md",
-      },
-      {
-        name: "probe",
-        scope: "project",
-        path: "/workspace/project/.agents/skills/probe/SKILL.md",
-      },
-    ]);
+    expect(yield* runtime.getCommands()).toEqual({
+      skills: [
+        {
+          name: "code-review",
+          description: "Review the changes since a fixed point.",
+          scope: "user",
+          path: "/Users/example/.agents/skills/code-review/SKILL.md",
+        },
+        {
+          name: "probe",
+          scope: "project",
+          path: "/workspace/project/.agents/skills/probe/SKILL.md",
+        },
+      ],
+      extensionCommands: [
+        {
+          name: "llama",
+          description: "Manage llama.cpp router models",
+          path: "<inline:llama.cpp>",
+        },
+      ],
+    });
     yield* runtime.setThinkingLevel("max");
     yield* runtime.prompt({ message: "Persist the first native Pi turn" });
     const sessionFile = NodePath.join(sessionDirectory, "thread-native.jsonl");

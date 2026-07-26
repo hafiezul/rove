@@ -7,7 +7,12 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 import { ProcessRunner } from "../../processRunner.ts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
 import { mapPiModelCatalog, type PiModelCatalogEntry } from "./PiModels.ts";
-import { mapPiSkillsToServerProviderSkills, type PiRpcSkillCommand } from "./PiSkills.ts";
+import {
+  mapPiExtensionCommandsToServerProviderSlashCommands,
+  mapPiSkillsToServerProviderSkills,
+  type PiRpcExtensionCommand,
+  type PiRpcSkillCommand,
+} from "./PiSkills.ts";
 import { makePiSessionRuntime, type PiSessionRuntimeError } from "./PiSessionRuntime.ts";
 import {
   parsePiVersion,
@@ -38,6 +43,7 @@ export interface PiCatalogProbeInput {
 export interface PiCatalogProbeResult {
   readonly models: ReadonlyArray<PiModelCatalogEntry>;
   readonly skills: ReadonlyArray<PiRpcSkillCommand>;
+  readonly extensionCommands: ReadonlyArray<PiRpcExtensionCommand>;
 }
 
 export type PiCatalogProbe<R = never> = (
@@ -73,7 +79,7 @@ export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessS
         environment: input.environment,
       });
       const initialState = yield* runtime.start();
-      const [models, skills] = yield* Effect.all(
+      const [models, commands] = yield* Effect.all(
         [runtime.getAvailableModels(), runtime.getCommands()],
         { concurrency: 1 },
       );
@@ -97,7 +103,11 @@ export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessS
           }),
         { concurrency: 1 },
       );
-      return { models: catalog, skills } satisfies PiCatalogProbeResult;
+      return {
+        models: catalog,
+        skills: commands.skills,
+        extensionCommands: commands.extensionCommands,
+      } satisfies PiCatalogProbeResult;
     }),
   );
 
@@ -106,6 +116,7 @@ function piSnapshot(input: {
   readonly checkedAt: string;
   readonly models?: ServerProviderDraft["models"];
   readonly skills?: ServerProviderDraft["skills"];
+  readonly slashCommands?: ServerProviderDraft["slashCommands"];
   readonly installed: boolean;
   readonly version: string | null;
   readonly status: "ready" | "warning" | "error";
@@ -118,6 +129,7 @@ function piSnapshot(input: {
     checkedAt: input.checkedAt,
     models: input.models ?? [],
     ...(input.skills ? { skills: input.skills } : {}),
+    ...(input.slashCommands ? { slashCommands: input.slashCommands } : {}),
     probe: {
       installed: input.installed,
       version: input.version,
@@ -272,6 +284,9 @@ export function checkPiProviderStatus<R = never>(
       status: "ready",
       models: mapPiModelCatalog(catalogExit.value.models),
       skills: mapPiSkillsToServerProviderSkills(catalogExit.value.skills),
+      slashCommands: mapPiExtensionCommandsToServerProviderSlashCommands(
+        catalogExit.value.extensionCommands,
+      ),
     });
   });
 }

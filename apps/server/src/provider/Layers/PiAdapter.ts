@@ -1540,6 +1540,29 @@ export function makePiAdapter<R>(
           case "extension_ui_request": {
             const extensionId = nonEmptyString(raw.id);
             const method = nonEmptyString(raw.method) ?? "unknown";
+            if (method === "notify") {
+              // Fire-and-forget extension feedback (e.g. `/fast on` reporting
+              // "Fast mode: ON"). Pi does not await a response. Surface it as
+              // neutral extension feedback, not a recoverable-failure warning.
+              const notifyMessage = nonEmptyString(raw.message);
+              if (notifyMessage) {
+                yield* publishRuntimeEvent({
+                  type: "extension.notice",
+                  ...(yield* makeEventStamp()),
+                  provider: PROVIDER,
+                  threadId: context.threadId,
+                  ...(context.activeTurnId ? { turnId: context.activeTurnId } : {}),
+                  payload: {
+                    message: notifyMessage,
+                    ...(nonEmptyString(raw.notifyType)
+                      ? { notifyType: nonEmptyString(raw.notifyType) }
+                      : {}),
+                  },
+                  raw: rawPiEvent(raw, type),
+                });
+              }
+              return;
+            }
             const dialog = piExtensionDialog(raw);
             if (dialog) {
               const requestId = ApprovalRequestId.make(dialog.id);

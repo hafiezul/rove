@@ -15,7 +15,12 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 
 import type { PiRpcModel } from "./PiModels.ts";
 import { buildPiLaunchPlan, buildPiModelProbeLaunchPlan } from "./PiRuntime.ts";
-import { parsePiGetCommandsResponse, type PiRpcSkillCommand } from "./PiSkills.ts";
+import {
+  parsePiExtensionCommandsResponse,
+  parsePiGetCommandsResponse,
+  type PiRpcExtensionCommand,
+  type PiRpcSkillCommand,
+} from "./PiSkills.ts";
 
 const PI_RPC_REQUEST_TIMEOUT = "15 seconds" as const;
 const PI_RPC_START_TIMEOUT = "30 seconds" as const;
@@ -107,9 +112,17 @@ export interface PiSessionRuntimeShape {
     PiSessionRuntimeError
   >;
   readonly setThinkingLevel: (level: string) => Effect.Effect<void, PiSessionRuntimeError>;
-  /** List loaded skill commands via Pi RPC `get_commands` (source === "skill"). */
+  /**
+   * List the commands Pi actually loaded via RPC `get_commands`: skills
+   * (`source: "skill"`) and trusted-extension slash commands
+   * (`source: "extension"`). Both come from one response so a single probe
+   * reflects exactly what the configured binary loaded.
+   */
   readonly getCommands: () => Effect.Effect<
-    ReadonlyArray<PiRpcSkillCommand>,
+    {
+      readonly skills: ReadonlyArray<PiRpcSkillCommand>;
+      readonly extensionCommands: ReadonlyArray<PiRpcExtensionCommand>;
+    },
     PiSessionRuntimeError
   >;
   /** Accept a normal Pi RPC prompt; lifecycle events continue asynchronously. */
@@ -636,7 +649,12 @@ export const makePiSessionRuntime = (
       request({ type: "set_thinking_level", level }).pipe(Effect.asVoid);
 
     const getCommands = () =>
-      request({ type: "get_commands" }).pipe(Effect.map(parsePiGetCommandsResponse));
+      request({ type: "get_commands" }).pipe(
+        Effect.map((response) => ({
+          skills: parsePiGetCommandsResponse(response),
+          extensionCommands: parsePiExtensionCommandsResponse(response),
+        })),
+      );
 
     const prompt = (input: PiPromptInput) =>
       request({

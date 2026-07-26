@@ -194,6 +194,7 @@ const ProviderRuntimeEventType = Schema.Literals([
   "files.persisted",
   "runtime.warning",
   "runtime.error",
+  "extension.notice",
 ]);
 export type ProviderRuntimeEventType = typeof ProviderRuntimeEventType.Type;
 
@@ -245,6 +246,7 @@ const FilesPersistedType = Schema.Literal("files.persisted");
 const ToolDeniedType = Schema.Literal("tool.denied");
 const RuntimeWarningType = Schema.Literal("runtime.warning");
 const RuntimeErrorType = Schema.Literal("runtime.error");
+const ExtensionNoticeType = Schema.Literal("extension.notice");
 
 const ProviderRuntimeEventBase = Schema.Struct({
   eventId: EventId,
@@ -613,6 +615,12 @@ const RuntimeErrorPayload = Schema.Struct({
 });
 export type RuntimeErrorPayload = typeof RuntimeErrorPayload.Type;
 
+const ExtensionNoticePayload = Schema.Struct({
+  message: TrimmedNonEmptyStringSchema,
+  notifyType: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+export type ExtensionNoticePayload = typeof ExtensionNoticePayload.Type;
+
 const ProviderRuntimeSessionStartedEvent = Schema.Struct({
   ...ProviderRuntimeEventBase.fields,
   type: SessionStartedType,
@@ -966,6 +974,13 @@ const ProviderRuntimeErrorEvent = Schema.Struct({
 });
 export type ProviderRuntimeErrorEvent = typeof ProviderRuntimeErrorEvent.Type;
 
+const ProviderRuntimeExtensionNoticeEvent = Schema.Struct({
+  ...ProviderRuntimeEventBase.fields,
+  type: ExtensionNoticeType,
+  payload: ExtensionNoticePayload,
+});
+export type ProviderRuntimeExtensionNoticeEvent = typeof ProviderRuntimeExtensionNoticeEvent.Type;
+
 export const ProviderRuntimeEventV2 = Schema.Union([
   ProviderRuntimeSessionStartedEvent,
   ProviderRuntimeSessionConfiguredEvent,
@@ -1015,6 +1030,7 @@ export const ProviderRuntimeEventV2 = Schema.Union([
   ProviderRuntimeToolDeniedEvent,
   ProviderRuntimeWarningEvent,
   ProviderRuntimeErrorEvent,
+  ProviderRuntimeExtensionNoticeEvent,
 ]);
 export type ProviderRuntimeEventV2 = typeof ProviderRuntimeEventV2.Type;
 
