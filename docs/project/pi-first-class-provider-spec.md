@@ -1,3 +1,6 @@
+> This is the original pre-implementation plan, kept as a record of intent. Several decisions changed
+> during implementation — read the **Amendments** section at the end before relying on anything here.
+
 ## Problem Statement
 
 T3 Code users who prefer Pi cannot use it as a first-class coding-agent provider alongside Codex, Claude, OpenCode, Cursor, and Grok. They lose T3 Code's project/thread workflow, model picker, chat and work-log visibility, provider-instance management, and safe session continuation while also needing to preserve Pi's own provider configuration, custom providers, extensions, native session format, and tool behavior.
@@ -108,3 +111,28 @@ Add Pi as a first-class `pi` provider driver for Pi CLI `0.81.1` or later. T3 Co
 - The initial integration is intentionally comprehensive for all Pi behavior that has a known, semantically faithful T3 Code mapping. Items are deferred only where a safe equivalent does not exist, not merely to reduce implementation scope.
 - Pi has no built-in permission system that restricts filesystem, process, network, or credential access. Users who need stronger boundaries must use Pi's own tool configuration, extensions, or external sandbox/container controls. A future supervised T3 experience would require T3 Code to inject and maintain a Pi permission-gate extension over Pi's extension UI RPC protocol.
 - The implementation must preserve backwards-compatible provider instance and thread persistence behavior while adding the `pi` driver.
+
+## Amendments
+
+This specification is the original plan captured before implementation. Where the shipped behavior
+differs, the following amendments win. See the referenced ADRs for the reasoning.
+
+- **Extensions are an explicit trusted selection, not ambient discovery** (ADR 0006, 0014;
+  supersedes user stories 28 and 31). Pi always starts with `--no-extensions`. Each runtime instance
+  carries a trusted-extension list, passed as `--extension <path>`; raw launch arguments cannot pass
+  `--extension`. A `T3CODE_PI_EXTENSION` environment entry appends one extra trusted path.
+- **Trusted extension commands and notices are surfaced** (ADR 0015). Slash commands registered by
+  trusted extensions are discovered through `get_commands` and appear in the composer's `/` menu.
+  `ctx.ui.notify` publishes a neutral `extension.notice` event rendered as an informational row.
+  Pi prompt templates are deliberately excluded from that menu.
+- **Skills are supported** (no user story in the original plan). Pi skills are discovered through the
+  same `get_commands` probe, and composer `$name` tokens are rewritten into Pi's native `/skill:name`
+  expansion. Unknown tokens pass through as prose.
+- **A failed tool call does not end the run.** A per-tool failure keeps its error detail but reports
+  that the run is continuing. Conversation-level failure or interruption is reserved for terminal
+  outcomes: a stop reason of `error` or `aborted`, transport loss, or an explicitly interrupted turn.
+- **The minimum version is `0.82.0`, not `0.81.1`** (ADR 0013). 0.82.0 replaced the flat
+  `path`/`location` fields on `get_commands` entries with a structured `sourceInfo` object, which
+  skill and extension-command discovery depend on.
+- **The config directory variable is `PI_CODING_AGENT_DIR`, not `PI_AGENT_DIR`** (ADR 0007;
+  supersedes user story 8).
