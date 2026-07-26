@@ -151,6 +151,41 @@ describe("ProviderRuntimeEvent", () => {
     expect(parsed.raw?.messageType).toBe("auto_retry_start");
   });
 
+  it("decodes extension.notice for neutral Pi extension feedback", () => {
+    const parsed = decodeRuntimeEvent({
+      type: "extension.notice",
+      eventId: "event-pi-notice-1",
+      provider: "pi",
+      createdAt: "2026-02-28T00:00:03.500Z",
+      threadId: "thread-pi-1",
+      payload: { message: "Fast mode: ON", notifyType: "info" },
+    });
+
+    expect(parsed.type).toBe("extension.notice");
+    if (parsed.type !== "extension.notice") {
+      throw new Error("expected extension.notice");
+    }
+    expect(parsed.payload.message).toBe("Fast mode: ON");
+    expect(parsed.payload.notifyType).toBe("info");
+  });
+
+  it("decodes extension.notice without a notify type", () => {
+    const parsed = decodeRuntimeEvent({
+      type: "extension.notice",
+      eventId: "event-pi-notice-2",
+      provider: "pi",
+      createdAt: "2026-02-28T00:00:03.600Z",
+      threadId: "thread-pi-1",
+      payload: { message: "Working..." },
+    });
+
+    expect(parsed.type).toBe("extension.notice");
+    if (parsed.type !== "extension.notice") {
+      throw new Error("expected extension.notice");
+    }
+    expect(parsed.payload.notifyType).toBeUndefined();
+  });
+
   it("rejects legacy message.delta type", () => {
     expect(() =>
       decodeRuntimeEvent({

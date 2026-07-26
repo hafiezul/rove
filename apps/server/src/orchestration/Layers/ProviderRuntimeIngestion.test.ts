@@ -2584,6 +2584,40 @@ describe("ProviderRuntimeIngestion", () => {
     });
   });
 
+  it("maps extension.notice into a neutral activity row", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "extension.notice",
+      eventId: asEventId("evt-extension-notice"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      payload: {
+        message: "Fast mode: ON",
+        notifyType: "info",
+      },
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) => activity.id === "evt-extension-notice",
+      ),
+    );
+    const activity = thread.activities.find(
+      (entry: ProviderRuntimeTestActivity) => entry.id === "evt-extension-notice",
+    );
+    const activityPayload =
+      activity?.payload && typeof activity.payload === "object"
+        ? (activity.payload as Record<string, unknown>)
+        : undefined;
+    expect(activity?.kind).toBe("extension.notice");
+    expect(activity?.tone).toBe("info");
+    expect(activity?.summary).toBe("Fast mode: ON");
+    expect(activityPayload?.message).toBe("Fast mode: ON");
+  });
+
   it("maps session/thread lifecycle and item.started into session/activity projections", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";

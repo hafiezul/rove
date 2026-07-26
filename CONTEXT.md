@@ -34,7 +34,7 @@ The Pi configuration directory selected for a Pi runtime instance. When unset, t
 Pi's enabled and disabled tool set. In base Pi RPC mode, enabled tools run without T3 Code per-tool confirmation; supervised execution would require a Pi extension that blocks and requests confirmation through Pi's extension UI protocol.
 
 **Trusted Pi Extension**:
-A Pi extension path explicitly selected on a Pi runtime instance through T3 Code's trusted-extension setting (or the `T3CODE_PI_EXTENSION` environment escape hatch). T3 Code always starts Pi with `--no-extensions`; only trusted extension selections are passed to Pi as `--extension <path>` arguments, and raw launch arguments cannot load extensions.
+A Pi extension path explicitly selected on a Pi runtime instance through T3 Code's trusted-extension setting (or the `T3CODE_PI_EXTENSION` environment escape hatch). T3 Code always starts Pi with `--no-extensions`; only trusted extension selections are passed to Pi as `--extension <path>` arguments, and raw launch arguments cannot load extensions. Slash commands a trusted extension registers surface in the composer `/` menu (parsed from Pi's `get_commands`), and its `ctx.ui.notify` feedback renders as a neutral `extension.notice` timeline row.
 
 **Pi Continuation Compatibility**:
 The rule that a Pi thread may resume only through the Pi runtime instance that created it, preserving its Pi configuration directory, extensions, credentials, model catalog, and native session storage.

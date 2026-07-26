@@ -1,4 +1,4 @@
-import type { ServerProviderSkill } from "@t3tools/contracts";
+import type { ServerProviderSkill, ServerProviderSlashCommand } from "@t3tools/contracts";
 
 /**
  * Pi skill discovery and `$name` → `/skill:name` prompt translation.
@@ -18,6 +18,13 @@ export interface PiRpcSkillCommand {
   readonly name: string;
   readonly description?: string | undefined;
   readonly scope?: string | undefined;
+  readonly path: string;
+}
+
+/** One `get_commands` entry with `source: "extension"` (Pi >= 0.82.0 shape). */
+export interface PiRpcExtensionCommand {
+  readonly name: string;
+  readonly description?: string | undefined;
   readonly path: string;
 }
 
@@ -67,6 +74,63 @@ export function parsePiGetCommandsResponse(response: unknown): ReadonlyArray<PiR
     });
   }
   return skills;
+}
+
+/**
+ * Parse the `data.commands` payload of a Pi RPC `get_commands` response into
+ * extension-registered slash commands, keeping only `source: "extension"`
+ * records with a usable name and path. Provenance comes from the structured
+ * `sourceInfo` object introduced in Pi 0.82.0. These are the commands a
+ * trusted extension registered via `pi.registerCommand` (e.g. `/fast`).
+ */
+export function parsePiExtensionCommandsResponse(
+  response: unknown,
+): ReadonlyArray<PiRpcExtensionCommand> {
+  if (!isRecord(response) || !Array.isArray(response.commands)) {
+    return [];
+  }
+  const commands: PiRpcExtensionCommand[] = [];
+  for (const command of response.commands) {
+    if (!isRecord(command) || command.source !== "extension") {
+      continue;
+    }
+    const name = nonEmptyString(command.name);
+    const sourceInfo = isRecord(command.sourceInfo) ? command.sourceInfo : undefined;
+    const path = nonEmptyString(sourceInfo?.path);
+    if (!name || !path) {
+      continue;
+    }
+    const description = nonEmptyString(command.description);
+    commands.push({
+      name,
+      ...(description ? { description } : {}),
+      path,
+    });
+  }
+  return commands;
+}
+
+/**
+ * Map discovered Pi extension commands to the shared provider snapshot
+ * contract, deduplicated by command name (first registration wins). These
+ * surface in the composer `/` menu as provider slash commands.
+ */
+export function mapPiExtensionCommandsToServerProviderSlashCommands(
+  commands: ReadonlyArray<PiRpcExtensionCommand>,
+): ReadonlyArray<ServerProviderSlashCommand> {
+  const seen = new Set<string>();
+  const slashCommands: ServerProviderSlashCommand[] = [];
+  for (const command of commands) {
+    if (seen.has(command.name)) {
+      continue;
+    }
+    seen.add(command.name);
+    slashCommands.push({
+      name: command.name,
+      ...(command.description ? { description: command.description } : {}),
+    });
+  }
+  return slashCommands;
 }
 
 /**

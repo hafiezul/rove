@@ -59,6 +59,7 @@ describe("checkPiProviderStatus", () => {
           },
         ],
         skills: [],
+        extensionCommands: [],
       }),
     ).pipe(
       Effect.provideService(
@@ -113,6 +114,7 @@ describe("checkPiProviderStatus", () => {
           },
           { name: "bare", path: "/x/bare/SKILL.md" },
         ],
+        extensionCommands: [],
       }),
     ).pipe(
       Effect.provideService(
@@ -144,6 +146,49 @@ describe("checkPiProviderStatus", () => {
         }),
       ),
     ),
+  );
+
+  it.effect(
+    "populates snapshot slash commands from trusted extension commands, deduped by name",
+    () =>
+      checkPiProviderStatus(settings(), process.env, () =>
+        Effect.succeed({
+          models: [],
+          skills: [],
+          extensionCommands: [
+            {
+              name: "fast",
+              description: "Toggle fast mode: /fast on|off|status",
+              path: "/Users/example/pi-extensions/pi-fast-mode.ts",
+            },
+            { name: "llama", path: "<inline:llama.cpp>" },
+            { name: "fast", description: "duplicate registration", path: "/other/fast.ts" },
+          ],
+        }),
+      ).pipe(
+        Effect.provideService(
+          ProcessRunner,
+          ProcessRunner.of({
+            run: () =>
+              Effect.succeed({
+                stdout: "pi 0.82.0\n",
+                stderr: "",
+                code: ChildProcessSpawner.ExitCode(0),
+                timedOut: false,
+                stdoutTruncated: false,
+                stderrTruncated: false,
+              }),
+          }),
+        ),
+        Effect.tap((snapshot) =>
+          Effect.sync(() => {
+            expect(snapshot.slashCommands).toEqual([
+              { name: "fast", description: "Toggle fast mode: /fast on|off|status" },
+              { name: "llama" },
+            ]);
+          }),
+        ),
+      ),
   );
 
   it.effect("passes the selected Pi config directory to the status probe", () => {
@@ -185,7 +230,7 @@ describe("checkPiProviderStatus", () => {
       (input) =>
         Effect.sync(() => {
           expect(input.trustedExtensions).toEqual(["/tmp/t3-pi-extension.ts"]);
-          return { models: [], skills: [] };
+          return { models: [], skills: [], extensionCommands: [] };
         }),
     ).pipe(
       Effect.provideService(

@@ -443,6 +443,28 @@ export function runtimeEventToActivities(
       ];
     }
 
+    case "extension.notice": {
+      // Neutral extension feedback (e.g. Pi `/fast on` reporting "Fast mode:
+      // ON"). Renders as an informational timeline row, not a warning.
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: "extension.notice",
+          summary: truncateDetail(event.payload.message, 120),
+          payload: {
+            message: truncateDetail(event.payload.message),
+            ...(event.payload.notifyType !== undefined
+              ? { notifyType: event.payload.notifyType }
+              : {}),
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "turn.plan.updated": {
       return [
         {

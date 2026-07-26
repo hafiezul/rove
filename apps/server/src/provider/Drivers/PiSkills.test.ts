@@ -1,7 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 
 import {
+  mapPiExtensionCommandsToServerProviderSlashCommands,
   mapPiSkillsToServerProviderSkills,
+  parsePiExtensionCommandsResponse,
   parsePiGetCommandsResponse,
   rewritePiSkillTokens,
 } from "./PiSkills.ts";
@@ -80,6 +82,87 @@ describe("parsePiGetCommandsResponse", () => {
 
     expect(parsePiGetCommandsResponse(response)).toEqual([
       { name: "ok", path: "/x/SKILL.md", scope: "user" },
+    ]);
+  });
+});
+
+describe("parsePiExtensionCommandsResponse", () => {
+  it("maps extension commands from structured sourceInfo provenance", () => {
+    const response = {
+      commands: [
+        {
+          name: "fast",
+          description: "Toggle fast mode: /fast on|off|status",
+          source: "extension",
+          sourceInfo: { path: "/Users/example/pi-extensions/pi-fast-mode.ts", scope: "user" },
+        },
+        {
+          name: "llama",
+          source: "extension",
+          sourceInfo: { path: "<inline:llama.cpp>", source: "inline", scope: "temporary" },
+        },
+        {
+          name: "skill:code-review",
+          description: "Review the changes since a fixed point.",
+          source: "skill",
+          sourceInfo: { path: "/x/SKILL.md", scope: "user" },
+        },
+        {
+          name: "fix-tests",
+          description: "Fix failing tests",
+          source: "prompt",
+          sourceInfo: { path: "/workspace/project/.pi/prompts/fix-tests.md", scope: "project" },
+        },
+      ],
+    };
+
+    expect(parsePiExtensionCommandsResponse(response)).toEqual([
+      {
+        name: "fast",
+        description: "Toggle fast mode: /fast on|off|status",
+        path: "/Users/example/pi-extensions/pi-fast-mode.ts",
+      },
+      { name: "llama", path: "<inline:llama.cpp>" },
+    ]);
+  });
+
+  it("returns an empty list for malformed responses", () => {
+    expect(parsePiExtensionCommandsResponse(undefined)).toEqual([]);
+    expect(parsePiExtensionCommandsResponse({})).toEqual([]);
+    expect(parsePiExtensionCommandsResponse({ commands: "nope" })).toEqual([]);
+  });
+
+  it("drops extension entries without a usable name or path", () => {
+    const response = {
+      commands: [
+        { name: "fast", source: "extension", sourceInfo: { path: "/x/fast.ts" } },
+        { name: "no-path", source: "extension", sourceInfo: { scope: "user" } },
+        { name: " ", source: "extension", sourceInfo: { path: "/y/blank.ts" } },
+        { name: "no-source-info", source: "extension" },
+      ],
+    };
+
+    expect(parsePiExtensionCommandsResponse(response)).toEqual([
+      { name: "fast", path: "/x/fast.ts" },
+    ]);
+  });
+});
+
+describe("mapPiExtensionCommandsToServerProviderSlashCommands", () => {
+  it("maps to the snapshot contract, deduped by name with first registration winning", () => {
+    expect(
+      mapPiExtensionCommandsToServerProviderSlashCommands([
+        {
+          name: "fast",
+          description: "Toggle fast mode: /fast on|off|status",
+          path: "/x/fast-mode.ts",
+        },
+        { name: "llama", path: "<inline:llama.cpp>" },
+        { name: "fast", description: "duplicate registration", path: "/other/fast.ts" },
+      ]),
+    ).toEqual([
+      { name: "fast", description: "Toggle fast mode: /fast on|off|status" },
+      { name: "llama" },
     ]);
   });
 });
