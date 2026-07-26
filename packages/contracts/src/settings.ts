@@ -286,16 +286,27 @@ export const PiSettings = makeProviderSettingsSchema(
     ),
     // Newline-separated in the settings form (one path per line), decoded to
     // the per-instance trusted-extension selection.
-    trustedExtensions: TrimmedString.pipe(
-      Schema.decodeTo(
-        Schema.mutable(Schema.Array(TrimmedNonEmptyString)),
-        SchemaTransformation.transformOrFail({
-          decode: (value) =>
-            Effect.succeed(value.split("\n").filter((line) => line.trim().length > 0)),
-          encode: (value) => Effect.succeed(value.join("\n")),
-        }),
+    //
+    // The wire shape is tolerant: the settings form persists the newline-
+    // separated string, but the instance-config path
+    // (`providerInstances.pi.config`, decoded opaquely via
+    // `ServerSettingsPatch`/`PiSettingsPatch`) persists an array verbatim.
+    // Accept both on decode; always encode back to the string form so the
+    // textarea round-trips.
+    trustedExtensions: Schema.Union([
+      TrimmedString.pipe(
+        Schema.decodeTo(
+          Schema.mutable(Schema.Array(TrimmedNonEmptyString)),
+          SchemaTransformation.transformOrFail({
+            decode: (value) =>
+              Effect.succeed(value.split("\n").filter((line) => line.trim().length > 0)),
+            encode: (value) => Effect.succeed(value.join("\n")),
+          }),
+        ),
       ),
-      Schema.withDecodingDefault(Effect.succeed("")),
+      Schema.mutable(Schema.Array(TrimmedNonEmptyString)),
+    ]).pipe(
+      Schema.withDecodingDefault(Effect.succeed([])),
       Schema.annotateKey({
         title: "Trusted extensions",
         description:
