@@ -113,6 +113,32 @@ describe("PiSettings", () => {
 
     expect(decodePiSettings({}).trustedExtensions).toEqual([]);
   });
+
+  // Regression (#11): the instance-config path
+  // (`providerInstances.pi.config`) persists trustedExtensions as an array
+  // verbatim (the config payload is opaque to the ServerSettings codec, so
+  // `PiSettingsPatch`'s array shape round-trips untouched). The registry
+  // decodes that envelope through PiSettings, which must tolerate the array
+  // form alongside the textarea's newline-separated string.
+  it("accepts trustedExtensions persisted as an array from instance config", () => {
+    const decodePiSettings = Schema.decodeUnknownSync(PiSettings);
+
+    expect(
+      decodePiSettings({ trustedExtensions: ["~/pi-extensions/guard.ts", "/opt/pi/audit.ts"] })
+        .trustedExtensions,
+    ).toEqual(["~/pi-extensions/guard.ts", "/opt/pi/audit.ts"]);
+    expect(decodePiSettings({ trustedExtensions: [] }).trustedExtensions).toEqual([]);
+  });
+
+  it("encodes trustedExtensions back to the newline-separated wire form", () => {
+    const decoded = Schema.decodeUnknownSync(PiSettings)({
+      trustedExtensions: ["~/pi-extensions/guard.ts", "/opt/pi/audit.ts"],
+    });
+
+    expect(Schema.encodeSync(PiSettings)(decoded).trustedExtensions).toBe(
+      "~/pi-extensions/guard.ts\n/opt/pi/audit.ts",
+    );
+  });
 });
 
 describe("ServerSettings worktree defaults", () => {
