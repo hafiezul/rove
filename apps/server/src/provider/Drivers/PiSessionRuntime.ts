@@ -59,6 +59,7 @@ export interface PiSessionRuntimeOptions {
   readonly binaryPath: string;
   readonly configDirectory: string;
   readonly launchArgs: string;
+  readonly trustedExtensions: ReadonlyArray<string>;
   readonly cwd: string;
   readonly environment?: NodeJS.ProcessEnv | undefined;
   /** Both fields are set for a persisted native session and omitted for a model probe. */
@@ -261,13 +262,17 @@ function resolveLaunchPlan(input: PiSessionRuntimeOptions) {
     return buildPiLaunchPlan({
       configDirectory: input.configDirectory,
       launchArgs: input.launchArgs,
+      trustedExtensions: input.trustedExtensions,
       sessionDirectory: input.sessionDirectory,
       sessionId: input.sessionId,
+      ...(input.environment ? { environment: input.environment } : {}),
     });
   }
   return buildPiModelProbeLaunchPlan({
     configDirectory: input.configDirectory,
     launchArgs: input.launchArgs,
+    trustedExtensions: input.trustedExtensions,
+    ...(input.environment ? { environment: input.environment } : {}),
   });
 }
 

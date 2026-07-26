@@ -215,7 +215,13 @@ describe("Pi runtime contract", () => {
             }),
           );
           const adapter = yield* makePiAdapter(
-            { enabled: true, binaryPath: "pi", configDirectory: "", launchArgs: "" },
+            {
+              enabled: true,
+              binaryPath: "pi",
+              configDirectory: "",
+              launchArgs: "",
+              trustedExtensions: [],
+            },
             {
               instanceId: INSTANCE,
               sessionDirectory,

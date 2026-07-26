@@ -36,6 +36,7 @@ import {
   type ProviderAdapterError,
 } from "../Errors.ts";
 import { parsePiModelSlug, makePiModelSlug } from "../Drivers/PiModels.ts";
+import { resolvePiTrustedExtensions } from "../Drivers/PiProvider.ts";
 import { rewritePiSkillTokens } from "../Drivers/PiSkills.ts";
 import {
   isPiRpcTransportFailureEvent,
@@ -1759,6 +1760,10 @@ export function makePiAdapter<R>(
             binaryPath: piSettings.binaryPath,
             configDirectory: piSettings.configDirectory,
             launchArgs: piSettings.launchArgs,
+            trustedExtensions: resolvePiTrustedExtensions(
+              piSettings.trustedExtensions,
+              options.environment ?? {},
+            ),
             cwd: input.cwd ?? process.cwd(),
             ...(options.environment ? { environment: options.environment } : {}),
             sessionDirectory: options.sessionDirectory,

@@ -11,6 +11,7 @@ const settings = (overrides: Partial<PiSettings> = {}): PiSettings => ({
   binaryPath: "pi",
   configDirectory: "",
   launchArgs: "",
+  trustedExtensions: [],
   ...overrides,
 });
 
@@ -176,6 +177,38 @@ describe("checkPiProviderStatus", () => {
       ),
     );
   });
+
+  it.effect("passes the trusted extension selection to the catalog probe", () =>
+    checkPiProviderStatus(
+      settings({ trustedExtensions: ["/tmp/t3-pi-extension.ts"] }),
+      process.env,
+      (input) =>
+        Effect.sync(() => {
+          expect(input.trustedExtensions).toEqual(["/tmp/t3-pi-extension.ts"]);
+          return { models: [], skills: [] };
+        }),
+    ).pipe(
+      Effect.provideService(
+        ProcessRunner,
+        ProcessRunner.of({
+          run: () =>
+            Effect.succeed({
+              stdout: "pi 0.82.0\n",
+              stderr: "",
+              code: ChildProcessSpawner.ExitCode(0),
+              timedOut: false,
+              stdoutTruncated: false,
+              stderrTruncated: false,
+            }),
+        }),
+      ),
+      Effect.tap((snapshot) =>
+        Effect.sync(() => {
+          expect(snapshot.status).toBe("ready");
+        }),
+      ),
+    ),
+  );
 
   it.effect("rejects protected launch arguments before probing Pi", () =>
     checkPiProviderStatus(settings({ launchArgs: "--mode json" }), process.env).pipe(

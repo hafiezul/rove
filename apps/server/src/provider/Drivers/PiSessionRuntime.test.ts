@@ -146,6 +146,7 @@ it.effect("starts Pi persistent mode with a stable native ID and drives model RP
       binaryPath,
       configDirectory: "/tmp/pi-config",
       launchArgs: "",
+      trustedExtensions: [],
       cwd: process.cwd(),
       sessionDirectory,
       sessionId: "thread-native",
@@ -204,6 +205,7 @@ it.effect("sends extension UI responses without waiting for a Pi RPC response", 
       binaryPath,
       configDirectory: "",
       launchArgs: "",
+      trustedExtensions: [],
       cwd: process.cwd(),
     });
     yield* runtime.start();
@@ -242,6 +244,7 @@ it.effect("starts Pi in the configured project and extension configuration conte
       binaryPath,
       configDirectory,
       launchArgs: "",
+      trustedExtensions: [],
       cwd: projectDirectory,
       environment: { PI_TEST_EMIT_LAUNCH_CONTEXT: "true" },
     });
@@ -273,6 +276,7 @@ it.effect("reports a diagnosable transport failure when Pi exits during an accep
       binaryPath,
       configDirectory: "",
       launchArgs: "",
+      trustedExtensions: [],
       cwd: process.cwd(),
       environment: { PI_TEST_EXIT_ON_PROMPT: "true" },
     });

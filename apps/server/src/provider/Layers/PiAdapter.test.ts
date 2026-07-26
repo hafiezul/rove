@@ -143,6 +143,7 @@ describe("PiAdapter", () => {
           binaryPath: "pi-custom",
           configDirectory: "/tmp/pi-config",
           launchArgs: "",
+          trustedExtensions: [],
           cwd: "/workspace/project",
           environment: { EXAMPLE: "value" },
           sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",

@@ -97,13 +97,21 @@ describe("PiSettings", () => {
         binaryPath: "/opt/pi/bin/pi",
         configDirectory: "~/.config/pi-work",
         launchArgs: "--verbose",
+        trustedExtensions: "~/pi-extensions/guard.ts\n /opt/pi/extensions/audit.ts \n\n",
       }),
     ).toMatchObject({
       enabled: true,
       binaryPath: "/opt/pi/bin/pi",
       configDirectory: "~/.config/pi-work",
       launchArgs: "--verbose",
+      trustedExtensions: ["~/pi-extensions/guard.ts", "/opt/pi/extensions/audit.ts"],
     });
+  });
+
+  it("persists no trusted extensions by default", () => {
+    const decodePiSettings = Schema.decodeUnknownSync(PiSettings);
+
+    expect(decodePiSettings({}).trustedExtensions).toEqual([]);
   });
 });
 
