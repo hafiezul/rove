@@ -389,7 +389,6 @@ function piToolExecution(value: unknown):
 
 const PI_EXTENSION_CONFIRM_LABEL = "Confirm";
 const PI_EXTENSION_CANCEL_LABEL = "Cancel";
-const PI_SELECT_FALLBACK_QUESTION = "Choose an option.";
 /** Pi's `select(title, options)` API has no structured question body, so extensions pack
  * a multi-part prompt into `title`, separated by newlines or a literal ` --- `. */
 const PI_TITLE_SEGMENT_SEPARATOR = " --- ";
@@ -420,7 +419,10 @@ type PiExtensionDialog =
 
 /**
  * Split a Pi select title into an eyebrow header and a readable question body.
- * Falls back to the whole title as the header when the extension sent a single segment.
+ *
+ * A single-segment title is the whole prompt, so it becomes the question and the header
+ * echoes it. Consumers treat an equal header as "no eyebrow" and render the prompt once,
+ * which keeps `header` a required non-empty string in the contract.
  */
 function splitPiSelectTitle(title: string): {
   readonly header: string;
@@ -433,7 +435,6 @@ function splitPiSelectTitle(title: string): {
     if (header.length > 0 && body.length > 0) {
       return { header, question: body };
     }
-    return { header: title.trim(), question: PI_SELECT_FALLBACK_QUESTION };
   }
 
   const segments = title
@@ -441,9 +442,12 @@ function splitPiSelectTitle(title: string): {
     .map((segment) => segment.trim())
     .filter((segment) => segment.length > 0);
   const header = segments.at(0);
-  return header && segments.length > 1
-    ? { header, question: segments.slice(1).join("\n\n") }
-    : { header: title.trim(), question: PI_SELECT_FALLBACK_QUESTION };
+  if (header && segments.length > 1) {
+    return { header, question: segments.slice(1).join("\n\n") };
+  }
+
+  const prompt = title.trim();
+  return { header: prompt, question: prompt };
 }
 
 /** Pi pre-numbers its option strings, which would collide with the composer's own

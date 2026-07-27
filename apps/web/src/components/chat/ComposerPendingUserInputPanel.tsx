@@ -172,19 +172,27 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   }
 
   const customAnswerActive = progress.customAnswer.trim().length > 0;
+  // Providers without a distinct header slot echo the prompt into both fields; showing it
+  // twice would render the whole question as a shouty uppercase eyebrow.
+  const showHeader = activeQuestion.header !== activeQuestion.question;
+  const showCounter = prompt.questions.length > 1;
 
   return (
     <div className="px-4 py-3 sm:px-5">
-      <div className="mb-2 flex items-center gap-3">
-        <span className="text-[11px] font-semibold tracking-widest text-muted-foreground/55 uppercase">
-          {activeQuestion.header}
-        </span>
-        {prompt.questions.length > 1 ? (
-          <span className="flex h-5 items-center rounded-md bg-muted/60 px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground/60">
-            {questionIndex + 1}/{prompt.questions.length}
-          </span>
-        ) : null}
-      </div>
+      {showHeader || showCounter ? (
+        <div className="mb-2 flex items-center gap-3">
+          {showHeader ? (
+            <span className="text-[11px] font-semibold tracking-widest text-muted-foreground/55 uppercase">
+              {activeQuestion.header}
+            </span>
+          ) : null}
+          {showCounter ? (
+            <span className="flex h-5 items-center rounded-md bg-muted/60 px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground/60">
+              {questionIndex + 1}/{prompt.questions.length}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
         {activeQuestion.question}
       </p>

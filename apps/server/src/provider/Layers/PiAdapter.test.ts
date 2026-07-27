@@ -454,7 +454,7 @@ describe("PiAdapter", () => {
                 {
                   id: "dialog-select",
                   header: "Choose environment",
-                  question: "Choose an option.",
+                  question: "Choose environment",
                   options: [
                     { label: "Staging", description: "Staging" },
                     { label: "Production", description: "Production" },
@@ -566,6 +566,14 @@ describe("PiAdapter", () => {
         title: "Pick a branch",
         options: ["1. Retry", "2. Retry", "3. Abort"],
       });
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-sentence",
+        method: "select",
+        title:
+          "[First target] revert-to-message currently fails on Pi threads. Is fixing that the next thing, or is it not actually the priority?",
+        options: ["1. Yes", "2. No"],
+      });
       yield* Effect.yieldNow;
       yield* Effect.yieldNow;
 
@@ -605,11 +613,31 @@ describe("PiAdapter", () => {
                 {
                   id: "dialog-ambiguous",
                   header: "Pick a branch",
-                  question: "Choose an option.",
+                  question: "Pick a branch",
                   options: [
                     { label: "1. Retry", description: "1. Retry" },
                     { label: "2. Retry", description: "2. Retry" },
                     { label: "3. Abort", description: "3. Abort" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          }),
+          expect.objectContaining({
+            type: "user-input.requested",
+            requestId: "dialog-sentence",
+            payload: {
+              questions: [
+                {
+                  id: "dialog-sentence",
+                  header:
+                    "[First target] revert-to-message currently fails on Pi threads. Is fixing that the next thing, or is it not actually the priority?",
+                  question:
+                    "[First target] revert-to-message currently fails on Pi threads. Is fixing that the next thing, or is it not actually the priority?",
+                  options: [
+                    { label: "Yes", description: "Yes" },
+                    { label: "No", description: "No" },
                   ],
                   multiSelect: false,
                 },
