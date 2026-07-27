@@ -392,6 +392,18 @@ describe("ProviderInstanceRegistryLive — all drivers slice", () => {
         pi!.textGeneration,
       ];
       expect(new Set(textGenerations).size).toBe(textGenerations.length);
+
+      // Pi generates git text through a one-shot `pi -p` run (ADR 0016), so
+      // it must not report text generation as unavailable the way it did
+      // before that capability existed.
+      const piTextGenerationFailure = yield* Effect.flip(
+        pi!.textGeneration.generateThreadTitle({
+          cwd: process.cwd(),
+          message: "Name this thread.",
+          modelSelection: { instanceId: piId, model: "anthropic/claude-haiku-4-5" },
+        }),
+      );
+      expect(piTextGenerationFailure.detail).not.toContain("is not available");
       const snapshots = [
         codex!.snapshot,
         claude!.snapshot,

@@ -56,6 +56,18 @@ The first release targets provider parity for normal coding work:
 - retries, compaction, and queued work
 - Pi skills, and slash commands registered by trusted extensions
 
+## Git Text Generation
+
+Pi can generate commit messages, PR titles and bodies, branch names, and thread titles. These run as
+a single one-shot `pi -p` process rather than a Pi session, and are deliberately isolated: they use
+the instance's binary, Pi configuration directory, and environment, but load no tools, extensions,
+skills, context files, prompt templates, or project-local `.pi` resources. Instance launch arguments
+and trusted extensions do not apply to them.
+
+Pi has no response-schema flag, so it occasionally answers with prose or a code fence around the
+JSON. T3 Code extracts the object and retries once with a corrective instruction before reporting a
+failure.
+
 ## Tool Access
 
 Pi manages tool access in the first release. Every tool enabled in the selected Pi runtime instance

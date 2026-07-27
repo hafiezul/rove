@@ -1,9 +1,4 @@
-import {
-  PiSettings,
-  ProviderDriverKind,
-  type ProviderInstanceId,
-  TextGenerationError,
-} from "@t3tools/contracts";
+import { PiSettings, ProviderDriverKind, type ProviderInstanceId } from "@t3tools/contracts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -15,7 +10,7 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 import { ServerConfig } from "../../config.ts";
 import { ProcessRunner } from "../../processRunner.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
-import * as TextGeneration from "../../textGeneration/TextGeneration.ts";
+import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ProviderDriverError } from "../Errors.ts";
 import { makePiAdapter, makePiImageAttachmentLoader } from "../Layers/PiAdapter.ts";
 import { ProviderEventLoggers } from "../Layers/ProviderEventLoggers.ts";
@@ -38,39 +33,6 @@ import { checkPiProviderStatus, discoverPiCatalog, makePendingPiProvider } from 
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 const DRIVER_KIND = ProviderDriverKind.make("pi");
-const TEXT_GENERATION_UNAVAILABLE_MESSAGE =
-  "Pi text generation is not available until the Pi conversation runtime is enabled.";
-
-const unavailableTextGeneration = TextGeneration.TextGeneration.of({
-  generateCommitMessage: () =>
-    Effect.fail(
-      new TextGenerationError({
-        operation: "generateCommitMessage",
-        detail: TEXT_GENERATION_UNAVAILABLE_MESSAGE,
-      }),
-    ),
-  generatePrContent: () =>
-    Effect.fail(
-      new TextGenerationError({
-        operation: "generatePrContent",
-        detail: TEXT_GENERATION_UNAVAILABLE_MESSAGE,
-      }),
-    ),
-  generateBranchName: () =>
-    Effect.fail(
-      new TextGenerationError({
-        operation: "generateBranchName",
-        detail: TEXT_GENERATION_UNAVAILABLE_MESSAGE,
-      }),
-    ),
-  generateThreadTitle: () =>
-    Effect.fail(
-      new TextGenerationError({
-        operation: "generateThreadTitle",
-        detail: TEXT_GENERATION_UNAVAILABLE_MESSAGE,
-      }),
-    ),
-});
 
 export type PiDriverEnv =
   | ChildProcessSpawner.ChildProcessSpawner
@@ -152,6 +114,9 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         getSkillNames: () => Effect.succeed(skillNamesRef.current),
         makeRuntime: makePiSessionRuntime,
       }).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, childProcessSpawner));
+      const textGeneration = yield* makePiTextGeneration(effectiveConfig, processEnv).pipe(
+        Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, childProcessSpawner),
+      );
       const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
@@ -206,7 +171,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         enabled,
         snapshot,
         adapter,
-        textGeneration: unavailableTextGeneration,
+        textGeneration,
       } satisfies ProviderInstance;
     }),
 };

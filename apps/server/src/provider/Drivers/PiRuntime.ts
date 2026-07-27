@@ -144,6 +144,44 @@ export function buildPiModelProbeLaunchPlan(input: {
   };
 }
 
+/**
+ * Launch plan for a one-shot text-generation run (commit message, PR content,
+ * branch name, thread title). See ADR 0016: the run inherits only the binary,
+ * config directory, and instance environment, and deliberately loads no tools,
+ * extensions, skills, context files, prompt templates, or project-local
+ * resources. `--no-approve` is required because print mode never prompts for
+ * project trust and would otherwise fall back to the user's global
+ * `defaultProjectTrust`.
+ *
+ * Provider and model are passed separately because Pi model ids may themselves
+ * contain a slash (e.g. `rootsys.cloud` / `fiq/kimi-k3`), which makes the
+ * combined `--model provider/id` form ambiguous.
+ */
+export function buildPiTextGenerationLaunchPlan(input: {
+  readonly configDirectory: string;
+  readonly model: { readonly provider: string; readonly modelId: string };
+}): { readonly args: ReadonlyArray<string>; readonly environment: NodeJS.ProcessEnv } {
+  return {
+    args: [
+      "-p",
+      "--no-session",
+      "--no-approve",
+      "--no-tools",
+      "--no-extensions",
+      "--no-skills",
+      "--no-context-files",
+      "--no-prompt-templates",
+      "--thinking",
+      "off",
+      "--provider",
+      input.model.provider,
+      "--model",
+      input.model.modelId,
+    ],
+    environment: input.configDirectory ? { PI_CODING_AGENT_DIR: input.configDirectory } : {},
+  };
+}
+
 export type PiVersionStatus =
   | { readonly _tag: "Supported"; readonly version: string }
   | { readonly _tag: "Unsupported"; readonly version: string }

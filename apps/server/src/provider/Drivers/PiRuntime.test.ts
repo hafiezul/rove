@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildPiLaunchPlan,
   buildPiModelProbeLaunchPlan,
+  buildPiTextGenerationLaunchPlan,
   parsePiVersion,
   PI_MINIMUM_VERSION,
   validatePiLaunchArgs,
@@ -223,6 +224,56 @@ describe("validatePiLaunchArgs", () => {
       ],
       environment: {},
     });
+  });
+});
+
+describe("Pi text generation launch plan", () => {
+  it("isolates the run from tools, resources, and project trust", () => {
+    expect(
+      buildPiTextGenerationLaunchPlan({
+        configDirectory: "",
+        model: { provider: "vibeproxy", modelId: "claude-sonnet-5" },
+      }),
+    ).toEqual({
+      args: [
+        "-p",
+        "--no-session",
+        "--no-approve",
+        "--no-tools",
+        "--no-extensions",
+        "--no-skills",
+        "--no-context-files",
+        "--no-prompt-templates",
+        "--thinking",
+        "off",
+        "--provider",
+        "vibeproxy",
+        "--model",
+        "claude-sonnet-5",
+      ],
+      environment: {},
+    });
+  });
+
+  it("keeps the Pi configuration directory in PI_CODING_AGENT_DIR", () => {
+    expect(
+      buildPiTextGenerationLaunchPlan({
+        configDirectory: "/Users/example/.pi-work",
+        model: { provider: "anthropic", modelId: "claude-haiku-4-5" },
+      }).environment,
+    ).toEqual({ PI_CODING_AGENT_DIR: "/Users/example/.pi-work" });
+  });
+
+  it("passes provider and model separately so slashes in a model id stay intact", () => {
+    const plan = buildPiTextGenerationLaunchPlan({
+      configDirectory: "",
+      model: { provider: "rootsys.cloud", modelId: "fiq/kimi-k3" },
+    });
+
+    expect(plan.args).toContain("--provider");
+    expect(plan.args[plan.args.indexOf("--provider") + 1]).toBe("rootsys.cloud");
+    expect(plan.args[plan.args.indexOf("--model") + 1]).toBe("fiq/kimi-k3");
+    expect(plan.args).not.toContain("rootsys.cloud/fiq/kimi-k3");
   });
 });
 
