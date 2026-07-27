@@ -447,18 +447,18 @@ function splitPiSelectTitle(title: string): {
 }
 
 /** Pi pre-numbers its option strings, which would collide with the composer's own
- * keyboard shortcut badges. Keep the original string for the RPC response, and keep the
- * numbering whenever stripping it would make two options indistinguishable. */
+ * keyboard shortcut badges. Keep the original string for the RPC response, and only strip
+ * when every option stays distinct — labels are how answers are matched back. */
 function piSelectOptions(values: ReadonlyArray<string>): ReadonlyArray<PiSelectOption> {
   const stripped = values.map((value) => {
     const label = value.replace(PI_OPTION_INDEX_PATTERN, "").trim();
     return label.length > 0 ? label : value;
   });
-  return values.map((value, index) => {
-    const label = stripped[index] ?? value;
-    const isUnique = stripped.every((other, otherIndex) => otherIndex === index || other !== label);
-    return { label: isUnique ? label : value, value };
-  });
+  const isDistinct = new Set(stripped).size === stripped.length;
+  return values.map((value, index) => ({
+    label: isDistinct ? (stripped[index] ?? value) : value,
+    value,
+  }));
 }
 
 function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | undefined {

@@ -609,7 +609,7 @@ describe("PiAdapter", () => {
                   options: [
                     { label: "1. Retry", description: "1. Retry" },
                     { label: "2. Retry", description: "2. Retry" },
-                    { label: "Abort", description: "Abort" },
+                    { label: "3. Abort", description: "3. Abort" },
                   ],
                   multiSelect: false,
                 },
