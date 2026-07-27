@@ -1,25 +1,11 @@
-import { ProviderDriverKind } from "@t3tools/contracts";
-import { ClaudeAI, CursorIcon, GrokIcon, Icon, OpenAI, OpenCodeIcon } from "../Icons";
-import { PROVIDER_OPTIONS } from "../../session-logic";
+import { type ProviderDriverKind } from "@t3tools/contracts";
+import { type Icon } from "../Icons";
+import { PROVIDER_CLIENT_DEFINITIONS } from "../settings/providerDriverMeta";
 
-export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
-  [ProviderDriverKind.make("codex")]: OpenAI,
-  [ProviderDriverKind.make("claudeAgent")]: ClaudeAI,
-  [ProviderDriverKind.make("opencode")]: OpenCodeIcon,
-  [ProviderDriverKind.make("cursor")]: CursorIcon,
-  [ProviderDriverKind.make("grok")]: GrokIcon,
-};
-
-function isAvailableProviderOption(option: (typeof PROVIDER_OPTIONS)[number]): option is {
-  value: ProviderDriverKind;
-  label: string;
-  available: true;
-  pickerSidebarBadge?: "new" | "soon";
-} {
-  return option.available;
-}
-
-export const AVAILABLE_PROVIDER_OPTIONS = PROVIDER_OPTIONS.filter(isAvailableProviderOption);
+export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> =
+  Object.fromEntries(
+    PROVIDER_CLIENT_DEFINITIONS.map((definition) => [definition.value, definition.icon]),
+  );
 
 export type ModelEsque = {
   slug: string;
