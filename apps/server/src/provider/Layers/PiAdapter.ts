@@ -389,6 +389,16 @@ function piToolExecution(value: unknown):
 
 const PI_EXTENSION_CONFIRM_LABEL = "Confirm";
 const PI_EXTENSION_CANCEL_LABEL = "Cancel";
+const PI_SELECT_FALLBACK_QUESTION = "Choose an option.";
+/** Pi's `select(title, options)` API has no structured question body, so extensions pack
+ * a multi-part prompt into `title`, separated by newlines or a literal ` --- `. */
+const PI_TITLE_SEGMENT_SEPARATOR = " --- ";
+const PI_OPTION_INDEX_PATTERN = /^\d+\.\s+/;
+
+interface PiSelectOption {
+  readonly label: string;
+  readonly value: string;
+}
 
 type PiExtensionDialog =
   | {
@@ -399,7 +409,7 @@ type PiExtensionDialog =
   | {
       readonly id: string;
       readonly method: "select";
-      readonly options: ReadonlyArray<string>;
+      readonly options: ReadonlyArray<PiSelectOption>;
       readonly question: UserInputQuestion;
     }
   | {
@@ -407,6 +417,49 @@ type PiExtensionDialog =
       readonly method: "input";
       readonly question: UserInputQuestion;
     };
+
+/**
+ * Split a Pi select title into an eyebrow header and a readable question body.
+ * Falls back to the whole title as the header when the extension sent a single segment.
+ */
+function splitPiSelectTitle(title: string): {
+  readonly header: string;
+  readonly question: string;
+} {
+  const newlineIndex = title.indexOf("\n");
+  if (newlineIndex !== -1) {
+    const header = title.slice(0, newlineIndex).trim();
+    const body = title.slice(newlineIndex + 1).trim();
+    if (header.length > 0 && body.length > 0) {
+      return { header, question: body };
+    }
+    return { header: title.trim(), question: PI_SELECT_FALLBACK_QUESTION };
+  }
+
+  const segments = title
+    .split(PI_TITLE_SEGMENT_SEPARATOR)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+  const header = segments.at(0);
+  return header && segments.length > 1
+    ? { header, question: segments.slice(1).join("\n\n") }
+    : { header: title.trim(), question: PI_SELECT_FALLBACK_QUESTION };
+}
+
+/** Pi pre-numbers its option strings, which would collide with the composer's own
+ * keyboard shortcut badges. Keep the original string for the RPC response, and keep the
+ * numbering whenever stripping it would make two options indistinguishable. */
+function piSelectOptions(values: ReadonlyArray<string>): ReadonlyArray<PiSelectOption> {
+  const stripped = values.map((value) => {
+    const label = value.replace(PI_OPTION_INDEX_PATTERN, "").trim();
+    return label.length > 0 ? label : value;
+  });
+  return values.map((value, index) => {
+    const label = stripped[index] ?? value;
+    const isUnique = stripped.every((other, otherIndex) => otherIndex === index || other !== label);
+    return { label: isUnique ? label : value, value };
+  });
+}
 
 function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | undefined {
   const id = nonEmptyString(value.id);
@@ -435,7 +488,7 @@ function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | 
   }
 
   if (method === "select") {
-    const options = Array.isArray(value.options)
+    const rawOptions = Array.isArray(value.options)
       ? Array.from(
           new Set(
             value.options.flatMap((option) => {
@@ -445,18 +498,23 @@ function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | 
           ),
         )
       : [];
-    if (options.length === 0) {
+    if (rawOptions.length === 0) {
       return undefined;
     }
+    const options = piSelectOptions(rawOptions);
+    const { header, question } = splitPiSelectTitle(title);
     return {
       id,
       method,
       options,
       question: {
         id,
-        header: title,
-        question: "Choose an option.",
-        options: options.map((label) => ({ label, description: label })),
+        header,
+        question,
+        options: options.map((option) => ({
+          label: option.label,
+          description: option.label,
+        })),
         multiSelect: false,
       },
     };
@@ -494,8 +552,9 @@ function piExtensionDialogResponse(dialog: PiExtensionDialog, answers: ProviderU
     } as const;
   }
   if (dialog.method === "select") {
-    return typeof answer === "string" && dialog.options.includes(answer)
-      ? ({ id: dialog.id, value: answer } as const)
+    const selected = dialog.options.find((option) => option.label === answer);
+    return selected
+      ? ({ id: dialog.id, value: selected.value } as const)
       : ({ id: dialog.id, cancelled: true } as const);
   }
 

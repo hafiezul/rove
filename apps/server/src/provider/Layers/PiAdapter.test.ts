@@ -521,6 +521,138 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("splits a structured Pi select title into a header and a question body", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-newline",
+        method: "select",
+        title:
+          "[Runtime API] How should PiSessionRuntime expose this?\ninterface PiSessionStats {\n  totalTokens: number;\n}",
+        options: [
+          "1. Narrow parsed shape (Recommended) — keeps Pi's raw response out of the adapter",
+          "2. Pi's full SessionStats shape — mirrors Pi faithfully",
+        ],
+      });
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-dashes",
+        method: "select",
+        title: "[Runtime API] Which shape? --- 1. Narrow --- 2. Full",
+        options: ["10. Narrow", "11. Full"],
+      });
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-ambiguous",
+        method: "select",
+        title: "Pick a branch",
+        options: ["1. Retry", "2. Retry", "3. Abort"],
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "user-input.requested",
+            requestId: "dialog-newline",
+            payload: {
+              questions: [
+                {
+                  id: "dialog-newline",
+                  header: "[Runtime API] How should PiSessionRuntime expose this?",
+                  question: "interface PiSessionStats {\n  totalTokens: number;\n}",
+                  options: [
+                    {
+                      label:
+                        "Narrow parsed shape (Recommended) — keeps Pi's raw response out of the adapter",
+                      description:
+                        "Narrow parsed shape (Recommended) — keeps Pi's raw response out of the adapter",
+                    },
+                    {
+                      label: "Pi's full SessionStats shape — mirrors Pi faithfully",
+                      description: "Pi's full SessionStats shape — mirrors Pi faithfully",
+                    },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          }),
+          expect.objectContaining({
+            type: "user-input.requested",
+            requestId: "dialog-ambiguous",
+            payload: {
+              questions: [
+                {
+                  id: "dialog-ambiguous",
+                  header: "Pick a branch",
+                  question: "Choose an option.",
+                  options: [
+                    { label: "1. Retry", description: "1. Retry" },
+                    { label: "2. Retry", description: "2. Retry" },
+                    { label: "Abort", description: "Abort" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          }),
+          expect.objectContaining({
+            type: "user-input.requested",
+            requestId: "dialog-dashes",
+            payload: {
+              questions: [
+                {
+                  id: "dialog-dashes",
+                  header: "[Runtime API] Which shape?",
+                  question: "1. Narrow\n\n2. Full",
+                  options: [
+                    { label: "Narrow", description: "Narrow" },
+                    { label: "Full", description: "Full" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          }),
+        ]),
+      );
+
+      yield* adapter.respondToUserInput(THREAD_ID, ApprovalRequestId.make("dialog-newline"), {
+        "dialog-newline":
+          "Narrow parsed shape (Recommended) — keeps Pi's raw response out of the adapter",
+      });
+      yield* Effect.yieldNow;
+
+      expect(runtime.getExtensionUiResponses()).toEqual([
+        {
+          id: "dialog-newline",
+          value:
+            "1. Narrow parsed shape (Recommended) — keeps Pi's raw response out of the adapter",
+        },
+      ]);
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("maps selected Pi input cancellation back to the native RPC response", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory();

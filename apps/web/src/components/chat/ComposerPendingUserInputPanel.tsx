@@ -17,6 +17,27 @@ interface PendingUserInputPanelProps {
   onAdvance: () => void;
 }
 
+/** Providers that only expose a flat option string (Pi) encode the rationale after an
+ * em dash. Split it so the row keeps a scannable label with muted supporting text. */
+const OPTION_LABEL_SEPARATOR = " — ";
+
+function splitOptionLabel(option: { label: string; description?: string | undefined }): {
+  label: string;
+  description: string | null;
+} {
+  if (option.description && option.description !== option.label) {
+    return { label: option.label, description: option.description };
+  }
+  const separatorIndex = option.label.indexOf(OPTION_LABEL_SEPARATOR);
+  if (separatorIndex === -1) {
+    return { label: option.label, description: null };
+  }
+  return {
+    label: option.label.slice(0, separatorIndex).trim(),
+    description: option.label.slice(separatorIndex + OPTION_LABEL_SEPARATOR.length).trim(),
+  };
+}
+
 export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserInputPanel({
   pendingUserInputs,
   respondingRequestIds,
@@ -164,7 +185,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           </span>
         ) : null}
       </div>
-      <p className="text-sm text-foreground/90">{activeQuestion.question}</p>
+      <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+        {activeQuestion.question}
+      </p>
       {activeQuestion.multiSelect ? (
         <p className="mt-1 text-xs text-muted-foreground/65">Select one or more options.</p>
       ) : null}
@@ -185,12 +208,15 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
             isResponding && "opacity-50 cursor-not-allowed",
             !isResponding && "cursor-pointer",
           );
+          const { label, description } = splitOptionLabel(option);
           const content = (
             <>
               <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-medium">{option.label}</span>
-                {option.description && option.description !== option.label ? (
-                  <span className="text-xs text-muted-foreground">{option.description}</span>
+                <span className="text-sm font-medium">{label}</span>
+                {description ? (
+                  <span className="text-[13px] leading-snug text-muted-foreground">
+                    {description}
+                  </span>
                 ) : null}
               </div>
               {isSelected ? (
