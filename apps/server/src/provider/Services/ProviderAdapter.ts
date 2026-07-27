@@ -30,6 +30,13 @@ export interface ProviderAdapterCapabilities {
    * Declares whether changing the model on an existing session is supported.
    */
   readonly sessionModelSwitch: ProviderSessionModelSwitchMode;
+  /**
+   * Whether this adapter can truncate a thread's provider-side conversation.
+   * Checkpoint revert consults it before restoring the filesystem, so a
+   * provider that cannot roll back refuses the revert instead of leaving the
+   * workspace reverted against an intact conversation.
+   */
+  readonly conversationRollback: "supported" | "unsupported";
 }
 
 export interface ProviderThreadTurnSnapshot {
@@ -105,6 +112,16 @@ export interface ProviderAdapterShape<TError> {
    * Read a provider thread snapshot.
    */
   readonly readThread: (threadId: ThreadId) => Effect.Effect<ProviderThreadSnapshot, TError>;
+
+  /**
+   * Whether a specific rollback would succeed, checked before any destructive
+   * work. Providers whose rollback depends on per-thread state (Pi needs a
+   * recorded native position for the target turn) answer per request.
+   */
+  readonly canRollbackThread: (
+    threadId: ThreadId,
+    numTurns: number,
+  ) => Effect.Effect<boolean, TError>;
 
   /**
    * Roll back a provider thread by N turns.

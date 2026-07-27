@@ -21,6 +21,7 @@ import type {
   PiSessionRuntimeShape,
   PiSessionStats,
 } from "../Drivers/PiSessionRuntime.ts";
+import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
 import { makePiAdapter } from "./PiAdapter.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
@@ -33,6 +34,8 @@ function makeRuntimeFactory(input?: {
   readonly thinkingLevels?: ReadonlyArray<string>;
   readonly autoCompactionEnabled?: boolean;
   readonly sessionStats?: Effect.Effect<PiSessionStats, PiSessionRuntimeError>;
+  readonly turnAnchorUnavailable?: boolean;
+  readonly forkCancelled?: boolean;
 }) {
   return Effect.gen(function* () {
     const options: PiSessionRuntimeOptions[] = [];
@@ -44,6 +47,11 @@ function makeRuntimeFactory(input?: {
     let abortCount = 0;
     let closeCount = 0;
     let sessionStatsCount = 0;
+    const forkCalls: string[] = [];
+    // Mirrors Pi: a fork swaps the session onto a new file whose native id is
+    // no longer the thread id.
+    let anchoredEntries = 0;
+    let sessionFile = "/tmp/pi-session.jsonl";
 
     const factory = (runtimeOptions: PiSessionRuntimeOptions) => {
       options.push(runtimeOptions);
@@ -78,8 +86,31 @@ function makeRuntimeFactory(input?: {
         getState: () =>
           Effect.succeed({
             sessionId: runtimeOptions.sessionId ?? "probe",
+            sessionFile,
             model: { provider: "custom", id: "team/coder", name: "Team Coder" },
             thinkingLevel: thinkingCalls.at(-1) ?? "high",
+          }),
+        // Pi appends one user entry per accepted prompt and reports the tail on
+        // demand, so each probe consumes the oldest entry not yet anchored.
+        getTurnAnchor: () =>
+          Effect.sync(() => {
+            if (input?.turnAnchorUnavailable) {
+              return undefined;
+            }
+            anchoredEntries = Math.min(anchoredEntries + 1, prompts.length);
+            return {
+              userEntryId: `entry-${String(anchoredEntries)}`,
+              leafId: `leaf-${String(anchoredEntries)}`,
+            };
+          }),
+        fork: (entryId) =>
+          Effect.sync(() => {
+            forkCalls.push(entryId);
+            if (input?.forkCancelled) {
+              return { cancelled: true as const, state: { sessionId: "forked", sessionFile } };
+            }
+            sessionFile = `/tmp/pi-forked-${String(forkCalls.length)}.jsonl`;
+            return { cancelled: false as const, state: { sessionId: "forked", sessionFile } };
           }),
         getAvailableModels: () => Effect.succeed([]),
         setModel: (model) =>
@@ -123,6 +154,7 @@ function makeRuntimeFactory(input?: {
       emit: (event: unknown) => PubSub.publish(events, event).pipe(Effect.asVoid),
       getAbortCount: () => abortCount,
       getSessionStatsCount: () => sessionStatsCount,
+      getForkCalls: () => forkCalls,
       getCloseCount: () => closeCount,
     };
   });
@@ -1974,6 +2006,128 @@ describe("PiAdapter", () => {
           }),
         ]),
       );
+    }).pipe(Effect.scoped),
+  );
+
+  const settleTurn = (
+    runtime: {
+      readonly emit: (event: unknown) => Effect.Effect<void>;
+      readonly getForkCalls: () => ReadonlyArray<string>;
+    },
+    adapter: ProviderAdapterShape<ProviderAdapterError>,
+    input: string,
+  ) =>
+    Effect.gen(function* () {
+      const turn = yield* adapter.sendTurn({ threadId: THREAD_ID, input, attachments: [] });
+      // The event stream is mapped on a forked fibre, so the settle must fully
+      // drain before the next prompt is sent — otherwise both turns would probe
+      // the same tail entry.
+      yield* runtime.emit({ type: "agent_settled" });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      return turn;
+    });
+
+  it.effect("forks the native session to roll a Pi conversation back", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      // Let the event-mapping fibre subscribe before any event is published.
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+      yield* settleTurn(runtime, adapter, "second");
+
+      expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(true);
+      yield* adapter.rollbackThread(THREAD_ID, 1);
+
+      // Forking before the second turn's own user entry discards that turn.
+      expect(runtime.getForkCalls()).toEqual(["entry-2"]);
+      const [session] = yield* adapter.listSessions();
+      // The thread now resumes by path: the fork's native id is no longer the
+      // thread id, so a schema 1 cursor could not find it again.
+      expect(session?.resumeCursor).toEqual({
+        schemaVersion: 2,
+        sessionId: THREAD_ID,
+        sessionFile: "/tmp/pi-forked-1.jsonl",
+        turnAnchors: [{ turnId: expect.any(String), userEntryId: "entry-1" }],
+      });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("refuses to roll back a turn with no recorded Pi position", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory({ turnAnchorUnavailable: true });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      // Let the event-mapping fibre subscribe before any event is published.
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+
+      expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(false);
+      const error = yield* adapter.rollbackThread(THREAD_ID, 1).pipe(Effect.flip);
+
+      expect(error.message).toContain("no recorded native position");
+      expect(runtime.getForkCalls()).toEqual([]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("reports a fork an extension cancelled instead of claiming a revert", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory({ forkCancelled: true });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      // Let the event-mapping fibre subscribe before any event is published.
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+
+      const error = yield* adapter.rollbackThread(THREAD_ID, 1).pipe(Effect.flip);
+
+      expect(error.message).toContain("cancelled the fork");
+      const [session] = yield* adapter.listSessions();
+      expect(session?.resumeCursor).toMatchObject({ schemaVersion: 1 });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("resumes a reverted thread through its forked session file", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      // Let the event-mapping fibre subscribe before any event is published.
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+      yield* settleTurn(runtime, adapter, "second");
+      yield* adapter.rollbackThread(THREAD_ID, 1);
+      const [reverted] = yield* adapter.listSessions();
+
+      yield* adapter.stopSession(THREAD_ID);
+      yield* adapter.startSession({
+        ...sessionStart(INSTANCE_A),
+        ...(reverted?.resumeCursor ? { resumeCursor: reverted.resumeCursor } : {}),
+      });
+
+      expect(runtime.options.at(-1)?.sessionFile).toBe("/tmp/pi-forked-1.jsonl");
+      // Surviving anchors keep their Pi entry ids across the fork, so a second
+      // revert still has a target.
+      expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(true);
     }).pipe(Effect.scoped),
   );
 });

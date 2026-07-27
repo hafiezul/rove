@@ -192,6 +192,11 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
       Effect.succeed({ threadId, turns: [] }),
   );
 
+  const canRollbackThread = vi.fn(
+    (_threadId: ThreadId, _numTurns: number): Effect.Effect<boolean, ProviderAdapterError> =>
+      Effect.succeed(true),
+  );
+
   const stopAll = vi.fn(
     (): Effect.Effect<void, ProviderAdapterError> =>
       Effect.sync(() => {
@@ -203,6 +208,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
     provider,
     capabilities: {
       sessionModelSwitch: "in-session",
+      conversationRollback: "supported",
     },
     startSession,
     sendTurn,
@@ -213,6 +219,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
     listSessions,
     hasSession,
     readThread,
+    canRollbackThread,
     rollbackThread,
     stopAll,
     get streamEvents() {
@@ -248,6 +255,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
     listSessions,
     hasSession,
     readThread,
+    canRollbackThread,
     rollbackThread,
     stopAll,
   };

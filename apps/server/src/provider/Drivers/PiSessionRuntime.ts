@@ -75,6 +75,8 @@ export interface PiSessionRuntimeOptions {
   /** Both fields are set for a persisted native session and omitted for a model probe. */
   readonly sessionDirectory?: string | undefined;
   readonly sessionId?: string | undefined;
+  /** Set only for a thread resuming a rollback fork, which is opened by path. */
+  readonly sessionFile?: string | undefined;
 }
 
 export interface PiSessionRuntimeState {
@@ -96,10 +98,30 @@ export interface PiSessionStats {
   readonly contextWindow?: number | undefined;
 }
 
+/**
+ * The Pi entry a T3 turn settled at, used as the fork target for a later
+ * revert. `userEntryId` is the user message that opened the turn; forking
+ * from it discards that turn and everything after it.
+ */
+export interface PiTurnAnchor {
+  readonly userEntryId: string;
+  readonly leafId: string;
+}
+
 export interface PiPromptImage {
   readonly type: "image";
   readonly data: string;
   readonly mimeType: string;
+}
+
+/**
+ * Outcome of a Pi `fork`. Pi reports `cancelled` when an extension's
+ * `session_before_fork` handler vetoed it, in which case the session is
+ * untouched.
+ */
+export interface PiForkResult {
+  readonly cancelled: boolean;
+  readonly state: PiSessionRuntimeState;
 }
 
 export interface PiPromptInput {
@@ -117,6 +139,17 @@ export interface PiSessionRuntimeShape {
   readonly start: () => Effect.Effect<PiSessionRuntimeState, PiSessionRuntimeError>;
   readonly getState: () => Effect.Effect<PiSessionRuntimeState, PiSessionRuntimeError>;
   readonly getSessionStats: () => Effect.Effect<PiSessionStats, PiSessionRuntimeError>;
+  /**
+   * Read the entry tree's current tail. Pi's streamed messages carry no entry
+   * id, so this probe is the only way to learn where a turn landed.
+   */
+  readonly getTurnAnchor: () => Effect.Effect<PiTurnAnchor | undefined, PiSessionRuntimeError>;
+  /**
+   * Fork the session before `entryId`, discarding that user message and
+   * everything after it. Pi has no in-place branch command over RPC, so this
+   * replaces the live session with a new file (see ADR 0017).
+   */
+  readonly fork: (entryId: string) => Effect.Effect<PiForkResult, PiSessionRuntimeError>;
   readonly getAvailableModels: () => Effect.Effect<
     ReadonlyArray<PiRpcModel>,
     PiSessionRuntimeError
@@ -293,6 +326,32 @@ function parseSessionStats(value: unknown): PiSessionStats | undefined {
   };
 }
 
+/**
+ * Pi's entry tree spans abandoned branches and pre-compaction history, so the
+ * anchor is taken as the *last* user message in append order — the turn that
+ * just settled — rather than by counting positions.
+ */
+function parseTurnAnchor(value: unknown): PiTurnAnchor | undefined {
+  if (!isRecord(value) || !Array.isArray(value.entries)) {
+    return undefined;
+  }
+  const leafId = stringValue(value.leafId);
+  if (!leafId) {
+    return undefined;
+  }
+  let userEntryId: string | undefined;
+  for (const entry of value.entries) {
+    if (!isRecord(entry) || entry.type !== "message" || !isRecord(entry.message)) {
+      continue;
+    }
+    if (entry.message.role !== "user") {
+      continue;
+    }
+    userEntryId = stringValue(entry.id) ?? userEntryId;
+  }
+  return userEntryId ? { userEntryId, leafId } : undefined;
+}
+
 function parseResponse(value: unknown): PiRpcResponse | undefined {
   if (!isRecord(value) || value.type !== "response") {
     return undefined;
@@ -328,6 +387,7 @@ function resolveLaunchPlan(input: PiSessionRuntimeOptions) {
       trustedExtensions: input.trustedExtensions,
       sessionDirectory: input.sessionDirectory,
       sessionId: input.sessionId,
+      ...(input.sessionFile ? { sessionFile: input.sessionFile } : {}),
       ...(input.environment ? { environment: input.environment } : {}),
     });
   }
@@ -658,7 +718,13 @@ export const makePiSessionRuntime = (
     const start = () =>
       getState(PI_RPC_START_TIMEOUT).pipe(
         Effect.flatMap((state) => {
-          if (options.sessionId !== undefined && state.sessionId !== options.sessionId) {
+          // A resumed fork's native id is a Pi-generated UUID, not the thread
+          // id, so the identity assertion only applies to `--session-id`.
+          if (
+            options.sessionFile === undefined &&
+            options.sessionId !== undefined &&
+            state.sessionId !== options.sessionId
+          ) {
             return Effect.fail(
               new PiSessionRuntimeError({
                 operation: "get_state",
@@ -682,6 +748,18 @@ export const makePiSessionRuntime = (
                   detail: "Pi returned an invalid session stats response.",
                 }),
               );
+        }),
+      );
+
+    const getTurnAnchor = () => request({ type: "get_entries" }).pipe(Effect.map(parseTurnAnchor));
+
+    const fork = (entryId: string) =>
+      request({ type: "fork", entryId }).pipe(
+        Effect.flatMap((response) => {
+          const cancelled = isRecord(response) && response.cancelled === true;
+          // Pi swaps the runtime onto a new session file, so the post-fork
+          // identity has to be re-read rather than assumed.
+          return getState().pipe(Effect.map((state) => ({ cancelled, state })));
         }),
       );
 
@@ -801,6 +879,8 @@ export const makePiSessionRuntime = (
       start,
       getState,
       getSessionStats,
+      getTurnAnchor,
+      fork,
       getAvailableModels,
       setModel,
       getAvailableThinkingLevels,

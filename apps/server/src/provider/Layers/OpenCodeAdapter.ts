@@ -1701,6 +1701,7 @@ export function makeOpenCodeAdapter(
       provider: PROVIDER,
       capabilities: {
         sessionModelSwitch: "in-session",
+        conversationRollback: "supported",
       },
       startSession,
       sendTurn,
@@ -1711,6 +1712,7 @@ export function makeOpenCodeAdapter(
       listSessions,
       hasSession,
       readThread,
+      canRollbackThread: () => Effect.succeed(true),
       rollbackThread,
       stopAll,
       get streamEvents() {

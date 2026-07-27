@@ -1164,11 +1164,12 @@ export function makeCursorAdapter(
 
     return {
       provider: PROVIDER,
-      capabilities: { sessionModelSwitch: "in-session" },
+      capabilities: { sessionModelSwitch: "in-session", conversationRollback: "supported" },
       startSession,
       sendTurn,
       interruptTurn,
       readThread,
+      canRollbackThread: () => Effect.succeed(true),
       rollbackThread,
       respondToRequest,
       respondToUserInput,

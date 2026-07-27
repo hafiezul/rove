@@ -89,6 +89,8 @@ const makeControlledPiRuntime = Effect.fn("makeControlledPiRuntime")(function* (
           model: { provider: "custom", id: "team/coder", name: "Team Coder" },
         }),
       getSessionStats: () => Effect.succeed({ totalTokens: 0 }),
+      getTurnAnchor: () => Effect.succeed(undefined),
+      fork: () => Effect.succeed({ cancelled: false, state: { sessionId: THREAD } }),
       getAvailableModels: () => Effect.succeed([]),
       setModel: () => Effect.void,
       getAvailableThinkingLevels: () => Effect.succeed(["off", "high"]),

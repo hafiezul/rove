@@ -153,6 +153,14 @@ interface PiAdapterSessionContext {
     | undefined;
   readonly pendingExtensionDialogs: Map<ApprovalRequestId, PiExtensionDialog>;
   /**
+   * Pi entry ids for settled turns, newest last. A revert forks from the entry
+   * recorded for its target turn (ADR 0018); a turn with no recorded anchor
+   * cannot be reverted to.
+   */
+  readonly turnAnchors: Array<{ readonly turnId: TurnId; readonly userEntryId: string }>;
+  /** Path of the live native session, which a rollback fork replaces. */
+  sessionFile: string | undefined;
+  /**
    * Captured once at startup: nothing in an RPC session can change it, because
    * T3 never sends Pi's `set_auto_compaction` command.
    */
@@ -573,6 +581,48 @@ function piExtensionDialogResponse(dialog: PiExtensionDialog, answers: ProviderU
     : ({ id: dialog.id, cancelled: true } as const);
 }
 
+/**
+ * Reads the native session a thread should resume. Schema 1 cursors name the
+ * session by thread id; schema 2 adds the forked session's path, which a
+ * reverted thread needs because its native id is no longer the thread id
+ * (ADR 0017).
+ */
+function readPiResumeSessionFile(resumeCursor: unknown): string | undefined {
+  return isRecord(resumeCursor) ? nonEmptyString(resumeCursor.sessionFile) : undefined;
+}
+
+/**
+ * Turn anchors ride on the resume cursor because it is adapter-owned opaque
+ * state that is already persisted on every turn and replayed into
+ * `startSession`. The cursor is written before the current turn settles, so the
+ * newest turn's anchor reaches storage one turn late; a revert targeting an
+ * anchor that never landed is refused rather than guessed (ADR 0019).
+ */
+function readPiTurnAnchors(
+  resumeCursor: unknown,
+): Array<{ readonly turnId: TurnId; readonly userEntryId: string }> {
+  if (!isRecord(resumeCursor) || !Array.isArray(resumeCursor.turnAnchors)) {
+    return [];
+  }
+  return resumeCursor.turnAnchors.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+    const turnId = nonEmptyString(entry.turnId);
+    const userEntryId = nonEmptyString(entry.userEntryId);
+    return turnId && userEntryId ? [{ turnId: TurnId.make(turnId), userEntryId }] : [];
+  });
+}
+
+function makePiResumeCursor(context: PiAdapterSessionContext) {
+  return {
+    schemaVersion: context.sessionFile ? 2 : 1,
+    sessionId: context.threadId,
+    ...(context.sessionFile ? { sessionFile: context.sessionFile } : {}),
+    ...(context.turnAnchors.length > 0 ? { turnAnchors: [...context.turnAnchors] } : {}),
+  };
+}
+
 function runtimeProcessError(
   threadId: ThreadId,
   error: PiSessionRuntimeError,
@@ -800,6 +850,30 @@ export function makePiAdapter<R>(
           },
           raw: rawPiEvent(raw, messageType),
         });
+      });
+
+    /**
+     * Record where the settled turn landed in Pi's entry tree, so a later
+     * revert can fork from an exact entry instead of counting backwards
+     * through a list that spans abandoned branches (ADR 0018). A failed probe
+     * is not fatal: it only costs the ability to revert *to* this turn.
+     */
+    const recordTurnAnchor = (context: PiAdapterSessionContext) =>
+      Effect.gen(function* () {
+        const turnId = context.activeTurnId;
+        if (!turnId) {
+          return;
+        }
+        const anchor = yield* context.runtime.getTurnAnchor().pipe(Effect.option);
+        if (Option.isNone(anchor) || anchor.value === undefined) {
+          return;
+        }
+        const { userEntryId } = anchor.value;
+        if (context.turnAnchors.some((entry) => entry.userEntryId === userEntryId)) {
+          return;
+        }
+        context.turnAnchors.push({ turnId, userEntryId });
+        context.session = { ...context.session, resumeCursor: makePiResumeCursor(context) };
       });
 
     const mapPiRuntimeEvent = (context: PiAdapterSessionContext, raw: unknown) =>
@@ -1721,6 +1795,7 @@ export function makePiAdapter<R>(
           }
           case "agent_settled": {
             yield* reportContextUsage(context, raw, type);
+            yield* recordTurnAnchor(context);
             yield* completeActiveTurn(context, raw, type);
             return;
           }
@@ -1899,6 +1974,7 @@ export function makePiAdapter<R>(
             transferred ? Effect.void : Scope.close(sessionScope, Exit.void).pipe(Effect.ignore),
           );
 
+          const resumeSessionFile = readPiResumeSessionFile(input.resumeCursor);
           const runtime = yield* runtimeFactory({
             binaryPath: piSettings.binaryPath,
             configDirectory: piSettings.configDirectory,
@@ -1911,6 +1987,7 @@ export function makePiAdapter<R>(
             ...(options.environment ? { environment: options.environment } : {}),
             sessionDirectory: options.sessionDirectory,
             sessionId: input.threadId,
+            ...(resumeSessionFile ? { sessionFile: resumeSessionFile } : {}),
           }).pipe(
             Effect.provideContext(runtimeContext),
             Effect.provideService(Scope.Scope, sessionScope),
@@ -1940,10 +2017,6 @@ export function makePiAdapter<R>(
             ...(input.cwd ? { cwd: input.cwd } : {}),
             ...(model ? { model } : {}),
             threadId: input.threadId,
-            resumeCursor: {
-              schemaVersion: 1,
-              sessionId: input.threadId,
-            },
             createdAt: now,
             updatedAt: now,
           };
@@ -1964,11 +2037,17 @@ export function makePiAdapter<R>(
             summarizationRetryTaskId: undefined,
             lastFailedToolCall: undefined,
             pendingExtensionDialogs: new Map(),
+            turnAnchors: readPiTurnAnchors(input.resumeCursor),
+            // Only a rollback fork sets this. A fresh thread keeps resolving
+            // through `--session-id <thread id>`, and Pi materializes its
+            // session file lazily, so the startup path is not an identity.
+            sessionFile: resumeSessionFile,
             autoCompactionEnabled: state.autoCompactionEnabled ?? false,
             nextSyntheticItemId: 0,
             nextSyntheticTaskId: 0,
             stopped: false,
           };
+          context.session = { ...context.session, resumeCursor: makePiResumeCursor(context) };
           sessions.set(input.threadId, context);
           yield* Stream.runForEach(runtime.events, (event) =>
             writeNativePiEvent(context, event).pipe(
@@ -2003,7 +2082,7 @@ export function makePiAdapter<R>(
             Effect.forkIn(sessionScope),
           );
           transferred = true;
-          return session;
+          return context.session;
         }),
       );
 
@@ -2153,10 +2232,73 @@ export function makePiAdapter<R>(
         });
       });
 
+    /**
+     * Pi has no in-place branch over RPC, so a rollback forks the session and
+     * the thread's native identity changes (ADR 0017). The fork target is the
+     * anchor recorded for the oldest discarded turn: forking before that user
+     * message drops it and everything after it.
+     */
+    const canRollbackThread: ProviderAdapterShape<ProviderAdapterError>["canRollbackThread"] = (
+      threadId,
+      numTurns,
+    ) =>
+      Effect.sync(() => {
+        const context = sessions.get(threadId);
+        if (!context || context.stopped || !Number.isInteger(numTurns) || numTurns < 1) {
+          return false;
+        }
+        return context.turnAnchors.at(-numTurns) !== undefined;
+      });
+
+    const rollbackThread: ProviderAdapterShape<ProviderAdapterError>["rollbackThread"] = (
+      threadId,
+      numTurns,
+    ) =>
+      requireSession(threadId).pipe(
+        Effect.flatMap((context) =>
+          Effect.gen(function* () {
+            if (!Number.isInteger(numTurns) || numTurns < 1) {
+              return yield* new ProviderAdapterValidationError({
+                provider: PROVIDER,
+                operation: "rollbackThread",
+                issue: "numTurns must be an integer >= 1.",
+              });
+            }
+            const target = context.turnAnchors.at(-numTurns);
+            if (!target) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "fork",
+                detail:
+                  "This Pi thread has no recorded native position for that turn, so it cannot be reverted.",
+              });
+            }
+            const result = yield* context.runtime
+              .fork(target.userEntryId)
+              .pipe(Effect.mapError((error) => runtimeRequestError("fork", error)));
+            if (result.cancelled) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "fork",
+                detail: "A Pi extension cancelled the fork, so the conversation was not reverted.",
+              });
+            }
+            context.turnAnchors.splice(context.turnAnchors.length - numTurns);
+            context.sessionFile = result.state.sessionFile;
+            context.session = {
+              ...context.session,
+              resumeCursor: makePiResumeCursor(context),
+              updatedAt: DateTime.formatIso(yield* DateTime.now),
+            };
+            return { threadId, turns: [] };
+          }),
+        ),
+      );
+
     const adapter: ProviderAdapterShape<ProviderAdapterError> = {
       provider: PROVIDER,
       // Pi natively applies model/thinking changes to a live RPC session.
-      capabilities: { sessionModelSwitch: "in-session" },
+      capabilities: { sessionModelSwitch: "in-session", conversationRollback: "supported" },
       startSession,
       sendTurn,
       interruptTurn,
@@ -2172,7 +2314,8 @@ export function makePiAdapter<R>(
         ),
       hasSession: (threadId) => Effect.succeed(Boolean(sessions.get(threadId)?.stopped === false)),
       readThread: (threadId) => unavailableOperation("get_messages", threadId),
-      rollbackThread: (threadId) => unavailableOperation("rollback", threadId),
+      canRollbackThread,
+      rollbackThread,
       stopAll: () =>
         Effect.forEach(Array.from(sessions.values()), stopSessionInternal, { discard: true }),
       streamEvents: Stream.fromPubSub(runtimeEventPubSub),

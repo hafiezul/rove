@@ -98,6 +98,16 @@ export interface ProviderServiceShape {
   ) => Effect.Effect<ProviderInstanceRoutingInfo, ProviderServiceError>;
 
   /**
+   * Whether rolling this thread back by `numTurns` would succeed. Checkpoint
+   * revert asks first, so an unsupported provider does not leave the workspace
+   * reverted against an intact conversation.
+   */
+  readonly canRollbackConversation: (input: {
+    readonly threadId: ThreadId;
+    readonly numTurns: number;
+  }) => Effect.Effect<boolean, ProviderServiceError>;
+
+  /**
    * Roll back provider conversation state by a number of turns.
    */
   readonly rollbackConversation: (input: {

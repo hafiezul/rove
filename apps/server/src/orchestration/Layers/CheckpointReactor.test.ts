@@ -86,6 +86,10 @@ function createProviderServiceHarness(
     (_input: { readonly threadId: ThreadId; readonly numTurns: number }) => Effect.void,
   );
 
+  const canRollbackConversation = vi.fn(
+    (_input: { readonly threadId: ThreadId; readonly numTurns: number }) => Effect.succeed(true),
+  );
+
   const unsupported = <A>() =>
     Effect.die(new Error("Unsupported provider call in test")) as Effect.Effect<A, never>;
   const listSessions = () =>
@@ -110,7 +114,8 @@ function createProviderServiceHarness(
     respondToUserInput: () => unsupported(),
     stopSession: () => unsupported(),
     listSessions,
-    getCapabilities: () => Effect.succeed({ sessionModelSwitch: "in-session" }),
+    getCapabilities: () =>
+      Effect.succeed({ sessionModelSwitch: "in-session", conversationRollback: "supported" }),
     getInstanceInfo: (instanceId) =>
       Effect.succeed({
         instanceId,
@@ -122,6 +127,7 @@ function createProviderServiceHarness(
           continuationKey: `${providerName}:instance:${instanceId}`,
         },
       }),
+    canRollbackConversation,
     rollbackConversation,
     get streamEvents() {
       return Stream.fromPubSub(runtimeEventPubSub);
@@ -134,6 +140,7 @@ function createProviderServiceHarness(
 
   return {
     service,
+    canRollbackConversation,
     rollbackConversation,
     emit,
   };
@@ -1143,5 +1150,64 @@ describe("CheckpointReactor", () => {
       true,
     );
     expect(harness.provider.rollbackConversation).not.toHaveBeenCalled();
+  });
+
+  it("leaves the workspace untouched when the provider cannot roll back", async () => {
+    const harness = await createHarness();
+    const createdAt = "2026-01-01T00:00:00.000Z";
+    harness.provider.canRollbackConversation.mockReturnValue(Effect.succeed(false));
+    const dispatch = (command: Parameters<typeof harness.engine.dispatch>[0]) =>
+      harness.engine.dispatch(command).pipe(Effect.runPromise);
+
+    await dispatch({
+      type: "thread.session.set",
+      commandId: CommandId.make("cmd-session-set"),
+      threadId: ThreadId.make("thread-1"),
+      session: {
+        threadId: ThreadId.make("thread-1"),
+        status: "ready",
+        providerName: "codex",
+        runtimeMode: "approval-required",
+        activeTurnId: null,
+        lastError: null,
+        updatedAt: createdAt,
+      },
+      createdAt,
+    });
+
+    for (const [index, turnCount] of [1, 2].entries()) {
+      await dispatch({
+        type: "thread.turn.diff.complete",
+        commandId: CommandId.make(`cmd-diff-${String(index + 1)}`),
+        threadId: ThreadId.make("thread-1"),
+        turnId: asTurnId(`turn-${String(index + 1)}`),
+        completedAt: createdAt,
+        checkpointRef: checkpointRefForThreadTurn(ThreadId.make("thread-1"), turnCount),
+        status: "ready",
+        files: [],
+        checkpointTurnCount: turnCount,
+        createdAt,
+      });
+    }
+
+    await dispatch({
+      type: "thread.checkpoint.revert",
+      commandId: CommandId.make("cmd-revert-unsupported"),
+      threadId: ThreadId.make("thread-1"),
+      turnCount: 1,
+      createdAt,
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some((activity) => activity.kind === "checkpoint.revert.failed"),
+    );
+
+    expect(thread.activities.some((activity) => activity.kind === "checkpoint.revert.failed")).toBe(
+      true,
+    );
+    // The whole point of the pre-check: no partial revert. The files must still
+    // hold the newest content and the conversation must not be truncated.
+    expect(harness.provider.rollbackConversation).not.toHaveBeenCalled();
+    expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe("v3\n");
   });
 });

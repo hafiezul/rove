@@ -126,10 +126,24 @@ Pi threads continue only through the Pi runtime instance that created them. This
 configuration directory, extensions, credentials, model catalog, and isolated session storage used
 by the thread.
 
+## Reverting
+
+Reverting a thread to an earlier message rolls back both the workspace files and Pi's conversation.
+Pi's RPC has no in-place branch command, so T3 Code truncates the conversation by forking the native
+session: the thread continues in a new Pi session file containing only the surviving turns, and the
+pre-revert session is left in place as a record.
+
+T3 Code records the native Pi position of each turn as it completes, and forks from that exact
+position. A turn with no recorded position — one that predates this feature, or that never settled —
+cannot be reverted to. T3 Code checks before it changes anything, so a refused revert leaves both the
+files and the conversation untouched rather than reverting only one of them.
+
 ## Session Storage
 
 Threads created in T3 Code are native Pi sessions. T3 Code stores them in a Pi session directory
 isolated to the selected Pi provider instance, using the T3 Code thread ID as the Pi session ID.
+After a revert the thread's live session is the fork instead, which Pi names with its own ID; Pi
+records the original in the fork's `parentSession` header.
 
 They do not appear in Pi's default session picker automatically. To access them directly through the
 Pi CLI, launch Pi with that provider instance's `--session-dir` and select the saved session. The
@@ -142,7 +156,7 @@ These are deliberate follow-up candidates, not unsupported-by-accident behavior:
 - custom extension interactions beyond confirm, select, input, and notify
 - Pi prompt templates in the slash-command menu, which load under different trust rules than the
   trusted-extension selection
-- Pi-specific session export, fork, and rollback controls
+- Pi-specific session export and explicit fork/clone controls
 - Pi-native session browsing and management in T3 Code
 - interactive per-tool approval: base Pi RPC auto-runs enabled tools; a supervised mode would require
   T3 Code to supply and maintain a Pi permission-gate extension over Pi's extension UI RPC protocol

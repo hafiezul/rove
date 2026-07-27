@@ -492,6 +492,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
       provider,
       capabilities: {
         sessionModelSwitch: "in-session",
+        conversationRollback: "supported",
       },
       startSession,
       sendTurn,
@@ -502,6 +503,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
       listSessions,
       hasSession,
       readThread,
+      canRollbackThread: () => Effect.succeed(true),
       rollbackThread,
       stopAll,
       streamEvents: Stream.fromQueue(runtimeEvents),

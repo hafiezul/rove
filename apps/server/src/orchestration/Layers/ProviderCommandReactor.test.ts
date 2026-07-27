@@ -305,6 +305,7 @@ describe("ProviderCommandReactor", () => {
       getCapabilities: (_provider) =>
         Effect.succeed({
           sessionModelSwitch: input?.sessionModelSwitch ?? "in-session",
+          conversationRollback: "supported",
         }),
       getInstanceInfo: (instanceId) => {
         const raw = String(instanceId);
@@ -325,6 +326,7 @@ describe("ProviderCommandReactor", () => {
           },
         });
       },
+      canRollbackConversation: () => Effect.succeed(true),
       rollbackConversation: () => unsupported(),
       get streamEvents() {
         return Stream.fromPubSub(runtimeEventPubSub);

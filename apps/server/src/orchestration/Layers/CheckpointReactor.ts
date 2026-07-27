@@ -675,6 +675,30 @@ const make = Effect.gen(function* () {
       return;
     }
 
+    const rolledBackTurns = Math.max(0, currentTurnCount - event.payload.turnCount);
+
+    // Ask before restoring anything. A provider that cannot truncate its
+    // conversation would otherwise leave the workspace reverted against an
+    // intact conversation, which is worse than not reverting at all.
+    if (rolledBackTurns > 0) {
+      const canRollback = yield* providerService
+        .canRollbackConversation({
+          threadId: sessionRuntime.value.threadId,
+          numTurns: rolledBackTurns,
+        })
+        .pipe(Effect.catch(() => Effect.succeed(false)));
+      if (!canRollback) {
+        yield* appendRevertFailureActivity({
+          threadId: event.payload.threadId,
+          turnCount: event.payload.turnCount,
+          detail:
+            "This provider cannot revert its conversation to that turn, so nothing was changed.",
+          createdAt: now,
+        }).pipe(Effect.catch(() => Effect.void));
+        return;
+      }
+    }
+
     const restored = yield* checkpointStore.restoreCheckpoint({
       cwd: sessionRuntime.value.cwd,
       checkpointRef: targetCheckpointRef,
@@ -694,7 +718,6 @@ const make = Effect.gen(function* () {
     // reflects the reverted filesystem state.
     yield* workspaceEntries.refresh(sessionRuntime.value.cwd);
 
-    const rolledBackTurns = Math.max(0, currentTurnCount - event.payload.turnCount);
     if (rolledBackTurns > 0) {
       yield* providerService.rollbackConversation({
         threadId: sessionRuntime.value.threadId,

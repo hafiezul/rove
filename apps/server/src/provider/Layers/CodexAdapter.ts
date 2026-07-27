@@ -1703,11 +1703,13 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     provider: PROVIDER,
     capabilities: {
       sessionModelSwitch: "in-session",
+      conversationRollback: "supported",
     },
     startSession,
     sendTurn,
     interruptTurn,
     readThread,
+    canRollbackThread: () => Effect.succeed(true),
     rollbackThread,
     respondToRequest,
     respondToUserInput,

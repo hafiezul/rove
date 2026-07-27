@@ -1012,6 +1012,28 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   const getInstanceInfo: ProviderServiceMethod<"getInstanceInfo"> = (instanceId) =>
     registry.getInstanceInfo(instanceId);
 
+  const canRollbackConversation: ProviderServiceMethod<"canRollbackConversation"> = Effect.fn(
+    "canRollbackConversation",
+  )(function* (rawInput) {
+    const input = yield* decodeInputOrValidationError({
+      operation: "ProviderService.canRollbackConversation",
+      schema: ProviderRollbackConversationInput,
+      payload: rawInput,
+    });
+    if (input.numTurns === 0) {
+      return true;
+    }
+    const routed = yield* resolveRoutableSession({
+      threadId: input.threadId,
+      operation: "ProviderService.canRollbackConversation",
+      allowRecovery: true,
+    });
+    if (routed.adapter.capabilities.conversationRollback === "unsupported") {
+      return false;
+    }
+    return yield* routed.adapter.canRollbackThread(routed.threadId, input.numTurns);
+  });
+
   const rollbackConversation: ProviderServiceMethod<"rollbackConversation"> = Effect.fn(
     "rollbackConversation",
   )(function* (rawInput) {
@@ -1038,6 +1060,22 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         "provider.rollback_turns": input.numTurns,
       });
       yield* routed.adapter.rollbackThread(routed.threadId, input.numTurns);
+      // A rollback can change the provider's native session identity (Pi forks
+      // into a new session file), so the new resume state must reach durable
+      // storage before anything else can restart the thread.
+      const rolledBack = yield* routed.adapter
+        .listSessions()
+        .pipe(
+          Effect.map((sessions) =>
+            sessions.find((session) => session.threadId === routed.threadId),
+          ),
+        );
+      if (rolledBack) {
+        yield* upsertSessionBinding(
+          { ...rolledBack, providerInstanceId: routed.instanceId },
+          input.threadId,
+        );
+      }
       yield* analytics.record("provider.conversation.rolled_back", {
         provider: routed.adapter.provider,
         turns: input.numTurns,
@@ -1123,6 +1161,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     listSessions,
     getCapabilities,
     getInstanceInfo,
+    canRollbackConversation,
     rollbackConversation,
     // Each access creates a fresh PubSub subscription so that multiple
     // consumers (ProviderRuntimeIngestion, CheckpointReactor, etc.) each

@@ -67,12 +67,18 @@ const resolveTrustedExtensions = (input: {
   return envExtension ? [...input.trustedExtensions, envExtension] : input.trustedExtensions;
 };
 
+/**
+ * `sessionFile` resumes an existing session by path and wins over `sessionId`.
+ * A reverted thread points at a fork whose native id is no longer the thread
+ * id (ADR 0017), so it can only be reopened by path.
+ */
 export function buildPiLaunchPlan(input: {
   readonly configDirectory: string;
   readonly launchArgs: string;
   readonly trustedExtensions: ReadonlyArray<string>;
   readonly sessionDirectory: string;
   readonly sessionId: string;
+  readonly sessionFile?: string | undefined;
   readonly environment?: NodeJS.ProcessEnv;
 }): PiLaunchPlan {
   const userArgs = tokenizeCliArgs(input.launchArgs);
@@ -99,8 +105,7 @@ export function buildPiLaunchPlan(input: {
       ...trustedExtensionArgs(trustedExtensions),
       "--session-dir",
       input.sessionDirectory,
-      "--session-id",
-      input.sessionId,
+      ...(input.sessionFile ? ["--session", input.sessionFile] : ["--session-id", input.sessionId]),
     ],
     environment: input.configDirectory ? { PI_CODING_AGENT_DIR: input.configDirectory } : {},
   };
