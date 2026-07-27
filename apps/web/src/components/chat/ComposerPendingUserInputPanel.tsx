@@ -193,7 +193,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           ) : null}
         </div>
       ) : null}
-      <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+      <p className="whitespace-pre-wrap text-base font-medium leading-normal text-foreground">
         {activeQuestion.question}
       </p>
       {activeQuestion.multiSelect ? (
@@ -220,7 +220,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           const content = (
             <>
               <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-medium">{label}</span>
+                <span className="text-sm">{label}</span>
                 {description ? (
                   <span className="text-[13px] leading-snug text-muted-foreground">
                     {description}
