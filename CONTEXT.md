@@ -42,3 +42,6 @@ _Avoid_: Pi command, Pi prompt template
 
 **Pi Continuation Compatibility**:
 The rule that a Pi thread may resume only through the Pi runtime instance that created it, preserving its Pi configuration directory, extensions, credentials, model catalog, and native session storage.
+
+**Pi Context Usage**:
+Pi's own measurement of how much of the model's context window a session occupies, reported through its `get_session_stats` response. Pi is the sole authority on it, and it is unknown between a compaction and the next model response.

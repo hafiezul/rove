@@ -24,6 +24,7 @@ import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Exit from "effect/Exit";
+import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -151,6 +152,11 @@ interface PiAdapterSessionContext {
       }
     | undefined;
   readonly pendingExtensionDialogs: Map<ApprovalRequestId, PiExtensionDialog>;
+  /**
+   * Captured once at startup: nothing in an RPC session can change it, because
+   * T3 never sends Pi's `set_auto_compaction` command.
+   */
+  readonly autoCompactionEnabled: boolean;
   nextSyntheticItemId: number;
   nextSyntheticTaskId: number;
   stopped: boolean;
@@ -691,6 +697,48 @@ export function makePiAdapter<R>(
           raw: rawPiEvent(raw, messageType),
         });
       });
+    /**
+     * Pi owns the context accounting, so ask it at the end of every turn rather
+     * than accumulating per-message usage, which drifts across compactions. Pi
+     * cannot state the context size right after a compaction; keeping the
+     * previous snapshot beats blanking the meter, so those turns emit nothing.
+     */
+    const reportContextUsage = (
+      context: PiAdapterSessionContext,
+      raw: unknown,
+      messageType: string,
+    ) =>
+      Effect.gen(function* () {
+        const turnId = context.activeTurnId;
+        if (!turnId) {
+          return;
+        }
+        const stats = yield* context.runtime.getSessionStats().pipe(Effect.option);
+        if (Option.isNone(stats)) {
+          return;
+        }
+        const { totalTokens, contextTokens, contextWindow } = stats.value;
+        if (contextTokens === undefined) {
+          return;
+        }
+        yield* publishRuntimeEvent({
+          type: "thread.token-usage.updated",
+          ...(yield* makeEventStamp()),
+          provider: PROVIDER,
+          threadId: context.threadId,
+          turnId,
+          payload: {
+            usage: {
+              usedTokens: contextTokens,
+              ...(contextWindow !== undefined ? { maxTokens: contextWindow } : {}),
+              totalProcessedTokens: totalTokens,
+              compactsAutomatically: context.autoCompactionEnabled,
+            },
+          },
+          raw: rawPiEvent(raw, messageType),
+        });
+      });
+
     const mapPiRuntimeEvent = (context: PiAdapterSessionContext, raw: unknown) =>
       Effect.gen(function* () {
         if (context.stopped) {
@@ -1609,6 +1657,7 @@ export function makePiAdapter<R>(
             return;
           }
           case "agent_settled": {
+            yield* reportContextUsage(context, raw, type);
             yield* completeActiveTurn(context, raw, type);
             return;
           }
@@ -1852,6 +1901,7 @@ export function makePiAdapter<R>(
             summarizationRetryTaskId: undefined,
             lastFailedToolCall: undefined,
             pendingExtensionDialogs: new Map(),
+            autoCompactionEnabled: state.autoCompactionEnabled ?? false,
             nextSyntheticItemId: 0,
             nextSyntheticTaskId: 0,
             stopped: false,

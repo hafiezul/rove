@@ -82,6 +82,18 @@ export interface PiSessionRuntimeState {
   readonly sessionFile?: string | undefined;
   readonly model?: PiRpcModel | undefined;
   readonly thinkingLevel?: string | undefined;
+  readonly autoCompactionEnabled?: boolean | undefined;
+}
+
+/**
+ * Pi's own accounting of the session's token usage. `contextTokens` and
+ * `contextWindow` are absent whenever Pi cannot state the context size, which
+ * includes the window between a compaction and the next model response.
+ */
+export interface PiSessionStats {
+  readonly totalTokens: number;
+  readonly contextTokens?: number | undefined;
+  readonly contextWindow?: number | undefined;
 }
 
 export interface PiPromptImage {
@@ -104,6 +116,7 @@ export type PiExtensionUiResponse =
 export interface PiSessionRuntimeShape {
   readonly start: () => Effect.Effect<PiSessionRuntimeState, PiSessionRuntimeError>;
   readonly getState: () => Effect.Effect<PiSessionRuntimeState, PiSessionRuntimeError>;
+  readonly getSessionStats: () => Effect.Effect<PiSessionStats, PiSessionRuntimeError>;
   readonly getAvailableModels: () => Effect.Effect<
     ReadonlyArray<PiRpcModel>,
     PiSessionRuntimeError
@@ -245,6 +258,38 @@ function parseState(value: unknown): PiSessionRuntimeState | undefined {
     ...(sessionFile ? { sessionFile } : {}),
     ...(model ? { model } : {}),
     ...(thinkingLevel ? { thinkingLevel } : {}),
+    ...(typeof value.autoCompactionEnabled === "boolean"
+      ? { autoCompactionEnabled: value.autoCompactionEnabled }
+      : {}),
+  };
+}
+
+function tokenCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : undefined;
+}
+
+function parseSessionStats(value: unknown): PiSessionStats | undefined {
+  if (!isRecord(value) || !isRecord(value.tokens)) {
+    return undefined;
+  }
+  const totalTokens = tokenCount(value.tokens.total);
+  if (totalTokens === undefined) {
+    return undefined;
+  }
+  const contextUsage = isRecord(value.contextUsage) ? value.contextUsage : undefined;
+  // Pi reports a null context size between a compaction and the next model
+  // response, and zero before the session has spent anything. Neither is worth
+  // reporting as a context measurement.
+  const rawContextTokens = tokenCount(contextUsage?.tokens);
+  const contextTokens = rawContextTokens === 0 ? undefined : rawContextTokens;
+  const rawContextWindow = tokenCount(contextUsage?.contextWindow);
+  const contextWindow = rawContextWindow === 0 ? undefined : rawContextWindow;
+  return {
+    totalTokens,
+    ...(contextTokens !== undefined ? { contextTokens } : {}),
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
   };
 }
 
@@ -625,6 +670,21 @@ export const makePiSessionRuntime = (
         }),
       );
 
+    const getSessionStats = () =>
+      request({ type: "get_session_stats" }).pipe(
+        Effect.flatMap((response) => {
+          const stats = parseSessionStats(response);
+          return stats
+            ? Effect.succeed(stats)
+            : Effect.fail(
+                new PiSessionRuntimeError({
+                  operation: "get_session_stats",
+                  detail: "Pi returned an invalid session stats response.",
+                }),
+              );
+        }),
+      );
+
     const getAvailableModels = () =>
       request({ type: "get_available_models" }).pipe(
         Effect.flatMap((response) => {
@@ -740,6 +800,7 @@ export const makePiSessionRuntime = (
     return {
       start,
       getState,
+      getSessionStats,
       getAvailableModels,
       setModel,
       getAvailableThinkingLevels,

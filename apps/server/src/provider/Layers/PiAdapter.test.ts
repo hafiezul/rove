@@ -13,11 +13,13 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
 import { ProviderAdapterValidationError, type ProviderAdapterError } from "../Errors.ts";
+import { PiSessionRuntimeError } from "../Drivers/PiSessionRuntime.ts";
 import type {
   PiExtensionUiResponse,
   PiPromptInput,
   PiSessionRuntimeOptions,
   PiSessionRuntimeShape,
+  PiSessionStats,
 } from "../Drivers/PiSessionRuntime.ts";
 import { makePiAdapter } from "./PiAdapter.ts";
 
@@ -27,7 +29,11 @@ const INSTANCE_A = ProviderInstanceId.make("pi_personal");
 const INSTANCE_B = ProviderInstanceId.make("pi_work");
 const THREAD_ID = ThreadId.make("thread-native");
 
-function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<string> }) {
+function makeRuntimeFactory(input?: {
+  readonly thinkingLevels?: ReadonlyArray<string>;
+  readonly autoCompactionEnabled?: boolean;
+  readonly sessionStats?: Effect.Effect<PiSessionStats, PiSessionRuntimeError>;
+}) {
   return Effect.gen(function* () {
     const options: PiSessionRuntimeOptions[] = [];
     const modelCalls: Array<{ provider: string; modelId: string }> = [];
@@ -37,6 +43,7 @@ function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<st
     const events = yield* PubSub.unbounded<unknown>();
     let abortCount = 0;
     let closeCount = 0;
+    let sessionStatsCount = 0;
 
     const factory = (runtimeOptions: PiSessionRuntimeOptions) => {
       options.push(runtimeOptions);
@@ -51,7 +58,23 @@ function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<st
             sessionFile: "/tmp/pi-session.jsonl",
             model: { provider: "custom", id: "starter", name: "Starter" },
             thinkingLevel: "high",
+            ...(input?.autoCompactionEnabled !== undefined
+              ? { autoCompactionEnabled: input.autoCompactionEnabled }
+              : {}),
           }),
+        getSessionStats: () =>
+          Effect.sync(() => {
+            sessionStatsCount += 1;
+          }).pipe(
+            Effect.andThen(
+              input?.sessionStats ??
+                Effect.succeed({
+                  totalTokens: 2_300_000,
+                  contextTokens: 63_000,
+                  contextWindow: 1_000_000,
+                }),
+            ),
+          ),
         getState: () =>
           Effect.succeed({
             sessionId: runtimeOptions.sessionId ?? "probe",
@@ -99,6 +122,7 @@ function makeRuntimeFactory(input?: { readonly thinkingLevels?: ReadonlyArray<st
       getExtensionUiResponses: () => extensionUiResponses,
       emit: (event: unknown) => PubSub.publish(events, event).pipe(Effect.asVoid),
       getAbortCount: () => abortCount,
+      getSessionStatsCount: () => sessionStatsCount,
       getCloseCount: () => closeCount,
     };
   });
@@ -1537,6 +1561,9 @@ describe("PiAdapter", () => {
         yield* Effect.yieldNow;
         yield* Effect.yieldNow;
 
+        // The pipe is already dead, so asking Pi for its stats could only stall
+        // the interruption behind a timeout.
+        expect(runtime.getSessionStatsCount()).toBe(0);
         expect(events).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -1639,6 +1666,154 @@ describe("PiAdapter", () => {
       // The detail reaches the user's banner, so it must stay a single readable
       // line rather than a rendered stack trace.
       expect(message).not.toContain("\n");
+    }).pipe(Effect.scoped),
+  );
+  it.effect("reports Pi's context usage when a turn settles", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory({ autoCompactionEnabled: true });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      const turn = yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "Say hello",
+        attachments: [],
+      });
+
+      yield* runtime.emit({ type: "agent_settled" });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "thread.token-usage.updated",
+            turnId: turn.turnId,
+            payload: {
+              usage: {
+                usedTokens: 63_000,
+                maxTokens: 1_000_000,
+                totalProcessedTokens: 2_300_000,
+                compactsAutomatically: true,
+              },
+            },
+          }),
+        ]),
+      );
+    }).pipe(Effect.scoped),
+  );
+  it.effect("keeps the previous context usage when Pi cannot state it", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory({
+        // Pi reports a null context size between a compaction and the next
+        // model response, which parses to an absent contextTokens.
+        sessionStats: Effect.succeed({ totalTokens: 2_300_000 }),
+      });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      const turn = yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "Say hello",
+        attachments: [],
+      });
+
+      yield* runtime.emit({ type: "agent_settled" });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      expect(events.map((event) => event.type)).not.toContain("thread.token-usage.updated");
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "turn.completed",
+            turnId: turn.turnId,
+            payload: { state: "completed" },
+          }),
+        ]),
+      );
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("completes the turn when Pi's session stats request fails", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory({
+        sessionStats: Effect.fail(
+          new PiSessionRuntimeError({
+            operation: "get_session_stats",
+            detail: "Timed out waiting for Pi RPC response.",
+          }),
+        ),
+      });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      const turn = yield* adapter.sendTurn({
+        threadId: THREAD_ID,
+        input: "Say hello",
+        attachments: [],
+      });
+
+      yield* runtime.emit({ type: "agent_settled" });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      // An unavailable measurement is not a user-facing problem, so the turn
+      // must still complete cleanly and no diagnostic may be raised.
+      expect(events.map((event) => event.type)).not.toContain("thread.token-usage.updated");
+      expect(events.map((event) => event.type)).not.toContain("runtime.warning");
+      expect(events.map((event) => event.type)).not.toContain("runtime.error");
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "turn.completed",
+            turnId: turn.turnId,
+            payload: { state: "completed" },
+          }),
+        ]),
+      );
     }).pipe(Effect.scoped),
   );
 });

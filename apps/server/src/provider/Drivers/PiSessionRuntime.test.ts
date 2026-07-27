@@ -62,7 +62,36 @@ function respond(command, data) {
 function handle(command) {
   switch (command.type) {
     case "get_state":
-      respond(command, { sessionId, sessionFile, model: selected, thinkingLevel });
+      respond(command, { sessionId, sessionFile, model: selected, thinkingLevel, autoCompactionEnabled: false });
+      return;
+    case "get_session_stats":
+      if (process.env.PI_TEST_EMPTY_SESSION_STATS === "true") {
+        respond(command, {
+          sessionFile,
+          sessionId,
+          userMessages: 0,
+          assistantMessages: 0,
+          toolCalls: 0,
+          toolResults: 0,
+          totalMessages: 0,
+          tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          cost: 0,
+          contextUsage: { tokens: 0, contextWindow: 372000, percent: 0 },
+        });
+        return;
+      }
+      respond(command, {
+        sessionFile,
+        sessionId,
+        userMessages: 1,
+        assistantMessages: 1,
+        toolCalls: 0,
+        toolResults: 0,
+        totalMessages: 2,
+        tokens: { input: 55000, output: 24000, cacheRead: 2100000, cacheWrite: 121000, total: 2300000 },
+        cost: 1.25,
+        contextUsage: { tokens: 63000, contextWindow: 1000000, percent: 6.3 },
+      });
       return;
     case "get_available_models":
       respond(command, { models: [selected, { provider: "custom", id: "team/coder", name: "Team Coder" }] });
@@ -199,6 +228,12 @@ it.effect("starts Pi persistent mode with a stable native ID and drives model RP
     expect(yield* runtime.getState()).toMatchObject({
       model: { provider: "custom", id: "team/coder" },
       thinkingLevel: "max",
+      autoCompactionEnabled: false,
+    });
+    expect(yield* runtime.getSessionStats()).toEqual({
+      totalTokens: 2_300_000,
+      contextTokens: 63_000,
+      contextWindow: 1_000_000,
     });
 
     NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
@@ -316,6 +351,30 @@ it.effect("reports a diagnosable transport failure when Pi exits during an accep
         detail: expect.stringContaining("simulated Pi process loss"),
       }),
     );
+
+    NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("reads a fresh Pi session's stats without treating them as invalid", () =>
+  Effect.gen(function* () {
+    const binaryPath = makeMockPiBinary();
+    const runtime = yield* makePiSessionRuntime({
+      binaryPath,
+      configDirectory: "",
+      launchArgs: "",
+      trustedExtensions: [],
+      cwd: process.cwd(),
+      environment: { PI_TEST_EMPTY_SESSION_STATS: "true" },
+    });
+    yield* runtime.start();
+
+    // A session that has not yet spent tokens is a normal state, not a
+    // malformed response. The context size is simply not worth reporting.
+    expect(yield* runtime.getSessionStats()).toEqual({
+      totalTokens: 0,
+      contextWindow: 372_000,
+    });
 
     NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),

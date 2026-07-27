@@ -60,6 +60,7 @@ function makePiRuntimeFactory() {
               sessionId: runtimeOptions.sessionId ?? "model-probe",
               model: { provider: "pi-provider", id: "model", name: "Pi Model" },
             }),
+          getSessionStats: () => Effect.succeed({ totalTokens: 0 }),
           getAvailableModels: () => Effect.succeed([]),
           setModel: () => Effect.void,
           getAvailableThinkingLevels: () => Effect.succeed(["off", "high"]),
