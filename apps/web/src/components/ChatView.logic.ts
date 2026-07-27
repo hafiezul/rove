@@ -74,6 +74,55 @@ export function shouldWriteThreadErrorToCurrentServerThread(input: {
   );
 }
 
+// Errors surface through two maps (draft-keyed and thread-keyed) whose entries
+// can race around promotion, so each write carries its time to let the latest
+// one win when they collide.
+export type LocalThreadErrorEntry = {
+  readonly message: string | null;
+  /**
+   * The `session.lastError` value this entry dismissed, when it came from the
+   * banner's dismiss control. Clearing local error state (sending, retrying,
+   * reverting) leaves this unset so it never hides a live server error.
+   */
+  readonly dismissedServerError?: string | null;
+  readonly at: number;
+};
+
+/** Build the entry recorded when the user dismisses the thread error banner. */
+export function buildDismissedThreadErrorEntry(input: {
+  serverLastError: string | null | undefined;
+  at: number;
+}): LocalThreadErrorEntry {
+  return {
+    message: null,
+    dismissedServerError: input.serverLastError ?? null,
+    at: input.at,
+  };
+}
+
+/**
+ * Resolve the banner error for a server-backed thread.
+ *
+ * The server never clears `session.lastError` once a session exits with an
+ * error, so reading it with `??` would resurrect a dismissed banner on every
+ * render. A dismissal therefore suppresses only the exact error it dismissed.
+ */
+export function resolveServerThreadError(input: {
+  localEntry: LocalThreadErrorEntry | undefined;
+  serverLastError: string | null | undefined;
+}): string | null {
+  const serverLastError = input.serverLastError ?? null;
+  if (input.localEntry?.message) {
+    return input.localEntry.message;
+  }
+  // Only the exact dismissed error stays hidden, so a later, different failure
+  // still reaches the user.
+  if (input.localEntry?.dismissedServerError === serverLastError) {
+    return null;
+  }
+  return serverLastError;
+}
+
 export function buildThreadTurnInterruptInput(thread: Pick<Thread, "id" | "session">): {
   threadId: ThreadId;
   turnId?: TurnId;

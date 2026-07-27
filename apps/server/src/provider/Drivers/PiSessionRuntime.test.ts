@@ -309,6 +309,13 @@ it.effect("reports a diagnosable transport failure when Pi exits during an accep
         detail: expect.stringContaining("Pi RPC"),
       }),
     ]);
+    // Pi's own stderr is the only description of why it died, so it must reach
+    // the failure detail instead of being drained and discarded.
+    expect(events[0]).toEqual(
+      expect.objectContaining({
+        detail: expect.stringContaining("simulated Pi process loss"),
+      }),
+    );
 
     NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),

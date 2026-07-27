@@ -225,6 +225,7 @@ import {
 } from "./chat/draftHeroTransition";
 import {
   MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
+  buildDismissedThreadErrorEntry,
   buildExpiredTerminalContextToastCopy,
   buildLocalDraftThread,
   buildThreadTurnInterruptInput,
@@ -236,12 +237,14 @@ import {
   LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
   LastInvokedScriptByProjectSchema,
   type LocalDispatchSnapshot,
+  type LocalThreadErrorEntry,
   PullRequestDialogState,
   cloneComposerImageForRetry,
   deriveLockedProvider,
   readFileAsDataUrl,
   reconcileMountedTerminalThreadIds,
   resolveSendEnvMode,
+  resolveServerThreadError,
   revokeBlobPreviewUrl,
   revokeUserMessagePreviewUrls,
   waitForStartedServerThread,
@@ -1068,14 +1071,6 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
   );
 });
 
-// Errors surface through two maps (draft-keyed and thread-keyed) whose entries
-// can race around promotion, so each write carries its time to let the latest
-// one win when they collide.
-type LocalThreadErrorEntry = {
-  readonly message: string | null;
-  readonly at: number;
-};
-
 function ChatViewContent(props: ChatViewProps) {
   const {
     environmentId,
@@ -1319,7 +1314,7 @@ function ChatViewContent(props: ChatViewProps) {
   const localDraftError = serverThread
     ? null
     : ((draftId ? localDraftErrorsByDraftId[draftId]?.message : null) ?? null);
-  const localServerError = localServerErrorsByThreadKey[routeThreadKey]?.message ?? null;
+  const localServerErrorEntry = localServerErrorsByThreadKey[routeThreadKey];
   // Draft errors are keyed by draftId while server errors are keyed by thread
   // key, so a pending draft entry must migrate when the server thread loads or
   // a failed send would silently disappear on promotion. When both keys hold
@@ -1375,7 +1370,10 @@ function ChatViewContent(props: ChatViewProps) {
   const isServerThread = serverThread !== null;
   const activeThread = isServerThread ? serverThread : localDraftThread;
   const threadError = isServerThread
-    ? (localServerError ?? serverThread?.session?.lastError ?? null)
+    ? resolveServerThreadError({
+        localEntry: localServerErrorEntry,
+        serverLastError: serverThread?.session?.lastError,
+      })
     : localDraftError;
   const runtimeMode = composerRuntimeMode ?? activeThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
   const interactionMode =
@@ -2406,6 +2404,29 @@ function ChatViewContent(props: ChatViewProps) {
     },
     [draftId, routeThreadKey, routeThreadRef, serverThread],
   );
+
+  // Dismissing is not the same as clearing: it must also remember which server
+  // error was on screen, because the server keeps `session.lastError` set after
+  // the session exits and would otherwise re-render the same banner forever.
+  const dismissThreadError = useCallback(() => {
+    setLocalServerErrorsByThreadKey((existing) => ({
+      ...existing,
+      [routeThreadKey]: buildDismissedThreadErrorEntry({
+        serverLastError: serverThread?.session?.lastError,
+        at: Date.now(),
+      }),
+    }));
+    if (draftId) {
+      setLocalDraftErrorsByDraftId((existing) => {
+        if (existing[draftId] === undefined) {
+          return existing;
+        }
+        const next = { ...existing };
+        delete next[draftId];
+        return next;
+      });
+    }
+  }, [draftId, routeThreadKey, serverThread]);
 
   const focusComposer = useCallback(() => {
     composerRef.current?.focusAtEnd();
@@ -5238,10 +5259,7 @@ function ChatViewContent(props: ChatViewProps) {
 
         {/* Error banner */}
         <ProviderStatusBanner status={activeProviderStatus} />
-        <ThreadErrorBanner
-          error={threadError}
-          onDismiss={() => setThreadError(activeThread.id, null)}
-        />
+        <ThreadErrorBanner error={threadError} onDismiss={dismissThreadError} />
         {/* Main content area with optional plan sidebar */}
         <div className="flex min-h-0 min-w-0 flex-1">
           {/* Chat column */}

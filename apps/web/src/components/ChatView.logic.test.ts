@@ -12,6 +12,7 @@ import type { Thread } from "../types";
 import {
   MAX_HIDDEN_MOUNTED_PREVIEW_THREADS,
   MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
+  buildDismissedThreadErrorEntry,
   buildExpiredTerminalContextToastCopy,
   buildThreadTurnInterruptInput,
   createLocalDispatchSnapshot,
@@ -21,6 +22,7 @@ import {
   reconcileMountedTerminalThreadIds,
   reconcileRetainedMountedThreadIds,
   resolveSendEnvMode,
+  resolveServerThreadError,
   shouldWriteThreadErrorToCurrentServerThread,
 } from "./ChatView.logic";
 
@@ -352,6 +354,119 @@ describe("shouldWriteThreadErrorToCurrentServerThread", () => {
         targetThreadId: threadId,
       }),
     ).toBe(false);
+  });
+});
+
+const PI_TRANSPORT_ERROR = "Pi RPC event stream failed unexpectedly.";
+
+describe("resolveServerThreadError", () => {
+  it("falls back to the server error when no local override exists", () => {
+    expect(
+      resolveServerThreadError({
+        localEntry: undefined,
+        serverLastError: PI_TRANSPORT_ERROR,
+      }),
+    ).toBe(PI_TRANSPORT_ERROR);
+  });
+
+  it("lets a dismissal suppress the server error it dismissed", () => {
+    // The server never clears session.lastError after session.exited, so the
+    // dismissal is the only thing that can hide it.
+    expect(
+      resolveServerThreadError({
+        localEntry: { message: null, dismissedServerError: PI_TRANSPORT_ERROR, at: 1 },
+        serverLastError: PI_TRANSPORT_ERROR,
+      }),
+    ).toBeNull();
+  });
+
+  it("shows a different server error that arrives after a dismissal", () => {
+    // A dismissal silences one error; it must not mute the thread forever.
+    expect(
+      resolveServerThreadError({
+        localEntry: { message: null, dismissedServerError: PI_TRANSPORT_ERROR, at: 1 },
+        serverLastError: "Pi RPC process exited with code 23.",
+      }),
+    ).toBe("Pi RPC process exited with code 23.");
+  });
+
+  it("shows a server error again after a plain local clear", () => {
+    // Sending a message clears local error state without dismissing anything,
+    // so it must not suppress a live server error.
+    expect(
+      resolveServerThreadError({
+        localEntry: { message: null, at: 1 },
+        serverLastError: PI_TRANSPORT_ERROR,
+      }),
+    ).toBe(PI_TRANSPORT_ERROR);
+  });
+
+  it("prefers a local error message over the server error", () => {
+    expect(
+      resolveServerThreadError({
+        localEntry: { message: "Select a base branch before sending.", at: 1 },
+        serverLastError: PI_TRANSPORT_ERROR,
+      }),
+    ).toBe("Select a base branch before sending.");
+  });
+
+  it("returns null when neither source has an error", () => {
+    expect(resolveServerThreadError({ localEntry: undefined, serverLastError: null })).toBeNull();
+  });
+});
+
+describe("thread error banner lifecycle", () => {
+  // Regression: clearing local error state on send must not permanently
+  // suppress server errors, and a dismissal must survive later renders.
+  it("still shows a server error that arrives after a send cleared local state", () => {
+    const afterSend = { message: null, at: 1 };
+    expect(
+      resolveServerThreadError({ localEntry: afterSend, serverLastError: PI_TRANSPORT_ERROR }),
+    ).toBe(PI_TRANSPORT_ERROR);
+  });
+
+  it("keeps the banner hidden across re-renders once dismissed", () => {
+    const dismissed = buildDismissedThreadErrorEntry({
+      serverLastError: PI_TRANSPORT_ERROR,
+      at: 2,
+    });
+    expect(
+      resolveServerThreadError({ localEntry: dismissed, serverLastError: PI_TRANSPORT_ERROR }),
+    ).toBeNull();
+    expect(
+      resolveServerThreadError({ localEntry: dismissed, serverLastError: PI_TRANSPORT_ERROR }),
+    ).toBeNull();
+  });
+
+  it("re-shows the banner when the same failure recurs with a new detail", () => {
+    const dismissed = buildDismissedThreadErrorEntry({
+      serverLastError: PI_TRANSPORT_ERROR,
+      at: 2,
+    });
+    expect(
+      resolveServerThreadError({
+        localEntry: dismissed,
+        serverLastError: `${PI_TRANSPORT_ERROR} Pi stderr: boom`,
+      }),
+    ).toBe(`${PI_TRANSPORT_ERROR} Pi stderr: boom`);
+  });
+});
+
+describe("buildDismissedThreadErrorEntry", () => {
+  it("records which server error was dismissed", () => {
+    expect(buildDismissedThreadErrorEntry({ serverLastError: PI_TRANSPORT_ERROR, at: 7 })).toEqual({
+      message: null,
+      dismissedServerError: PI_TRANSPORT_ERROR,
+      at: 7,
+    });
+  });
+
+  it("records a dismissal even when only a local error was showing", () => {
+    expect(buildDismissedThreadErrorEntry({ serverLastError: null, at: 7 })).toEqual({
+      message: null,
+      dismissedServerError: null,
+      at: 7,
+    });
   });
 });
 

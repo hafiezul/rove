@@ -3,6 +3,7 @@ import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
@@ -25,6 +26,10 @@ import {
 const PI_RPC_REQUEST_TIMEOUT = "15 seconds" as const;
 const PI_RPC_START_TIMEOUT = "30 seconds" as const;
 const PI_RPC_FORCE_KILL_AFTER = "2 seconds" as const;
+/** Upper bound on retained Pi stderr so a chatty process cannot grow memory. */
+const PI_STDERR_DIAGNOSTIC_LIMIT = 4096;
+/** Grace period for stderr to flush after the transport dies, before reporting. */
+const PI_STDERR_FLUSH_TIMEOUT = "250 millis" as const;
 const decodeUnknownJson = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
 const encodeUnknownJson = Schema.encodeUnknownEffect(Schema.UnknownFromJsonString);
 
@@ -344,6 +349,27 @@ export const makePiSessionRuntime = (
     const closed = yield* Ref.make(false);
     const decoder = makePiJsonlDecoder();
 
+    // Pi describes fatal startup/runtime problems (bad flags, unloadable
+    // extensions, crashes) only on stderr. Retain the tail so transport
+    // failures can report a cause instead of an opaque "stream failed".
+    const stderrBuffer = yield* Ref.make("");
+    const appendStderr = (chunk: string) =>
+      Ref.update(stderrBuffer, (current) => {
+        const combined = current + chunk;
+        return combined.length > PI_STDERR_DIAGNOSTIC_LIMIT
+          ? combined.slice(combined.length - PI_STDERR_DIAGNOSTIC_LIMIT)
+          : combined;
+      });
+
+    // Drain stderr even before lifecycle mapping/diagnostics is enabled. An
+    // unread stderr pipe can otherwise block an otherwise healthy Pi process.
+    const stderrFiber = yield* child.stderr.pipe(
+      Stream.decodeText(),
+      Stream.runForEach(appendStderr),
+      Effect.ignore,
+      Effect.forkIn(runtimeScope),
+    );
+
     const failPendingRequests = (error: PiSessionRuntimeError) =>
       Ref.getAndSet(pendingRequests, new Map<string, PendingRequest>()).pipe(
         Effect.flatMap((pending) =>
@@ -362,13 +388,23 @@ export const makePiSessionRuntime = (
         return;
       }
 
+      // Kill first so stderr reaches end-of-stream: the transport is already
+      // unusable, and a still-running Pi would never close the pipe.
+      yield* child.kill({ forceKillAfter: PI_RPC_FORCE_KILL_AFTER }).pipe(Effect.ignore);
+      // stdout can close before the dying process' stderr has been drained, so
+      // wait for that fibre before reading the diagnostic, capped so a wedged
+      // pipe cannot block the failure report.
+      yield* Fiber.await(stderrFiber).pipe(Effect.timeout(PI_STDERR_FLUSH_TIMEOUT), Effect.ignore);
+      const stderrTail = (yield* Ref.get(stderrBuffer)).trim();
+      const detail =
+        stderrTail.length > 0 ? `${error.detail} Pi stderr: ${stderrTail}` : error.detail;
+
       yield* Queue.offer(rawEvents, {
         type: PI_RPC_TRANSPORT_FAILURE_EVENT_TYPE,
         operation: error.operation,
-        detail: error.detail,
+        detail,
       } satisfies PiRpcTransportFailureEvent);
       yield* failPendingRequests(error);
-      yield* child.kill({ forceKillAfter: PI_RPC_FORCE_KILL_AFTER }).pipe(Effect.ignore);
       // `end` drains the failure event before completing the event stream.
       // `shutdown` would interrupt the adapter before it could mark an active
       // T3 turn interrupted and retain the diagnostic payload.
@@ -459,10 +495,6 @@ export const makePiSessionRuntime = (
       ),
       Effect.forkIn(runtimeScope),
     );
-
-    // Drain stderr even before lifecycle mapping/diagnostics is enabled. An
-    // unread stderr pipe can otherwise block an otherwise healthy Pi process.
-    yield* child.stderr.pipe(Stream.runDrain, Effect.ignore, Effect.forkIn(runtimeScope));
 
     yield* child.exitCode.pipe(
       Effect.matchEffect({

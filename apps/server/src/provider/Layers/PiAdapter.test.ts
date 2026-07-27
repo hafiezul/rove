@@ -1600,4 +1600,45 @@ describe("PiAdapter", () => {
         expect(nativeThreadIds).toEqual([THREAD_ID]);
       }).pipe(Effect.scoped),
   );
+
+  it.effect("reports the cause when the Pi event stream itself fails", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      // The runtime's event stream has no typed error channel, so a real
+      // "failed unexpectedly" exit can only come from a defect.
+      const failingFactory = (runtimeOptions: PiSessionRuntimeOptions) =>
+        runtime.factory(runtimeOptions).pipe(
+          Effect.map((base) => ({
+            ...base,
+            events: Stream.die(new Error("boom while mapping")),
+          })),
+        );
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: failingFactory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      const runtimeError = events.find((event) => event.type === "runtime.error");
+      expect(runtimeError).toBeDefined();
+      const message = (runtimeError as { payload: { message: string } }).payload.message;
+      expect(message).toContain("boom while mapping");
+      // The detail reaches the user's banner, so it must stay a single readable
+      // line rather than a rendered stack trace.
+      expect(message).not.toContain("\n");
+    }).pipe(Effect.scoped),
+  );
 });

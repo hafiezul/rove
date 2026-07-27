@@ -19,6 +19,7 @@ import {
   type UserInputQuestion,
 } from "@t3tools/contracts";
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -53,6 +54,13 @@ import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 const PROVIDER = ProviderDriverKind.make("pi");
 const UNSUPPORTED_OPERATION_MESSAGE =
   "This Pi operation is not available until conversation controls are installed.";
+
+/** Reduce a cause to one readable line; the result is shown to the user. */
+function causeMessage(cause: Cause.Cause<unknown>): string {
+  const squashed = Cause.squash(cause);
+  const message = squashed instanceof Error ? squashed.message : String(squashed);
+  return message.replace(/\s+/g, " ").trim();
+}
 
 export type PiRuntimeFactory<R = never> = (
   options: PiSessionRuntimeOptions,
@@ -1859,12 +1867,15 @@ export function makePiAdapter<R>(
               if (context.stopped) {
                 return Effect.void;
               }
+              // Without the cause this reads as an opaque "failed" with no way
+              // to tell a Pi crash from a mapping defect. The detail reaches the
+              // user's banner, so squash to a message instead of a stack trace.
               const failure = {
                 type: "pi_rpc_transport_failure" as const,
                 operation: "event-stream",
                 detail: Exit.isSuccess(exit)
                   ? "Pi RPC event stream ended unexpectedly."
-                  : "Pi RPC event stream failed unexpectedly.",
+                  : `Pi RPC event stream failed unexpectedly. ${causeMessage(exit.cause)}`,
               };
               return writeNativePiEvent(context, failure).pipe(
                 Effect.andThen(mapPiRuntimeEvent(context, failure)),
