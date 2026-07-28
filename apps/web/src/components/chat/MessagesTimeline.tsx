@@ -139,6 +139,7 @@ interface TimelineRowSharedState {
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   onToggleTurnFold: (turnId: TurnId) => void;
   onToggleWorkGroup: (groupId: string, anchorElement?: HTMLElement) => void;
+  onContinueAfterRestart: () => void;
 }
 
 interface TimelineRowActivityState {
@@ -170,6 +171,7 @@ interface MessagesTimelineProps {
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   revertTurnCountByUserMessageId: Map<MessageId, number>;
   onRevertUserMessage: (messageId: MessageId) => void;
+  onContinueAfterRestart: () => void;
   isRevertingCheckpoint: boolean;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   activeThreadEnvironmentId: EnvironmentId;
@@ -204,6 +206,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onOpenTurnDiff,
   revertTurnCountByUserMessageId,
   onRevertUserMessage,
+  onContinueAfterRestart,
   isRevertingCheckpoint,
   onImageExpand,
   activeThreadEnvironmentId,
@@ -426,6 +429,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       skills,
       activeThreadEnvironmentId,
       onRevertUserMessage,
+      onContinueAfterRestart,
       onImageExpand,
       onOpenTurnDiff,
       onToggleTurnFold,
@@ -440,6 +444,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       skills,
       activeThreadEnvironmentId,
       onRevertUserMessage,
+      onContinueAfterRestart,
       onImageExpand,
       onOpenTurnDiff,
       onToggleTurnFold,
@@ -1971,12 +1976,57 @@ function toolWorkEntryHeading(workEntry: TimelineWorkEntry): string {
 
 const stopRowToggle = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
+/**
+ * A turn ended by a server restart rather than by the user or the provider.
+ * Named separately so the row can explain the cause and offer the resume that
+ * would otherwise have to be discovered by typing "Continue".
+ */
+export const RESTART_INTERRUPTED_ACTIVITY_KIND = "provider.session.restart-interrupted";
+
+function RestartInterruptedWorkEntryRow() {
+  const { onContinueAfterRestart } = use(TimelineRowCtx);
+  return (
+    <div className="flex flex-col rounded-md px-0.5 py-0.5">
+      <div className="flex select-none items-center gap-1.5">
+        <span className="flex size-5 shrink-0 items-center justify-center text-muted-foreground/65">
+          <WorkEntryIconSvg
+            name="message-circle"
+            className="block size-3.5 shrink-0 stroke-[1.8] opacity-80"
+          />
+        </span>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <p className="flex min-w-0 w-full items-baseline gap-1.5 text-[12px] leading-5">
+            <span className="min-w-0 shrink truncate font-medium text-foreground/82">
+              Turn interrupted
+            </span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground/55">
+              The server restarted while this turn was running
+            </span>
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-6 shrink-0 px-2 text-[11px]"
+            onClick={onContinueAfterRestart}
+          >
+            Continue
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
   workEntry: TimelineWorkEntry;
   workspaceRoot: string | undefined;
 }) {
   const { workEntry, workspaceRoot } = props;
   const activity = use(TimelineRowActivityCtx);
+  if (workEntry.sourceActivityKind === RESTART_INTERRUPTED_ACTIVITY_KIND) {
+    return <RestartInterruptedWorkEntryRow />;
+  }
   const [expanded, setExpanded] = useState(false);
   const iconConfig = workToneIcon(workEntry.tone);
   const showWarningIndicator = workEntry.sourceActivityKind === "runtime.warning";

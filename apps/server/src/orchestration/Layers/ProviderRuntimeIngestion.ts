@@ -1911,8 +1911,12 @@ const make = Effect.gen(function* () {
       );
     });
 
+  const ingestSynthetic: ProviderRuntimeIngestionShape["ingestSynthetic"] = (event) =>
+    worker.enqueue({ source: "runtime", event });
+
   return {
     start,
+    ingestSynthetic,
     drain: worker.drain,
   } satisfies ProviderRuntimeIngestionShape;
 });

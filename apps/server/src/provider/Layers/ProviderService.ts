@@ -774,7 +774,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         const routed = yield* resolveRoutableSession({
           threadId: input.threadId,
           operation: "ProviderService.interruptTurn",
-          allowRecovery: true,
+          allowRecovery: false,
         });
         metricProvider = routed.adapter.provider;
         yield* Effect.annotateCurrentSpan({
@@ -783,6 +783,14 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           "provider.thread_id": input.threadId,
           "provider.turn_id": input.turnId,
         });
+        // Recovering here would start a provider process solely to interrupt
+        // a turn that is not running in it. There is nothing to interrupt.
+        if (!routed.isActive) {
+          return yield* Effect.logInfo("provider.turn.interrupt.no-live-session", {
+            threadId: input.threadId,
+            provider: routed.adapter.provider,
+          });
+        }
         yield* routed.adapter.interruptTurn(routed.threadId, input.turnId);
         yield* analytics.record("provider.turn.interrupted", {
           provider: routed.adapter.provider,

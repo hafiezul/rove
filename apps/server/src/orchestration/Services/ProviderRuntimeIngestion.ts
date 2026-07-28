@@ -6,6 +6,7 @@
  *
  * @module ProviderRuntimeIngestionService
  */
+import type { ProviderRuntimeEvent } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
@@ -24,6 +25,14 @@ export interface ProviderRuntimeIngestionShape {
    * logging warnings.
    */
   readonly start: () => Effect.Effect<void, never, Scope.Scope>;
+
+  /**
+   * Ingest a runtime event that no provider emitted.
+   *
+   * Reserved for state the server itself must assert about a provider, such
+   * as reconciling sessions that did not survive a restart.
+   */
+  readonly ingestSynthetic: (event: ProviderRuntimeEvent) => Effect.Effect<void>;
 
   /**
    * Resolves when the internal processing queue is empty and idle.

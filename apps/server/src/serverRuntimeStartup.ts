@@ -33,6 +33,7 @@ import * as ServerSettings from "./serverSettings.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
+import * as ProviderSessionBootReconciler from "./orchestration/Services/ProviderSessionBootReconciler.ts";
 import * as ProviderSessionReaper from "./provider/Services/ProviderSessionReaper.ts";
 import {
   formatHeadlessServeOutput,
@@ -293,6 +294,8 @@ export const make = Effect.gen(function* () {
   const keybindings = yield* Keybindings.Keybindings;
   const orchestrationReactor = yield* OrchestrationReactor.OrchestrationReactor;
   const providerSessionReaper = yield* ProviderSessionReaper.ProviderSessionReaper;
+  const providerSessionBootReconciler =
+    yield* ProviderSessionBootReconciler.ProviderSessionBootReconcilerService;
   const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
@@ -344,6 +347,15 @@ export const make = Effect.gen(function* () {
         yield* orchestrationReactor.start().pipe(Scope.provide(reactorScope));
         yield* providerSessionReaper.start().pipe(Scope.provide(reactorScope));
       }),
+    );
+
+    // Provider processes do not outlive the server, so persisted sessions
+    // still marked running describe processes that no longer exist. Repair
+    // them before the welcome event so no client ever sees the stale state.
+    yield* Effect.logDebug("startup phase: reconciling provider sessions");
+    yield* runStartupPhase(
+      "provider-sessions.reconcile",
+      providerSessionBootReconciler.reconcile(),
     );
 
     const welcomeBase = yield* resolveWelcomeBase;

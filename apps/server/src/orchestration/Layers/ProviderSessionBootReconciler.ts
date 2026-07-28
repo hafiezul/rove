@@ -1,0 +1,169 @@
+import {
+  CommandId,
+  EventId,
+  type ProviderRuntimeEvent,
+  type ThreadId,
+  type TurnId,
+} from "@t3tools/contracts";
+import * as Cause from "effect/Cause";
+import * as Crypto from "effect/Crypto";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+
+import {
+  ProviderSessionDirectory,
+  type ProviderRuntimeBindingWithMetadata,
+} from "../../provider/Services/ProviderSessionDirectory.ts";
+import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
+import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
+import { ProviderRuntimeIngestionService } from "../Services/ProviderRuntimeIngestion.ts";
+import {
+  ProviderSessionBootReconcilerService,
+  type ProviderSessionBootReconcilerShape,
+} from "../Services/ProviderSessionBootReconciler.ts";
+
+export const RESTART_INTERRUPTED_ACTIVITY_KIND = "provider.session.restart-interrupted";
+
+const RESTART_INTERRUPT_REASON = "Server restarted while the turn was running.";
+
+const makeProviderSessionBootReconciler = Effect.gen(function* () {
+  const directory = yield* ProviderSessionDirectory;
+  const ingestion = yield* ProviderRuntimeIngestionService;
+  const orchestrationEngine = yield* OrchestrationEngineService;
+  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+  const crypto = yield* Crypto.Crypto;
+
+  const nowIso = DateTime.now.pipe(Effect.map(DateTime.formatIso));
+  const eventId = crypto.randomUUIDv4.pipe(Effect.map(EventId.make));
+
+  const appendRestartInterruptedActivity = (input: {
+    readonly threadId: ThreadId;
+    readonly turnId: TurnId;
+    readonly createdAt: string;
+  }) =>
+    Effect.gen(function* () {
+      const [commandId, activityId] = yield* Effect.all([
+        crypto.randomUUIDv4.pipe(
+          Effect.map((uuid) => CommandId.make(`server:restart-interrupted:${uuid}`)),
+        ),
+        eventId,
+      ]);
+      yield* orchestrationEngine.dispatch({
+        type: "thread.activity.append",
+        commandId,
+        threadId: input.threadId,
+        activity: {
+          id: activityId,
+          tone: "info",
+          kind: RESTART_INTERRUPTED_ACTIVITY_KIND,
+          summary: "Turn interrupted by server restart",
+          payload: { detail: RESTART_INTERRUPT_REASON },
+          turnId: input.turnId,
+          createdAt: input.createdAt,
+        },
+        createdAt: input.createdAt,
+      });
+    });
+
+  const reconcileBinding = (binding: ProviderRuntimeBindingWithMetadata) =>
+    Effect.gen(function* () {
+      const createdAt = yield* nowIso;
+      const thread = yield* projectionSnapshotQuery
+        .getThreadShellById(binding.threadId)
+        .pipe(Effect.map(Option.getOrUndefined));
+      const activeTurnId = thread?.session?.activeTurnId ?? undefined;
+      const instanceId =
+        binding.providerInstanceId !== undefined
+          ? { providerInstanceId: binding.providerInstanceId }
+          : {};
+
+      // `session.exited` is the whole repair: ingestion stops the session
+      // and clears its active turn, which settles every still-running turn
+      // as interrupted. A synthetic `turn.completed` would be wrong here —
+      // it settles the session as `ready`, which records the turn as
+      // *completed* — and its finalization work only drains in-memory
+      // buffers that the restart already emptied.
+      const sessionExited: ProviderRuntimeEvent = {
+        provider: binding.provider,
+        ...instanceId,
+        threadId: binding.threadId,
+        createdAt,
+        eventId: yield* eventId,
+        type: "session.exited",
+        payload: { reason: RESTART_INTERRUPT_REASON, recoverable: true },
+      };
+      yield* ingestion.ingestSynthetic(sessionExited);
+
+      yield* directory.upsert({
+        threadId: binding.threadId,
+        provider: binding.provider,
+        ...instanceId,
+        status: "stopped",
+      });
+
+      if (activeTurnId !== undefined) {
+        // Ordered after the synthetic event so the notice lands below the
+        // turn it explains.
+        yield* ingestion.drain;
+        yield* appendRestartInterruptedActivity({
+          threadId: binding.threadId,
+          turnId: activeTurnId,
+          createdAt,
+        });
+      }
+    });
+
+  const reconcile: ProviderSessionBootReconcilerShape["reconcile"] = () =>
+    Effect.gen(function* () {
+      const bindings = yield* directory.listBindings().pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("provider.session.boot-reconcile-list-failed", {
+            cause: Cause.pretty(cause),
+          }).pipe(Effect.as([] as ReadonlyArray<ProviderRuntimeBindingWithMetadata>)),
+        ),
+      );
+      const pending = bindings.filter((binding) => binding.status !== "stopped");
+
+      // One unreconcilable thread must not leave every later thread stuck
+      // reporting work that is not running.
+      yield* Effect.forEach(
+        pending,
+        (binding) =>
+          reconcileBinding(binding).pipe(
+            Effect.catchCause((cause) =>
+              Effect.logWarning("provider.session.boot-reconcile-failed", {
+                threadId: binding.threadId,
+                provider: binding.provider,
+                cause: Cause.pretty(cause),
+              }),
+            ),
+            Effect.catchDefect((defect) =>
+              Effect.logWarning("provider.session.boot-reconcile-defect", {
+                threadId: binding.threadId,
+                provider: binding.provider,
+                defect,
+              }),
+            ),
+          ),
+        { discard: true },
+      );
+
+      yield* ingestion.drain;
+
+      if (pending.length > 0) {
+        yield* Effect.logInfo("provider.session.boot-reconciled", {
+          reconciledCount: pending.length,
+          totalBindings: bindings.length,
+        });
+      }
+    });
+
+  return { reconcile } satisfies ProviderSessionBootReconcilerShape;
+});
+
+export const ProviderSessionBootReconcilerLive = Layer.effect(
+  ProviderSessionBootReconcilerService,
+  makeProviderSessionBootReconciler,
+);

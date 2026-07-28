@@ -179,6 +179,7 @@ function buildProps() {
     onOpenTurnDiff: () => {},
     revertTurnCountByUserMessageId: new Map(),
     onRevertUserMessage: () => {},
+    onContinueAfterRestart: () => {},
     isRevertingCheckpoint: false,
     onImageExpand: () => {},
     activeThreadEnvironmentId: ACTIVE_THREAD_ENVIRONMENT_ID,
@@ -699,5 +700,34 @@ describe("MessagesTimeline", () => {
     // rather than surfacing as a conversation-level failure.
     expect(markup).toContain("+2 previous tool calls");
     expect(markup).not.toContain('aria-label="Tool call failed"');
+  });
+});
+
+describe("restart-interrupted turn", () => {
+  it("explains the restart and offers to resume the conversation", async () => {
+    const { MessagesTimeline } = await import("./MessagesTimeline");
+    const markup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        timelineEntries={[
+          {
+            id: "entry-restart",
+            kind: "work" as const,
+            createdAt: MESSAGE_CREATED_AT,
+            entry: {
+              id: "activity-restart",
+              createdAt: MESSAGE_CREATED_AT,
+              label: "Turn interrupted by server restart",
+              tone: "info" as const,
+              sourceActivityKind: "provider.session.restart-interrupted",
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("Turn interrupted");
+    expect(markup).toContain("The server restarted while this turn was running");
+    expect(markup).toContain("Continue");
   });
 });

@@ -19,6 +19,25 @@ export interface AnchoredTurnMetrics {
   readonly scrollDeltaToRevealEnd: number;
 }
 
+/**
+ * Whether growing content should pull the viewport back to the live edge.
+ *
+ * Rows enter at their estimated size and grow once markdown, code blocks,
+ * images, or web fonts measure for real. On a resumed thread the entries
+ * never change again, so growth is the only remaining signal that the end of
+ * the timeline moved out of view.
+ */
+export function shouldResettleToEnd(input: {
+  readonly mode: TimelineScrollMode;
+  readonly previousContentHeight: number;
+  readonly nextContentHeight: number;
+}): boolean {
+  if (input.mode !== "following-end") {
+    return false;
+  }
+  return input.nextContentHeight > input.previousContentHeight;
+}
+
 export function getRowBottom(state: TimelineListMeasurementState, index: number): number | null {
   const top = state.positionAtIndex(index);
   const height = state.sizeAtIndex(index);

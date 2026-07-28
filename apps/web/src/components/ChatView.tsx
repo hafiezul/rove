@@ -86,7 +86,11 @@ import {
   isLatestTurnSettled,
 } from "../session-logic";
 import { type LegendListRef } from "@legendapp/list/react";
-import { getAnchoredTurnMetrics, type TimelineScrollMode } from "./chat/timelineScrollAnchoring";
+import {
+  getAnchoredTurnMetrics,
+  shouldResettleToEnd,
+  type TimelineScrollMode,
+} from "./chat/timelineScrollAnchoring";
 import {
   buildPendingUserInputAnswers,
   derivePendingUserInputProgress,
@@ -3450,6 +3454,51 @@ function ChatViewContent(props: ChatViewProps) {
     };
   }, [activeThread?.id]);
 
+  // Rows enter at their estimated size and grow when markdown, code blocks,
+  // images, or web fonts finally measure. While streaming, new deltas keep
+  // re-running the settle effect below; on a resumed thread the entries never
+  // change again, so growth is the only signal left that the end scrolled out
+  // of view.
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    let observer: ResizeObserver | null = null;
+    const frame = requestAnimationFrame(() => {
+      const scrollNode = legendListRef.current?.getScrollableNode();
+      const contentNode = scrollNode?.firstElementChild;
+      if (!scrollNode || !contentNode) {
+        return;
+      }
+      // The observed element is only the trigger; `scrollHeight` is the
+      // authoritative content height regardless of how the list nests its
+      // content wrapper.
+      let previousContentHeight = scrollNode.scrollHeight;
+      observer = new ResizeObserver(() => {
+        const nextContentHeight = scrollNode.scrollHeight;
+        const shouldResettle = shouldResettleToEnd({
+          mode: timelineScrollModeRef.current,
+          previousContentHeight,
+          nextContentHeight,
+        });
+        previousContentHeight = nextContentHeight;
+        if (
+          !shouldResettle ||
+          liveFollowUserScrollGenerationRef.current !== anchorUserScrollGenerationRef.current
+        ) {
+          return;
+        }
+        void legendListRef.current?.scrollToEnd?.({ animated: false });
+      });
+      observer.observe(contentNode);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [activeThread?.id]);
+
   const onTimelineAnchorReady = useCallback((messageId: MessageId, anchorIndex: number) => {
     if (pendingTimelineAnchorRef.current === messageId) {
       pendingTimelineAnchorRef.current = null;
@@ -4779,6 +4828,12 @@ function ChatViewContent(props: ChatViewProps) {
     ],
   );
 
+  // Resuming a thread whose turn the server restart cut short: send the same
+  // prompt the user would otherwise have to type.
+  const onContinueAfterRestart = useCallback(() => {
+    void onSubmitPlanFollowUp({ text: "Continue", interactionMode });
+  }, [interactionMode, onSubmitPlanFollowUp]);
+
   const onImplementPlanInNewThread = useCallback(async () => {
     if (
       !activeThread ||
@@ -5286,6 +5341,7 @@ function ChatViewContent(props: ChatViewProps) {
                 onOpenTurnDiff={onOpenTurnDiff}
                 revertTurnCountByUserMessageId={revertTurnCountByUserMessageId}
                 onRevertUserMessage={onRevertUserMessage}
+                onContinueAfterRestart={onContinueAfterRestart}
                 isRevertingCheckpoint={isRevertingCheckpoint}
                 onImageExpand={onExpandTimelineImage}
                 markdownCwd={gitCwd ?? undefined}

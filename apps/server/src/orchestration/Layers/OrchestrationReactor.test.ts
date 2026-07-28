@@ -34,6 +34,7 @@ describe("OrchestrationReactor", () => {
               started.push("provider-runtime-ingestion");
               return Effect.void;
             },
+            ingestSynthetic: () => Effect.void,
             drain: Effect.void,
           }),
         ),

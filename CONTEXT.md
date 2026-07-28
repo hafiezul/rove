@@ -63,3 +63,14 @@ _Avoid_: Pi text session, Pi one-shot session
 
 **Pi Context Usage**:
 Pi's own measurement of how much of the model's context window a session occupies, reported through its `get_session_stats` response. Pi is the sole authority on it, and it is unknown between a compaction and the next model response.
+
+**Session Liveness**:
+Whether a provider process is actually running and able to stream right now, as opposed to a persisted row that says it was. Provider processes are children of the T3 Code server, so no session is live across a server restart.
+_Avoid_: session status, running session
+
+**Boot Session Reconciliation**:
+The startup sweep that reconciles persisted provider session state against Session Liveness, before any client is told the server is ready.
+
+**Restart Interruption**:
+A turn ended by Boot Session Reconciliation rather than by the user or the provider. It is presented distinctly from a user-requested interrupt because the conversation can be resumed.
+_Avoid_: crash, abort

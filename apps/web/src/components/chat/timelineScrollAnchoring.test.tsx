@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { getAnchoredTurnMetrics, getRowBottom } from "./timelineScrollAnchoring";
+import {
+  getAnchoredTurnMetrics,
+  getRowBottom,
+  shouldResettleToEnd,
+} from "./timelineScrollAnchoring";
 
 function buildState({
   positions,
@@ -134,5 +138,56 @@ describe("timeline scroll anchoring", () => {
 
     expect(withoutComposer?.overflowsUsableViewport).toBe(false);
     expect(withComposer?.overflowsUsableViewport).toBe(true);
+  });
+});
+
+describe("timeline live-follow re-settle", () => {
+  it("re-follows the end when rows measure taller after the entries settle", () => {
+    // Rows enter at their estimated size and grow once markdown, code, or
+    // images actually measure. Nothing re-renders the timeline afterwards.
+    expect(
+      shouldResettleToEnd({
+        mode: "following-end",
+        previousContentHeight: 900,
+        nextContentHeight: 1400,
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores content growth once the user has scrolled away", () => {
+    expect(
+      shouldResettleToEnd({
+        mode: "free-scrolling",
+        previousContentHeight: 900,
+        nextContentHeight: 1400,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not fight the anchored position of a freshly sent turn", () => {
+    expect(
+      shouldResettleToEnd({
+        mode: "anchoring-new-turn",
+        previousContentHeight: 900,
+        nextContentHeight: 1400,
+      }),
+    ).toBe(false);
+  });
+
+  it("stays put when content shrinks or holds steady", () => {
+    expect(
+      shouldResettleToEnd({
+        mode: "following-end",
+        previousContentHeight: 1400,
+        nextContentHeight: 1400,
+      }),
+    ).toBe(false);
+    expect(
+      shouldResettleToEnd({
+        mode: "following-end",
+        previousContentHeight: 1400,
+        nextContentHeight: 900,
+      }),
+    ).toBe(false);
   });
 });

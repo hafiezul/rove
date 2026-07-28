@@ -1127,6 +1127,31 @@ routing.layer("ProviderServiceLive routing", (it) => {
     }),
   );
 
+  it.effect("does not restart a dead session just to interrupt it", () =>
+    Effect.gen(function* () {
+      const provider = yield* ProviderService.ProviderService;
+
+      const initial = yield* provider.startSession(asThreadId("thread-interrupt-dead"), {
+        provider: ProviderDriverKind.make("codex"),
+        providerInstanceId: codexInstanceId,
+        threadId: asThreadId("thread-interrupt-dead"),
+        cwd: "/tmp/project-interrupt-dead",
+        runtimeMode: "full-access",
+      });
+
+      // Stand in for the provider process dying with the server: the binding
+      // survives, the session does not.
+      yield* routing.codex.stopAll();
+      routing.codex.startSession.mockClear();
+      routing.codex.interruptTurn.mockClear();
+
+      yield* provider.interruptTurn({ threadId: initial.threadId });
+
+      assert.equal(routing.codex.startSession.mock.calls.length, 0);
+      assert.equal(routing.codex.interruptTurn.mock.calls.length, 0);
+    }),
+  );
+
   it.effect("recovers stale sessions for sendTurn using persisted cwd", () =>
     Effect.gen(function* () {
       const provider = yield* ProviderService.ProviderService;
