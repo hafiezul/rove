@@ -553,6 +553,72 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("lifts folded option previews out of a Pi select title", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-preview",
+        method: "select",
+        title:
+          "[Repair] How should the reconciler express this?\n\n" +
+          '--- 1. Synthesize events preview ---\nreconciler\n  worker.enqueue({ type: "turn.completed" })\n\n' +
+          "--- 2. Dispatch commands preview ---\nreconciler\n  dispatch thread.session.set",
+        options: ["1. Synthesize events", "2. Dispatch commands"],
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "user-input.requested",
+            requestId: "dialog-preview",
+            payload: {
+              questions: [
+                {
+                  id: "dialog-preview",
+                  header: "[Repair] How should the reconciler express this?",
+                  question: "[Repair] How should the reconciler express this?",
+                  options: [
+                    {
+                      label: "Synthesize events",
+                      description: "Synthesize events",
+                      preview: 'reconciler\n  worker.enqueue({ type: "turn.completed" })',
+                    },
+                    {
+                      label: "Dispatch commands",
+                      description: "Dispatch commands",
+                      preview: "reconciler\n  dispatch thread.session.set",
+                    },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          }),
+        ]),
+      );
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("splits a structured Pi select title into a header and a question body", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory();

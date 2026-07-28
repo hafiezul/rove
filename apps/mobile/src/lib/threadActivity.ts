@@ -190,9 +190,11 @@ function parseUserInputQuestions(
           if (typeof record.label !== "string" || typeof record.description !== "string") {
             return null;
           }
+          const preview = record.preview;
           return {
             label: record.label,
             description: record.description,
+            ...(typeof preview === "string" && preview.length > 0 ? { preview } : {}),
           };
         })
         .filter((option): option is UserInputQuestion["options"][number] => option !== null);

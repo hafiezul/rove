@@ -438,6 +438,8 @@ export type RequestResolvedPayload = typeof RequestResolvedPayload.Type;
 const UserInputQuestionOption = Schema.Struct({
   label: TrimmedNonEmptyStringSchema,
   description: TrimmedNonEmptyStringSchema,
+  /** Verbatim illustrative content (mockups, snippets) shown when the option is selected. */
+  preview: Schema.optional(TrimmedNonEmptyStringSchema),
 });
 export type UserInputQuestionOption = typeof UserInputQuestionOption.Type;
 

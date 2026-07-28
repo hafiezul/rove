@@ -226,6 +226,11 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                     {description}
                   </span>
                 ) : null}
+                {option.preview ? (
+                  <pre className="mt-1.5 max-h-40 overflow-auto rounded-md bg-background/45 px-2 py-1.5 font-mono text-[11px] leading-snug whitespace-pre text-muted-foreground/80">
+                    {option.preview}
+                  </pre>
+                ) : null}
               </div>
               {isSelected ? (
                 <CheckIcon className="size-3.5 shrink-0 text-primary" />

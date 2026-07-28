@@ -401,6 +401,10 @@ const PI_EXTENSION_CANCEL_LABEL = "Cancel";
  * a multi-part prompt into `title`, separated by newlines or a literal ` --- `. */
 const PI_TITLE_SEGMENT_SEPARATOR = " --- ";
 const PI_OPTION_INDEX_PATTERN = /^\d+\.\s+/;
+/** Extensions running against a dialog-only host have no preview pane, so they fold each
+ * option's preview into the title as `--- <n>. <label> preview ---` blocks. Pull them back
+ * out so the question body stays readable and each preview rides on its own option. */
+const PI_TITLE_PREVIEW_HEADER_PATTERN = /^--- (\d+)\. (.*) preview ---$/gm;
 
 interface PiSelectOption {
   readonly label: string;
@@ -424,6 +428,33 @@ type PiExtensionDialog =
       readonly method: "input";
       readonly question: UserInputQuestion;
     };
+
+/** Peel the folded preview blocks off a title, returning the remaining prompt text and
+ * each preview keyed by the 0-based option index the extension numbered it with. */
+function extractPiTitlePreviews(title: string): {
+  readonly title: string;
+  readonly previewsByIndex: ReadonlyMap<number, string>;
+} {
+  const headers = [...title.matchAll(PI_TITLE_PREVIEW_HEADER_PATTERN)];
+  const firstHeader = headers.at(0);
+  if (!firstHeader || firstHeader.index === undefined) {
+    return { title, previewsByIndex: new Map() };
+  }
+
+  const previewsByIndex = new Map<number, string>();
+  for (const [position, header] of headers.entries()) {
+    if (header.index === undefined) continue;
+    const nextHeader = headers.at(position + 1);
+    const body = title.slice(header.index + header[0].length, nextHeader?.index ?? title.length);
+    const optionIndex = Number.parseInt(header[1] ?? "", 10) - 1;
+    const preview = body.trim();
+    if (preview.length > 0 && optionIndex >= 0) {
+      previewsByIndex.set(optionIndex, preview);
+    }
+  }
+
+  return { title: title.slice(0, firstHeader.index).trim(), previewsByIndex };
+}
 
 /**
  * Split a Pi select title into an eyebrow header and a readable question body.
@@ -514,7 +545,8 @@ function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | 
       return undefined;
     }
     const options = piSelectOptions(rawOptions);
-    const { header, question } = splitPiSelectTitle(title);
+    const { title: promptTitle, previewsByIndex } = extractPiTitlePreviews(title);
+    const { header, question } = splitPiSelectTitle(promptTitle);
     return {
       id,
       method,
@@ -523,10 +555,14 @@ function piExtensionDialog(value: Record<string, unknown>): PiExtensionDialog | 
         id,
         header,
         question,
-        options: options.map((option) => ({
-          label: option.label,
-          description: option.label,
-        })),
+        options: options.map((option, index) => {
+          const preview = previewsByIndex.get(index);
+          return {
+            label: option.label,
+            description: option.label,
+            ...(preview ? { preview } : {}),
+          };
+        }),
         multiSelect: false,
       },
     };

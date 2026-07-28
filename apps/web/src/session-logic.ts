@@ -413,9 +413,11 @@ function parseUserInputQuestions(
           ) {
             return null;
           }
+          const preview = optionRecord.preview;
           return {
             label: optionRecord.label,
             description: optionRecord.description,
+            ...(typeof preview === "string" && preview.length > 0 ? { preview } : {}),
           };
         })
         .filter((option): option is UserInputQuestion["options"][number] => option !== null);
