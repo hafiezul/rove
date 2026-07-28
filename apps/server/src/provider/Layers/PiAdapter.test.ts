@@ -1121,6 +1121,55 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("keeps assistant item ids distinct across a restarted session on one thread", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+
+      const runAssistantTurn = Effect.fn(function* (text: string) {
+        yield* adapter.startSession(sessionStart(INSTANCE_A));
+        yield* Effect.yieldNow;
+        yield* adapter.sendTurn({ threadId: THREAD_ID, input: text, attachments: [] });
+        yield* runtime.emit({ type: "message_start", message: { role: "assistant" } });
+        yield* runtime.emit({
+          type: "message_update",
+          message: { role: "assistant" },
+          assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: text },
+        });
+        yield* runtime.emit({ type: "message_end", message: { role: "assistant" } });
+        yield* runtime.emit({ type: "agent_settled" });
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+        yield* Effect.yieldNow;
+      });
+
+      // A restart between turns is routine (reconnect, boot reconcile). The
+      // second turn must not reuse the first turn's assistant item id, or the
+      // projection merges both replies into one message.
+      yield* runAssistantTurn("First reply");
+      yield* runAssistantTurn("Second reply");
+
+      const assistantItemIds = events
+        .filter((event) => event.type === "item.started")
+        .map((event) => event.itemId);
+      expect(assistantItemIds).toHaveLength(2);
+      expect(assistantItemIds[0]).not.toEqual(assistantItemIds[1]);
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("maps Pi thinking deltas into visible work-log progress", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory();

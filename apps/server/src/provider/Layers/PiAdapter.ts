@@ -170,6 +170,14 @@ interface PiAdapterSessionContext {
    * T3 never sends Pi's `set_auto_compaction` command.
    */
   readonly autoCompactionEnabled: boolean;
+  /**
+   * Distinguishes synthetic ids minted by this session from those of any
+   * earlier session on the same thread. The counters below restart at zero on
+   * every start, and the thread id is stable, so without a per-session nonce a
+   * restarted session re-mints ids the projection then merges into the earlier
+   * turn's message.
+   */
+  readonly syntheticIdNonce: string;
   nextSyntheticItemId: number;
   nextSyntheticTaskId: number;
   stopped: boolean;
@@ -763,7 +771,7 @@ export function makePiAdapter<R>(
     const newSyntheticItemId = (context: PiAdapterSessionContext, kind: string) => {
       context.nextSyntheticItemId += 1;
       return RuntimeItemId.make(
-        `pi:${context.threadId}:${kind}:${String(context.nextSyntheticItemId)}`,
+        `pi:${context.threadId}:${context.syntheticIdNonce}:${kind}:${String(context.nextSyntheticItemId)}`,
       );
     };
     const newAssistantItemId = (context: PiAdapterSessionContext) =>
@@ -771,7 +779,7 @@ export function makePiAdapter<R>(
     const newSyntheticTaskId = (context: PiAdapterSessionContext, kind: string) => {
       context.nextSyntheticTaskId += 1;
       return RuntimeTaskId.make(
-        `pi:${context.threadId}:${kind}:${String(context.nextSyntheticTaskId)}`,
+        `pi:${context.threadId}:${context.syntheticIdNonce}:${kind}:${String(context.nextSyntheticTaskId)}`,
       );
     };
     const newThinkingTask = (context: PiAdapterSessionContext, contentIndex: number) => {
@@ -2149,6 +2157,7 @@ export function makePiAdapter<R>(
             // session file lazily, so the startup path is not an identity.
             sessionFile: resumeSessionFile,
             autoCompactionEnabled: state.autoCompactionEnabled ?? false,
+            syntheticIdNonce: NodeCrypto.randomUUID(),
             nextSyntheticItemId: 0,
             nextSyntheticTaskId: 0,
             stopped: false,
