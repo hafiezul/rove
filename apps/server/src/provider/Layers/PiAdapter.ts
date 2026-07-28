@@ -2326,7 +2326,10 @@ export function makePiAdapter<R>(
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "extension_ui_response",
-            detail: `Unknown pending Pi extension dialog: ${requestId}`,
+            // Phrasing is load-bearing: the reactor recognizes this detail to
+            // mark the request stale, which is what lets both clients drop a
+            // dialog card that can no longer be answered.
+            detail: `Unknown pending user-input request: ${requestId}`,
           });
         }
         const response = piExtensionDialogResponse(dialog, answers);

@@ -610,13 +610,18 @@ describe("PiAdapter", () => {
         ]),
       );
 
-      // The dialogs are gone, so a late answer must not double-respond.
+      // The dialogs are gone, so a late answer must not double-respond. The
+      // detail has to use the shared stale-request phrasing, or the clients
+      // keep showing a card nobody can answer.
       const error = yield* adapter
         .respondToUserInput(THREAD_ID, ApprovalRequestId.make("dialog-confirm"), {
           "dialog-confirm": "Confirm",
         })
         .pipe(Effect.flip);
-      expect(error._tag).toBe("ProviderAdapterRequestError");
+      expect(error).toMatchObject({
+        _tag: "ProviderAdapterRequestError",
+        detail: "Unknown pending user-input request: dialog-confirm",
+      });
     }).pipe(Effect.scoped),
   );
 

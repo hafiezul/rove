@@ -359,6 +359,44 @@ describe("derivePendingUserInputs", () => {
 
     expect(derivePendingUserInputs(activities)).toEqual([]);
   });
+
+  it("clears a stale Pi extension dialog prompt", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "pi-dialog-open",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "user-input.requested",
+        summary: "User input requested",
+        tone: "info",
+        payload: {
+          requestId: "dialog-select",
+          questions: [
+            {
+              id: "dialog-select",
+              header: "Choose environment",
+              question: "Choose environment",
+              options: [{ label: "Staging", description: "Staging" }],
+              multiSelect: false,
+            },
+          ],
+        },
+      }),
+      makeActivity({
+        id: "pi-dialog-failed",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "provider.user-input.respond.failed",
+        summary: "Provider user input response failed",
+        tone: "error",
+        payload: {
+          requestId: "dialog-select",
+          detail:
+            "Stale pending user-input request: dialog-select. Provider callback state does not survive app restarts or recovered sessions. Restart the turn to continue.",
+        },
+      }),
+    ];
+
+    expect(derivePendingUserInputs(activities)).toEqual([]);
+  });
 });
 
 describe("deriveActivePlanState", () => {
