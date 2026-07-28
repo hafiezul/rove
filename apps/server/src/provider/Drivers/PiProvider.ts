@@ -6,7 +6,7 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 
 import { ProcessRunner } from "../../processRunner.ts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
-import { mapPiModelCatalog, type PiModelCatalogEntry } from "./PiModels.ts";
+import { derivePiThinkingLevels, mapPiModelCatalog, type PiModelCatalogEntry } from "./PiModels.ts";
 import {
   mapPiExtensionCommandsToServerProviderSlashCommands,
   mapPiSkillsToServerProviderSkills,
@@ -61,11 +61,16 @@ export const resolvePiTrustedExtensions = (
 
 /**
  * Discover the exact model + thinking catalog and the loaded skill commands
- * from Pi RPC without creating a native session. Each catalog entry is
- * selected before querying its valid thinking levels because Pi exposes that
- * capability for the active model. Skills come from Pi's own `get_commands`
- * surface so the snapshot reflects exactly what the configured Pi binary
- * loaded (settings, flags, and trust rules already applied).
+ * from Pi RPC without creating a native session. Skills come from Pi's own
+ * `get_commands` surface so the snapshot reflects exactly what the configured
+ * Pi binary loaded (settings, flags, and trust rules already applied).
+ *
+ * Thinking levels are derived from each model's own `reasoning` flag and
+ * `thinkingLevelMap` rather than read back per model. Pi's
+ * `get_available_thinking_levels` reports the *selected* model, so reading it
+ * per model would need a `set_model` walk — and Pi's `set_model` persists
+ * `defaultProvider`/`defaultModel` into the user's Pi settings, so probing
+ * that way silently rewrites the Pi CLI defaults of anyone using T3 Code.
  */
 export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessSpawner> = (input) =>
   Effect.scoped(
@@ -83,26 +88,19 @@ export const discoverPiCatalog: PiCatalogProbe<ChildProcessSpawner.ChildProcessS
         [runtime.getAvailableModels(), runtime.getCommands()],
         { concurrency: 1 },
       );
-      const catalog = yield* Effect.forEach(
-        models,
-        (model) =>
-          Effect.gen(function* () {
-            yield* runtime.setModel({ provider: model.provider, modelId: model.id });
-            const [thinkingLevels, state] = yield* Effect.all(
-              [runtime.getAvailableThinkingLevels(), runtime.getState()],
-              { concurrency: 1 },
-            );
-            const isDefault =
-              initialState.model?.provider === model.provider && initialState.model.id === model.id;
-            return {
-              model,
-              thinkingLevels,
-              ...(state.thinkingLevel ? { currentThinkingLevel: state.thinkingLevel } : {}),
-              ...(isDefault ? { isDefault: true } : {}),
-            } satisfies PiModelCatalogEntry;
-          }),
-        { concurrency: 1 },
-      );
+      const catalog = models.map((model) => {
+        const isDefault =
+          initialState.model?.provider === model.provider && initialState.model.id === model.id;
+        return {
+          model,
+          thinkingLevels: derivePiThinkingLevels(model),
+          // Only Pi's active model has a meaningful current level to report.
+          ...(isDefault && initialState.thinkingLevel
+            ? { currentThinkingLevel: initialState.thinkingLevel }
+            : {}),
+          ...(isDefault ? { isDefault: true } : {}),
+        } satisfies PiModelCatalogEntry;
+      });
       return {
         models: catalog,
         skills: commands.skills,

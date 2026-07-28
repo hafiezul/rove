@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { mapPiModelCatalog, parsePiModelSlug } from "./PiModels.ts";
+import { derivePiThinkingLevels, mapPiModelCatalog, parsePiModelSlug } from "./PiModels.ts";
+
+describe("Pi thinking level derivation", () => {
+  it("reports only 'off' for a model without reasoning support", () => {
+    expect(
+      derivePiThinkingLevels({ provider: "openai", id: "gpt-plain", name: "GPT Plain" }),
+    ).toEqual(["off"]);
+  });
+
+  it("exposes the standard levels for a reasoning model with no level map", () => {
+    expect(
+      derivePiThinkingLevels({
+        provider: "anthropic",
+        id: "claude",
+        name: "Claude",
+        reasoning: true,
+      }),
+    ).toEqual(["off", "minimal", "low", "medium", "high"]);
+  });
+
+  it("drops levels the model maps to null and adds mapped xhigh/max", () => {
+    expect(
+      derivePiThinkingLevels({
+        provider: "anthropic",
+        id: "claude-fable-5",
+        name: "Claude Fable 5",
+        reasoning: true,
+        thinkingLevelMap: { off: null, xhigh: "xhigh", max: "max" },
+      }),
+    ).toEqual(["minimal", "low", "medium", "high", "xhigh", "max"]);
+  });
+});
 
 describe("Pi model catalog mapping", () => {
   it("keeps Pi provider/model identities distinct and groups them by provider", () => {

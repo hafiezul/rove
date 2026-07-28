@@ -5,6 +5,13 @@ export interface PiRpcModel {
   readonly provider: string;
   readonly id: string;
   readonly name: string;
+  /** Pi reports reasoning support on the model itself. */
+  readonly reasoning?: boolean | undefined;
+  /**
+   * Pi's per-model thinking overrides. A `null` entry disables that level; the
+   * extended levels are offered only when the model maps them explicitly.
+   */
+  readonly thinkingLevelMap?: Readonly<Record<string, string | null>> | undefined;
 }
 
 export interface PiModelCatalogEntry {
@@ -18,6 +25,35 @@ export interface PiModelCatalogEntry {
 export interface PiModelSelection {
   readonly provider: string;
   readonly modelId: string;
+}
+
+/** Pi's level ordering; mirrors `EXTENDED_THINKING_LEVELS` in `@earendil-works/pi-ai`. */
+const PI_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+/**
+ * Reproduce Pi's `getSupportedThinkingLevels` from the model object alone.
+ *
+ * Pi's RPC `get_available_thinking_levels` reports levels for the *currently
+ * selected* model, so reading it per model would require a `set_model` walk.
+ * `set_model` is not session-scoped in Pi — it writes `defaultProvider` and
+ * `defaultModel` into the user's Pi settings — so probing that way silently
+ * rewrites the user's Pi CLI defaults. The levels are a pure function of the
+ * model's `reasoning` flag and `thinkingLevelMap`, so derive them instead.
+ */
+export function derivePiThinkingLevels(model: PiRpcModel): ReadonlyArray<string> {
+  if (!model.reasoning) {
+    return ["off"];
+  }
+  return PI_THINKING_LEVELS.filter((level) => {
+    const mapped = model.thinkingLevelMap?.[level];
+    if (mapped === null) {
+      return false;
+    }
+    if (level === "xhigh" || level === "max") {
+      return mapped !== undefined;
+    }
+    return true;
+  });
 }
 
 const THINKING_LEVEL_LABELS: Readonly<Record<string, string>> = {

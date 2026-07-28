@@ -259,6 +259,23 @@ export function isPiRpcTransportFailureEvent(value: unknown): value is PiRpcTran
   );
 }
 
+/**
+ * Pi's thinking overrides map a level to a provider-specific value, or to
+ * `null` to disable it. Anything else is not a usable override.
+ */
+function parseThinkingLevelMap(value: unknown): Record<string, string | null> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const entries: Record<string, string | null> = {};
+  for (const [level, mapped] of Object.entries(value)) {
+    if (mapped === null || typeof mapped === "string") {
+      entries[level] = mapped;
+    }
+  }
+  return Object.keys(entries).length > 0 ? entries : undefined;
+}
+
 function parseModel(value: unknown): PiRpcModel | undefined {
   if (!isRecord(value)) {
     return undefined;
@@ -268,10 +285,15 @@ function parseModel(value: unknown): PiRpcModel | undefined {
   if (!provider || !id) {
     return undefined;
   }
+  // `reasoning` and `thinkingLevelMap` are what the catalog probe derives
+  // thinking levels from, so they must survive parsing.
+  const thinkingLevelMap = parseThinkingLevelMap(value.thinkingLevelMap);
   return {
     provider,
     id,
     name: stringValue(value.name) ?? id,
+    ...(typeof value.reasoning === "boolean" ? { reasoning: value.reasoning } : {}),
+    ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
   };
 }
 
