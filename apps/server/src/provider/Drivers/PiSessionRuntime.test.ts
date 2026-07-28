@@ -9,6 +9,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Stream from "effect/Stream";
 
+import { discoverPiCatalog } from "./PiProvider.ts";
 import { makePiJsonlDecoder, makePiSessionRuntime } from "./PiSessionRuntime.ts";
 
 describe("Pi RPC JSONL decoder", () => {
@@ -94,10 +95,14 @@ function handle(command) {
       });
       return;
     case "get_available_models":
-      respond(command, { models: [selected, { provider: "custom", id: "team/coder", name: "Team Coder" }] });
+      respond(command, { models: [selected, { provider: "custom", id: "team/coder", name: "Team Coder", reasoning: true, thinkingLevelMap: { minimal: null, max: "max" } }] });
       return;
     case "set_model":
       selected = { provider: command.provider, id: command.modelId, name: command.modelId };
+      if (process.env.PI_TEST_SET_MODEL_LOG_DIR) {
+        mkdirSync(process.env.PI_TEST_SET_MODEL_LOG_DIR, { recursive: true });
+        writeFileSync(join(process.env.PI_TEST_SET_MODEL_LOG_DIR, "set-model-calls.log"), selected.provider + "/" + selected.id + "\\n", { flag: "a" });
+      }
       respond(command, selected);
       return;
     case "get_available_thinking_levels":
@@ -192,6 +197,8 @@ it.effect("starts Pi persistent mode with a stable native ID and drives model RP
       provider: "custom",
       id: "team/coder",
       name: "Team Coder",
+      reasoning: true,
+      thinkingLevelMap: { minimal: null, max: "max" },
     });
     yield* runtime.setModel({ provider: "custom", modelId: "team/coder" });
     expect(yield* runtime.getAvailableThinkingLevels()).toEqual(["off", "high", "max"]);
@@ -378,4 +385,48 @@ it.effect("reads a fresh Pi session's stats without treating them as invalid", (
 
     NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("discovers the Pi catalog without selecting any model", () =>
+  Effect.gen(function* () {
+    const binaryPath = makeMockPiBinary();
+    const sessionDirectory = NodeFS.mkdtempSync(
+      NodePath.join(NodeOS.tmpdir(), "t3-pi-catalog-probe-"),
+    );
+
+    const catalog = yield* discoverPiCatalog({
+      binaryPath,
+      configDirectory: "",
+      launchArgs: "",
+      trustedExtensions: [],
+      cwd: process.cwd(),
+      environment: { PI_TEST_SET_MODEL_LOG_DIR: sessionDirectory },
+    });
+
+    // Pi's `set_model` writes `defaultProvider`/`defaultModel` into the user's
+    // Pi settings, so a catalog probe must never issue it. Thinking levels are
+    // derived from each model instead.
+    expect(NodeFS.existsSync(NodePath.join(sessionDirectory, "set-model-calls.log"))).toBe(false);
+    expect(catalog.models).toEqual([
+      {
+        model: { provider: "custom", id: "starter", name: "Starter" },
+        thinkingLevels: ["off"],
+        currentThinkingLevel: "high",
+        isDefault: true,
+      },
+      {
+        model: {
+          provider: "custom",
+          id: "team/coder",
+          name: "Team Coder",
+          reasoning: true,
+          thinkingLevelMap: { minimal: null, max: "max" },
+        },
+        thinkingLevels: ["off", "low", "medium", "high", "max"],
+      },
+    ]);
+
+    NodeFS.rmSync(NodePath.dirname(binaryPath), { recursive: true, force: true });
+    NodeFS.rmSync(sessionDirectory, { recursive: true, force: true });
+  }).pipe(Effect.provide(NodeServices.layer)),
 );

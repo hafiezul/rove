@@ -140,10 +140,16 @@ export interface PiSessionRuntimeShape {
   readonly getState: () => Effect.Effect<PiSessionRuntimeState, PiSessionRuntimeError>;
   readonly getSessionStats: () => Effect.Effect<PiSessionStats, PiSessionRuntimeError>;
   /**
-   * Read the entry tree's current tail. Pi's streamed messages carry no entry
-   * id, so this probe is the only way to learn where a turn landed.
+   * Read where the current turn landed in Pi's entry tree. Pi's streamed
+   * messages carry no entry id, so this probe is the only way to learn it.
+   *
+   * `since` is the previous turn's leaf id, which scopes the read to entries
+   * appended after it. Without it the anchor could not tell the turn's own
+   * first user message apart from the thread's very first one.
    */
-  readonly getTurnAnchor: () => Effect.Effect<PiTurnAnchor | undefined, PiSessionRuntimeError>;
+  readonly getTurnAnchor: (
+    since?: string | undefined,
+  ) => Effect.Effect<PiTurnAnchor | undefined, PiSessionRuntimeError>;
   /**
    * Fork the session before `entryId`, discarding that user message and
    * everything after it. Pi has no in-place branch command over RPC, so this
@@ -350,8 +356,10 @@ function parseSessionStats(value: unknown): PiSessionStats | undefined {
 
 /**
  * Pi's entry tree spans abandoned branches and pre-compaction history, so the
- * anchor is taken as the *last* user message in append order — the turn that
- * just settled — rather than by counting positions.
+ * anchor is read from a `since`-scoped window rather than by counting
+ * positions. Within that window the anchor is the *first* user message: a T3
+ * turn absorbs follow-ups sent while it runs, and each one appends its own Pi
+ * user entry, so forking at the first discards the whole turn (ADR 0018).
  */
 function parseTurnAnchor(value: unknown): PiTurnAnchor | undefined {
   if (!isRecord(value) || !Array.isArray(value.entries)) {
@@ -361,7 +369,6 @@ function parseTurnAnchor(value: unknown): PiTurnAnchor | undefined {
   if (!leafId) {
     return undefined;
   }
-  let userEntryId: string | undefined;
   for (const entry of value.entries) {
     if (!isRecord(entry) || entry.type !== "message" || !isRecord(entry.message)) {
       continue;
@@ -369,9 +376,12 @@ function parseTurnAnchor(value: unknown): PiTurnAnchor | undefined {
     if (entry.message.role !== "user") {
       continue;
     }
-    userEntryId = stringValue(entry.id) ?? userEntryId;
+    const userEntryId = stringValue(entry.id);
+    if (userEntryId) {
+      return { userEntryId, leafId };
+    }
   }
-  return userEntryId ? { userEntryId, leafId } : undefined;
+  return undefined;
 }
 
 function parseResponse(value: unknown): PiRpcResponse | undefined {
@@ -773,7 +783,17 @@ export const makePiSessionRuntime = (
         }),
       );
 
-    const getTurnAnchor = () => request({ type: "get_entries" }).pipe(Effect.map(parseTurnAnchor));
+    const getTurnAnchor = (since?: string | undefined) => {
+      if (since === undefined) {
+        return request({ type: "get_entries" }).pipe(Effect.map(parseTurnAnchor));
+      }
+      // Pi rejects a cursor it cannot find (e.g. the entry was compacted away).
+      // Re-read the whole tree so the turn still gets an anchor.
+      return request({ type: "get_entries", since }).pipe(
+        Effect.catchTag("PiSessionRuntimeError", () => request({ type: "get_entries" })),
+        Effect.map(parseTurnAnchor),
+      );
+    };
 
     const fork = (entryId: string) =>
       request({ type: "fork", entryId }).pipe(

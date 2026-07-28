@@ -31,8 +31,12 @@ storage remains isolated separately for every T3 Code Pi instance.
 ## Models
 
 T3 Code discovers each instance's model catalog from Pi and shows it in the normal model picker.
-Custom Pi providers and models therefore appear without duplicate T3 Code configuration. Available
-thinking levels are supplied by Pi for the currently selected model.
+Custom Pi providers and models therefore appear without duplicate T3 Code configuration. Each model's
+available thinking levels come from the capabilities Pi reports for that model.
+
+Discovering the catalog does not change your Pi configuration. Note that Pi treats selecting a model
+as a change to its saved defaults, so picking a model for a thread also updates the default model
+your Pi CLI starts with.
 
 ## Runtime Settings
 
@@ -137,6 +141,10 @@ T3 Code records the native Pi position of each turn as it completes, and forks f
 position. A turn with no recorded position — one that predates this feature, or that never settled —
 cannot be reverted to. T3 Code checks before it changes anything, so a refused revert leaves both the
 files and the conversation untouched rather than reverting only one of them.
+
+A message you send while a turn is still running is delivered to Pi as a follow-up and stays part of
+that same turn. Reverting the turn discards every message you sent during it, matching the workspace
+checkpoint for that turn.
 
 ## Session Storage
 

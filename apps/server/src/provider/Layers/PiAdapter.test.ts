@@ -50,7 +50,6 @@ function makeRuntimeFactory(input?: {
     const forkCalls: string[] = [];
     // Mirrors Pi: a fork swaps the session onto a new file whose native id is
     // no longer the thread id.
-    let anchoredEntries = 0;
     let sessionFile = "/tmp/pi-session.jsonl";
 
     const factory = (runtimeOptions: PiSessionRuntimeOptions) => {
@@ -90,17 +89,21 @@ function makeRuntimeFactory(input?: {
             model: { provider: "custom", id: "team/coder", name: "Team Coder" },
             thinkingLevel: thinkingCalls.at(-1) ?? "high",
           }),
-        // Pi appends one user entry per accepted prompt and reports the tail on
-        // demand, so each probe consumes the oldest entry not yet anchored.
-        getTurnAnchor: () =>
+        // Pi appends one user entry per accepted prompt. `since` scopes the
+        // read to entries appended after the given cursor, so the first user
+        // entry reported is the one that opened the current turn.
+        getTurnAnchor: (since) =>
           Effect.sync(() => {
             if (input?.turnAnchorUnavailable) {
               return undefined;
             }
-            anchoredEntries = Math.min(anchoredEntries + 1, prompts.length);
+            const previous = since ? Number(since.replace("leaf-", "")) : 0;
+            if (prompts.length <= previous) {
+              return undefined;
+            }
             return {
-              userEntryId: `entry-${String(anchoredEntries)}`,
-              leafId: `leaf-${String(anchoredEntries)}`,
+              userEntryId: `entry-${String(previous + 1)}`,
+              leafId: `leaf-${String(prompts.length)}`,
             };
           }),
         fork: (entryId) =>
@@ -2126,6 +2129,37 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("anchors a merged turn at the first message the user sent in it", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+
+      yield* settleTurn(runtime, adapter, "first");
+      // A message sent while the turn is still running is merged into that same
+      // T3 turn as a Pi follow-up, so Pi appends a second user entry for it.
+      yield* adapter.sendTurn({ threadId: THREAD_ID, input: "second", attachments: [] });
+      yield* adapter.sendTurn({ threadId: THREAD_ID, input: "merged follow-up", attachments: [] });
+      yield* runtime.emit({ type: "agent_settled" });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      yield* adapter.rollbackThread(THREAD_ID, 1);
+
+      // Reverting that turn must discard everything the user sent during it.
+      // Forking at the *last* entry would strip only the follow-up and leave
+      // the turn's first message alive, while the workspace checkpoint rolls
+      // the whole turn back.
+      expect(runtime.getForkCalls()).toEqual(["entry-2"]);
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("refuses to roll back a turn with no recorded Pi position", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory({ turnAnchorUnavailable: true });
@@ -2194,6 +2228,65 @@ describe("PiAdapter", () => {
       // Surviving anchors keep their Pi entry ids across the fork, so a second
       // revert still has a target.
       expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(true);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("anchors the first turn taken after a thread resumes", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+      const [before] = yield* adapter.listSessions();
+
+      // A restart loses the in-memory leaf cursor, so the next turn's probe
+      // falls back to the whole tree. It must still anchor that turn rather
+      // than re-reporting the resumed thread's opening message.
+      yield* adapter.stopSession(THREAD_ID);
+      yield* adapter.startSession({
+        ...sessionStart(INSTANCE_A),
+        ...(before?.resumeCursor ? { resumeCursor: before.resumeCursor } : {}),
+      });
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "second");
+
+      expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(true);
+      const [resumed] = yield* adapter.listSessions();
+      expect(resumed?.resumeCursor).toMatchObject({
+        turnAnchors: [
+          { turnId: expect.any(String), userEntryId: "entry-1" },
+          { turnId: expect.any(String), userEntryId: "entry-2" },
+        ],
+      });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("anchors the first turn taken after a revert", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+      yield* settleTurn(runtime, adapter, "first");
+      yield* settleTurn(runtime, adapter, "second");
+      yield* adapter.rollbackThread(THREAD_ID, 1);
+
+      // The turn taken after a revert must get its own anchor, so the thread
+      // can be reverted again rather than becoming permanently unrevertable.
+      yield* settleTurn(runtime, adapter, "third");
+
+      expect(yield* adapter.canRollbackThread(THREAD_ID, 1)).toBe(true);
+      yield* adapter.rollbackThread(THREAD_ID, 1);
+      expect(runtime.getForkCalls().at(-1)).toBe("entry-3");
     }).pipe(Effect.scoped),
   );
 });

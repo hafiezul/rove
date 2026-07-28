@@ -158,6 +158,11 @@ interface PiAdapterSessionContext {
    * cannot be reverted to.
    */
   readonly turnAnchors: Array<{ readonly turnId: TurnId; readonly userEntryId: string }>;
+  /**
+   * Pi leaf id the last settled turn ended at, used to scope the next turn's
+   * anchor probe so it resolves that turn's own first user entry.
+   */
+  lastLeafId: string | undefined;
   /** Path of the live native session, which a rollback fork replaces. */
   sessionFile: string | undefined;
   /**
@@ -900,11 +905,14 @@ export function makePiAdapter<R>(
         if (!turnId) {
           return;
         }
-        const anchor = yield* context.runtime.getTurnAnchor().pipe(Effect.option);
+        const anchor = yield* context.runtime.getTurnAnchor(context.lastLeafId).pipe(Effect.option);
         if (Option.isNone(anchor) || anchor.value === undefined) {
           return;
         }
-        const { userEntryId } = anchor.value;
+        const { userEntryId, leafId } = anchor.value;
+        // Advance the cursor even when the anchor is already known, so the next
+        // turn still reads a window that starts after this one.
+        context.lastLeafId = leafId;
         if (context.turnAnchors.some((entry) => entry.userEntryId === userEntryId)) {
           return;
         }
@@ -2074,6 +2082,10 @@ export function makePiAdapter<R>(
             lastFailedToolCall: undefined,
             pendingExtensionDialogs: new Map(),
             turnAnchors: readPiTurnAnchors(input.resumeCursor),
+            // Seeded below from Pi's current leaf, so the first turn this
+            // session settles anchors on its own entries rather than on the
+            // history it resumed.
+            lastLeafId: undefined,
             // Only a rollback fork sets this. A fresh thread keeps resolving
             // through `--session-id <thread id>`, and Pi materializes its
             // session file lazily, so the startup path is not an identity.
@@ -2084,6 +2096,13 @@ export function makePiAdapter<R>(
             stopped: false,
           };
           context.session = { ...context.session, resumeCursor: makePiResumeCursor(context) };
+          // Pin the resumed history's tail before any prompt is accepted. A
+          // failed probe just leaves the cursor unset, which costs the ability
+          // to anchor the first turn rather than corrupting a later revert.
+          const startingAnchor = yield* runtime.getTurnAnchor().pipe(Effect.option);
+          if (Option.isSome(startingAnchor) && startingAnchor.value !== undefined) {
+            context.lastLeafId = startingAnchor.value.leafId;
+          }
           sessions.set(input.threadId, context);
           yield* Stream.runForEach(runtime.events, (event) =>
             writeNativePiEvent(context, event).pipe(
@@ -2320,6 +2339,16 @@ export function makePiAdapter<R>(
               });
             }
             context.turnAnchors.splice(context.turnAnchors.length - numTurns);
+            // The fork moved the branch onto a new session whose leaf predates
+            // the discarded turns, so re-pin the cursor to the surviving tail.
+            // Leaving it stale would anchor the next turn on resurrected
+            // history; leaving it unset would anchor it on the thread's first
+            // message. Either way the thread could never be reverted again.
+            const forkedAnchor = yield* context.runtime.getTurnAnchor().pipe(Effect.option);
+            context.lastLeafId =
+              Option.isSome(forkedAnchor) && forkedAnchor.value !== undefined
+                ? forkedAnchor.value.leafId
+                : undefined;
             context.sessionFile = result.state.sessionFile;
             context.session = {
               ...context.session,
