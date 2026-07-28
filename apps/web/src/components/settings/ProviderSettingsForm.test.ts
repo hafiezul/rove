@@ -4,6 +4,7 @@ import { ProviderDriverKind } from "@t3tools/contracts";
 import { DRIVER_OPTION_BY_VALUE } from "./providerDriverMeta";
 import {
   deriveProviderSettingsFields,
+  deriveProviderSettingsNotice,
   nextProviderConfigWithFieldValue,
   readProviderConfigBoolean,
   readProviderConfigString,
@@ -35,6 +36,21 @@ describe("ProviderSettingsForm helpers", () => {
       description: "Stored in plain text on disk.",
       control: "password",
     });
+  });
+
+  it("surfaces the Pi unconfirmed-tool posture as a settings notice", () => {
+    const pi = DRIVER_OPTION_BY_VALUE[ProviderDriverKind.make("pi")];
+    expect(pi).toBeDefined();
+
+    const notice = deriveProviderSettingsNotice(pi!);
+    expect(notice).toBeDefined();
+    expect(notice).toContain("without a T3 Code confirmation prompt");
+  });
+
+  it("leaves providers without a posture caveat free of a notice", () => {
+    const codex = DRIVER_OPTION_BY_VALUE[ProviderDriverKind.make("codex")];
+    expect(codex).toBeDefined();
+    expect(deriveProviderSettingsNotice(codex!)).toBeUndefined();
   });
 
   it("preserves unknown config keys while omitting empty configurable fields", () => {

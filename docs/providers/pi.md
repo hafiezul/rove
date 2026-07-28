@@ -75,8 +75,11 @@ failure.
 ## Tool Access
 
 Pi manages tool access in the first release. Every tool enabled in the selected Pi runtime instance
-may run without a T3 Code confirmation prompt. Configure Pi's enabled and disabled tools in Pi; T3
-Code does not show its usual runtime-mode selector for Pi.
+may run without a T3 Code confirmation prompt, and T3 Code applies no sandbox of its own. Configure
+Pi's enabled and disabled tools in Pi; T3 Code does not show its usual runtime-mode selector for Pi.
+
+This is a weaker posture than the Codex path, so the Pi runtime-instance settings form states it
+inline rather than leaving it to this page alone.
 
 ## Extensions
 
@@ -91,6 +94,12 @@ environment appends one extra trusted path after the settings selection.
 T3 Code does not install, modify, or configure the extensions you trust. Their confirm, select, and
 input dialogs round-trip through T3 Code's normal request UX; `ctx.ui.notify` feedback renders as an
 informational timeline row; custom terminal UI is reported as requiring Pi's terminal interface.
+
+A dialog blocks the extension until it is answered, and Pi's `abort` does not release it. Interrupting
+the turn or stopping the session therefore cancels every unanswered dialog first, so the session never
+stays wedged behind a prompt no one intends to answer. If the Pi process or transport dies while a
+dialog is open, nothing can be delivered to Pi, but the pending request is still closed on the T3 side
+rather than left waiting for an answer that can no longer arrive.
 
 Slash commands a trusted extension registers are discovered through Pi's `get_commands` response and
 appear in the composer's `/` menu. Because only trusted extensions load, the menu is inherently

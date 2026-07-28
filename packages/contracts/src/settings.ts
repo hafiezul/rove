@@ -125,6 +125,12 @@ export interface ProviderSettingsFormAnnotation {
 
 export interface ProviderSettingsFormSchemaAnnotation {
   readonly order?: readonly string[] | undefined;
+  /**
+   * Driver-wide caveat rendered above the fields. For security posture that
+   * belongs to the driver rather than any one setting, so it stays visible
+   * wherever an instance is configured.
+   */
+  readonly notice?: string | undefined;
 }
 
 declare module "effect/Schema" {
@@ -145,12 +151,18 @@ export function makeProviderSettingsSchema<const Fields extends Schema.Struct.Fi
   fields: Fields,
   options?: {
     readonly order?: ProviderSettingsOrder<Fields> | undefined;
+    readonly notice?: string | undefined;
   },
 ): Schema.Struct<Fields> {
   return Schema.Struct(fields).pipe(
     Schema.annotate({
       providerSettingsFormSchema:
-        options?.order === undefined ? undefined : { order: options.order },
+        options?.order === undefined && options?.notice === undefined
+          ? undefined
+          : {
+              ...(options?.order === undefined ? {} : { order: options.order }),
+              ...(options?.notice === undefined ? {} : { notice: options.notice }),
+            },
     }),
   );
 }
@@ -321,6 +333,8 @@ export const PiSettings = makeProviderSettingsSchema(
   },
   {
     order: ["binaryPath", "configDirectory", "trustedExtensions", "launchArgs"],
+    notice:
+      "Pi manages tool access for this instance. Every tool enabled in Pi runs without a T3 Code confirmation prompt, and T3 Code applies no sandbox of its own. Configure enabled and disabled tools in Pi.",
   },
 );
 export type PiSettings = typeof PiSettings.Type;

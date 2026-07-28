@@ -69,6 +69,12 @@ function readFieldBooleanDefault(
   return Option.isSome(decoded) && typeof decoded.value === "boolean" ? decoded.value : undefined;
 }
 
+export function deriveProviderSettingsNotice(
+  definition: ProviderClientDefinition,
+): string | undefined {
+  return readProviderSettingsFormSchemaAnnotation(definition).notice;
+}
+
 export function deriveProviderSettingsFields(
   definition: ProviderClientDefinition,
 ): ReadonlyArray<ProviderSettingsFieldModel> {
@@ -282,6 +288,7 @@ export function ProviderSettingsForm({
   onChange,
 }: ProviderSettingsFormProps) {
   const fields = useMemo(() => deriveProviderSettingsFields(definition), [definition]);
+  const notice = useMemo(() => deriveProviderSettingsNotice(definition), [definition]);
 
   if (fields.length === 0) {
     return null;
@@ -289,6 +296,13 @@ export function ProviderSettingsForm({
 
   return (
     <>
+      {notice ? (
+        <FieldFrame variant={variant}>
+          <p className="text-[11px] text-muted-foreground" role="note">
+            {notice}
+          </p>
+        </FieldFrame>
+      ) : null}
       {fields.map((field) => (
         <ProviderSettingsFieldRow
           key={field.key}
