@@ -556,6 +556,152 @@ describe("PiAdapter", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("cancels unanswered extension dialogs when a turn is interrupted", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* adapter.sendTurn({ threadId: THREAD_ID, input: "deploy", attachments: [] });
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-confirm",
+        method: "confirm",
+        title: "Deploy release",
+        message: "Deploy this release to production?",
+      });
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-select",
+        method: "select",
+        title: "Choose environment",
+        options: ["Staging", "Production"],
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      yield* adapter.interruptTurn(THREAD_ID);
+      yield* Effect.yieldNow;
+
+      // Pi blocks on stdin until every dialog is answered, so an interrupt has
+      // to release them or the session stays wedged behind an abort.
+      expect(runtime.getExtensionUiResponses()).toEqual([
+        { id: "dialog-confirm", cancelled: true },
+        { id: "dialog-select", cancelled: true },
+      ]);
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "user-input.resolved", requestId: "dialog-confirm" }),
+          expect.objectContaining({ type: "user-input.resolved", requestId: "dialog-select" }),
+        ]),
+      );
+
+      // The dialogs are gone, so a late answer must not double-respond.
+      const error = yield* adapter
+        .respondToUserInput(THREAD_ID, ApprovalRequestId.make("dialog-confirm"), {
+          "dialog-confirm": "Confirm",
+        })
+        .pipe(Effect.flip);
+      expect(error._tag).toBe("ProviderAdapterRequestError");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("cancels unanswered extension dialogs when a session is stopped", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      yield* adapter.streamEvents.pipe(Stream.runDrain, Effect.forkScoped);
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-input",
+        method: "input",
+        title: "Release summary",
+        placeholder: "Describe the release",
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      yield* adapter.stopSession(THREAD_ID);
+      yield* Effect.yieldNow;
+
+      // Cancel has to reach Pi before the transport closes underneath it.
+      expect(runtime.getExtensionUiResponses()).toEqual([{ id: "dialog-input", cancelled: true }]);
+      expect(runtime.getCloseCount()).toBe(1);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("resolves unanswered extension dialogs when the Pi transport dies", () =>
+    Effect.gen(function* () {
+      const runtime = yield* makeRuntimeFactory();
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: INSTANCE_A,
+        sessionDirectory: "/tmp/t3-pi-sessions/pi_personal",
+        makeRuntime: runtime.factory,
+      });
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            events.push(event);
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      yield* adapter.startSession(sessionStart(INSTANCE_A));
+      yield* adapter.sendTurn({ threadId: THREAD_ID, input: "deploy", attachments: [] });
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "extension_ui_request",
+        id: "dialog-confirm",
+        method: "confirm",
+        title: "Deploy release",
+        message: "Deploy this release to production?",
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      yield* runtime.emit({
+        type: "pi_rpc_transport_failure",
+        operation: "process-exit",
+        detail: "Pi RPC process exited with code 23.",
+      });
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+
+      // Nothing can be written to a dead pipe, but the pending card still has
+      // to close or the thread keeps prompting for an answer that can never
+      // reach Pi.
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "user-input.resolved", requestId: "dialog-confirm" }),
+        ]),
+      );
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("lifts folded option previews out of a Pi select title", () =>
     Effect.gen(function* () {
       const runtime = yield* makeRuntimeFactory();

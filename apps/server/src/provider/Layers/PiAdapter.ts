@@ -1848,6 +1848,52 @@ export function makePiAdapter<R>(
         }
       });
 
+    const drainPendingExtensionDialogs = (context: PiAdapterSessionContext) => {
+      const pending = [...context.pendingExtensionDialogs.values()];
+      context.pendingExtensionDialogs.clear();
+      return pending;
+    };
+
+    /**
+     * Cancels dialogs that will never be answered, then closes their T3-side
+     * request cards. Telling Pi is best effort: a closed or dead runtime
+     * rejects the write, and failing to reach Pi must not mask the interrupt,
+     * stop, or transport failure that triggered the cancel. The card is closed
+     * either way, or it would stay open asking for an answer that can no longer
+     * reach anything.
+     */
+    const resolvePendingExtensionDialogs = (
+      context: PiAdapterSessionContext,
+      pending: ReadonlyArray<PiExtensionDialog>,
+    ) =>
+      Effect.gen(function* () {
+        for (const dialog of pending) {
+          const response = { id: dialog.id, cancelled: true } as const;
+          yield* context.runtime.respondToExtensionUI(response).pipe(Effect.ignore);
+          yield* publishRuntimeEvent({
+            type: "user-input.resolved",
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            threadId: context.threadId,
+            ...(context.activeTurnId ? { turnId: context.activeTurnId } : {}),
+            requestId: RuntimeRequestId.make(dialog.id),
+            payload: { answers: { [dialog.question.id]: { cancelled: true } } },
+            raw: rawPiEvent(response, "extension_ui_response"),
+          });
+        }
+      });
+
+    /**
+     * Pi's extension UI RPC is a blocking request: the extension stays parked
+     * on `ctx.ui.select`/`confirm`/`input` until a response arrives, and an
+     * `abort` does not release it. Any path that ends the work a dialog belongs
+     * to has to answer it, or the session wedges behind an unanswerable prompt.
+     */
+    const cancelPendingExtensionDialogs = (context: PiAdapterSessionContext) =>
+      Effect.suspend(() =>
+        resolvePendingExtensionDialogs(context, drainPendingExtensionDialogs(context)),
+      );
+
     const detachStoppedSession = (context: PiAdapterSessionContext) => {
       context.stopped = true;
       context.pendingExtensionDialogs.clear();
@@ -1867,8 +1913,16 @@ export function makePiAdapter<R>(
         if (context.stopped) {
           return Effect.void;
         }
-        detachStoppedSession(context);
-        return releaseSessionResources(context);
+        // Answer before detaching: the cancel has to reach Pi while the
+        // transport is still open.
+        return cancelPendingExtensionDialogs(context).pipe(
+          Effect.andThen(
+            Effect.suspend(() => {
+              detachStoppedSession(context);
+              return releaseSessionResources(context);
+            }),
+          ),
+        );
       });
 
     const handlePiTransportFailure = Effect.fn("PiAdapter.handlePiTransportFailure")(function* (
@@ -1879,10 +1933,14 @@ export function makePiAdapter<R>(
         return;
       }
       const turnId = context.activeTurnId;
+      // Capture before detaching, which clears the map. Pi is unreachable, so
+      // these can only be closed on the T3 side.
+      const orphanedDialogs = drainPendingExtensionDialogs(context);
       // Claim the session before emitting lifecycle events. This prevents a
       // concurrent stop from closing this event fiber and dropping the
       // interruption/diagnostic sequence below.
       detachStoppedSession(context);
+      yield* resolvePendingExtensionDialogs(context, orphanedDialogs);
       // A lost transport leaves Pi's last command outcome unknowable. Never
       // reinterpret a prior terminal hint as a completed/failed turn: the
       // safe T3 outcome is interruption and explicit user continuation.
@@ -2238,6 +2296,7 @@ export function makePiAdapter<R>(
             if (requestedTurnId !== undefined && activeTurnId !== requestedTurnId) {
               return;
             }
+            yield* cancelPendingExtensionDialogs(context);
             yield* context.runtime
               .abort()
               .pipe(Effect.mapError((error) => runtimeRequestError("abort", error)));
