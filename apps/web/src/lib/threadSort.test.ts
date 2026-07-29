@@ -26,6 +26,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
     proposedPlans: [],
     createdAt: "2026-03-09T10:00:00.000Z",
     archivedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     updatedAt: "2026-03-09T10:00:00.000Z",
     latestTurn: null,
@@ -220,6 +221,7 @@ describe("sortThreads", () => {
           createdAt: "2026-03-09T10:00:00.000Z",
           updatedAt: "2026-03-09T10:01:00.000Z",
           archivedAt: null,
+          pinnedAt: null,
         }),
         makeThread({
           id: ThreadId.make("thread-2"),
@@ -232,6 +234,7 @@ describe("sortThreads", () => {
           createdAt: "2026-03-09T10:06:00.000Z",
           updatedAt: "2026-03-09T10:06:00.000Z",
           archivedAt: null,
+          pinnedAt: null,
         }),
       ],
       PROJECT_ID,

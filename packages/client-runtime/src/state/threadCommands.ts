@@ -7,6 +7,7 @@ import {
   type CreateThreadInput,
   type DeleteThreadInput,
   type InterruptThreadTurnInput,
+  type PinThreadInput,
   type RespondToThreadApprovalInput,
   type RespondToThreadUserInputInput,
   type RevertThreadCheckpointInput,
@@ -15,11 +16,13 @@ import {
   type StartThreadTurnInput,
   type StopThreadSessionInput,
   type UnarchiveThreadInput,
+  type UnpinThreadInput,
   type UpdateThreadMetadataInput,
   archiveThread,
   createThread,
   deleteThread,
   interruptThreadTurn,
+  pinThread,
   respondToThreadApproval,
   respondToThreadUserInput,
   revertThreadCheckpoint,
@@ -28,6 +31,7 @@ import {
   startThreadTurn,
   stopThreadSession,
   unarchiveThread,
+  unpinThread,
   updateThreadMetadata,
 } from "../operations/commands.ts";
 import type { EnvironmentRegistry } from "../connection/registry.ts";
@@ -37,6 +41,7 @@ export type {
   CreateThreadInput,
   DeleteThreadInput,
   InterruptThreadTurnInput,
+  PinThreadInput,
   RespondToThreadApprovalInput,
   RespondToThreadUserInputInput,
   RevertThreadCheckpointInput,
@@ -45,6 +50,7 @@ export type {
   StartThreadTurnInput,
   StopThreadSessionInput,
   UnarchiveThreadInput,
+  UnpinThreadInput,
   UpdateThreadMetadataInput,
 } from "../operations/commands.ts";
 
@@ -79,6 +85,18 @@ export function createThreadEnvironmentAtoms<R, E>(
     unarchive: createEnvironmentCommand(runtime, {
       label: "environment-data:commands:thread:unarchive",
       execute: (input: UnarchiveThreadInput) => unarchiveThread(input),
+      scheduler,
+      concurrency,
+    }),
+    pin: createEnvironmentCommand(runtime, {
+      label: "environment-data:commands:thread:pin",
+      execute: (input: PinThreadInput) => pinThread(input),
+      scheduler,
+      concurrency,
+    }),
+    unpin: createEnvironmentCommand(runtime, {
+      label: "environment-data:commands:thread:unpin",
+      execute: (input: UnpinThreadInput) => unpinThread(input),
       scheduler,
       concurrency,
     }),

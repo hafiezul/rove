@@ -68,4 +68,43 @@ describe("sortThreads", () => {
 
     expect(sorted.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
   });
+
+  it("orders pinned threads ahead of unpinned threads", () => {
+    const sorted = sortThreads(
+      [
+        makeThread({
+          id: "thread-recent",
+          latestUserMessageAt: "2026-03-09T12:00:00.000Z",
+        }),
+        makeThread({
+          id: "thread-pinned",
+          latestUserMessageAt: "2026-03-09T09:00:00.000Z",
+          pinnedAt: "2026-03-09T11:00:00.000Z",
+        }),
+      ],
+      "updated_at",
+    );
+
+    expect(sorted.map((thread) => thread.id)).toEqual(["thread-pinned", "thread-recent"]);
+  });
+
+  it("keeps recency ordering among pinned threads", () => {
+    const sorted = sortThreads(
+      [
+        makeThread({
+          id: "thread-pinned-old",
+          latestUserMessageAt: "2026-03-09T09:00:00.000Z",
+          pinnedAt: "2026-03-09T12:00:00.000Z",
+        }),
+        makeThread({
+          id: "thread-pinned-new",
+          latestUserMessageAt: "2026-03-09T10:00:00.000Z",
+          pinnedAt: "2026-03-09T11:00:00.000Z",
+        }),
+      ],
+      "updated_at",
+    );
+
+    expect(sorted.map((thread) => thread.id)).toEqual(["thread-pinned-new", "thread-pinned-old"]);
+  });
 });

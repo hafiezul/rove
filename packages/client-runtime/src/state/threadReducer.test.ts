@@ -34,6 +34,7 @@ const baseThread: OrchestrationThread = {
   createdAt: "2026-04-01T00:00:00.000Z",
   updatedAt: "2026-04-01T00:00:00.000Z",
   archivedAt: null,
+  pinnedAt: null,
   deletedAt: null,
   messages: [],
   proposedPlans: [],
@@ -160,6 +161,50 @@ describe("applyThreadDetailEvent", () => {
       expect(result.kind).toBe("updated");
       if (result.kind === "updated") {
         expect(result.thread.archivedAt).toBeNull();
+      }
+    });
+  });
+
+  describe("thread.pinned / thread.unpinned", () => {
+    it("sets pinnedAt", () => {
+      const result = applyThreadDetailEvent(baseThread, {
+        ...baseEventFields,
+        sequence: 5,
+        occurredAt: "2026-04-01T05:00:00.000Z",
+        aggregateKind: "thread",
+        aggregateId: ThreadId.make("thread-1"),
+        type: "thread.pinned",
+        payload: {
+          threadId: ThreadId.make("thread-1"),
+          pinnedAt: "2026-04-01T05:00:00.000Z",
+          updatedAt: "2026-04-01T05:00:00.000Z",
+        },
+      });
+
+      expect(result.kind).toBe("updated");
+      if (result.kind === "updated") {
+        expect(result.thread.pinnedAt).toBe("2026-04-01T05:00:00.000Z");
+      }
+    });
+
+    it("clears pinnedAt", () => {
+      const pinnedThread = { ...baseThread, pinnedAt: "2026-04-01T05:00:00.000Z" };
+      const result = applyThreadDetailEvent(pinnedThread, {
+        ...baseEventFields,
+        sequence: 6,
+        occurredAt: "2026-04-01T06:00:00.000Z",
+        aggregateKind: "thread",
+        aggregateId: ThreadId.make("thread-1"),
+        type: "thread.unpinned",
+        payload: {
+          threadId: ThreadId.make("thread-1"),
+          updatedAt: "2026-04-01T06:00:00.000Z",
+        },
+      });
+
+      expect(result.kind).toBe("updated");
+      if (result.kind === "updated") {
+        expect(result.thread.pinnedAt).toBeNull();
       }
     });
   });

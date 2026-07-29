@@ -388,6 +388,68 @@ it.effect("decodes thread archived and unarchived events", () =>
   }),
 );
 
+it.effect("decodes thread pin and unpin commands", () =>
+  Effect.gen(function* () {
+    const pin = yield* decodeOrchestrationCommand({
+      type: "thread.pin",
+      commandId: "cmd-pin-1",
+      threadId: "thread-1",
+    });
+    const unpin = yield* decodeOrchestrationCommand({
+      type: "thread.unpin",
+      commandId: "cmd-unpin-1",
+      threadId: "thread-1",
+    });
+
+    assert.strictEqual(pin.type, "thread.pin");
+    assert.strictEqual(unpin.type, "thread.unpin");
+  }),
+);
+
+it.effect("decodes thread pinned and unpinned events", () =>
+  Effect.gen(function* () {
+    const pinned = yield* decodeOrchestrationEvent({
+      sequence: 1,
+      eventId: "event-pin-1",
+      aggregateKind: "thread",
+      aggregateId: "thread-1",
+      type: "thread.pinned",
+      occurredAt: "2026-01-01T00:00:00.000Z",
+      commandId: "cmd-pin-1",
+      causationEventId: null,
+      correlationId: "cmd-pin-1",
+      metadata: {},
+      payload: {
+        threadId: "thread-1",
+        pinnedAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    });
+    const unpinned = yield* decodeOrchestrationEvent({
+      sequence: 2,
+      eventId: "event-unpin-1",
+      aggregateKind: "thread",
+      aggregateId: "thread-1",
+      type: "thread.unpinned",
+      occurredAt: "2026-01-02T00:00:00.000Z",
+      commandId: "cmd-unpin-1",
+      causationEventId: null,
+      correlationId: "cmd-unpin-1",
+      metadata: {},
+      payload: {
+        threadId: "thread-1",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    });
+
+    if (pinned.type !== "thread.pinned") {
+      assert.fail(`Expected thread.pinned event, received ${pinned.type}.`);
+    }
+    assert.strictEqual(pinned.payload.pinnedAt, "2026-01-01T00:00:00.000Z");
+    assert.strictEqual(unpinned.type, "thread.unpinned");
+  }),
+);
+
 it.effect("accepts provider-scoped model options in thread.turn.start", () =>
   Effect.gen(function* () {
     const parsed = yield* decodeThreadTurnStartCommand({

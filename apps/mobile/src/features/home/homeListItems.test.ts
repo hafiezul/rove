@@ -47,6 +47,7 @@ function makeThread(id: string, projectId: ProjectId): EnvironmentThreadShell {
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
     archivedAt: null,
+    pinnedAt: null,
     session: null,
     latestUserMessageAt: null,
     hasPendingApprovals: false,

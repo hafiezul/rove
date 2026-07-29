@@ -45,6 +45,7 @@ export function buildLocalDraftThread(
     createdAt: draftThread.createdAt,
     updatedAt: draftThread.createdAt,
     archivedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     latestTurn: null,
     branch: draftThread.branch,

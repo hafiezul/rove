@@ -35,6 +35,8 @@ export type CreateThreadInput = CommandInput<"thread.create">;
 export type DeleteThreadInput = CommandInput<"thread.delete">;
 export type ArchiveThreadInput = CommandInput<"thread.archive">;
 export type UnarchiveThreadInput = CommandInput<"thread.unarchive">;
+export type PinThreadInput = CommandInput<"thread.pin">;
+export type UnpinThreadInput = CommandInput<"thread.unpin">;
 export type UpdateThreadMetadataInput = CommandInput<"thread.meta.update">;
 export type SetThreadRuntimeModeInput = CommandInput<"thread.runtime-mode.set">;
 export type SetThreadInteractionModeInput = CommandInput<"thread.interaction-mode.set">;
@@ -149,6 +151,26 @@ export const unarchiveThread: (input: UnarchiveThreadInput) => CommandEffect = E
   return yield* dispatch({
     ...input,
     type: "thread.unarchive",
+    commandId: yield* commandId(input),
+  });
+});
+
+export const pinThread: (input: PinThreadInput) => CommandEffect = Effect.fn(
+  "EnvironmentCommands.pinThread",
+)(function* (input) {
+  return yield* dispatch({
+    ...input,
+    type: "thread.pin",
+    commandId: yield* commandId(input),
+  });
+});
+
+export const unpinThread: (input: UnpinThreadInput) => CommandEffect = Effect.fn(
+  "EnvironmentCommands.unpinThread",
+)(function* (input) {
+  return yield* dispatch({
+    ...input,
+    type: "thread.unpin",
     commandId: yield* commandId(input),
   });
 });
