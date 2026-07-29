@@ -187,6 +187,22 @@ describe("hasUnseenCompletion", () => {
       }),
     ).toBe(false);
   });
+
+  // The thread projection now keeps pointing at the latest turn while it runs,
+  // so an in-flight turn reaches this check — it has no completion to be unseen.
+  it("treats a still-running turn as read", () => {
+    expect(
+      hasUnseenCompletion({
+        hasActionableProposedPlan: false,
+        hasPendingApprovals: false,
+        hasPendingUserInput: false,
+        interactionMode: "default",
+        latestTurn: { ...makeLatestTurn(), state: "running", completedAt: null },
+        lastVisitedAt: "2026-03-09T10:04:00.000Z",
+        session: null,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("createThreadJumpHintVisibilityController", () => {

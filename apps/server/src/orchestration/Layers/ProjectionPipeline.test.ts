@@ -14,6 +14,7 @@ import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 
@@ -33,6 +34,7 @@ import {
 import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { OrchestrationProjectionPipeline } from "../Services/ProjectionPipeline.ts";
+import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import { ServerConfig } from "../../config.ts";
 
 const makeProjectionPipelinePrefixedTestLayer = (prefix: string) =>
@@ -1453,6 +1455,345 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
     }),
   );
 
+  it.effect("keeps the latest turn pointer when a session settles without a checkpoint", () =>
+    Effect.gen(function* () {
+      const projectionPipeline = yield* OrchestrationProjectionPipeline;
+      const eventStore = yield* OrchestrationEventStore;
+      const sql = yield* SqlClient.SqlClient;
+      const now = "2026-01-01T00:00:00.000Z";
+      const threadId = ThreadId.make("thread-latest-turn-no-checkpoint");
+      const turnId = TurnId.make("turn-latest-no-checkpoint");
+
+      yield* eventStore.append({
+        type: "thread.created",
+        eventId: EventId.make("evt-lt1"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-lt1"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-lt1"),
+        metadata: {},
+        payload: {
+          threadId,
+          projectId: ProjectId.make("project-latest-turn"),
+          title: "Latest turn without checkpoint",
+          modelSelection: {
+            instanceId: ProviderInstanceId.make("claude"),
+            model: "claude-opus",
+          },
+          runtimeMode: "full-access",
+          branch: null,
+          worktreePath: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      yield* eventStore.append({
+        type: "thread.session-set",
+        eventId: EventId.make("evt-lt2"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-01-01T00:00:01.000Z",
+        commandId: CommandId.make("cmd-lt2"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-lt2"),
+        metadata: {},
+        payload: {
+          threadId,
+          session: {
+            threadId,
+            status: "running",
+            providerName: "claude",
+            runtimeMode: "full-access",
+            activeTurnId: turnId,
+            lastError: null,
+            updatedAt: "2026-01-01T00:00:01.000Z",
+          },
+        },
+      });
+
+      yield* eventStore.append({
+        type: "thread.message-sent",
+        eventId: EventId.make("evt-lt3"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-01-01T00:00:05.000Z",
+        commandId: CommandId.make("cmd-lt3"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-lt3"),
+        metadata: {},
+        payload: {
+          threadId,
+          messageId: MessageId.make("message-latest-turn"),
+          role: "assistant",
+          text: "done",
+          turnId,
+          streaming: false,
+          createdAt: "2026-01-01T00:00:05.000Z",
+          updatedAt: "2026-01-01T00:00:05.000Z",
+        },
+      });
+
+      yield* projectionPipeline.bootstrap;
+
+      // Session teardown with no thread.turn-diff-completed to follow it: the
+      // workspace is a plain folder, so nothing checkpoints the turn.
+      yield* eventStore.append({
+        type: "thread.session-set",
+        eventId: EventId.make("evt-lt4"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-01-01T00:01:00.000Z",
+        commandId: CommandId.make("cmd-lt4"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-lt4"),
+        metadata: {},
+        payload: {
+          threadId,
+          session: {
+            threadId,
+            status: "ready",
+            providerName: "claude",
+            runtimeMode: "full-access",
+            activeTurnId: null,
+            lastError: null,
+            updatedAt: "2026-01-01T00:01:00.000Z",
+          },
+        },
+      });
+
+      yield* projectionPipeline.bootstrap;
+
+      const threadRows = yield* sql<{ readonly latestTurnId: string | null }>`
+        SELECT latest_turn_id AS "latestTurnId"
+        FROM projection_threads
+        WHERE thread_id = ${threadId}
+      `;
+      assert.deepEqual(threadRows, [{ latestTurnId: turnId }]);
+
+      const turnRows = yield* sql<{
+        readonly state: string;
+        readonly completedAt: string | null;
+      }>`
+        SELECT state, completed_at AS "completedAt"
+        FROM projection_turns
+        WHERE thread_id = ${threadId} AND turn_id = ${turnId}
+      `;
+      assert.deepEqual(turnRows, [{ state: "completed", completedAt: "2026-01-01T00:01:00.000Z" }]);
+    }),
+  );
+
+  it.effect("moves the latest turn pointer to each newly active turn", () =>
+    Effect.gen(function* () {
+      const projectionPipeline = yield* OrchestrationProjectionPipeline;
+      const eventStore = yield* OrchestrationEventStore;
+      const sql = yield* SqlClient.SqlClient;
+      const now = "2026-01-01T00:00:00.000Z";
+      const threadId = ThreadId.make("thread-latest-turn-advance");
+      const firstTurnId = TurnId.make("turn-latest-first");
+      const secondTurnId = TurnId.make("turn-latest-second");
+
+      yield* eventStore.append({
+        type: "thread.created",
+        eventId: EventId.make("evt-la1"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-la1"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-la1"),
+        metadata: {},
+        payload: {
+          threadId,
+          projectId: ProjectId.make("project-latest-turn-advance"),
+          title: "Latest turn advance",
+          modelSelection: {
+            instanceId: ProviderInstanceId.make("claude"),
+            model: "claude-opus",
+          },
+          runtimeMode: "full-access",
+          branch: null,
+          worktreePath: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      const appendSessionSet = (
+        eventId: string,
+        status: "running" | "ready",
+        activeTurnId: TurnId | null,
+        updatedAt: string,
+      ) =>
+        eventStore.append({
+          type: "thread.session-set",
+          eventId: EventId.make(eventId),
+          aggregateKind: "thread",
+          aggregateId: threadId,
+          occurredAt: updatedAt,
+          commandId: CommandId.make(`cmd-${eventId}`),
+          causationEventId: null,
+          correlationId: CorrelationId.make(`cmd-${eventId}`),
+          metadata: {},
+          payload: {
+            threadId,
+            session: {
+              threadId,
+              status,
+              providerName: "claude",
+              runtimeMode: "full-access",
+              activeTurnId,
+              lastError: null,
+              updatedAt,
+            },
+          },
+        });
+
+      yield* appendSessionSet("evt-la2", "running", firstTurnId, "2026-01-01T00:00:01.000Z");
+      yield* appendSessionSet("evt-la3", "ready", null, "2026-01-01T00:00:10.000Z");
+
+      yield* projectionPipeline.bootstrap;
+
+      const afterFirstTurn = yield* sql<{ readonly latestTurnId: string | null }>`
+        SELECT latest_turn_id AS "latestTurnId"
+        FROM projection_threads
+        WHERE thread_id = ${threadId}
+      `;
+      assert.deepEqual(afterFirstTurn, [{ latestTurnId: firstTurnId }]);
+
+      yield* appendSessionSet("evt-la4", "running", secondTurnId, "2026-01-01T00:00:20.000Z");
+
+      yield* projectionPipeline.bootstrap;
+
+      const afterSecondTurn = yield* sql<{ readonly latestTurnId: string | null }>`
+        SELECT latest_turn_id AS "latestTurnId"
+        FROM projection_threads
+        WHERE thread_id = ${threadId}
+      `;
+      assert.deepEqual(afterSecondTurn, [{ latestTurnId: secondTurnId }]);
+    }),
+  );
+
+  it.effect("still lets checkpoint and revert events set the latest turn pointer", () =>
+    Effect.gen(function* () {
+      const projectionPipeline = yield* OrchestrationProjectionPipeline;
+      const eventStore = yield* OrchestrationEventStore;
+      const sql = yield* SqlClient.SqlClient;
+      const now = "2026-01-01T00:00:00.000Z";
+      const threadId = ThreadId.make("thread-latest-turn-checkpoint");
+      const keptTurnId = TurnId.make("turn-checkpoint-kept");
+      const revertedTurnId = TurnId.make("turn-checkpoint-reverted");
+
+      const appendAndProject = (event: Parameters<typeof eventStore.append>[0]) =>
+        eventStore
+          .append(event)
+          .pipe(Effect.flatMap((savedEvent) => projectionPipeline.projectEvent(savedEvent)));
+
+      const readLatestTurnId = sql<{ readonly latestTurnId: string | null }>`
+        SELECT latest_turn_id AS "latestTurnId"
+        FROM projection_threads
+        WHERE thread_id = ${threadId}
+      `;
+
+      yield* appendAndProject({
+        type: "thread.created",
+        eventId: EventId.make("evt-cp1"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-cp1"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-cp1"),
+        metadata: {},
+        payload: {
+          threadId,
+          projectId: ProjectId.make("project-latest-turn-checkpoint"),
+          title: "Latest turn checkpoint",
+          modelSelection: {
+            instanceId: ProviderInstanceId.make("codex"),
+            model: "gpt-5-codex",
+          },
+          runtimeMode: "full-access",
+          branch: null,
+          worktreePath: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      const appendCheckpoint = (eventId: string, turnId: TurnId, checkpointTurnCount: number) =>
+        appendAndProject({
+          type: "thread.turn-diff-completed",
+          eventId: EventId.make(eventId),
+          aggregateKind: "thread",
+          aggregateId: threadId,
+          occurredAt: now,
+          commandId: CommandId.make(`cmd-${eventId}`),
+          causationEventId: null,
+          correlationId: CorrelationId.make(`cmd-${eventId}`),
+          metadata: {},
+          payload: {
+            threadId,
+            turnId,
+            checkpointTurnCount,
+            checkpointRef: CheckpointRef.make(
+              `refs/t3/checkpoints/${threadId}/turn/${checkpointTurnCount}`,
+            ),
+            status: "ready",
+            files: [],
+            assistantMessageId: null,
+            completedAt: now,
+          },
+        });
+
+      yield* appendCheckpoint("evt-cp2", keptTurnId, 1);
+      assert.deepEqual(yield* readLatestTurnId, [{ latestTurnId: keptTurnId }]);
+
+      // A Git-backed workspace keeps moving the pointer through checkpoints.
+      yield* appendCheckpoint("evt-cp3", revertedTurnId, 2);
+      assert.deepEqual(yield* readLatestTurnId, [{ latestTurnId: revertedTurnId }]);
+
+      // Revert still sets the pointer explicitly, back to the newest retained turn.
+      yield* appendAndProject({
+        type: "thread.reverted",
+        eventId: EventId.make("evt-cp4"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-evt-cp4"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-evt-cp4"),
+        metadata: {},
+        payload: {
+          threadId,
+          turnCount: 1,
+        },
+      });
+      assert.deepEqual(yield* readLatestTurnId, [{ latestTurnId: keptTurnId }]);
+
+      // Reverting past every turn still clears the pointer — preserving the
+      // pointer is only for session settle, never for an explicit revert.
+      yield* appendAndProject({
+        type: "thread.reverted",
+        eventId: EventId.make("evt-cp5"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-evt-cp5"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-evt-cp5"),
+        metadata: {},
+        payload: {
+          threadId,
+          turnCount: 0,
+        },
+      });
+      assert.deepEqual(yield* readLatestTurnId, [{ latestTurnId: null }]);
+    }),
+  );
+
   it.effect("keeps accumulated assistant text when completion payload text is empty", () =>
     Effect.gen(function* () {
       const projectionPipeline = yield* OrchestrationProjectionPipeline;
@@ -2528,6 +2869,142 @@ it.effect("restores pending turn-start metadata across projection pipeline resta
     ),
   ),
 );
+
+const shellSnapshotLayer = it.layer(
+  OrchestrationProjectionSnapshotQueryLive.pipe(
+    Layer.provideMerge(OrchestrationProjectionPipelineLive),
+    Layer.provideMerge(OrchestrationEventStoreLive),
+    Layer.provideMerge(RepositoryIdentityResolver.layer),
+    Layer.provideMerge(SqlitePersistenceMemory),
+    Layer.provideMerge(
+      ServerConfig.layerTest(process.cwd(), {
+        prefix: "t3-projection-pipeline-shell-",
+      }),
+    ),
+    Layer.provideMerge(NodeServices.layer),
+  ),
+);
+
+shellSnapshotLayer("OrchestrationProjectionPipeline thread shell", (it) => {
+  it.effect("exposes the completed latest turn for a thread that never checkpoints", () =>
+    Effect.gen(function* () {
+      const projectionPipeline = yield* OrchestrationProjectionPipeline;
+      const eventStore = yield* OrchestrationEventStore;
+      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const now = "2026-03-01T00:00:00.000Z";
+      const threadId = ThreadId.make("thread-shell-no-checkpoint");
+      const turnId = TurnId.make("turn-shell-no-checkpoint");
+
+      yield* eventStore.append({
+        type: "thread.created",
+        eventId: EventId.make("evt-sh1"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: now,
+        commandId: CommandId.make("cmd-sh1"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-sh1"),
+        metadata: {},
+        payload: {
+          threadId,
+          projectId: ProjectId.make("project-shell-no-checkpoint"),
+          title: "Plain folder thread",
+          modelSelection: {
+            instanceId: ProviderInstanceId.make("claude"),
+            model: "claude-opus",
+          },
+          runtimeMode: "full-access",
+          branch: null,
+          worktreePath: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      yield* eventStore.append({
+        type: "thread.session-set",
+        eventId: EventId.make("evt-sh2"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-03-01T00:00:01.000Z",
+        commandId: CommandId.make("cmd-sh2"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-sh2"),
+        metadata: {},
+        payload: {
+          threadId,
+          session: {
+            threadId,
+            status: "running",
+            providerName: "claude",
+            runtimeMode: "full-access",
+            activeTurnId: turnId,
+            lastError: null,
+            updatedAt: "2026-03-01T00:00:01.000Z",
+          },
+        },
+      });
+
+      yield* eventStore.append({
+        type: "thread.message-sent",
+        eventId: EventId.make("evt-sh3"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-03-01T00:00:05.000Z",
+        commandId: CommandId.make("cmd-sh3"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-sh3"),
+        metadata: {},
+        payload: {
+          threadId,
+          messageId: MessageId.make("message-shell-no-checkpoint"),
+          role: "assistant",
+          text: "done",
+          turnId,
+          streaming: false,
+          createdAt: "2026-03-01T00:00:05.000Z",
+          updatedAt: "2026-03-01T00:00:05.000Z",
+        },
+      });
+
+      yield* projectionPipeline.bootstrap;
+
+      yield* eventStore.append({
+        type: "thread.session-set",
+        eventId: EventId.make("evt-sh4"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-03-01T00:01:00.000Z",
+        commandId: CommandId.make("cmd-sh4"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-sh4"),
+        metadata: {},
+        payload: {
+          threadId,
+          session: {
+            threadId,
+            status: "ready",
+            providerName: "claude",
+            runtimeMode: "full-access",
+            activeTurnId: null,
+            lastError: null,
+            updatedAt: "2026-03-01T00:01:00.000Z",
+          },
+        },
+      });
+
+      yield* projectionPipeline.bootstrap;
+
+      const shell = yield* snapshotQuery.getThreadShellById(threadId);
+      assert.isTrue(Option.isSome(shell));
+      const latestTurn = Option.isSome(shell) ? shell.value.latestTurn : null;
+      assert.isNotNull(latestTurn);
+      assert.equal(latestTurn?.turnId, turnId);
+      assert.equal(latestTurn?.state, "completed");
+      assert.equal(latestTurn?.completedAt, "2026-03-01T00:01:00.000Z");
+    }),
+  );
+});
 
 const engineLayer = it.layer(
   OrchestrationEngineLive.pipe(

@@ -772,7 +772,12 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           }
           yield* projectionThreadRepository.upsert({
             ...existingRow.value,
-            latestTurnId: event.payload.session.activeTurnId,
+            // A session that settles reports no active turn, but the turn it
+            // just finished is still the thread's latest one. Only a new
+            // active turn moves the pointer; clearing it here would hide the
+            // completed turn from the shell for every workspace that doesn't
+            // checkpoint (thread.turn-diff-completed is Git-only).
+            latestTurnId: event.payload.session.activeTurnId ?? existingRow.value.latestTurnId,
             updatedAt: event.occurredAt,
           });
           yield* refreshThreadShellSummary(event.payload.threadId);
