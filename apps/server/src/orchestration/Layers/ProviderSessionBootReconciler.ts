@@ -19,6 +19,7 @@ import {
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import { ProviderRuntimeIngestionService } from "../Services/ProviderRuntimeIngestion.ts";
+import { stalePendingRequestDetail } from "../stalePendingRequest.ts";
 import {
   ProviderSessionBootReconcilerService,
   type ProviderSessionBootReconcilerShape,
@@ -27,6 +28,70 @@ import {
 export const RESTART_INTERRUPTED_ACTIVITY_KIND = "provider.session.restart-interrupted";
 
 const RESTART_INTERRUPT_REASON = "Server restarted while the turn was running.";
+
+/**
+ * Prompt kinds whose answer travels back through an in-memory provider
+ * callback, paired with the failure activity that retires one.
+ *
+ * Retiring a prompt here reuses the tombstone the respond path already emits
+ * when a user answers a dead prompt, so the shell summary and every client
+ * derive the same "no longer pending" state. See `stalePendingRequest.ts`.
+ */
+const STALE_PROMPT_KINDS = [
+  {
+    requestedKind: "user-input.requested",
+    resolvedKind: "user-input.resolved",
+    failedKind: "provider.user-input.respond.failed",
+    summary: "Provider user input response failed",
+    detailKind: "user-input",
+  },
+  {
+    requestedKind: "approval.requested",
+    resolvedKind: "approval.resolved",
+    failedKind: "provider.approval.respond.failed",
+    summary: "Provider approval response failed",
+    detailKind: "approval",
+  },
+] as const;
+
+function activityRequestId(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+  const requestId = (payload as Record<string, unknown>).requestId;
+  return typeof requestId === "string" && requestId.length > 0 ? requestId : null;
+}
+
+/**
+ * Request ids still awaiting an answer.
+ *
+ * Replays the thread's activities in order so a prompt already answered or
+ * already retired before the restart is not reopened.
+ */
+function findOpenPromptRequestIds(
+  activities: ReadonlyArray<{
+    readonly kind: string;
+    readonly payload: unknown;
+    readonly turnId: TurnId | null;
+  }>,
+  kinds: (typeof STALE_PROMPT_KINDS)[number],
+): ReadonlyArray<{ readonly requestId: string; readonly turnId: TurnId | null }> {
+  const open = new Map<string, { requestId: string; turnId: TurnId | null }>();
+  for (const activity of activities) {
+    const requestId = activityRequestId(activity.payload);
+    if (requestId === null) {
+      continue;
+    }
+    if (activity.kind === kinds.requestedKind) {
+      open.set(requestId, { requestId, turnId: activity.turnId });
+      continue;
+    }
+    if (activity.kind === kinds.resolvedKind || activity.kind === kinds.failedKind) {
+      open.delete(requestId);
+    }
+  }
+  return [...open.values()];
+}
 
 const makeProviderSessionBootReconciler = Effect.gen(function* () {
   const directory = yield* ProviderSessionDirectory;
@@ -65,6 +130,51 @@ const makeProviderSessionBootReconciler = Effect.gen(function* () {
         },
         createdAt: input.createdAt,
       });
+    });
+
+  /**
+   * Retires prompts whose provider callback died with the session.
+   *
+   * Ordered after the synthetic `session.exited` so the tombstones land
+   * below the turn they belong to.
+   */
+  const retireOpenPrompts = (input: { readonly threadId: ThreadId; readonly createdAt: string }) =>
+    Effect.gen(function* () {
+      const thread = yield* projectionSnapshotQuery
+        .getThreadDetailById(input.threadId)
+        .pipe(Effect.map(Option.getOrUndefined));
+      if (!thread) {
+        return;
+      }
+
+      for (const kinds of STALE_PROMPT_KINDS) {
+        for (const open of findOpenPromptRequestIds(thread.activities, kinds)) {
+          const [commandId, activityId] = yield* Effect.all([
+            crypto.randomUUIDv4.pipe(
+              Effect.map((uuid) => CommandId.make(`server:stale-prompt:${uuid}`)),
+            ),
+            eventId,
+          ]);
+          yield* orchestrationEngine.dispatch({
+            type: "thread.activity.append",
+            commandId,
+            threadId: input.threadId,
+            activity: {
+              id: activityId,
+              tone: "error",
+              kind: kinds.failedKind,
+              summary: kinds.summary,
+              payload: {
+                requestId: open.requestId,
+                detail: stalePendingRequestDetail(kinds.detailKind, open.requestId),
+              },
+              turnId: open.turnId,
+              createdAt: input.createdAt,
+            },
+            createdAt: input.createdAt,
+          });
+        }
+      }
     });
 
   const reconcileBinding = (binding: ProviderRuntimeBindingWithMetadata) =>
@@ -113,6 +223,9 @@ const makeProviderSessionBootReconciler = Effect.gen(function* () {
           createdAt,
         });
       }
+
+      yield* ingestion.drain;
+      yield* retireOpenPrompts({ threadId: binding.threadId, createdAt });
     });
 
   const reconcile: ProviderSessionBootReconcilerShape["reconcile"] = () =>

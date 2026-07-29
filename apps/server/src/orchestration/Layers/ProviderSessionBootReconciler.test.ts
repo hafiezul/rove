@@ -12,12 +12,15 @@ import {
   ProjectId,
   ProviderDriverKind,
   ProviderInstanceId,
+  RuntimeRequestId,
   ThreadId,
   TurnId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 
 import { ServerConfig } from "../../config.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Layers/OrchestrationCommandReceipts.ts";
@@ -205,6 +208,12 @@ const reconcile = Effect.gen(function* () {
   yield* reconciler.reconcile();
 });
 
+const getThreadShell = Effect.fn("getThreadShell")(function* (threadId: ThreadId) {
+  const snapshotQuery = yield* ProjectionSnapshotQuery;
+  const shell = yield* snapshotQuery.getThreadShellById(threadId);
+  return Option.getOrUndefined(shell);
+});
+
 const getThread = Effect.fn("getThread")(function* (threadId: ThreadId) {
   const snapshotQuery = yield* ProjectionSnapshotQuery;
   const snapshot = yield* snapshotQuery.getSnapshot();
@@ -256,6 +265,136 @@ testLayer("ProviderSessionBootReconciler", (it) => {
       assert.equal(thread?.session?.status, "stopped");
       assert.equal(
         thread?.activities.some((activity) => activity.kind === RESTART_INTERRUPTED_ACTIVITY_KIND),
+        false,
+      );
+    }),
+  );
+
+  it.effect("retires user-input prompts left open by a killed server", () =>
+    Effect.gen(function* () {
+      const threadId = ThreadId.make("thread-open-user-input");
+      yield* seedInterruptedSession({ threadId });
+
+      const ingestion = yield* ProviderRuntimeIngestionService;
+      yield* ingestion.ingestSynthetic({
+        type: "user-input.requested",
+        eventId: EventId.make(`evt-seed-user-input-${threadId}`),
+        provider: CODEX,
+        providerInstanceId: CODEX_INSTANCE,
+        threadId,
+        turnId: ACTIVE_TURN_ID,
+        requestId: RuntimeRequestId.make("dialog-open-at-restart"),
+        createdAt: SEEDED_AT,
+        payload: {
+          questions: [
+            {
+              id: "dialog-open-at-restart",
+              header: "Choose",
+              question: "Which environment?",
+              options: [{ label: "Staging", description: "Staging" }],
+              multiSelect: false,
+            },
+          ],
+        },
+      });
+      yield* ingestion.drain;
+
+      const beforeShell = yield* getThreadShell(threadId);
+      assert.equal(beforeShell?.hasPendingUserInput, true);
+
+      // The reconciler stamps its repair from the Effect clock, which
+      // `it.effect` pins to the epoch. Advance past the seeded prompt so
+      // replay order matches production, where the repair always follows
+      // the prompt it retires.
+      yield* TestClock.setTime(Date.parse(SEEDED_AT) + 1000);
+
+      yield* reconcile;
+
+      const shell = yield* getThreadShell(threadId);
+      assert.equal(shell?.hasPendingUserInput, false);
+    }),
+  );
+
+  it.effect("retires approval prompts left open by a killed server", () =>
+    Effect.gen(function* () {
+      const threadId = ThreadId.make("thread-open-approval");
+      yield* seedInterruptedSession({ threadId });
+
+      const ingestion = yield* ProviderRuntimeIngestionService;
+      yield* ingestion.ingestSynthetic({
+        type: "request.opened",
+        eventId: EventId.make(`evt-seed-approval-${threadId}`),
+        provider: CODEX,
+        providerInstanceId: CODEX_INSTANCE,
+        threadId,
+        turnId: ACTIVE_TURN_ID,
+        requestId: RuntimeRequestId.make("approval-open-at-restart"),
+        createdAt: SEEDED_AT,
+        payload: { requestType: "exec_command_approval" },
+      });
+      yield* ingestion.drain;
+
+      const beforeShell = yield* getThreadShell(threadId);
+      assert.equal(beforeShell?.hasPendingApprovals, true);
+
+      yield* TestClock.setTime(Date.parse(SEEDED_AT) + 1000);
+
+      yield* reconcile;
+
+      const shell = yield* getThreadShell(threadId);
+      assert.equal(shell?.hasPendingApprovals, false);
+    }),
+  );
+
+  it.effect("leaves prompts answered before the restart untouched", () =>
+    Effect.gen(function* () {
+      const threadId = ThreadId.make("thread-answered-prompt");
+      yield* seedInterruptedSession({ threadId });
+
+      const ingestion = yield* ProviderRuntimeIngestionService;
+      yield* ingestion.ingestSynthetic({
+        type: "user-input.requested",
+        eventId: EventId.make(`evt-seed-answered-request-${threadId}`),
+        provider: CODEX,
+        providerInstanceId: CODEX_INSTANCE,
+        threadId,
+        turnId: ACTIVE_TURN_ID,
+        requestId: RuntimeRequestId.make("dialog-already-answered"),
+        createdAt: SEEDED_AT,
+        payload: {
+          questions: [
+            {
+              id: "dialog-already-answered",
+              header: "Choose",
+              question: "Which environment?",
+              options: [{ label: "Staging", description: "Staging" }],
+              multiSelect: false,
+            },
+          ],
+        },
+      });
+      yield* ingestion.ingestSynthetic({
+        type: "user-input.resolved",
+        eventId: EventId.make(`evt-seed-answered-resolved-${threadId}`),
+        provider: CODEX,
+        providerInstanceId: CODEX_INSTANCE,
+        threadId,
+        turnId: ACTIVE_TURN_ID,
+        requestId: RuntimeRequestId.make("dialog-already-answered"),
+        createdAt: SEEDED_AT,
+        payload: { answers: { "dialog-already-answered": "Staging" } },
+      });
+      yield* ingestion.drain;
+
+      yield* TestClock.setTime(Date.parse(SEEDED_AT) + 1000);
+
+      yield* reconcile;
+
+      const thread = yield* getThread(threadId);
+      assert.equal(
+        thread?.activities.some(
+          (activity) => activity.kind === "provider.user-input.respond.failed",
+        ),
         false,
       );
     }),
