@@ -1,6 +1,8 @@
-# T3 Code docs
+# Rove documentation
 
-## Using T3 Code
+Rove is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). The runtime and applications currently retain their upstream product names and technical identifiers, so the inherited user and internals documentation continues to use **T3 Code** where that is the label users see.
+
+## Using the application
 
 - [Install and first run](./user/install.md)
 - [Permission modes](./user/permission-modes.md)
@@ -18,10 +20,9 @@ Mobile app: [apps/mobile/README.md](../apps/mobile/README.md)
 
 ---
 
-## Working on T3 Code
+## Working on Rove
 
-Everything below is for maintainers. Setup lives in the [root README](../README.md);
-policy in [CONTRIBUTING.md](../CONTRIBUTING.md); agent rules in [AGENTS.md](../AGENTS.md).
+Setup lives in the [root README](../README.md), contribution guidance in [CONTRIBUTING.md](../CONTRIBUTING.md), and agent rules in [AGENTS.md](../AGENTS.md).
 
 - [Architecture overview](./internals/overview.md)
 - [Workspace layout](./internals/workspace-layout.md)

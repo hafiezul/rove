@@ -1,108 +1,40 @@
-# T3 Code
+# Rove
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+Rove is an independent, open-source fork of [T3 Code](https://github.com/pingdotgg/t3code): a fast, remote-ready control surface for coding agents.
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, and OpenCode. If they're set up on your computer, T3 Code can control them.
+The project follows T3 Code closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove is not affiliated with or endorsed by T3 Tools or Ping Labs.
 
-## "Wait, what are you selling me?"
+## Current status
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+Rove is at the beginning of its fork. The repository identity and documentation use the Rove name, while the applications, CLI, package names, and storage identifiers still use T3 Code names for upstream compatibility. Expect those technical identifiers to remain unchanged until a migration has a clear user benefit.
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+The inherited application supports Claude Code, Codex, Cursor, Grok Build, and OpenCode across web, desktop, and mobile clients.
 
-## Installation
+## Run from source
 
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build and OpenCode. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-
-### Try it out (install-free)
-
-The easiest way to test T3 Code is to run the server in your terminal (requires Node.js 22.16+, 23.11+, or 24.10+):
-
-```bash
-npx t3@latest
-```
-
-This will launch T3 Code's backend on your machine as well as the local web app to control your agents.
-
-Tip: Use `npx t3@latest --help` for the full CLI reference.
-
-### Desktop app
-
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
-
-#### Windows (`winget`)
-
-```bash
-winget install T3Tools.T3Code
-```
-
-#### macOS (Homebrew)
-
-```bash
-brew install --cask t3-code
-```
-
-#### Arch Linux (AUR)
-
-```bash
-yay -S t3code-bin
-```
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
-
-## Documentation
-
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Customize a project icon](./docs/user/project-settings.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- Linux: [run T3 Code as a background service](./docs/user/background-service.md)
-
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
-
-## If you REALLY want to contribute still.... read this first
-
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
-
-```bash
-curl -fsSL https://vite.plus | bash
-```
-
-#### Windows
-
-```bash
-irm https://vite.plus/ps1 | iex
-```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
+Rove currently has no separate binary distribution. To run the fork locally, install [Vite+](https://viteplus.dev/guide/) and use Node.js 24.13.1:
 
 ```bash
 vp i
+vp run dev
 ```
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening an issue or PR.
+The development server prints the local URL and pairing information needed to open the web client.
 
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+## Documentation
+
+Start with the [documentation index](./docs). Because Rove currently preserves upstream runtime behavior, much of the product documentation still refers to T3 Code and its existing commands.
+
+Useful starting points:
+
+- [Architecture overview](./docs/internals/overview.md)
+- [Install and first run](./docs/user/install.md)
+- [Remote access](./docs/user/remote-access.md)
+- [Provider architecture](./docs/internals/providers.md)
+- [Contributing](./CONTRIBUTING.md)
+
+## Upstream
+
+Rove is built from [pingdotgg/t3code](https://github.com/pingdotgg/t3code). Upstream retains its original copyright and is distributed under the [MIT License](./LICENSE).
+
+When a change is broadly useful and fits T3 Code's direction, contributors should consider proposing it upstream as well.

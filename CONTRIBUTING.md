@@ -1,65 +1,23 @@
-# Contributing
+# Contributing to Rove
 
-## Read This First
+Rove is an early fork of [T3 Code](https://github.com/pingdotgg/t3code). Its direction and contribution process are still taking shape.
 
-We are not actively accepting contributions right now.
+## Before starting
 
-You can still open an issue or PR, but please do so knowing there is a high chance we close it, defer it forever, or never look at it.
+Open an issue before beginning a non-trivial change. This lets us agree on the problem and scope before either side invests substantial time.
 
-If that sounds annoying, that is because it is. This project is still early and we are trying to keep scope, quality, and direction under control.
+Changes are most likely to be accepted when they are:
 
-PRs are automatically labeled with a `vouch:*` trust status and a `size:*` diff size based on changed lines.
+- small and focused;
+- clear about the problem they solve;
+- considerate of web, desktop, mobile, and remote use;
+- careful not to regress performance; and
+- accompanied by focused tests when behavior changes.
 
-If you are an external contributor, expect `vouch:unvouched` until we explicitly add you to [.github/VOUCHED.td](.github/VOUCHED.td).
+Do not combine unrelated fixes or broad rewrites in one pull request. Include before-and-after images for visible interface changes and a short video when motion or timing matters.
 
-## What We Are Most Likely To Accept
+## Working with upstream
 
-Small, focused bug fixes.
+Before implementing a fix, check whether it already exists in [upstream T3 Code](https://github.com/pingdotgg/t3code). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove.
 
-Small reliability fixes.
-
-Small performance improvements.
-
-Tightly scoped maintenance work that clearly improves the project without changing its direction.
-
-## What We Are Least Likely To Accept
-
-Large PRs.
-
-Drive-by feature work.
-
-Opinionated rewrites.
-
-Anything that expands product scope without us asking for it first.
-
-If you open a 1,000+ line PR full of new features, we will probably close it quickly and remember that you ignored the clearly written instructions.
-
-## If You Still Want To Open A PR
-
-Keep it small.
-
-Explain exactly what changed.
-
-Explain exactly why the change should exist.
-
-Do not mix unrelated fixes together.
-
-If the PR makes anything resembling a UI change, include clear before/after images.
-
-If the change depends on motion, timing, transitions, or interaction details, include a short video.
-
-If we have to guess what changed, we are much less likely to review it.
-
-## Issues First
-
-If you are thinking about a non-trivial change, open an issue first.
-
-That still does not mean we will want the PR, but it gives you a chance to avoid wasting your time.
-
-## Be Realistic
-
-Opening a PR does not create an obligation on our side.
-
-We may close it. We may ignore it. We may ask you to shrink it. We may reimplement the idea ourselves later.
-
-If you are fine with that, proceed.
+Preserve upstream copyright and attribution when carrying or adapting upstream work.
