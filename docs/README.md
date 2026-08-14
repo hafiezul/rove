@@ -1,6 +1,8 @@
-# T3 Code docs
+# Rove documentation
 
-## Using T3 Code
+Rove is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). The runtime and applications currently retain their upstream product names and technical identifiers, so the inherited user and internals documentation continues to use **T3 Code** where that is the label users see.
+
+## Using the application
 
 - [Install T3 Code](./user/install.md)
 - [Messages and context](./user/composer.md)
@@ -23,7 +25,7 @@
 
 ---
 
-## Working on T3 Code
+## Working on Rove
 
 Start with the [development runbook](./operations/development.md) and
 [contribution policy](../CONTRIBUTING.md).
