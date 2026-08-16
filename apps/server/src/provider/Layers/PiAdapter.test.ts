@@ -7,7 +7,12 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
-import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
+import {
+  PiSettings,
+  ProviderInstanceId,
+  ThreadId,
+  type ProviderRuntimeEvent,
+} from "@t3tools/contracts";
 
 import { makePiAdapter, type PiSessionEventLike, type PiSessionLike } from "./PiAdapter.ts";
 
@@ -24,6 +29,8 @@ class FakePiSession implements PiSessionLike {
   readonly promptCalls: Array<{ text: string }> = [];
   readonly steerCalls: Array<{ text: string }> = [];
   readonly forkCalls: Array<{ entryId: string }> = [];
+  readonly setModelCalls: Array<{ model: string }> = [];
+  readonly setThinkingLevelCalls: Array<{ level: string }> = [];
   forkedMessages: ReadonlyArray<unknown> | undefined;
   aborted = false;
   disposed = false;
@@ -44,6 +51,14 @@ class FakePiSession implements PiSessionLike {
   fork(entryId: string): void {
     this.forkCalls.push({ entryId });
     this.forkedMessages = this.messages;
+  }
+
+  setModel(model: string): Promise<void> {
+    this.setModelCalls.push({ model });
+    return Promise.resolve();
+  }
+  setThinkingLevel(level: string): void {
+    this.setThinkingLevelCalls.push({ level });
   }
 
   prompt(text: string): Promise<void> {
@@ -77,6 +92,7 @@ const threadId = ThreadId.make("thread-pi-1");
 
 const makeAdapter = (fake: FakePiSession) =>
   makePiAdapter(decodePiSettings({}), {
+    instanceId: ProviderInstanceId.make("pi"),
     createSession: () => Promise.resolve(fake),
   }).pipe(Effect.orDie);
 
@@ -149,6 +165,117 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(fake.steerCalls.length, 1);
       assert.strictEqual(fake.steerCalls[0]?.text, "actually do this");
       assert.strictEqual(fake.promptCalls.length, 1);
+    }),
+  );
+
+  it.effect("startSession passes the thread's modelSelection through to session creation", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const createInputs: Array<{
+        model: string | undefined;
+        thinkingLevel: string | undefined;
+      }> = [];
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        instanceId: ProviderInstanceId.make("pi"),
+        createSession: (input) => {
+          createInputs.push({ model: input.model, thinkingLevel: input.thinkingLevel });
+          return Promise.resolve(fake);
+        },
+      }).pipe(Effect.orDie);
+
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("pi"),
+          model: "openai/gpt-5.2",
+          options: [{ id: "thinkingLevel", value: "low" }],
+        },
+      });
+
+      assert.deepStrictEqual(createInputs, [{ model: "openai/gpt-5.2", thinkingLevel: "low" }]);
+    }),
+  );
+
+  it.effect("startSession falls back to instance settings without a modelSelection", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const createInputs: Array<{
+        model: string | undefined;
+        thinkingLevel: string | undefined;
+      }> = [];
+      const adapter = yield* makePiAdapter(
+        decodePiSettings({ model: "anthropic/claude-sonnet-5", thinkingLevel: "high" }),
+        {
+          instanceId: ProviderInstanceId.make("pi"),
+          createSession: (input) => {
+            createInputs.push({ model: input.model, thinkingLevel: input.thinkingLevel });
+            return Promise.resolve(fake);
+          },
+        },
+      ).pipe(Effect.orDie);
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      assert.deepStrictEqual(createInputs, [
+        { model: "anthropic/claude-sonnet-5", thinkingLevel: "high" },
+      ]);
+    }),
+  );
+
+  it.effect("sendTurn applies the composer's model and thinking level in-session", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      yield* adapter.sendTurn({
+        threadId,
+        input: "hello pi",
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("pi"),
+          model: "anthropic/claude-sonnet-5",
+          options: [{ id: "thinkingLevel", value: "high" }],
+        },
+      });
+
+      assert.deepStrictEqual(fake.setModelCalls, [{ model: "anthropic/claude-sonnet-5" }]);
+      assert.deepStrictEqual(fake.setThinkingLevelCalls, [{ level: "high" }]);
+      assert.strictEqual(fake.promptCalls.length, 1);
+    }),
+  );
+
+  it.effect("sendTurn translates a leading $skill token into Pi's /skill: form", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      yield* adapter.sendTurn({ threadId, input: "$diagnosing-bugs the thread list is slow" });
+      assert.strictEqual(
+        fake.promptCalls[0]?.text,
+        "/skill:diagnosing-bugs the thread list is slow",
+      );
+
+      yield* adapter.sendTurn({ threadId, input: "$wont-fix" });
+      assert.strictEqual(fake.promptCalls[1]?.text, "/skill:wont-fix");
+
+      // A $ anywhere but the leading token stays literal.
+      yield* adapter.sendTurn({ threadId, input: "costs $5 to run" });
+      assert.strictEqual(fake.promptCalls[2]?.text, "costs $5 to run");
+    }),
+  );
+
+  it.effect("sendTurn leaves the session untouched when no modelSelection is dispatched", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      yield* adapter.sendTurn({ threadId, input: "hello pi" });
+
+      assert.strictEqual(fake.setModelCalls.length, 0);
+      assert.strictEqual(fake.setThinkingLevelCalls.length, 0);
     }),
   );
 
