@@ -4,9 +4,52 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
 
-import { resolvePiSessionFileForTest } from "./PiSessionFactory.ts";
+import { resolvePiModelForSession, resolvePiSessionFileForTest } from "./PiSessionFactory.ts";
+
+it("resolves a valid custom model for an in-session switch", async () => {
+  const agentDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-model-test-"));
+  const modelsPath = NodePath.join(agentDir, "models.json");
+  NodeFS.writeFileSync(
+    modelsPath,
+    JSON.stringify({
+      providers: {
+        "rootsys.cloud": {
+          baseUrl: "https://example.test/v1",
+          apiKey: "test-key",
+          api: "openai-completions",
+          models: [
+            {
+              id: "kimi-k3",
+              name: "Kimi K3",
+              reasoning: true,
+              input: ["text"],
+              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+              contextWindow: 128_000,
+              maxTokens: 8_192,
+            },
+          ],
+        },
+      },
+    }),
+  );
+
+  try {
+    const modelRuntime = await ModelRuntime.create({
+      modelsPath,
+      authPath: NodePath.join(agentDir, "auth.json"),
+      allowModelNetwork: false,
+    });
+
+    const model = resolvePiModelForSession(modelRuntime, "rootsys.cloud/kimi-k3");
+
+    assert.strictEqual(model.provider, "rootsys.cloud");
+    assert.strictEqual(model.id, "kimi-k3");
+  } finally {
+    NodeFS.rmSync(agentDir, { recursive: true, force: true });
+  }
+});
 
 it("resolveSessionFile finds the persisted file for a session id", () => {
   const cwd = NodeFS.realpathSync(

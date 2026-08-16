@@ -47,6 +47,15 @@ import type { PiCreateSessionInput, PiSessionLike } from "./PiAdapter.ts";
  *     surfaces as a sendTurn preflight error rather than silently prompting
  *     with the previous model.
  */
+/** Resolve a composer slug to the SDK model required by an in-session switch. */
+export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: string) {
+  const resolved = resolveCliModel({ cliModel: slug, modelRuntime });
+  if (resolved.model === undefined) {
+    throw new Error(resolved.error ?? `Unknown Pi model "${slug}".`);
+  }
+  return resolved.model;
+}
+
 function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiSessionLike {
   return {
     get sessionId() {
@@ -64,11 +73,7 @@ function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiS
     abort: () => session.abort(),
     dispose: () => session.dispose(),
     setModel: async (slug) => {
-      const resolved = resolveCliModel({ cliModel: slug, modelRuntime });
-      if (resolved.error !== null || resolved.model === undefined) {
-        throw new Error(resolved.error ?? `Unknown Pi model "${slug}".`);
-      }
-      await session.setModel(resolved.model);
+      await session.setModel(resolvePiModelForSession(modelRuntime, slug));
     },
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     subscribe: (listener) => session.subscribe((event) => listener(event as never)),
