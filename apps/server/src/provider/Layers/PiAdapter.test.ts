@@ -318,6 +318,38 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("surfaces Pi assistant errors as failed turns", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "hello pi" });
+      fake.emit({ type: "turn_start" });
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [],
+          stopReason: "error",
+          errorMessage: "OAuth auth derivation failed for openai-codex",
+        },
+      });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
+      const completed = events.filter((event) => event.type === "turn.completed");
+      assert.strictEqual(completed.length, 1);
+      assert.strictEqual(completed[0]?.turnId, turnId);
+      assert.deepStrictEqual(completed[0]?.payload, {
+        state: "failed",
+        errorMessage: "OAuth auth derivation failed for openai-codex",
+      });
+    }),
+  );
+
   it.effect("maps tool execution to item lifecycle events", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
