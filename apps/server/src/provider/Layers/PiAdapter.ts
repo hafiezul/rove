@@ -300,6 +300,33 @@ export function makePiAdapter(
             }
             return;
           }
+          case "message_end": {
+            const message = event.message as
+              | { role?: string; stopReason?: string; errorMessage?: string }
+              | undefined;
+            if (
+              message?.role === "assistant" &&
+              message.stopReason === "error" &&
+              ctx.activeTurnId !== undefined
+            ) {
+              const turnId = ctx.activeTurnId;
+              ctx.activeTurnId = undefined;
+              yield* offerRuntimeEvent({
+                ...base,
+                type: "turn.completed",
+                turnId,
+                payload: {
+                  state: "failed",
+                  errorMessage:
+                    typeof message.errorMessage === "string" &&
+                    message.errorMessage.trim().length > 0
+                      ? message.errorMessage
+                      : "Pi assistant response failed.",
+                },
+              });
+            }
+            return;
+          }
           case "tool_execution_start": {
             yield* offerRuntimeEvent({
               ...base,
