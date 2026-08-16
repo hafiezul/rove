@@ -37,11 +37,17 @@ import type { PiCreateSessionInput, PiSessionLike } from "./PiAdapter.ts";
 
 /**
  * Adapt an SDK `AgentSession` to the narrow `PiSessionLike` surface the
- * adapter consumes. The only non-mechanical piece is `fork`: the adapter's
- * rollback contract is "fork at this entry and make it live", which maps to
- * `navigateTree(entryId)` on the same session file.
+ * adapter consumes. Two non-mechanical pieces:
+ *   - `fork`: the adapter's rollback contract is "fork at this entry and make
+ *     it live", which maps to `navigateTree(entryId)` on the same session
+ *     file.
+ *   - `setModel`: the adapter passes composer slugs (`provider/model-id`), so
+ *     we resolve them against the session's model runtime before calling the
+ *     SDK's typed `setModel`. An unresolvable slug throws, which the adapter
+ *     surfaces as a sendTurn preflight error rather than silently prompting
+ *     with the previous model.
  */
-function toPiSessionLike(session: AgentSession): PiSessionLike {
+function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiSessionLike {
   return {
     get sessionId() {
       return session.sessionId;
@@ -57,6 +63,14 @@ function toPiSessionLike(session: AgentSession): PiSessionLike {
     followUp: (text) => session.followUp(text),
     abort: () => session.abort(),
     dispose: () => session.dispose(),
+    setModel: async (slug) => {
+      const resolved = resolveCliModel({ cliModel: slug, modelRuntime });
+      if (resolved.error !== null || resolved.model === undefined) {
+        throw new Error(resolved.error ?? `Unknown Pi model "${slug}".`);
+      }
+      await session.setModel(resolved.model);
+    },
+    setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     subscribe: (listener) => session.subscribe((event) => listener(event as never)),
     getEntries: () => session.sessionManager.getEntries() as never,
     getLeafId: () => session.sessionManager.getLeafId() ?? undefined,
@@ -135,5 +149,5 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
     ...(resolved?.thinkingLevel !== undefined ? { thinkingLevel: resolved.thinkingLevel } : {}),
   });
 
-  return toPiSessionLike(session);
+  return toPiSessionLike(session, modelRuntime);
 }

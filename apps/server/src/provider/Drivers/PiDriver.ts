@@ -19,6 +19,7 @@ import { createPiSession } from "../Layers/PiSessionFactory.ts";
 import {
   buildInitialPiProviderSnapshot,
   checkPiProviderStatus,
+  type PiDiscoveryClient,
   type PiProbeClient,
 } from "../Layers/PiProvider.ts";
 import { ProviderDriverError } from "../Errors.ts";
@@ -76,6 +77,45 @@ const makeSdkProbeClient = (): PiProbeClient => ({
     const runtime = await ModelRuntime.create({});
     const models = await runtime.getAvailable();
     return models.length > 0 ? String(models[0]?.provider) : undefined;
+  },
+});
+
+/**
+ * Discovery client backed by the SDK's `DefaultResourceLoader` — the same
+ * loader sterile Pi sessions use (global config, no extensions), so the `$`
+ * and `/` pickers list exactly what the agent can invoke. Skills map 1:1;
+ * prompt templates become slash commands with the template's argument hint.
+ */
+const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
+  discover: async ({ cwd }) => {
+    const { DefaultResourceLoader, getAgentDir } = await import("@earendil-works/pi-coding-agent");
+    const loader = new DefaultResourceLoader({
+      cwd: cwd ?? process.cwd(),
+      agentDir: getAgentDir(),
+      noExtensions: true,
+    });
+    // Resources populate lazily: getSkills()/getPrompts() return empty until
+    // reload() has scanned the configured roots.
+    await loader.reload();
+    const [{ skills }, { prompts }] = [loader.getSkills(), loader.getPrompts()];
+    return {
+      skills: skills.map((skill) => ({
+        name: skill.name,
+        ...(skill.description.trim().length > 0 ? { description: skill.description } : {}),
+        path: skill.filePath,
+        // "temporary" (e.g. in-memory extension resources) maps to "user":
+        // it is not project content, and the composer only renders the label.
+        scope: skill.sourceInfo.scope === "project" ? "project" : "user",
+        enabled: true,
+      })),
+      slashCommands: prompts.map((prompt) => ({
+        name: prompt.name,
+        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : {}),
+        ...(prompt.argumentHint !== undefined && prompt.argumentHint.trim().length > 0
+          ? { input: { hint: prompt.argumentHint } }
+          : {}),
+      })),
+    };
   },
 });
 
@@ -143,9 +183,11 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       });
 
       const probeClient = makeSdkProbeClient();
-      const checkProvider = checkPiProviderStatus(effectiveConfig, probeClient).pipe(
-        Effect.map(stampIdentity),
-      );
+      const checkProvider = checkPiProviderStatus(
+        effectiveConfig,
+        probeClient,
+        makeSdkDiscoveryClient(),
+      ).pipe(Effect.map(stampIdentity));
 
       const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const snapshot = yield* makeManagedServerProvider<ProviderSnapshotSettings<PiSettings>>({

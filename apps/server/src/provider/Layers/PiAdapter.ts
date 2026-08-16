@@ -37,12 +37,34 @@ import * as Effect from "effect/Effect";
 import * as PubSub from "effect/PubSub";
 import * as Stream from "effect/Stream";
 
+import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
+
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import type {
   ProviderAdapterShape,
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../Services/ProviderAdapter.ts";
+
+/**
+ * Translate the composer's `$name` skill token into Pi's `/skill:name`
+ * invocation form. The composer inserts `$name ` for skill picks (a shared,
+ * provider-agnostic convention — Claude Code interprets `$name` itself), but
+ * the Pi SDK only expands `/skill:name args` in `prompt`/`steer`/`followUp`.
+ * Only a leading token is translated, matching how the composer inserts
+ * picks at the start of the prompt; `$` anywhere else is literal text.
+ */
+const PI_SKILL_TOKEN_PATTERN = /^\$([^\s]+)(?:\s+|$)/;
+
+export function translatePiSkillToken(text: string): string {
+  const match = PI_SKILL_TOKEN_PATTERN.exec(text);
+  if (match === null) {
+    return text;
+  }
+  const rest = text.slice(match[0].length);
+  return rest.length > 0 ? `/skill:${match[1]} ${rest}` : `/skill:${match[1]}`;
+}
 
 /** Map Pi tool names to Rove's canonical lifecycle item types. */
 function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
@@ -72,7 +94,11 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 
 const PROVIDER = ProviderDriverKind.make("pi");
 
-/** Narrow slice of the Pi SDK session the adapter relies on. */
+/**
+ * Narrow slice of the Pi SDK session the adapter relies on. `setModel` takes
+ * the composer slug (`provider/model-id`) and resolves it against the user's
+ * catalog; `setThinkingLevel` clamps to model capabilities inside the SDK.
+ */
 export interface PiSessionLike {
   readonly sessionId: string;
   readonly isStreaming: boolean;
@@ -82,6 +108,8 @@ export interface PiSessionLike {
   followUp(text: string): Promise<void>;
   abort(): Promise<void>;
   dispose(): void;
+  setModel?(model: string): Promise<void>;
+  setThinkingLevel?(level: string): void;
   subscribe(listener: (event: PiSessionEventLike) => void): () => void;
   getEntries?(): ReadonlyArray<{
     id: string;
@@ -123,6 +151,26 @@ interface PiSessionContext {
 }
 
 export interface PiAdapterShape extends ProviderAdapterShape<ProviderAdapterRequestError> {}
+
+/**
+ * The composer dispatches the thread's model selection on every turn, but it
+ * is only ours when routed to this instance — a selection addressed to a
+ * different provider instance must not reconfigure the Pi session.
+ */
+function ownModelSelection(
+  input: { readonly modelSelection?: ProviderSendTurnInput["modelSelection"] },
+  boundInstanceId: ProviderInstanceId | undefined,
+): ProviderSendTurnInput["modelSelection"] | undefined {
+  return input.modelSelection?.instanceId === boundInstanceId ? input.modelSelection : undefined;
+}
+
+/** Model slug from a routed selection, when it is a non-empty string. */
+function selectedModelSlug(
+  modelSelection: ProviderSendTurnInput["modelSelection"] | undefined,
+): string | undefined {
+  const model = modelSelection?.model;
+  return typeof model === "string" && model.trim().length > 0 ? model : undefined;
+}
 
 export function makePiAdapter(
   piSettings: PiSettings,
@@ -316,12 +364,20 @@ export function makePiAdapter(
 
         const cwd = input.cwd ?? process.cwd();
         const resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
+        // A thread-scoped model selection (the composer's pick at thread
+        // creation) wins over the instance-level settings defaults.
+        const modelSelection = ownModelSelection(input, boundInstanceId);
         const session = yield* Effect.tryPromise({
           try: () =>
             createSession({
               cwd,
-              model: piSettings.model.trim().length > 0 ? piSettings.model : undefined,
-              thinkingLevel: piSettings.thinkingLevel ?? undefined,
+              model:
+                selectedModelSlug(modelSelection) ??
+                (piSettings.model.trim().length > 0 ? piSettings.model : undefined),
+              thinkingLevel:
+                getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
+                piSettings.thinkingLevel ??
+                undefined,
               resumeSessionFile: resumeCursor?.sessionId,
             }),
           catch: (cause) =>
@@ -368,8 +424,8 @@ export function makePiAdapter(
     const sendTurn: PiAdapterShape["sendTurn"] = (input: ProviderSendTurnInput) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(input.threadId, "sendTurn");
-        const text = input.input?.trim();
-        if (text === undefined || text.length === 0) {
+        const rawText = input.input?.trim();
+        if (rawText === undefined || rawText.length === 0) {
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "sendTurn",
@@ -391,6 +447,37 @@ export function makePiAdapter(
           ),
         );
         ctx.activeTurnId = turnId;
+        const text = translatePiSkillToken(rawText);
+
+        // Apply the composer's per-thread model options before prompting.
+        // Pi sessions support in-session model switches, so a changed picker
+        // value takes effect on the very next turn of the same thread.
+        const modelSelection = ownModelSelection(input, boundInstanceId);
+        if (modelSelection !== undefined) {
+          const modelSlug = selectedModelSlug(modelSelection);
+          const thinkingLevel = getModelSelectionStringOptionValue(
+            modelSelection,
+            PI_THINKING_DESCRIPTOR_ID,
+          );
+          yield* Effect.tryPromise({
+            try: async () => {
+              if (ctx.session.setModel !== undefined && modelSlug !== undefined) {
+                await ctx.session.setModel(modelSlug);
+              }
+              if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
+                ctx.session.setThinkingLevel(thinkingLevel);
+              }
+            },
+            catch: (cause) =>
+              new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail: `Failed to apply model selection to Pi session ${ctx.session.sessionId}.`,
+                cause,
+              }),
+          });
+        }
+
         if (ctx.session.isStreaming) {
           yield* Effect.tryPromise({
             try: () => ctx.session.steer(text),

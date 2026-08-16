@@ -10,15 +10,22 @@
  * @module provider/Layers/PiProvider
  */
 import {
+  PI_THINKING_LEVELS,
   type ModelCapabilities,
   type PiSettings,
   type ServerProviderModel,
+  type ServerProviderSkill,
+  type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
-import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
+import {
+  buildSelectOptionDescriptor,
+  buildServerProvider,
+  type ServerProviderDraft,
+} from "../providerSnapshot.ts";
 
 const PI_PRESENTATION = {
   displayName: "Pi",
@@ -28,9 +35,42 @@ const PI_PRESENTATION = {
   requiresNewThreadForModelChange: false,
 } as const;
 
-const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({
-  optionDescriptors: [],
-});
+/**
+ * Option descriptor id the composer dispatches for Pi's per-thread thinking
+ * level. The adapter reads it back out of `modelSelection.options` under the
+ * same id and applies it via `session.setThinkingLevel`.
+ */
+export const PI_THINKING_DESCRIPTOR_ID = "thinkingLevel";
+
+const THINKING_LEVEL_LABELS: Record<(typeof PI_THINKING_LEVELS)[number], string> = {
+  off: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Extra High",
+  max: "Max",
+};
+
+/**
+ * Pi thinking levels are clamped to model capabilities by the SDK at apply
+ * time, so every model carries the full set — the composer renders one
+ * "Reasoning" tier picker per model.
+ */
+const piModelCapabilities = (piSettings: Pick<PiSettings, "thinkingLevel">): ModelCapabilities =>
+  createModelCapabilities({
+    optionDescriptors: [
+      buildSelectOptionDescriptor({
+        id: PI_THINKING_DESCRIPTOR_ID,
+        label: "Reasoning",
+        options: PI_THINKING_LEVELS.map((level) => ({
+          value: level,
+          label: THINKING_LEVEL_LABELS[level],
+          ...(piSettings.thinkingLevel === level ? { isDefault: true } : {}),
+        })),
+      }),
+    ],
+  });
 
 export function buildInitialPiProviderSnapshot(
   piSettings: PiSettings,
@@ -45,7 +85,7 @@ export function buildInitialPiProviderSnapshot(
         slug,
         name: slug,
         isCustom: true,
-        capabilities: EMPTY_CAPABILITIES,
+        capabilities: piModelCapabilities(piSettings),
       })),
       probe: {
         installed: false,
@@ -65,9 +105,23 @@ export interface PiProbeClient {
   defaultModelProvider(): Promise<string | undefined>;
 }
 
+/**
+ * Discovers the Pi resources the composer pickers render: skills for `$`,
+ * prompt templates for `/`. Backed by the SDK's `DefaultResourceLoader` in
+ * the driver (same loader sessions use, so the pickers match what the agent
+ * sees); injected here so the probe stays testable.
+ */
+export interface PiDiscoveryClient {
+  discover(input: { cwd: string | undefined }): Promise<{
+    skills: ReadonlyArray<ServerProviderSkill>;
+    slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
+  }>;
+}
+
 export function checkPiProviderStatus(
   piSettings: PiSettings,
   probeClient: PiProbeClient,
+  discoveryClient?: PiDiscoveryClient,
 ): Effect.Effect<ServerProviderDraft> {
   return Effect.gen(function* () {
     const checkedAt = DateTime.formatIso(yield* DateTime.now);
@@ -120,8 +174,28 @@ export function checkPiProviderStatus(
         slug: `${model.provider}/${model.id}`,
         name: model.name,
         isCustom: false,
-        capabilities: EMPTY_CAPABILITIES,
+        capabilities: piModelCapabilities(piSettings),
       }),
+    );
+
+    // Discovery is best-effort: a broken skill/prompt file or loader error
+    // must not degrade the provider snapshot — empty pickers instead.
+    const discovered = yield* Effect.tryPromise({
+      try: () =>
+        discoveryClient !== undefined
+          ? discoveryClient.discover({ cwd: undefined })
+          : Promise.resolve({ skills: [], slashCommands: [] }),
+      catch: () => undefined,
+    }).pipe(
+      Effect.orElseSucceed(
+        (): {
+          skills: ReadonlyArray<ServerProviderSkill>;
+          slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
+        } => ({
+          skills: [],
+          slashCommands: [],
+        }),
+      ),
     );
 
     return buildServerProvider({
@@ -129,6 +203,8 @@ export function checkPiProviderStatus(
       enabled: true,
       checkedAt,
       models,
+      slashCommands: discovered.slashCommands,
+      skills: discovered.skills,
       probe: {
         installed: true,
         version: null,
