@@ -16,6 +16,7 @@ import * as Schema from "effect/Schema";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { createPiSession } from "../Layers/PiSessionFactory.ts";
+import { registerPiBundledOAuthFlows } from "./PiOAuth.ts";
 import {
   buildInitialPiProviderSnapshot,
   checkPiProviderStatus,
@@ -45,6 +46,8 @@ import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
 import * as Crypto from "effect/Crypto";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+
+registerPiBundledOAuthFlows();
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 
