@@ -422,6 +422,68 @@ export const GrokSettings = makeProviderSettingsSchema(
 );
 export type GrokSettings = typeof GrokSettings.Type;
 
+export const PI_THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
+export const PiThinkingLevel = Schema.Literals(PI_THINKING_LEVELS);
+export type PiThinkingLevel = typeof PiThinkingLevel.Type;
+
+export const PiSettings = makeProviderSettingsSchema(
+  {
+    enabled: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(true)),
+      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
+    ),
+    model: TrimmedString.pipe(
+      Schema.withDecodingDefault(Effect.succeed("")),
+      Schema.annotateKey({
+        title: "Model",
+        description:
+          "Model for new threads, as provider/model-id from your Pi catalog. Leave blank to use your Pi default.",
+        providerSettingsForm: {
+          placeholder: "e.g. anthropic/claude-sonnet-5",
+          clearWhenEmpty: "omit",
+        },
+      }),
+    ),
+    thinkingLevel: Schema.NullOr(PiThinkingLevel).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null)),
+      Schema.annotateKey({
+        title: "Thinking level",
+        description: "Leave unset to use your Pi default.",
+        providerSettingsForm: { clearWhenEmpty: "omit" },
+      }),
+    ),
+    // Hidden while extension loading is unsupported: the setting exists so
+    // persisted configs round-trip, but users cannot flip it until the
+    // dialog wiring ships. The extensions note is carried on the schema's
+    // top-level description so the settings UI shows it without a control.
+    loadExtensions: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
+    ),
+    customModels: Schema.Array(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed([])),
+      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
+    ),
+  },
+  {
+    order: ["model", "thinkingLevel"],
+  },
+).pipe(
+  Schema.annotate({
+    description:
+      "Pi runs with your global CLI setup (auth, models, skills). Pi extensions are not loaded in Rove threads yet — your terminal `pi` is unaffected.",
+  }),
+);
+export type PiSettings = typeof PiSettings.Type;
+
 export const OpenCodeSettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -601,6 +663,7 @@ export const ServerSettings = Schema.Struct({
     claudeAgent: ClaudeSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
     cursor: CursorSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
     grok: GrokSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
+    pi: PiSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
     opencode: OpenCodeSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
   }).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
   // New driver-agnostic instance map. Keyed by `ProviderInstanceId`; values
@@ -697,6 +760,14 @@ const GrokSettingsPatch = Schema.Struct({
   customModels: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
+const PiSettingsPatch = Schema.Struct({
+  enabled: Schema.optionalKey(Schema.Boolean),
+  model: Schema.optionalKey(TrimmedString),
+  thinkingLevel: Schema.optionalKey(Schema.NullOr(PiThinkingLevel)),
+  loadExtensions: Schema.optionalKey(Schema.Boolean),
+  customModels: Schema.optionalKey(Schema.Array(Schema.String)),
+});
+
 const OpenCodeSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
   binaryPath: Schema.optionalKey(TrimmedString),
@@ -744,6 +815,7 @@ export const ServerSettingsPatch = Schema.Struct({
       claudeAgent: Schema.optionalKey(ClaudeSettingsPatch),
       cursor: Schema.optionalKey(CursorSettingsPatch),
       grok: Schema.optionalKey(GrokSettingsPatch),
+      pi: Schema.optionalKey(PiSettingsPatch),
       opencode: Schema.optionalKey(OpenCodeSettingsPatch),
     }),
   ),
