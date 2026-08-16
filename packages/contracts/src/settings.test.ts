@@ -8,9 +8,12 @@ import {
   ClaudeSettings,
   DEFAULT_SERVER_SETTINGS,
   resolveProviderInstanceEnabled,
+  PiSettings,
   ServerSettings,
   ServerSettingsPatch,
 } from "./settings.ts";
+
+const decodePiSettings = Schema.decodeUnknownSync(PiSettings);
 
 const decodeClientSettings = Schema.decodeUnknownSync(ClientSettingsSchema);
 const decodeClientSettingsPatch = Schema.decodeUnknownSync(ClientSettingsPatch);
@@ -884,4 +887,53 @@ it("validates remote device hosts and rejects ambiguous host ids", () => {
     decodeDeviceHostSettings({ deviceHosts: [{ ...host, target: "-oProxyCommand=bad" }] }),
   ).toThrow();
   expect(() => decodeDeviceHostSettings({ deviceHosts: [{ ...host, port: 0 }] })).toThrow();
+});
+describe("PiSettings", () => {
+  it("defaults to enabled with extensions disabled and Pi defaults for model and thinking", () => {
+    const settings = decodePiSettings({});
+
+    expect(settings.enabled).toBe(true);
+    expect(settings.loadExtensions).toBe(false);
+    expect(settings.model).toBe("");
+    expect(settings.thinkingLevel).toBeNull();
+    expect(settings.customModels).toEqual([]);
+  });
+
+  it("round-trips an explicit model and thinking level", () => {
+    const settings = decodePiSettings({
+      model: "  anthropic/claude-sonnet-5  ",
+      thinkingLevel: "high",
+    });
+
+    expect(settings.model).toBe("anthropic/claude-sonnet-5");
+    expect(settings.thinkingLevel).toBe("high");
+  });
+
+  it("rejects an unknown thinking level", () => {
+    expect(() => decodePiSettings({ thinkingLevel: "galaxy-brain" })).toThrow();
+  });
+
+  it("is registered in server settings providers", () => {
+    const settings = decodeServerSettings({});
+
+    expect(settings.providers.pi.enabled).toBe(true);
+    expect(settings.providers.pi.loadExtensions).toBe(false);
+  });
+
+  it("accepts a provider patch", () => {
+    const patch = decodeServerSettingsPatch({
+      providers: { pi: { model: "anthropic/claude-opus-5", thinkingLevel: "max" } },
+    });
+
+    expect(patch.providers?.pi?.model).toBe("anthropic/claude-opus-5");
+    expect(patch.providers?.pi?.thinkingLevel).toBe("max");
+  });
+
+  it("clears the thinking level with an explicit null", () => {
+    const patch = decodeServerSettingsPatch({
+      providers: { pi: { thinkingLevel: null } },
+    });
+
+    expect(patch.providers?.pi?.thinkingLevel).toBeNull();
+  });
 });
