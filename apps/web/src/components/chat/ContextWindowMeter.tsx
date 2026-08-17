@@ -18,13 +18,24 @@ export function ContextWindowMeter(props: {
 }) {
   const { usage, providerDisplayName } = props;
   const usedPercentage = formatPercentage(usage.usedPercentage);
-  const normalizedPercentage = Math.max(0, Math.min(100, usage.usedPercentage ?? 0));
+  const isUnknownContextUsage = usage.contextUsageState === "unknown";
+  const hasKnownContextUsage = usage.contextUsageState === "known" && usage.usedTokens !== null;
+  const hasContextWindow = usage.maxTokens !== null;
+  const normalizedPercentage = hasKnownContextUsage
+    ? Math.max(0, Math.min(100, usage.usedPercentage ?? 0))
+    : 0;
   const radius = 9.75;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - normalizedPercentage / 100);
   const totalProcessedTokens = usage.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
-  const isOverloaded = normalizedPercentage > 90;
+  const totalProcessedLabel =
+    usage.totalProcessedTokensScope === "activeBranch"
+      ? "Current branch processed"
+      : "Total processed";
+  const showCurrentBranchExplanation =
+    showTotalProcessed && usage.totalProcessedTokensScope === "activeBranch";
+  const isOverloaded = hasKnownContextUsage && normalizedPercentage > 90;
   const usageColor = isOverloaded
     ? "var(--color-error)"
     : "color-mix(in oklab, var(--color-muted-foreground) 72%, transparent)";
@@ -44,9 +55,11 @@ export function ContextWindowMeter(props: {
               "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
             )}
             aria-label={
-              usage.maxTokens !== null && usedPercentage
-                ? `Context window ${usedPercentage} used`
-                : `Context window ${formatContextWindowTokens(usage.usedTokens)} tokens used`
+              isUnknownContextUsage
+                ? "Context window usage unavailable"
+                : usage.maxTokens !== null && usedPercentage !== null
+                  ? `Context window ${usedPercentage} used`
+                  : `Context window ${formatContextWindowTokens(usage.usedTokens)} tokens used`
             }
           >
             <span className="relative flex size-5 items-center justify-center">
@@ -90,14 +103,26 @@ export function ContextWindowMeter(props: {
         <div className="flex flex-col gap-2 p-[var(--floating-content-inset)]">
           <div className="flex items-center justify-between gap-3">
             <div className="font-medium text-muted-foreground text-xs">Context Window</div>
-            {usage.maxTokens !== null && usedPercentage ? (
+            {hasContextWindow ? (
               <div className="text-secondary-label text-[11px] tabular-nums">
-                <span>{usedPercentage}</span>
-                <span className="mx-1">·</span>
-                <span>
-                  {formatContextWindowTokens(usage.usedTokens)}/
-                  {formatContextWindowTokens(usage.maxTokens ?? null)}
-                </span>
+                {isUnknownContextUsage ? (
+                  <>
+                    <span>?</span>
+                    <span className="mx-1">·</span>
+                    <span>?/{formatContextWindowTokens(usage.maxTokens)}</span>
+                  </>
+                ) : usedPercentage !== null ? (
+                  <>
+                    <span>{usedPercentage}</span>
+                    <span className="mx-1">·</span>
+                    <span>
+                      {formatContextWindowTokens(usage.usedTokens)}/
+                      {formatContextWindowTokens(usage.maxTokens)}
+                    </span>
+                  </>
+                ) : (
+                  formatContextWindowTokens(usage.usedTokens)
+                )}
               </div>
             ) : (
               <div className="text-secondary-label text-[11px] tabular-nums">
@@ -105,13 +130,15 @@ export function ContextWindowMeter(props: {
               </div>
             )}
           </div>
-          {usage.maxTokens !== null ? (
+          {hasContextWindow ? (
             <div
               className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-valuenow={Math.round(normalizedPercentage)}
+              {...(hasKnownContextUsage
+                ? { "aria-valuenow": Math.round(normalizedPercentage) }
+                : { "aria-valuetext": "Usage unavailable" })}
               aria-label="Context window usage"
             >
               <div
@@ -122,13 +149,24 @@ export function ContextWindowMeter(props: {
           ) : null}
           {showTotalProcessed ? (
             <div className="flex items-center justify-between gap-3 text-[11px] leading-4">
-              <span className="text-secondary-label">Total processed</span>
+              <span className="text-secondary-label">{totalProcessedLabel}</span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowTokens(totalProcessedTokens)}
               </span>
             </div>
           ) : null}
-          {usage.compactsAutomatically ? (
+          {showCurrentBranchExplanation ? (
+            <div className="text-pretty text-secondary-label text-[11px] font-medium">
+              Discarded branches aren’t included.
+            </div>
+          ) : null}
+          {isUnknownContextUsage ? (
+            <div className="text-pretty text-secondary-label text-[11px] font-medium">
+              {usage.contextUsageUnknownReason === "compacted"
+                ? "Context was compacted. A fresh estimate appears after the next response."
+                : "A fresh estimate appears after the next response."}
+            </div>
+          ) : usage.compactsAutomatically ? (
             <div className="mt-1 text-pretty text-secondary-label text-[11px] font-medium">
               {providerDisplayName ?? "It"} automatically compacts its context when needed.
             </div>

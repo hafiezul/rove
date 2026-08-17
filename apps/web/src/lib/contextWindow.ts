@@ -1,4 +1,4 @@
-import type { OrchestrationThreadActivity, ThreadTokenUsageSnapshot } from "@t3tools/contracts";
+import type { OrchestrationThreadActivity } from "@t3tools/contracts";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -12,16 +12,28 @@ function asBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
-type NullableContextWindowUsage = {
-  readonly [Key in keyof ThreadTokenUsageSnapshot]: undefined extends ThreadTokenUsageSnapshot[Key]
-    ? Exclude<ThreadTokenUsageSnapshot[Key], undefined> | null
-    : ThreadTokenUsageSnapshot[Key];
-};
-
-export type ContextWindowSnapshot = NullableContextWindowUsage & {
+export type ContextWindowSnapshot = {
+  readonly contextUsageState: "known" | "unknown";
+  readonly contextUsageUnknownReason: "compacted" | null;
+  readonly usedTokens: number | null;
+  readonly totalProcessedTokens: number | null;
+  readonly totalProcessedTokensScope: "activeBranch" | null;
+  readonly maxTokens: number | null;
   readonly remainingTokens: number | null;
   readonly usedPercentage: number | null;
   readonly remainingPercentage: number | null;
+  readonly inputTokens: number | null;
+  readonly cachedInputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly reasoningOutputTokens: number | null;
+  readonly lastUsedTokens: number | null;
+  readonly lastInputTokens: number | null;
+  readonly lastCachedInputTokens: number | null;
+  readonly lastOutputTokens: number | null;
+  readonly lastReasoningOutputTokens: number | null;
+  readonly toolUses: number | null;
+  readonly durationMs: number | null;
+  readonly compactsAutomatically: boolean;
   readonly updatedAt: string;
 };
 
@@ -57,12 +69,50 @@ export function deriveLatestContextWindowSnapshot(
     }
 
     const payload = asRecord(activity.payload);
+    const contextUsageState = payload?.contextUsageState;
+    if (contextUsageState === "unavailable") {
+      return null;
+    }
+
+    const maxTokens = asFiniteNumber(payload?.maxTokens);
+    if (contextUsageState === "unknown") {
+      if (maxTokens === null || maxTokens <= 0) {
+        continue;
+      }
+
+      return {
+        contextUsageState: "unknown",
+        contextUsageUnknownReason:
+          payload?.contextUsageUnknownReason === "compacted" ? "compacted" : null,
+        usedTokens: null,
+        totalProcessedTokens: asFiniteNumber(payload?.totalProcessedTokens),
+        totalProcessedTokensScope:
+          payload?.totalProcessedTokensScope === "activeBranch" ? "activeBranch" : null,
+        maxTokens,
+        remainingTokens: null,
+        usedPercentage: null,
+        remainingPercentage: null,
+        inputTokens: null,
+        cachedInputTokens: null,
+        outputTokens: null,
+        reasoningOutputTokens: null,
+        lastUsedTokens: null,
+        lastInputTokens: null,
+        lastCachedInputTokens: null,
+        lastOutputTokens: null,
+        lastReasoningOutputTokens: null,
+        toolUses: null,
+        durationMs: null,
+        compactsAutomatically: asBoolean(payload?.compactsAutomatically) ?? false,
+        updatedAt: activity.createdAt,
+      };
+    }
+
     const usedTokens = asFiniteNumber(payload?.usedTokens);
     if (usedTokens === null || usedTokens < 0) {
       continue;
     }
 
-    const maxTokens = asFiniteNumber(payload?.maxTokens);
     const usedPercentage =
       maxTokens !== null && maxTokens > 0 ? Math.min(100, (usedTokens / maxTokens) * 100) : null;
     const remainingTokens =
@@ -70,8 +120,12 @@ export function deriveLatestContextWindowSnapshot(
     const remainingPercentage = usedPercentage !== null ? Math.max(0, 100 - usedPercentage) : null;
 
     return {
+      contextUsageState: "known",
+      contextUsageUnknownReason: null,
       usedTokens,
       totalProcessedTokens: asFiniteNumber(payload?.totalProcessedTokens),
+      totalProcessedTokensScope:
+        payload?.totalProcessedTokensScope === "activeBranch" ? "activeBranch" : null,
       maxTokens,
       remainingTokens,
       usedPercentage,

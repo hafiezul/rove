@@ -3212,6 +3212,47 @@ describe("ProviderRuntimeIngestion", () => {
     });
   });
 
+  it("projects intentional unknown context usage into thread activities", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "thread.token-usage.updated",
+      eventId: asEventId("evt-thread-token-usage-unknown"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      payload: {
+        usage: {
+          contextUsageState: "unknown",
+          contextUsageUnknownReason: "compacted",
+          maxTokens: 400_000,
+          totalProcessedTokens: 748_126,
+          totalProcessedTokensScope: "activeBranch",
+          compactsAutomatically: true,
+        },
+      },
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) => activity.kind === "context-window.updated",
+      ),
+    );
+    const usageActivity = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "context-window.updated",
+    );
+
+    expect(usageActivity?.payload).toMatchObject({
+      contextUsageState: "unknown",
+      contextUsageUnknownReason: "compacted",
+      maxTokens: 400_000,
+      totalProcessedTokens: 748_126,
+      totalProcessedTokensScope: "activeBranch",
+      compactsAutomatically: true,
+    });
+  });
+
   it("projects Codex camelCase token usage payloads into normalized thread activities", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";
