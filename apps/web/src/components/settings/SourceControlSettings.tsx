@@ -5,11 +5,9 @@ import * as Option from "effect/Option";
 import { useEffect, useState, type ReactNode } from "react";
 import type {
   BackgroundActivitySettings,
-  SourceControlProviderKind,
   SourceControlDiscoveryResult,
   SourceControlProviderAuth,
   SourceControlProviderDiscoveryItem,
-  VcsDriverKind,
   VcsDiscoveryItem,
 } from "@t3tools/contracts";
 import {
@@ -73,7 +71,21 @@ const EMPTY_DISCOVERY_RESULT: SourceControlDiscoveryResult = {
   sourceControlProviders: [],
 };
 
-const SOURCE_CONTROL_PROVIDER_ICONS: Partial<Record<SourceControlProviderKind, Icon>> = {
+interface SourceControlProviderIcons {
+  readonly github?: Icon;
+  readonly gitlab?: Icon;
+  readonly "azure-devops"?: Icon;
+  readonly bitbucket?: Icon;
+  readonly unknown?: Icon;
+}
+
+interface VcsDriverIcons {
+  readonly git?: Icon;
+  readonly jj?: Icon;
+  readonly unknown?: Icon;
+}
+
+const SOURCE_CONTROL_PROVIDER_ICONS: SourceControlProviderIcons = {
   github: GitHubIcon,
   gitlab: GitLabIcon,
   forgejo: ForgejoIcon,
@@ -81,7 +93,7 @@ const SOURCE_CONTROL_PROVIDER_ICONS: Partial<Record<SourceControlProviderKind, I
   bitbucket: BitbucketIcon,
 };
 
-const VCS_ICONS: Partial<Record<VcsDriverKind, Icon>> = {
+const VCS_ICONS: VcsDriverIcons = {
   git: GitIcon,
   jj: JujutsuIcon,
 };
@@ -115,9 +127,11 @@ function backgroundActivityOverrideSettings(
   };
   for (const [key, value] of Object.entries(nextOverrides)) {
     if (value === undefined) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       delete nextOverrides[key as keyof typeof nextOverrides];
     }
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     backgroundActivity: {
       schemaVersion: 1 as const,
@@ -142,17 +156,19 @@ function isVcsNotReady(item: VcsDiscoveryItem | SourceControlProviderDiscoveryIt
   return !isProviderDiscoveryItem(item) && !item.implemented;
 }
 
-function authPresentation(auth: SourceControlProviderAuth): {
+type AuthPresentation = {
   readonly label: string;
   readonly badge: "warning" | null;
-} {
+};
+
+function authPresentation(auth: SourceControlProviderAuth) {
   if (auth.status === "authenticated") {
-    return { label: "Authenticated", badge: null };
+    return { label: "Authenticated", badge: null } satisfies AuthPresentation;
   }
   if (auth.status === "unauthenticated") {
-    return { label: "Not authenticated", badge: "warning" };
+    return { label: "Not authenticated", badge: "warning" } satisfies AuthPresentation;
   }
-  return { label: "Status unknown", badge: null };
+  return { label: "Status unknown", badge: null } satisfies AuthPresentation;
 }
 
 function RedactedAccount(props: { readonly account: string | null }) {

@@ -127,9 +127,10 @@ describe("DesktopPreReadyPlatform", () => {
     "acquires a synchronous pre-ready layer before an asynchronous Clerk-shaped layer",
     () =>
       Effect.gen(function* () {
-        class ClerkShaped extends Context.Service<ClerkShaped, { readonly ready: true }>()(
-          "@t3tools/desktop/app/DesktopPreReadyPlatform.test/ClerkShaped",
-        ) {}
+        class ClerkReadyContext extends Context.Service<
+          ClerkReadyContext,
+          { readonly ready: true }
+        >()("@t3tools/desktop/app/DesktopPreReadyPlatform.test/ClerkReadyContext") {}
 
         const events: Array<string> = [];
         registerSchemesMock.mockImplementation(() => {
@@ -140,8 +141,8 @@ describe("DesktopPreReadyPlatform", () => {
           Layer.provide(Layer.succeed(HostProcessPlatform, "darwin")),
         );
 
-        const clerkShapedLayer = Layer.effect(
-          ClerkShaped,
+        const clerkReadyLayer = Layer.effect(
+          ClerkReadyContext,
           Effect.promise(() => Promise.resolve()).pipe(
             Effect.map(() => {
               events.push("clerk");
@@ -150,13 +151,13 @@ describe("DesktopPreReadyPlatform", () => {
           ),
         );
 
-        const runtimeLayer = clerkShapedLayer.pipe(
+        const runtimeLayer = clerkReadyLayer.pipe(
           Layer.flatMap((clerkContext) => Layer.succeedContext(clerkContext)),
           Layer.provideMerge(preReadyLayer),
         );
 
         const result = yield* Effect.all({
-          clerk: ClerkShaped,
+          clerk: ClerkReadyContext,
           preReady: DesktopPreReadyPlatform.DesktopPreReadyElectronOptions,
         }).pipe(Effect.provide(runtimeLayer));
 

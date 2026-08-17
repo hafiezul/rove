@@ -294,8 +294,9 @@ releaseDate: '2026-03-07T10:36:07.540Z'
         assert.fail(`Expected CliError, got ${String(error)}`);
       }
 
-      const platformError =
-        error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        platformError =
+          error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
 
       if (!platformError || platformError._tag !== "InvalidValue") {
         assert.fail(`Expected InvalidValue, got ${String(platformError?._tag)}`);

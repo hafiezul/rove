@@ -181,6 +181,7 @@ import {
   buildSidebarProjectSnapshots,
 } from "../sidebarProjectGrouping";
 import type { Project } from "../types";
+import * as RuntimePredicate from "effect/Predicate";
 
 const EMPTY_BROWSE_ENTRIES: FilesystemBrowseResult["entries"] = [];
 
@@ -361,10 +362,18 @@ function sortAddProjectProviderSources(
   });
 }
 
-type AddProjectRemoteSourceReadiness = Record<
-  AddProjectRemoteSource,
-  { readonly ready: boolean; readonly hint: string | null }
->;
+interface AddProjectRemoteSourceReadinessEntry {
+  readonly ready: boolean;
+  readonly hint: string | null;
+}
+
+interface AddProjectRemoteSourceReadiness {
+  url: AddProjectRemoteSourceReadinessEntry;
+  github: AddProjectRemoteSourceReadinessEntry;
+  gitlab: AddProjectRemoteSourceReadinessEntry;
+  bitbucket: AddProjectRemoteSourceReadinessEntry;
+  "azure-devops": AddProjectRemoteSourceReadinessEntry;
+}
 
 function buildAddProjectRemoteSourceReadiness(
   discovery: SourceControlDiscoveryResult | null,
@@ -433,6 +442,7 @@ const OVERLAY_MODE_BY_COMMAND = {
 
 function overlayModeForCommand(command: string | null): SearchOverlayMode | null {
   if (command === null) return null;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return command in OVERLAY_MODE_BY_COMMAND
     ? OVERLAY_MODE_BY_COMMAND[command as keyof typeof OVERLAY_MODE_BY_COMMAND]
     : null;
@@ -1023,7 +1033,7 @@ function OpenCommandPaletteDialog(props: {
           environmentId: browseEnvironmentId,
           input: {
             partialPath: browsePath.directoryPath,
-            ...(currentProjectCwdForBrowse ? { cwd: currentProjectCwdForBrowse } : {}),
+            ...(currentProjectCwdForBrowse ? { cwd: currentProjectCwdForBrowse } : undefined),
           },
         })
       : null,
@@ -1064,7 +1074,7 @@ function OpenCommandPaletteDialog(props: {
         environmentId,
         input: {
           partialPath,
-          ...(cwd ? { cwd } : {}),
+          ...(cwd ? { cwd } : undefined),
         },
       });
     },
@@ -1237,7 +1247,7 @@ function OpenCommandPaletteDialog(props: {
     () =>
       buildThreadActionItems({
         threads,
-        ...(activeThreadId ? { activeThreadId } : {}),
+        ...(activeThreadId ? { activeThreadId } : undefined),
         projectTitleById,
         sortOrder: clientSettings.sidebarThreadSortOrder,
         icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
@@ -1312,7 +1322,7 @@ function OpenCommandPaletteDialog(props: {
         {
           addonIcon: view.addonIcon,
           groups: view.groups,
-          ...(view.initialQuery ? { initialQuery: view.initialQuery } : {}),
+          ...(view.initialQuery ? { initialQuery: view.initialQuery } : undefined),
         },
       ]);
       setHighlightedItemValue(null);
@@ -1325,7 +1335,7 @@ function OpenCommandPaletteDialog(props: {
     pushPaletteView({
       addonIcon: item.addonIcon,
       groups: item.groups,
-      ...(item.initialQuery ? { initialQuery: item.initialQuery } : {}),
+      ...(item.initialQuery ? { initialQuery: item.initialQuery } : undefined),
     });
   }
 
@@ -1467,7 +1477,7 @@ function OpenCommandPaletteDialog(props: {
             description,
             disabled: true,
             icon: remoteProjectSourceIcon(source, ITEM_ICON_CLASS),
-            ...(titleTrailingContent ? { titleTrailingContent } : {}),
+            ...(titleTrailingContent ? { titleTrailingContent } : undefined),
             run: async () => {},
           });
           continue;
@@ -1480,7 +1490,7 @@ function OpenCommandPaletteDialog(props: {
           title,
           description,
           icon: remoteProjectSourceIcon(source, ITEM_ICON_CLASS),
-          ...(titleTrailingContent ? { titleTrailingContent } : {}),
+          ...(titleTrailingContent ? { titleTrailingContent } : undefined),
           keepOpen: true,
           run: async () => {
             startAddProjectClone(environmentId, source);
@@ -2557,8 +2567,10 @@ function OpenCommandPaletteDialog(props: {
         wslConfiguration: desktopWslState,
       });
       const pickerOptions = {
-        ...(fileManagerInitialPath ? { initialPath: fileManagerInitialPath } : {}),
-        ...(pickerTargetEnvironmentId ? { targetEnvironmentId: pickerTargetEnvironmentId } : {}),
+        ...(fileManagerInitialPath ? { initialPath: fileManagerInitialPath } : undefined),
+        ...(pickerTargetEnvironmentId
+          ? { targetEnvironmentId: pickerTargetEnvironmentId }
+          : undefined),
       };
       pickedPath = await api.dialogs.pickFolder(
         Object.keys(pickerOptions).length > 0 ? pickerOptions : undefined,
@@ -2774,7 +2786,7 @@ function OpenCommandPaletteDialog(props: {
       }}
       mode="none"
       onItemHighlighted={(value) => {
-        setHighlightedItemValue(typeof value === "string" ? value : null);
+        setHighlightedItemValue(RuntimePredicate.isString(value) ? value : null);
       }}
       onValueChange={handleQueryChange}
       panelClassName="max-h-[min(28rem,70vh)]"

@@ -71,7 +71,7 @@ export function requestRelayClientInstallConfirmation(version: string): Promise<
         activeDialogStatus: state.status,
         ...(activeInstall.status === "installing"
           ? { activeInstallStage: activeInstall.stage }
-          : {}),
+          : undefined),
       }),
     );
   }

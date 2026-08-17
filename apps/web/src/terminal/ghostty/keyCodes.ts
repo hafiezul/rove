@@ -220,13 +220,14 @@ let keyboardLayoutMapPromise: Promise<GhosttyKeyboardLayoutMap | undefined> | un
 
 export function loadGhosttyKeyboardLayoutMap(): Promise<GhosttyKeyboardLayoutMap | undefined> {
   if (keyboardLayoutMapPromise) return keyboardLayoutMapPromise;
-  const browserNavigator = globalThis.navigator as
-    | (Navigator & {
-        readonly keyboard?: {
-          getLayoutMap(): Promise<GhosttyKeyboardLayoutMap>;
-        };
-      })
-    | undefined;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    browserNavigator = globalThis.navigator as
+      | (Navigator & {
+          readonly keyboard?: {
+            getLayoutMap(): Promise<GhosttyKeyboardLayoutMap>;
+          };
+        })
+      | undefined;
   const keyboard = browserNavigator?.keyboard;
   const promise = keyboard?.getLayoutMap().catch(() => undefined) ?? Promise.resolve(undefined);
   keyboardLayoutMapPromise = promise;

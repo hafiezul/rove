@@ -2,6 +2,7 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface RotatingFileSinkOptions {
   readonly filePath: string;
@@ -83,7 +84,7 @@ export class RotatingFileSink {
   }
 
   write(chunk: string | Buffer): void {
-    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    const buffer = RuntimePredicate.isString(chunk) ? Buffer.from(chunk) : chunk;
     if (buffer.length === 0) return;
 
     try {

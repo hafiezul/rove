@@ -1,4 +1,5 @@
-/**
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema"; /**
  * GitHub's blockquote alerts: a quote whose first line is `[!NOTE]` — or TIP, IMPORTANT,
  * WARNING, CAUTION — renders as a titled callout. They are GitHub's own extension rather than
  * GFM, so remark-gfm leaves the marker as literal text in the quote. This lifts the marker off
@@ -13,7 +14,7 @@ interface MarkdownAstNode {
   type?: string;
   value?: unknown;
   data?: {
-    hProperties?: Record<string, unknown>;
+    hProperties?: Record<string, SchemaJson>;
   };
   children?: MarkdownAstNode[];
 }
@@ -24,7 +25,11 @@ function readGithubAlert(node: MarkdownAstNode): void {
   if (node.type !== "blockquote") return;
   const paragraph = node.children?.[0];
   const text = paragraph?.children?.[0];
-  if (paragraph?.type !== "paragraph" || text?.type !== "text" || typeof text.value !== "string") {
+  if (
+    paragraph?.type !== "paragraph" ||
+    text?.type !== "text" ||
+    !RuntimePredicate.isString(text.value)
+  ) {
     return;
   }
   const match = GITHUB_ALERT_MARKER.exec(text.value);

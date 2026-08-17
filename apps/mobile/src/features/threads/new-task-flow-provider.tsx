@@ -430,7 +430,8 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         })
       : null,
   );
-  const t3ProjectFileData = t3ProjectFileQuery.data as ProjectReadFileResult | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    t3ProjectFileData = t3ProjectFileQuery.data as ProjectReadFileResult | null;
   const t3ProjectFileDefaultMode = useMemo(() => {
     if (t3ProjectFileData === null || t3ProjectFileData.truncated) return null;
     return parseT3ProjectFile(t3ProjectFileData.contents)?.defaultThreadEnvMode ?? null;
@@ -774,7 +775,9 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
           mode,
           branch: mode === "local" ? localSelection.branch : selectedBranchName,
           worktreePath: mode === "local" ? localSelection.worktreePath : selectedWorktreePath,
-          ...(draftStartFromOrigin !== undefined ? { startFromOrigin: draftStartFromOrigin } : {}),
+          ...(draftStartFromOrigin !== undefined
+            ? { startFromOrigin: draftStartFromOrigin }
+            : undefined),
         },
       });
     },
@@ -811,7 +814,9 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         mode: "local",
         branch: localSelection.branch,
         worktreePath: localSelection.worktreePath,
-        ...(draftStartFromOrigin !== undefined ? { startFromOrigin: draftStartFromOrigin } : {}),
+        ...(draftStartFromOrigin !== undefined
+          ? { startFromOrigin: draftStartFromOrigin }
+          : undefined),
       },
     });
   }, [
@@ -837,7 +842,9 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
             projectCwd: selectedProject.workspaceRoot,
             branchWorktreePath: branch.worktreePath,
           }),
-          ...(draftStartFromOrigin !== undefined ? { startFromOrigin: draftStartFromOrigin } : {}),
+          ...(draftStartFromOrigin !== undefined
+            ? { startFromOrigin: draftStartFromOrigin }
+            : undefined),
         },
       });
     },
@@ -1006,8 +1013,8 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         }),
         creation: {
           projectId: selectedProject.id,
-          ...(projectTitle !== undefined ? { projectTitle } : {}),
-          ...(projectCwd !== undefined ? { projectCwd } : {}),
+          ...(projectTitle !== undefined ? { projectTitle } : undefined),
+          ...(projectCwd !== undefined ? { projectCwd } : undefined),
           workspaceMode: mode,
           // An explicit picker choice wins. Otherwise only a task sending now
           // records the current checkout: a queued local task drains days
@@ -1024,7 +1031,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
           // drain with the same origin mode the composer displayed.
           ...((workspaceSelection?.startFromOrigin ?? startFromOrigin)
             ? { startFromOrigin: true }
-            : {}),
+            : undefined),
         },
         createdAt: metadata.createdAt,
       };

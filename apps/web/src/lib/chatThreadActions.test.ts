@@ -32,7 +32,7 @@ function createContext(overrides: Partial<ChatThreadActionContext> = {}): ChatTh
     activeDraftThread: null,
     activeThread: undefined,
     defaultProjectRef: scopeProjectRef(ENVIRONMENT_ID, FALLBACK_PROJECT_ID),
-    handleNewThread: async () => {},
+    handleNewThread: async () => null,
     ...overrides,
   };
 }
@@ -139,7 +139,7 @@ describe("chatThreadActions", () => {
   });
 
   it("inherits only the project from context, never branch or worktree state", async () => {
-    const handleNewThread = vi.fn<ChatThreadActionContext["handleNewThread"]>(async () => {});
+    const handleNewThread = vi.fn<ChatThreadActionContext["handleNewThread"]>(async () => null);
 
     const didStart = await startNewThreadFromContext(
       createContext({
@@ -156,7 +156,7 @@ describe("chatThreadActions", () => {
   });
 
   it("does not start a thread when there is no project context", async () => {
-    const handleNewThread = vi.fn<ChatThreadActionContext["handleNewThread"]>(async () => {});
+    const handleNewThread = vi.fn<ChatThreadActionContext["handleNewThread"]>(async () => null);
 
     const didStart = await startNewThreadFromContext(
       createContext({

@@ -7,10 +7,7 @@ import { clearComposerDraftContent } from "../../state/use-composer-drafts";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { releaseEditingQueuedMessage } from "../../state/use-thread-outbox";
 
-export function usePendingTaskListActions(): {
-  readonly openPendingTask: (pendingTask: PendingNewTask) => void;
-  readonly confirmDeletePendingTask: (pendingTask: PendingNewTask) => void;
-} {
+export function usePendingTaskListActions() {
   const navigation = useNavigation();
 
   const openPendingTask = useCallback(

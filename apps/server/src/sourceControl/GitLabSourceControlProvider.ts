@@ -38,13 +38,13 @@ function toChangeRequest(summary: GitLabCli.GitLabMergeRequestSummary): ChangeRe
     updatedAt: summary.updatedAt ?? Option.none(),
     ...(summary.isCrossRepository !== undefined
       ? { isCrossRepository: summary.isCrossRepository }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryNameWithOwner !== undefined
       ? { headRepositoryNameWithOwner: summary.headRepositoryNameWithOwner }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryOwnerLogin !== undefined
       ? { headRepositoryOwnerLogin: summary.headRepositoryOwnerLogin }
-      : {}),
+      : undefined),
   };
 }
 
@@ -170,9 +170,9 @@ export const make = Effect.gen(function* () {
         .listMergeRequests({
           cwd: input.cwd,
           headSelector: input.headSelector,
-          ...(source ? { source } : {}),
+          ...(source ? { source } : undefined),
           state: input.state,
-          ...(input.limit !== undefined ? { limit: input.limit } : {}),
+          ...(input.limit !== undefined ? { limit: input.limit } : undefined),
         })
         .pipe(
           Effect.map((items) => items.map(toChangeRequest)),
@@ -217,8 +217,8 @@ export const make = Effect.gen(function* () {
           cwd: input.cwd,
           baseBranch: input.baseRefName,
           headSelector: input.headSelector,
-          ...(source ? { source } : {}),
-          ...(input.target ? { target: input.target } : {}),
+          ...(source ? { source } : undefined),
+          ...(input.target ? { target: input.target } : undefined),
           title: input.title,
           bodyFile: input.bodyFile,
         })

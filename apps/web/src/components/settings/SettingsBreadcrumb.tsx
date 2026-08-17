@@ -33,7 +33,11 @@ import {
   settingsScopeEnvironmentLabel,
 } from "./settingsScopeAxis";
 
-const SETTINGS_BREADCRUMB_LABELS: Readonly<Record<string, string>> = {
+interface SettingsBreadcrumbLabels {
+  readonly [pathname: string]: string | undefined;
+}
+
+const SETTINGS_BREADCRUMB_LABELS: SettingsBreadcrumbLabels = {
   ...SETTINGS_SECTION_LABELS,
   "/settings/diagnostics": "Diagnostics",
   "/settings/open-source-licenses": "Open source licenses",

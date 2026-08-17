@@ -10,10 +10,10 @@
  * @module OpenCodeAdapter
  */
 import type { ProviderAdapterError } from "../Errors.ts";
-import type { ProviderAdapterShape } from "./ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
  * OpenCodeAdapterShape — per-instance OpenCode adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
-export interface OpenCodeAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {}
+export interface OpenCodeAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

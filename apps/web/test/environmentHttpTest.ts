@@ -47,7 +47,10 @@ export interface EnvironmentHttpTestCalls {
 const unexpectedEndpoint = (endpoint: string) =>
   Effect.die(new Error(`Unexpected environment HTTP endpoint: ${endpoint}`));
 
-const authenticatedAuth: Context.Service.Shape<typeof EnvironmentAuthenticatedAuth> = (
+type EnvironmentServiceContract<T> =
+  T extends Context.Key<infer _Identifier, infer Service> ? Service : never;
+
+const authenticatedAuth: EnvironmentServiceContract<typeof EnvironmentAuthenticatedAuth> = (
   httpEffect,
 ) =>
   httpEffect.pipe(

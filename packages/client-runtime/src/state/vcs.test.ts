@@ -26,6 +26,7 @@ import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as Persistence from "../platform/persistence.ts";
 import { EnvironmentRpcUnavailableError } from "../rpc/client.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { RpcSession } from "../rpc/session.ts";
 
 import {
@@ -82,9 +83,9 @@ const LIVE_REFS: VcsListRefsResult = {
   ],
 };
 
-function session(client: WsRpcProtocolClient): RpcSession {
+function session(client: unknown): RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.never,
     subscribeServerConfig: (input) => client.subscribeServerConfig(input),
     ready: Effect.void,
@@ -153,7 +154,7 @@ describe("cached VCS refs", () => {
         const client = {
           [WS_METHODS.vcsListRefs]: (input: VcsListRefsInput) =>
             Ref.update(requests, (current) => [...current, input]).pipe(Effect.as(LIVE_REFS)),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(CONNECTED_CONNECTION_STATE),
@@ -286,7 +287,7 @@ describe("cached VCS refs", () => {
         const client = {
           [WS_METHODS.vcsPull]: () => Effect.fail(expectedError),
           [WS_METHODS.vcsRefreshStatus]: () => Effect.void,
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(CONNECTED_CONNECTION_STATE),
@@ -302,7 +303,7 @@ describe("cached VCS refs", () => {
         ) => Effect.provideService(effect, EnvironmentSupervisor.EnvironmentSupervisor, supervisor);
         const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
           run,
-        } as unknown as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+        } as EnvironmentRegistry.EnvironmentRegistry["Service"]);
         const clears = yield* Ref.make(0);
         const runtime = Atom.runtime(
           Layer.merge(
@@ -486,7 +487,7 @@ describe("cached VCS refs", () => {
                 count === 1 ? Effect.fail(expectedError) : Effect.succeed(LIVE_REFS),
               ),
             ),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: connectionState,
@@ -536,7 +537,7 @@ describe("cached VCS refs", () => {
                   : Effect.succeed(LIVE_REFS),
               ),
             ),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: connectionState,
@@ -581,7 +582,7 @@ describe("cached VCS refs", () => {
         const client = {
           [WS_METHODS.vcsListRefs]: () =>
             Ref.update(calls, (count) => count + 1).pipe(Effect.as(CACHED_REFS)),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(CONNECTED_CONNECTION_STATE),
@@ -617,7 +618,7 @@ describe("cached VCS refs", () => {
       Effect.gen(function* () {
         const client = {
           [WS_METHODS.vcsListRefs]: () => Effect.succeed(LIVE_REFS),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(CONNECTED_CONNECTION_STATE),

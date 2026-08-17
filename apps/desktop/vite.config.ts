@@ -63,7 +63,9 @@ export default defineConfig({
         neverBundle: isMainProcessExternal,
         onlyBundle: false,
       },
-      ...(shouldLaunchElectronAfterPack ? { onSuccess: "node scripts/dev-electron.mjs" } : {}),
+      ...(shouldLaunchElectronAfterPack
+        ? { onSuccess: "node scripts/dev-electron.mjs" }
+        : undefined),
     },
     {
       format: "cjs",

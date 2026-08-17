@@ -81,7 +81,8 @@ describe("VcsProjectConfig", () => {
 
         assert.equal(kind, "jj");
         const failedCandidate = path.join(cwd, ".t3code", "vcs.json");
-        const [error] = messages[0] as ReadonlyArray<unknown>;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          [error] = messages[0] as ReadonlyArray<unknown>;
         assert.instanceOf(error, VcsProjectConfig.VcsProjectConfigError);
         assert.equal(
           error.message,
@@ -133,7 +134,8 @@ describe("VcsProjectConfig", () => {
         const kind = yield* config.resolveKind({ cwd: root });
 
         assert.equal(kind, "auto");
-        const [error] = messages[0] as ReadonlyArray<unknown>;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          [error] = messages[0] as ReadonlyArray<unknown>;
         assert.instanceOf(error, VcsProjectConfig.VcsProjectConfigError);
         assert.equal(
           error.message,
@@ -170,7 +172,8 @@ describe("VcsProjectConfig", () => {
         const kind = yield* config.resolveKind({ cwd: root });
 
         assert.equal(kind, "auto");
-        const [error] = messages[0] as ReadonlyArray<unknown>;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          [error] = messages[0] as ReadonlyArray<unknown>;
         assert.instanceOf(error, VcsProjectConfig.VcsProjectConfigError);
         assert.equal(error.message, "Failed to read VCS project config at " + configPath + ".");
         assert.deepInclude(error.cause, { _tag: "PlatformError" });

@@ -8,10 +8,11 @@ import {
   type OpenVsxThemeExtension,
 } from "./openVsxThemes";
 import { getThemeColorsForMode, themeColorToHex } from "./themePalette";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const ASSET_ROOT = "https://open-vsx.org/api/demo/theme/1.0.0/file";
 
-function extensionDetail(overrides: Record<string, unknown> = {}) {
+function extensionDetail(overrides: Record<string, SchemaJson> = {}) {
   return {
     namespace: "demo",
     name: "theme",

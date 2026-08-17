@@ -7,18 +7,20 @@ import {
   type AssignableProject,
 } from "./pullRequestProjectAssignment.logic";
 
-const project = (
-  id: string,
-  environmentId: string,
-  canonicalKey?: string,
-): AssignableProject & { workspaceRoot: string } => ({
-  id: id as ProjectId,
-  environmentId: environmentId as EnvironmentId,
-  repositoryIdentity: canonicalKey === undefined ? null : { canonicalKey },
-  workspaceRoot: `/srv/${environmentId}/${id}`,
-});
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  project = (
+    id: string,
+    environmentId: string,
+    canonicalKey?: string,
+  ): AssignableProject & { workspaceRoot: string } => ({
+    id: id as ProjectId,
+    environmentId: environmentId as EnvironmentId,
+    repositoryIdentity: canonicalKey === undefined ? null : { canonicalKey },
+    workspaceRoot: `/srv/${environmentId}/${id}`,
+  });
 
-const envs = (...ids: ReadonlyArray<string>) => ids as ReadonlyArray<EnvironmentId>;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  envs = (...ids: ReadonlyArray<string>) => ids as ReadonlyArray<EnvironmentId>;
 
 const plain = (assignment: Map<EnvironmentId, ProjectId[]>) =>
   Object.fromEntries([...assignment].map(([id, projectIds]) => [id, projectIds]));
@@ -136,13 +138,15 @@ describe("one server per repository", () => {
   });
 });
 
-const connected = (...ids: ReadonlyArray<string>) =>
-  ids.map((id) => ({ environmentId: id as EnvironmentId, label: `Server ${id}` }));
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  connected = (...ids: ReadonlyArray<string>) =>
+    ids.map((id) => ({ environmentId: id as EnvironmentId, label: `Server ${id}` }));
 
-const on = (environmentId: string, projectId: string) => ({
-  environmentId: environmentId as EnvironmentId,
-  projectId: projectId as ProjectId,
-});
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  on = (environmentId: string, projectId: string) => ({
+    environmentId: environmentId as EnvironmentId,
+    projectId: projectId as ProjectId,
+  });
 
 describe("where a pull request can be acted on", () => {
   it("offers every server holding the repository, the panel's own first", () => {

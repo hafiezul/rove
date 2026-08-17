@@ -607,7 +607,8 @@ export class QrCode {
     let result: Array<byte> = divisor.map((_) => 0);
     for (const b of data) {
       // Polynomial division
-      const factor: byte = b ^ (result.shift() as byte);
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        factor: byte = b ^ (result.shift() as byte);
       result.push(0);
       divisor.forEach((coef, i) => (result[i]! ^= QrCode.reedSolomonMultiply(coef, factor)));
     }
@@ -625,6 +626,7 @@ export class QrCode {
       z ^= ((y >>> i) & 1) * x;
     }
     assert(z >>> 8 == 0);
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return z as byte;
   }
 

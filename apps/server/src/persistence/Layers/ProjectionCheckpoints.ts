@@ -14,7 +14,7 @@ import {
   ListByThreadIdInput,
   ProjectionCheckpoint,
   ProjectionCheckpointRepository,
-  type ProjectionCheckpointRepositoryShape,
+  type ProjectionCheckpointRepositoryContract,
 } from "../Services/ProjectionCheckpoints.ts";
 
 const ProjectionCheckpointDbRowSchema = ProjectionCheckpoint.mapFields(
@@ -156,7 +156,7 @@ const makeProjectionCheckpointRepository = Effect.gen(function* () {
       }).pipe(Effect.flatMap(() => upsertProjectionCheckpointRow(row))),
     );
 
-  const upsert: ProjectionCheckpointRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionCheckpointRepositoryContract["upsert"] = (row) =>
     upsertCheckpointRow(row).pipe(
       Effect.mapError(
         toPersistenceSqlOrDecodeError(
@@ -166,37 +166,41 @@ const makeProjectionCheckpointRepository = Effect.gen(function* () {
       ),
     );
 
-  const listByThreadId: ProjectionCheckpointRepositoryShape["listByThreadId"] = (input) =>
-    listProjectionCheckpointRows(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlOrDecodeError(
-          "ProjectionCheckpointRepository.listByThreadId:query",
-          "ProjectionCheckpointRepository.listByThreadId:decodeRows",
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    listByThreadId: ProjectionCheckpointRepositoryContract["listByThreadId"] = (input) =>
+      listProjectionCheckpointRows(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlOrDecodeError(
+            "ProjectionCheckpointRepository.listByThreadId:query",
+            "ProjectionCheckpointRepository.listByThreadId:decodeRows",
+          ),
         ),
-      ),
-      Effect.map((rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionCheckpoint>>),
-    );
-
-  const getByThreadAndTurnCount: ProjectionCheckpointRepositoryShape["getByThreadAndTurnCount"] = (
-    input,
-  ) =>
-    getProjectionCheckpointRow(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlOrDecodeError(
-          "ProjectionCheckpointRepository.getByThreadAndTurnCount:query",
-          "ProjectionCheckpointRepository.getByThreadAndTurnCount:decodeRow",
+        Effect.map(
+          (rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionCheckpoint>>,
         ),
-      ),
-      Effect.flatMap((rowOption) =>
-        Option.match(rowOption, {
-          onNone: () => Effect.succeed(Option.none()),
-          onSome: (row) =>
-            Effect.succeed(Option.some(row as Schema.Schema.Type<typeof ProjectionCheckpoint>)),
-        }),
-      ),
-    );
+      );
 
-  const deleteByThreadId: ProjectionCheckpointRepositoryShape["deleteByThreadId"] = (input) =>
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    getByThreadAndTurnCount: ProjectionCheckpointRepositoryContract["getByThreadAndTurnCount"] = (
+      input,
+    ) =>
+      getProjectionCheckpointRow(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlOrDecodeError(
+            "ProjectionCheckpointRepository.getByThreadAndTurnCount:query",
+            "ProjectionCheckpointRepository.getByThreadAndTurnCount:decodeRow",
+          ),
+        ),
+        Effect.flatMap((rowOption) =>
+          Option.match(rowOption, {
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: (row) =>
+              Effect.succeed(Option.some(row as Schema.Schema.Type<typeof ProjectionCheckpoint>)),
+          }),
+        ),
+      );
+
+  const deleteByThreadId: ProjectionCheckpointRepositoryContract["deleteByThreadId"] = (input) =>
     deleteProjectionCheckpointRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionCheckpointRepository.deleteByThreadId:query"),
@@ -208,7 +212,7 @@ const makeProjectionCheckpointRepository = Effect.gen(function* () {
     listByThreadId,
     getByThreadAndTurnCount,
     deleteByThreadId,
-  } satisfies ProjectionCheckpointRepositoryShape;
+  } satisfies ProjectionCheckpointRepositoryContract;
 });
 
 export const ProjectionCheckpointRepositoryLive = Layer.effect(

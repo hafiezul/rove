@@ -133,6 +133,7 @@ it.effect("preserves webhook request context and the full client cause chain", (
     assert.equal(error.allowedRoleMentionCount, 1);
     assert.equal(error.hasRoleMentionSyntax, true);
     assert.equal(error.cause, clientError);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     assert.equal((error.cause as HttpClientError.HttpClientError).cause, requestCause);
     assert.ok(!error.message.includes(requestCause.message));
     assert.equal(isDiscordReleaseAnnouncementError(error), true);

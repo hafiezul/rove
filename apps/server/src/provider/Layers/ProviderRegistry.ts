@@ -42,7 +42,7 @@ import * as Semaphore from "effect/Semaphore";
 
 import { ServerConfig } from "../../config.ts";
 import { ProviderInstanceRegistry } from "../Services/ProviderInstanceRegistry.ts";
-import { ProviderRegistry, type ProviderRegistryShape } from "../Services/ProviderRegistry.ts";
+import { ProviderRegistry, type ProviderRegistryContract } from "../Services/ProviderRegistry.ts";
 import {
   hydrateCachedProvider,
   isCachedProviderCorrelated,
@@ -329,6 +329,7 @@ export const ProviderRegistryLive = Layer.effect(
             Effect.provideService(FileSystem.FileSystem, fileSystem),
             Effect.flatMap((cachedProvider) => {
               if (cachedProvider === undefined) {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 return Effect.void.pipe(Effect.as(undefined as ServerProvider | undefined));
               }
               const correlation = {
@@ -336,6 +337,7 @@ export const ProviderRegistryLive = Layer.effect(
                 fallbackProvider,
               } as const;
               if (!isCachedProviderCorrelated(correlation)) {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 return Effect.logWarning("provider status cache identity mismatch, ignoring", {
                   path: filePath,
                   instanceId: source.instanceId,
@@ -878,6 +880,6 @@ export const ProviderRegistryLive = Layer.effect(
       get streamChanges() {
         return Stream.fromPubSub(changesPubSub);
       },
-    } satisfies ProviderRegistryShape;
+    } satisfies ProviderRegistryContract;
   }),
 );

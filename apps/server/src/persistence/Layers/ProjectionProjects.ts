@@ -13,7 +13,7 @@ import {
   GetProjectionProjectInput,
   ProjectionProject,
   ProjectionProjectRepository,
-  type ProjectionProjectRepositoryShape,
+  type ProjectionProjectRepositoryContract,
 } from "../Services/ProjectionProjects.ts";
 
 const ProjectionProjectDbRow = ProjectionProject.mapFields(
@@ -132,24 +132,24 @@ const makeProjectionProjectRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionProjectRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionProjectRepositoryContract["upsert"] = (row) =>
     upsertProjectionProjectRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionProjectRepository.upsert:query")),
     );
 
-  const getById: ProjectionProjectRepositoryShape["getById"] = (input) =>
+  const getById: ProjectionProjectRepositoryContract["getById"] = (input) =>
     getProjectionProjectRow(input).pipe(
       Effect.map(Option.map((row) => ({ ...row, autoPull: row.autoPull === 1 }))),
       Effect.mapError(toPersistenceSqlError("ProjectionProjectRepository.getById:query")),
     );
 
-  const listAll: ProjectionProjectRepositoryShape["listAll"] = () =>
+  const listAll: ProjectionProjectRepositoryContract["listAll"] = () =>
     listProjectionProjectRows().pipe(
       Effect.map((rows) => rows.map((row) => ({ ...row, autoPull: row.autoPull === 1 }))),
       Effect.mapError(toPersistenceSqlError("ProjectionProjectRepository.listAll:query")),
     );
 
-  const deleteById: ProjectionProjectRepositoryShape["deleteById"] = (input) =>
+  const deleteById: ProjectionProjectRepositoryContract["deleteById"] = (input) =>
     deleteProjectionProjectRow(input).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionProjectRepository.deleteById:query")),
     );
@@ -159,7 +159,7 @@ const makeProjectionProjectRepository = Effect.gen(function* () {
     getById,
     listAll,
     deleteById,
-  } satisfies ProjectionProjectRepositoryShape;
+  } satisfies ProjectionProjectRepositoryContract;
 });
 
 export const ProjectionProjectRepositoryLive = Layer.effect(

@@ -24,6 +24,8 @@ import * as Tracer from "effect/Tracer";
 import { OtlpExporter, OtlpTracer } from "effect/unstable/observability";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const DESKTOP_LOG_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const DESKTOP_LOG_FILE_MAX_FILES = 10;
@@ -37,7 +39,7 @@ export interface RotatingLogFileWriter {
   readonly writeText: (chunk: string) => Effect.Effect<void>;
 }
 
-export interface DesktopBackendOutputLogShape {
+export interface DesktopBackendOutputLogContract {
   readonly beginSession: (input: { readonly details: string }) => Effect.Effect<void>;
   readonly writeOutputChunk: (
     streamName: "stdout" | "stderr",
@@ -60,14 +62,14 @@ export interface DesktopBackendOutputLogShape {
 export class DesktopBackendOutputLogFactory extends Context.Service<
   DesktopBackendOutputLogFactory,
   {
-    readonly forInstance: (id: string) => Effect.Effect<DesktopBackendOutputLogShape>;
+    readonly forInstance: (id: string) => Effect.Effect<DesktopBackendOutputLogContract>;
   }
 >()("@t3tools/desktop/app/DesktopObservability/DesktopBackendOutputLogFactory") {}
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-export type DesktopLogAnnotations = Record<string, unknown>;
+export type DesktopLogAnnotations = Record<string, SchemaJson>;
 
 export interface DesktopComponentLogger {
   readonly annotate: <A, E, R>(
@@ -132,7 +134,7 @@ const encodeDesktopBackendChildLogRecord = Schema.encodeEffect(
   Schema.fromJsonString(DesktopBackendChildLogRecord),
 );
 
-const DesktopBackendOutputLogNoop: DesktopBackendOutputLogShape = {
+const DesktopBackendOutputLogNoop: DesktopBackendOutputLogContract = {
   beginSession: () => Effect.void,
   writeOutputChunk: () => Effect.void,
   persistFailureSnapshot: () => Effect.void,
@@ -210,7 +212,7 @@ export function appendBoundedOutputChunk(
 const currentDesktopRunId = Effect.gen(function* () {
   const annotations = yield* References.CurrentLogAnnotations;
   const runId = annotations.runId;
-  return typeof runId === "string" && runId.length > 0 ? runId : "unknown";
+  return RuntimePredicate.isString(runId) && runId.length > 0 ? runId : "unknown";
 });
 
 const refreshFileSize = (
@@ -365,7 +367,7 @@ const writeBackendChildLogRecord = Effect.fn("desktop.observability.writeBackend
     input: {
       readonly message: string;
       readonly level: "INFO" | "ERROR";
-      readonly annotations: Record<string, unknown>;
+      readonly annotations: Record<string, SchemaJson>;
     },
   ): Effect.fn.Return<void> {
     return yield* Effect.gen(function* () {
@@ -417,11 +419,11 @@ const makeBackendOutputSinkForInstance = (
     filePath: backendLogFilePathForInstance(environment, id),
   }).pipe(Effect.option);
 
-const makeBackendOutputLogShape = (
+const makeBackendOutputLogContract = (
   environment: DesktopEnvironment.DesktopEnvironment["Service"],
   id: string,
   sink: Option.Option<RotatingLogFileWriter>,
-): Effect.Effect<DesktopBackendOutputLogShape> =>
+): Effect.Effect<DesktopBackendOutputLogContract> =>
   Option.match(sink, {
     onNone: () => Effect.succeed(DesktopBackendOutputLogNoop),
     onSome: (logFile) =>
@@ -506,7 +508,7 @@ const makeBackendOutputLogShape = (
             },
           ),
           discardSession: Ref.set(sessionRef, Option.none()),
-        } satisfies DesktopBackendOutputLogShape;
+        } satisfies DesktopBackendOutputLogContract;
       }),
   });
 
@@ -529,15 +531,16 @@ const backendOutputLogFactoryLayer = Layer.effect(
       ReadonlyMap<string, Option.Option<RotatingLogFileWriter>>
     >(new Map());
 
-    const makeForId = (id: string): Effect.Effect<DesktopBackendOutputLogShape> =>
+    const makeForId = (id: string): Effect.Effect<DesktopBackendOutputLogContract> =>
       SynchronizedRef.modifyEffect(cacheRef, (cache) => {
         const cacheKey = backendLogFilePathForInstance(environment, id);
         const cached = cache.get(cacheKey);
         if (cached !== undefined) {
-          return makeBackendOutputLogShape(environment, id, cached).pipe(
+          return makeBackendOutputLogContract(environment, id, cached).pipe(
             Effect.map((outputLog) => [outputLog, cache] as const),
           );
         }
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return makeBackendOutputSinkForInstance(environment, id).pipe(
           Effect.provideService(FileSystem.FileSystem, fileSystem),
           Effect.provideService(Path.Path, path),
@@ -548,7 +551,7 @@ const backendOutputLogFactoryLayer = Layer.effect(
             return { sink, next };
           }),
           Effect.flatMap(({ sink, next }) =>
-            makeBackendOutputLogShape(environment, id, sink).pipe(
+            makeBackendOutputLogContract(environment, id, sink).pipe(
               Effect.map(
                 (outputLog) =>
                   [
@@ -603,7 +606,7 @@ const tracerLayer = Layer.unwrap(
       maxFiles: DESKTOP_LOG_FILE_MAX_FILES,
       batchWindowMs: DESKTOP_TRACE_BATCH_WINDOW_MS,
       sink,
-      ...(delegate ? { delegate } : {}),
+      ...(delegate ? { delegate } : undefined),
     });
 
     return Layer.succeed(Tracer.Tracer, tracer);

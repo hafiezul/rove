@@ -58,8 +58,8 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
       await gitActions.onRunSelectedThreadGitAction({
         action: "commit",
         featureBranch,
-        ...(commitMessage ? { commitMessage } : {}),
-        ...(!allSelected ? { filePaths: selectedFiles.map((file) => file.path) } : {}),
+        ...(commitMessage ? { commitMessage } : undefined),
+        ...(!allSelected ? { filePaths: selectedFiles.map((file) => file.path) } : undefined),
       });
     },
     [allSelected, dialogCommitMessage, gitActions, navigation, selectedFiles],

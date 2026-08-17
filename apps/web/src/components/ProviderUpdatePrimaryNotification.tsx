@@ -71,7 +71,7 @@ function addProviderUpdateToast(input: {
         hideCopyButton: true,
         ...(input.view.dismissAfterVisibleMs !== undefined
           ? { dismissAfterVisibleMs: input.view.dismissAfterVisibleMs }
-          : {}),
+          : undefined),
       },
     });
   }
@@ -297,7 +297,7 @@ export function ProviderUpdatePrimaryNotification() {
                 },
                 secondaryActionVariant: "outline" as const,
               }
-            : {}),
+            : undefined),
         },
       }),
     );

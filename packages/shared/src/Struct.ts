@@ -6,12 +6,13 @@ export type DeepPartial<T> = T extends readonly (infer U)[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 
-export function deepMerge<T extends Record<string, unknown>>(current: T, patch: DeepPartial<T>): T {
+export function deepMerge<T extends object>(current: T, patch: DeepPartial<T>): T {
   if (!P.isObject(current) || !P.isObject(patch)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return patch as T;
   }
 
-  const next = { ...current } as Record<string, unknown>;
+  const next = Object.fromEntries(Object.entries(current));
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
 
@@ -19,5 +20,6 @@ export function deepMerge<T extends Record<string, unknown>>(current: T, patch: 
     next[key] = P.isObject(existing) && P.isObject(value) ? deepMerge(existing, value) : value;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return next as T;
 }

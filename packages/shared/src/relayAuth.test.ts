@@ -9,7 +9,7 @@ import {
 
 const clerkPublishableKey = (hostname: string): string => `pk_test_${btoa(`${hostname}$`)}`;
 
-const captureError = (run: () => unknown): unknown => {
+const captureError = (run: () => unknown) => {
   try {
     run();
   } catch (cause) {
@@ -33,7 +33,9 @@ describe("Clerk relay auth", () => {
 
     expect(error).toBeInstanceOf(ClerkPublishableKeyDecodeError);
     expect(error).toMatchObject({ keyPrefix: "pk_test" });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as ClerkPublishableKeyDecodeError).cause).toBeInstanceOf(Error);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as Error).message).toBe("Failed to decode Clerk publishable key (pk_test).");
   });
 
@@ -50,6 +52,7 @@ describe("Clerk relay auth", () => {
       frontendApi: "",
       reason: "empty",
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((emptyError as Error & { cause?: unknown }).cause).toBeUndefined();
     expect(pathError).toBeInstanceOf(ClerkPublishableKeyFrontendApiError);
     expect(pathError).toMatchObject({
@@ -57,6 +60,7 @@ describe("Clerk relay auth", () => {
       frontendApi: pathFrontendApi,
       reason: "contains-path",
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((pathError as Error & { cause?: unknown }).cause).toBeUndefined();
   });
 
@@ -72,6 +76,7 @@ describe("Clerk relay auth", () => {
       frontendApi,
       reason: "invalid-url",
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as ClerkPublishableKeyFrontendApiError).cause).toBeInstanceOf(Error);
   });
 });

@@ -12,7 +12,7 @@ import {
 } from "./appShortcuts";
 
 function navState(route: { name: string; params?: unknown }): NavigationState {
-  return { index: 0, routes: [route] } as unknown as NavigationState;
+  return { index: 0, routes: [route] } as NavigationState;
 }
 
 function thread(suffix: string, title = `Thread ${suffix}`): RecentThreadShortcut {

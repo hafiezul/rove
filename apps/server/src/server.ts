@@ -154,6 +154,7 @@ import * as NetService from "@t3tools/shared/Net";
 import * as RelayClient from "@t3tools/shared/relayClient";
 import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
 import { forkParked, ServerActivation } from "./serverActivation.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 // MCP handoff thread IDs include escaped provenance and can exceed find-my-way's
 // 100-character default for one path segment.
@@ -619,7 +620,7 @@ const makeServerLayer = Layer.unwrap(
           yield* awaitActivation;
           const server = yield* HttpServer.HttpServer;
           const address = server.address;
-          if (typeof address === "string" || !("port" in address)) {
+          if (RuntimePredicate.isString(address) || !("port" in address)) {
             return;
           }
 
@@ -654,7 +655,7 @@ const makeServerLayer = Layer.unwrap(
               yield* awaitActivation;
               const server = yield* HttpServer.HttpServer;
               const address = server.address;
-              if (typeof address === "string" || !("port" in address)) {
+              if (RuntimePredicate.isString(address) || !("port" in address)) {
                 return null;
               }
 
@@ -736,7 +737,7 @@ const makeServerLayer = Layer.unwrap(
             if (!(yield* CloudCliState.readCliDesiredCloudLink)) return;
             const server = yield* HttpServer.HttpServer;
             const address = server.address;
-            if (typeof address === "string" || !("port" in address)) return;
+            if (RuntimePredicate.isString(address) || !("port" in address)) return;
             // No settling delay before the first attempt: routes are already
             // serving by the time activation opens this gate (the startup
             // sequence awaits routesReady), and the retry schedule below

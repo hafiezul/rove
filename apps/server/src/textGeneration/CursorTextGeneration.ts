@@ -26,6 +26,7 @@ import {
   applyCursorAcpModelSelection,
   makeCursorAcpRuntime,
 } from "../provider/acp/CursorAcpSupport.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CURSOR_TIMEOUT_MS = 180_000;
 
@@ -186,9 +187,9 @@ export const makeCursorTextGeneration = Effect.fn("makeCursorTextGeneration")(fu
       return {
         subject: sanitizeCommitSubject(generated.subject),
         body: generated.body.trim(),
-        ...("branch" in generated && typeof generated.branch === "string"
+        ...("branch" in generated && RuntimePredicate.isString(generated.branch)
           ? { branch: sanitizeFeatureBranchName(generated.branch) }
-          : {}),
+          : undefined),
       };
     });
 

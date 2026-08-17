@@ -462,12 +462,12 @@ function toClientMetadata(record: {
   readonly browser: string | null;
 }): AuthClientMetadata {
   return {
-    ...(record.label ? { label: record.label } : {}),
-    ...(record.ipAddress ? { ipAddress: record.ipAddress } : {}),
-    ...(record.userAgent ? { userAgent: record.userAgent } : {}),
+    ...(record.label ? { label: record.label } : undefined),
+    ...(record.ipAddress ? { ipAddress: record.ipAddress } : undefined),
+    ...(record.userAgent ? { userAgent: record.userAgent } : undefined),
     deviceType: record.deviceType,
-    ...(record.os ? { os: record.os } : {}),
-    ...(record.browser ? { browser: record.browser } : {}),
+    ...(record.os ? { os: record.os } : undefined),
+    ...(record.browser ? { browser: record.browser } : undefined),
   };
 }
 
@@ -664,7 +664,7 @@ export const make = Effect.gen(function* () {
         sub: input?.subject ?? "browser",
         scopes: input?.scopes ?? AuthStandardClientScopes,
         method: input?.method ?? "browser-session-cookie",
-        ...(input?.proofKeyThumbprint ? { jkt: input.proofKeyThumbprint } : {}),
+        ...(input?.proofKeyThumbprint ? { jkt: input.proofKeyThumbprint } : undefined),
         iat: issuedAt.epochMilliseconds,
         exp: expiresAt.epochMilliseconds,
       };
@@ -740,7 +740,7 @@ export const make = Effect.gen(function* () {
         client,
         expiresAt: expiresAt,
         scopes: claims.scopes,
-        ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : {}),
+        ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : undefined),
       } satisfies IssuedSession;
     },
   );
@@ -838,7 +838,7 @@ export const make = Effect.gen(function* () {
         expiresAt: expiresAt.value,
         subject: claims.sub,
         scopes: claims.scopes,
-        ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : {}),
+        ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : undefined),
       } satisfies VerifiedSession;
     },
   );

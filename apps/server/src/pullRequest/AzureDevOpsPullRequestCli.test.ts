@@ -6,6 +6,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import * as AzureDevOpsCli from "../sourceControl/AzureDevOpsCli.ts";
 import * as AzureDevOpsPullRequestCli from "./AzureDevOpsPullRequestCli.ts";
 import * as AzureDevOpsPullRequestProvider from "./AzureDevOpsPullRequestProvider.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const mockedExecute = vi.fn<AzureDevOpsCli.AzureDevOpsCli["Service"]["execute"]>();
 
@@ -32,7 +33,7 @@ function output(stdout: string) {
 function pullRequestRows(
   count: number,
   firstNumber: number,
-): ReadonlyArray<Record<string, unknown>> {
+): ReadonlyArray<Record<string, SchemaJson>> {
   return Array.from({ length: count }, (_, index) => ({
     pullRequestId: firstNumber + index,
     title: `Pull request ${firstNumber + index}`,

@@ -136,8 +136,8 @@ const withHarness = <A, E, R>(
           baseDir,
           networkInterfaces,
           env,
-          ...(spawnerLayer ? { spawnerLayer } : {}),
-          ...(desktopSettingsLayer ? { desktopSettingsLayer } : {}),
+          ...(spawnerLayer ? { spawnerLayer } : undefined),
+          ...(desktopSettingsLayer ? { desktopSettingsLayer } : undefined),
         }),
       ),
     );

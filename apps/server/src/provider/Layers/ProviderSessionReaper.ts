@@ -9,7 +9,7 @@ import { ProjectionSnapshotQuery } from "../../orchestration/Services/Projection
 import { ProviderSessionDirectory } from "../Services/ProviderSessionDirectory.ts";
 import {
   ProviderSessionReaper,
-  type ProviderSessionReaperShape,
+  type ProviderSessionReaperContract,
 } from "../Services/ProviderSessionReaper.ts";
 import { forkParked } from "../../serverActivation.ts";
 import { ProviderService } from "../Services/ProviderService.ts";
@@ -127,7 +127,7 @@ const makeProviderSessionReaper = (options?: ProviderSessionReaperLiveOptions) =
       }
     });
 
-    const start: ProviderSessionReaperShape["start"] = () =>
+    const start: ProviderSessionReaperContract["start"] = () =>
       Effect.gen(function* () {
         yield* forkParked(
           sweep.pipe(
@@ -153,7 +153,7 @@ const makeProviderSessionReaper = (options?: ProviderSessionReaperLiveOptions) =
 
     return {
       start,
-    } satisfies ProviderSessionReaperShape;
+    } satisfies ProviderSessionReaperContract;
   });
 
 export const makeProviderSessionReaperLive = (options?: ProviderSessionReaperLiveOptions) =>

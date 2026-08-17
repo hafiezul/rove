@@ -13,10 +13,7 @@ import type { RemoteClientConnectionState } from "../../lib/connection";
 
 export type ConnectionStatusDotState = RemoteClientConnectionState;
 
-function statusDotTone(state: ConnectionStatusDotState): {
-  readonly dotColor: string;
-  readonly haloColor: string;
-} {
+function statusDotTone(state: ConnectionStatusDotState) {
   switch (state) {
     case "available":
       return {

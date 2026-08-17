@@ -44,6 +44,7 @@ export async function loadIncomingShareDrafts(options?: {
         continue;
       }
       try {
+        // SAFETY: This boundary intentionally widens the value before handing it to its owner.
         drafts.push(decodeIncomingShareDraft(JSON.parse(await entry.text()) as unknown));
       } catch (cause) {
         const error = new IncomingShareStorageError({ operation: "load", shareId: null, cause });

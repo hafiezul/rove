@@ -47,6 +47,7 @@ it.effect("exports spans through the scoped mobile OTLP layer", () => {
         expect(String(url)).toBe("https://api.axiom.test/v1/traces");
         expect(new Headers(init?.headers).get("authorization")).toBe("Bearer public-ingest-token");
         expect(new Headers(init?.headers).get("x-axiom-dataset")).toBe("mobile-traces");
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect(new TextDecoder().decode(init?.body as Uint8Array)).toContain("mobile.test.span");
       }),
     ),
@@ -88,6 +89,7 @@ it.effect("does not let OTLP serialization failures alter application effects", 
     Effect.andThen(
       Effect.sync(() => {
         expect(fetchFn).toHaveBeenCalledOnce();
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect(new TextDecoder().decode(fetchFn.mock.calls[0]?.[1]?.body as Uint8Array)).toContain(
           "mobile.test.failed-span",
         );

@@ -61,7 +61,7 @@ export class PersistenceDecodeError extends Schema.TaggedError<PersistenceDecode
     return new PersistenceDecodeError({
       operation,
       issue: summarizeSchemaIssue(cause.issue),
-      ...(correlation === undefined ? {} : { correlation }),
+      ...(correlation === undefined ? undefined : { correlation }),
       cause,
     });
   }

@@ -21,6 +21,7 @@ import {
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as RpcSession from "../rpc/session.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import {
   archiveThread,
   createProject,
@@ -55,9 +56,9 @@ const makeSupervisor = Effect.fn("TestEnvironmentCommands.makeSupervisor")(funct
         dispatched.push(command);
         return { sequence: dispatched.length };
       }),
-  } as unknown as WsRpcProtocolClient;
+  };
   const session: RpcSession.RpcSession = {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.never,
     subscribeServerConfig: (input) => client.subscribeServerConfig(input),
     ready: Effect.void,

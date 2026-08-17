@@ -48,7 +48,7 @@ export function mergeServers(input: {
   scanner: ReadonlyArray<DiscoveredLocalServer & { requestedUrl: string }>;
   configuredUrls: ReadonlyArray<string>;
   configuredUrlProbing?: boolean;
-}): ReadonlyArray<PreviewableServer> {
+}) {
   const configuredByServer = new Map<string, { host: string; port: number; url: string }>();
 
   for (const url of input.configuredUrls) {
@@ -71,10 +71,10 @@ export function mergeServers(input: {
   }
 
   return live.toSorted((a, b) => {
-    const sourceOrder: Record<PreviewableServer["source"], number> = {
+    const sourceOrder = {
       configured: 0,
       scanner: 1,
-    };
+    } satisfies Record<PreviewableServer["source"], number>;
     if (sourceOrder[a.source] !== sourceOrder[b.source]) {
       return sourceOrder[a.source] - sourceOrder[b.source];
     }

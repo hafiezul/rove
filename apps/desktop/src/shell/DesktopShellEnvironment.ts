@@ -259,7 +259,7 @@ const captureWindowsEnvironmentCommand = (names: ReadonlyArray<string>) =>
     }),
   ].join("; ");
 
-const extractEnvironment = (output: string, names: ReadonlyArray<string>): EnvironmentPatch => {
+const extractEnvironment = (output: string, names: ReadonlyArray<string>) => {
   const environment: EnvironmentPatch = {};
 
   for (const name of names) {

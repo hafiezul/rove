@@ -313,7 +313,7 @@ function relayRequestError(action: ManagedRelayRequestAction) {
       transportFailed:
         HttpClientError.isHttpClientError(cause) && cause.reason._tag === "TransportError",
       cause,
-      ...(isRelayProtectedError(cause) ? { relayError: cause, traceId: cause.traceId } : {}),
+      ...(isRelayProtectedError(cause) ? { relayError: cause, traceId: cause.traceId } : undefined),
     });
 }
 
@@ -825,7 +825,7 @@ export const make = Effect.fn("ManagedRelayClient.make")(function* (
           },
           (authorization) => {
             const payload: RelayEnvironmentConnectRequest = {
-              ...(input.deviceId ? { deviceId: input.deviceId } : {}),
+              ...(input.deviceId ? { deviceId: input.deviceId } : undefined),
               clientKeyThumbprint: authorization.thumbprint,
             };
             return client.dpopClient

@@ -90,13 +90,14 @@ function migrateConnection(
 export const migrateLegacyConnectionCatalog = Effect.fn(
   "mobile.connectionMigration.migrateCatalog",
 )(function* (raw: string) {
-  const parsed = yield* Effect.try({
-    try: () => JSON.parse(raw) as unknown,
-    catch: (cause) =>
-      new LegacyConnectionMigrationError({
-        message: `Could not parse the legacy mobile connection catalog: ${String(cause)}`,
-      }),
-  });
+  const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
+    parsed = yield* Effect.try({
+      try: () => JSON.parse(raw) as unknown,
+      catch: (cause) =>
+        new LegacyConnectionMigrationError({
+          message: `Could not parse the legacy mobile connection catalog: ${String(cause)}`,
+        }),
+    });
   const legacy = yield* decodeLegacyConnectionDocument(parsed).pipe(
     Effect.mapError(
       (cause) =>

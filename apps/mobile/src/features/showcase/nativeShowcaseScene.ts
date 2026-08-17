@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from "expo";
+import * as RuntimePredicate from "effect/Predicate";
 
 import { MOBILE_THEME_IDS, type MobileThemeId } from "../../lib/mobileTheme";
 
@@ -38,7 +39,7 @@ export function getNativeShowcasePairingUrls(): ReadonlyArray<string> {
       if (Array.isArray(parsed)) {
         return parsed.filter(
           (candidate): candidate is string =>
-            typeof candidate === "string" && candidate.trim().length > 0,
+            RuntimePredicate.isString(candidate) && candidate.trim().length > 0,
         );
       }
     } catch {

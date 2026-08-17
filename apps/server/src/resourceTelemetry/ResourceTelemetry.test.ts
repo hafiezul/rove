@@ -91,7 +91,7 @@ function nativeSnapshot(input: {
     retainedProcessCount: processes.length,
     inaccessibleProcessCount: 1,
     ...(input.externalProcesses === undefined
-      ? {}
+      ? undefined
       : { externalProcesses: input.externalProcesses }),
     processes,
   };

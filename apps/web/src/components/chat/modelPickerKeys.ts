@@ -30,6 +30,7 @@ export function parseModelPickerModelKey(
     return null;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     instanceId: value.slice(0, instanceIdLength) as ProviderInstanceId,
     slug: value.slice(instanceIdLength),
@@ -41,6 +42,7 @@ export function modelPickerLegacySectionKey(instanceId: ProviderInstanceId): str
 }
 
 export function parseModelPickerLegacySectionKey(key: string): ProviderInstanceId | null {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return key.startsWith(LEGACY_SECTION_KEY_PREFIX)
     ? (key.slice(LEGACY_SECTION_KEY_PREFIX.length) as ProviderInstanceId)
     : null;

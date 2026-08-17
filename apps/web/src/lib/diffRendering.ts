@@ -102,7 +102,7 @@ function compactPartialHunkOffsets(file: FileDiffMetadata): FileDiffMetadata {
     hunks,
     splitLineCount: splitLineStart,
     unifiedLineCount: unifiedLineStart,
-    ...(file.cacheKey ? { cacheKey: `${file.cacheKey}:compact-partial` } : {}),
+    ...(file.cacheKey ? { cacheKey: `${file.cacheKey}:compact-partial` } : undefined),
   };
 }
 

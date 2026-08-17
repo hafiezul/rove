@@ -78,7 +78,7 @@ export type ListProjectionThreadsByProjectInput = typeof ListProjectionThreadsBy
 /**
  * ProjectionThreadRepositoryShape - Service API for projected thread records.
  */
-export interface ProjectionThreadRepositoryShape {
+export interface ProjectionThreadRepositoryContract {
   /**
    * Insert or replace a projected thread row.
    *
@@ -115,5 +115,5 @@ export interface ProjectionThreadRepositoryShape {
  */
 export class ProjectionThreadRepository extends Context.Service<
   ProjectionThreadRepository,
-  ProjectionThreadRepositoryShape
+  ProjectionThreadRepositoryContract
 >()("t3/persistence/Services/ProjectionThreads/ProjectionThreadRepository") {}

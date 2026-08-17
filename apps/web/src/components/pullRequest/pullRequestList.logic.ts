@@ -70,7 +70,27 @@ type ScopedEntry = PullRequestListEntry & { readonly environmentId?: string };
 const pullRequestViewerKey = (entry: ScopedEntry): string =>
   `${entry.environmentId ?? ""} ${entry.host}`;
 
-const GROUP_LABELS: Record<PullRequestGroupKey, string> = {
+interface PullRequestGroupLabels {
+  readonly reviewRequested: string;
+  readonly authored: string;
+  readonly others: string;
+}
+
+interface PullRequestReviewValues {
+  readonly [value: string]: PullRequestListFilters["review"] | undefined;
+}
+
+interface PullRequestCheckValues {
+  readonly [value: string]: PullRequestListFilters["checks"] | undefined;
+}
+
+interface PullRequestGroupingBuckets<Entry extends PullRequestListEntry> {
+  reviewRequested: Array<Entry>;
+  authored: Array<Entry>;
+  others: Array<Entry>;
+}
+
+const GROUP_LABELS: PullRequestGroupLabels = {
   reviewRequested: "Review requested",
   authored: "Authored",
   others: "Others",
@@ -158,7 +178,7 @@ function isAuthoredByViewer(entry: ScopedEntry, viewers: PullRequestViewers): bo
 }
 
 /** What `review:` and `status:` take, in GitHub's spelling and in the contract's. */
-const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
+const REVIEW_VALUES: PullRequestReviewValues = {
   approved: "approved",
   changes_requested: "changes-requested",
   "changes-requested": "changes-requested",
@@ -166,7 +186,7 @@ const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
   "review-required": "review-required",
   none: "none",
 };
-const CHECKS_VALUES: Record<string, PullRequestListFilters["checks"]> = {
+const CHECKS_VALUES: PullRequestCheckValues = {
   success: "passing",
   passing: "passing",
   failure: "failing",
@@ -226,10 +246,7 @@ function boundedNames(names: ReadonlyArray<string>): string[] {
  * makes a literal search for a colon still possible. A known key whose value it does not take is
  * text too, so a search for "status:" itself is still findable.
  */
-export function parsePullRequestQuery(raw: string): {
-  readonly text: string;
-  readonly filters: PullRequestListFilters;
-} {
+export function parsePullRequestQuery(raw: string) {
   const text: string[] = [];
   const labels: string[][] = [];
   const excludedLabels: string[] = [];
@@ -297,14 +314,14 @@ export function parsePullRequestQuery(raw: string): {
   return {
     text: text.join(" "),
     filters: {
-      ...(labels.length === 0 ? {} : { labels: labels.slice(0, MAX_QUALIFIER_VALUES) }),
+      ...(labels.length === 0 ? undefined : { labels: labels.slice(0, MAX_QUALIFIER_VALUES) }),
       ...(excludedLabels.length === 0
-        ? {}
+        ? undefined
         : { excludedLabels: excludedLabels.slice(0, MAX_QUALIFIER_VALUES) }),
-      ...(author === undefined ? {} : { author }),
-      ...(draft === undefined ? {} : { draft }),
-      ...(review === undefined ? {} : { review }),
-      ...(checks === undefined ? {} : { checks }),
+      ...(author === undefined ? undefined : { author }),
+      ...(draft === undefined ? undefined : { draft }),
+      ...(review === undefined ? undefined : { review }),
+      ...(checks === undefined ? undefined : { checks }),
     },
   };
 }
@@ -380,8 +397,8 @@ export function matchesPullRequestFilters(
   filters: PullRequestListFilters,
   viewer?: string | null,
 ): boolean {
-  const labels = entry.labels.map((label) => label.name.trim().toLowerCase());
-  const holds = (label: string) => labels.includes(label.trim().toLowerCase());
+  const labels = new Set(entry.labels.map((label) => label.name.trim().toLowerCase()));
+  const holds = (label: string) => labels.has(label.trim().toLowerCase());
   return (
     (filters.draft === undefined || entry.isDraft === (filters.draft === "only")) &&
     (filters.review === undefined ||
@@ -404,7 +421,7 @@ export function groupPullRequestsByInvolvement<Entry extends ScopedEntry>(
   entries: ReadonlyArray<Entry>,
   viewers: PullRequestViewers,
 ): ReadonlyArray<PullRequestGroup<Entry>> {
-  const buckets: Record<PullRequestGroupKey, Entry[]> = {
+  const buckets: PullRequestGroupingBuckets<Entry> = {
     reviewRequested: [],
     authored: [],
     others: [],
@@ -857,7 +874,7 @@ export function writePullRequestListSnapshot(
           truncatedEnvironments: [],
         },
         ...(snapshot.partitions === undefined
-          ? {}
+          ? undefined
           : {
               partitions: {
                 authored: snapshot.partitions.authored.slice(0, SNAPSHOT_MAX_ENTRIES),

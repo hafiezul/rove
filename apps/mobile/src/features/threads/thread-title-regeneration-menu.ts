@@ -11,7 +11,7 @@ export function buildThreadTitleRegenerationMenuItems(input: {
       id: "regenerate-title",
       title: input.isRegenerating ? "Regenerating…" : "Regenerate title",
       image: "arrow.clockwise",
-      ...(input.isRegenerating ? { attributes: { disabled: true } } : {}),
+      ...(input.isRegenerating ? { attributes: { disabled: true } } : undefined),
     },
   ];
 }

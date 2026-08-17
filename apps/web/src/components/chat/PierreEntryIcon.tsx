@@ -4,7 +4,11 @@ import { memo, useInsertionEffect, useMemo } from "react";
 import { ensurePierreIconSprite, resolvePierreIconForEntry } from "../../pierre-icons";
 import { cn } from "~/lib/utils";
 
-const ICON_COLORS: Record<string, readonly [light: string, dark: string]> = {
+interface PierreIconColorsByToken {
+  readonly [token: string]: readonly [light: string, dark: string] | undefined;
+}
+
+const ICON_COLORS: PierreIconColorsByToken = {
   astro: ["#a631be", "#d568ea"],
   babel: ["#d5a910", "#ffd452"],
   bash: ["#199f43", "#5ecc71"],

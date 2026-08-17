@@ -8,6 +8,7 @@ import * as Schema from "effect/Schema";
 import * as PlatformError from "effect/PlatformError";
 
 import { expandHomePath } from "../../pathExpansion.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface CodexHomeLayout {
   readonly mode: "direct" | "authOverlay";
@@ -147,7 +148,7 @@ function isNotSymlinkError(error: PlatformError.PlatformError): boolean {
   const cause = error.reason.cause;
   return (
     error.reason._tag === "Unknown" &&
-    typeof cause === "object" &&
+    (RuntimePredicate.isObjectOrArray(cause) || cause === null) &&
     cause !== null &&
     "code" in cause &&
     cause.code === "EINVAL"

@@ -13,7 +13,7 @@ import type * as Scope from "effect/Scope";
 /**
  * ProviderCommandReactorShape - Service API for provider command reactors.
  */
-export interface ProviderCommandReactorShape {
+export interface ProviderCommandReactorContract {
   /**
    * Start reacting to provider-intent orchestration domain events.
    *
@@ -38,5 +38,5 @@ export interface ProviderCommandReactorShape {
  */
 export class ProviderCommandReactor extends Context.Service<
   ProviderCommandReactor,
-  ProviderCommandReactorShape
+  ProviderCommandReactorContract
 >()("t3/orchestration/Services/ProviderCommandReactor") {}

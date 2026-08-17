@@ -1,4 +1,4 @@
-import type { PullRequestCheck, PullRequestCheckStatus } from "@t3tools/contracts";
+import type { PullRequestCheckStatus } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";
@@ -7,11 +7,7 @@ function entry(
   name: string,
   status: PullRequestCheckStatus,
   extra: { readonly workflowName?: string | null; readonly at?: string | null } = {},
-): {
-  readonly check: PullRequestCheck;
-  readonly workflowName: string | null;
-  readonly at: string | null;
-} {
+) {
   return {
     check: { name, status, description: null, url: null },
     workflowName: extra.workflowName ?? null,

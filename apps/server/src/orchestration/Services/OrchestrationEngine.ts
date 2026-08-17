@@ -34,7 +34,7 @@ export interface OrchestrationThreadReplayRange {
 /**
  * OrchestrationEngineShape - Service API for orchestration command and event flow.
  */
-export interface OrchestrationEngineShape {
+export interface OrchestrationEngineContract {
   /**
    * Replay persisted orchestration events from an exclusive sequence cursor.
    *
@@ -113,5 +113,5 @@ export interface OrchestrationEngineShape {
  */
 export class OrchestrationEngineService extends Context.Service<
   OrchestrationEngineService,
-  OrchestrationEngineShape
+  OrchestrationEngineContract
 >()("t3/orchestration/Services/OrchestrationEngine/OrchestrationEngineService") {}

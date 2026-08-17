@@ -11,6 +11,7 @@ import * as Path from "effect/Path";
 
 import { HostProcessEnvironment, HostProcessPlatform } from "./hostProcess.ts";
 import * as Context from "effect/Context";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SHELL_ENV_NAME_PATTERN = /^[A-Z0-9_]+$/;
 const WINDOWS_PATH_DELIMITER = ";";
@@ -346,17 +347,16 @@ export function readEnvironmentFromWindowsShell(
   names: ReadonlyArray<string>,
   optionsOrExecFile?: WindowsEnvironmentProbeOptions | ExecFileSyncLike,
   maybeExecFile?: ExecFileSyncLike,
-): Partial<Record<string, string>> {
+) {
   if (names.length === 0) {
     return {};
   }
 
-  const options =
-    typeof optionsOrExecFile === "function"
-      ? ({} satisfies WindowsEnvironmentProbeOptions)
-      : (optionsOrExecFile ?? {});
-  const execFile: ExecFileSyncLike =
-    typeof optionsOrExecFile === "function"
+  const options = RuntimePredicate.isFunction(optionsOrExecFile)
+    ? ({} satisfies WindowsEnvironmentProbeOptions)
+    : (optionsOrExecFile ?? {});
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    execFile: ExecFileSyncLike = RuntimePredicate.isFunction(optionsOrExecFile)
       ? optionsOrExecFile
       : (maybeExecFile ?? (NodeChildProcess.execFileSync as ExecFileSyncLike));
   const command = buildWindowsEnvironmentCaptureCommand(names);
@@ -735,11 +735,11 @@ export const resolveWindowsEnvironment = Effect.fn("shell.resolveWindowsEnvironm
   );
   const profiledPath = mergePathValues(profiledEnvironment.PATH, baselinePath, "win32");
   const profiledPatch: Partial<NodeJS.ProcessEnv> = {
-    ...(profiledPath ? { PATH: profiledPath } : {}),
-    ...(profiledEnvironment.FNM_DIR ? { FNM_DIR: profiledEnvironment.FNM_DIR } : {}),
+    ...(profiledPath ? { PATH: profiledPath } : undefined),
+    ...(profiledEnvironment.FNM_DIR ? { FNM_DIR: profiledEnvironment.FNM_DIR } : undefined),
     ...(profiledEnvironment.FNM_MULTISHELL_PATH
       ? { FNM_MULTISHELL_PATH: profiledEnvironment.FNM_MULTISHELL_PATH }
-      : {}),
+      : undefined),
   };
   return Object.keys(profiledPatch).length > 0
     ? { ...baselinePatch, ...profiledPatch }

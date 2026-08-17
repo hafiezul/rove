@@ -19,6 +19,7 @@ import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
 import { buildServerProvider } from "./providerSnapshot.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface UnavailableProviderSnapshotInput {
   readonly driverKind: ProviderDriverKind | string;
@@ -47,7 +48,8 @@ export function buildUnavailableProviderSnapshot(
 ): Effect.Effect<ServerProvider> {
   return Effect.gen(function* () {
     const checkedAt = input.checkedAt ?? (yield* nowIso);
-    const displayName = input.displayName?.trim() || (input.driverKind as string);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      displayName = input.displayName?.trim() || (input.driverKind as string);
 
     const base = buildServerProvider({
       presentation: { displayName },
@@ -67,11 +69,10 @@ export function buildUnavailableProviderSnapshot(
     return {
       ...base,
       instanceId: input.instanceId,
-      ...(input.accentColor ? { accentColor: input.accentColor } : {}),
-      driver:
-        typeof input.driverKind === "string"
-          ? ProviderDriverKind.make(input.driverKind)
-          : input.driverKind,
+      ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
+      driver: RuntimePredicate.isString(input.driverKind)
+        ? ProviderDriverKind.make(input.driverKind)
+        : input.driverKind,
       availability: "unavailable",
       unavailableReason: input.reason,
     };

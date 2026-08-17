@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import type { RelayAgentActivityState } from "@t3tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -57,7 +58,7 @@ describe("AgentActivityRows", () => {
 
   it.effect("preserves activity context on persistence failures", () => {
     const cause = new Error("database unavailable");
-    const failingDb = {
+    const failingDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
         values: () => ({
           onConflictDoUpdate: () => Effect.fail(cause),
@@ -75,7 +76,7 @@ describe("AgentActivityRows", () => {
           }),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const rows = yield* AgentActivityRows.AgentActivityRows;

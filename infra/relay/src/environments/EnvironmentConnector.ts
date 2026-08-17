@@ -379,7 +379,7 @@ const make = Effect.gen(function* () {
                 "relay.authorization.resolved_http_base_url": endpoint.httpBaseUrl,
                 "relay.authorization.resolved_ws_base_url": endpoint.wsBaseUrl,
               }
-            : {}),
+            : undefined),
         });
         return yield* new EnvironmentConnectNotAuthorized({
           environmentId: input.link.environmentId,
@@ -543,7 +543,7 @@ const make = Effect.gen(function* () {
         "relay.environment_id": input.environmentId,
         "relay.operation": "connect",
         "relay.connect.has_device_id": input.deviceId !== undefined,
-        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : {}),
+        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : undefined),
       });
       if (input.clientProofKeyThumbprint.trim().length === 0) {
         return yield* new EnvironmentConnectNotAuthorized({
@@ -602,7 +602,7 @@ const make = Effect.gen(function* () {
         environmentId: link.environmentId,
         clientProofKeyThumbprint: input.clientProofKeyThumbprint,
         cnf: { jkt: input.clientProofKeyThumbprint },
-        ...(input.deviceId ? { deviceId: input.deviceId } : {}),
+        ...(input.deviceId ? { deviceId: input.deviceId } : undefined),
         nonce,
         scope: ["environment:connect"],
       } satisfies RelayCloudMintCredentialProofPayload;

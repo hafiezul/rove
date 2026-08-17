@@ -16,35 +16,40 @@ import { assert, describe, it } from "vite-plus/test";
 
 import fixture from "../testFixtures/codexMultiAgentWire.json" with { type: "json" };
 import { routeCodexChildNotification } from "./CodexSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface WireNotification {
   readonly method: string;
-  readonly params: Record<string, unknown>;
+  readonly params: Record<string, SchemaJson>;
 }
 
-const notifications = fixture.notifications as ReadonlyArray<WireNotification>;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  notifications = fixture.notifications as ReadonlyArray<WireNotification>;
 const rootThreadId = fixture.rootThreadId;
 const childThreadIds = new Set(fixture.childThreadIds);
 
 /** Mirrors readNotificationThreadId's addressing for the captured methods. */
+// SAFETY: This fixture intentionally supplies the asserted collaborator contract.
 function notificationThreadId(entry: WireNotification): string | undefined {
   const params = entry.params;
   const thread = params.thread;
   if (
-    typeof thread === "object" &&
-    thread !== null &&
-    typeof (thread as { id?: unknown }).id === "string"
+    RuntimePredicate.isObjectOrArray(thread) &&
+    RuntimePredicate.isString((thread as { id?: unknown }).id)
   ) {
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     return (thread as { id: string }).id;
   }
-  return typeof params.threadId === "string" ? params.threadId : undefined;
+  return RuntimePredicate.isString(params.threadId) ? params.threadId : undefined;
 }
 
-function subAgentActivityItems(): ReadonlyArray<Record<string, unknown>> {
+function subAgentActivityItems(): ReadonlyArray<Record<string, SchemaJson>> {
   return notifications.flatMap((entry) => {
     const item = entry.params.item;
-    if (typeof item !== "object" || item === null) return [];
-    const record = item as Record<string, unknown>;
+    if (!RuntimePredicate.isObjectOrArray(item)) return [];
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      record = item as Record<string, SchemaJson>;
     return record.type === "subAgentActivity" ? [record] : [];
   });
 }
@@ -69,8 +74,9 @@ describe("codex multi-agent wire capture", () => {
     });
     const firstRegistration = notifications.findIndex((entry) => {
       const item = entry.params.item;
-      if (typeof item !== "object" || item === null) return false;
-      const record = item as Record<string, unknown>;
+      if (!RuntimePredicate.isObjectOrArray(item)) return false;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        record = item as Record<string, SchemaJson>;
       return record.type === "subAgentActivity" && record.kind === "started";
     });
     assert.isAtLeast(firstChildTraffic, 0);

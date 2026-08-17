@@ -204,8 +204,8 @@ function toPersistedSavedEnvironmentRecord(
   };
   return {
     ...nextRecord,
-    ...(record.desktopSsh ? { desktopSsh: record.desktopSsh } : {}),
-    ...(record.relayManaged ? { relayManaged: record.relayManaged } : {}),
+    ...(record.desktopSsh ? { desktopSsh: record.desktopSsh } : undefined),
+    ...(record.relayManaged ? { relayManaged: record.relayManaged } : undefined),
   };
 }
 
@@ -222,8 +222,8 @@ function toSavedEnvironmentStorageRecord(
     lastConnectedAt: record.lastConnectedAt,
   };
   const metadata = {
-    ...(record.desktopSsh ? { desktopSsh: record.desktopSsh } : {}),
-    ...(record.relayManaged ? { relayManaged: record.relayManaged } : {}),
+    ...(record.desktopSsh ? { desktopSsh: record.desktopSsh } : undefined),
+    ...(record.relayManaged ? { relayManaged: record.relayManaged } : undefined),
   };
   return Option.match(encryptedBearerToken, {
     onNone: () => ({ ...nextRecord, ...metadata }),

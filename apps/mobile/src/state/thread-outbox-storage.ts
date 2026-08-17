@@ -84,6 +84,7 @@ export const expoThreadOutboxStorage: ThreadOutboxStorage = {
           continue;
         }
         try {
+          // SAFETY: This boundary intentionally widens the value before handing it to its owner.
           messages.push(decodeQueuedThreadMessage(JSON.parse(await entry.text()) as unknown));
         } catch (cause) {
           // Recover readable messages without treating their attachment

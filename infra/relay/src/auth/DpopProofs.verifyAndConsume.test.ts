@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import * as NodeCrypto from "node:crypto";
 
 import { describe, expect, it } from "@effect/vitest";
@@ -32,7 +33,8 @@ function makeDpopProof(input: {
   const { privateKey, publicKey } = NodeCrypto.generateKeyPairSync("ec", {
     namedCurve: "P-256",
   });
-  const publicJwk = publicKey.export({ format: "jwk" }) as DpopPublicJwk;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    publicJwk = publicKey.export({ format: "jwk" }) as DpopPublicJwk;
   const header = Buffer.from(
     JSON.stringify({
       typ: "dpop+jwt",
@@ -46,7 +48,7 @@ function makeDpopProof(input: {
       htu: input.url,
       jti: input.jti,
       iat: input.iat,
-      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : {}),
+      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : undefined),
     }),
   ).toString("base64url");
   const signature = NodeCrypto.sign("sha256", Buffer.from(`${header}.${payload}`), {
@@ -64,7 +66,7 @@ function layer(
     values: DpopProofInsertValues,
   ) => Effect.Effect<ReadonlyArray<{ readonly jti: string }>, { _tag: string }>,
 ) {
-  const fakeDb = {
+  const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
     insert: (table: unknown) => {
       expect(table).toBe(relayDpopProofs);
       return {
@@ -78,7 +80,7 @@ function layer(
         }),
       };
     },
-  } as unknown as RelayDb.RelayDb["Service"];
+  });
   return DpopProofs.layer.pipe(Layer.provide(Layer.succeed(RelayDb.RelayDb, fakeDb)));
 }
 

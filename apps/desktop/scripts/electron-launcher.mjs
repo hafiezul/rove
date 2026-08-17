@@ -7,6 +7,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 import { ensureElectronRuntime } from "./ensure-electron-runtime.mjs";
+import * as RuntimePredicate from "effect/Predicate";
 
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
@@ -119,7 +120,7 @@ export function makeDevelopmentEnvironmentScript(environment) {
     ["T3CODE_OTLP_HEADERS", environment.T3CODE_OTLP_HEADERS],
     ["T3CODE_OTLP_PROTOCOL", environment.T3CODE_OTLP_PROTOCOL],
     ["T3CODE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
-  ].filter((entry) => typeof entry[1] === "string" && entry[1].trim().length > 0);
+  ].filter((entry) => RuntimePredicate.isString(entry[1]) && entry[1].trim().length > 0);
   return [
     ...envEntries.map(
       ([name, value]) =>

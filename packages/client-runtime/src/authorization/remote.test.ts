@@ -20,6 +20,7 @@ import {
 } from "./remote.ts";
 import { fetchRemoteEnvironmentDescriptor } from "../environment/descriptor.ts";
 import { remoteHttpClientLayer } from "../rpc/http.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const isEnvironmentAuthInvalidError = Schema.is(EnvironmentAuthInvalidError);
 
@@ -79,7 +80,7 @@ const expectFetchCall = (
 
   if ("body" in expected) {
     const body = init.body;
-    if (typeof body === "string") {
+    if (RuntimePredicate.isString(body)) {
       expect(body).toBe(expected.body);
     } else if (body instanceof Uint8Array) {
       expect(new TextDecoder().decode(body)).toBe(expected.body);

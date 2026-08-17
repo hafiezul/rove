@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Ref from "effect/Ref";
 import * as Semaphore from "effect/Semaphore";
 
-export interface ProviderMaintenanceCommandCoordinatorShape<E> {
+export interface ProviderMaintenanceCommandCoordinatorContract<E> {
   readonly withCommandLock: <A, R>(input: {
     readonly targetKey: string;
     readonly lockKey: string;
@@ -53,7 +53,7 @@ export const makeProviderMaintenanceCommandCoordinator = Effect.fn(
     });
   });
 
-  const withCommandLock: ProviderMaintenanceCommandCoordinatorShape<E>["withCommandLock"] = ({
+  const withCommandLock: ProviderMaintenanceCommandCoordinatorContract<E>["withCommandLock"] = ({
     targetKey,
     lockKey,
     onQueued,
@@ -76,5 +76,5 @@ export const makeProviderMaintenanceCommandCoordinator = Effect.fn(
 
   return {
     withCommandLock,
-  } satisfies ProviderMaintenanceCommandCoordinatorShape<E>;
+  } satisfies ProviderMaintenanceCommandCoordinatorContract<E>;
 });

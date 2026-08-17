@@ -3,6 +3,7 @@ import type { NavigationState } from "@react-navigation/native";
 import { EnvironmentId, ThreadId, type ScopedThreadRef } from "@t3tools/contracts";
 
 import type { RecentThreadShortcut } from "../../persistence/imperative";
+import * as RuntimePredicate from "effect/Predicate";
 
 // Launchers cap visible shortcuts around 4; one slot is the static
 // "New task" entry, the rest rotate through recently opened threads.
@@ -45,12 +46,13 @@ export function activeThreadRef(state: NavigationState): ScopedThreadRef | null 
   }
 
   try {
-    const params = route.params as
-      | {
-          readonly environmentId?: string | string[];
-          readonly threadId?: string | string[];
-        }
-      | undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      params = route.params as
+        | {
+            readonly environmentId?: string | string[];
+            readonly threadId?: string | string[];
+          }
+        | undefined;
     const environmentId = firstRouteParam(params?.environmentId)?.trim();
     const threadId = firstRouteParam(params?.threadId)?.trim();
     if (!environmentId || !threadId) {
@@ -80,7 +82,7 @@ function threadShortcutLabel(thread: RecentThreadShortcut): string {
  */
 export function shortcutHref(action: Action): string | null {
   const href = action.params?.href;
-  if (typeof href !== "string") {
+  if (!RuntimePredicate.isString(href)) {
     return null;
   }
 

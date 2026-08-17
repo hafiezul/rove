@@ -6,6 +6,7 @@ import {
   captureFavicon,
   selectFaviconCandidates,
 } from "./FaviconCapture.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const PNG = "data:image/png;base64,cG5n";
 const SOURCE_PNG = Buffer.alloc(24);
@@ -65,9 +66,9 @@ function sourceJpeg(
     width >>> 8,
     width & 0xff,
   ]);
-  const app1Segments = (typeof orientations === "number" ? [orientations] : orientations).map(
-    (orientation) => sourceJpegExifSegment([orientation]),
-  );
+  const app1Segments = (
+    RuntimePredicate.isNumber(orientations) ? [orientations] : orientations
+  ).map((orientation) => sourceJpegExifSegment([orientation]));
   return Buffer.concat([frame.subarray(0, 2), ...app1Segments, frame.subarray(2)]);
 }
 

@@ -104,7 +104,7 @@ const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
     return {
       skills: skills.map((skill) => ({
         name: skill.name,
-        ...(skill.description.trim().length > 0 ? { description: skill.description } : {}),
+        ...(skill.description.trim().length > 0 ? { description: skill.description } : undefined),
         path: skill.filePath,
         // "temporary" (e.g. in-memory extension resources) maps to "user":
         // it is not project content, and the composer only renders the label.
@@ -113,10 +113,10 @@ const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
       })),
       slashCommands: prompts.map((prompt) => ({
         name: prompt.name,
-        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : {}),
+        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : undefined),
         ...(prompt.argumentHint !== undefined && prompt.argumentHint.trim().length > 0
           ? { input: { hint: prompt.argumentHint } }
-          : {}),
+          : undefined),
       })),
     };
   },
@@ -133,8 +133,8 @@ const withInstanceIdentity =
     ...snapshot,
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
-    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
+    ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
     continuation: { groupKey: input.continuationGroupKey },
   });
 

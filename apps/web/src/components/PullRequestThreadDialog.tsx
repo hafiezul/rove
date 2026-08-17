@@ -142,7 +142,7 @@ export function PullRequestThreadDialog({
       const result = await preparePullRequestThreadAction.run({
         reference: parsedReference,
         mode,
-        ...(mode === "worktree" ? { threadId } : {}),
+        ...(mode === "worktree" ? { threadId } : undefined),
       });
       setPreparingMode(null);
       if (result._tag === "Failure") {

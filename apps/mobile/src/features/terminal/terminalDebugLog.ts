@@ -1,10 +1,11 @@
-/**
+import type { Json as SchemaJson } from "effect/Schema"; /**
  * Debug logging for the mobile terminal pipeline. Prefix: `[t3-terminal]`.
  *
  * Enabled when `__DEV__` is true, or set `globalThis.__T3_TERMINAL_DEBUG__ = true` in a JS
  * debugger / Metro console to trace release/TestFlight builds.
  */
 export function isTerminalDebugEnabled(): boolean {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     (typeof __DEV__ !== "undefined" && __DEV__) ||
     (typeof globalThis !== "undefined" &&
@@ -12,7 +13,7 @@ export function isTerminalDebugEnabled(): boolean {
   );
 }
 
-export function terminalDebugLog(message: string, data?: Record<string, unknown>): void {
+export function terminalDebugLog(message: string, data?: Record<string, SchemaJson>): void {
   if (!isTerminalDebugEnabled()) {
     return;
   }

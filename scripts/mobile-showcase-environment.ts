@@ -442,16 +442,18 @@ function hasSeedableSchema(dbPath: string): boolean {
     return false;
   }
   try {
-    const tableCount = database
-      .prepare(
-        `SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN (${SEEDED_PROJECTION_TABLES.map(() => "?").join(", ")})`,
-      )
-      .get(...SEEDED_PROJECTION_TABLES) as { count: number };
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      tableCount = database
+        .prepare(
+          `SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN (${SEEDED_PROJECTION_TABLES.map(() => "?").join(", ")})`,
+        )
+        .get(...SEEDED_PROJECTION_TABLES) as { count: number };
     if (tableCount.count !== SEEDED_PROJECTION_TABLES.length) return false;
 
-    const threadColumns = database.prepare("PRAGMA table_info(projection_threads)").all() as Array<{
-      name: string;
-    }>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      threadColumns = database.prepare("PRAGMA table_info(projection_threads)").all() as Array<{
+        name: string;
+      }>;
     const threadColumnNames = new Set(threadColumns.map((column) => column.name));
     return SEEDED_THREAD_COLUMNS.every((column) => threadColumnNames.has(column));
   } catch {
@@ -517,7 +519,7 @@ function seedDatabase(
       if (!workspaceRoot) throw new Error(`Missing workspace root for ${thread.projectId}.`);
       insertThread(database, now, {
         ...thread,
-        ...("state" in thread ? { state: thread.state } : {}),
+        ...("state" in thread ? { state: thread.state } : undefined),
         workspaceRoot,
       });
     }

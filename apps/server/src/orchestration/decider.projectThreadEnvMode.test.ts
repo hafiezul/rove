@@ -102,6 +102,7 @@ it.layer(NodeServices.layer)("decider project defaults", (it) => {
 
       const event = Array.isArray(result) ? result[0] : result;
       expect(event.type).toBe("project.meta-updated");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((event.payload as { defaultThreadEnvMode?: unknown }).defaultThreadEnvMode).toBe(
         "worktree",
       );
@@ -125,6 +126,7 @@ it.layer(NodeServices.layer)("decider project defaults", (it) => {
         readModel,
       });
       const unrelatedEvent = Array.isArray(unrelated) ? unrelated[0] : unrelated;
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect("defaultThreadEnvMode" in (unrelatedEvent.payload as object)).toBe(false);
 
       const set = yield* decideOrchestrationCommand({

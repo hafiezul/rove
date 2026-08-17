@@ -1,4 +1,5 @@
 import type { TurnDiffFileChange } from "../types";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface TurnDiffStat {
   additions: number;
@@ -44,7 +45,7 @@ function compareByName(a: { name: string }, b: { name: string }): number {
 }
 
 function readStat(file: TurnDiffFileChange): TurnDiffStat | null {
-  if (typeof file.additions !== "number" || typeof file.deletions !== "number") {
+  if (!RuntimePredicate.isNumber(file.additions) || !RuntimePredicate.isNumber(file.deletions)) {
     return null;
   }
   return {

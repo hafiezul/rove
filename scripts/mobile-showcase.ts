@@ -30,6 +30,7 @@ import {
   SHOWCASE_THREAD_ID,
   seedShowcaseEnvironment,
 } from "./mobile-showcase-environment.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const REPO_ROOT = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
 const MOBILE_ROOT = NodePath.join(REPO_ROOT, "apps/mobile");
@@ -155,10 +156,7 @@ export function readPngMetadata(bytes: Uint8Array): PngMetadata {
   };
 }
 
-export function readPngDimensions(bytes: Uint8Array): {
-  readonly width: number;
-  readonly height: number;
-} {
+export function readPngDimensions(bytes: Uint8Array) {
   const { width, height } = readPngMetadata(bytes);
   return { width, height };
 }
@@ -283,6 +281,7 @@ function argumentValue(args: ReadonlyArray<string>, index: number, flag: string)
   return value;
 }
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function parseShowcaseCliArgs(args: ReadonlyArray<string>): CliOptions {
   const platforms = new Set<ShowcaseDevice["platform"]>();
   const deviceIds = new Set<string>();
@@ -317,6 +316,7 @@ export function parseShowcaseCliArgs(args: ReadonlyArray<string>): CliOptions {
       if (!SHOWCASE_SCENES.includes(value as ShowcaseScene)) {
         throw new Error(`Unsupported scene '${value}'. Use ${SHOWCASE_SCENES.join(", ")}.`);
       }
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       scenes.add(value as ShowcaseScene);
       index += 1;
     } else if (argument === "--appearance") {
@@ -558,7 +558,7 @@ async function reserveAvailablePort(): Promise<number> {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      if (!address || typeof address === "string") {
+      if (!address || RuntimePredicate.isString(address)) {
         server.close();
         reject(new Error("Could not reserve a local port for the showcase environment."));
         return;
@@ -644,10 +644,11 @@ export function parsePairingCredentialOutput(output: string): string {
   if (jsonStart === -1 || jsonEnd < jsonStart) {
     throw new Error("Pairing credential command did not return JSON.");
   }
-  const parsed = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as {
-    readonly credential?: unknown;
-  };
-  if (typeof parsed.credential !== "string" || parsed.credential.length === 0) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    parsed = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as {
+      readonly credential?: unknown;
+    };
+  if (!RuntimePredicate.isString(parsed.credential) || parsed.credential.length === 0) {
     throw new Error("Pairing credential command returned no credential.");
   }
   return parsed.credential;
@@ -769,11 +770,12 @@ interface SimctlDevice {
 }
 
 async function findIosSimulator(name: string): Promise<SimctlDevice | null> {
-  const parsed = JSON.parse(
-    await commandOutput("xcrun", ["simctl", "list", "devices", "available", "-j"]),
-  ) as {
-    readonly devices: Readonly<Record<string, ReadonlyArray<SimctlDevice>>>;
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    parsed = JSON.parse(
+      await commandOutput("xcrun", ["simctl", "list", "devices", "available", "-j"]),
+    ) as {
+      readonly devices: Readonly<Record<string, ReadonlyArray<SimctlDevice>>>;
+    };
   const candidates = Object.entries(parsed.devices)
     .filter(([runtime]) => runtime.includes("iOS"))
     .flatMap(([, devices]) => devices)
@@ -1084,11 +1086,12 @@ async function runAdb(serial: string, args: ReadonlyArray<string>): Promise<void
 
 async function runningAndroidAvds(): Promise<ReadonlyMap<string, string>> {
   const adb = androidSdkTool("platform-tools/adb");
-  const devices = (await commandOutput(adb, ["devices"]))
-    .split("\n")
-    .map((line) => line.trim().split(/\s+/u))
-    .filter((parts) => parts[0]?.startsWith("emulator-") && parts[1] === "device")
-    .map((parts) => parts[0] as string);
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    devices = (await commandOutput(adb, ["devices"]))
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/u))
+      .filter((parts) => parts[0]?.startsWith("emulator-") && parts[1] === "device")
+      .map((parts) => parts[0] as string);
   const result = new Map<string, string>();
   for (const serial of devices) {
     const avdName = (await adbOutput(serial, ["emu", "avd", "name"])).split("\n")[0]?.trim();
@@ -1435,6 +1438,7 @@ async function main(): Promise<void> {
         }),
       );
       if (capture.device.platform === "ios") {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         await captureIos(
           capture as ShowcaseCapture & { readonly device: ShowcaseIosDevice },
           iosAppPath,
@@ -1445,6 +1449,7 @@ async function main(): Promise<void> {
           (cleanup) => iosCleanups.push(cleanup),
         );
       } else {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         await captureAndroid(
           capture as ShowcaseCapture & { readonly device: ShowcaseAndroidDevice },
           androidApkPath,

@@ -15,14 +15,14 @@ import * as Stream from "effect/Stream";
 
 import {
   RuntimeReceiptBus,
-  type RuntimeReceiptBusShape,
+  type RuntimeReceiptBusContract,
   type OrchestrationRuntimeReceipt,
 } from "../Services/RuntimeReceiptBus.ts";
 
 const makeRuntimeReceiptBus = Effect.succeed({
   publish: () => Effect.void,
   streamEventsForTest: Stream.empty,
-} satisfies RuntimeReceiptBusShape);
+} satisfies RuntimeReceiptBusContract);
 
 const makeRuntimeReceiptBusTest = Effect.gen(function* () {
   const pubSub = yield* PubSub.unbounded<OrchestrationRuntimeReceipt>();
@@ -32,7 +32,7 @@ const makeRuntimeReceiptBusTest = Effect.gen(function* () {
     get streamEventsForTest() {
       return Stream.fromPubSub(pubSub);
     },
-  } satisfies RuntimeReceiptBusShape;
+  } satisfies RuntimeReceiptBusContract;
 });
 
 export const RuntimeReceiptBusLive = Layer.effect(RuntimeReceiptBus, makeRuntimeReceiptBus);

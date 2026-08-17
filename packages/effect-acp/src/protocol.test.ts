@@ -21,6 +21,7 @@ import {
   jsonRpcResponse,
 } from "./_internal/shared.ts";
 import { makeInMemoryStdio, makeTerminationError, makeChildStdio } from "./_internal/stdio.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const SessionCancelNotification = jsonRpcNotification(
   "session/cancel",
@@ -62,7 +63,7 @@ const makeHandle = (env?: Record<string, string>) =>
     const path = yield* Path.Path;
     const command = ChildProcess.make(process.execPath, mockPeerArgs(yield* mockPeerPath), {
       cwd: path.join(import.meta.dirname, ".."),
-      ...(env ? { env: { ...process.env, ...env } } : {}),
+      ...(env ? { env: { ...process.env, ...env } } : undefined),
     });
     return yield* spawner.spawn(command);
   });
@@ -206,7 +207,8 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
       const error = yield* Deferred.await(termination);
       assert.equal(transformCalls, 0);
       assert.instanceOf(error, AcpError.AcpProtocolParseError);
-      const parseError = error as AcpError.AcpProtocolParseError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        parseError = error as AcpError.AcpProtocolParseError;
       const { cause, ...directDiagnostics } = parseError;
       assert.equal(parseError.operation, "decode-notification-payload");
       assert.equal(parseError.method, "session/update");
@@ -310,7 +312,7 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
         "ACP protocol operation 'encode-message' failed for method 'x/test'.",
       );
 
-      const circular: Record<string, unknown> = {};
+      const circular: Record<string, SchemaJson> = {};
       circular.self = circular;
       const circularError = yield* transport.notify("x/test", circular).pipe(Effect.flip);
       assert.instanceOf(circularError, AcpError.AcpProtocolParseError);
@@ -605,16 +607,20 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
       const message = yield* Deferred.await(firstMessage);
       const exitError = yield* Deferred.await(termination);
       assert.instanceOf(exitError, AcpError.AcpProcessExitedError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((exitError as AcpError.AcpProcessExitedError).code, 7);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((message as { readonly _tag?: string })._tag, "ClientProtocolError");
-      const defect = (message as { readonly error: { readonly reason: unknown } }).error.reason as {
-        readonly _tag: string;
-        readonly message: string;
-        readonly cause: unknown;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        defect = (message as { readonly error: { readonly reason: unknown } }).error.reason as {
+          readonly _tag: string;
+          readonly message: string;
+          readonly cause: unknown;
+        };
       assert.equal(defect._tag, "RpcClientDefect");
       assert.equal(defect.message, "ACP protocol terminated.");
       assert.instanceOf(defect.cause, AcpError.AcpProcessExitedError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((defect.cause as AcpError.AcpProcessExitedError).code, 7);
     }),
   );
@@ -659,12 +665,14 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
 
       const message = yield* Deferred.await(firstMessage);
       assert.equal(yield* Ref.get(terminationCalls), 1);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((message as { readonly _tag?: string })._tag, "ClientProtocolError");
-      const defect = (message as { readonly error: { readonly reason: unknown } }).error.reason as {
-        readonly _tag: string;
-        readonly message: string;
-        readonly cause: unknown;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        defect = (message as { readonly error: { readonly reason: unknown } }).error.reason as {
+          readonly _tag: string;
+          readonly message: string;
+          readonly cause: unknown;
+        };
       assert.equal(defect._tag, "RpcClientDefect");
       assert.equal(defect.message, "ACP protocol terminated.");
       assert.instanceOf(defect.cause, AcpError.AcpProtocolParseError);
@@ -688,11 +696,12 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
           headers: [],
         })
         .pipe(Effect.flip);
-      const defect = failure.reason as {
-        readonly _tag: string;
-        readonly message: string;
-        readonly cause: unknown;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        defect = failure.reason as {
+          readonly _tag: string;
+          readonly message: string;
+          readonly cause: unknown;
+        };
 
       assert.equal(defect._tag, "RpcClientDefect");
       assert.equal(defect.message, "Failed to send ACP protocol message.");

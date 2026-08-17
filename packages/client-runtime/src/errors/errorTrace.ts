@@ -1,4 +1,5 @@
 import * as Cause from "effect/Cause";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MAX_ERROR_TRACE_NODES = 128;
 
@@ -10,16 +11,17 @@ export function findErrorTraceId(error: unknown): string | null {
   while (pending.length > 0 && inspectedNodeCount < MAX_ERROR_TRACE_NODES) {
     const current = pending.pop();
     inspectedNodeCount += 1;
-    if (typeof current !== "object" || current === null || seen.has(current)) {
+    if (!RuntimePredicate.isObjectOrArray(current) || seen.has(current)) {
       continue;
     }
     seen.add(current);
-    const record = current as {
-      readonly cause?: unknown;
-      readonly errors?: unknown;
-      readonly traceId?: unknown;
-    };
-    if (typeof record.traceId === "string" && record.traceId.trim().length > 0) {
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      record = current as {
+        readonly cause?: unknown;
+        readonly errors?: unknown;
+        readonly traceId?: unknown;
+      };
+    if (RuntimePredicate.isString(record.traceId) && record.traceId.trim().length > 0) {
       return record.traceId;
     }
 

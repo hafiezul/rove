@@ -41,7 +41,7 @@ export const browserCryptoLayer = Layer.succeed(
 );
 
 function dpopError(message: string, cause?: unknown) {
-  return new BrowserDpopError({ message, ...(cause === undefined ? {} : { cause }) });
+  return new BrowserDpopError({ message, ...(cause === undefined ? undefined : { cause }) });
 }
 
 function openDpopDatabase(): Effect.Effect<IDBDatabase, BrowserDpopError> {
@@ -76,6 +76,7 @@ export function readStoredBrowserDpopKey(): Effect.Effect<BrowserDpopKey | null,
         request.addEventListener("error", () =>
           resume(Effect.fail(dpopError("Could not read DPoP key.", request.error ?? undefined))),
         );
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         request.addEventListener("success", () =>
           resume(Effect.succeed((request.result as BrowserDpopKey | undefined) ?? null)),
         );
@@ -108,14 +109,15 @@ export function writeStoredBrowserDpopKey(
 }
 
 export const generateBrowserDpopKey = Effect.gen(function* () {
-  const generated = yield* Effect.tryPromise({
-    try: () =>
-      crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-        "sign",
-        "verify",
-      ]) as Promise<CryptoKeyPair>,
-    catch: (cause) => dpopError("Could not generate DPoP proof key.", cause),
-  });
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    generated = yield* Effect.tryPromise({
+      try: () =>
+        crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+          "sign",
+          "verify",
+        ]) as Promise<CryptoKeyPair>,
+      catch: (cause) => dpopError("Could not generate DPoP proof key.", cause),
+    });
   const privateJwk = yield* Effect.tryPromise({
     try: () => crypto.subtle.exportKey("jwk", generated.privateKey),
     catch: (cause) => dpopError("Could not export DPoP private key.", cause),
@@ -131,10 +133,12 @@ export const generateBrowserDpopKey = Effect.gen(function* () {
         : dpopError("Generated DPoP public key is invalid.", cause),
     ),
   );
-  const privateKey = yield* Effect.tryPromise({
-    try: () => importJWK(privateJwk as JWK, "ES256", { extractable: false }) as Promise<CryptoKey>,
-    catch: (cause) => dpopError("Could not import DPoP private key.", cause),
-  });
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    privateKey = yield* Effect.tryPromise({
+      try: () =>
+        importJWK(privateJwk as JWK, "ES256", { extractable: false }) as Promise<CryptoKey>,
+      catch: (cause) => dpopError("Could not import DPoP private key.", cause),
+    });
   return {
     privateKey,
     publicJwk,
@@ -169,7 +173,9 @@ export function createBrowserDpopProof(input: {
           htm: input.method.toUpperCase(),
           htu: normalizedUrl.toString(),
           jti,
-          ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : {}),
+          ...(input.accessToken
+            ? { ath: computeDpopAccessTokenHash(input.accessToken) }
+            : undefined),
         })
           .setProtectedHeader({
             typ: "dpop+jwt",

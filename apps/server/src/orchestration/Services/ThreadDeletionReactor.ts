@@ -13,7 +13,7 @@ import type * as Scope from "effect/Scope";
 /**
  * ThreadDeletionReactorShape - Service API for thread deletion cleanup.
  */
-export interface ThreadDeletionReactorShape {
+export interface ThreadDeletionReactorContract {
   /**
    * Start reacting to thread.deleted orchestration domain events.
    *
@@ -36,5 +36,5 @@ export interface ThreadDeletionReactorShape {
  */
 export class ThreadDeletionReactor extends Context.Service<
   ThreadDeletionReactor,
-  ThreadDeletionReactorShape
+  ThreadDeletionReactorContract
 >()("t3/orchestration/Services/ThreadDeletionReactor") {}

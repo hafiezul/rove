@@ -9,6 +9,7 @@ import {
   resolveElectronLaunchCommand,
 } from "./electron-launcher.mjs";
 import { waitForResources } from "./wait-for-resources.mjs";
+import * as RuntimePredicate from "effect/Predicate";
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL?.trim();
 if (!devServerUrl) {
@@ -82,7 +83,7 @@ const expectedExits = new WeakSet();
 const watchers = [];
 
 function killChildTreeByPid(pid, signal) {
-  if (hostPlatform === "win32" || typeof pid !== "number") {
+  if (hostPlatform === "win32" || !RuntimePredicate.isNumber(pid)) {
     return;
   }
 
@@ -208,7 +209,7 @@ function startWatchers() {
       NodePath.join(desktopDir, directory),
       { persistent: true },
       (_eventType, filename) => {
-        if (typeof filename !== "string" || !files.has(filename)) {
+        if (!RuntimePredicate.isString(filename) || !files.has(filename)) {
           return;
         }
 

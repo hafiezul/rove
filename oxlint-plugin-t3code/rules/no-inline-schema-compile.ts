@@ -45,6 +45,7 @@ const getSchemaCompilerMethod = (callee: unknown): Option.Option<string> => {
   const object = unwrapExpression(expression.value.object);
   if (!isIdentifier(object, "Schema")) return Option.none();
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Option.filter(getPropertyName(expression.value.property), (method) =>
     COMPILER_METHODS.has(method as keyof typeof Schema),
   );

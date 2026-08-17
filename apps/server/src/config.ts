@@ -15,6 +15,7 @@ import * as LogLevel from "effect/LogLevel";
 import * as Path from "effect/Path";
 import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 import { sweepStalePendingAttachments } from "./attachmentStore.ts";
 import { OtlpProtocol } from "@t3tools/shared/observability";
@@ -182,10 +183,9 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
 ) {
   const devUrl = undefined;
   const fs = yield* FileSystem.FileSystem;
-  const baseDir =
-    typeof baseDirOrPrefix === "string"
-      ? baseDirOrPrefix
-      : yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix });
+  const baseDir = RuntimePredicate.isString(baseDirOrPrefix)
+    ? baseDirOrPrefix
+    : yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix });
   const derivedPaths = yield* deriveServerPaths(baseDir, devUrl);
   yield* ensureServerDirectories(derivedPaths);
 

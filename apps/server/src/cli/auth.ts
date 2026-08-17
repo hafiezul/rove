@@ -97,12 +97,12 @@ const pairingCreateCommand = Command.make("create", {
           const issued = yield* environmentAuth.createPairingLink({
             scopes: AuthStandardClientScopes,
             subject: "one-time-token",
-            ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : {}),
-            ...(Option.isSome(flags.label) ? { label: flags.label.value } : {}),
+            ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : undefined),
+            ...(Option.isSome(flags.label) ? { label: flags.label.value } : undefined),
           });
           const output = formatIssuedPairingCredential(issued, {
             json: flags.json,
-            ...(Option.isSome(flags.baseUrl) ? { baseUrl: flags.baseUrl.value } : {}),
+            ...(Option.isSome(flags.baseUrl) ? { baseUrl: flags.baseUrl.value } : undefined),
           });
           yield* Console.log(output);
         }),
@@ -175,9 +175,9 @@ const sessionIssueCommand = Command.make("issue", {
         Effect.gen(function* () {
           const issued = yield* environmentAuth.issueSession({
             scopes: AuthAdministrativeScopes,
-            ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : {}),
-            ...(Option.isSome(flags.label) ? { label: flags.label.value } : {}),
-            ...(Option.isSome(flags.subject) ? { subject: flags.subject.value } : {}),
+            ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : undefined),
+            ...(Option.isSome(flags.label) ? { label: flags.label.value } : undefined),
+            ...(Option.isSome(flags.subject) ? { subject: flags.subject.value } : undefined),
           });
           yield* Console.log(
             formatIssuedSession(issued, {

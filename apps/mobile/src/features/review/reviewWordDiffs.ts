@@ -116,10 +116,7 @@ function appendTokenSegment(
 export function computeWordAltDiffRanges(input: {
   readonly deletionLine: string;
   readonly additionLine: string;
-}): {
-  readonly deletion: ReadonlyArray<ReviewDiffHighlightRange>;
-  readonly addition: ReadonlyArray<ReviewDiffHighlightRange>;
-} {
+}) {
   const deletionLine = cleanLineEnding(input.deletionLine);
   const additionLine = cleanLineEnding(input.additionLine);
 
@@ -134,10 +131,11 @@ export function computeWordAltDiffRanges(input: {
     return { deletion: [], addition: [] };
   }
 
-  const operations = diffWordsWithSpace(
-    deletionLine,
-    additionLine,
-  ) as ReadonlyArray<ReviewDiffOperation>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    operations = diffWordsWithSpace(
+      deletionLine,
+      additionLine,
+    ) as ReadonlyArray<ReviewDiffOperation>;
   const deletionSpans: Array<[0 | 1, string]> = [];
   const additionSpans: Array<[0 | 1, string]> = [];
   const lastOperation = operations.at(-1);

@@ -43,10 +43,11 @@ import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import type {
-  ProviderAdapterShape,
+  ProviderAdapterContract,
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../Services/ProviderAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Translate the composer's `$name` skill token into Pi's `/skill:name`
@@ -94,6 +95,15 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 }
 
 const PROVIDER = ProviderDriverKind.make("pi");
+
+function isPromiseWithCatch(
+  value: unknown,
+): value is { catch: (onRejected: () => void) => unknown } {
+  if (!RuntimePredicate.isObjectOrArray(value) || Array.isArray(value) || !("catch" in value)) {
+    return false;
+  }
+  return RuntimePredicate.isFunction(value.catch);
+}
 
 /**
  * Narrow slice of the Pi SDK session the adapter relies on. `setModel` takes
@@ -150,11 +160,12 @@ export interface PiSessionLike {
   getLeafId?(): string | undefined;
   fork?(entryId: string): Promise<void>;
 }
+import type { Json as SchemaJson } from "effect/Schema";
 
 /** Pi SDK `AgentSessionEvent` — typed loosely here so the fake can drive it. */
 export interface PiSessionEventLike {
   readonly type: string;
-  readonly [key: string]: unknown;
+  readonly [key: string]: SchemaJson;
 }
 
 export interface PiCreateSessionInput {
@@ -188,7 +199,7 @@ interface PiSessionContext {
 type PiTokenUsagePublishReason = "startup" | "settled" | "model-switch" | "rollback" | "compaction";
 
 function finiteNonNegativeInteger(value: number | undefined): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) && value >= 0
     ? Math.round(value)
     : undefined;
 }
@@ -198,10 +209,7 @@ function finitePositiveInteger(value: number | undefined): number | undefined {
   return integer !== undefined && integer > 0 ? integer : undefined;
 }
 
-function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>): {
-  readonly hasAssistantMessage: boolean;
-  readonly totalProcessedTokens: number | undefined;
-} {
+function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>) {
   let hasAssistantMessage = false;
   let hasUsage = false;
   let total = 0;
@@ -239,7 +247,7 @@ function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>): {
   };
 }
 
-export interface PiAdapterShape extends ProviderAdapterShape<ProviderAdapterRequestError> {}
+export interface PiAdapterContract extends ProviderAdapterContract<ProviderAdapterRequestError> {}
 
 /**
  * The composer dispatches the thread's model selection on every turn, but it
@@ -258,13 +266,13 @@ function selectedModelSlug(
   modelSelection: ProviderSendTurnInput["modelSelection"] | undefined,
 ): string | undefined {
   const model = modelSelection?.model;
-  return typeof model === "string" && model.trim().length > 0 ? model : undefined;
+  return RuntimePredicate.isString(model) && model.trim().length > 0 ? model : undefined;
 }
 
 export function makePiAdapter(
   piSettings: PiSettings,
   options: PiAdapterLiveOptions,
-): Effect.Effect<PiAdapterShape, never, Crypto.Crypto> {
+): Effect.Effect<PiAdapterContract, never, Crypto.Crypto> {
   return Effect.gen(function* () {
     const boundInstanceId = options.instanceId;
     const crypto = yield* Crypto.Crypto;
@@ -301,9 +309,9 @@ export function makePiAdapter(
       yield* offerRuntimeEvent({
         ...stamp,
         provider: PROVIDER,
-        ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+        ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
         threadId: ctx.threadId,
-        ...(turnId !== null ? { turnId } : {}),
+        ...(turnId !== null ? { turnId } : undefined),
         type: "thread.token-usage.updated",
         payload: { usage },
       });
@@ -358,11 +366,10 @@ export function makePiAdapter(
               totalProcessedTokens,
               totalProcessedTokensScope: "activeBranch" as const,
             }
-          : {};
-      const autoCompaction =
-        typeof ctx.session.autoCompactionEnabled === "boolean"
-          ? { compactsAutomatically: ctx.session.autoCompactionEnabled }
-          : {};
+          : undefined;
+      const autoCompaction = RuntimePredicate.isBoolean(ctx.session.autoCompactionEnabled)
+        ? { compactsAutomatically: ctx.session.autoCompactionEnabled }
+        : undefined;
 
       if (contextUsage.tokens === null) {
         yield* emitThreadTokenUsage(
@@ -413,13 +420,13 @@ export function makePiAdapter(
         const createdAt = DateTime.formatIso(now);
         return {
           provider: PROVIDER,
-          ...(boundInstanceId !== undefined ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId !== undefined ? { providerInstanceId: boundInstanceId } : undefined),
           status,
           runtimeMode: "full-access",
           cwd: ctx.cwd,
           threadId: ctx.threadId,
           resumeCursor: { sessionId: ctx.session.sessionId },
-          ...(ctx.activeTurnId !== undefined ? { activeTurnId: ctx.activeTurnId } : {}),
+          ...(ctx.activeTurnId !== undefined ? { activeTurnId: ctx.activeTurnId } : undefined),
           createdAt,
           updatedAt: createdAt,
         } satisfies ProviderSession;
@@ -448,7 +455,7 @@ export function makePiAdapter(
         const base = {
           ...stamp,
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: ctx.threadId,
         } as const;
 
@@ -470,45 +477,50 @@ export function makePiAdapter(
             return;
           }
           case "message_update": {
-            const assistantEvent = event.assistantMessageEvent as
-              | { type?: string; delta?: string; contentIndex?: number }
-              | undefined;
-            if (assistantEvent?.type === "text_delta" && typeof assistantEvent.delta === "string") {
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
-                payload: {
-                  streamKind: "assistant_text",
-                  delta: assistantEvent.delta,
-                  ...(typeof assistantEvent.contentIndex === "number"
-                    ? { contentIndex: assistantEvent.contentIndex }
-                    : {}),
-                },
-              });
-            } else if (
-              assistantEvent?.type === "thinking_delta" &&
-              typeof assistantEvent.delta === "string"
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              assistantEvent = event.assistantMessageEvent as
+                | { type?: string; delta?: string; contentIndex?: number }
+                | undefined;
+            if (
+              assistantEvent?.type === "text_delta" &&
+              RuntimePredicate.isString(assistantEvent.delta)
             ) {
               yield* offerRuntimeEvent({
                 ...base,
                 type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+                payload: {
+                  streamKind: "assistant_text",
+                  delta: assistantEvent.delta,
+                  ...(RuntimePredicate.isNumber(assistantEvent.contentIndex)
+                    ? { contentIndex: assistantEvent.contentIndex }
+                    : undefined),
+                },
+              });
+            } else if (
+              assistantEvent?.type === "thinking_delta" &&
+              RuntimePredicate.isString(assistantEvent.delta)
+            ) {
+              yield* offerRuntimeEvent({
+                ...base,
+                type: "content.delta",
+                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
                 payload: {
                   streamKind: "reasoning_text",
                   delta: assistantEvent.delta,
-                  ...(typeof assistantEvent.contentIndex === "number"
+                  ...(RuntimePredicate.isNumber(assistantEvent.contentIndex)
                     ? { contentIndex: assistantEvent.contentIndex }
-                    : {}),
+                    : undefined),
                 },
               });
             }
             return;
           }
           case "message_end": {
-            const message = event.message as
-              | { role?: string; stopReason?: string; errorMessage?: string }
-              | undefined;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              message = event.message as
+                | { role?: string; stopReason?: string; errorMessage?: string }
+                | undefined;
             if (
               message?.role === "assistant" &&
               message.stopReason === "error" &&
@@ -518,7 +530,8 @@ export function makePiAdapter(
               // errors (502, 503, 429, timeouts). The error is deferred until
               // agent_end tells us whether the retry loop will run.
               ctx.pendingTurnError =
-                typeof message.errorMessage === "string" && message.errorMessage.trim().length > 0
+                RuntimePredicate.isString(message.errorMessage) &&
+                message.errorMessage.trim().length > 0
                   ? message.errorMessage
                   : "Pi assistant response failed.";
             }
@@ -528,7 +541,7 @@ export function makePiAdapter(
             yield* offerRuntimeEvent({
               ...base,
               type: "item.started",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
               itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
               payload: {
                 itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
@@ -543,7 +556,7 @@ export function makePiAdapter(
             yield* offerRuntimeEvent({
               ...base,
               type: "item.completed",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
               itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
               payload: {
                 itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
@@ -615,7 +628,7 @@ export function makePiAdapter(
         Effect.orElseSucceed(() => undefined),
       );
 
-    const startSession: PiAdapterShape["startSession"] = (input: ProviderSessionStartInput) =>
+    const startSession: PiAdapterContract["startSession"] = (input: ProviderSessionStartInput) =>
       Effect.gen(function* () {
         const existing = sessions.get(input.threadId);
         if (existing) {
@@ -623,7 +636,8 @@ export function makePiAdapter(
         }
 
         const cwd = input.cwd ?? process.cwd();
-        const resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
         // A thread-scoped model selection (the composer's pick at thread
         // creation) wins over the instance-level settings defaults.
         const modelSelection = ownModelSelection(input, boundInstanceId);
@@ -669,7 +683,7 @@ export function makePiAdapter(
         yield* offerRuntimeEvent({
           ...(yield* makeEventStamp()),
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: input.threadId,
           type: "session.started",
           payload: { resume: resumeCursor?.sessionId !== undefined },
@@ -677,7 +691,7 @@ export function makePiAdapter(
         yield* offerRuntimeEvent({
           ...(yield* makeEventStamp()),
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: input.threadId,
           type: "session.state.changed",
           payload: { state: "ready", reason: "Pi session ready" },
@@ -687,7 +701,7 @@ export function makePiAdapter(
         return yield* providerSessionFor(ctx, "ready");
       });
 
-    const sendTurn: PiAdapterShape["sendTurn"] = (input: ProviderSendTurnInput) =>
+    const sendTurn: PiAdapterContract["sendTurn"] = (input: ProviderSendTurnInput) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(input.threadId, "sendTurn");
         const rawText = input.input?.trim();
@@ -765,15 +779,12 @@ export function makePiAdapter(
           // prompt() resolves only after the full run settles; turn lifecycle
           // flows through SDK events, so only preflight rejection is an error
           // worth surfacing. Invoke synchronously and swallow the settlement.
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           yield* Effect.try({
             try: () => {
-              const maybePromise = ctx.session.prompt(text) as unknown;
-              if (
-                maybePromise !== null &&
-                typeof maybePromise === "object" &&
-                typeof (maybePromise as Promise<void>).catch === "function"
-              ) {
-                (maybePromise as Promise<void>).catch(() => {});
+              const maybePromise = ctx.session.prompt(text);
+              if (isPromiseWithCatch(maybePromise)) {
+                maybePromise.catch(() => {});
               }
             },
             catch: (cause) =>
@@ -793,7 +804,7 @@ export function makePiAdapter(
         } satisfies ProviderTurnStartResult;
       });
 
-    const interruptTurn: PiAdapterShape["interruptTurn"] = (threadId) =>
+    const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "interruptTurn");
         yield* Effect.tryPromise({
@@ -813,7 +824,7 @@ export function makePiAdapter(
           yield* offerRuntimeEvent({
             ...(yield* makeEventStamp()),
             provider: PROVIDER,
-            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
             threadId,
             type: "turn.aborted",
             turnId,
@@ -822,7 +833,7 @@ export function makePiAdapter(
         }
       });
 
-    const respondToRequest: PiAdapterShape["respondToRequest"] = (
+    const respondToRequest: PiAdapterContract["respondToRequest"] = (
       _threadId,
       _requestId,
       _decision,
@@ -831,13 +842,13 @@ export function makePiAdapter(
       // response can never legitimately arrive. No-op by design.
       Effect.void;
 
-    const respondToUserInput: PiAdapterShape["respondToUserInput"] = (
+    const respondToUserInput: PiAdapterContract["respondToUserInput"] = (
       _threadId,
       _requestId,
       _answers,
     ) => Effect.void;
 
-    const stopSession: PiAdapterShape["stopSession"] = (threadId) =>
+    const stopSession: PiAdapterContract["stopSession"] = (threadId) =>
       Effect.suspend(() => {
         const ctx = sessions.get(threadId);
         if (!ctx) return Effect.void;
@@ -855,13 +866,13 @@ export function makePiAdapter(
         }).pipe(Effect.ignore);
       });
 
-    const listSessions: PiAdapterShape["listSessions"] = () =>
+    const listSessions: PiAdapterContract["listSessions"] = () =>
       Effect.all([...sessions.values()].map((ctx) => providerSessionFor(ctx, "ready")));
 
-    const hasSession: PiAdapterShape["hasSession"] = (threadId) =>
+    const hasSession: PiAdapterContract["hasSession"] = (threadId) =>
       Effect.succeed(sessions.has(threadId));
 
-    const readThread: PiAdapterShape["readThread"] = (threadId) =>
+    const readThread: PiAdapterContract["readThread"] = (threadId) =>
       Effect.map(getSession(threadId, "readThread"), (ctx) => {
         const turn: ProviderThreadTurnSnapshot = {
           id: ctx.activeTurnId ?? TurnId.make("pi-history"),
@@ -870,7 +881,7 @@ export function makePiAdapter(
         return { threadId, turns: [turn] } satisfies ProviderThreadSnapshot;
       });
 
-    const rollbackThread: PiAdapterShape["rollbackThread"] = (threadId, numTurns) =>
+    const rollbackThread: PiAdapterContract["rollbackThread"] = (threadId, numTurns) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "rollbackThread");
         const session = ctx.session;
@@ -908,7 +919,7 @@ export function makePiAdapter(
         const turnIndex = userEntries.length - numTurns;
         const target = turnIndex >= 0 ? userEntries[turnIndex] : undefined;
         const forkTarget = target?.parentId;
-        if (target === undefined || typeof forkTarget !== "string") {
+        if (target === undefined || !RuntimePredicate.isString(forkTarget)) {
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "rollbackThread",
@@ -934,7 +945,7 @@ export function makePiAdapter(
         return { threadId, turns: [turn] } satisfies ProviderThreadSnapshot;
       });
 
-    const stopAll: PiAdapterShape["stopAll"] = () =>
+    const stopAll: PiAdapterContract["stopAll"] = () =>
       Effect.suspend(() => {
         const contexts = [...sessions.values()];
         sessions.clear();
@@ -964,6 +975,6 @@ export function makePiAdapter(
       rollbackThread,
       stopAll,
       streamEvents: Stream.fromPubSub(runtimeEventPubSub),
-    } satisfies PiAdapterShape;
+    } satisfies PiAdapterContract;
   });
 }

@@ -35,7 +35,7 @@ const makeWindow = (zoomFactor = 1): Electron.BrowserWindow =>
   ({
     id: 7,
     webContents: { getZoomFactor: () => zoomFactor },
-  }) as unknown as Electron.BrowserWindow;
+  }) as Electron.BrowserWindow;
 
 describe("ElectronMenu", () => {
   beforeEach(() => {

@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 const TRANSPORT_ERROR_PATTERNS = [
   /\bSocketCloseError\b/i,
   /\bSocketOpenError\b/i,
@@ -17,7 +18,7 @@ const TRANSPORT_ERROR_PATTERNS = [
  * business-logic error.
  */
 export function isTransportConnectionErrorMessage(message: string | null | undefined): boolean {
-  if (typeof message !== "string") {
+  if (!RuntimePredicate.isString(message)) {
     return false;
   }
 

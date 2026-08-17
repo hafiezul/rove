@@ -37,6 +37,7 @@ import {
 } from "./TextGenerationUtils.ts";
 import { codexModelFamily, getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { getCodexServiceTierOptionValue } from "../codexModelOptions.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CODEX_TIMEOUT_MS = 180_000;
 const encodeJsonString = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
@@ -219,7 +220,9 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
       const command = ChildProcess.make(spawnCommand.command, spawnCommand.args, {
         env: {
           ...resolvedEnvironment,
-          ...(codexConfig.homePath ? { CODEX_HOME: expandHomePath(codexConfig.homePath) } : {}),
+          ...(codexConfig.homePath
+            ? { CODEX_HOME: expandHomePath(codexConfig.homePath) }
+            : undefined),
         },
         cwd,
         shell: spawnCommand.shell,
@@ -332,9 +335,9 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
       return {
         subject: sanitizeCommitSubject(generated.subject),
         body: generated.body.trim(),
-        ...("branch" in generated && typeof generated.branch === "string"
+        ...("branch" in generated && RuntimePredicate.isString(generated.branch)
           ? { branch: sanitizeFeatureBranchName(generated.branch) }
-          : {}),
+          : undefined),
       };
     });
 

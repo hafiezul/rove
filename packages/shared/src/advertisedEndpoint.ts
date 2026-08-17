@@ -72,7 +72,7 @@ export function createAdvertisedEndpoint(input: CreateAdvertisedEndpointInput): 
     },
     source: input.source,
     status: input.status ?? "available",
-    ...(input.isDefault === undefined ? {} : { isDefault: input.isDefault }),
-    ...(input.description === undefined ? {} : { description: input.description }),
+    ...(input.isDefault === undefined ? undefined : { isDefault: input.isDefault }),
+    ...(input.description === undefined ? undefined : { description: input.description }),
   };
 }

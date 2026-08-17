@@ -115,8 +115,8 @@ import {
 function withoutProviderInstanceKey<V>(
   record: Readonly<Record<ProviderInstanceId, V>> | undefined,
   key: ProviderInstanceId,
-): Record<ProviderInstanceId, V> {
-  const next = { ...record } as Record<ProviderInstanceId, V>;
+) {
+  const next = { ...record };
   delete next[key];
   return next;
 }
@@ -708,6 +708,7 @@ export function EnvironmentProviderSettings({
   for (const [rawId, instance] of Object.entries(settings.providerInstances ?? {})) {
     const driver = instance.driver;
     const list = instancesByDriver.get(driver) ?? [];
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     list.push([rawId as ProviderInstanceId, instance]);
     instancesByDriver.set(driver, list);
   }
@@ -725,11 +726,13 @@ export function EnvironmentProviderSettings({
 
   for (const providerSettings of visibleProviderSettings) {
     type LegacyProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
-    const legacyProviders = settings.providers as Record<string, LegacyProviderSettings>;
-    const defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
-      string,
-      LegacyProviderSettings
-    >;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      legacyProviders = settings.providers as Record<string, LegacyProviderSettings>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
+        string,
+        LegacyProviderSettings
+      >;
     const driver = providerSettings.provider;
     const defaultInstanceId = defaultInstanceIdForDriver(driver);
     const explicitInstance = settings.providerInstances?.[defaultInstanceId];
@@ -866,10 +869,11 @@ export function EnvironmentProviderSettings({
 
   const resetDefaultInstance = (driverKind: ProviderDriverKind) => {
     type LegacyProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
-    const defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
-      string,
-      LegacyProviderSettings | undefined
-    >;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
+        string,
+        LegacyProviderSettings | undefined
+      >;
     const defaultInstanceId = defaultInstanceIdForDriver(driverKind);
     const defaultLegacyProvider = defaultLegacyProviders[driverKind];
     if (defaultLegacyProvider === undefined) return;

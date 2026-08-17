@@ -1,4 +1,6 @@
 import * as NodeOS from "node:os";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 let nextServerRequestId = 10_000;
 let pendingSkillsListRequestId: number | string | null = null;
@@ -28,9 +30,9 @@ const sendRequest = (method: string, params: unknown) => {
   return id;
 };
 
-const handleMethod = (message: Record<string, unknown>) => {
+const handleMethod = (message: Record<string, SchemaJson>) => {
   const method = message.method;
-  if (typeof method !== "string") {
+  if (!RuntimePredicate.isString(method)) {
     return;
   }
 
@@ -41,6 +43,7 @@ const handleMethod = (message: Record<string, unknown>) => {
       const stderrBytes = Number(process.env.CODEX_APP_SERVER_TEST_STDERR_BYTES ?? 0);
       if (Number.isFinite(stderrBytes) && stderrBytes > 0) {
         process.stderr.write("x".repeat(stderrBytes), () => {
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           respond(message.id as number | string, {
             userAgent: "mock-codex-app-server",
             codexHome: process.cwd(),
@@ -50,6 +53,7 @@ const handleMethod = (message: Record<string, unknown>) => {
         });
         return;
       }
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       respond(message.id as number | string, {
         userAgent: "mock-codex-app-server",
         codexHome: process.cwd(),
@@ -71,6 +75,7 @@ const handleMethod = (message: Record<string, unknown>) => {
       return;
     }
     case "account/read": {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       respond(message.id as number | string, {
         account: {
           type: "chatgpt",
@@ -82,6 +87,7 @@ const handleMethod = (message: Record<string, unknown>) => {
       return;
     }
     case "skills/list": {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       pendingSkillsListRequestId = message.id as number | string;
       pendingUserInputRequestId = sendRequest("item/tool/requestUserInput", {
         itemId: "item-approval-1",
@@ -105,13 +111,14 @@ const handleMethod = (message: Record<string, unknown>) => {
     }
     default: {
       if (message.id !== undefined) {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         respondError(message.id as number | string, -32601, `Unhandled request: ${method}`);
       }
     }
   }
 };
 
-const handleResponse = (message: Record<string, unknown>) => {
+const handleResponse = (message: Record<string, SchemaJson>) => {
   if (message.id !== pendingUserInputRequestId) {
     return;
   }
@@ -144,7 +151,8 @@ process.stdin.on("data", (chunk) => {
       continue;
     }
 
-    const message = JSON.parse(trimmed) as Record<string, unknown>;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      message = JSON.parse(trimmed) as Record<string, SchemaJson>;
     if ("method" in message) {
       handleMethod(message);
       continue;

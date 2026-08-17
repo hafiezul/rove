@@ -293,10 +293,10 @@ const findActiveProjectTarget = Effect.fn("findActiveProjectTarget")(function* (
       operation: "resolveProjectTarget",
       identifier: trimmedIdentifier,
       activeProjectCount: activeProjects.length,
-      ...(normalizedWorkspaceRoot === null ? {} : { normalizedWorkspaceRoot }),
+      ...(normalizedWorkspaceRoot === null ? undefined : { normalizedWorkspaceRoot }),
       ...(normalizedWorkspaceRootResult._tag === "Failure"
         ? { cause: normalizedWorkspaceRootResult.failure }
-        : {}),
+        : undefined),
     });
   }
 

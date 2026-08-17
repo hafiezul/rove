@@ -7,6 +7,7 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Schema from "effect/Schema";
 
 import * as ServerRuntimeState from "./serverRuntimeState.ts";
@@ -15,7 +16,7 @@ const isServerRuntimeStateError = Schema.is(ServerRuntimeState.ServerRuntimeStat
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, unknown>>;
+  readonly annotations: ReadonlyRecord<string, unknown>;
 }
 
 describe("serverRuntimeState", () => {

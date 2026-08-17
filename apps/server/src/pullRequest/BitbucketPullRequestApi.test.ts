@@ -4,6 +4,7 @@ import * as Layer from "effect/Layer";
 
 import * as BitbucketApi from "../sourceControl/BitbucketApi.ts";
 import * as BitbucketPullRequestApi from "./BitbucketPullRequestApi.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const mockedRequest = vi.fn<BitbucketApi.BitbucketApi["Service"]["request"]>();
 
@@ -36,12 +37,12 @@ function page(count: number, firstNumber: number, next?: string): string {
       destination: { branch: { name: "master" } },
       links: { html: { href: `https://bitbucket.org/acme/web/pull-requests/${firstNumber}` } },
     })),
-    ...(next === undefined ? {} : { next }),
+    ...(next === undefined ? undefined : { next }),
   });
 }
 
 function valuePage(values: ReadonlyArray<unknown>, next?: string): string {
-  return JSON.stringify({ values, ...(next === undefined ? {} : { next }) });
+  return JSON.stringify({ values, ...(next === undefined ? undefined : { next }) });
 }
 
 /** Who opened the pull request, and two accounts that could review it. */
@@ -50,7 +51,7 @@ const octocat = { uuid: "{octocat}", nickname: "octocat" };
 const hubot = { uuid: "{hubot}", nickname: "hubot" };
 
 /** One pull request as `/pullrequests/{id}` answers with it. */
-function pullRequestJson(overrides: Record<string, unknown>): string {
+function pullRequestJson(overrides: Record<string, SchemaJson>): string {
   return JSON.stringify({
     id: 7,
     title: "Pull request 7",

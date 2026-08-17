@@ -45,6 +45,7 @@ import {
   useSidebarVisibility,
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
 
@@ -169,7 +170,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   };
   const [isWindowFullscreen, setIsWindowFullscreen] = useState(() => {
     const getWindowFullscreenState = window.desktopBridge?.getWindowFullscreenState;
-    return isMacosDesktop && typeof getWindowFullscreenState === "function"
+    return isMacosDesktop && RuntimePredicate.isFunction(getWindowFullscreenState)
       ? getWindowFullscreenState()
       : false;
   });
@@ -178,7 +179,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...(isMacosDesktop && !isWindowFullscreen
       ? { "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET }
-      : {}),
+      : undefined),
   } as CSSProperties;
 
   useEffect(() => {
@@ -187,8 +188,8 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     if (!bridge) return;
     const { getWindowFullscreenState, onWindowFullscreenStateChange } = bridge;
     if (
-      typeof getWindowFullscreenState !== "function" ||
-      typeof onWindowFullscreenStateChange !== "function"
+      !RuntimePredicate.isFunction(getWindowFullscreenState) ||
+      !RuntimePredicate.isFunction(onWindowFullscreenStateChange)
     ) {
       return;
     }
@@ -200,7 +201,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onMenuAction = window.desktopBridge?.onMenuAction;
-    if (typeof onMenuAction !== "function") {
+    if (!RuntimePredicate.isFunction(onMenuAction)) {
       return;
     }
 

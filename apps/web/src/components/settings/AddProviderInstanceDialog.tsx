@@ -29,6 +29,7 @@ import {
   type WizardNavigation,
 } from "./AddProviderInstanceDialog.logic";
 import { AddProviderInstanceWizardSteps } from "./AddProviderInstanceWizardSteps";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const PROVIDER_ACCENT_SWATCHES = [
   "#2563eb",
@@ -63,7 +64,7 @@ function deriveInstanceId(driver: ProviderDriverKind, label: string): string {
 const INSTANCE_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
 const DEFAULT_DRIVER_OPTION = DRIVER_OPTIONS[0]!;
-const EMPTY_CONFIG_DRAFT: Record<string, unknown> = {};
+const EMPTY_CONFIG_DRAFT: Record<string, SchemaJson> = {};
 interface ComingSoonDriverOption {
   readonly value: ProviderDriverKind;
   readonly label: string;
@@ -131,7 +132,9 @@ export function AddProviderInstanceDialog({
   const [instanceIdOverride, setInstanceIdOverride] = useState<string | null>(null);
   // Driver-specific config drafts keyed by driver so toggling between drivers
   // during the same dialog session does not lose in-progress input.
-  const [configByDriver, setConfigByDriver] = useState<Record<string, Record<string, unknown>>>({});
+  const [configByDriver, setConfigByDriver] = useState<Record<string, Record<string, SchemaJson>>>(
+    {},
+  );
   // Errors are suppressed until the user has tried to submit once. After that
   // they update live so fixing the problem clears the message in place.
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -153,7 +156,7 @@ export function AddProviderInstanceDialog({
   const wizardStepSummaries = [driverOption.label, previewLabel, null] as const;
 
   const configDraft = configByDriver[driver] ?? EMPTY_CONFIG_DRAFT;
-  const setConfigDraft = (config: Record<string, unknown> | undefined) => {
+  const setConfigDraft = (config: Record<string, SchemaJson> | undefined) => {
     setConfigByDriver((existing) => {
       const next = { ...existing };
       if (config === undefined || Object.keys(config).length === 0) {
@@ -191,9 +194,9 @@ export function AddProviderInstanceDialog({
     const nextInstance: ProviderInstanceConfig = {
       driver,
       enabled: true,
-      ...(label.trim().length > 0 ? { displayName: label.trim() } : {}),
-      ...(normalizedAccentColor ? { accentColor: normalizedAccentColor } : {}),
-      ...(hasConfig ? { config } : {}),
+      ...(label.trim().length > 0 ? { displayName: label.trim() } : undefined),
+      ...(normalizedAccentColor ? { accentColor: normalizedAccentColor } : undefined),
+      ...(hasConfig ? { config } : undefined),
     };
     // `ProviderInstanceId.make` revalidates the slug; we've already checked
     // it via `validateInstanceId`, but going through the brand constructor

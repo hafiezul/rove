@@ -8,9 +8,9 @@
  * @module GrokAdapter
  */
 import type { ProviderAdapterError } from "../Errors.ts";
-import type { ProviderAdapterShape } from "./ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
  * GrokAdapterShape — per-instance Grok adapter contract.
  */
-export interface GrokAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {}
+export interface GrokAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

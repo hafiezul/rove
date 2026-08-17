@@ -1,3 +1,4 @@
+import type { Json as SchemaJson } from "effect/Schema";
 interface ReviewPerformanceLike {
   readonly now?: () => number;
   readonly mark?: (name: string) => void;
@@ -10,7 +11,8 @@ const REVIEW_PERF_PREFIX = "t3.review";
 let reviewPerfSequence = 0;
 
 function getPerformance(): ReviewPerformanceLike | null {
-  const candidate = (globalThis as { readonly performance?: ReviewPerformanceLike }).performance;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    candidate = (globalThis as { readonly performance?: ReviewPerformanceLike }).performance;
   return candidate ?? null;
 }
 
@@ -69,7 +71,7 @@ export async function measureReviewAsyncWork<T>(
   }
 }
 
-export function markReviewEvent(name: string, details?: Record<string, unknown>): void {
+export function markReviewEvent(name: string, details?: Record<string, SchemaJson>): void {
   if (!isReviewPerfEnabled()) {
     return;
   }

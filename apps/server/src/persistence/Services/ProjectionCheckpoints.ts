@@ -54,7 +54,7 @@ export type DeleteByThreadIdInput = typeof DeleteByThreadIdInput.Type;
 /**
  * ProjectionCheckpointRepositoryShape - Service API for projected checkpoints.
  */
-export interface ProjectionCheckpointRepositoryShape {
+export interface ProjectionCheckpointRepositoryContract {
   /**
    * Insert or replace a projected checkpoint row.
    *
@@ -91,5 +91,5 @@ export interface ProjectionCheckpointRepositoryShape {
  */
 export class ProjectionCheckpointRepository extends Context.Service<
   ProjectionCheckpointRepository,
-  ProjectionCheckpointRepositoryShape
+  ProjectionCheckpointRepositoryContract
 >()("t3/persistence/Services/ProjectionCheckpoints/ProjectionCheckpointRepository") {}

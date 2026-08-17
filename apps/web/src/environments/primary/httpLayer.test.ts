@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import type { DesktopBridge } from "@t3tools/contracts";
 import { afterEach, describe, expect, it, vi } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -42,7 +43,7 @@ describe.sequential("primary environment HTTP layer", () => {
       configurable: true,
       value: {
         location: { origin: "t3code://app" },
-        desktopBridge: {
+        desktopBridge: testDouble<DesktopBridge>({
           getLocalEnvironmentBootstrap: () => ({
             label: "Local environment",
             httpBaseUrl: "http://127.0.0.1:3773",
@@ -50,7 +51,7 @@ describe.sequential("primary environment HTTP layer", () => {
             bootstrapToken: "desktop-bootstrap-token",
           }),
           getLocalEnvironmentBearerToken: vi.fn().mockResolvedValue("desktop-bearer-token"),
-        } as unknown as DesktopBridge,
+        }),
       },
     });
 

@@ -1013,6 +1013,7 @@ describe("ApnsDeliveries", () => {
         teamId: "team-id",
         keyId: "key-id",
       });
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error.cause as ApnsClient.ApnsJwtSigningError).cause).toBeDefined();
     }).pipe(
       Effect.provide(

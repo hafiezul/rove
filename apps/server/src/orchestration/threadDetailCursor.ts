@@ -1,4 +1,6 @@
 import type { ThreadId } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /**
  * Opaque, exclusive cursor for windowed thread detail reads. Encodes the thread
@@ -41,22 +43,24 @@ export function decodeThreadDetailPageCursor(encoded: string): ThreadDetailPageC
   } catch {
     return null;
   }
-  if (parsed === null || typeof parsed !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(parsed)) {
     return null;
   }
-  const record = parsed as Record<string, unknown>;
-  if (typeof record.t !== "string" || record.t.length === 0) {
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = parsed as Record<string, SchemaJson>;
+  if (!RuntimePredicate.isString(record.t) || record.t.length === 0) {
     return null;
   }
   // Empty strings are valid boundary values, not malformed input: the anchor
   // is COALESCE(requested_at, started_at, ''), so a boundary turn with no
   // timestamps encodes a: "" (and sorts before every real anchor, correctly
   // ending the walk); the turn key is "" for a null turn_id.
-  if (typeof record.a !== "string") {
+  if (!RuntimePredicate.isString(record.a)) {
     return null;
   }
-  if (typeof record.i !== "string") {
+  if (!RuntimePredicate.isString(record.i)) {
     return null;
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return { threadId: record.t as ThreadId, beforeAnchorAt: record.a, beforeTurnId: record.i };
 }

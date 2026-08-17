@@ -1,3 +1,4 @@
+import { testDouble } from "../src/testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off - Measures the real Node HTTP and WebSocket transports.
 import * as NodeHttp from "node:http";
 import * as NodeZlib from "node:zlib";
@@ -148,7 +149,8 @@ function makeWebSocketTransferRecorder(): WebSocketTransferRecorder {
         decodedBytes += bytes;
         messages += 1;
       });
-      return nextSocket as unknown as globalThis.WebSocket;
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      return testDouble<globalThis.WebSocket>(nextSocket);
     },
     totals: () => ({
       wireBytes: transport?.bytesRead ?? socket?._socket?.bytesRead ?? 0,

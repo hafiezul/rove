@@ -36,10 +36,10 @@ export function makeRelayDeviceRegistrationRequest(
       ? { androidApiLevel: input.androidApiLevel }
       : { iosMajorVersion: input.iosMajorVersion }),
     appVersion: input.appVersion,
-    ...(input.bundleId ? { bundleId: input.bundleId } : {}),
-    ...(input.apsEnvironment ? { apsEnvironment: input.apsEnvironment } : {}),
-    ...(input.pushToken ? { pushToken: input.pushToken } : {}),
-    ...(input.pushToStartToken ? { pushToStartToken: input.pushToStartToken } : {}),
+    ...(input.bundleId ? { bundleId: input.bundleId } : undefined),
+    ...(input.apsEnvironment ? { apsEnvironment: input.apsEnvironment } : undefined),
+    ...(input.pushToken ? { pushToken: input.pushToken } : undefined),
+    ...(input.pushToStartToken ? { pushToStartToken: input.pushToStartToken } : undefined),
     preferences: {
       liveActivitiesEnabled,
       notificationsEnabled: pushAvailable && input.notificationsEnabled,

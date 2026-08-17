@@ -20,7 +20,7 @@ const makeTempDirectory = (): string => {
   return directory;
 };
 
-const captureError = (run: () => unknown): unknown => {
+const captureError = (run: () => unknown) => {
   try {
     run();
   } catch (cause) {
@@ -55,6 +55,7 @@ describe("RotatingFileSink", () => {
       received: 0,
       minimum: 1,
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as Error).message).toBe(`${input.option} must be >= 1 (received 0)`);
   });
 
@@ -68,6 +69,7 @@ describe("RotatingFileSink", () => {
 
     expect(thrown).toBeInstanceOf(RotatingFileSinkError);
     expect(thrown).toMatchObject({ operation: "initialize", filePath });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as RotatingFileSinkError).cause).toBeInstanceOf(Error);
   });
 
@@ -82,6 +84,7 @@ describe("RotatingFileSink", () => {
 
     expect(thrown).toBeInstanceOf(RotatingFileSinkError);
     expect(thrown).toMatchObject({ operation: "read", filePath });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as RotatingFileSinkError).cause).toMatchObject({ code: "ENAMETOOLONG" });
   });
 
@@ -110,6 +113,7 @@ describe("RotatingFileSink", () => {
 
     expect(thrown).toBeInstanceOf(RotatingFileSinkError);
     expect(thrown).toMatchObject({ operation: "write", filePath });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as RotatingFileSinkError).cause).toMatchObject({ code: "EISDIR" });
   });
 
@@ -129,6 +133,7 @@ describe("RotatingFileSink", () => {
 
     expect(thrown).toBeInstanceOf(RotatingFileSinkError);
     expect(thrown).toMatchObject({ operation: "rotate", filePath });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as RotatingFileSinkError).cause).toBeInstanceOf(Error);
   });
 
@@ -170,6 +175,7 @@ describe("RotatingFileSink", () => {
 
     expect(thrown).toBeInstanceOf(RotatingFileSinkError);
     expect(thrown).toMatchObject({ operation: "prune", filePath });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((thrown as RotatingFileSinkError).cause).toBeInstanceOf(Error);
   });
 });

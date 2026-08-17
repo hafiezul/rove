@@ -117,6 +117,7 @@ export const ToolLifecycleItemType = Schema.Literals(TOOL_LIFECYCLE_ITEM_TYPES);
 export type ToolLifecycleItemType = typeof ToolLifecycleItemType.Type;
 
 export function isToolLifecycleItemType(value: string): value is ToolLifecycleItemType {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return TOOL_LIFECYCLE_ITEM_TYPES.includes(value as ToolLifecycleItemType);
 }
 
@@ -364,6 +365,8 @@ export const ThreadTokenUsageSnapshot = Schema.Union([
 ]);
 export type ThreadTokenUsageSnapshot = typeof ThreadTokenUsageSnapshot.Type;
 
+const isThreadTokenUsageSnapshot = Schema.is(ThreadTokenUsageSnapshot);
+
 /**
  * Whether an activity payload authoritatively replaces an earlier
  * context-window reading. This deliberately accepts raw activity payloads as
@@ -371,19 +374,7 @@ export type ThreadTokenUsageSnapshot = typeof ThreadTokenUsageSnapshot.Type;
  * when persisted legacy data is malformed.
  */
 export function isContextWindowSnapshotPayload(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const payload = value as Record<string, unknown>;
-  if (payload.contextUsageState === "unavailable") {
-    return true;
-  }
-  if (payload.contextUsageState === "unknown") {
-    const maxTokens = payload.maxTokens;
-    return typeof maxTokens === "number" && Number.isFinite(maxTokens) && maxTokens > 0;
-  }
-  const usedTokens = payload.usedTokens;
-  return typeof usedTokens === "number" && Number.isFinite(usedTokens) && usedTokens >= 0;
+  return isThreadTokenUsageSnapshot(value);
 }
 
 const ThreadTokenUsageUpdatedPayload = Schema.Struct({

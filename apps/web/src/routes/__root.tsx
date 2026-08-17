@@ -71,6 +71,7 @@ import {
   createKeybindingsUpdateToastController,
   type KeybindingsUpdateToastController,
 } from "../components/KeybindingsUpdateToast.logic";
+import * as RuntimePredicate from "effect/Predicate";
 
 import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
 import { installDesktopPasteAsText } from "../lib/desktopPasteAsText";
@@ -421,7 +422,7 @@ function errorMessage(error: unknown): string {
     return error.message;
   }
 
-  if (typeof error === "string" && error.trim().length > 0) {
+  if (RuntimePredicate.isString(error) && error.trim().length > 0) {
     return error;
   }
 
@@ -433,7 +434,7 @@ function errorDetails(error: unknown): string {
     return error.stack ?? error.message;
   }
 
-  if (typeof error === "string") {
+  if (RuntimePredicate.isString(error)) {
     return error;
   }
 

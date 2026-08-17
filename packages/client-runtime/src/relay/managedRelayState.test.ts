@@ -97,7 +97,7 @@ function createManager(
   const runtime = Atom.runtime(Layer.succeed(ManagedRelay.ManagedRelayClient, client));
   return createManagedRelayQueryManager(runtime, {
     staleTimeMs: 60_000,
-    ...(onQueryEvent ? { onQueryEvent } : {}),
+    ...(onQueryEvent ? { onQueryEvent } : undefined),
   });
 }
 

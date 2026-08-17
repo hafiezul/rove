@@ -1,4 +1,5 @@
 import { FAVICON_DATA_URL_MAX_LENGTH } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const MAX_FAVICON_RESPONSE_BYTES = 100_000;
 export const MAX_FAVICON_CANDIDATES = 8;
@@ -565,7 +566,7 @@ async function normalizeFaviconBuffer(
     signal,
   );
   if (rasterized.kind === "timed-out") return rasterized;
-  return typeof rasterized.value === "string" &&
+  return RuntimePredicate.isString(rasterized.value) &&
     rasterized.value.startsWith("data:image/png;base64,") &&
     rasterized.value.length <= FAVICON_DATA_URL_MAX_LENGTH
     ? { kind: "captured", dataUrl: rasterized.value }

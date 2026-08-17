@@ -2,6 +2,7 @@ import {
   COMPOSER_MENTION_DRAG_TYPE,
   composerMentionFromTreePath,
 } from "~/components/chat/composerMentionDrag";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface FileTreeDragTransfer {
   setData(format: string, data: string): void;
@@ -31,11 +32,14 @@ export interface FileTreeDragMentionController {
 }
 
 const itemPathOf = (node: unknown): string | null => {
-  if (typeof node !== "object" || node === null) {
+  if (!RuntimePredicate.isObjectOrArray(node)) {
     return null;
   }
-  const element = node as { getAttribute?: (name: string) => string | null };
-  return typeof element.getAttribute === "function" ? element.getAttribute("data-item-path") : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    element = node as { getAttribute?: (name: string) => string | null };
+  return RuntimePredicate.isFunction(element.getAttribute)
+    ? element.getAttribute("data-item-path")
+    : null;
 };
 
 /**

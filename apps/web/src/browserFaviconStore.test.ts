@@ -1,6 +1,7 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import * as RuntimePredicate from "effect/Predicate";
 
 vi.mock("~/state/entities", () => ({ useThreadShell: () => null }));
 vi.mock("~/state/session", () => ({ usePreparedConnection: () => ({ _tag: "None" }) }));
@@ -255,7 +256,7 @@ describe("browser favicon store", () => {
       "env-1:project-1 http://localhost:3000": { dataUrl: PNG, capturedAt: 2 },
     });
     expect(merged.pendingByThreadKey).toEqual(current.pendingByThreadKey);
-    expect(typeof merged.recordFavicon).toBe("function");
+    expect(RuntimePredicate.isFunction(merged.recordFavicon)).toBe(true);
   });
 
   it("falls back to memory when localStorage access throws", () => {

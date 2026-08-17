@@ -330,6 +330,10 @@
     "./cliRelease": {
       "types": "./src/cliRelease.ts",
       "import": "./src/cliRelease.ts"
+    },
+    "./runtimeValueKind": {
+      "types": "./src/runtimeValueKind.ts",
+      "import": "./src/runtimeValueKind.ts"
     }
   },
   "scripts": {

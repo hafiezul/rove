@@ -50,6 +50,8 @@ import {
   writePullRequestDetailSnapshot,
 } from "./pullRequestDetail.logic";
 import type { ReviewCommentContext } from "~/reviewCommentContext";
+import type { Json as SchemaJson } from "effect/Schema";
+import { testDouble } from "~/testDouble";
 
 describe("pull request checkout commands", () => {
   it.each([
@@ -1314,8 +1316,8 @@ describe("a second ask into the same composer", () => {
 });
 
 describe("how the branch stands against its base", () => {
-  const detail = (overrides: Record<string, unknown> = {}) =>
-    ({
+  const detail = (overrides: Record<string, SchemaJson | undefined> = {}) =>
+    testDouble<Parameters<typeof resolveBaseFreshness>[0]>({
       state: "open",
       mergeability: "mergeable",
       baseComparison: "behind",
@@ -1323,7 +1325,7 @@ describe("how the branch stands against its base", () => {
       capabilities: { updateMethods: ["merge", "rebase"] },
       viewerPermissions: { updateMethods: ["merge", "rebase"] },
       ...overrides,
-    }) as Parameters<typeof resolveBaseFreshness>[0];
+    });
 
   it("offers both ways where the host and the reader both allow them", () => {
     expect(resolveBaseFreshness(detail())).toEqual({ behindBy: 12, methods: ["merge", "rebase"] });

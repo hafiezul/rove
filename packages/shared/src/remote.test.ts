@@ -148,6 +148,7 @@ describe("remote", () => {
 
     expect(pairingUrlError).toBeInstanceOf(RemotePairingUrlInvalidError);
     expect(pairingUrlError).toMatchObject({ protocol: "ftp:" });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((pairingUrlError as RemotePairingUrlInvalidError).cause).toBeUndefined();
   });
 
@@ -164,6 +165,7 @@ describe("remote", () => {
 
     expect(hostError).toBeInstanceOf(RemoteBackendUrlInvalidError);
     expect(hostError).toMatchObject({ source: "hosted-pairing-host", protocol: "ftp:" });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((hostError as RemoteBackendUrlInvalidError).cause).toBeUndefined();
   });
 
@@ -180,6 +182,7 @@ describe("remote", () => {
 
     expect(hostError).toBeInstanceOf(RemoteBackendUrlInvalidError);
     expect(hostError).toMatchObject({ source: "direct-host", protocol: "ftp:" });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((hostError as RemoteBackendUrlInvalidError).cause).toBeUndefined();
   });
 
@@ -208,6 +211,7 @@ describe("remote", () => {
       pairingUrlError = cause;
     }
     expect(pairingUrlError).toBeInstanceOf(RemotePairingUrlInvalidError);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((pairingUrlError as RemotePairingUrlInvalidError).cause).toBeInstanceOf(TypeError);
 
     let hostError: unknown;
@@ -218,6 +222,7 @@ describe("remote", () => {
     }
     expect(hostError).toBeInstanceOf(RemoteBackendUrlInvalidError);
     expect(hostError).toMatchObject({ source: "direct-host" });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((hostError as RemoteBackendUrlInvalidError).cause).toBeInstanceOf(TypeError);
   });
 });

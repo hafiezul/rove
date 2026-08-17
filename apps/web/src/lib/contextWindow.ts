@@ -1,15 +1,20 @@
 import type { OrchestrationThreadActivity } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+function asRecord(value: unknown): Record<string, SchemaJson> | null {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return value && (RuntimePredicate.isObjectOrArray(value) || value === null)
+    ? (value as Record<string, SchemaJson>)
+    : null;
 }
 
 function asFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) ? value : null;
 }
 
 function asBoolean(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
+  return RuntimePredicate.isBoolean(value) ? value : null;
 }
 
 export type ContextWindowSnapshot = {

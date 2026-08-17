@@ -14,6 +14,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { fromYaml } from "@t3tools/shared/schemaYaml";
 
 import { referenceRepos, type ReferenceRepo } from "./lib/reference-repos.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type ReferenceRepoSyncAction = "add" | "pull";
 
@@ -115,12 +117,13 @@ const collectStreamAsString = <E>(stream: Stream.Stream<Uint8Array, E>): Effect.
 function readNestedString(input: unknown, keys: ReadonlyArray<string>): string | undefined {
   let value = input;
   for (const key of keys) {
-    if (typeof value !== "object" || value === null || !(key in value)) {
+    if (!RuntimePredicate.isObjectOrArray(value) || !(key in value)) {
       return undefined;
     }
-    value = (value as Record<string, unknown>)[key];
+    // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    value = (value as Record<string, SchemaJson>)[key];
   }
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  return RuntimePredicate.isString(value) && value.length > 0 ? value : undefined;
 }
 
 function decodeVersionSource(

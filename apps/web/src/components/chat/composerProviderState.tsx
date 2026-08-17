@@ -21,6 +21,7 @@ import type { DraftId } from "../../composerDraftStore";
 import { getProviderModelCapabilities } from "../../providerModels";
 import type { ComposerControlSize } from "./ComposerControl";
 import { shouldRenderTraitsControls, TraitsMenuContent, TraitsPicker } from "./TraitsPicker";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type ComposerProviderStateInput = {
   provider: ProviderDriverKind;
@@ -139,7 +140,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
       descriptor.type === "select",
   );
   const primaryValue = getProviderOptionCurrentValue(primarySelectDescriptor ?? null);
-  const promptEffort = typeof primaryValue === "string" ? primaryValue : null;
+  const promptEffort = RuntimePredicate.isString(primaryValue) ? primaryValue : null;
   const ultrathinkActive =
     (primarySelectDescriptor?.promptInjectedValues?.length ?? 0) > 0 &&
     promptInjectionState === "ultrathink";
@@ -157,7 +158,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
           composerSurfaceClassName: "shadow-[0_0_0_1px_rgba(255,255,255,0.07)_inset]",
           modelPickerIconClassName: "ultrathink-chroma",
         }
-      : {}),
+      : undefined),
   };
 }
 

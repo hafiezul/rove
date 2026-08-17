@@ -106,7 +106,7 @@ export const ClearCheckpointTurnConflictInput = Schema.Struct({
 });
 export type ClearCheckpointTurnConflictInput = typeof ClearCheckpointTurnConflictInput.Type;
 
-export interface ProjectionTurnRepositoryShape {
+export interface ProjectionTurnRepositoryContract {
   /**
    * Inserts or updates the canonical row for a concrete `{threadId, turnId}` turn lifecycle state.
    */
@@ -166,5 +166,5 @@ export interface ProjectionTurnRepositoryShape {
 
 export class ProjectionTurnRepository extends Context.Service<
   ProjectionTurnRepository,
-  ProjectionTurnRepositoryShape
+  ProjectionTurnRepositoryContract
 >()("t3/persistence/Services/ProjectionTurns/ProjectionTurnRepository") {}

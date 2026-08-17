@@ -71,7 +71,8 @@ describe("semver helpers", () => {
 
   it("keeps the range checker stringifiable and executable as plain JavaScript", () => {
     const source = satisfiesSemverRange.toString();
-    const recreated = Function(`return (${source});`)() as typeof satisfiesSemverRange;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      recreated = Function(`return (${source});`)() as typeof satisfiesSemverRange;
 
     expect(source).toContain("function satisfiesSemverRange");
     expect(source).not.toContain(": string");

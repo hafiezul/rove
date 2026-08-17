@@ -10,6 +10,8 @@ import {
   normalizeModelMetricLabel,
   outcomeFromExit,
 } from "./Attributes.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const rpcRequestsTotal = Metric.counter("t3_rpc_requests_total", {
   description: "Total RPC requests handled by the websocket RPC server.",
@@ -75,12 +77,12 @@ export const terminalRestartsTotal = Metric.counter("t3_terminal_restarts_total"
 });
 
 export const metricAttributes = (
-  attributes: Readonly<Record<string, unknown>>,
+  attributes: Readonly<Record<string, SchemaJson>>,
 ): ReadonlyArray<[string, string]> => Object.entries(compactMetricAttributes(attributes));
 
 export const increment = (
   metric: Metric.Metric<number, unknown>,
-  attributes: Readonly<Record<string, unknown>>,
+  attributes: Readonly<Record<string, SchemaJson>>,
   amount = 1,
 ) => Metric.update(Metric.withAttributes(metric, metricAttributes(attributes)), amount);
 
@@ -88,11 +90,11 @@ export interface WithMetricsOptions {
   readonly counter?: Metric.Metric<number, unknown>;
   readonly timer?: Metric.Metric<Duration.Duration, unknown>;
   readonly attributes?:
-    | Readonly<Record<string, unknown>>
-    | (() => Readonly<Record<string, unknown>>);
+    | Readonly<Record<string, SchemaJson>>
+    | (() => Readonly<Record<string, SchemaJson>>);
   readonly outcomeAttributes?: (
     outcome: ReturnType<typeof outcomeFromExit>,
-  ) => Readonly<Record<string, unknown>>;
+  ) => Readonly<Record<string, SchemaJson>>;
 }
 
 const withMetricsImpl = <A, E, R>(
@@ -105,8 +107,9 @@ const withMetricsImpl = <A, E, R>(
     const endedAt = yield* Clock.currentTimeNanos;
     const elapsedNanos = endedAt > startedAt ? endedAt - startedAt : 0n;
     const duration = Duration.nanos(elapsedNanos);
-    const baseAttributes =
-      typeof options.attributes === "function" ? options.attributes() : (options.attributes ?? {});
+    const baseAttributes = RuntimePredicate.isFunction(options.attributes)
+      ? options.attributes()
+      : (options.attributes ?? {});
 
     if (options.timer) {
       yield* Metric.update(
@@ -123,7 +126,7 @@ const withMetricsImpl = <A, E, R>(
           metricAttributes({
             ...baseAttributes,
             outcome,
-            ...(options.outcomeAttributes ? options.outcomeAttributes(outcome) : {}),
+            ...(options.outcomeAttributes ? options.outcomeAttributes(outcome) : undefined),
           }),
         ),
         1,
@@ -145,7 +148,7 @@ export const withMetrics: {
 
 export const providerMetricAttributes = (
   provider: string,
-  extra?: Readonly<Record<string, unknown>>,
+  extra?: Readonly<Record<string, SchemaJson>>,
 ) =>
   compactMetricAttributes({
     provider,
@@ -155,12 +158,12 @@ export const providerMetricAttributes = (
 export const providerTurnMetricAttributes = (input: {
   readonly provider: string;
   readonly model: string | null | undefined;
-  readonly extra?: Readonly<Record<string, unknown>>;
+  readonly extra?: Readonly<Record<string, SchemaJson>>;
 }) => {
   const modelFamily = normalizeModelMetricLabel(input.model);
   return compactMetricAttributes({
     provider: input.provider,
-    ...(modelFamily ? { modelFamily } : {}),
+    ...(modelFamily ? { modelFamily } : undefined),
     ...input.extra,
   });
 };

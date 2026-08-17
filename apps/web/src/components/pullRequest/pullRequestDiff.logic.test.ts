@@ -12,7 +12,7 @@ function fileWithHunks(
     additionCount: number;
   }>,
 ): FileDiffMetadata {
-  return { name: "src/app.ts", hunks } as unknown as FileDiffMetadata;
+  return { name: "src/app.ts", hunks } as FileDiffMetadata;
 }
 
 describe("isLineInFileDiff", () => {

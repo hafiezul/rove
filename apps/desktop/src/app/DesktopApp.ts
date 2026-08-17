@@ -32,6 +32,7 @@ import * as DesktopRemoteUpdates from "../updates/DesktopRemoteUpdates.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopSnapShot from "../snapShot/DesktopSnapShot.ts";
 import * as DesktopWslBackend from "../wsl/DesktopWslBackend.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
 const MAX_TCP_PORT = 65_535;
@@ -123,11 +124,11 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
   const electronDialog = yield* ElectronDialog.ElectronDialog;
   const message = error instanceof Error ? error.message : String(error);
   const detail =
-    error instanceof Error && typeof error.stack === "string" ? `\n${error.stack}` : "";
+    error instanceof Error && RuntimePredicate.isString(error.stack) ? `\n${error.stack}` : "";
   yield* logStartupError("fatal startup error", {
     stage,
     message,
-    ...(detail.length > 0 ? { detail } : {}),
+    ...(detail.length > 0 ? { detail } : undefined),
   });
   const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
   if (!wasQuitting) {
@@ -207,7 +208,9 @@ const bootstrap = Effect.gen(function* () {
       : "using configured backend port",
     {
       port: backendPort,
-      ...(backendPortSelection.selectedByScan ? { startPort: DEFAULT_DESKTOP_BACKEND_PORT } : {}),
+      ...(backendPortSelection.selectedByScan
+        ? { startPort: DEFAULT_DESKTOP_BACKEND_PORT }
+        : undefined),
     },
   );
 

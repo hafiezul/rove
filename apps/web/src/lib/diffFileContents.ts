@@ -110,7 +110,7 @@ export function createPullRequestDiffFileContentsLoader<E>(
       environmentId: source.environmentId,
       input: {
         ...source.reference,
-        ...(source.commit === null ? {} : { commit: source.commit }),
+        ...(source.commit === null ? undefined : { commit: source.commit }),
         changeType,
         oldPath,
         newPath,

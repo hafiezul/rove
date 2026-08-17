@@ -49,9 +49,10 @@ function proofIat(proof: string): number {
   if (!payload) {
     throw new Error("Missing DPoP payload.");
   }
-  const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-    readonly iat: number;
-  };
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      readonly iat: number;
+    };
   return decoded.iat;
 }
 
@@ -60,9 +61,10 @@ function proofHtu(proof: string): string {
   if (!payload) {
     throw new Error("Missing DPoP payload.");
   }
-  const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-    readonly htu: string;
-  };
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      readonly htu: string;
+    };
   return decoded.htu;
 }
 

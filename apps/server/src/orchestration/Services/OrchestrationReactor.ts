@@ -13,7 +13,7 @@ import type * as Scope from "effect/Scope";
 /**
  * OrchestrationReactorShape - Service API for orchestration reactor lifecycle.
  */
-export interface OrchestrationReactorShape {
+export interface OrchestrationReactorContract {
   /**
    * Start orchestration-side reactors for provider/runtime/checkpoint flows.
    *
@@ -28,5 +28,5 @@ export interface OrchestrationReactorShape {
  */
 export class OrchestrationReactor extends Context.Service<
   OrchestrationReactor,
-  OrchestrationReactorShape
+  OrchestrationReactorContract
 >()("t3/orchestration/Services/OrchestrationReactor") {}

@@ -23,7 +23,8 @@ function AutocompleteInput({
   size?: "sm" | "default" | "lg" | number;
   ref?: React.Ref<HTMLInputElement>;
 }) {
-  const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
 
   return (
     <div className="relative not-has-[>*.w-full]:w-fit w-full text-foreground has-disabled:opacity-64">

@@ -34,7 +34,7 @@ function resultShaMarker(sha) {
 }
 
 function assertObject(value, label) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || !(value instanceof Object) || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
   }
 }

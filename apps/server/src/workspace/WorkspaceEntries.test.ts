@@ -66,7 +66,7 @@ const git = (cwd: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) 
       command: "git",
       cwd,
       args,
-      ...(env ? { env } : {}),
+      ...(env ? { env } : undefined),
       timeoutMs: 10_000,
     });
     return result.stdout.trim();

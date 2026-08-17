@@ -32,7 +32,7 @@ import type { ProviderInstanceConfigMap } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 
-export interface ProviderInstanceRegistryMutatorShape {
+export interface ProviderInstanceRegistryMutatorContract {
   /**
    * Bring the live registry in line with the supplied config map. See
    * module docs for the add / remove / replace semantics.
@@ -48,5 +48,5 @@ export interface ProviderInstanceRegistryMutatorShape {
 
 export class ProviderInstanceRegistryMutator extends Context.Service<
   ProviderInstanceRegistryMutator,
-  ProviderInstanceRegistryMutatorShape
+  ProviderInstanceRegistryMutatorContract
 >()("t3/provider/Services/ProviderInstanceRegistryMutator") {}

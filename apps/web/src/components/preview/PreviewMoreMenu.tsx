@@ -130,6 +130,7 @@ export function PreviewMoreMenu({
               value={colorScheme}
               onValueChange={(value) => {
                 if (!tabId) return;
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 void bridge
                   .setColorScheme(tabId, value as DesktopPreviewColorScheme)
                   .catch(() => undefined);

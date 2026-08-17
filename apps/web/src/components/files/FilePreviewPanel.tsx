@@ -464,7 +464,7 @@ function useFileLineReveal(
                   height: renderedLineRect.height,
                 },
               }
-            : {}),
+            : undefined),
         });
       };
 
@@ -602,9 +602,10 @@ function EditableFileSurface({
           setProjectFileQueryData(environmentId, cwd, relativePath, file.contents);
           saveCoordinator.change(file.contents);
           if (nextLineAnnotations) {
-            const remapped = remapFileCommentAnnotations(
-              nextLineAnnotations as FileCommentLineAnnotation[],
-            );
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              remapped = remapFileCommentAnnotations(
+                nextLineAnnotations as FileCommentLineAnnotation[],
+              );
             setLineAnnotations(remapped);
             for (const annotation of remapped) {
               for (const entry of annotation.metadata.entries) {

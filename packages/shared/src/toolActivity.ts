@@ -1,13 +1,16 @@
 import type { ToolLifecycleItemType } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
+function asRecord(value: unknown): Record<string, SchemaJson> | undefined {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value)
+    ? (value as Record<string, SchemaJson>)
     : undefined;
 }
 
 function asTrimmedString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return undefined;
   }
   const trimmed = value.trim();
@@ -50,7 +53,10 @@ function extractCommandFromTitle(title: string | undefined): string | undefined 
   return backtickMatch?.[1]?.trim() || undefined;
 }
 
-function extractToolCommand(data: Record<string, unknown> | undefined, title: string | undefined) {
+function extractToolCommand(
+  data: Record<string, SchemaJson> | undefined,
+  title: string | undefined,
+) {
   const item = asRecord(data?.item);
   const itemInput = asRecord(item?.input);
   const itemResult = asRecord(item?.result);
@@ -131,7 +137,7 @@ function collectPaths(value: unknown, paths: string[], seen: Set<string>, depth:
   }
 }
 
-function extractPrimaryPath(data: Record<string, unknown> | undefined): string | undefined {
+function extractPrimaryPath(data: Record<string, SchemaJson> | undefined): string | undefined {
   const paths: string[] = [];
   collectPaths(data, paths, new Set<string>(), 0);
   return paths[0];
@@ -157,7 +163,7 @@ function isEquivalent(left: string | undefined, right: string | undefined): bool
 function classifyToolAction(input: {
   readonly itemType?: ToolLifecycleItemType | null | undefined;
   readonly title?: string | undefined;
-  readonly data?: Record<string, unknown> | undefined;
+  readonly data?: Record<string, SchemaJson> | undefined;
 }): "command" | "read" | "file_change" | "search" | "other" {
   const itemType = input.itemType ?? undefined;
   const kind = asTrimmedString(input.data?.kind)?.toLowerCase();
@@ -214,7 +220,7 @@ export function deriveToolActivityPresentation(
   if (action === "command") {
     return {
       summary: "Ran command",
-      ...(command ? { detail: command } : {}),
+      ...(command ? { detail: command } : undefined),
     };
   }
 
@@ -233,7 +239,7 @@ export function deriveToolActivityPresentation(
   if (action === "file_change") {
     return {
       summary: "Changed files",
-      ...(primaryPath ? { detail: primaryPath } : {}),
+      ...(primaryPath ? { detail: primaryPath } : undefined),
     };
   }
 
@@ -244,7 +250,7 @@ export function deriveToolActivityPresentation(
       asTrimmedString(asRecord(data?.rawInput)?.searchTerm);
     return {
       summary: "Searched files",
-      ...(query ? { detail: query } : {}),
+      ...(query ? { detail: query } : undefined),
     };
   }
 

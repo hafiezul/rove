@@ -50,7 +50,7 @@ function estimateGridSize(input: {
   readonly width: number;
   readonly height: number;
   readonly fontSize: number;
-}): { readonly cols: number; readonly rows: number } {
+}) {
   const cellWidth = input.fontSize * 0.62;
   const cellHeight = input.fontSize * 1.35;
   return {
@@ -197,7 +197,10 @@ export const TerminalSurface = memo(function TerminalSurface(props: TerminalSurf
         return;
       }
       terminalDebugLog("native:onInput", {
-        codes: Array.from(event.nativeEvent.data, (char) => char.codePointAt(0)),
+        codes: Array.from(event.nativeEvent.data).flatMap((char) => {
+          const codePoint = char.codePointAt(0);
+          return codePoint === undefined ? [] : [codePoint];
+        }),
       });
       onInput(event.nativeEvent.data);
     },

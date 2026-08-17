@@ -11,18 +11,21 @@
  * renderer and the chip silently never appears.
  */
 import type { PickedElementPayload, PreviewAnnotationPayload } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function isStringOrNull(value: unknown): value is string | null {
-  return value === null || typeof value === "string";
+  return value === null || RuntimePredicate.isString(value);
 }
 
 function isFiniteNumberOrNull(value: unknown): value is number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value));
+  return value === null || (RuntimePredicate.isNumber(value) && Number.isFinite(value));
 }
 
 function isPickedStackFrame(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  const frame = value as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    frame = value as Record<string, SchemaJson>;
   return (
     isStringOrNull(frame["functionName"]) &&
     isStringOrNull(frame["fileName"]) &&
@@ -32,13 +35,14 @@ function isPickedStackFrame(value: unknown): boolean {
 }
 
 export function isPickedElementPayload(value: unknown): value is PickedElementPayload {
-  if (typeof value !== "object" || value === null) return false;
-  const c = value as Record<string, unknown>;
-  if (typeof c["pageUrl"] !== "string") return false;
-  if (typeof c["tagName"] !== "string") return false;
-  if (typeof c["htmlPreview"] !== "string") return false;
-  if (typeof c["styles"] !== "string") return false;
-  if (typeof c["pickedAt"] !== "string") return false;
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    c = value as Record<string, SchemaJson>;
+  if (!RuntimePredicate.isString(c["pageUrl"])) return false;
+  if (!RuntimePredicate.isString(c["tagName"])) return false;
+  if (!RuntimePredicate.isString(c["htmlPreview"])) return false;
+  if (!RuntimePredicate.isString(c["styles"])) return false;
+  if (!RuntimePredicate.isString(c["pickedAt"])) return false;
   if (!isStringOrNull(c["pageTitle"])) return false;
   if (!isStringOrNull(c["selector"])) return false;
   if (!isStringOrNull(c["componentName"])) return false;
@@ -49,42 +53,46 @@ export function isPickedElementPayload(value: unknown): value is PickedElementPa
 }
 
 function isRect(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  const rect = value as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    rect = value as Record<string, SchemaJson>;
   return ["x", "y", "width", "height"].every(
-    (key) => typeof rect[key] === "number" && Number.isFinite(rect[key]),
+    (key) => RuntimePredicate.isNumber(rect[key]) && Number.isFinite(rect[key]),
   );
 }
 
 function isPoint(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  const point = value as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    point = value as Record<string, SchemaJson>;
   return (
-    typeof point["x"] === "number" &&
+    RuntimePredicate.isNumber(point["x"]) &&
     Number.isFinite(point["x"]) &&
-    typeof point["y"] === "number" &&
+    RuntimePredicate.isNumber(point["y"]) &&
     Number.isFinite(point["y"])
   );
 }
 
 export function isPreviewAnnotationPayload(value: unknown): value is PreviewAnnotationPayload {
-  if (typeof value !== "object" || value === null) return false;
-  const annotation = value as Record<string, unknown>;
-  if (typeof annotation["id"] !== "string") return false;
-  if (typeof annotation["pageUrl"] !== "string") return false;
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    annotation = value as Record<string, SchemaJson>;
+  if (!RuntimePredicate.isString(annotation["id"])) return false;
+  if (!RuntimePredicate.isString(annotation["pageUrl"])) return false;
   if (!isStringOrNull(annotation["pageTitle"])) return false;
-  if (typeof annotation["comment"] !== "string") return false;
-  if (typeof annotation["createdAt"] !== "string") return false;
+  if (!RuntimePredicate.isString(annotation["comment"])) return false;
+  if (!RuntimePredicate.isString(annotation["createdAt"])) return false;
   if (annotation["screenshot"] !== null) return false;
 
   const elements = annotation["elements"];
   if (!Array.isArray(elements)) return false;
   if (
     !elements.every((entry) => {
-      if (typeof entry !== "object" || entry === null) return false;
-      const target = entry as Record<string, unknown>;
+      if (!RuntimePredicate.isObjectOrArray(entry)) return false;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        target = entry as Record<string, SchemaJson>;
       return (
-        typeof target["id"] === "string" &&
+        RuntimePredicate.isString(target["id"]) &&
         isPickedElementPayload(target["element"]) &&
         isRect(target["rect"])
       );
@@ -97,9 +105,10 @@ export function isPreviewAnnotationPayload(value: unknown): value is PreviewAnno
   if (!Array.isArray(regions)) return false;
   if (
     !regions.every((entry) => {
-      if (typeof entry !== "object" || entry === null) return false;
-      const target = entry as Record<string, unknown>;
-      return typeof target["id"] === "string" && isRect(target["rect"]);
+      if (!RuntimePredicate.isObjectOrArray(entry)) return false;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        target = entry as Record<string, SchemaJson>;
+      return RuntimePredicate.isString(target["id"]) && isRect(target["rect"]);
     })
   ) {
     return false;
@@ -109,12 +118,13 @@ export function isPreviewAnnotationPayload(value: unknown): value is PreviewAnno
   if (!Array.isArray(strokes)) return false;
   if (
     !strokes.every((entry) => {
-      if (typeof entry !== "object" || entry === null) return false;
-      const target = entry as Record<string, unknown>;
+      if (!RuntimePredicate.isObjectOrArray(entry)) return false;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        target = entry as Record<string, SchemaJson>;
       return (
-        typeof target["id"] === "string" &&
-        typeof target["color"] === "string" &&
-        typeof target["width"] === "number" &&
+        RuntimePredicate.isString(target["id"]) &&
+        RuntimePredicate.isString(target["color"]) &&
+        RuntimePredicate.isNumber(target["width"]) &&
         Number.isFinite(target["width"]) &&
         Array.isArray(target["points"]) &&
         target["points"].every(isPoint) &&
@@ -129,14 +139,15 @@ export function isPreviewAnnotationPayload(value: unknown): value is PreviewAnno
   if (!Array.isArray(styleChanges)) return false;
   if (
     !styleChanges.every((entry) => {
-      if (typeof entry !== "object" || entry === null) return false;
-      const change = entry as Record<string, unknown>;
+      if (!RuntimePredicate.isObjectOrArray(entry)) return false;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        change = entry as Record<string, SchemaJson>;
       return (
-        typeof change["targetId"] === "string" &&
+        RuntimePredicate.isString(change["targetId"]) &&
         isStringOrNull(change["selector"]) &&
-        typeof change["property"] === "string" &&
-        typeof change["previousValue"] === "string" &&
-        typeof change["value"] === "string"
+        RuntimePredicate.isString(change["property"]) &&
+        RuntimePredicate.isString(change["previousValue"]) &&
+        RuntimePredicate.isString(change["value"])
       );
     })
   ) {

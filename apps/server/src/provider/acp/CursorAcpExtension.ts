@@ -86,13 +86,7 @@ export function extractPlanMarkdown(params: typeof CursorCreatePlanRequest.Type)
   return params.plan || "# Plan\n\n(Cursor did not supply plan text.)";
 }
 
-export function extractTodosAsPlan(params: typeof CursorUpdateTodosRequest.Type): {
-  readonly explanation?: string;
-  readonly plan: ReadonlyArray<{
-    readonly step: string;
-    readonly status: "pending" | "inProgress" | "completed";
-  }>;
-} {
+export function extractTodosAsPlan(params: typeof CursorUpdateTodosRequest.Type) {
   const plan = params.todos.flatMap((todo) => {
     // Fall back to the title when content is missing OR blank. `??` only
     // covers a missing content, so a present-but-empty content ("" or

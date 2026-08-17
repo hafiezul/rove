@@ -13,7 +13,7 @@ import type * as Scope from "effect/Scope";
 /**
  * ProviderRuntimeIngestionShape - Service API for runtime ingestion lifecycle.
  */
-export interface ProviderRuntimeIngestionShape {
+export interface ProviderRuntimeIngestionContract {
   /**
    * Start ingesting provider runtime events into orchestration commands.
    *
@@ -37,5 +37,5 @@ export interface ProviderRuntimeIngestionShape {
  */
 export class ProviderRuntimeIngestionService extends Context.Service<
   ProviderRuntimeIngestionService,
-  ProviderRuntimeIngestionShape
+  ProviderRuntimeIngestionContract
 >()("t3/orchestration/Services/ProviderRuntimeIngestion/ProviderRuntimeIngestionService") {}

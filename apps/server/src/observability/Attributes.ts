@@ -1,22 +1,28 @@
 import * as Cause from "effect/Cause";
 import * as Exit from "effect/Exit";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type MetricAttributeValue = string;
 export type MetricAttributes = Readonly<Record<string, MetricAttributeValue>>;
 export type ObservabilityOutcome = "success" | "failure" | "interrupt";
 
 export function compactMetricAttributes(
-  attributes: Readonly<Record<string, unknown>>,
+  attributes: Readonly<Record<string, SchemaJson>>,
 ): MetricAttributes {
   return Object.fromEntries(
     Object.entries(attributes).flatMap(([key, value]) => {
       if (value === undefined || value === null) {
         return [];
       }
-      if (typeof value === "string") {
+      if (RuntimePredicate.isString(value)) {
         return [[key, value]];
       }
-      if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+      if (
+        RuntimePredicate.isNumber(value) ||
+        RuntimePredicate.isBoolean(value) ||
+        RuntimePredicate.isBigInt(value)
+      ) {
         return [[key, String(value)]];
       }
       return [];

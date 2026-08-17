@@ -32,11 +32,7 @@ export function resolveNewTaskLocalWorkspaceSelection(input: {
     readonly worktreePath?: string | null;
   }>;
   readonly projectCwd: string;
-}): {
-  readonly branch: string | null;
-  readonly worktreePath: string | null;
-  readonly awaitsCurrentBranch: boolean;
-} {
+}) {
   const currentBranch = input.branches.find((branch) => branch.current) ?? null;
   if (!currentBranch) {
     return {

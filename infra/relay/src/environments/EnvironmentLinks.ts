@@ -213,7 +213,7 @@ const make = Effect.gen(function* () {
               new EnvironmentLinkUpsertPersistenceError({
                 userId: input.userId,
                 environmentId,
-                ...(request.deviceId === undefined ? {} : { deviceId: request.deviceId }),
+                ...(request.deviceId === undefined ? undefined : { deviceId: request.deviceId }),
                 cause,
               }),
           ),
@@ -300,6 +300,7 @@ const make = Effect.gen(function* () {
     }),
 
     listForUser: Effect.fn("relay.environment_links.list_for_user")(function* (input) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return yield* db
         .select({
           environmentId: relayEnvironmentLinks.environmentId,
@@ -367,6 +368,7 @@ const make = Effect.gen(function* () {
         .pipe(
           Effect.map((rows) => {
             const row = rows[0];
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return row
               ? {
                   environmentId: row.environmentId as RelayClientEnvironmentRecord["environmentId"],

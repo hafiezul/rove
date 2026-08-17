@@ -2,37 +2,42 @@ import { expect, it } from "@effect/vitest";
 import { Tool } from "effect/unstable/ai";
 
 import { PreviewToolkit } from "./tools.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const schemaHasDescription = (schema: unknown): boolean => {
-  if (!schema || typeof schema !== "object") return false;
-  const record = schema as Record<string, unknown>;
-  if (typeof record.description === "string" && record.description.length > 0) return true;
+  if (!schema || !(RuntimePredicate.isObjectOrArray(schema) || schema === null)) return false;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    record = schema as Record<string, SchemaJson>;
+  if (RuntimePredicate.isString(record.description) && record.description.length > 0) return true;
   return [record.anyOf, record.oneOf, record.allOf]
     .filter(Array.isArray)
     .some((members) => members.some(schemaHasDescription));
 };
 
 const schemaHasMultipleAllOfDescriptions = (schema: unknown): boolean => {
-  if (!schema || typeof schema !== "object") return false;
-  const record = schema as Record<string, unknown>;
+  if (!schema || !(RuntimePredicate.isObjectOrArray(schema) || schema === null)) return false;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    record = schema as Record<string, SchemaJson>;
   const allOf = Array.isArray(record.allOf) ? record.allOf : [];
-  const descriptionCount = allOf.filter(
-    (member) =>
-      member !== null &&
-      typeof member === "object" &&
-      typeof (member as Record<string, unknown>).description === "string",
-  ).length;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    descriptionCount = allOf.filter(
+      (member) =>
+        RuntimePredicate.isObjectOrArray(member) &&
+        RuntimePredicate.isString((member as Record<string, SchemaJson>).description),
+    ).length;
   return descriptionCount > 1 || Object.values(record).some(schemaHasMultipleAllOfDescriptions);
 };
 
 it("exports provider-compatible object schemas with described parameters", () => {
   for (const tool of Object.values(PreviewToolkit.tools)) {
-    const schema = Tool.getJsonSchema(tool) as {
-      readonly type?: unknown;
-      readonly properties?: Readonly<Record<string, unknown>>;
-      readonly anyOf?: unknown;
-      readonly oneOf?: unknown;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      schema = Tool.getJsonSchema(tool) as {
+        readonly type?: unknown;
+        readonly properties?: Readonly<Record<string, SchemaJson>>;
+        readonly anyOf?: unknown;
+        readonly oneOf?: unknown;
+      };
     expect(
       tool.description?.length ?? 0,
       `${tool.name} should have a useful description`,

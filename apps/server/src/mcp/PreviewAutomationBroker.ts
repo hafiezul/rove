@@ -37,6 +37,7 @@ import * as Stream from "effect/Stream";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as McpInvocationContext from "./McpInvocationContext.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface PreviewAutomationInvokeInput {
   readonly scope: McpInvocationContext.McpInvocationScope;
@@ -125,7 +126,7 @@ const removeConnectionFromState = (
   current: BrokerState,
   clientId: string,
   queue: ClientConnection["queue"],
-): { readonly state: BrokerState; readonly disconnected: ReadonlyArray<PendingRequest> } => {
+) => {
   const clients = new Map(current.clients);
   const assignments = new Map(current.assignments);
   const pending = new Map(current.pending);
@@ -148,11 +149,11 @@ const removeConnectionFromState = (
 const selectorDiagnosticsFromInput = (
   input: unknown,
 ): Pick<PreviewAutomationRequestErrorContext, "selectorKind" | "selectorLength"> => {
-  if (typeof input !== "object" || input === null) return {};
-  if ("locator" in input && typeof input.locator === "string") {
+  if (!RuntimePredicate.isObjectOrArray(input)) return {};
+  if ("locator" in input && RuntimePredicate.isString(input.locator)) {
     return { selectorKind: "locator", selectorLength: input.locator.length };
   }
-  if ("selector" in input && typeof input.selector === "string") {
+  if ("selector" in input && RuntimePredicate.isString(input.selector)) {
     return { selectorKind: "selector", selectorLength: input.selector.length };
   }
   return {};
@@ -164,7 +165,7 @@ const hostAssignmentKey = (scope: McpInvocationContext.McpInvocationScope): stri
 const isPreviewTabId = Schema.is(PreviewTabId);
 
 const readResultTabId = (result: unknown): PreviewTabId | null | undefined => {
-  if (typeof result !== "object" || result === null || !("tabId" in result)) return undefined;
+  if (!RuntimePredicate.isObjectOrArray(result) || !("tabId" in result)) return undefined;
   const tabId = result.tabId;
   return tabId === null || isPreviewTabId(tabId) ? tabId : undefined;
 };
@@ -179,16 +180,10 @@ type RemoteDetailKind = "null" | "array" | "object" | "string" | "number" | "boo
 function remoteDetailKind(detail: unknown): RemoteDetailKind {
   if (detail === null) return "null";
   if (Array.isArray(detail)) return "array";
-  switch (typeof detail) {
-    case "string":
-      return "string";
-    case "number":
-      return "number";
-    case "boolean":
-      return "boolean";
-    default:
-      return "object";
-  }
+  if (RuntimePredicate.isString(detail)) return "string";
+  if (RuntimePredicate.isNumber(detail)) return "number";
+  if (RuntimePredicate.isBoolean(detail)) return "boolean";
+  return "object";
 }
 
 const classifyResponseError = (
@@ -198,7 +193,9 @@ const classifyResponseError = (
   const remoteDiagnostics = {
     remoteTag: error._tag,
     remoteMessageLength: error.message.length,
-    ...(error.detail === undefined ? {} : { remoteDetailKind: remoteDetailKind(error.detail) }),
+    ...(error.detail === undefined
+      ? undefined
+      : { remoteDetailKind: remoteDetailKind(error.detail) }),
     cause: error,
   };
   switch (error._tag) {
@@ -254,8 +251,7 @@ const classifyResponseError = (
       });
     }
     case "PreviewAutomationTargetNotEditableError": {
-      const detail =
-        typeof error.detail === "object" && error.detail !== null ? error.detail : undefined;
+      const detail = RuntimePredicate.isObjectOrArray(error.detail) ? error.detail : undefined;
       const remoteSelectorKind =
         detail &&
         "selectorKind" in detail &&
@@ -267,7 +263,7 @@ const classifyResponseError = (
       const remoteSelectorLength =
         detail &&
         "selectorLength" in detail &&
-        typeof detail.selectorLength === "number" &&
+        RuntimePredicate.isNumber(detail.selectorLength) &&
         Number.isInteger(detail.selectorLength) &&
         detail.selectorLength >= 0
           ? detail.selectorLength
@@ -276,20 +272,19 @@ const classifyResponseError = (
         ...context,
         ...remoteDiagnostics,
         ...(remoteSelectorKind === undefined && context.selectorKind === undefined
-          ? {}
+          ? undefined
           : { selectorKind: remoteSelectorKind ?? context.selectorKind }),
         ...(remoteSelectorLength === undefined && context.selectorLength === undefined
-          ? {}
+          ? undefined
           : { selectorLength: remoteSelectorLength ?? context.selectorLength }),
       });
     }
     case "PreviewAutomationResultTooLargeError": {
-      const detail =
-        typeof error.detail === "object" && error.detail !== null ? error.detail : undefined;
+      const detail = RuntimePredicate.isObjectOrArray(error.detail) ? error.detail : undefined;
       const maximumBytes =
         detail &&
         "maximumBytes" in detail &&
-        typeof detail.maximumBytes === "number" &&
+        RuntimePredicate.isNumber(detail.maximumBytes) &&
         Number.isInteger(detail.maximumBytes) &&
         detail.maximumBytes > 0
           ? detail.maximumBytes
@@ -297,7 +292,7 @@ const classifyResponseError = (
       return new PreviewAutomationResultTooLargeError({
         ...context,
         ...remoteDiagnostics,
-        ...(maximumBytes === undefined ? {} : { maximumBytes }),
+        ...(maximumBytes === undefined ? undefined : { maximumBytes }),
       });
     }
     case "PreviewAutomationUnavailableError":
@@ -505,10 +500,12 @@ export const make = Effect.gen(function* PreviewAutomationBrokerMake() {
         clientId: connection.clientId,
         connectionId: connection.connectionId,
         queue: connection.queue,
-        ...(canReuseAssignedTab && assigned.tabId !== undefined ? { tabId: assigned.tabId } : {}),
+        ...(canReuseAssignedTab && assigned.tabId !== undefined
+          ? { tabId: assigned.tabId }
+          : undefined),
         ...(canReuseAssignedTab && assigned.tabSequence !== undefined
           ? { tabSequence: assigned.tabSequence }
-          : {}),
+          : undefined),
       });
 
       const requestSequence = current.requestSequence;
@@ -524,7 +521,7 @@ export const make = Effect.gen(function* PreviewAutomationBrokerMake() {
         clientId: connection.clientId,
         connectionId: connection.connectionId,
         requestId,
-        ...(tabId === undefined ? {} : { tabId }),
+        ...(tabId === undefined ? undefined : { tabId }),
         timeoutMs,
         ...selectorDiagnostics,
       };
@@ -569,11 +566,13 @@ export const make = Effect.gen(function* PreviewAutomationBrokerMake() {
       if (!offered) {
         const completion = yield* Deferred.poll(deferred);
         if (Option.isSome(completion)) {
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           return (yield* completion.value) as A;
         }
         return yield* new PreviewAutomationRequestQueueClosedError(requestContext);
       }
       const result = yield* Deferred.await(deferred).pipe(Effect.timeoutOption(timeoutMs));
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return yield* Option.match(result, {
         onNone: () =>
           Effect.gen(function* () {
@@ -608,7 +607,7 @@ export const make = Effect.gen(function* PreviewAutomationBrokerMake() {
       } else {
         assignments.set(assignmentKey, {
           ...assignment,
-          ...(resultTabId === undefined ? {} : { tabId: resultTabId }),
+          ...(resultTabId === undefined ? undefined : { tabId: resultTabId }),
           tabSequence: requestSequence,
         });
       }

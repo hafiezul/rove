@@ -45,13 +45,13 @@ function toChangeRequest(summary: GitHubCli.GitHubPullRequestSummary): ChangeReq
         : Option.some(DateTime.makeUnsafe(summary.updatedAt)),
     ...(summary.isCrossRepository !== undefined
       ? { isCrossRepository: summary.isCrossRepository }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryNameWithOwner !== undefined
       ? { headRepositoryNameWithOwner: summary.headRepositoryNameWithOwner }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryOwnerLogin !== undefined
       ? { headRepositoryOwnerLogin: summary.headRepositoryOwnerLogin }
-      : {}),
+      : undefined),
   };
 }
 
@@ -127,7 +127,7 @@ export const make = Effect.gen(function* () {
           .listOpenPullRequests({
             cwd: input.cwd,
             headSelector: input.headSelector,
-            ...(input.limit !== undefined ? { limit: input.limit } : {}),
+            ...(input.limit !== undefined ? { limit: input.limit } : undefined),
           })
           .pipe(
             Effect.map((items) => items.map(toChangeRequest)),

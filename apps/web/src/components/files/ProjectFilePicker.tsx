@@ -15,6 +15,7 @@ import {
   PROJECT_FILE_PICKER_RESULT_LIMIT,
 } from "./ProjectFilePicker.logic";
 import { useProjectFilePickerQuery } from "./projectFilesQueryState";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface ProjectFilePickerProps {
   readonly setOpen: (open: boolean) => void;
@@ -124,7 +125,7 @@ function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveP
       inputProps={{ placeholder: "Search files…" }}
       mode="none"
       onItemHighlighted={(value) => {
-        setHighlightedItemValue(typeof value === "string" ? value : null);
+        setHighlightedItemValue(RuntimePredicate.isString(value) ? value : null);
       }}
       onValueChange={(value) => {
         setHighlightedItemValue(null);

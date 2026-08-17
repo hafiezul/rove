@@ -69,7 +69,7 @@ export type DeleteProjectionThreadMessagesInput = typeof DeleteProjectionThreadM
 /**
  * ProjectionThreadMessageRepositoryShape - Service API for projected thread messages.
  */
-export interface ProjectionThreadMessageRepositoryShape {
+export interface ProjectionThreadMessageRepositoryContract {
   /**
    * Insert or replace a projected thread message row.
    *
@@ -125,5 +125,5 @@ export interface ProjectionThreadMessageRepositoryShape {
  */
 export class ProjectionThreadMessageRepository extends Context.Service<
   ProjectionThreadMessageRepository,
-  ProjectionThreadMessageRepositoryShape
+  ProjectionThreadMessageRepositoryContract
 >()("t3/persistence/Services/ProjectionThreadMessages/ProjectionThreadMessageRepository") {}

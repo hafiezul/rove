@@ -60,17 +60,14 @@ export type RelayDpopAccessTokenClaims = Omit<typeof RelayDpopAccessTokenClaims.
 const decodeLinkChallengeClaims = Schema.decodeUnknownEffect(LinkChallengeClaims);
 const decodeDpopAccessTokenClaims = Schema.decodeUnknownEffect(RelayDpopAccessTokenClaims);
 
-const allowedScopesByClientId: Record<
-  RelayPublicClientId,
-  ReadonlySet<RelayDpopAccessTokenScope>
-> = {
+const allowedScopesByClientId = {
   [RelayMobileClientId]: new Set([
     RelayEnvironmentConnectScope,
     RelayEnvironmentStatusScope,
     RelayMobileRegistrationScope,
   ]),
   [RelayWebClientId]: new Set([RelayEnvironmentConnectScope, RelayEnvironmentStatusScope]),
-};
+} satisfies Record<RelayPublicClientId, ReadonlySet<RelayDpopAccessTokenScope>>;
 
 function resolveDpopAccessTokenScopes(input: {
   readonly clientId: RelayPublicClientId;

@@ -148,7 +148,7 @@ export const useBrowserFaviconStore = create<BrowserFaviconStoreState>()(
               [key]: {
                 dataUrl: capturedAt > (existing?.capturedAt ?? -1) ? dataUrl : existing!.dataUrl,
                 capturedAt: Math.max(capturedAt, existing?.capturedAt ?? -1),
-                ...(nextAliases.length > 0 ? { aliases: nextAliases } : {}),
+                ...(nextAliases.length > 0 ? { aliases: nextAliases } : undefined),
               },
             }),
           };

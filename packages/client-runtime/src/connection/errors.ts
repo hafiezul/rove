@@ -85,7 +85,7 @@ export function mapManagedRelayError(error: ManagedRelayClientError): Connection
       return new ConnectionTransientError({
         reason: "relay-unavailable",
         detail: error.message,
-        ...(error.traceId ? { traceId: error.traceId } : {}),
+        ...(error.traceId ? { traceId: error.traceId } : undefined),
       });
     case "ManagedRelayRequestTimeoutError":
       return new ConnectionTransientError({

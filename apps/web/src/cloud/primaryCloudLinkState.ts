@@ -24,7 +24,8 @@ const primaryCloudLinkAtomRuntime = Atom.runtime(
 );
 
 const primaryCloudLinkStateAtom = Atom.family((key: string) => {
-  const target = JSON.parse(key) as CloudLinkTarget;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    target = JSON.parse(key) as CloudLinkTarget;
   return primaryCloudLinkAtomRuntime
     .atom(readPrimaryCloudLinkState({ target }))
     .pipe(

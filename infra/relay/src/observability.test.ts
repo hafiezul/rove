@@ -61,7 +61,8 @@ it.effect("exports schema error fields as span attributes", () =>
     );
 
     const request = yield* Deferred.await(exportedRequest).pipe(Effect.timeout("1 second"));
-    const payload = (yield* decodeJson(request.body)) as OtlpTracer.TraceData;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload = (yield* decodeJson(request.body)) as OtlpTracer.TraceData;
     const span = payload.resourceSpans
       .flatMap((resourceSpan) => resourceSpan.scopeSpans)
       .flatMap((scopeSpan) => scopeSpan.spans)

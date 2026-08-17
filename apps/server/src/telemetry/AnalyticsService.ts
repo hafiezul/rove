@@ -22,10 +22,11 @@ import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import { getTelemetryIdentifier } from "./Identify.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface BufferedAnalyticsEvent {
   readonly event: string;
-  readonly properties?: Readonly<Record<string, unknown>>;
+  readonly properties?: Readonly<Record<string, SchemaJson>>;
   readonly capturedAt: string;
 }
 
@@ -50,7 +51,7 @@ export class AnalyticsService extends Context.Service<
     /** Record an anonymous event for best-effort buffered delivery. */
     readonly record: (
       event: string,
-      properties?: Readonly<Record<string, unknown>>,
+      properties?: Readonly<Record<string, SchemaJson>>,
     ) => Effect.Effect<void>;
 
     /** Flush all currently queued telemetry events. */
@@ -93,14 +94,14 @@ export const make = Effect.gen(function* () {
   const hostPlatform = yield* HostProcessPlatform;
   const hostArchitecture = yield* HostProcessArchitecture;
 
-  const enqueueBufferedEvent = (event: string, properties?: Readonly<Record<string, unknown>>) =>
+  const enqueueBufferedEvent = (event: string, properties?: Readonly<Record<string, SchemaJson>>) =>
     Effect.flatMap(DateTime.now, (now) =>
       Ref.modify(bufferRef, (current) => {
         const appended = [
           ...current,
           {
             event,
-            ...(properties ? { properties } : {}),
+            ...(properties ? { properties } : undefined),
             capturedAt: DateTime.formatIso(now),
           } satisfies BufferedAnalyticsEvent,
         ];

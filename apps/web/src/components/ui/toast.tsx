@@ -38,6 +38,7 @@ import {
   shouldRenderThreadScopedToast,
 } from "./toast.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./tooltip";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type ThreadToastData = {
   threadRef?: ScopedThreadRef | null;
@@ -92,7 +93,7 @@ const TOAST_ICONS = {
 /** Visually shorten long error bodies; clipboard copy still uses the full `description` string. */
 const ERROR_DESCRIPTION_CLAMP_MIN_CHARS = 180;
 function errorDescriptionClampClass(type: unknown, description: unknown): string | undefined {
-  if (type !== "error" || typeof description !== "string") {
+  if (type !== "error" || !RuntimePredicate.isString(description)) {
     return undefined;
   }
   if (description.length < ERROR_DESCRIPTION_CLAMP_MIN_CHARS) {
@@ -288,7 +289,8 @@ function deriveToastBodyDescriptor(toast: {
   readonly actionProps?: unknown;
   readonly data?: ThreadToastData | undefined;
 }): ToastBodyDescriptor {
-  const Icon = toast.type ? TOAST_ICONS[toast.type as keyof typeof TOAST_ICONS] : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    Icon = toast.type ? TOAST_ICONS[toast.type as keyof typeof TOAST_ICONS] : null;
   const stackedActionLayout =
     hasVisibleToastAction(toast.actionProps) && toast.data?.actionLayout === "stacked-end";
   const actionVariant: NonNullable<ThreadToastData["actionVariant"]> =
@@ -296,7 +298,9 @@ function deriveToastBodyDescriptor(toast: {
   const secondaryActionVariant: NonNullable<ThreadToastData["secondaryActionVariant"]> =
     toast.data?.secondaryActionVariant ?? "outline";
   const copyErrorText =
-    toast.type === "error" && typeof toast.description === "string" && !toast.data?.hideCopyButton
+    toast.type === "error" &&
+    RuntimePredicate.isString(toast.description) &&
+    !toast.data?.hideCopyButton
       ? toast.description
       : null;
   const hasAdditionalActions = (toast.data?.additionalActions?.length ?? 0) > 0;

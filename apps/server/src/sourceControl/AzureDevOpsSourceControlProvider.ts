@@ -92,9 +92,9 @@ export const make = Effect.gen(function* () {
         .listPullRequests({
           cwd: input.cwd,
           headSelector: input.headSelector,
-          ...(source !== undefined ? { source } : {}),
+          ...(source !== undefined ? { source } : undefined),
           state: input.state,
-          ...(input.limit !== undefined ? { limit: input.limit } : {}),
+          ...(input.limit !== undefined ? { limit: input.limit } : undefined),
         })
         .pipe(
           Effect.map((items) => items.map(toChangeRequest)),
@@ -139,8 +139,8 @@ export const make = Effect.gen(function* () {
           cwd: input.cwd,
           baseBranch: input.baseRefName,
           headSelector: input.headSelector,
-          ...(source !== undefined ? { source } : {}),
-          ...(input.target !== undefined ? { target: input.target } : {}),
+          ...(source !== undefined ? { source } : undefined),
+          ...(input.target !== undefined ? { target: input.target } : undefined),
           title: input.title,
           bodyFile: input.bodyFile,
         })
@@ -214,7 +214,7 @@ export const make = Effect.gen(function* () {
         .checkoutPullRequest({
           cwd: input.cwd,
           reference: input.reference,
-          ...(input.context !== undefined ? { remoteName: input.context.remoteName } : {}),
+          ...(input.context !== undefined ? { remoteName: input.context.remoteName } : undefined),
         })
         .pipe(
           Effect.mapError(

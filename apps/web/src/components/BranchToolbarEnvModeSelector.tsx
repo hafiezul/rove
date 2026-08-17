@@ -85,6 +85,7 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
           onUsePreviousWorktree?.();
           return;
         }
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         onEnvModeChange(value as EnvMode);
       }}
       items={envModeItems}

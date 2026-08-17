@@ -24,7 +24,7 @@ it.layer(NodeServices.layer)("effect-codex-app-server client", (it) => {
       const peerCwd = path.join(import.meta.dirname, "..");
       const command = ChildProcess.make(process.execPath, mockPeerArgs(yield* mockPeerPath), {
         cwd: peerCwd,
-        ...(env ? { env: { ...process.env, ...env } } : {}),
+        ...(env ? { env: { ...process.env, ...env } } : undefined),
       });
       return yield* spawner.spawn(command);
     });

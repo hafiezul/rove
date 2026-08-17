@@ -10,6 +10,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
 import * as Electron from "electron";
+import * as RuntimePredicate from "effect/Predicate";
 
 // Remote open-in-editor deep links (`vscode://vscode-remote/ssh-remote+…`,
 // `zed://ssh/<host>/<path>`) must reach the OS handler; every other non-web
@@ -36,7 +37,7 @@ const isRemoteEditorUrl = (url: URL) =>
       url.pathname.length > "/ssh-remote+".length);
 
 export function parseSafeExternalUrl(rawUrl: unknown): Option.Option<string> {
-  if (typeof rawUrl !== "string") {
+  if (!RuntimePredicate.isString(rawUrl)) {
     return Option.none();
   }
 

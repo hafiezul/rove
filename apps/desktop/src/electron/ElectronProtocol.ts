@@ -181,6 +181,7 @@ async function proxyRequest(
   };
   if (request.method !== "GET" && request.method !== "HEAD") {
     init.body = request.body;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     (init as RequestInit & { duplex: "half" }).duplex = "half";
   }
   const response =

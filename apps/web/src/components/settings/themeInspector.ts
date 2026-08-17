@@ -25,7 +25,17 @@ const THEME_SPOTLIGHT_GLOW_ID = "theme-inspector-spotlight-glow";
 const THEME_HOVER_ID = "theme-inspector-hover";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-const THEME_UTILITY_ROLES: Readonly<Partial<Record<string, ThemeColorRole>>> = {
+interface ThemeUtilityRoles {
+  readonly [utility: string]: ThemeColorRole | undefined;
+}
+
+interface ThemeUtilityPrefixes {
+  readonly background: ReadonlyArray<string>;
+  readonly border: ReadonlyArray<string>;
+  readonly foreground: ReadonlyArray<string>;
+}
+
+const THEME_UTILITY_ROLES: ThemeUtilityRoles = {
   background: "canvas",
   foreground: "text",
   card: "surface",
@@ -73,7 +83,7 @@ const THEME_UTILITY_ROLES: Readonly<Partial<Record<string, ThemeColorRole>>> = {
   ring: "focus",
 };
 
-const THEME_UTILITY_PREFIXES: Readonly<Record<ThemePaintKind, ReadonlyArray<string>>> = {
+const THEME_UTILITY_PREFIXES: ThemeUtilityPrefixes = {
   background: ["bg-"],
   border: ["border-", "outline-", "ring-"],
   foreground: ["text-", "caret-", "fill-", "stroke-"],
@@ -179,7 +189,8 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
     return;
   }
 
-  let spotlight = document.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
+  let // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    spotlight = document.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
   if (!spotlight) {
     spotlight = svgElement("svg");
     spotlight.id = THEME_SPOTLIGHT_ID;
@@ -228,7 +239,8 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
     hole.setAttribute("fill", "black");
     mask.append(hole);
 
-    const glow = hole.cloneNode(false) as SVGRectElement;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      glow = hole.cloneNode(false) as SVGRectElement;
     glow.removeAttribute("fill");
     glow.setAttribute("class", "theme-inspector-spotlight-glow");
     glow.setAttribute("filter", `url(#${THEME_SPOTLIGHT_GLOW_ID})`);

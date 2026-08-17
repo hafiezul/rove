@@ -7,6 +7,7 @@ import {
 } from "../diffs/nativeReviewDiffHighlighter";
 import type { NativeReviewDiffRow } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffFile } from "../diffs/nativeReviewDiffTypes";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface NativeReviewVisibleRange {
   readonly firstRowIndex: number;
@@ -21,7 +22,7 @@ function isReviewDiffDebugLoggingEnabled(): boolean {
   return typeof __DEV__ !== "undefined" ? __DEV__ : false;
 }
 
-function logReviewDiffDiagnostic(message: string, details?: Record<string, unknown>): void {
+function logReviewDiffDiagnostic(message: string, details?: Record<string, SchemaJson>): void {
   if (!isReviewDiffDebugLoggingEnabled()) {
     return;
   }
@@ -108,7 +109,7 @@ export function useNativeReviewDiffHighlighting(input: {
       } catch (error) {
         if (!abortController.signal.aborted) {
           logReviewDiffDiagnostic("native visible highlight failed", {
-            error,
+            errorMessage: error instanceof Error ? error.message : String(error),
             resetKey,
             scheme,
             firstRowIndex: requestRange.firstRowIndex,

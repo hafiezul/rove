@@ -56,11 +56,12 @@ export const OrchestrationRuntimeReceipt = Schema.Union([
 ]);
 export type OrchestrationRuntimeReceipt = typeof OrchestrationRuntimeReceipt.Type;
 
-export interface RuntimeReceiptBusShape {
+export interface RuntimeReceiptBusContract {
   readonly publish: (receipt: OrchestrationRuntimeReceipt) => Effect.Effect<void>;
   readonly streamEventsForTest: Stream.Stream<OrchestrationRuntimeReceipt>;
 }
 
-export class RuntimeReceiptBus extends Context.Service<RuntimeReceiptBus, RuntimeReceiptBusShape>()(
-  "t3/orchestration/Services/RuntimeReceiptBus",
-) {}
+export class RuntimeReceiptBus extends Context.Service<
+  RuntimeReceiptBus,
+  RuntimeReceiptBusContract
+>()("t3/orchestration/Services/RuntimeReceiptBus") {}

@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 export interface ParsedCliArgs {
   readonly flags: Record<string, string | null>;
   readonly positionals: string[];
@@ -89,7 +90,7 @@ export function parseCliArgs(
   args: string | readonly string[],
   options?: ParseCliArgsOptions,
 ): ParsedCliArgs {
-  const tokens = typeof args === "string" ? tokenizeCliArgs(args) : Array.from(args);
+  const tokens = RuntimePredicate.isString(args) ? tokenizeCliArgs(args) : Array.from(args);
   const booleanSet = options?.booleanFlags ? new Set(options.booleanFlags) : undefined;
 
   const flags: Record<string, string | null> = {};

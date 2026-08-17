@@ -7,6 +7,7 @@ import * as Stream from "effect/Stream";
 import { ChildProcessSpawner } from "effect/unstable/process";
 
 import * as CodexError from "../errors.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const encoder = new TextEncoder();
 
@@ -16,7 +17,7 @@ export const makeChildStdio = (handle: ChildProcessSpawner.ChildProcessHandle) =
     stdin: handle.stdout,
     stdout: () =>
       Sink.mapInput(handle.stdin, (chunk: string | Uint8Array) =>
-        typeof chunk === "string" ? encoder.encode(chunk) : chunk,
+        RuntimePredicate.isString(chunk) ? encoder.encode(chunk) : chunk,
       ),
     stderr: () => Sink.drain,
   });
@@ -34,7 +35,7 @@ export const makeInMemoryStdio = Effect.fn("makeInMemoryStdio")(function* () {
         Sink.forEach((chunk: string | Uint8Array) =>
           Queue.offer(
             output,
-            typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }),
+            RuntimePredicate.isString(chunk) ? chunk : decoder.decode(chunk, { stream: true }),
           ),
         ),
       stderr: () => Sink.drain,

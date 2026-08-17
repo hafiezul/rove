@@ -102,8 +102,8 @@ export function normalizeBitbucketPullRequestRecord(
     state: normalizeBitbucketPullRequestState(raw.state),
     ...(raw.draft === true ? { isDraft: true } : {}),
     updatedAt: raw.updated_on ?? Option.none(),
-    ...(isCrossRepository ? { isCrossRepository: true } : {}),
-    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : {}),
-    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : {}),
+    ...(isCrossRepository ? { isCrossRepository: true } : undefined),
+    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : undefined),
+    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : undefined),
   };
 }

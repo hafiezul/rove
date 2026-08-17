@@ -345,8 +345,9 @@ describe("DesktopConnectionCatalogStore", () => {
           error.cause,
           DesktopSavedEnvironments.DesktopSavedEnvironmentsDocumentDecodeError,
         );
-        const registryError =
-          error.cause as DesktopSavedEnvironments.DesktopSavedEnvironmentsDocumentDecodeError;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          registryError =
+            error.cause as DesktopSavedEnvironments.DesktopSavedEnvironmentsDocumentDecodeError;
         assert.exists(registryError.cause);
         assert.equal(
           error.message,
@@ -408,7 +409,8 @@ describe("DesktopConnectionCatalogStore", () => {
       assert.equal(error.operation, "decrypt-catalog");
       assert.equal(error.catalogPath, path.join(baseDir, "userdata", "connection-catalog.json"));
       assert.instanceOf(error.cause, ElectronSafeStorage.ElectronSafeStorageDecryptError);
-      const decryptError = error.cause as ElectronSafeStorage.ElectronSafeStorageDecryptError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        decryptError = error.cause as ElectronSafeStorage.ElectronSafeStorageDecryptError;
       assert.instanceOf(decryptError.cause, Error);
       assert.equal(decryptError.cause.message, "invalid encrypted catalog");
       assert.equal(

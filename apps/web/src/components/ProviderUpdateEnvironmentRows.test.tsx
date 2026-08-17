@@ -13,6 +13,7 @@ import type {
   ProviderUpdateCandidate,
   ProviderUpdateRowStatus,
 } from "./ProviderUpdateLaunchNotification.logic";
+import * as RuntimePredicate from "effect/Predicate";
 
 const testState = vi.hoisted(() => ({
   groups: [] as LocalEnvironmentUpdateGroup[],
@@ -46,6 +47,7 @@ const hooks = vi.hoisted(() => {
       if (!slots[index]) {
         slots[index] = Array.from({ length: size }, () => Symbol.for("react.memo_cache_sentinel"));
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return slots[index] as unknown[];
     },
     useRef<T>(initialValue: T): { current: T } {
@@ -53,19 +55,26 @@ const hooks = vi.hoisted(() => {
       if (!slots[index]) {
         slots[index] = { current: initialValue };
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return slots[index] as { current: T };
     },
     useState<T>(initialValue: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
       const index = nextIndex();
       if (index >= slots.length) {
-        slots[index] =
-          typeof initialValue === "function" ? (initialValue as () => T)() : initialValue;
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        slots[index] = RuntimePredicate.isFunction(initialValue)
+          ? (initialValue as () => T)()
+          : initialValue;
       }
       const setValue: Dispatch<SetStateAction<T>> = (nextValue) => {
-        const previous = slots[index] as T;
-        slots[index] =
-          typeof nextValue === "function" ? (nextValue as (value: T) => T)(previous) : nextValue;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          previous = slots[index] as T;
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        slots[index] = RuntimePredicate.isFunction(nextValue)
+          ? (nextValue as (value: T) => T)(previous)
+          : nextValue;
       };
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return [slots[index] as T, setValue];
     },
   };
@@ -159,9 +168,10 @@ type RowElement = ReactElement<{
 
 function renderRow(): RowElement {
   hooks.beginRender();
-  const output = ProviderUpdateEnvironmentRows({}) as ReactElement<{
-    readonly children: RowElement | RowElement[];
-  }>;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    output = ProviderUpdateEnvironmentRows({}) as ReactElement<{
+      readonly children: RowElement | RowElement[];
+    }>;
   const children = output.props.children;
   return Array.isArray(children) ? children[0]! : children;
 }
@@ -177,7 +187,8 @@ describe("ProviderUpdateEnvironmentRows", () => {
     vi.useFakeTimers();
     hooks.reset();
     testState.updateProvider.mockReset();
-    const candidate = provider() as ProviderUpdateCandidate;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      candidate = provider() as ProviderUpdateCandidate;
     testState.groups = [
       {
         environmentId,

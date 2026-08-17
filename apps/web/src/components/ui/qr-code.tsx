@@ -62,13 +62,15 @@ export const QRCodeSvg = memo(function QRCodeSvg({
   const qrCode = QrCode.encodeText(value, ERROR_CORRECTION_LEVELS[level]);
   const viewBoxSize = qrCode.size + marginSize * 2;
 
+  const svgAttributes = { ["shapeRendering"]: "crispEdges" } as const;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       width={size}
       height={size}
-      shapeRendering="crispEdges"
+      {...svgAttributes}
       role={title ? "img" : undefined}
       aria-label={title}
       className={className}

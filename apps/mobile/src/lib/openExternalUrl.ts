@@ -24,7 +24,7 @@ export class ExternalUrlOpenError extends Schema.TaggedError<ExternalUrlOpenErro
   }
 }
 
-function externalUrlMetadata(url: string): { readonly scheme: string; readonly host?: string } {
+function externalUrlMetadata(url: string) {
   try {
     const parsed = new URL(url);
     return {
