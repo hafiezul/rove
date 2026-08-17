@@ -147,6 +147,8 @@ interface PiSessionContext {
   readonly session: PiSessionLike;
   readonly cwd: string;
   activeTurnId: TurnId | undefined;
+  /** Deferred error from a failed assistant message, held until we know whether Pi will auto-retry. */
+  pendingTurnError: string | undefined;
   unsubscribe: () => void;
 }
 
@@ -253,7 +255,10 @@ export function makePiAdapter(
         switch (event.type) {
           case "turn_start": {
             // Pi turn ids are positional; Rove mints its own turn id at
-            // turn.started, so nothing to correlate here yet.
+            // turn.started, so nothing to correlate here yet. A retry also
+            // emits turn_start — clear any stale deferred error from the
+            // previous attempt.
+            ctx.pendingTurnError = undefined;
             if (ctx.activeTurnId !== undefined) {
               yield* offerRuntimeEvent({
                 ...base,
@@ -309,21 +314,13 @@ export function makePiAdapter(
               message.stopReason === "error" &&
               ctx.activeTurnId !== undefined
             ) {
-              const turnId = ctx.activeTurnId;
-              ctx.activeTurnId = undefined;
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "turn.completed",
-                turnId,
-                payload: {
-                  state: "failed",
-                  errorMessage:
-                    typeof message.errorMessage === "string" &&
-                    message.errorMessage.trim().length > 0
-                      ? message.errorMessage
-                      : "Pi assistant response failed.",
-                },
-              });
+              // Don't emit turn.completed yet — Pi may auto-retry transient
+              // errors (502, 503, 429, timeouts). The error is deferred until
+              // agent_end tells us whether the retry loop will run.
+              ctx.pendingTurnError =
+                typeof message.errorMessage === "string" && message.errorMessage.trim().length > 0
+                  ? message.errorMessage
+                  : "Pi assistant response failed.";
             }
             return;
           }
@@ -357,10 +354,39 @@ export function makePiAdapter(
             });
             return;
           }
+          case "agent_end": {
+            const willRetry = event.willRetry === true;
+            if (
+              !willRetry &&
+              ctx.pendingTurnError !== undefined &&
+              ctx.activeTurnId !== undefined
+            ) {
+              // Terminal error — Pi is not retrying. Emit the deferred failure.
+              const turnId = ctx.activeTurnId;
+              const errorMessage = ctx.pendingTurnError;
+              ctx.activeTurnId = undefined;
+              ctx.pendingTurnError = undefined;
+              yield* offerRuntimeEvent({
+                ...base,
+                type: "turn.completed",
+                turnId,
+                payload: { state: "failed", errorMessage },
+              });
+            }
+            return;
+          }
+          case "auto_retry_end": {
+            // A successful retry means the pending error is stale — clear it.
+            if (event.success === true) {
+              ctx.pendingTurnError = undefined;
+            }
+            return;
+          }
           case "agent_settled": {
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               ctx.activeTurnId = undefined;
+              ctx.pendingTurnError = undefined;
               yield* offerRuntimeEvent({
                 ...base,
                 type: "turn.completed",
@@ -421,8 +447,10 @@ export function makePiAdapter(
           session,
           cwd,
           activeTurnId: undefined,
+          pendingTurnError: undefined,
           unsubscribe: () => {},
         };
+        ctx.pendingTurnError = undefined;
         ctx.unsubscribe = session.subscribe((event) => {
           runFork(handleSdkEvent(ctx, event));
         });
@@ -564,6 +592,7 @@ export function makePiAdapter(
         if (ctx.activeTurnId !== undefined) {
           const turnId = ctx.activeTurnId;
           ctx.activeTurnId = undefined;
+          ctx.pendingTurnError = undefined;
           yield* offerRuntimeEvent({
             ...(yield* makeEventStamp()),
             provider: PROVIDER,
