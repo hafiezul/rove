@@ -26,3 +26,7 @@ _Avoid_: Pi rollback
 **Driver**:
 The per-provider integration unit registered in `BUILT_IN_DRIVERS` (config schema + factory producing snapshot, adapter, and text-generation closures).
 _Avoid_: plugin, integration
+
+**Reasoning stream**:
+The provider's internal monologue for a turn (Pi `thinking_delta`, Claude/Codex thinking blocks), carried as `content.delta` events with `streamKind: "reasoning_text"`. Rendered as one collapsible `turn.reasoning` timeline activity per turn, updated in place while the turn runs and finalized when the turn settles. Never part of the assistant message text.
+_Avoid_: thought process, chain-of-thought, scratchpad
