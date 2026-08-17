@@ -73,6 +73,8 @@ export interface ThreadFeedActivity {
     | "wrench"
     | "zap";
   readonly toolLike: boolean;
+  /** True only for a provider reasoning phase; it separates work-log groups. */
+  readonly reasoning?: boolean;
   readonly status: "success" | "failure" | "neutral" | null;
   readonly lifecycleStatus?: WorkLogToolLifecycleStatus;
   readonly workEntry: WorkLogEntry;
@@ -1565,6 +1567,7 @@ function groupAdjacentActivities(entries: ReadonlyArray<RawThreadFeedEntry>): Th
     }
 
     const isStandalone =
+      entry.activity.reasoning === true ||
       entry.activity.workEntry.sourceActivityKind === "context-compaction" ||
       entry.activity.workEntry.questionAnswer !== undefined;
     if (isStandalone || firstActivityEntry?.turnId !== entry.turnId) {
@@ -1661,7 +1664,6 @@ function deriveThreadFeedTurnFolds(
     group.entries.push(entry);
   }
 
-  const unsettledTurnId = deriveUnsettledTurnId(latestTurn);
   const foldsByAnchorId = new Map<string, ThreadFeedTurnFold>();
   for (const [turnId, group] of groupsByTurnId) {
     const { entries } = group;
@@ -2275,6 +2277,7 @@ function toThreadFeedActivityEntry(
       getFullDetail,
       getCopyText,
       icon: workEntryIcon(entry),
+      reasoning: entry.activityKind === "turn.reasoning",
       toolLike: workLogEntryIsToolLike(entry),
       status: workEntryStatus(entry),
       ...(entry.toolLifecycleStatus ? { lifecycleStatus: entry.toolLifecycleStatus } : {}),

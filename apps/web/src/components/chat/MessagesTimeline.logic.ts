@@ -1101,6 +1101,7 @@ export function deriveMessagesTimelineRows(input: {
         continue;
       }
       const groupedEntries = [timelineEntry.entry];
+      const startsReasoningPhase = timelineEntry.entry.sourceActivityKind === "turn.reasoning";
       let cursor = index + 1;
       while (cursor < input.timelineEntries.length) {
         const nextEntry = input.timelineEntries[cursor];
@@ -1113,7 +1114,9 @@ export function deriveMessagesTimelineRows(input: {
           nextEntry.entry.tone === "error" ||
           activeWorkEntryIds.has(nextEntry.id) ||
           collapsedEntryIds.has(nextEntry.id) ||
-          foldsByAnchorEntryId.has(nextEntry.id)
+          foldsByAnchorEntryId.has(nextEntry.id) ||
+          startsReasoningPhase ||
+          nextEntry.entry.sourceActivityKind === "turn.reasoning"
         ) {
           break;
         }

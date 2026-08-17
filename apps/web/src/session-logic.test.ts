@@ -22,6 +22,8 @@ import {
   selectHandoffImageResources,
   selectMessageImageResources,
   workEntryIndicatesToolNeutralStatus,
+  workEntryIndicatesToolSuccess,
+  workLogEntryIsToolLike,
 } from "./session-logic";
 
 let nextActivityId = 0;
@@ -693,6 +695,7 @@ describe("deriveWorkLogEntries", () => {
       tone: "thinking",
       detail: "Done — reviewed and green.",
     });
+    expect(workLogEntryIsToolLike(entries[0]!)).toBe(false);
   });
 
   it("uses payload summary as label for task entries when available", () => {

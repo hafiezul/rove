@@ -45,6 +45,94 @@ import {
 import { isImageAttachment, type ChatMessage, type TurnDiffSummary } from "../../types";
 
 describe("streaming row projection", () => {
+  it("keeps reasoning phases and every completed tool visible in an active turn", () => {
+    const turnId = "turn-1" as never;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "thinking-one-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:01Z",
+          entry: {
+            id: "thinking-one",
+            createdAt: "2026-01-01T00:00:01Z",
+            turnId,
+            label: "Reasoned",
+            detail: "Inspecting the adapter.",
+            tone: "thinking",
+            sourceActivityKind: "turn.reasoning",
+          },
+        },
+        ...["bash-one", "read-one", "edit-one"].map((id, index) => ({
+          id: `${id}-entry`,
+          kind: "work" as const,
+          createdAt: `2026-01-01T00:00:0${index + 2}Z`,
+          entry: {
+            id,
+            createdAt: `2026-01-01T00:00:0${index + 2}Z`,
+            turnId,
+            label: id.split("-")[0]!,
+            tone: "tool" as const,
+          },
+        })),
+        {
+          id: "thinking-two-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:05Z",
+          entry: {
+            id: "thinking-two",
+            createdAt: "2026-01-01T00:00:05Z",
+            turnId,
+            label: "Reasoned",
+            detail: "Verifying the change.",
+            tone: "thinking",
+            sourceActivityKind: "turn.reasoning",
+          },
+        },
+        {
+          id: "bash-two-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:06Z",
+          entry: {
+            id: "bash-two",
+            createdAt: "2026-01-01T00:00:06Z",
+            turnId,
+            label: "bash",
+            tone: "tool",
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "running",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:00:00Z",
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+
+    expect(rows.map((row) => row.id)).toEqual([
+      "thinking-one-entry",
+      "bash-one",
+      "read-one",
+      "edit-one",
+      "thinking-two-entry",
+      "bash-two-entry",
+      "working-indicator-row",
+    ]);
+    expect(rows.some((row) => row.kind === "work-toggle")).toBe(false);
+    expect(
+      rows
+        .filter(
+          (row): row is Extract<(typeof rows)[number], { kind: "work" }> => row.kind === "work",
+        )
+        .map((row) => row.groupedEntries[0]?.sourceActivityKind),
+    ).toEqual(["turn.reasoning", undefined, undefined, undefined, "turn.reasoning", undefined]);
+  });
+
   function fixture(text = "") {
     const turnId = TurnId.make("live-turn");
     const historyTurnId = TurnId.make("history-turn");

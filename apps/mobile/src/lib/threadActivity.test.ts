@@ -77,6 +77,83 @@ const nativeQuestion = {
 } as const;
 
 describe("pending user input answers", () => {
+  it("keeps reasoning phases between every visible tool in an active turn", () => {
+    const turnId = TurnId.make("turn-reasoning-phases");
+    const thread = makeThread({
+      id: ThreadId.make("thread-reasoning-phases"),
+      projectId: ProjectId.make("project-1"),
+      title: "Reasoning phases",
+      latestTurn: {
+        turnId,
+        state: "running",
+        requestedAt: "2026-04-01T00:00:00.000Z",
+        startedAt: "2026-04-01T00:00:00.000Z",
+        completedAt: null,
+        assistantMessageId: null,
+      },
+      activities: [
+        makeActivity({
+          id: EventId.make("thinking-one"),
+          kind: "turn.reasoning",
+          summary: "Reasoned",
+          createdAt: "2026-04-01T00:00:01.000Z",
+          turnId,
+          payload: { detail: "Inspecting the adapter.", streaming: false },
+        }),
+        ...["bash-one", "read-one", "edit-one"].map((id, index) =>
+          makeActivity({
+            id: EventId.make(id),
+            kind: "tool.completed",
+            tone: "tool",
+            summary: id.split("-")[0]!,
+            createdAt: `2026-04-01T00:00:0${index + 2}.000Z`,
+            turnId,
+            payload: {
+              itemType: "command_execution",
+              status: "completed",
+              title: id.split("-")[0]!,
+            },
+          }),
+        ),
+        makeActivity({
+          id: EventId.make("thinking-two"),
+          kind: "turn.reasoning",
+          summary: "Reasoned",
+          createdAt: "2026-04-01T00:00:05.000Z",
+          turnId,
+          payload: { detail: "Verifying the change.", streaming: false },
+        }),
+        makeActivity({
+          id: EventId.make("bash-two"),
+          kind: "tool.completed",
+          tone: "tool",
+          summary: "bash",
+          createdAt: "2026-04-01T00:00:06.000Z",
+          turnId,
+          payload: { itemType: "command_execution", status: "completed", title: "bash" },
+        }),
+      ],
+    });
+
+    const feed = buildThreadFeed(thread);
+    const presented = deriveThreadFeedPresentation(feed, thread.latestTurn, new Set());
+
+    expect(presented.map((entry) => entry.id)).toEqual([
+      "thinking-one",
+      "bash-one",
+      "read-one",
+      "edit-one",
+      "thinking-two",
+      "bash-two",
+    ]);
+    expect(presented.some((entry) => entry.type === "work-toggle")).toBe(false);
+    expect(feed.filter((entry) => entry.type === "activity-group")).toHaveLength(4);
+    expect(feed[0]).toMatchObject({
+      type: "activity-group",
+      activities: [{ reasoning: true, toolLike: false }],
+    });
+  });
+
   it("accepts free-text answers to async questions without options", () => {
     const question = {
       id: "0",
@@ -357,8 +434,7 @@ describe("buildThreadFeed", () => {
           summary: "Reasoned",
           createdAt: "2026-04-01T00:00:02.000Z",
           turnId: TurnId.make("turn-1"),
-          payload: { detail: "Done — reviewed and green.",
-      status: null, streaming: false },
+          payload: { detail: "Done — reviewed and green.", streaming: false },
         }),
       ],
     });
