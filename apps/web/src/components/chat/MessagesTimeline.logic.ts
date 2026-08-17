@@ -501,6 +501,7 @@ export function deriveMessagesTimelineRows(input: {
 
     if (timelineEntry.kind === "work") {
       const groupedEntries = [timelineEntry.entry];
+      const startsReasoningPhase = timelineEntry.entry.sourceActivityKind === "turn.reasoning";
       let cursor = index + 1;
       while (cursor < input.timelineEntries.length) {
         const nextEntry = input.timelineEntries[cursor];
@@ -508,7 +509,9 @@ export function deriveMessagesTimelineRows(input: {
           !nextEntry ||
           nextEntry.kind !== "work" ||
           collapsedEntryIds.has(nextEntry.id) ||
-          foldsByAnchorEntryId.has(nextEntry.id)
+          foldsByAnchorEntryId.has(nextEntry.id) ||
+          startsReasoningPhase ||
+          nextEntry.entry.sourceActivityKind === "turn.reasoning"
         ) {
           break;
         }
@@ -519,7 +522,30 @@ export function deriveMessagesTimelineRows(input: {
         (entry) => !workEntryIndicatesToolNeutralStatus(entry),
       );
       if (visibleGroupedEntries.length > 0) {
-        if (visibleGroupedEntries.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {
+        // An active turn is its own progress display. Keep every completed
+        // tool row visible between reasoning phases; settled turns retain the
+        // compact disclosure to avoid expanding historic conversations.
+        const keepLiveWorkEntriesExpanded =
+          unsettledTurnId !== null && timelineEntry.entry.turnId === unsettledTurnId;
+        if (keepLiveWorkEntriesExpanded) {
+          if (visibleGroupedEntries.length === 1) {
+            nextRows.push({
+              kind: "work",
+              id: timelineEntry.id,
+              createdAt: timelineEntry.createdAt,
+              groupedEntries: visibleGroupedEntries,
+            });
+          } else {
+            for (const workEntry of visibleGroupedEntries) {
+              nextRows.push({
+                kind: "work",
+                id: workEntry.id,
+                createdAt: workEntry.createdAt,
+                groupedEntries: [workEntry],
+              });
+            }
+          }
+        } else if (visibleGroupedEntries.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {
           nextRows.push({
             kind: "work",
             id: timelineEntry.id,
