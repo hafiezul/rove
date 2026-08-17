@@ -446,7 +446,10 @@ const addCurrentSpanEvent = (name: string, attributes: Record<string, SchemaJson
     }),
   );
 
-function trace2ChildKey(record: Record<string, SchemaJson>): string | null {
+const Trace2RecordSchema = Schema.Record(Schema.String, Schema.Unknown);
+type Trace2Record = typeof Trace2RecordSchema.Type;
+
+function trace2ChildKey(record: Trace2Record): string | null {
   const childId = record.child_id;
   if (RuntimePredicate.isNumber(childId) || RuntimePredicate.isString(childId)) {
     return String(childId);
@@ -454,8 +457,6 @@ function trace2ChildKey(record: Record<string, SchemaJson>): string | null {
   const hookName = record.hook_name;
   return RuntimePredicate.isString(hookName) && hookName.trim().length > 0 ? hookName.trim() : null;
 }
-
-const Trace2Record = Schema.Record(Schema.String, Schema.Unknown);
 
 const createTrace2Monitor = Effect.fn("createTrace2Monitor")(function* (
   input: Pick<GitVcsDriver.ExecuteGitInput, "operation" | "cwd" | "args">,
@@ -490,7 +491,7 @@ const createTrace2Monitor = Effect.fn("createTrace2Monitor")(function* (
       return;
     }
 
-    const traceRecord = decodeJsonResult(Trace2Record)(trimmedLine);
+    const traceRecord = decodeJsonResult(Trace2RecordSchema)(trimmedLine);
     if (Result.isFailure(traceRecord)) {
       yield* Effect.logDebug(
         `GitVcsDriver.trace2: failed to parse trace line for ${input.operation} in ${input.cwd} (${input.args.length} arguments)`,

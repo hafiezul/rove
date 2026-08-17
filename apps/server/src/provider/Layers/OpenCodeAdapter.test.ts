@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 import * as NodeAssert from "node:assert/strict";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
@@ -138,7 +139,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
     }),
   runOpenCodeCommand: () => Effect.succeed({ stdout: "", stderr: "", code: 0 }),
   createOpenCodeSdkClient: ({ baseUrl, serverPassword }) =>
-    ({
+    testDouble<ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>>({
       session: {
         create: async (input: Record<string, SchemaJson>) => {
           runtimeMock.state.sessionCreateUrls.push(baseUrl);
@@ -217,7 +218,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
           })(),
         }),
       },
-    }) as ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>,
+    }),
   loadOpenCodeInventory: () =>
     Effect.fail(
       new OpenCodeRuntimeError({

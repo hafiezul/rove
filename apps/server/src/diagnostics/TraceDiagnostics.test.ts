@@ -7,9 +7,9 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 
 import * as TraceDiagnostics from "./TraceDiagnostics.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 function ns(ms: number): string {
   return String(BigInt(ms) * 1_000_000n);
@@ -211,7 +211,7 @@ describe("TraceDiagnostics", () => {
                 }),
               ),
       });
-      const logAnnotations: Array<Record<string, SchemaJson>> = [];
+      const logAnnotations: Array<ReadonlyRecord<string, unknown>> = [];
       const logger = Logger.make<unknown, void>((options) => {
         logAnnotations.push({ ...options.fiber.getRef(References.CurrentLogAnnotations) });
       });

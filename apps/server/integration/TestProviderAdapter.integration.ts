@@ -45,7 +45,7 @@ export type FixtureProviderRuntimeEvent = {
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
   readonly payload?: SchemaJson | undefined;
-  readonly [key: string]: SchemaJson;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 // Temporary alias while fixtures migrate to the new name.

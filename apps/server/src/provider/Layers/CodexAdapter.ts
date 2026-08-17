@@ -126,9 +126,11 @@ function mapCodexRuntimeError(
   });
 }
 
-type CodexLifecycleItem =
-  | EffectCodexSchema.V2ItemStartedNotification["item"]
-  | EffectCodexSchema.V2ItemCompletedNotification["item"];
+type CodexLifecycleItem = {
+  readonly type: string;
+  readonly server?: string;
+  readonly tool?: string;
+};
 
 type CodexToolUserInputQuestion =
   | EffectCodexSchema.ServerRequest__ToolRequestUserInputQuestion

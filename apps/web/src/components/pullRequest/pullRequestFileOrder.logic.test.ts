@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -5,7 +6,7 @@ import { diffFileTier, orderDiffFiles } from "./pullRequestFileOrder.logic";
 
 /** Only the path and the patch's own lines matter here; the viewer fills the rest in. */
 function file(name: string, additionLines: ReadonlyArray<string> = []): FileDiffMetadata {
-  return { name, hunks: [], additionLines, deletionLines: [] } as FileDiffMetadata;
+  return testDouble<FileDiffMetadata>({ name, hunks: [], additionLines, deletionLines: [] });
 }
 
 function order(files: ReadonlyArray<FileDiffMetadata>): Array<string> {

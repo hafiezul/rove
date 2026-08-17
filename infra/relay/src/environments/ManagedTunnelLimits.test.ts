@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -17,7 +18,7 @@ function makeFakeDb(input: {
   readonly overrideRows?: Effect.Effect<ReadonlyArray<{ readonly maxTunnels: number }>, Error>;
   readonly countRows?: Effect.Effect<ReadonlyArray<{ readonly activeTunnels: number }>, Error>;
 }) {
-  return {
+  return testDouble<RelayDb.RelayDb["Service"]>({
     select: () => ({
       from: (table: unknown) => {
         if (table === relayManagedTunnelLimits) {
@@ -42,7 +43,7 @@ function makeFakeDb(input: {
         };
       },
     }),
-  } as RelayDb.RelayDb["Service"];
+  });
 }
 
 describe("ManagedTunnelLimits", () => {

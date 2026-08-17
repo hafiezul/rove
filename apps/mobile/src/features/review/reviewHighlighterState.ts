@@ -131,7 +131,10 @@ export function createReviewHighlighterManager(config: {
           languages,
           cause,
         });
-        logReviewHighlighterProviderDiagnostic("initialization failed", { error });
+        logReviewHighlighterProviderDiagnostic("initialization failed", {
+          errorMessage: error.message,
+          operation,
+        });
         setState({ engine: null, error, status: "error" });
         return;
       }

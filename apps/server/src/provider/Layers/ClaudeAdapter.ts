@@ -439,7 +439,26 @@ function finitePositiveInteger(value: unknown): number | undefined {
     : undefined;
 }
 
-function claudeUsageInputTokens(usage: Record<string, SchemaJson>): number {
+const ClaudeTokenUsageSample = Schema.Struct({
+  input_tokens: Schema.optional(Schema.NullOr(Schema.Number)),
+  cache_creation_input_tokens: Schema.optional(Schema.NullOr(Schema.Number)),
+  cache_read_input_tokens: Schema.optional(Schema.NullOr(Schema.Number)),
+  output_tokens: Schema.optional(Schema.NullOr(Schema.Number)),
+  total_tokens: Schema.optional(Schema.NullOr(Schema.Number)),
+});
+type ClaudeTokenUsageSample = typeof ClaudeTokenUsageSample.Type;
+
+const ClaudeTokenUsageIterations = Schema.Struct({
+  iterations: Schema.optional(Schema.Array(ClaudeTokenUsageSample)),
+});
+const decodeClaudeTokenUsageSample = Schema.decodeUnknownOption(ClaudeTokenUsageSample);
+const decodeClaudeTokenUsageIterations = Schema.decodeUnknownOption(ClaudeTokenUsageIterations);
+
+function toClaudeTokenUsageSample(value: unknown): ClaudeTokenUsageSample | undefined {
+  return Option.getOrUndefined(decodeClaudeTokenUsageSample(value));
+}
+
+function claudeUsageInputTokens(usage: ClaudeTokenUsageSample): number {
   return (
     (finiteNonNegativeInteger(usage.input_tokens) ?? 0) +
     (finiteNonNegativeInteger(usage.cache_creation_input_tokens) ?? 0) +
@@ -447,31 +466,20 @@ function claudeUsageInputTokens(usage: Record<string, SchemaJson>): number {
   );
 }
 
-function claudeUsageOutputTokens(usage: Record<string, SchemaJson>): number {
+function claudeUsageOutputTokens(usage: ClaudeTokenUsageSample): number {
   return finiteNonNegativeInteger(usage.output_tokens) ?? 0;
 }
 
-function lastClaudeUsageIteration(
-  value: Record<string, SchemaJson>,
-): Record<string, SchemaJson> | undefined {
-  const iterations = Array.isArray(value.iterations) ? value.iterations : [];
-  return iterations.findLast(
-    (iteration): iteration is Record<string, SchemaJson> =>
-      RuntimePredicate.isObjectOrArray(iteration) && !Array.isArray(iteration),
-  );
+function lastClaudeUsageIteration(value: unknown): ClaudeTokenUsageSample | undefined {
+  return Option.getOrUndefined(decodeClaudeTokenUsageIterations(value))?.iterations?.at(-1);
 }
 
 function claudeTotalProcessedTokens(value: unknown): number | undefined {
-  if (
-    !value ||
-    !(RuntimePredicate.isObjectOrArray(value) || value === null) ||
-    Array.isArray(value)
-  ) {
+  const usage = toClaudeTokenUsageSample(value);
+  if (!usage) {
     return undefined;
   }
 
-  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-    usage = value as Record<string, SchemaJson>;
   const explicitTotal = finiteNonNegativeInteger(usage.total_tokens);
   if (explicitTotal !== undefined && explicitTotal > 0) {
     return explicitTotal;
@@ -524,13 +532,12 @@ function normalizeClaudeActiveTokenUsage(
   contextWindow?: number,
   totalProcessedTokens?: number,
 ): ThreadTokenUsageSnapshot | undefined {
-  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
+  const usage = toClaudeTokenUsageSample(value);
+  if (!usage) {
     return undefined;
   }
 
-  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-    usage = value as Record<string, SchemaJson>;
-  const activeUsage = lastClaudeUsageIteration(usage) ?? usage;
+  const activeUsage = lastClaudeUsageIteration(value) ?? usage;
   const inputTokens = claudeUsageInputTokens(activeUsage);
   const outputTokens = claudeUsageOutputTokens(activeUsage);
   const activeTokens = claudeTotalProcessedTokens(activeUsage) ?? inputTokens + outputTokens;
@@ -1141,7 +1148,21 @@ function workflowAgentStatus(entry: ClaudeWorkflowAgentEntry): RuntimeTaskStatus
   }
 }
 
-function summarizeToolRequest(toolName: string, input: Record<string, SchemaJson>): string {
+type ClaudeToolInput = Parameters<CanUseTool>[1];
+
+const ClaudeUserQuestionOption = Schema.Struct({
+  label: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+});
+const ClaudeUserQuestion = Schema.Struct({
+  question: Schema.optional(Schema.String),
+  header: Schema.optional(Schema.String),
+  options: Schema.optional(Schema.Array(ClaudeUserQuestionOption)),
+  multiSelect: Schema.optional(Schema.Boolean),
+});
+const decodeClaudeUserQuestion = Schema.decodeUnknownOption(ClaudeUserQuestion);
+
+function summarizeToolRequest(toolName: string, input: ClaudeToolInput): string {
   const commandValue = input.command ?? input.cmd;
   const command = RuntimePredicate.isString(commandValue) ? commandValue : undefined;
   if (command && command.trim().length > 0) {
@@ -1191,12 +1212,18 @@ function titleForTool(itemType: CanonicalItemType): string {
   }
 }
 
-const SUPPORTED_CLAUDE_IMAGE_MIME_TYPES = new Set([
+type ClaudeImageMimeType = "image/gif" | "image/jpeg" | "image/png" | "image/webp";
+
+const SUPPORTED_CLAUDE_IMAGE_MIME_TYPES = new Set<string>([
   "image/gif",
   "image/jpeg",
   "image/png",
   "image/webp",
 ]);
+
+function isSupportedClaudeImageMimeType(value: string): value is ClaudeImageMimeType {
+  return SUPPORTED_CLAUDE_IMAGE_MIME_TYPES.has(value);
+}
 const CLAUDE_SETTING_SOURCES = [
   "user",
   "project",
@@ -1219,9 +1246,9 @@ function buildPromptText(
   return applyClaudePromptEffortPrefix(input.input?.trim() ?? "", promptEffort);
 }
 
-function buildUserMessage(input: {
-  readonly sdkContent: Array<Record<string, SchemaJson>>;
-}): SDKUserMessage {
+type ClaudeUserContent = Exclude<SDKUserMessage["message"]["content"], string>;
+
+function buildUserMessage(input: { readonly sdkContent: ClaudeUserContent }): SDKUserMessage {
   // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     type: "user",
@@ -1229,15 +1256,15 @@ function buildUserMessage(input: {
     parent_tool_use_id: null,
     message: {
       role: "user",
-      content: input.sdkContent as SDKUserMessage["message"]["content"],
+      content: input.sdkContent,
     },
   } as SDKUserMessage;
 }
 
 function buildClaudeImageContentBlock(input: {
-  readonly mimeType: string;
+  readonly mimeType: ClaudeImageMimeType;
   readonly bytes: Uint8Array;
-}) {
+}): ClaudeUserContent[number] {
   return {
     type: "image",
     source: {
@@ -1257,7 +1284,7 @@ const buildUserMessageEffect = Effect.fn("buildUserMessageEffect")(function* (
   },
 ) {
   const text = buildPromptText(input, dependencies.boundInstanceId);
-  const sdkContent: Array<Record<string, SchemaJson>> = [];
+  const sdkContent: ClaudeUserContent = [];
 
   if (text.length > 0) {
     sdkContent.push({ type: "text", text });
@@ -1268,7 +1295,7 @@ const buildUserMessageEffect = Effect.fn("buildUserMessageEffect")(function* (
       continue;
     }
 
-    if (!SUPPORTED_CLAUDE_IMAGE_MIME_TYPES.has(attachment.mimeType)) {
+    if (!isSupportedClaudeImageMimeType(attachment.mimeType)) {
       return yield* new ProviderAdapterRequestError({
         provider: PROVIDER,
         method: "turn/start",
@@ -2238,26 +2265,21 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       context,
       accumulatedTotalProcessedTokens ?? context.lastKnownTotalProcessedTokens,
     );
-    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-      resultUsageRecord =
-        result?.usage &&
-        (RuntimePredicate.isObjectOrArray(result.usage) || result.usage === null) &&
-        !Array.isArray(result.usage)
-          ? (result.usage as Record<string, SchemaJson>)
-          : undefined;
+    const resultUsage = result?.usage;
+    const resultUsageSample = resultUsage ? toClaudeTokenUsageSample(resultUsage) : undefined;
     const hasResultUsageIteration =
-      resultUsageRecord !== undefined && lastClaudeUsageIteration(resultUsageRecord) !== undefined;
+      resultUsageSample !== undefined && lastClaudeUsageIteration(resultUsage) !== undefined;
     const resultHasActiveUsage =
-      resultUsageRecord !== undefined &&
+      resultUsageSample !== undefined &&
       (hasResultUsageIteration ||
-        claudeUsageInputTokens(resultUsageRecord) + claudeUsageOutputTokens(resultUsageRecord) > 0);
+        claudeUsageInputTokens(resultUsageSample) + claudeUsageOutputTokens(resultUsageSample) > 0);
     const resultTotalOnly =
-      resultUsageRecord !== undefined &&
+      resultUsageSample !== undefined &&
       !resultHasActiveUsage &&
-      claudeTotalProcessedTokens(resultUsageRecord) !== undefined;
-    const resultIterationSnapshot = resultUsageRecord
+      claudeTotalProcessedTokens(resultUsageSample) !== undefined;
+    const resultIterationSnapshot = resultUsage
       ? normalizeClaudeActiveTokenUsage(
-          resultUsageRecord,
+          resultUsage,
           maxTokens,
           accumulatedTotalProcessedTokens ?? context.lastKnownTotalProcessedTokens,
         )
@@ -3851,7 +3873,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
        */
       const handleAskUserQuestion = Effect.fn("handleAskUserQuestion")(function* (
         context: ClaudeSessionContext,
-        toolInput: Record<string, SchemaJson>,
+        toolInput: ClaudeToolInput,
         callbackOptions: {
           readonly signal: AbortSignal;
           readonly toolUseID?: string;
@@ -3865,23 +3887,20 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         // so the key the UI uses to keep its draft answer must match the SDK's
         // expected lookup key. See https://github.com/pingdotgg/t3code/issues/2388
         const rawQuestions = Array.isArray(toolInput.questions) ? toolInput.questions : [];
-        const questions: Array<UserInputQuestion> = rawQuestions.map(
-          (q: Record<string, SchemaJson>, idx: number) => ({
-            id:
-              RuntimePredicate.isString(q.question) && q.question.length > 0
-                ? q.question
-                : `q-${idx}`,
-            header: RuntimePredicate.isString(q.header) ? q.header : `Question ${idx + 1}`,
-            question: RuntimePredicate.isString(q.question) ? q.question : "",
-            options: Array.isArray(q.options)
-              ? q.options.map((opt: Record<string, SchemaJson>) => ({
-                  label: RuntimePredicate.isString(opt.label) ? opt.label : "",
-                  description: RuntimePredicate.isString(opt.description) ? opt.description : "",
-                }))
-              : [],
-            multiSelect: RuntimePredicate.isBoolean(q.multiSelect) ? q.multiSelect : false,
-          }),
-        );
+        const questions: Array<UserInputQuestion> = rawQuestions.map((rawQuestion, idx) => {
+          const question = Option.getOrUndefined(decodeClaudeUserQuestion(rawQuestion));
+          const questionText = question?.question;
+          return {
+            id: questionText && questionText.length > 0 ? questionText : `q-${idx}`,
+            header: question?.header ?? `Question ${idx + 1}`,
+            question: questionText ?? "",
+            options: (question?.options ?? []).map((option) => ({
+              label: option.label ?? "",
+              description: option.description ?? "",
+            })),
+            multiSelect: question?.multiSelect ?? false,
+          };
+        });
 
         const answersDeferred = yield* Deferred.make<ProviderUserInputAnswers>();
         let aborted = false;

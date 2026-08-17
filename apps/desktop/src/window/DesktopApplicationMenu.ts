@@ -121,7 +121,7 @@ export const make = Effect.gen(function* () {
         Effect.withSpan("desktop.menu.action"),
         Effect.catchCause((cause) => {
           const error = new DesktopApplicationMenuActionError({ action, cause });
-          return logMenuError(error.message, { error });
+          return logMenuError(error.message, { action });
         }),
       ),
     );

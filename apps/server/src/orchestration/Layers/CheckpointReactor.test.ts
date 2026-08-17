@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -74,7 +75,7 @@ type LegacyProviderRuntimeEvent = {
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
   readonly payload?: SchemaJson | undefined;
-  readonly [key: string]: SchemaJson;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 function createProviderServiceHarness(
@@ -577,7 +578,8 @@ describe("CheckpointReactor", () => {
       harness.engine,
       (event) =>
         event.type === "thread.meta-updated" &&
-        (event as { payload: { branch?: string } }).payload.branch === "t3code/renamed-by-agent",
+        testDouble<{ payload: { branch?: string } }>(event).payload.branch ===
+          "t3code/renamed-by-agent",
     );
 
     const snapshot = await harness.readModel();

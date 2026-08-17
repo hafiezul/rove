@@ -8,6 +8,7 @@ import * as Exit from "effect/Exit";
 import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Terminal from "effect/Terminal";
 
 import * as BootService from "../cloud/bootService.ts";
@@ -20,7 +21,6 @@ import {
   reportCloudDisconnectResults,
 } from "./connect.ts";
 import { recoverServiceOnboardingOffer } from "./service.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 it("explains how to complete headless authorization", () => {
   assert.equal(
@@ -165,7 +165,7 @@ it.effect("reuses an available relay client executable without prompting", () =>
 
 it.effect("keeps disconnect causes in structured logs and out of console warnings", () => {
   const warnings: ReadonlyArray<unknown>[] = [];
-  const logs: Readonly<Record<string, SchemaJson>>[] = [];
+  const logs: ReadonlyRecord<string, unknown>[] = [];
   const testConsole = {
     ...globalThis.console,
     warn: (...args: ReadonlyArray<unknown>) => {

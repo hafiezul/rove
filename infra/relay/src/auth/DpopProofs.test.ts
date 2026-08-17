@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -18,7 +19,7 @@ describe("DpopProofReplay", () => {
       readonly expiresAt: string;
       readonly createdAt: string;
     }> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayDpopProofs);
         calls.push("insert");
@@ -41,7 +42,7 @@ describe("DpopProofReplay", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;
@@ -74,7 +75,7 @@ describe("DpopProofReplay", () => {
 
   it.effect("prunes expired proof rows from the maintenance path", () => {
     const calls: Array<string> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       delete: (table: unknown) => {
         expect(table).toBe(relayDpopProofs);
         calls.push("delete");
@@ -86,7 +87,7 @@ describe("DpopProofReplay", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;
@@ -99,14 +100,14 @@ describe("DpopProofReplay", () => {
 
   it.effect("retains the prune cutoff and database failure", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       delete: (table: unknown) => {
         expect(table).toBe(relayDpopProofs);
         return {
           where: () => Effect.fail(cause),
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;

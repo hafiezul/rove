@@ -227,8 +227,8 @@ layer("GitLabPullRequestCli.layer", (it) => {
 
   it.effect("advances the cursor through malformed raw rows", () =>
     Effect.gen(function* () {
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         rows = JSON.parse(mergeRequests(2, 1)) as ReadonlyArray<unknown>;
       mockedExecute.mockReturnValueOnce(
         // @effect-diagnostics-next-line preferSchemaOverJson:off

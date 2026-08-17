@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   EnvironmentAuthInvalidError,
   type AuthBrowserSessionResult,
@@ -73,7 +74,7 @@ function installTestBrowser(url: string) {
 
 function installDesktopBootstrap() {
   const testWindow = installTestBrowser("http://localhost/");
-  testWindow.desktopBridge = {
+  testWindow.desktopBridge = testDouble<DesktopBridge>({
     getLocalEnvironmentBootstraps: () => [
       {
         id: "primary",
@@ -83,7 +84,7 @@ function installDesktopBootstrap() {
         bootstrapToken: "desktop-bootstrap-token",
       },
     ],
-  } as DesktopBridge;
+  });
 }
 
 function sequence<A>(...values: ReadonlyArray<A>) {
@@ -147,7 +148,7 @@ describe("resolveInitialServerAuthGateState", () => {
     });
 
     const testWindow = installTestBrowser("http://localhost/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -157,7 +158,7 @@ describe("resolveInitialServerAuthGateState", () => {
           bootstrapToken: "desktop-bootstrap-token",
         },
       ],
-    } as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState } = await import("./environments/primary");
 
@@ -205,7 +206,7 @@ describe("resolveInitialServerAuthGateState", () => {
     vi.stubEnv("VITE_DEV_SERVER_URL", "http://127.0.0.1:5733");
 
     const testWindow = installTestBrowser("http://127.0.0.1:5733/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -214,7 +215,7 @@ describe("resolveInitialServerAuthGateState", () => {
           wsBaseUrl: "ws://127.0.0.1:3773",
         },
       ],
-    } as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState, resolvePrimaryEnvironmentHttpUrl } =
       await import("./environments/primary");
@@ -392,7 +393,7 @@ describe("resolveInitialServerAuthGateState", () => {
     });
 
     const testWindow = installTestBrowser("http://localhost/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -402,7 +403,7 @@ describe("resolveInitialServerAuthGateState", () => {
           bootstrapToken: "desktop-bootstrap-token",
         },
       ],
-    } as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState } = await import("./environments/primary");
 

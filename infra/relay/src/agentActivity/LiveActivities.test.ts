@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import type {
   RelayAgentActivityAggregateState,
   RelayLiveActivityRegistrationRequest,
@@ -52,7 +53,7 @@ describe("LiveActivities", () => {
       }> = [];
       const dialect = new PgDialect();
 
-      const fakeDb = {
+      const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
         update: (table: unknown) => {
           expect(table).toBe(relayLiveActivities);
           calls.push("update");
@@ -89,7 +90,7 @@ describe("LiveActivities", () => {
             },
           };
         },
-      } as RelayDb.RelayDb["Service"];
+      });
 
       return Effect.gen(function* () {
         const liveActivities = yield* LiveActivities.LiveActivities;
@@ -152,7 +153,7 @@ describe("LiveActivities", () => {
       readonly set?: Record<string, SchemaJson>;
     }> = [];
 
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayLiveActivities);
         return {
@@ -167,7 +168,7 @@ describe("LiveActivities", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;
@@ -201,7 +202,7 @@ describe("LiveActivities", () => {
 
   it.effect("retires the previous activity token when a start or end is delivered", () => {
     const conflictConfigs: Array<{ readonly set?: Record<string, SchemaJson> }> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
         values: () => ({
           onConflictDoUpdate: (config: { readonly set?: Record<string, SchemaJson> }) => {
@@ -210,7 +211,7 @@ describe("LiveActivities", () => {
           },
         }),
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;
@@ -257,7 +258,7 @@ describe("LiveActivities", () => {
       activityPushToken:
         "activity-push-token" as RelayLiveActivityRegistrationRequest["activityPushToken"],
     };
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: () => ({
         set: () => ({ where: () => Effect.fail(cause) }),
       }),
@@ -269,7 +270,7 @@ describe("LiveActivities", () => {
           leftJoin: () => ({ where: () => Effect.fail(cause) }),
         }),
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;

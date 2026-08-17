@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import type { LocalApi, PreviewSessionSnapshot, ScopedThreadRef } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/unstable/reactivity";
@@ -50,13 +51,13 @@ describe("openTerminalLinkInPreview", () => {
       position: { x: 12, y: 34 },
       threadRef,
       openPreview,
-      localApi: {
+      localApi: testDouble<LocalApi>({
         contextMenu: {
           show: vi.fn(async () => {
             throw cause;
           }),
         },
-      } as LocalApi,
+      }),
       fallbackToBrowser,
     });
 
@@ -86,11 +87,11 @@ describe("openTerminalLinkInPreview", () => {
       position: { x: 12, y: 34 },
       threadRef,
       openPreview: async () => AsyncResult.failure(cause),
-      localApi: {
+      localApi: testDouble<LocalApi>({
         contextMenu: {
           show: vi.fn(async () => "open-in-preview"),
         },
-      } as LocalApi,
+      }),
       fallbackToBrowser,
     });
 
@@ -116,11 +117,11 @@ describe("openTerminalLinkInPreview", () => {
       position: { x: 12, y: 34 },
       threadRef,
       openPreview: async () => AsyncResult.failure(Cause.interrupt()),
-      localApi: {
+      localApi: testDouble<LocalApi>({
         contextMenu: {
           show: vi.fn(async () => "open-in-preview"),
         },
-      } as LocalApi,
+      }),
       fallbackToBrowser,
     });
 

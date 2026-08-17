@@ -109,7 +109,7 @@ export function useNativeReviewDiffHighlighting(input: {
       } catch (error) {
         if (!abortController.signal.aborted) {
           logReviewDiffDiagnostic("native visible highlight failed", {
-            error,
+            errorMessage: error instanceof Error ? error.message : String(error),
             resetKey,
             scheme,
             firstRowIndex: requestRange.firstRowIndex,

@@ -1,5 +1,6 @@
 import { ProjectId, ThreadId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { testDouble } from "~/testDouble";
 
 import {
   legacyProjectCwdPreferenceKey,
@@ -151,7 +152,7 @@ describe("parsePersistedState", () => {
     const parsed = parsePersistedState({
       projectExpandedById: {
         logical: false,
-        invalid: "no" as boolean,
+        invalid: testDouble<boolean>("no"),
       },
       projectOrder: ["physical-b", "", "physical-a", "physical-b"],
       threadLastVisitedAtById: {

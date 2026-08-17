@@ -196,8 +196,9 @@ function projectMcpToolCallData(data: Record<string, SchemaJson>) {
   if (item) {
     const projectedItem: Record<string, SchemaJson> = {};
     for (const key of MCP_ITEM_KEPT_FIELDS) {
-      if (key in item) {
-        projectedItem[key] = item[key];
+      const value = item[key];
+      if (value !== undefined) {
+        projectedItem[key] = value;
       }
     }
     const result = summarizeMcpResult(item.result);

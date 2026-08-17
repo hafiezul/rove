@@ -51,13 +51,14 @@ import {
   isModelSelectionProviderEnabled,
 } from "@t3tools/shared/serverSettings";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
-import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 
 export { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
 
 const encodeServerSettings = Schema.encodeEffect(ServerSettings);
-const encodeServerSettingsJson = Schema.encodeUnknownEffect(fromJsonStringPretty(ServerSettings));
+const decodeJsonValue = Schema.decodeUnknownEffect(Schema.Json);
+const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json));
+const encodeJsonString = Schema.encodeUnknownEffect(fromJsonStringPretty(Schema.Unknown));
 const decodeServerSettings = Schema.decodeUnknownEffect(ServerSettings);
 
 const textEncoder = new TextEncoder();
@@ -219,30 +220,29 @@ const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "textGenerationModelSelection",
 ]);
 
-function stripDefaultServerSettings(current: unknown, defaults: unknown) {
+function stripDefaultServerSettings(
+  current: SchemaJson,
+  defaults: SchemaJson | undefined,
+): SchemaJson | undefined {
   if (Array.isArray(current) || Array.isArray(defaults)) {
     return Equal.equals(current, defaults) ? undefined : current;
   }
 
-  if (
-    current !== null &&
-    defaults !== null &&
-    (RuntimePredicate.isObjectOrArray(current) || current === null) &&
-    (RuntimePredicate.isObjectOrArray(defaults) || defaults === null)
-  ) {
-    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-      currentRecord = current as Record<string, SchemaJson>;
-    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-      defaultsRecord = defaults as Record<string, SchemaJson>;
+  if (isJsonObject(current) && isJsonObject(defaults)) {
     const next: Record<string, SchemaJson> = {};
 
-    for (const key of Object.keys(currentRecord)) {
+    for (const key of Object.keys(current)) {
+      const currentValue = current[key];
+      if (currentValue === undefined) {
+        continue;
+      }
+      const defaultValue = defaults[key];
       if (ATOMIC_SETTINGS_KEYS.has(key)) {
-        if (!Equal.equals(currentRecord[key], defaultsRecord[key])) {
-          next[key] = currentRecord[key];
+        if (!Equal.equals(currentValue, defaultValue)) {
+          next[key] = currentValue;
         }
       } else {
-        const stripped = stripDefaultServerSettings(currentRecord[key], defaultsRecord[key]);
+        const stripped = stripDefaultServerSettings(currentValue, defaultValue);
         if (stripped !== undefined) {
           next[key] = stripped;
         }
@@ -489,8 +489,12 @@ const make = Effect.gen(function* () {
 
   const writeSettingsAtomically = Effect.fnUntraced(
     function* (settings: ServerSettings) {
-      const sparseSettingsJson = yield* encodeServerSettingsJson(
-        stripDefaultServerSettings(settings, DEFAULT_SERVER_SETTINGS) ?? {},
+      const settingsJson = yield* decodeJsonValue(yield* encodeServerSettings(settings));
+      const defaultSettingsJson = yield* decodeJsonValue(
+        yield* encodeServerSettings(DEFAULT_SERVER_SETTINGS),
+      );
+      const sparseSettingsJson = yield* encodeJsonString(
+        stripDefaultServerSettings(settingsJson, defaultSettingsJson) ?? {},
       );
 
       return yield* writeFileStringAtomically({

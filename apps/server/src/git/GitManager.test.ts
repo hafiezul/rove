@@ -13,6 +13,7 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Scope from "effect/Scope";
 import { ChildProcessSpawner } from "effect/unstable/process";
 import { expect } from "vite-plus/test";
@@ -1410,7 +1411,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           }),
         },
       });
-      const logs: Array<{ message: string; annotations: Record<string, SchemaJson> }> = [];
+      const logs: Array<{ message: string; annotations: ReadonlyRecord<string, unknown> }> = [];
       const logger = Logger.make<unknown, void>(({ fiber, message }) => {
         logs.push({
           message: String(message),

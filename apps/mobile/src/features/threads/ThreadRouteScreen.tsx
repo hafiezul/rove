@@ -1,4 +1,4 @@
-import { NativeStackScreenOptions } from "../../native/StackHeader";
+import { NativeStackScreenOptions, type NativeHeaderItemInput } from "../../native/StackHeader";
 import {
   StackActions,
   useFocusEffect,
@@ -75,14 +75,13 @@ import {
   ThreadInspectorContentStack,
   type ThreadInspectorMode,
 } from "./thread-inspector-content-stack";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface ThreadInspectorSelection {
   readonly routeThreadIdentity: string | null;
   readonly mode: ThreadInspectorMode;
 }
 
-type NativeHeaderItems = ReadonlyArray<Record<string, SchemaJson>>;
+type NativeHeaderItems = ReadonlyArray<NativeHeaderItemInput>;
 
 function InspectorPaneRoleActivation() {
   useAdaptiveWorkspacePaneRole("inspector");

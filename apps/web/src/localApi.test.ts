@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   DEFAULT_CLIENT_SETTINGS,
   type ConfirmDialogOptions,
@@ -109,12 +110,12 @@ describe("LocalApi", () => {
     const pickFolder = vi.fn().mockResolvedValue("/tmp/project");
     const getClientSettings = vi.fn().mockResolvedValue(DEFAULT_CLIENT_SETTINGS);
     const setClientSettings = vi.fn().mockResolvedValue(undefined);
-    testWindow().desktopBridge = {
+    testWindow().desktopBridge = testDouble<DesktopBridge>({
       showContextMenu,
       pickFolder,
       getClientSettings,
       setClientSettings,
-    } as DesktopBridge;
+    });
 
     const { createLocalApi } = await import("./localApi");
     const api = createLocalApi();

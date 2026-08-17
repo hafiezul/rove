@@ -11,22 +11,30 @@ interface IdleDeadlineLike {
 }
 
 type IdleCallback = (deadline: IdleDeadlineLike) => void;
+type IdleHandle =
+  | { readonly kind: "idle-callback"; readonly value: number }
+  | { readonly kind: "timeout"; readonly value: ReturnType<typeof setTimeout> };
 
-function scheduleIdle(callback: IdleCallback): number {
+function scheduleIdle(callback: IdleCallback): IdleHandle {
   if (RuntimePredicate.isFunction(globalThis.requestIdleCallback)) {
-    return globalThis.requestIdleCallback(callback, { timeout: 2_000 });
+    return {
+      kind: "idle-callback",
+      value: globalThis.requestIdleCallback(callback, { timeout: 2_000 }),
+    };
   }
 
-  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  return setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 100) as number;
+  return {
+    kind: "timeout",
+    value: setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 100),
+  };
 }
 
-function cancelIdle(handle: number): void {
-  if (RuntimePredicate.isFunction(globalThis.cancelIdleCallback)) {
-    globalThis.cancelIdleCallback(handle);
+function cancelIdle(handle: IdleHandle): void {
+  if (handle.kind === "idle-callback") {
+    globalThis.cancelIdleCallback?.(handle.value);
     return;
   }
-  clearTimeout(handle);
+  clearTimeout(handle.value);
 }
 
 export function prewarmReviewDiffSection(input: {
@@ -67,7 +75,7 @@ export function useReviewDiffPrewarming(input: {
     }
 
     let cancelled = false;
-    let idleHandle: number | null = null;
+    let idleHandle: IdleHandle | null = null;
     let nextSectionIndex = 0;
 
     const scheduleNext = () => {

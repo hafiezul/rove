@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 import * as NodeAssert from "node:assert/strict";
 
 import { it } from "@effect/vitest";
@@ -42,7 +43,7 @@ describe("CodexSessionRuntimeIdentifierGenerationError", () => {
 function makeThreadOpenResponse(
   threadId: string,
 ): CodexRpc.ClientRequestResponsesByMethod["thread/start"] {
-  return {
+  return testDouble<CodexRpc.ClientRequestResponsesByMethod["thread/start"]>({
     cwd: "/tmp/project",
     model: "gpt-5.3-codex",
     modelProvider: "openai",
@@ -59,7 +60,7 @@ function makeThreadOpenResponse(
         activeFlags: [],
       },
     },
-  } as CodexRpc.ClientRequestResponsesByMethod["thread/start"];
+  });
 }
 
 describe("buildTurnStartParams", () => {
@@ -72,7 +73,7 @@ describe("buildTurnStartParams", () => {
         attachments: [
           {
             type: "image",
-            url: { secret } as string,
+            url: testDouble<string>({ secret }),
           },
         ],
       }).pipe(Effect.flip),

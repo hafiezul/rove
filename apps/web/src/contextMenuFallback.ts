@@ -104,7 +104,7 @@ function isNodeWithinMenuStack(target: EventTarget | null, menuStack: readonly H
 
   let current: unknown = target;
   while (current && (RuntimePredicate.isObjectOrArray(current) || current === null)) {
-    if (menuStack.includes(current as HTMLDivElement)) {
+    if (menuStack.some((menu) => menu === current)) {
       return true;
     }
     // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.

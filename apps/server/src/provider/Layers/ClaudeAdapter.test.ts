@@ -37,6 +37,7 @@ import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderAdapterProcessError, ProviderAdapterValidationError } from "../Errors.ts";
 import type { ClaudeAdapterContract } from "../Services/ClaudeAdapter.ts";
+import { testDouble } from "../../testDouble.ts";
 import { makeClaudeAdapter, type ClaudeAdapterLiveOptions } from "./ClaudeAdapter.ts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
@@ -826,96 +827,110 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-1",
-        uuid: "stream-0",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: {
-            type: "text",
-            text: "",
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-1",
-        uuid: "stream-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "text_delta",
-            text: "Hi",
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-1",
-        uuid: "stream-2",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 0,
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-1",
-        uuid: "stream-3",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 1,
-          content_block: {
-            type: "tool_use",
-            id: "tool-1",
-            name: "Bash",
-            input: {
-              command: "ls",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-1",
+          uuid: "stream-0",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "text",
+              text: "",
             },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-1",
-        uuid: "stream-4",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 1,
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-1",
+          uuid: "stream-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "text_delta",
+              text: "Hi",
+            },
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "assistant",
-        session_id: "sdk-session-1",
-        uuid: "assistant-1",
-        parent_tool_use_id: null,
-        message: {
-          id: "assistant-message-1",
-          content: [{ type: "text", text: "Hi" }],
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-1",
+          uuid: "stream-2",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 0,
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-1",
-        uuid: "result-1",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-1",
+          uuid: "stream-3",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 1,
+            content_block: {
+              type: "tool_use",
+              id: "tool-1",
+              name: "Bash",
+              input: {
+                command: "ls",
+              },
+            },
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-1",
+          uuid: "stream-4",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 1,
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          session_id: "sdk-session-1",
+          uuid: "assistant-1",
+          parent_tool_use_id: null,
+          message: {
+            id: "assistant-message-1",
+            content: [{ type: "text", text: "Hi" }],
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-1",
+          uuid: "result-1",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1003,30 +1018,34 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        num_turns: 1,
-        session_id: "sdk-session-1",
-        uuid: "result-real",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          num_turns: 1,
+          session_id: "sdk-session-1",
+          uuid: "result-real",
+        }),
+      );
 
       // Second result with no turn in flight — the shape the resume
       // handshake (system/init + result(num_turns: 0)) delivers, and the
       // same completeTurn branch every no-turnState result lands in. This
       // used to emit an untargeted turn.completed; it must emit nothing.
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        num_turns: 0,
-        usage: { input_tokens: 0, output_tokens: 0 },
-        session_id: "sdk-session-1",
-        uuid: "result-handshake",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          num_turns: 0,
+          usage: { input_tokens: 0, output_tokens: 0 },
+          session_id: "sdk-session-1",
+          uuid: "result-handshake",
+        }),
+      );
 
       harness.query.finish();
 
@@ -1077,25 +1096,29 @@ describe("ClaudeAdapterLive", () => {
       });
       assert.equal(String(steeredTurn.turnId), String(turn.turnId));
 
-      harness.query.emit({
-        type: "assistant",
-        session_id: "sdk-session-steer",
-        uuid: "assistant-steer-1",
-        parent_tool_use_id: null,
-        message: {
-          id: "assistant-message-steer-1",
-          content: [{ type: "text", text: "Adjusting to 15." }],
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          session_id: "sdk-session-steer",
+          uuid: "assistant-steer-1",
+          parent_tool_use_id: null,
+          message: {
+            id: "assistant-message-steer-1",
+            content: [{ type: "text", text: "Adjusting to 15." }],
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-steer",
-        uuid: "result-steer-1",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-steer",
+          uuid: "result-steer-1",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const turnStartedEvents = runtimeEvents.filter((event) => event.type === "turn.started");
@@ -1135,89 +1158,101 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-tool-streams",
-        uuid: "stream-thinking",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "thinking_delta",
-            thinking: "Let",
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-tool-streams",
-        uuid: "stream-tool-start",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 1,
-          content_block: {
-            type: "tool_use",
-            id: "tool-grep-1",
-            name: "Grep",
-            input: {},
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-tool-streams",
-        uuid: "stream-tool-input-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 1,
-          delta: {
-            type: "input_json_delta",
-            partial_json: '{"pattern":"foo","path":"src"}',
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-tool-streams",
-        uuid: "stream-tool-stop",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 1,
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "user",
-        session_id: "sdk-session-tool-streams",
-        uuid: "user-tool-result",
-        parent_tool_use_id: null,
-        message: {
-          role: "user",
-          content: [
-            {
-              type: "tool_result",
-              tool_use_id: "tool-grep-1",
-              content: "src/example.ts:1:foo",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-tool-streams",
+          uuid: "stream-thinking",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "thinking_delta",
+              thinking: "Let",
             },
-          ],
-        },
-      } as SDKMessage);
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-tool-streams",
-        uuid: "result-tool-streams",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-tool-streams",
+          uuid: "stream-tool-start",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 1,
+            content_block: {
+              type: "tool_use",
+              id: "tool-grep-1",
+              name: "Grep",
+              input: {},
+            },
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-tool-streams",
+          uuid: "stream-tool-input-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 1,
+            delta: {
+              type: "input_json_delta",
+              partial_json: '{"pattern":"foo","path":"src"}',
+            },
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-tool-streams",
+          uuid: "stream-tool-stop",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 1,
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "user",
+          session_id: "sdk-session-tool-streams",
+          uuid: "user-tool-result",
+          parent_tool_use_id: null,
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool-grep-1",
+                content: "src/example.ts:1:foo",
+              },
+            ],
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-tool-streams",
+          uuid: "result-tool-streams",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1317,58 +1352,66 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-todo-plan",
-        uuid: "stream-todo-start",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 1,
-          content_block: {
-            type: "tool_use",
-            id: "tool-todo-1",
-            name: "TodoWrite",
-            input: {},
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-todo-plan",
+          uuid: "stream-todo-start",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 1,
+            content_block: {
+              type: "tool_use",
+              id: "tool-todo-1",
+              name: "TodoWrite",
+              input: {},
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-todo-plan",
-        uuid: "stream-todo-input",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 1,
-          delta: {
-            type: "input_json_delta",
-            partial_json:
-              '{"todos":[{"content":"   ","status":"in_progress"},{"content":"Ship it","status":"completed"}]}',
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-todo-plan",
+          uuid: "stream-todo-input",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 1,
+            delta: {
+              type: "input_json_delta",
+              partial_json:
+                '{"todos":[{"content":"   ","status":"in_progress"},{"content":"Ship it","status":"completed"}]}',
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-todo-plan",
-        uuid: "stream-todo-stop",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 1,
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-todo-plan",
+          uuid: "stream-todo-stop",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 1,
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-todo-plan",
-        uuid: "result-todo-plan",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-todo-plan",
+          uuid: "result-todo-plan",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const planUpdated = runtimeEvents.find((event) => event.type === "turn.plan.updated");
@@ -1408,46 +1451,52 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-task",
-        uuid: "stream-task-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: {
-            type: "tool_use",
-            id: "tool-task-1",
-            name: "Task",
-            input: {
-              description: "Review the database layer",
-              prompt: "Audit the SQL changes",
-              subagent_type: "code-reviewer",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-task",
+          uuid: "stream-task-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "tool_use",
+              id: "tool-task-1",
+              name: "Task",
+              input: {
+                description: "Review the database layer",
+                prompt: "Audit the SQL changes",
+                subagent_type: "code-reviewer",
+              },
             },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "assistant",
-        session_id: "sdk-session-task",
-        uuid: "assistant-task-1",
-        parent_tool_use_id: null,
-        message: {
-          id: "assistant-message-task-1",
-          content: [{ type: "text", text: "Delegated" }],
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          session_id: "sdk-session-task",
+          uuid: "assistant-task-1",
+          parent_tool_use_id: null,
+          message: {
+            id: "assistant-message-task-1",
+            content: [{ type: "text", text: "Delegated" }],
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-task",
-        uuid: "result-task-1",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-task",
+          uuid: "result-task-1",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const toolStarted = runtimeEvents.find((event) => event.type === "item.started");
@@ -1484,15 +1533,17 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "result",
-        subtype: "error_during_execution",
-        is_error: false,
-        errors: ["Error: Request was aborted."],
-        stop_reason: "tool_use",
-        session_id: "sdk-session-abort",
-        uuid: "result-abort",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: false,
+          errors: ["Error: Request was aborted."],
+          stop_reason: "tool_use",
+          session_id: "sdk-session-abort",
+          uuid: "result-abort",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1545,16 +1596,18 @@ describe("ClaudeAdapterLive", () => {
 
       // Exact shape the CLI emits when Stop lands mid-tool-call: is_error
       // is true and the only error is internal diagnostic telemetry.
-      harness.query.emit({
-        type: "result",
-        subtype: "error_during_execution",
-        is_error: true,
-        errors: ["[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"],
-        stop_reason: "tool_use",
-        terminal_reason: "aborted_tools",
-        session_id: "sdk-session-abort-tools",
-        uuid: "result-abort-tools",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: true,
+          errors: ["[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"],
+          stop_reason: "tool_use",
+          terminal_reason: "aborted_tools",
+          session_id: "sdk-session-abort-tools",
+          uuid: "result-abort-tools",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1608,34 +1661,40 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "system",
-        subtype: "task_started",
-        task_id: "task-live",
-        description: "Agent A",
-        task_type: "local_agent",
-        uuid: "task-live-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
-      harness.query.emit({
-        type: "system",
-        subtype: "task_started",
-        task_id: "task-settled",
-        description: "Agent B",
-        task_type: "local_agent",
-        uuid: "task-settled-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
-      harness.query.emit({
-        type: "system",
-        subtype: "task_notification",
-        task_id: "task-settled",
-        status: "completed",
-        output_file: "/tmp/task-settled.jsonl",
-        summary: "done",
-        uuid: "task-settled-done-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_started",
+          task_id: "task-live",
+          description: "Agent A",
+          task_type: "local_agent",
+          uuid: "task-live-uuid",
+          session_id: "sdk-session",
+        }),
+      );
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_started",
+          task_id: "task-settled",
+          description: "Agent B",
+          task_type: "local_agent",
+          uuid: "task-settled-uuid",
+          session_id: "sdk-session",
+        }),
+      );
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_notification",
+          task_id: "task-settled",
+          status: "completed",
+          output_file: "/tmp/task-settled.jsonl",
+          summary: "done",
+          uuid: "task-settled-done-uuid",
+          session_id: "sdk-session",
+        }),
+      );
 
       yield* Fiber.join(taskEventsFiber);
 
@@ -1720,16 +1779,18 @@ describe("ClaudeAdapterLive", () => {
         },
       ];
       const tick = (usageTotal: number, snapshot: ReturnType<typeof memberSnapshot>) =>
-        harness.query.emit({
-          type: "system",
-          subtype: "task_progress",
-          task_id: "wf-coalesce",
-          description: "Coalescing workflow",
-          usage: { total_tokens: usageTotal, tool_uses: 1, duration_ms: 10 },
-          workflow_progress: snapshot,
-          uuid: `wf-tick-${usageTotal}`,
-          session_id: "sdk-session",
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "system",
+            subtype: "task_progress",
+            task_id: "wf-coalesce",
+            description: "Coalescing workflow",
+            usage: { total_tokens: usageTotal, tool_uses: 1, duration_ms: 10 },
+            workflow_progress: snapshot,
+            uuid: `wf-tick-${usageTotal}`,
+            session_id: "sdk-session",
+          }),
+        );
 
       // Tick 1: both members are new -> 2 member events.
       tick(100, memberSnapshot(10));
@@ -1787,37 +1848,43 @@ describe("ClaudeAdapterLive", () => {
 
       // No explicit model/effort on the launch input: the task inherits the
       // session's selection.
-      harness.query.emit({
-        type: "system",
-        subtype: "task_started",
-        task_id: "task-model",
-        description: "Agent M",
-        task_type: "local_agent",
-        tool_use_id: "toolu_agent_m",
-        uuid: "task-model-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_started",
+          task_id: "task-model",
+          description: "Agent M",
+          task_type: "local_agent",
+          tool_use_id: "toolu_agent_m",
+          uuid: "task-model-uuid",
+          session_id: "sdk-session",
+        }),
+      );
       // The subagent's assistant snapshot carries the authoritative API
       // model id, which refines the linkage on later rows.
-      harness.query.emit({
-        type: "assistant",
-        parent_tool_use_id: "toolu_agent_m",
-        message: {
-          model: "claude-sonnet-5[1m]",
-          content: [],
-        },
-        uuid: "subagent-snapshot-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
-      harness.query.emit({
-        type: "system",
-        subtype: "task_progress",
-        task_id: "task-model",
-        description: "Agent M",
-        usage: { total_tokens: 100, tool_uses: 1, duration_ms: 10 },
-        uuid: "task-model-progress-uuid",
-        session_id: "sdk-session",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          parent_tool_use_id: "toolu_agent_m",
+          message: {
+            model: "claude-sonnet-5[1m]",
+            content: [],
+          },
+          uuid: "subagent-snapshot-uuid",
+          session_id: "sdk-session",
+        }),
+      );
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_progress",
+          task_id: "task-model",
+          description: "Agent M",
+          usage: { total_tokens: 100, tool_uses: 1, duration_ms: 10 },
+          uuid: "task-model-progress-uuid",
+          session_id: "sdk-session",
+        }),
+      );
 
       const taskEvents = Array.from(yield* Fiber.join(taskEventsFiber));
       const started = taskEvents[0];
@@ -2115,20 +2182,22 @@ describe("ClaudeAdapterLive", () => {
         runtimeMode: "full-access",
       });
 
-      harness.query.emit({
-        type: "system",
-        subtype: "task_progress",
-        task_id: "task-subagent-1",
-        description: "Running background teammate",
-        summary: "Code reviewer checked the migration edge cases.",
-        usage: {
-          total_tokens: 123,
-          tool_uses: 4,
-          duration_ms: 987,
-        },
-        session_id: "sdk-session-task-summary",
-        uuid: "task-progress-1",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_progress",
+          task_id: "task-subagent-1",
+          description: "Running background teammate",
+          summary: "Code reviewer checked the migration edge cases.",
+          usage: {
+            total_tokens: 123,
+            tool_uses: 4,
+            duration_ms: 987,
+          },
+          session_id: "sdk-session-task-summary",
+          uuid: "task-progress-1",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const progressEvent = runtimeEvents.find((event) => event.type === "task.progress");
@@ -2216,44 +2285,50 @@ describe("ClaudeAdapterLive", () => {
         },
       ]) {
         // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-        harness.query.emit(message as SDKMessage);
+        harness.query.emit(testDouble<SDKMessage>(message));
       }
       // High-priority notifications DO surface as a warning row.
-      harness.query.emit({
-        type: "system",
-        subtype: "notification",
-        key: "limit",
-        text: "context window nearly full",
-        priority: "high",
-        session_id: "session",
-        uuid: "notif-high",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "notification",
+          key: "limit",
+          text: "context window nearly full",
+          priority: "high",
+          session_id: "session",
+          uuid: "notif-high",
+        }),
+      );
       // session_state_changed maps to the matching session states.
       for (const [state, uuid] of [
         ["running", "ssc-run"],
         ["requires_action", "ssc-req"],
         ["idle", "ssc-idle"],
       ]) {
-        harness.query.emit({
-          type: "system",
-          subtype: "session_state_changed",
-          state,
-          session_id: "session",
-          uuid,
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "system",
+            subtype: "session_state_changed",
+            state,
+            session_id: "session",
+            uuid,
+          }),
+        );
       }
       // api_retry maps to a session heartbeat, not a warning row.
-      harness.query.emit({
-        type: "system",
-        subtype: "api_retry",
-        attempt: 3,
-        max_retries: 10,
-        retry_delay_ms: 1000,
-        error_status: 502,
-        error: { type: "api_error" },
-        session_id: "session",
-        uuid: "retry",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "api_retry",
+          attempt: 3,
+          max_retries: 10,
+          retry_delay_ms: 1000,
+          error_status: 502,
+          error: { type: "api_error" },
+          session_id: "session",
+          uuid: "retry",
+        }),
+      );
       yield* Effect.yieldNow;
       yield* Effect.yieldNow;
 
@@ -2308,19 +2383,21 @@ describe("ClaudeAdapterLive", () => {
         runtimeMode: "full-access",
       });
 
-      harness.query.emit({
-        type: "system",
-        subtype: "task_progress",
-        task_id: "task-usage-1",
-        description: "Thinking through the patch",
-        usage: {
-          total_tokens: 321,
-          tool_uses: 2,
-          duration_ms: 654,
-        },
-        session_id: "sdk-session-task-usage",
-        uuid: "task-usage-progress-1",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "task_progress",
+          task_id: "task-usage-1",
+          description: "Thinking through the patch",
+          usage: {
+            total_tokens: 321,
+            tool_uses: 2,
+            duration_ms: 654,
+          },
+          session_id: "sdk-session-task-usage",
+          uuid: "task-usage-progress-1",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const usageEvent = runtimeEvents.find((event) => event.type === "thread.token-usage.updated");
@@ -2368,29 +2445,31 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 1234,
-        duration_api_ms: 1200,
-        num_turns: 1,
-        result: "done",
-        stop_reason: "end_turn",
-        session_id: "sdk-session-result-usage",
-        usage: {
-          input_tokens: 4,
-          cache_creation_input_tokens: 2715,
-          cache_read_input_tokens: 21144,
-          output_tokens: 679,
-        },
-        modelUsage: {
-          "claude-opus-4-6": {
-            contextWindow: 200000,
-            maxOutputTokens: 64000,
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          duration_ms: 1234,
+          duration_api_ms: 1200,
+          num_turns: 1,
+          result: "done",
+          stop_reason: "end_turn",
+          session_id: "sdk-session-result-usage",
+          usage: {
+            input_tokens: 4,
+            cache_creation_input_tokens: 2715,
+            cache_read_input_tokens: 21144,
+            output_tokens: 679,
           },
-        },
-      } as SDKMessage);
+          modelUsage: {
+            "claude-opus-4-6": {
+              contextWindow: 200000,
+              maxOutputTokens: 64000,
+            },
+          },
+        }),
+      );
       harness.query.finish();
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2435,26 +2514,28 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 1234,
-        duration_api_ms: 1200,
-        num_turns: 1,
-        result: "done",
-        stop_reason: "end_turn",
-        session_id: "sdk-session-result-usage-clamped",
-        usage: {
-          total_tokens: 535000,
-        },
-        modelUsage: {
-          "claude-opus-4-6": {
-            contextWindow: 200000,
-            maxOutputTokens: 64000,
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          duration_ms: 1234,
+          duration_api_ms: 1200,
+          num_turns: 1,
+          result: "done",
+          stop_reason: "end_turn",
+          session_id: "sdk-session-result-usage-clamped",
+          usage: {
+            total_tokens: 535000,
           },
-        },
-      } as SDKMessage);
+          modelUsage: {
+            "claude-opus-4-6": {
+              contextWindow: 200000,
+              maxOutputTokens: 64000,
+            },
+          },
+        }),
+      );
       harness.query.finish();
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2500,38 +2581,42 @@ describe("ClaudeAdapterLive", () => {
           attachments: [],
         });
 
-        harness.query.emit({
-          type: "system",
-          subtype: "task_progress",
-          task_id: "task-usage-clamped",
-          description: "Thinking through the patch",
-          usage: {
-            total_tokens: 190000,
-          },
-          session_id: "sdk-session-task-usage-clamped",
-          uuid: "task-usage-progress-clamped",
-        } as SDKMessage);
-
-        harness.query.emit({
-          type: "result",
-          subtype: "success",
-          is_error: false,
-          duration_ms: 1234,
-          duration_api_ms: 1200,
-          num_turns: 1,
-          result: "done",
-          stop_reason: "end_turn",
-          session_id: "sdk-session-result-usage-clamped-after-progress",
-          usage: {
-            total_tokens: 535000,
-          },
-          modelUsage: {
-            "claude-opus-4-6": {
-              contextWindow: 200000,
-              maxOutputTokens: 64000,
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "system",
+            subtype: "task_progress",
+            task_id: "task-usage-clamped",
+            description: "Thinking through the patch",
+            usage: {
+              total_tokens: 190000,
             },
-          },
-        } as SDKMessage);
+            session_id: "sdk-session-task-usage-clamped",
+            uuid: "task-usage-progress-clamped",
+          }),
+        );
+
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            duration_ms: 1234,
+            duration_api_ms: 1200,
+            num_turns: 1,
+            result: "done",
+            stop_reason: "end_turn",
+            session_id: "sdk-session-result-usage-clamped-after-progress",
+            usage: {
+              total_tokens: 535000,
+            },
+            modelUsage: {
+              "claude-opus-4-6": {
+                contextWindow: 200000,
+                maxOutputTokens: 64000,
+              },
+            },
+          }),
+        );
         harness.query.finish();
 
         const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2581,42 +2666,48 @@ describe("ClaudeAdapterLive", () => {
           attachments: [],
         });
 
-        harness.query.emit({
-          type: "assistant",
-          session_id: "sdk-session-early-assistant",
-          uuid: "assistant-early",
-          parent_tool_use_id: null,
-          message: {
-            id: "assistant-message-early",
-            content: [
-              { type: "tool_use", id: "tool-early", name: "Read", input: { path: "a.ts" } },
-            ],
-          },
-        } as SDKMessage);
-
-        harness.query.emit({
-          type: "stream_event",
-          session_id: "sdk-session-early-assistant",
-          uuid: "stream-early",
-          parent_tool_use_id: null,
-          event: {
-            type: "content_block_delta",
-            index: 0,
-            delta: {
-              type: "text_delta",
-              text: "Late text",
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "assistant",
+            session_id: "sdk-session-early-assistant",
+            uuid: "assistant-early",
+            parent_tool_use_id: null,
+            message: {
+              id: "assistant-message-early",
+              content: [
+                { type: "tool_use", id: "tool-early", name: "Read", input: { path: "a.ts" } },
+              ],
             },
-          },
-        } as SDKMessage);
+          }),
+        );
 
-        harness.query.emit({
-          type: "result",
-          subtype: "success",
-          is_error: false,
-          errors: [],
-          session_id: "sdk-session-early-assistant",
-          uuid: "result-early",
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "stream_event",
+            session_id: "sdk-session-early-assistant",
+            uuid: "stream-early",
+            parent_tool_use_id: null,
+            event: {
+              type: "content_block_delta",
+              index: 0,
+              delta: {
+                type: "text_delta",
+                text: "Late text",
+              },
+            },
+          }),
+        );
+
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            errors: [],
+            session_id: "sdk-session-early-assistant",
+            uuid: "result-early",
+          }),
+        );
 
         const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
         assert.deepEqual(
@@ -2672,96 +2763,110 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-start-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: {
-            type: "text",
-            text: "",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-start-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "text",
+              text: "",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-delta-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "text_delta",
-            text: "First",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-delta-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "text_delta",
+              text: "First",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-stop-1",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 0,
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-start-2",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: {
-            type: "text",
-            text: "",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-stop-1",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 0,
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-delta-2",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "text_delta",
-            text: "Second",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-start-2",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "text",
+              text: "",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-reused-text-index",
-        uuid: "stream-reused-stop-2",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 0,
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-delta-2",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "text_delta",
+              text: "Second",
+            },
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-reused-text-index",
-        uuid: "result-reused-text-index",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-reused-text-index",
+          uuid: "stream-reused-stop-2",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 0,
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-reused-text-index",
+          uuid: "result-reused-text-index",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -2838,25 +2943,29 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "assistant",
-        session_id: "sdk-session-fallback-text",
-        uuid: "assistant-fallback",
-        parent_tool_use_id: null,
-        message: {
-          id: "assistant-message-fallback",
-          content: [{ type: "text", text: "Fallback hello" }],
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          session_id: "sdk-session-fallback-text",
+          uuid: "assistant-fallback",
+          parent_tool_use_id: null,
+          message: {
+            id: "assistant-message-fallback",
+            content: [{ type: "text", text: "Fallback hello" }],
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-fallback-text",
-        uuid: "result-fallback",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-fallback-text",
+          uuid: "result-fallback",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -2907,144 +3016,164 @@ describe("ClaudeAdapterLive", () => {
         attachments: [],
       });
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-1-start",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: {
-            type: "text",
-            text: "",
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-1-delta",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "text_delta",
-            text: "First message.",
-          },
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-1-stop",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 0,
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-tool-start",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 1,
-          content_block: {
-            type: "tool_use",
-            id: "tool-interleaved-1",
-            name: "Grep",
-            input: {
-              pattern: "assistant",
-              path: "src",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-1-start",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "text",
+              text: "",
             },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-tool-stop",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 1,
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "user",
-        session_id: "sdk-session-interleaved",
-        uuid: "user-tool-result-interleaved",
-        parent_tool_use_id: null,
-        message: {
-          role: "user",
-          content: [
-            {
-              type: "tool_result",
-              tool_use_id: "tool-interleaved-1",
-              content: "src/example.ts:1:assistant",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-1-delta",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "text_delta",
+              text: "First message.",
             },
-          ],
-        },
-      } as SDKMessage);
-
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-2-start",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_start",
-          index: 2,
-          content_block: {
-            type: "text",
-            text: "",
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-2-delta",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 2,
-          delta: {
-            type: "text_delta",
-            text: "Second message.",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-1-stop",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 0,
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-interleaved",
-        uuid: "stream-text-2-stop",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_stop",
-          index: 2,
-        },
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-tool-start",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 1,
+            content_block: {
+              type: "tool_use",
+              id: "tool-interleaved-1",
+              name: "Grep",
+              input: {
+                pattern: "assistant",
+                path: "src",
+              },
+            },
+          },
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-interleaved",
-        uuid: "result-interleaved",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-tool-stop",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 1,
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "user",
+          session_id: "sdk-session-interleaved",
+          uuid: "user-tool-result-interleaved",
+          parent_tool_use_id: null,
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool-interleaved-1",
+                content: "src/example.ts:1:assistant",
+              },
+            ],
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-2-start",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 2,
+            content_block: {
+              type: "text",
+              text: "",
+            },
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-2-delta",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 2,
+            delta: {
+              type: "text_delta",
+              text: "Second message.",
+            },
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-interleaved",
+          uuid: "stream-text-2-stop",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_stop",
+            index: 2,
+          },
+        }),
+      );
+
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-interleaved",
+          uuid: "result-interleaved",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -3131,27 +3260,31 @@ describe("ClaudeAdapterLive", () => {
       });
       assert.equal(turn.threadId, THREAD_ID);
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-thread-real",
-        uuid: "stream-thread-real",
-        parent_tool_use_id: null,
-        event: {
-          type: "message_start",
-          message: {
-            id: "msg-thread-real",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-thread-real",
+          uuid: "stream-thread-real",
+          parent_tool_use_id: null,
+          event: {
+            type: "message_start",
+            message: {
+              id: "msg-thread-real",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-thread-real",
-        uuid: "result-thread-real",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-thread-real",
+          uuid: "result-thread-real",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -3205,18 +3338,20 @@ describe("ClaudeAdapterLive", () => {
       });
       yield* Stream.take(adapter.streamEvents, 1).pipe(Stream.runDrain);
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-approval-1",
-        uuid: "stream-approval-thread",
-        parent_tool_use_id: null,
-        event: {
-          type: "message_start",
-          message: {
-            id: "msg-approval-thread",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-approval-1",
+          uuid: "stream-approval-thread",
+          parent_tool_use_id: null,
+          event: {
+            type: "message_start",
+            message: {
+              id: "msg-approval-thread",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
       const threadStarted = yield* Stream.runHead(adapter.streamEvents);
       assert.equal(threadStarted._tag, "Some");
@@ -3427,47 +3562,53 @@ describe("ClaudeAdapterLive", () => {
         runtimeMode: "full-access",
       });
 
-      harness.query.emit({
-        type: "system",
-        subtype: "hook_started",
-        hook_id: "resume-hook-1",
-        hook_name: "SessionStart:resume",
-        hook_event: "SessionStart",
-        session_id: transientHookSessionId,
-        uuid: "resume-hook-started",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "hook_started",
+          hook_id: "resume-hook-1",
+          hook_name: "SessionStart:resume",
+          hook_event: "SessionStart",
+          session_id: transientHookSessionId,
+          uuid: "resume-hook-started",
+        }),
+      );
 
-      harness.query.emit({
-        type: "system",
-        subtype: "hook_response",
-        hook_id: "resume-hook-1",
-        hook_name: "SessionStart:resume",
-        hook_event: "SessionStart",
-        output: "",
-        stdout: "",
-        stderr: "",
-        outcome: "success",
-        session_id: transientHookSessionId,
-        uuid: "resume-hook-response",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "hook_response",
+          hook_id: "resume-hook-1",
+          hook_name: "SessionStart:resume",
+          hook_event: "SessionStart",
+          output: "",
+          stdout: "",
+          stderr: "",
+          outcome: "success",
+          session_id: transientHookSessionId,
+          uuid: "resume-hook-response",
+        }),
+      );
 
-      harness.query.emit({
-        type: "system",
-        subtype: "init",
-        apiKeySource: "none",
-        claude_code_version: "test",
-        cwd: "/tmp/claude-adapter-test",
-        tools: [],
-        mcp_servers: [],
-        model: "claude-sonnet-4-5",
-        permissionMode: "bypassPermissions",
-        slash_commands: [],
-        output_style: "default",
-        skills: [],
-        plugins: [],
-        session_id: durableSessionId,
-        uuid: "resume-init",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "system",
+          subtype: "init",
+          apiKeySource: "none",
+          claude_code_version: "test",
+          cwd: "/tmp/claude-adapter-test",
+          tools: [],
+          mcp_servers: [],
+          model: "claude-sonnet-4-5",
+          permissionMode: "bypassPermissions",
+          slash_commands: [],
+          output_style: "default",
+          skills: [],
+          plugins: [],
+          session_id: durableSessionId,
+          uuid: "resume-init",
+        }),
+      );
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const threadStartedEvents = runtimeEvents.filter((event) => event.type === "thread.started");
@@ -3551,14 +3692,16 @@ describe("ClaudeAdapterLive", () => {
           (event) => event.type === "turn.completed",
         ).pipe(Stream.runHead, Effect.forkChild);
 
-        harness.query.emit({
-          type: "result",
-          subtype: "success",
-          is_error: false,
-          errors: [],
-          session_id: "sdk-session-rollback",
-          uuid: "result-first",
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            errors: [],
+            session_id: "sdk-session-rollback",
+            uuid: "result-first",
+          }),
+        );
 
         const firstCompleted = yield* Fiber.join(firstCompletedFiber);
         assert.equal(firstCompleted._tag, "Some");
@@ -3577,14 +3720,16 @@ describe("ClaudeAdapterLive", () => {
           (event) => event.type === "turn.completed",
         ).pipe(Stream.runHead, Effect.forkChild);
 
-        harness.query.emit({
-          type: "result",
-          subtype: "success",
-          is_error: false,
-          errors: [],
-          session_id: "sdk-session-rollback",
-          uuid: "result-second",
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            errors: [],
+            session_id: "sdk-session-rollback",
+            uuid: "result-second",
+          }),
+        );
 
         const secondCompleted = yield* Fiber.join(secondCompletedFiber);
         assert.equal(secondCompleted._tag, "Some");
@@ -3797,14 +3942,16 @@ describe("ClaudeAdapterLive", () => {
           (event) => event.type === "turn.completed",
         ).pipe(Stream.runHead, Effect.forkChild);
 
-        harness.query.emit({
-          type: "result",
-          subtype: "success",
-          is_error: false,
-          errors: [],
-          session_id: `sdk-session-${runtimeMode}`,
-          uuid: `result-${runtimeMode}`,
-        } as SDKMessage);
+        harness.query.emit(
+          testDouble<SDKMessage>({
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            errors: [],
+            session_id: `sdk-session-${runtimeMode}`,
+            uuid: `result-${runtimeMode}`,
+          }),
+        );
 
         yield* Fiber.join(turnCompletedFiber);
 
@@ -3941,31 +4088,33 @@ describe("ClaudeAdapterLive", () => {
         (event) => event.type === "turn.proposed.completed",
       ).pipe(Stream.runHead, Effect.forkChild);
 
-      harness.query.emit({
-        type: "assistant",
-        session_id: "sdk-session-exit-plan",
-        uuid: "assistant-exit-plan",
-        parent_tool_use_id: null,
-        message: {
-          model: "claude-opus-4-6",
-          id: "msg-exit-plan",
-          type: "message",
-          role: "assistant",
-          content: [
-            {
-              type: "tool_use",
-              id: "tool-exit-2",
-              name: "ExitPlanMode",
-              input: {
-                plan: "# Final plan\n\n- capture it",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "assistant",
+          session_id: "sdk-session-exit-plan",
+          uuid: "assistant-exit-plan",
+          parent_tool_use_id: null,
+          message: {
+            model: "claude-opus-4-6",
+            id: "msg-exit-plan",
+            type: "message",
+            role: "assistant",
+            content: [
+              {
+                type: "tool_use",
+                id: "tool-exit-2",
+                name: "ExitPlanMode",
+                input: {
+                  plan: "# Final plan\n\n- capture it",
+                },
               },
-            },
-          ],
-          stop_reason: null,
-          stop_sequence: null,
-          usage: {},
-        },
-      } as SDKMessage);
+            ],
+            stop_reason: null,
+            stop_sequence: null,
+            usage: {},
+          },
+        }),
+      );
 
       const proposedEvent = yield* Fiber.join(proposedEventFiber);
       assert.equal(proposedEvent._tag, "Some");
@@ -4008,18 +4157,20 @@ describe("ClaudeAdapterLive", () => {
       });
       yield* Stream.take(adapter.streamEvents, 1).pipe(Stream.runDrain);
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-user-input-1",
-        uuid: "stream-user-input-thread",
-        parent_tool_use_id: null,
-        event: {
-          type: "message_start",
-          message: {
-            id: "msg-user-input-thread",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-user-input-1",
+          uuid: "stream-user-input-thread",
+          parent_tool_use_id: null,
+          event: {
+            type: "message_start",
+            message: {
+              id: "msg-user-input-thread",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
       const threadStarted = yield* Stream.runHead(adapter.streamEvents);
       assert.equal(threadStarted._tag, "Some");
@@ -4322,29 +4473,33 @@ describe("ClaudeAdapterLive", () => {
         (event) => event.type === "turn.completed",
       ).pipe(Stream.runHead, Effect.forkChild);
 
-      harness.query.emit({
-        type: "stream_event",
-        session_id: "sdk-session-native-log",
-        uuid: "stream-native-log",
-        parent_tool_use_id: null,
-        event: {
-          type: "content_block_delta",
-          index: 0,
-          delta: {
-            type: "text_delta",
-            text: "hi",
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "stream_event",
+          session_id: "sdk-session-native-log",
+          uuid: "stream-native-log",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+              type: "text_delta",
+              text: "hi",
+            },
           },
-        },
-      } as SDKMessage);
+        }),
+      );
 
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        errors: [],
-        session_id: "sdk-session-native-log",
-        uuid: "result-native-log",
-      } as SDKMessage);
+      harness.query.emit(
+        testDouble<SDKMessage>({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          errors: [],
+          session_id: "sdk-session-native-log",
+          uuid: "result-native-log",
+        }),
+      );
 
       const turnCompleted = yield* Fiber.join(turnCompletedFiber);
       assert.equal(turnCompleted._tag, "Some");

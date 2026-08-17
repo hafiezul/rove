@@ -1,5 +1,4 @@
 import * as P from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export type DeepPartial<T> = T extends readonly (infer U)[]
   ? readonly DeepPartial<U>[]
@@ -7,20 +6,13 @@ export type DeepPartial<T> = T extends readonly (infer U)[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 
-interface MutableMergeRecord {
-  [key: string]: SchemaJson | undefined;
-}
-
-export function deepMerge<T extends Record<string, SchemaJson>>(
-  current: T,
-  patch: DeepPartial<T>,
-): T {
+export function deepMerge<T extends object>(current: T, patch: DeepPartial<T>): T {
   if (!P.isObject(current) || !P.isObject(patch)) {
     // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return patch as T;
   }
 
-  const next: MutableMergeRecord = { ...current };
+  const next = Object.fromEntries(Object.entries(current));
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
 

@@ -1,16 +1,20 @@
 // @effect-diagnostics globalDate:off - This isolated Electron preload does not run inside an Effect runtime.
-import type { DesktopPreviewRecordingFrame } from "@t3tools/contracts";
+import {
+  DesktopPreviewRecordingFrameSchema,
+  type DesktopPreviewRecordingFrame,
+} from "@t3tools/contracts";
 import { contextBridge, ipcRenderer } from "electron";
 
 import { PREVIEW_PICTURE_IN_PICTURE_FRAME_CHANNEL } from "./ipc/channels.ts";
-import * as RuntimePredicate from "effect/Predicate";
+import * as Schema from "effect/Schema";
+
+const isDesktopPreviewRecordingFrame = Schema.is(DesktopPreviewRecordingFrameSchema);
 
 contextBridge.exposeInMainWorld("previewPictureInPicture", {
   onFrame: (listener: (frame: DesktopPreviewRecordingFrame) => void) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, frame: unknown) => {
-      if (!RuntimePredicate.isObjectOrArray(frame)) return;
-      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      listener(frame as DesktopPreviewRecordingFrame);
+      if (!isDesktopPreviewRecordingFrame(frame)) return;
+      listener(frame);
     };
     ipcRenderer.on(PREVIEW_PICTURE_IN_PICTURE_FRAME_CHANNEL, wrappedListener);
     return () =>

@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import * as NodeCryptoLayer from "@effect/platform-node/NodeCrypto";
 import { describe, expect, it } from "@effect/vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
@@ -12,7 +13,7 @@ import type { Json as SchemaJson } from "effect/Schema";
 describe("EnvironmentCredentials", () => {
   it.effect("reports the credential creation persistence stage and preserves its cause", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayEnvironmentCredentials);
         return {
@@ -27,7 +28,7 @@ describe("EnvironmentCredentials", () => {
           }),
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -60,7 +61,7 @@ describe("EnvironmentCredentials", () => {
     const cause = new Error("database unavailable");
     const token = "t3env_sensitive-credential-token";
     const whereConditions: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: (table: unknown) => {
           expect(table).toBe(relayEnvironmentCredentials);
@@ -74,7 +75,7 @@ describe("EnvironmentCredentials", () => {
           };
         },
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -121,7 +122,7 @@ describe("EnvironmentCredentials", () => {
         readonly condition: unknown;
       }> = [];
 
-      const fakeDb = {
+      const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
         insert: (table: unknown) => {
           expect(table).toBe(relayEnvironmentCredentials);
           return {
@@ -142,7 +143,7 @@ describe("EnvironmentCredentials", () => {
             }),
           };
         },
-      } as RelayDb.RelayDb["Service"];
+      });
 
       return Effect.gen(function* () {
         const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -193,7 +194,7 @@ describe("EnvironmentCredentials", () => {
   it.effect("revokes active credentials for an environment public key", () => {
     const updateValues: Array<Record<string, SchemaJson>> = [];
     const whereConditions: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: (table: unknown) => {
         expect(table).toBe(relayEnvironmentCredentials);
         return {
@@ -213,7 +214,7 @@ describe("EnvironmentCredentials", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;

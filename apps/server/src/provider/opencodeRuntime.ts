@@ -1,6 +1,11 @@
 import * as NodeURL from "node:url";
 
-import type { ChatAttachment, ProviderApprovalDecision, RuntimeMode } from "@t3tools/contracts";
+import type {
+  ChatAttachment,
+  ProviderApprovalDecision,
+  ProviderUserInputAnswers,
+  RuntimeMode,
+} from "@t3tools/contracts";
 import {
   createOpencodeClient,
   type Agent,
@@ -366,7 +371,7 @@ export function toOpenCodePermissionReply(
 
 export function toOpenCodeQuestionAnswers(
   request: QuestionRequest,
-  answers: Record<string, SchemaJson>,
+  answers: ProviderUserInputAnswers,
 ): Array<QuestionAnswer> {
   return request.questions.map((question, index) => {
     const raw =

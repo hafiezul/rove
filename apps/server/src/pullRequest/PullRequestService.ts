@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import {
+  ProjectId,
   PullRequestOperationError,
   PullRequestUnavailableError,
   pullRequestHostOf,
@@ -1948,8 +1949,12 @@ export const make = Effect.gen(function* () {
       const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         [, refs] = JSON.parse(key) as [number, ReadonlyArray<[string, string, number]>];
       return listStatsUncached({
-        refs: refs.map(([projectId, repository, number]) => ({ projectId, repository, number })),
-      } as PullRequestListStatsInput);
+        refs: refs.map(([projectId, repository, number]) => ({
+          projectId: ProjectId.make(projectId),
+          repository,
+          number,
+        })),
+      });
     },
     {
       capacity: LIST_STATS_CACHE_CAPACITY,

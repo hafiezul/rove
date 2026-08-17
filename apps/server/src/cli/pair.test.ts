@@ -166,8 +166,8 @@ describe("t3 pair", () => {
         const listed = yield* captureStdout(
           runCli(["auth", "pairing", "list", "--base-dir", baseDir, "--json"]),
         );
-        // @effect-diagnostics-next-line preferSchemaOverJson:off - CLI JSON output is decoded as a presentation DTO.
         const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
           credentials = JSON.parse(listed) as ReadonlyArray<{ readonly label?: string }>;
         assert.equal(credentials.length, 1);
         assert.equal(credentials[0]?.label, "t3 pair");

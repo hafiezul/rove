@@ -1,4 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { testDouble } from "../testDouble.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -8,12 +9,12 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as Electron from "electron";
 import { vi } from "vite-plus/test";
-import type { Json as SchemaJson } from "effect/Schema";
 
 vi.mock("electron", async (importOriginal) => ({
   ...(await importOriginal<typeof import("electron")>()),
@@ -106,7 +107,7 @@ function makeFakeBrowserWindow() {
 
   // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
-    window: window as Electron.BrowserWindow,
+    window: testDouble<Electron.BrowserWindow>(window),
     getBounds: window.getBounds,
     getNormalBounds: window.getNormalBounds,
     isDestroyed: window.isDestroyed,
@@ -809,7 +810,7 @@ describe("DesktopWindow", () => {
       });
       const logRecords: Array<{
         readonly message: unknown;
-        readonly annotations: Readonly<Record<string, SchemaJson>>;
+        readonly annotations: ReadonlyRecord<string, unknown>;
       }> = [];
       const logger = Logger.make(({ fiber, message }) => {
         logRecords.push({
@@ -841,7 +842,7 @@ describe("DesktopWindow", () => {
           record.message[0] === "failed to read connected displays; using defaults",
       );
       assert.isDefined(warning);
-      assert.strictEqual(warning.annotations.cause, displayLookupFailure);
+      assert.strictEqual(warning.annotations.cause, displayLookupFailure.message);
       assert.equal(createdWindowOptions[0]?.width, 1100);
       assert.equal(createdWindowOptions[0]?.height, 780);
       assert.isUndefined(createdWindowOptions[0]?.x);

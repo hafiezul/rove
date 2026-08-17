@@ -13,6 +13,41 @@ function isRecord(value: unknown): value is Record<string, SchemaJson> {
   return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
+function normalizeJsonValue(value: unknown): SchemaJson | undefined {
+  if (
+    value === null ||
+    RuntimePredicate.isString(value) ||
+    RuntimePredicate.isNumber(value) ||
+    RuntimePredicate.isBoolean(value)
+  ) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const values: SchemaJson[] = [];
+    for (const item of value) {
+      const normalized = normalizeJsonValue(item);
+      if (normalized === undefined) {
+        return undefined;
+      }
+      values.push(normalized);
+    }
+    return values;
+  }
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const record: Record<string, SchemaJson> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const normalized = normalizeJsonValue(item);
+    if (normalized === undefined) {
+      return undefined;
+    }
+    record[key] = normalized;
+  }
+  return record;
+}
+
 function isSessionModelState(value: unknown): value is EffectAcpSchema.SessionModelState {
   if (!isRecord(value) || !RuntimePredicate.isString(value.currentModelId)) {
     return false;
@@ -348,11 +383,13 @@ function makeToolCallState(
   if (command) {
     data.command = command;
   }
-  if (input.rawInput !== undefined) {
-    data.rawInput = input.rawInput;
+  const rawInput = normalizeJsonValue(input.rawInput);
+  if (rawInput !== undefined) {
+    data.rawInput = rawInput;
   }
-  if (input.rawOutput !== undefined) {
-    data.rawOutput = input.rawOutput;
+  const rawOutput = normalizeJsonValue(input.rawOutput);
+  if (rawOutput !== undefined) {
+    data.rawOutput = rawOutput;
   }
   if (input.content !== undefined) {
     data.content = input.content;

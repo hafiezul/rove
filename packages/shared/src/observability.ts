@@ -139,6 +139,7 @@ type OtlpSpan = OtlpTracer.ScopeSpan["spans"][number];
 type OtlpSpanEvent = OtlpSpan["events"][number];
 type OtlpSpanLink = OtlpSpan["links"][number];
 type OtlpSpanStatus = OtlpSpan["status"];
+type SpanEventAttributes = NonNullable<Parameters<Tracer.Span["event"]>[2]>;
 
 interface SerializableSpan {
   readonly name: string;
@@ -151,11 +152,15 @@ interface SerializableSpan {
   readonly attributes: ReadonlyMap<string, unknown>;
   readonly links: ReadonlyArray<Tracer.SpanLink>;
   readonly events: ReadonlyArray<
-    readonly [name: string, startTime: bigint, attributes: Record<string, SchemaJson>]
+    readonly [name: string, startTime: bigint, attributes: SpanEventAttributes]
   >;
 }
 
-function isPlainObject(value: unknown): value is Record<string, SchemaJson> {
+function isPlainObject(value: unknown): value is object {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+}
+
+function isJsonObject(value: SchemaJson): value is JsonObject {
   return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
@@ -224,10 +229,8 @@ function normalizeJsonValue(value: unknown, seen: WeakSet<WeakKey> = new WeakSet
   );
 }
 
-export function compactTraceAttributes(
-  attributes: Readonly<Record<string, SchemaJson>>,
-): TraceAttributes {
-  const entries: Array<[string, unknown]> = [];
+export function compactTraceAttributes<T extends object>(attributes: T): TraceAttributes {
+  const entries: Array<[string, SchemaJson]> = [];
   for (const [key, value] of Object.entries(attributes)) {
     if (value !== undefined) {
       entries.push([key, normalizeJsonValue(value)]);
@@ -260,7 +263,7 @@ const ALWAYS_TRUNCATED_TRACE_ATTRIBUTES: ReadonlySet<string> = new Set(["db.quer
 // Clamps strings nested inside already-normalized attribute values (arrays and
 // plain objects from normalizeJsonValue, e.g. an Error's `stack`). Returns the
 // input reference when nothing was clamped.
-function truncateNestedValue(value: unknown) {
+function truncateNestedValue(value: SchemaJson): SchemaJson {
   if (RuntimePredicate.isString(value)) {
     return value.length <= TRACE_ATTRIBUTE_MAX_LENGTH
       ? value
@@ -270,7 +273,7 @@ function truncateNestedValue(value: unknown) {
     const truncated = value.map(truncateNestedValue);
     return truncated.some((entry, index) => entry !== value[index]) ? truncated : value;
   }
-  if (isPlainObject(value)) {
+  if (isJsonObject(value)) {
     let truncated: Record<string, SchemaJson> | undefined;
     for (const [key, entry] of Object.entries(value)) {
       const next = truncateNestedValue(entry);
@@ -448,7 +451,7 @@ class LocalFileSpan implements Tracer.Span {
 
   status: Tracer.SpanStatus;
   attributes: Map<string, unknown>;
-  events: Array<[name: string, startTime: bigint, attributes: Record<string, SchemaJson>]>;
+  events: Array<[name: string, startTime: bigint, attributes: SpanEventAttributes]>;
   private readonly delegate: Tracer.Span;
   private readonly push: (record: EffectTraceRecord) => void;
 
@@ -494,7 +497,7 @@ class LocalFileSpan implements Tracer.Span {
     this.delegate.attribute(key, value);
   }
 
-  event(name: string, startTime: bigint, attributes?: Record<string, SchemaJson>): void {
+  event(name: string, startTime: bigint, attributes?: SpanEventAttributes): void {
     const nextAttributes = attributes ?? {};
     this.events.push([name, startTime, nextAttributes]);
     this.delegate.event(name, startTime, nextAttributes);

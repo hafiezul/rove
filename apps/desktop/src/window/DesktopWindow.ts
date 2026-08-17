@@ -45,8 +45,13 @@ const DEVELOPMENT_RETRYABLE_LOAD_ERROR_CODES = new Set([
 
 type WindowTitleBarOptions = Pick<
   Electron.BrowserWindowConstructorOptions,
-  "titleBarOverlay" | "titleBarStyle" | "trafficLightPosition"
->;
+  "titleBarStyle" | "trafficLightPosition"
+> & {
+  readonly titleBarOverlay?: Exclude<
+    Electron.BrowserWindowConstructorOptions["titleBarOverlay"],
+    boolean | undefined
+  >;
+};
 
 type DesktopWindowRuntimeServices =
   | DesktopEnvironment.DesktopEnvironment
@@ -229,8 +234,9 @@ function syncWindowAppearance(
     }
 
     window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
-    const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
-    if (RuntimePredicate.isObjectOrArray(titleBarOverlay) || titleBarOverlay === null) {
+    const titleBarOptions = getWindowTitleBarOptions(shouldUseDarkColors, platform);
+    const { titleBarOverlay } = titleBarOptions;
+    if (titleBarOverlay) {
       window.setTitleBarOverlay(titleBarOverlay);
     }
   });
@@ -327,7 +333,10 @@ export const make = Effect.gen(function* () {
       displayBoundsResult._tag === "Success"
         ? displayBoundsResult.bounds
         : yield* logWindowWarning("failed to read connected displays; using defaults", {
-            cause: displayBoundsResult.cause,
+            cause:
+              displayBoundsResult.cause instanceof Error
+                ? displayBoundsResult.cause.message
+                : String(displayBoundsResult.cause),
           }).pipe(Effect.as<readonly Electron.Rectangle[]>([]));
     const initialBounds = resolveInitialMainWindowBounds(persistedBounds, displayBounds);
     const restoredPersistedBounds = persistedBounds !== null && initialBounds === persistedBounds;

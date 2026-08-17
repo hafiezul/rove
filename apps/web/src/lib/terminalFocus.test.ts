@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { getTerminalFocusOwner, isTerminalFocused } from "./terminalFocus";
@@ -52,8 +53,8 @@ describe("isTerminalFocused", () => {
     detached.className = "xterm-helper-textarea";
 
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
-    globalThis.document = { activeElement: detached } as Document;
+    globalThis.HTMLElement = testDouble<typeof HTMLElement>(MockHTMLElement);
+    globalThis.document = testDouble<Document>({ activeElement: detached });
 
     expect(isTerminalFocused()).toBe(false);
   });
@@ -66,8 +67,8 @@ describe("isTerminalFocused", () => {
     attached.dataset.terminalOwner = "drawer";
 
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
-    globalThis.document = { activeElement: attached } as Document;
+    globalThis.HTMLElement = testDouble<typeof HTMLElement>(MockHTMLElement);
+    globalThis.document = testDouble<Document>({ activeElement: attached });
 
     expect(getTerminalFocusOwner()).toBe("drawer");
     expect(isTerminalFocused()).toBe(true);
@@ -81,8 +82,8 @@ describe("isTerminalFocused", () => {
     sidebarButton.dataset.terminalOwner = "right-panel";
 
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
-    globalThis.document = { activeElement: sidebarButton } as Document;
+    globalThis.HTMLElement = testDouble<typeof HTMLElement>(MockHTMLElement);
+    globalThis.document = testDouble<Document>({ activeElement: sidebarButton });
 
     expect(getTerminalFocusOwner()).toBe("right-panel");
     expect(isTerminalFocused()).toBe(true);

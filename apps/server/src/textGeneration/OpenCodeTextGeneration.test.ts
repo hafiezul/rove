@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { OpenCodeSettings, ProviderInstanceId, TextGenerationError } from "@t3tools/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
@@ -66,7 +67,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeContract = {
     }),
   runOpenCodeCommand: () => Effect.succeed({ stdout: "", stderr: "", code: 0 }),
   createOpenCodeSdkClient: ({ baseUrl, serverPassword }) =>
-    ({
+    testDouble<ReturnType<OpenCodeRuntime.OpenCodeRuntimeContract["createOpenCodeSdkClient"]>>({
       session: {
         create: async () => {
           if (runtimeMock.state.sessionCreateError !== undefined) {
@@ -99,7 +100,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeContract = {
           );
         },
       },
-    }) as ReturnType<OpenCodeRuntime.OpenCodeRuntimeContract["createOpenCodeSdkClient"]>,
+    }),
   loadOpenCodeInventory: () =>
     Effect.fail(
       new OpenCodeRuntime.OpenCodeRuntimeError({

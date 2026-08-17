@@ -1672,8 +1672,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
         "--input",
         "-",
       ]);
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         request = JSON.parse(callAt(0).stdin ?? "") as {
           query: string;
           variables: Record<string, string>;
@@ -1747,8 +1747,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
       expect(scopeCheck).toContain("name=web");
       expect(scopeCheck).toContain("number=7");
       expect(scopeCheck).toContain("subjectId=IC_1");
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         request = JSON.parse(callAt(1).stdin ?? "") as {
           query: string;
           variables: Record<string, string>;
@@ -1822,8 +1822,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
       expect(lookup).toContain("owner=acme");
       expect(lookup).toContain("name=web");
       expect(lookup).toContain("number=7");
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         request = JSON.parse(callAt(1).stdin ?? "") as {
           query: string;
           variables: Record<string, string>;
@@ -1860,9 +1860,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
         content: "heart",
         reacted: false,
       });
-
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         request = JSON.parse(callAt(1).stdin ?? "") as { query: string };
       expect(request.query).toContain("removeReaction(");
     }),

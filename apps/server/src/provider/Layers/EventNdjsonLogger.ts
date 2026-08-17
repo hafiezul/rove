@@ -612,7 +612,7 @@ export const makeEventNdjsonLogger = Effect.fnUntraced(function* (
 ): Effect.fn.Return<EventNdjsonLogger | undefined> {
   const store = yield* makeEventNdjsonLogStore(filePath, options).pipe(
     Effect.catch((error) =>
-      logWarning(error.message, { error }).pipe(
+      logWarning(error.message, { errorMessage: error.message }).pipe(
         Effect.as<EventNdjsonLogStore | undefined>(undefined),
       ),
     ),

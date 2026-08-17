@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import * as NodeCrypto from "node:crypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
@@ -306,20 +307,20 @@ function expectedManagedTunnelName(environmentId: string, userId = "user_ABC"): 
 
 describe("ManagedEndpointProvider", () => {
   it.effect("does not require the deployment RuntimeContext when building the Worker layer", () => {
-    const tunnelClient = {
+    const tunnelClient = testDouble<Cloudflare.Tunnel.ReadWriteTunnelClient>({
       list: () => Effect.succeed({ result: [] }),
       create: (request: { readonly name: string }) =>
         Effect.succeed({ id: "tunnel-id", name: request.name }),
       putConfiguration: () => Effect.void,
       getToken: () => Effect.succeed("connector-token"),
       delete: () => Effect.void,
-    } as Cloudflare.Tunnel.ReadWriteTunnelClient;
-    const dnsClient = {
+    });
+    const dnsClient = testDouble<Cloudflare.DNS.ReadWriteDnsClient>({
       listDnsRecords: () => Effect.succeed({ result: [] }),
       createDnsRecord: () => Effect.succeed({ id: "dns-record-id" }),
       updateDnsRecord: () => Effect.void,
       deleteDnsRecord: () => Effect.void,
-    } as Cloudflare.DNS.ReadWriteDnsClient;
+    });
     const runtimeContext = {} as Alchemy.BaseRuntimeContext;
     const layer = ManagedEndpointProvider.layerCloudflareBindings(
       tunnelClient,

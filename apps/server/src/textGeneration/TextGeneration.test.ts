@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as PubSub from "effect/PubSub";
@@ -31,9 +32,9 @@ const // SAFETY: This fixture intentionally supplies the asserted collaborator c
   ): ProviderInstance =>
     ({
       instanceId,
-      driverKind: instanceId as ProviderInstance["driverKind"],
+      driverKind: testDouble<ProviderInstance["driverKind"]>(instanceId),
       continuationIdentity: {
-        driverKind: instanceId as ProviderInstance["driverKind"],
+        driverKind: testDouble<ProviderInstance["driverKind"]>(instanceId),
         continuationKey: `${instanceId}:test`,
       },
       displayName: undefined,

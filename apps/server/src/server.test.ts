@@ -1,3 +1,4 @@
+import { testDouble } from "./testDouble.ts";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeSocket from "@effect/platform-node/NodeSocket";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -378,8 +379,8 @@ const makeBrowserOtlpPayload = (spanName: string) =>
         Effect.andThen(Effect.die(new Error("Timed out waiting for OTLP trace export"))),
       ),
     );
-    // @effect-diagnostics-next-line preferSchemaOverJson:off
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
     return JSON.parse(request.body) as OtlpTracer.TraceData;
   });
 
@@ -978,11 +979,13 @@ const wsRpcProtocolLayer = (wsUrl: string) => {
   const webSocketConstructorLayer = Layer.succeed(
     Socket.WebSocketConstructor,
     (socketUrl, protocols) =>
-      new NodeSocket.NodeWS.WebSocket(
-        socketUrl,
-        protocols,
-        cookie ? { headers: { cookie } } : undefined,
-      ) as globalThis.WebSocket,
+      testDouble<globalThis.WebSocket>(
+        new NodeSocket.NodeWS.WebSocket(
+          socketUrl,
+          protocols,
+          cookie ? { headers: { cookie } } : undefined,
+        ),
+      ),
   );
 
   return RpcClient.layerProtocolSocket().pipe(

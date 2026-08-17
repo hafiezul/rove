@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -78,7 +79,7 @@ type LegacyProviderRuntimeEvent = {
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
   readonly payload?: SchemaJson | undefined;
-  readonly [key: string]: SchemaJson;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 type LegacyTurnCompletedEvent = LegacyProviderRuntimeEvent & {
@@ -157,7 +158,7 @@ function createProviderServiceHarness() {
     }
 
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    return event as ProviderRuntimeEvent;
+    return testDouble<ProviderRuntimeEvent>(event);
   };
 
   const emit = (event: LegacyProviderRuntimeEvent): void => {
@@ -3760,19 +3761,21 @@ describe("ProviderRuntimeIngestion", () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";
 
-    harness.emit({
-      type: "content.delta",
-      eventId: asEventId("evt-invalid-delta"),
-      provider: ProviderDriverKind.make("codex"),
-      createdAt: now,
-      threadId: asThreadId("thread-1"),
-      turnId: asTurnId("turn-invalid"),
-      itemId: asItemId("item-invalid"),
-      payload: {
-        streamKind: "assistant_text",
-        delta: undefined,
-      },
-    } as ProviderRuntimeEvent);
+    harness.emit(
+      testDouble<LegacyProviderRuntimeEvent>({
+        type: "content.delta",
+        eventId: asEventId("evt-invalid-delta"),
+        provider: ProviderDriverKind.make("codex"),
+        createdAt: now,
+        threadId: asThreadId("thread-1"),
+        turnId: asTurnId("turn-invalid"),
+        itemId: asItemId("item-invalid"),
+        payload: {
+          streamKind: "assistant_text",
+          delta: undefined,
+        },
+      }),
+    );
 
     harness.emit({
       type: "runtime.error",

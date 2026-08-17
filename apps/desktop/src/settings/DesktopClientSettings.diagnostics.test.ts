@@ -7,16 +7,16 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "./DesktopClientSettings.ts";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface LogRecord {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, SchemaJson>>;
+  readonly annotations: ReadonlyRecord<string, unknown>;
 }
 
 const baseDir = "/virtual-home";

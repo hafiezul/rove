@@ -656,14 +656,14 @@ export function makeOpenCodeAdapter(
       threadId: ThreadId,
       event: {
         readonly observedAt: string;
-        readonly event: Record<string, SchemaJson>;
+        readonly event: unknown;
       },
     ) => (nativeEventLogger ? nativeEventLogger.write(event, threadId) : Effect.void);
     const writeNativeEventBestEffort = (
       threadId: ThreadId,
       event: {
         readonly observedAt: string;
-        readonly event: Record<string, SchemaJson>;
+        readonly event: unknown;
       },
     ) => writeNativeEvent(threadId, event).pipe(Effect.catchCause(() => Effect.void));
 

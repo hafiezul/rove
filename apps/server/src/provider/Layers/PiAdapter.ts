@@ -95,6 +95,15 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 
 const PROVIDER = ProviderDriverKind.make("pi");
 
+function isPromiseWithCatch(
+  value: unknown,
+): value is { catch: (onRejected: () => void) => unknown } {
+  if (!RuntimePredicate.isObjectOrArray(value) || Array.isArray(value) || !("catch" in value)) {
+    return false;
+  }
+  return RuntimePredicate.isFunction(value.catch);
+}
+
 /**
  * Narrow slice of the Pi SDK session the adapter relies on. `setModel` takes
  * the composer slug (`provider/model-id`) and resolves it against the user's
@@ -560,14 +569,9 @@ export function makePiAdapter(
           // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           yield* Effect.try({
             try: () => {
-              const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
-                maybePromise = ctx.session.prompt(text) as unknown;
-              if (
-                RuntimePredicate.isObjectOrArray(maybePromise) &&
-                RuntimePredicate.isFunction((maybePromise as Promise<void>).catch)
-              ) {
-                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-                (maybePromise as Promise<void>).catch(() => {});
+              const maybePromise = ctx.session.prompt(text);
+              if (isPromiseWithCatch(maybePromise)) {
+                maybePromise.catch(() => {});
               }
             },
             catch: (cause) =>

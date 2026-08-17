@@ -1,3 +1,4 @@
+import { testDouble } from "../src/testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeChildProcess from "node:child_process";
 
@@ -330,10 +331,13 @@ export const makeOrchestrationIntegrationHarness = (
         readonly newBranch: string;
       }) => Effect.succeed({ branch: input.newBranch }),
     });
-    const textGenerationLayer = Layer.succeed(TextGeneration, {
-      generateBranchName: () => Effect.succeed({ branch: "update" }),
-      generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
-    } as TextGenerationContract);
+    const textGenerationLayer = Layer.succeed(
+      TextGeneration,
+      testDouble<TextGenerationContract>({
+        generateBranchName: () => Effect.succeed({ branch: "update" }),
+        generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
+      }),
+    );
     const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitWorkflowLayer),

@@ -5,6 +5,7 @@ import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import { HostProcessHostname, HostProcessPlatform } from "@t3tools/shared/hostProcess";
@@ -12,7 +13,6 @@ import { vi } from "vite-plus/test";
 
 import * as ProcessRunner from "../processRunner.ts";
 import * as ServerEnvironmentLabel from "./ServerEnvironmentLabel.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const isServerEnvironmentLabelFileError = Schema.is(
   ServerEnvironmentLabel.ServerEnvironmentLabelFileError,
@@ -23,7 +23,7 @@ const isServerEnvironmentLabelCommandError = Schema.is(
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, SchemaJson>>;
+  readonly annotations: ReadonlyRecord<string, unknown>;
 }
 
 const runMock = vi.fn<ProcessRunner.ProcessRunner["Service"]["run"]>();

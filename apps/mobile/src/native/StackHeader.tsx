@@ -27,6 +27,12 @@ export {
   type NativeTopScrollEdgeEffect,
 } from "./scrollEdgeEffects";
 
+export type NativeHeaderItemInput = {
+  readonly type: string;
+};
+
+export type NativeHeaderItem = NativeStackHeaderItem;
+
 export type AppNativeStackNavigationOptions = Omit<
   NativeStackNavigationOptions,
   "headerTintColor" | "unstable_headerLeftItems" | "unstable_headerRightItems"
@@ -107,13 +113,13 @@ function optionsSignature(value: unknown, seen = new WeakSet<object>()): string 
   return runtimeValueKind(value);
 }
 
-function stabilizeOptionFunctions(
-  value: unknown,
+function stabilizeOptionFunctions<T>(
+  value: T,
   path: string,
   latestFunctions: Map<string, (...args: unknown[]) => unknown>,
   wrappers: Map<string, (...args: unknown[]) => unknown>,
   seen = new WeakSet<object>(),
-) {
+): T {
   if (RuntimePredicate.isFunction(value)) {
     // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     latestFunctions.set(path, value as (...args: unknown[]) => unknown);
@@ -124,25 +130,27 @@ function stabilizeOptionFunctions(
       };
       wrappers.set(path, wrapper);
     }
-    return wrapper;
+    // SAFETY: A wrapper has the same callable role as the option function it replaces.
+    return wrapper as T;
   }
   if (Array.isArray(value)) {
     if (seen.has(value)) return value;
     seen.add(value);
+    // SAFETY: Mapping only recursively replaces function values; it preserves the input array's role.
     return value.map((entry, index) =>
       stabilizeOptionFunctions(entry, `${path}[${index}]`, latestFunctions, wrappers, seen),
-    );
+    ) as T;
   }
   if (RuntimePredicate.isObjectOrArray(value)) {
     if (seen.has(value) || "current" in value) return value;
     seen.add(value);
-    // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    // SAFETY: Rebuilding this option object only recursively replaces function values.
     return Object.fromEntries(
       Object.entries(value as Record<string, SchemaJson>).map(([key, entry]) => [
         key,
         stabilizeOptionFunctions(entry, `${path}.${key}`, latestFunctions, wrappers, seen),
       ]),
-    );
+    ) as T;
   }
   return value;
 }
@@ -166,12 +174,12 @@ export function NativeStackScreenOptions(props: {
   const normalizedOptions = useMemo(() => normalizeScreenOptions(props.options), [props.options]);
   const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     stableOptions = normalizedOptions
-      ? (stabilizeOptionFunctions(
+      ? stabilizeOptionFunctions(
           normalizedOptions,
           "options",
           latestOptionFunctionsRef.current,
           optionFunctionWrappersRef.current,
-        ) as NativeStackNavigationOptions)
+        )
       : undefined;
 
   useLayoutEffect(() => {
@@ -233,7 +241,24 @@ function iconFromProp(icon: unknown): NativeStackHeaderIcon | undefined {
   return { type: "sfSymbol", name: icon as never };
 }
 
-type ToolbarElementProps = Record<string, SchemaJson> & { readonly children?: ReactNode };
+type ToolbarElementProps = {
+  readonly accessibilityLabel?: string;
+  readonly children?: ReactNode;
+  readonly destructive?: boolean;
+  readonly disabled?: boolean;
+  readonly discoverabilityLabel?: string;
+  readonly flexible?: boolean;
+  readonly icon?: string;
+  readonly inline?: boolean;
+  readonly isOn?: boolean;
+  readonly label?: string;
+  readonly onPress?: () => void;
+  readonly separateBackground?: boolean;
+  readonly subtitle?: string;
+  readonly tintColor?: ColorValue;
+  readonly title?: string;
+  readonly width?: number;
+};
 
 function elementTypeName(element: ReactElement): string | undefined {
   const type = element.type;
@@ -259,9 +284,7 @@ function convertMenuAction(
         : undefined,
       disabled: Boolean(element.props.disabled),
       icon: iconFromProp(element.props.icon),
-      onPress: RuntimePredicate.isFunction(element.props.onPress)
-        ? (element.props.onPress as () => void)
-        : () => undefined,
+      onPress: element.props.onPress ?? (() => undefined),
       state: element.props.isOn === true ? "on" : undefined,
       destructive: Boolean(element.props.destructive),
       discoverabilityLabel: RuntimePredicate.isString(element.props.discoverabilityLabel)
@@ -317,11 +340,9 @@ function convertToolbarChild(child: ReactNode): NativeStackHeaderItem | null {
         : undefined,
       disabled: Boolean(child.props.disabled),
       icon: iconFromProp(child.props.icon),
-      onPress: RuntimePredicate.isFunction(child.props.onPress)
-        ? (child.props.onPress as () => void)
-        : () => undefined,
+      onPress: child.props.onPress ?? (() => undefined),
       sharesBackground: !child.props.separateBackground,
-      tintColor: child.props.tintColor as ColorValue | undefined,
+      tintColor: child.props.tintColor,
       variant: "plain",
     };
   }
@@ -341,7 +362,7 @@ function convertToolbarChild(child: ReactNode): NativeStackHeaderItem | null {
         items: collectMenuItems(child.props.children),
       },
       sharesBackground: !child.props.separateBackground,
-      tintColor: child.props.tintColor as ColorValue | undefined,
+      tintColor: child.props.tintColor,
       variant: "plain",
     };
   }

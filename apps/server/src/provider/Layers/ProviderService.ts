@@ -767,12 +767,14 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       });
       yield* analytics.record("provider.turn.sent", {
         provider: routed.adapter.provider,
-        model: input.modelSelection?.model,
-        interactionMode: input.interactionMode,
+        ...(input.modelSelection?.model ? { model: input.modelSelection.model } : undefined),
+        ...(input.interactionMode !== undefined
+          ? { interactionMode: input.interactionMode }
+          : undefined),
         // Session-start events alone skew runtime mode toward users who toggle
         // often, since every toggle restarts the session. Recording it per turn
         // gives a usage-weighted view and lets it cross with interactionMode.
-        runtimeMode: routed.runtimeMode,
+        ...(routed.runtimeMode !== undefined ? { runtimeMode: routed.runtimeMode } : undefined),
         attachmentCount: input.attachments.length,
         hasInput: RuntimePredicate.isString(input.input) && input.input.trim().length > 0,
       });

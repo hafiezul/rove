@@ -14,6 +14,7 @@ import { ManagedRelay } from "@t3tools/client-runtime/relay";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { verifyDpopProof } from "@t3tools/shared/dpop";
 import type { SavedRemoteConnection } from "../../lib/connection";
+import { testDouble } from "../../testDouble";
 import { cryptoLayer } from "../cloud/dpop";
 import { managedRelayClientLayer } from "../cloud/managedRelayLayer";
 import {
@@ -551,7 +552,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-        [request, init] = fetchMock.mock.calls[1] as [unknown, RequestInit | undefined];
+        [request, init] = testDouble<[unknown, RequestInit | undefined]>(fetchMock.mock.calls[1]);
       const url = request instanceof Request ? request.url : String(request);
       const method = request instanceof Request ? request.method : init?.method;
       const headers = request instanceof Request ? request.headers : new Headers(init?.headers);

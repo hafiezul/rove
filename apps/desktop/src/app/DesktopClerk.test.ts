@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
@@ -39,12 +40,12 @@ const makeDesktopClerkLayer = (isDevelopment = true, events: string[] = []) => {
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
   } as DesktopEnvironment.DesktopEnvironment["Service"]);
 
-  const electronApp = {
+  const electronApp = testDouble<ElectronApp.ElectronApp["Service"]>({
     setPath: (name: string, value: string) =>
       Effect.sync(() => {
         events.push(`setPath:${name}:${value}`);
       }),
-  } as ElectronApp.ElectronApp["Service"];
+  });
 
   return DesktopClerk.layer.pipe(
     Layer.provide(
@@ -158,13 +159,13 @@ describe("DesktopClerk", () => {
     createClerkBridgeMock.mockReturnValue({ cleanup: vi.fn(), isPrimaryInstance: true });
     const quit = vi.fn();
     const registeredEvents: string[] = [];
-    const electronApp = {
+    const electronApp = testDouble<ElectronApp.ElectronApp["Service"]>({
       quit: Effect.sync(quit),
       on: (eventName: string) =>
         Effect.sync(() => {
           registeredEvents.push(eventName);
         }),
-    } as ElectronApp.ElectronApp["Service"];
+    });
     const electronWindow = {} as ElectronWindow.ElectronWindow["Service"];
 
     return Effect.gen(function* () {
@@ -186,13 +187,13 @@ describe("DesktopClerk", () => {
     createClerkBridgeMock.mockReturnValue({ cleanup: vi.fn(), isPrimaryInstance: false });
     const quit = vi.fn();
     const registeredEvents: string[] = [];
-    const electronApp = {
+    const electronApp = testDouble<ElectronApp.ElectronApp["Service"]>({
       quit: Effect.sync(quit),
       on: (eventName: string) =>
         Effect.sync(() => {
           registeredEvents.push(eventName);
         }),
-    } as ElectronApp.ElectronApp["Service"];
+    });
     const electronWindow = {} as ElectronWindow.ElectronWindow["Service"];
 
     return Effect.gen(function* () {

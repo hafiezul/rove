@@ -21,6 +21,7 @@ import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import {
   AVAILABLE_CONNECTION_STATE,
   PrimaryConnectionTarget,
@@ -152,9 +153,9 @@ const makeHarness = Effect.fn("TestThreadPagination.makeHarness")(function* (opt
   const client = {
     [ORCHESTRATION_WS_METHODS.subscribeThread]: (input: Record<string, SchemaJson>) =>
       Stream.unwrap(Ref.set(lastSubscribeInput, input).pipe(Effect.as(Stream.fromQueue(inputs)))),
-  } as WsRpcProtocolClient;
+  };
   const session: RpcSession.RpcSession = {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.succeed({
       threadSnapshotPagination: options?.paginationCapability !== false,
     } as never),

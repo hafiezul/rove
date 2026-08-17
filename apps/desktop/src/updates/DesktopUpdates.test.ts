@@ -10,6 +10,7 @@ import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Ref from "effect/Ref";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -21,7 +22,6 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface UpdatesHarnessOptions {
   readonly checkForUpdates?: Effect.Effect<
@@ -372,7 +372,7 @@ describe("DesktopUpdates", () => {
       cause,
     });
     const harness = makeHarness({ checkForUpdates: Effect.fail(updaterError) });
-    const loggedAnnotations: Array<Record<string, SchemaJson>> = [];
+    const loggedAnnotations: Array<ReadonlyRecord<string, unknown>> = [];
     const logger = Logger.make(({ fiber }) => {
       const annotations = fiber.getRef(References.CurrentLogAnnotations);
       if (annotations.errorTag === "ElectronUpdaterCheckForUpdatesError") {

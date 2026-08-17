@@ -12,6 +12,7 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Tracer from "effect/Tracer";
 
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { ConnectionCatalogEntry } from "./catalog.ts";
 import * as Connectivity from "./connectivity.ts";
 import * as ConnectionDriver from "./driver.ts";
@@ -61,7 +62,7 @@ const PREPARED_CONNECTION: PreparedConnection = {
   target: TARGET,
 };
 
-const TEST_RPC_CLIENT = {} as WsRpcProtocolClient;
+const TEST_RPC_CLIENT = testDouble<WsRpcProtocolClient>({});
 
 function transient(message = "Connection failed.") {
   return new ConnectionTransientError({

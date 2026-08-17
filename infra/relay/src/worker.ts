@@ -136,6 +136,7 @@ export const ApiLive = Api.make(
     const apnsPrivateKey = yield* Config.redacted("APNS_PRIVATE_KEY");
     const apnsDeliveryJobSigningSecret = yield* randomApnsDeliveryJobSigningSecret;
     const apnsDeliveryQueueSender = yield* Cloudflare.Queues.WriteQueue(apnsDeliveryQueue);
+    const apnsDeliveryDeadLetterQueueName = yield* yield* apnsDeliveryDeadLetterQueue.queueName;
 
     const axiomDatasetName = yield* observability.traces.name;
     const axiomIngestToken = yield* observability.workerIngestToken.token;
@@ -246,7 +247,7 @@ export const ApiLive = Api.make(
         maxRetries: 5,
         maxWaitTime: "5 seconds",
         retryDelay: "30 seconds",
-        deadLetterQueue: apnsDeliveryDeadLetterQueue.queueName as string,
+        deadLetterQueue: apnsDeliveryDeadLetterQueueName,
       },
       (stream) =>
         stream.pipe(

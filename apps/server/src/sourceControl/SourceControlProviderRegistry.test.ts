@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as DateTime from "effect/DateTime";
@@ -59,7 +60,7 @@ function makeRegistry(input: {
 
   const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     registryLayer = Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
-      get: () => Effect.succeed(driver as VcsDriver.VcsDriver["Service"]),
+      get: () => Effect.succeed(testDouble<VcsDriver.VcsDriver["Service"]>(driver)),
       resolve:
         input.resolve ??
         (() =>
@@ -75,7 +76,7 @@ function makeRegistry(input: {
                 expiresAt: Option.none(),
               },
             },
-            driver: driver as VcsDriver.VcsDriver["Service"],
+            driver: testDouble<VcsDriver.VcsDriver["Service"]>(driver),
           })),
     });
 

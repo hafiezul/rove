@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import type { RelayDeviceRegistrationRequest } from "@t3tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import type { SQL } from "drizzle-orm";
@@ -38,7 +39,7 @@ describe("Devices", () => {
     const insertedValues: Array<Record<string, SchemaJson>> = [];
     const dialect = new PgDialect();
 
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: (table: unknown) => {
         expect(table).toBe(relayMobileDevices);
         calls.push("update");
@@ -74,7 +75,7 @@ describe("Devices", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -125,7 +126,7 @@ describe("Devices", () => {
     const deleteConditions: Array<SQL> = [];
     const dialect = new PgDialect();
 
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       delete: (table: unknown) => {
         calls.push(table === relayLiveActivities ? "delete.liveActivities" : "delete.devices");
         return {
@@ -137,7 +138,7 @@ describe("Devices", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -171,7 +172,7 @@ describe("Devices", () => {
   it.effect("lists safe notification state without exposing APNs tokens", () => {
     const dialect = new PgDialect();
     let condition: SQL | null = null;
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: (table: unknown) => {
           expect(table).toBe(relayMobileDevices);
@@ -193,7 +194,7 @@ describe("Devices", () => {
           };
         },
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -231,13 +232,13 @@ describe("Devices", () => {
 
   it.effect("identifies the failed device registration stage", () => {
     const cause = new Error("push-token claim failed");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: () => ({
         set: (values: Record<string, SchemaJson>) => ({
           where: () => ("pushToken" in values ? Effect.fail(cause) : Effect.void),
         }),
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -259,11 +260,11 @@ describe("Devices", () => {
 
   it.effect("identifies the failed device unregistration stage", () => {
     const cause = new Error("live activity delete failed");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       delete: (table: unknown) => ({
         where: () => (table === relayLiveActivities ? Effect.fail(cause) : Effect.void),
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -287,13 +288,13 @@ describe("Devices", () => {
 
   it.effect("attaches the user to device list failures", () => {
     const cause = new Error("device list failed");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: () => ({
           where: () => Effect.fail(cause),
         }),
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;

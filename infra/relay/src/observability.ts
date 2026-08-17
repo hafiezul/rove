@@ -82,24 +82,44 @@ const appendEncodedAttributes = (
   prefix: string,
   value: unknown,
 ): void => {
-  if (
-    value === null ||
-    RuntimePredicate.isString(value) ||
-    RuntimePredicate.isNumber(value) ||
-    RuntimePredicate.isBoolean(value) ||
-    RuntimePredicate.isBigInt(value) ||
-    Array.isArray(value)
-  ) {
-    attributes[prefix] = value;
+  const encodedValue = encodeSpanAttributeValue(value);
+  if (encodedValue !== undefined) {
+    attributes[prefix] = encodedValue;
     return;
   }
-  if (!(RuntimePredicate.isObjectOrArray(value) || value === null)) {
+  if (value === null || !RuntimePredicate.isObjectOrArray(value)) {
     return;
   }
   for (const [key, child] of Object.entries(value)) {
     appendEncodedAttributes(attributes, `${prefix}.${key}`, child);
   }
 };
+
+function encodeSpanAttributeValue(value: unknown): SchemaJson | undefined {
+  if (
+    value === null ||
+    RuntimePredicate.isString(value) ||
+    RuntimePredicate.isNumber(value) ||
+    RuntimePredicate.isBoolean(value)
+  ) {
+    return value;
+  }
+  if (RuntimePredicate.isBigInt(value)) {
+    return value.toString();
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const encodedItems: SchemaJson[] = [];
+  for (const item of value) {
+    const encodedItem = encodeSpanAttributeValue(item);
+    if (encodedItem !== undefined) {
+      encodedItems.push(encodedItem);
+    }
+  }
+  return encodedItems;
+}
 
 const schemaErrorAttributes = (error: unknown): Record<string, SchemaJson> | undefined => {
   if (!RuntimePredicate.isObjectOrArray(error)) {

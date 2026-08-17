@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import * as RuntimePredicate from "effect/Predicate";
@@ -154,7 +155,7 @@ describe("browser recording", () => {
     vi.clearAllMocks();
     vi.stubGlobal("window", globalThis);
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    vi.stubGlobal("MediaRecorder", FakeMediaRecorder as typeof MediaRecorder);
+    vi.stubGlobal("MediaRecorder", testDouble<typeof MediaRecorder>(FakeMediaRecorder));
     class ImmediateImage {
       private loadListener: EventListenerOrEventListenerObject | undefined;
 
@@ -169,7 +170,7 @@ describe("browser recording", () => {
       }
     }
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    vi.stubGlobal("Image", ImmediateImage as typeof Image);
+    vi.stubGlobal("Image", testDouble<typeof Image>(ImmediateImage));
     vi.stubGlobal("document", {
       createElement: () => ({
         width: 0,
@@ -300,7 +301,7 @@ describe("browser recording", () => {
       }
     }
     // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    vi.stubGlobal("Image", DeferredImage as typeof Image);
+    vi.stubGlobal("Image", testDouble<typeof Image>(DeferredImage));
     vi.stubGlobal("document", {
       createElement: () => ({
         width: 0,

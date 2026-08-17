@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { showContextMenuFallback } from "./contextMenuFallback";
@@ -147,7 +148,7 @@ class FakeDocument {
 
 function findButton(label: string): FakeElement | undefined {
   // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-  return (document as FakeDocument)
+  return testDouble<FakeDocument>(document)
     .querySelectorAll("button")
     .find((button) => button.textContent.includes(label));
 }

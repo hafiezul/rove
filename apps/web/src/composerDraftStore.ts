@@ -59,6 +59,10 @@ const isRuntimeMode = Schema.is(RuntimeMode);
 const isProviderDriverKind = Schema.is(ProviderDriverKind);
 const isReviewCommentContext = Schema.is(ReviewCommentContextSchema);
 
+function isJsonRecord(value: SchemaJson): value is Record<string, SchemaJson> {
+  return !Array.isArray(value) && RuntimePredicate.isObjectOrArray(value);
+}
+
 export const COMPOSER_DRAFT_STORAGE_KEY = "t3code:composer-drafts:v1";
 const COMPOSER_DRAFT_STORAGE_VERSION = 8;
 const DraftThreadEnvModeSchema = Schema.Literals(["local", "worktree"]);
@@ -167,22 +171,6 @@ type LegacyCodexFields = {
   codexFastMode?: unknown;
   serviceTier?: unknown;
 };
-
-type LegacyThreadModelFields = {
-  provider?: unknown;
-  model?: unknown;
-  modelOptions?: unknown;
-};
-
-type LegacyV2ThreadDraftFields = {
-  modelSelection?: ModelSelection | null;
-  modelOptions?: unknown;
-};
-
-type LegacyPersistedComposerThreadDraftState = PersistedComposerThreadDraftState &
-  LegacyCodexFields &
-  LegacyThreadModelFields &
-  LegacyV2ThreadDraftFields;
 
 type LegacyStickyModelFields = {
   stickyProvider?: unknown;
@@ -1751,11 +1739,10 @@ function normalizePersistedDraftsByThreadId(
     if (!RuntimePredicate.isString(threadKeyOrId) || threadKeyOrId.length === 0) {
       continue;
     }
-    if (!draftValue || !(RuntimePredicate.isObjectOrArray(draftValue) || draftValue === null)) {
+    if (!isJsonRecord(draftValue)) {
       continue;
     }
-    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      draftCandidate = draftValue as PersistedComposerThreadDraftState;
+    const draftCandidate = draftValue;
     const promptCandidate = RuntimePredicate.isString(draftCandidate.prompt)
       ? draftCandidate.prompt
       : "";
@@ -1792,8 +1779,7 @@ function normalizePersistedDraftsByThreadId(
       terminalContexts.length,
     );
     // If the draft already has the v3 shape, use it directly
-    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      legacyDraftCandidate = draftValue as LegacyPersistedComposerThreadDraftState;
+    const legacyDraftCandidate = draftCandidate;
     let modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>> = {};
     let activeProvider: ProviderInstanceId | null = null;
 

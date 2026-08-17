@@ -106,7 +106,7 @@ function readConfigStringArray(config: unknown, key: string): ReadonlyArray<stri
 function nextConfigBlobWithValue(
   config: unknown,
   key: string,
-  value: unknown,
+  value: SchemaJson,
 ): Record<string, SchemaJson> {
   const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
     base: Record<string, SchemaJson> = RuntimePredicate.isObjectOrArray(config)

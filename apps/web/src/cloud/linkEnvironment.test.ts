@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   type DesktopBridge,
   EnvironmentId,
@@ -82,12 +83,12 @@ function registryLayer(options?: {
   return Layer.effect(
     EnvironmentRegistry,
     Effect.gen(function* () {
-      const client = {
+      const client = testDouble<RpcSession["client"]>({
         [WS_METHODS.cloudGetRelayClientStatus]: () =>
           Effect.succeed(options?.status ?? { status: "available", version: "2026.6.0" }),
         [WS_METHODS.cloudInstallRelayClient]: () =>
           Stream.fromIterable(options?.installEvents ?? []),
-      } as RpcSession["client"];
+      });
       const session: RpcSession = {
         client,
         initialConfig: Effect.never,
@@ -243,9 +244,9 @@ describe("web cloud link environment client", () => {
       vi.stubGlobal("fetch", fetchMock);
       vi.stubGlobal("window", {
         location: { origin: "t3code://app" },
-        desktopBridge: {
+        desktopBridge: testDouble<DesktopBridge>({
           getLocalEnvironmentBearerToken: vi.fn().mockResolvedValue("desktop-bearer-token"),
-        } as DesktopBridge,
+        }),
       });
 
       yield* withServices(readPrimaryCloudLinkState({ target: TARGET }));

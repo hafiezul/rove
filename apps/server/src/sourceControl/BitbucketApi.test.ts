@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { assert, it, vi } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -142,7 +143,7 @@ function makeLayer(input: {
                   expiresAt: Option.none(),
                 },
               },
-              driver: driver as VcsDriver.VcsDriver["Service"],
+              driver: testDouble<VcsDriver.VcsDriver["Service"]>(driver),
             }),
         }),
       ),

@@ -7,14 +7,14 @@ import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 
 import * as ServerConfig from "../config.ts";
 import * as Identify from "./Identify.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, SchemaJson>>;
+  readonly annotations: ReadonlyRecord<string, unknown>;
 }
 
 const sha256 = (value: string) =>

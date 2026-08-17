@@ -10,7 +10,6 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface RecordedRegistration {
   readonly directories: string[];
@@ -18,7 +17,9 @@ interface RecordedRegistration {
   readonly commands: Array<{ readonly command: string; readonly args: ReadonlyArray<string> }>;
 }
 
-const makeEnvironment = (overrides: Record<string, SchemaJson> = {}) =>
+const makeEnvironment = (
+  overrides: Partial<DesktopEnvironment.DesktopEnvironment["Service"]> = {},
+) =>
   DesktopEnvironment.DesktopEnvironment.of({
     platform: "linux",
     isPackaged: true,
@@ -49,7 +50,7 @@ const mockProcess = (exitCode: number) =>
 const makeHandlerLayer = (
   recorded: RecordedRegistration,
   input: {
-    readonly environment?: Record<string, SchemaJson>;
+    readonly environment?: Partial<DesktopEnvironment.DesktopEnvironment["Service"]>;
     readonly xdgMimeExitCode?: number;
     readonly writeError?: PlatformError.PlatformError;
   } = {},

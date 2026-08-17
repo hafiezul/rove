@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,7 +13,7 @@ import type { Json as SchemaJson } from "effect/Schema";
 describe("EnvironmentLinks", () => {
   it.effect("retains link lookup failures with user and environment identity", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: (table: unknown) => {
           expect(table).toBe(relayEnvironmentLinks);
@@ -23,7 +24,7 @@ describe("EnvironmentLinks", () => {
           };
         },
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const links = yield* EnvironmentLinks.EnvironmentLinks;
@@ -46,7 +47,7 @@ describe("EnvironmentLinks", () => {
 
   it.effect("identifies delivery-user list failures without retaining key material", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: (table: unknown) => {
           expect(table).toBe(relayEnvironmentLinks);
@@ -55,7 +56,7 @@ describe("EnvironmentLinks", () => {
           };
         },
       }),
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const links = yield* EnvironmentLinks.EnvironmentLinks;
@@ -82,7 +83,7 @@ describe("EnvironmentLinks", () => {
 
   it.effect("selects users when either notifications or Live Activities are enabled", () => {
     const whereConditions: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: (selection: unknown) => {
         expect(selection).toBeDefined();
         return {
@@ -97,7 +98,7 @@ describe("EnvironmentLinks", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const links = yield* EnvironmentLinks.EnvironmentLinks;
@@ -122,7 +123,7 @@ describe("EnvironmentLinks", () => {
   it.effect("revokes only the active link owned by the requesting user", () => {
     const updateValues: Array<Record<string, SchemaJson>> = [];
     const whereConditions: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: (table: unknown) => {
         expect(table).toBe(relayEnvironmentLinks);
         return {
@@ -142,7 +143,7 @@ describe("EnvironmentLinks", () => {
           },
         };
       },
-    } as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const links = yield* EnvironmentLinks.EnvironmentLinks;

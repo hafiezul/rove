@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   defaultInstanceIdForDriver,
@@ -218,7 +219,7 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
         },
       ],
     });
-    const legacyCachedCodex = {
+    const legacyCachedCodex = testDouble<ServerProvider>({
       provider: ProviderDriverKind.make("codex"),
       enabled: true,
       installed: true,
@@ -236,7 +237,7 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
       ],
       slashCommands: [],
       skills: [],
-    } as ServerProvider;
+    });
     const mismatchedCachedCodex = makeProvider(CODEX_DRIVER, {
       instanceId: ProviderInstanceId.make("codex_personal"),
     });

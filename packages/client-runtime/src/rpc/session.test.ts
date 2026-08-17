@@ -19,6 +19,7 @@ import {
   type PreparedConnection,
 } from "../connection/model.ts";
 import * as RpcSession from "./session.ts";
+import { testDouble } from "../testDouble.ts";
 
 type SocketEventType = "open" | "message" | "close" | "error";
 type SocketEvent = {
@@ -158,8 +159,7 @@ const makeFactory = Effect.fn("TestRpcSessionFactory.make")(function* () {
   const constructorLayer = Layer.succeed(Socket.WebSocketConstructor, (url) => {
     const socket = new TestWebSocket(url);
     sockets.push(socket);
-    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    return socket as globalThis.WebSocket;
+    return testDouble<globalThis.WebSocket>(socket);
   });
   const layer = RpcSession.layer.pipe(Layer.provide(constructorLayer));
   const factory = yield* RpcSession.RpcSessionFactory.pipe(Effect.provide(layer));

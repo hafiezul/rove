@@ -24,6 +24,7 @@ import * as EnvironmentRegistry from "../connection/registry.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as Persistence from "../platform/persistence.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { RpcSession } from "../rpc/session.ts";
 import type { AtomCommandResult } from "./runtime.ts";
 import {
@@ -80,9 +81,9 @@ const target = new PrimaryConnectionTarget({
   wsBaseUrl: "wss://environment.example.test",
 });
 
-function session(client: WsRpcProtocolClient): RpcSession {
+function session(client: unknown): RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.never,
     ready: Effect.void,
     probe: Effect.void,
@@ -614,7 +615,7 @@ describe("vcsActionState", () => {
                     message: "push failed after creating the branch",
                   }),
                 ),
-        } as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target,
           state: yield* SubscriptionRef.make(connectionState),

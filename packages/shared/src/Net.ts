@@ -21,6 +21,13 @@ const isErrnoExceptionWithCode = (
   Predicate.hasProperty(cause, "code") &&
   Predicate.isString(cause.code);
 
+const isAddressInfo = (
+  address: NodeNet.AddressInfo | string | null,
+): address is NodeNet.AddressInfo =>
+  RuntimePredicate.isObjectOrArray(address) &&
+  "port" in address &&
+  RuntimePredicate.isNumber(address.port);
+
 const closeServer = (server: NodeNet.Server) => {
   try {
     server.close();
@@ -166,7 +173,7 @@ export const make = () => {
 
       probe.listen(0, host, () => {
         const address = probe.address();
-        const port = RuntimePredicate.isObjectOrArray(address) ? address.port : 0;
+        const port = isAddressInfo(address) ? address.port : 0;
         probe.close(() => {
           if (port > 0) {
             settle(Effect.succeed(port));

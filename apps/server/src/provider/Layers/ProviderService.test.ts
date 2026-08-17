@@ -9,6 +9,7 @@ import type {
   ProviderSendTurnInput,
   ProviderSession,
   ProviderTurnStartResult,
+  ProviderUserInputAnswers,
 } from "@t3tools/contracts";
 import {
   ApprovalRequestId,
@@ -87,7 +88,7 @@ type LegacyProviderRuntimeEvent = {
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
   readonly payload?: SchemaJson | undefined;
-  readonly [key: string]: SchemaJson;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
@@ -154,7 +155,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
     (
       _threadId: ThreadId,
       _requestId: string,
-      _answers: Record<string, SchemaJson>,
+      _answers: ProviderUserInputAnswers,
     ): Effect.Effect<void, ProviderAdapterError> => Effect.void,
   );
 

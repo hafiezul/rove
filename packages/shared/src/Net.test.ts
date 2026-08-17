@@ -15,9 +15,16 @@ const closeServer = (server: NodeNet.Server) =>
     }
   });
 
+const isAddressInfo = (
+  address: NodeNet.AddressInfo | string | null,
+): address is NodeNet.AddressInfo =>
+  RuntimePredicate.isObjectOrArray(address) &&
+  "port" in address &&
+  RuntimePredicate.isNumber(address.port);
+
 const getPort = (server: NodeNet.Server): number => {
   const address = server.address();
-  return RuntimePredicate.isObjectOrArray(address) ? address.port : 0;
+  return isAddressInfo(address) ? address.port : 0;
 };
 
 const openServer = (host?: string): Effect.Effect<NodeNet.Server, NetService.NetError> =>

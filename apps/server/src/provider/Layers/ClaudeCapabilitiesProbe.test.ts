@@ -134,9 +134,8 @@ it.layer(NodeServices.layer)("Claude capability probe SDK boundary", (it) => {
           },
         ],
       });
-
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
         invocation = JSON.parse(yield* fs.readFileString(invocationPath)) as {
           readonly args: ReadonlyArray<string>;
           readonly cwd: string;

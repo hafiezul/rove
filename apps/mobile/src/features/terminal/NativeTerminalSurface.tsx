@@ -195,7 +195,10 @@ export const TerminalSurface = memo(function TerminalSurface(props: TerminalSurf
         return;
       }
       terminalDebugLog("native:onInput", {
-        codes: Array.from(event.nativeEvent.data, (char) => char.codePointAt(0)),
+        codes: Array.from(event.nativeEvent.data).flatMap((char) => {
+          const codePoint = char.codePointAt(0);
+          return codePoint === undefined ? [] : [codePoint];
+        }),
       });
       onInput(event.nativeEvent.data);
     },
