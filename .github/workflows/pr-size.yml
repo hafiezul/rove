@@ -57,7 +57,7 @@ jobs:
   sync-label-definitions:
     name: Sync PR size label definitions
     needs: prepare-config
-    if: github.event_name != 'pull_request_target'
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -113,13 +113,13 @@ jobs:
             }
   label:
     name: Label PR size
-    needs: prepare-config
+    needs: [prepare-config, sync-label-definitions]
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      issues: read
-      pull-requests: write
+      issues: write
+      pull-requests: read
     concurrency:
       group: pr-size-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -246,39 +246,56 @@ jobs:
             const changedLines = nonTestChangedLines === 0 ? testChangedLines : nonTestChangedLines;
             const nextLabelName = resolveSizeLabel(changedLines);
 
-            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              per_page: 100,
-            });
+            const isUnresolvableLabelableError = (error) =>
+              error?.status === 422 &&
+              String(error?.message ?? "").includes(
+                "Could not resolve to a node with the global id",
+              );
 
-            for (const label of currentLabels) {
-              if (!managedLabelNames.has(label.name) || label.name === nextLabelName) {
-                continue;
-              }
-
-              try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  name: label.name,
-                });
-              } catch (removeError) {
-                if (removeError.status !== 404) {
-                  throw removeError;
-                }
-              }
-            }
-
-            if (!currentLabels.some((label) => label.name === nextLabelName)) {
-              await github.rest.issues.addLabels({
+            try {
+              const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                labels: [nextLabelName],
+                per_page: 100,
               });
+
+              for (const label of currentLabels) {
+                if (!managedLabelNames.has(label.name) || label.name === nextLabelName) {
+                  continue;
+                }
+
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    name: label.name,
+                  });
+                } catch (removeError) {
+                  if (removeError.status !== 404) {
+                    throw removeError;
+                  }
+                }
+              }
+
+              if (!currentLabels.some((label) => label.name === nextLabelName)) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: [nextLabelName],
+                });
+              }
+            } catch (error) {
+              if (!isUnresolvableLabelableError(error)) {
+                throw error;
+              }
+
+              core.warning(
+                `GitHub could not resolve PR #${issueNumber} for label synchronization; leaving managed labels unchanged.`,
+              );
+              return;
             }
 
             const classification =

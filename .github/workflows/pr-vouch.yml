@@ -77,12 +77,76 @@ jobs:
     steps:
       - id: vouch
         name: Check PR author trust
-        uses: mitchellh/vouch/action/check-user@v1
-        with:
-          user: ${{ matrix.target.user }}
-          allow-fail: true
+        uses: actions/github-script@v8
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_USER: ${{ matrix.target.user }}
+        with:
+          script: |
+            const user = process.env.PR_USER ?? "";
+            const normalizedUser = user.toLowerCase();
+            let status = "unknown";
+
+            // Match vouch's trust order: bots always pass, then collaborators
+            // with write access, then the default branch's VOUCHED.td file.
+            if (user.endsWith("[bot]")) {
+              status = "bot";
+            } else {
+              const collaborator = await github.rest.repos
+                .getCollaboratorPermissionLevel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  username: user,
+                })
+                .catch(() => undefined);
+
+              if (["admin", "write"].includes(collaborator?.data.permission)) {
+                status = "collaborator";
+              } else {
+                const vouchedFile = await github.rest.repos
+                  .getContent({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    path: ".github/VOUCHED.td",
+                    ref: context.payload.repository.default_branch,
+                  })
+                  .catch(() => undefined);
+                const file = vouchedFile?.data;
+
+                if (file && !Array.isArray(file) && typeof file.content === "string") {
+                  const contents = Buffer.from(file.content, "base64").toString("utf8");
+                  for (const rawLine of contents.split(/\r?\n/)) {
+                    const line = rawLine.trim();
+                    if (line.length === 0 || line.startsWith("#")) {
+                      continue;
+                    }
+
+                    const denounced = line.startsWith("-");
+                    const handle = line
+                      .slice(denounced ? 1 : 0)
+                      .trim()
+                      .split(/\s+/, 1)[0];
+                    if (!handle) {
+                      continue;
+                    }
+
+                    const [platform, username] = handle.includes(":")
+                      ? handle.split(":", 2)
+                      : ["github", handle];
+                    if (
+                      platform.toLowerCase() === "github" &&
+                      username.toLowerCase() === normalizedUser
+                    ) {
+                      status = denounced ? "denounced" : "vouched";
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+
+            core.setOutput("status", status);
+            core.setOutput("vouched", ["bot", "collaborator", "vouched"].includes(status));
+            core.info(`User ${user}: ${status}`);
 
       - name: Sync PR labels
         uses: actions/github-script@v8
@@ -161,39 +225,56 @@ jobs:
                   ? "vouch:trusted"
                   : "vouch:unvouched";
 
-            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              per_page: 100,
-            });
+            const isUnresolvableLabelableError = (error) =>
+              error?.status === 422 &&
+              String(error?.message ?? "").includes(
+                "Could not resolve to a node with the global id",
+              );
 
-            for (const label of currentLabels) {
-              if (!managedLabelNames.has(label.name) || label.name === nextLabelName) {
-                continue;
-              }
-
-              try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  name: label.name,
-                });
-              } catch (removeError) {
-                if (removeError.status !== 404) {
-                  throw removeError;
-                }
-              }
-            }
-
-            if (!currentLabels.some((label) => label.name === nextLabelName)) {
-              await github.rest.issues.addLabels({
+            try {
+              const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                labels: [nextLabelName],
+                per_page: 100,
               });
+
+              for (const label of currentLabels) {
+                if (!managedLabelNames.has(label.name) || label.name === nextLabelName) {
+                  continue;
+                }
+
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    name: label.name,
+                  });
+                } catch (removeError) {
+                  if (removeError.status !== 404) {
+                    throw removeError;
+                  }
+                }
+              }
+
+              if (!currentLabels.some((label) => label.name === nextLabelName)) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: [nextLabelName],
+                });
+              }
+            } catch (error) {
+              if (!isUnresolvableLabelableError(error)) {
+                throw error;
+              }
+
+              core.warning(
+                `GitHub could not resolve PR #${issueNumber} for label synchronization; leaving managed labels unchanged.`,
+              );
+              return;
             }
 
             core.info(`PR #${issueNumber}: ${status} -> ${nextLabelName}`);
