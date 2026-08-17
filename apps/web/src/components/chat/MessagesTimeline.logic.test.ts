@@ -1092,6 +1092,48 @@ describe("resolveAssistantMessageCopyState", () => {
 });
 
 describe("deriveMessagesTimelineRows", () => {
+  it("keeps a streaming reasoning activity visible while its turn is active", () => {
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "reasoning-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:10Z",
+          entry: {
+            id: "reasoning-1",
+            createdAt: "2026-01-01T00:00:10Z",
+            turnId: "turn-1" as never,
+            label: "Reasoning",
+            detail: "Checking the adapter first.",
+            tone: "thinking",
+            sourceActivityKind: "turn.reasoning",
+          },
+        },
+      ],
+      latestTurn: {
+        turnId: "turn-1" as never,
+        state: "running",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:00:00Z",
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+
+    expect(rows.find((row) => row.kind === "work")).toMatchObject({
+      id: "reasoning-entry",
+      groupedEntries: [
+        {
+          id: "reasoning-1",
+          label: "Reasoning",
+          detail: "Checking the adapter first.",
+        },
+      ],
+    });
+  });
+
   it("appends queued messages after the live rows, marking the oldest as next", () => {
     const queuedMessage = (id: string, prompt: string) => ({
       id,

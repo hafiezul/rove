@@ -916,7 +916,10 @@ function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | un
   return [itemType, normalizedLabel, detail].join("\u001f");
 }
 
-function workEntryStatus(entry: WorkLogEntry): ThreadFeedActivity["status"] {
+function workEntryStatus(entry: DerivedWorkLogEntry): ThreadFeedActivity["status"] {
+  if (entry.activityKind === "turn.reasoning") {
+    return null;
+  }
   if (entry.agentSpawn) {
     switch (entry.toolLifecycleStatus) {
       case "failed":
