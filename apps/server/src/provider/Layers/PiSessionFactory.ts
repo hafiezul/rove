@@ -69,6 +69,9 @@ function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiS
       // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return session.messages as ReadonlyArray<unknown>;
     },
+    get autoCompactionEnabled() {
+      return session.autoCompactionEnabled;
+    },
     prompt: (text, options) => session.prompt(text, options),
     steer: (text) => session.steer(text),
     followUp: (text) => session.followUp(text),
@@ -79,9 +82,16 @@ function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiS
     },
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     subscribe: (listener) => session.subscribe((event) => listener(event as never)),
-    getEntries: () => session.sessionManager.getEntries() as never,
+    getEntries: () => session.sessionManager.getEntries(),
+    getBranch: () => session.sessionManager.getBranch(),
+    getSessionStats: () => session.getSessionStats(),
     getLeafId: () => session.sessionManager.getLeafId() ?? undefined,
-    fork: (entryId) => session.navigateTree(entryId),
+    fork: async (entryId) => {
+      const result = await session.navigateTree(entryId);
+      if (result.cancelled) {
+        throw new Error("Pi session tree navigation was cancelled.");
+      }
+    },
   };
 }
 

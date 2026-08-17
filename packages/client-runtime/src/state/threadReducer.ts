@@ -1,19 +1,18 @@
 import { pipe } from "effect/Function";
 import * as Arr from "effect/Array";
 import * as O from "effect/Order";
-import type {
-  MessageId,
-  OrchestrationCheckpointSummary,
-  OrchestrationEvent,
-  OrchestrationLatestTurn,
-  OrchestrationMessage,
-  OrchestrationSession,
-  OrchestrationThread,
-  OrchestrationThreadActivity,
-  TurnId,
+import {
+  isContextWindowSnapshotPayload,
+  type MessageId,
+  type OrchestrationCheckpointSummary,
+  type OrchestrationEvent,
+  type OrchestrationLatestTurn,
+  type OrchestrationMessage,
+  type OrchestrationSession,
+  type OrchestrationThread,
+  type OrchestrationThreadActivity,
+  type TurnId,
 } from "@t3tools/contracts";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export type ThreadDetailReducerResult =
   | { readonly kind: "updated"; readonly thread: OrchestrationThread }
@@ -38,23 +37,15 @@ const activityOrder = O.combineAll<OrchestrationThreadActivity>([
 ]);
 
 /**
- * Matches the validity rule in `deriveLatestContextWindowSnapshot` (and the
- * server's snapshot-side `dropStaleContextWindowActivities`): rows without a
- * finite, non-negative `usedTokens` are skipped during the consumer's backward
- * walk, so they must not replace an earlier resolvable row here.
+ * Recognizes a context-window row that intentionally replaces the prior state.
+ * Numeric readings are resolvable; `unknown` and `unavailable` are also
+ * authoritative snapshots, while malformed rows still pass through without
+ * hiding an earlier usable meter.
  */
-function isResolvableContextWindowActivity(activity: OrchestrationThreadActivity): boolean {
-  if (activity.kind !== "context-window.updated") {
-    return false;
-  }
-  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-    payload =
-      activity.payload &&
-      (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
-        ? (activity.payload as Record<string, SchemaJson>)
-        : null;
-  const usedTokens = payload?.usedTokens;
-  return RuntimePredicate.isNumber(usedTokens) && Number.isFinite(usedTokens) && usedTokens >= 0;
+function isContextWindowSnapshotActivity(activity: OrchestrationThreadActivity): boolean {
+  return (
+    activity.kind === "context-window.updated" && isContextWindowSnapshotPayload(activity.payload)
+  );
 }
 
 /**
@@ -567,15 +558,15 @@ export function applyThreadDetailEvent(
     // ── Activities ──────────────────────────────────────────────────
     case "thread.activity-appended": {
       const activity = event.payload.activity;
-      // A resolvable context-window update supersedes earlier resolvable ones
-      // for the same turn: consumers only read the latest value (walking the
-      // array backwards), and providers stream these updates continuously, so
+      // A context-window snapshot supersedes earlier snapshots for the same
+      // turn: consumers only read the latest value (walking the array
+      // backwards), and providers stream these updates continuously, so
       // retaining the history grows the thread by thousands of rows over a
       // long session. Mirrors the server-side snapshot rule in
       // dropStaleContextWindowActivities; retention stays per turn so a
       // thread.reverted that discards turns can still resolve a value from
       // the turns that survive.
-      const supersedesContextWindow = isResolvableContextWindowActivity(activity);
+      const supersedesContextWindow = isContextWindowSnapshotActivity(activity);
       const activities = pipe(
         thread.activities,
         Arr.filter(
@@ -584,7 +575,7 @@ export function applyThreadDetailEvent(
             !(
               supersedesContextWindow &&
               entry.turnId === activity.turnId &&
-              isResolvableContextWindowActivity(entry)
+              isContextWindowSnapshotActivity(entry)
             ),
         ),
         Arr.append(activity),

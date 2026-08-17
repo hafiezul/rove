@@ -469,6 +469,26 @@ describe("context-window snapshot dedup", () => {
     expect(projected.thread.activities[2]?.payload).toEqual(latestB.payload);
   });
 
+  it("retains an intentional unknown context state instead of a stale numeric value", () => {
+    const known = makeContextWindowActivity("ctx-known", 5_000, "turn-a");
+    const unknown: OrchestrationThreadActivity = {
+      ...known,
+      id: EventId.make("ctx-unknown"),
+      payload: { contextUsageState: "unknown", maxTokens: 200_000 },
+    };
+
+    const projected = projectThreadDetailSnapshot({
+      snapshotSequence: 7,
+      thread: makeThread([known, unknown]),
+    });
+
+    expect(projected.thread.activities.map((activity) => activity.id)).toEqual([unknown.id]);
+    expect(deriveLatestContextWindowSnapshot(projected.thread.activities)).toMatchObject({
+      contextUsageState: "unknown",
+      usedTokens: null,
+    });
+  });
+
   it("still resolves a meter value after the client reverts the newest turn", () => {
     // A live thread.reverted makes the client drop all activities from
     // discarded turns; each surviving turn must keep a usable row.

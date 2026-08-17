@@ -307,10 +307,10 @@ const ThreadMetadataUpdatedPayload = Schema.Struct({
 });
 export type ThreadMetadataUpdatedPayload = typeof ThreadMetadataUpdatedPayload.Type;
 
-export const ThreadTokenUsageSnapshot = Schema.Struct({
-  usedTokens: NonNegativeInt,
+const ThreadTokenUsageSharedFields = {
   totalProcessedTokens: Schema.optional(NonNegativeInt),
-  maxTokens: Schema.optional(PositiveInt),
+  /** The accounting boundary of totalProcessedTokens when a provider can state it. */
+  totalProcessedTokensScope: Schema.optional(Schema.Literal("activeBranch")),
   inputTokens: Schema.optional(NonNegativeInt),
   cachedInputTokens: Schema.optional(NonNegativeInt),
   outputTokens: Schema.optional(NonNegativeInt),
@@ -323,8 +323,52 @@ export const ThreadTokenUsageSnapshot = Schema.Struct({
   toolUses: Schema.optional(NonNegativeInt),
   durationMs: Schema.optional(NonNegativeInt),
   compactsAutomatically: Schema.optional(Schema.Boolean),
+} as const;
+
+/** A provider supplied a numeric current-context reading. */
+export const ThreadTokenUsageKnownSnapshot = Schema.Struct({
+  contextUsageState: Schema.optional(Schema.Literal("known")),
+  usedTokens: NonNegativeInt,
+  maxTokens: Schema.optional(PositiveInt),
+  ...ThreadTokenUsageSharedFields,
 });
+export type ThreadTokenUsageKnownSnapshot = typeof ThreadTokenUsageKnownSnapshot.Type;
+
+/** Pi can truthfully report a window after compaction while its current usage is unknown. */
+export const ThreadTokenUsageUnknownSnapshot = Schema.Struct({
+  contextUsageState: Schema.Literal("unknown"),
+  contextUsageUnknownReason: Schema.optional(Schema.Literal("compacted")),
+  maxTokens: PositiveInt,
+  totalProcessedTokens: Schema.optional(NonNegativeInt),
+  totalProcessedTokensScope: Schema.optional(Schema.Literal("activeBranch")),
+  compactsAutomatically: Schema.optional(Schema.Boolean),
+});
+export type ThreadTokenUsageUnknownSnapshot = typeof ThreadTokenUsageUnknownSnapshot.Type;
+
+/** A provider no longer has usable context-window metadata for the active model. */
+export const ThreadTokenUsageUnavailableSnapshot = Schema.Struct({
+  contextUsageState: Schema.Literal("unavailable"),
+});
+export type ThreadTokenUsageUnavailableSnapshot = typeof ThreadTokenUsageUnavailableSnapshot.Type;
+
+export const ThreadTokenUsageSnapshot = Schema.Union([
+  ThreadTokenUsageKnownSnapshot,
+  ThreadTokenUsageUnknownSnapshot,
+  ThreadTokenUsageUnavailableSnapshot,
+]);
 export type ThreadTokenUsageSnapshot = typeof ThreadTokenUsageSnapshot.Type;
+
+const isThreadTokenUsageSnapshot = Schema.is(ThreadTokenUsageSnapshot);
+
+/**
+ * Whether an activity payload authoritatively replaces an earlier
+ * context-window reading. This deliberately accepts raw activity payloads as
+ * well as decoded runtime events so reducers can preserve a valid older meter
+ * when persisted legacy data is malformed.
+ */
+export function isContextWindowSnapshotPayload(value: unknown): boolean {
+  return isThreadTokenUsageSnapshot(value);
+}
 
 const ThreadTokenUsageUpdatedPayload = Schema.Struct({
   usage: ThreadTokenUsageSnapshot,

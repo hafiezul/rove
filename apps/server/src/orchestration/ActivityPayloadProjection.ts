@@ -1,7 +1,8 @@
-import type {
-  OrchestrationEvent,
-  OrchestrationThreadActivity,
-  OrchestrationThreadDetailSnapshot,
+import {
+  isContextWindowSnapshotPayload,
+  type OrchestrationEvent,
+  type OrchestrationThreadActivity,
+  type OrchestrationThreadDetailSnapshot,
 } from "@t3tools/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
@@ -326,22 +327,18 @@ export function projectActivityPayload(
 }
 
 /**
- * Matches the validity rule in the web client's
- * `deriveLatestContextWindowSnapshot`: rows without a finite, non-negative
- * `usedTokens` are skipped during its backward walk, so they must not shadow
- * an earlier resolvable row here.
+ * Recognizes a context-window row that intentionally replaces an earlier
+ * state. Numeric readings, explicit unknown states, and explicit unavailable
+ * states are snapshots; malformed rows do not hide an earlier usable meter.
  */
-function isResolvableContextWindowActivity(activity: OrchestrationThreadActivity): boolean {
-  if (activity.kind !== "context-window.updated") {
-    return false;
-  }
-  const payload = asRecord(activity.payload);
-  const usedTokens = payload?.usedTokens;
-  return RuntimePredicate.isNumber(usedTokens) && Number.isFinite(usedTokens) && usedTokens >= 0;
+function isContextWindowSnapshotActivity(activity: OrchestrationThreadActivity): boolean {
+  return (
+    activity.kind === "context-window.updated" && isContextWindowSnapshotPayload(activity.payload)
+  );
 }
 
 /**
- * Drops all but the last resolvable context-window activity per turn from a
+ * Drops all but the last context-window snapshot per turn from a
  * snapshot. Clients only ever read the latest usage value (walking the array
  * backwards), so shipping the full history — often thousands of rows on long
  * threads — buys nothing. Retention is per turn rather than per thread because
@@ -357,7 +354,7 @@ function dropStaleContextWindowActivities(
 ): ReadonlyArray<OrchestrationThreadActivity> {
   const latestIndexByTurn = new Map<string | null, number>();
   for (let index = 0; index < activities.length; index += 1) {
-    if (isResolvableContextWindowActivity(activities[index]!)) {
+    if (isContextWindowSnapshotActivity(activities[index]!)) {
       latestIndexByTurn.set(activities[index]!.turnId, index);
     }
   }
@@ -366,7 +363,7 @@ function dropStaleContextWindowActivities(
   }
   return activities.filter(
     (activity, index) =>
-      !isResolvableContextWindowActivity(activity) ||
+      !isContextWindowSnapshotActivity(activity) ||
       latestIndexByTurn.get(activity.turnId) === index,
   );
 }
