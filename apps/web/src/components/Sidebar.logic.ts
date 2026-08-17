@@ -258,7 +258,13 @@ export function hasUnseenCompletion(thread: ThreadStatusInput): boolean {
   return completedAt > lastVisitedAt;
 }
 
-export function shouldClearThreadSelectionOnMouseDown(target: HTMLElement | null): boolean {
+type SidebarSelectionTarget = {
+  readonly closest: (selectors: string) => object | null;
+};
+
+export function shouldClearThreadSelectionOnMouseDown(
+  target: SidebarSelectionTarget | null,
+): boolean {
   if (target === null) return true;
   return !target.closest(THREAD_SELECTION_SAFE_SELECTOR);
 }

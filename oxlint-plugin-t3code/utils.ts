@@ -11,11 +11,11 @@ type ExpressionWrapper =
 
 type AstNode = ESTree.Node;
 
-const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  asAstNode = (node: unknown): Option.Option<AstNode> =>
-    RuntimePredicate.isObjectOrArray(node) && "type" in node && RuntimePredicate.isString(node.type)
-      ? Option.some(node as AstNode)
-      : Option.none();
+const isAstNode = (node: unknown): node is AstNode =>
+  RuntimePredicate.isObjectOrArray(node) && "type" in node && RuntimePredicate.isString(node.type);
+
+const asAstNode = (node: unknown): Option.Option<AstNode> =>
+  isAstNode(node) ? Option.some(node) : Option.none();
 
 const isExpressionWrapper = (node: AstNode): node is ExpressionWrapper =>
   node.type === "ChainExpression" ||
