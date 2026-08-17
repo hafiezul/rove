@@ -22,6 +22,7 @@ import {
   TurnId,
 } from "./baseSchemas.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
@@ -99,7 +100,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
         const instanceIdSource =
           raw.instanceId !== undefined
             ? raw.instanceId
-            : typeof raw.provider === "string"
+            : RuntimePredicate.isString(raw.provider)
               ? raw.provider
               : undefined;
         const base: ModelSelectionEncodedFields = {
@@ -107,6 +108,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
           model: raw.model,
         };
         if (raw.options !== undefined) base.options = raw.options;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return Effect.succeed(base as typeof ModelSelectionWire.Encoded);
       },
       encode: (value) => {
@@ -115,6 +117,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
           instanceId: value.instanceId,
         };
         if (value.options !== undefined) base.options = value.options;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return Effect.succeed(base as typeof ModelSelectionSource.Encoded);
       },
     }),

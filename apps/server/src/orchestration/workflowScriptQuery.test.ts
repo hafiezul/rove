@@ -14,6 +14,7 @@ NodeFS.writeFileSync(scriptPath, "export const meta = {};\n");
 const outside = NodePath.join(NodeOS.tmpdir(), "wf-outside.js");
 NodeFS.writeFileSync(outside, "evil\n");
 const link = NodePath.join(root, "sneaky.js");
+// SAFETY: This fixture intentionally supplies the asserted collaborator contract.
 try {
   NodeFS.symlinkSync(outside, link);
 } catch (error) {

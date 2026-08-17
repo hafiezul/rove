@@ -47,7 +47,7 @@ function installTestBrowser(url: string) {
   });
 }
 
-function captureThrown(run: () => unknown): unknown {
+function captureThrown(run: () => unknown) {
   try {
     run();
   } catch (error) {

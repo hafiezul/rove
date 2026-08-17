@@ -24,11 +24,12 @@ const decodeServerSettingsJson = Schema.decodeUnknownOption(ServerSettingsJson);
 
 type LegacyProviderSettings = ServerSettings["providers"][keyof ServerSettings["providers"]];
 
-const getLegacyProviderSettings = (
-  settings: ServerSettings,
-  provider: ProviderDriverKind,
-): LegacyProviderSettings | undefined =>
-  (settings.providers as Record<string, LegacyProviderSettings | undefined>)[provider];
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  getLegacyProviderSettings = (
+    settings: ServerSettings,
+    provider: ProviderDriverKind,
+  ): LegacyProviderSettings | undefined =>
+    (settings.providers as Record<string, LegacyProviderSettings | undefined>)[provider];
 
 export function isModelSelectionProviderEnabled(
   settings: ServerSettings,
@@ -144,12 +145,14 @@ export function applyServerSettingsPatch(
               : backgroundActivityProfile,
           ...(automaticGitFetchInterval !== undefined || providerHealthRefreshInterval !== undefined
             ? { baseProfile: backgroundActivityProfile }
-            : {}),
+            : undefined),
           overrides: {
-            ...(automaticGitFetchInterval !== undefined ? { automaticGitFetchInterval } : {}),
+            ...(automaticGitFetchInterval !== undefined
+              ? { automaticGitFetchInterval }
+              : undefined),
             ...(providerHealthRefreshInterval !== undefined
               ? { providerHealthRefreshInterval }
-              : {}),
+              : undefined),
           },
         }
       : automaticGitFetchInterval !== undefined || providerHealthRefreshInterval !== undefined
@@ -160,11 +163,13 @@ export function applyServerSettingsPatch(
             overrides: {
               ...(currentBackgroundActivity.profile === "custom"
                 ? currentBackgroundActivity.overrides
-                : {}),
-              ...(automaticGitFetchInterval !== undefined ? { automaticGitFetchInterval } : {}),
+                : undefined),
+              ...(automaticGitFetchInterval !== undefined
+                ? { automaticGitFetchInterval }
+                : undefined),
               ...(providerHealthRefreshInterval !== undefined
                 ? { providerHealthRefreshInterval }
-                : {}),
+                : undefined),
             },
           }
         : undefined;
@@ -177,21 +182,23 @@ export function applyServerSettingsPatch(
             ...deepMerge(currentBackgroundActivity, backgroundActivity),
             ...(backgroundActivity.overrides !== undefined
               ? { overrides: backgroundActivity.overrides }
-              : {}),
+              : undefined),
           },
         }
       : { backgroundActivity: currentBackgroundActivity }),
     ...(backgroundActivity === undefined && backgroundActivityPatch !== undefined
       ? { backgroundActivity: backgroundActivityPatch }
-      : {}),
+      : undefined),
     ...(patch.providerInstances !== undefined
       ? { providerInstances: patch.providerInstances }
-      : {}),
+      : undefined),
     ...(patch.sourceControlWriterModelSelection !== undefined
       ? { sourceControlWriterModelSelection: patch.sourceControlWriterModelSelection }
-      : {}),
-    ...(automaticGitFetchInterval !== undefined ? { automaticGitFetchInterval } : {}),
-    ...(providerHealthRefreshInterval !== undefined ? { providerHealthRefreshInterval } : {}),
+      : undefined),
+    ...(automaticGitFetchInterval !== undefined ? { automaticGitFetchInterval } : undefined),
+    ...(providerHealthRefreshInterval !== undefined
+      ? { providerHealthRefreshInterval }
+      : undefined),
   };
   const normalizedBackgroundActivity = normalizeBackgroundActivitySettings(
     nextWithReplacementsBase.backgroundActivity,

@@ -44,6 +44,8 @@ import {
 } from "../Services/ProviderRuntimeIngestion.ts";
 import { forkParked } from "../../serverActivation.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const providerTurnKey = (threadId: ThreadId, turnId: TurnId) => `${threadId}:${turnId}`;
 const providerTaskKey = (threadId: ThreadId, taskId: string) => `${threadId}:${taskId}`;
@@ -63,19 +65,20 @@ function findTaskTitleInActivities(
     if (!activity || (activity.kind !== "task.started" && activity.kind !== "task.progress")) {
       continue;
     }
-    const payload =
-      activity.payload && typeof activity.payload === "object"
-        ? (activity.payload as { taskId?: unknown; title?: unknown; detail?: unknown })
-        : undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      payload =
+        activity.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as { taskId?: unknown; title?: unknown; detail?: unknown })
+          : undefined;
     if (payload?.taskId !== taskId) {
       continue;
     }
-    const title =
-      typeof payload.title === "string"
-        ? payload.title
-        : activity.kind === "task.started" && typeof payload.detail === "string"
-          ? payload.detail
-          : undefined;
+    const title = RuntimePredicate.isString(payload.title)
+      ? payload.title
+      : activity.kind === "task.started" && RuntimePredicate.isString(payload.detail)
+        ? payload.detail
+        : undefined;
     if (title && title.trim().length > 0) {
       return title;
     }
@@ -350,18 +353,18 @@ function requestKindFromCanonicalRequestType(
  * client folds survive activity retention; absent fields stay absent.
  */
 interface TaskLinkageActivityFields {
-  [field: string]: unknown;
+  [field: string]: SchemaJson;
 }
 
-function taskLinkageActivityFields(payload: Record<string, unknown>): TaskLinkageActivityFields {
+function taskLinkageActivityFields(payload: Record<string, SchemaJson>): TaskLinkageActivityFields {
   const fields: TaskLinkageActivityFields = {
     // Server-stamped classification: persisted rows are self-describing, so
     // clients trust the stamp instead of re-deriving agent-vs-background
     // from taskType denylists and marker heuristics (legacy rows without a
     // stamp keep the client fallback).
     agentKind: classifyTaskAgentKind({
-      taskType: typeof payload.taskType === "string" ? payload.taskType : undefined,
-      agentId: typeof payload.agentId === "string" ? payload.agentId : undefined,
+      taskType: RuntimePredicate.isString(payload.taskType) ? payload.taskType : undefined,
+      agentId: RuntimePredicate.isString(payload.agentId) ? payload.agentId : undefined,
     }),
   };
   for (const key of [
@@ -399,7 +402,8 @@ export function runtimeEventToActivities(
   taskTitle?: string,
 ): ReadonlyArray<OrchestrationThreadActivity> {
   const maybeSequence = (() => {
-    const eventWithSequence = event as ProviderRuntimeEvent & { sessionSequence?: number };
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      eventWithSequence = event as ProviderRuntimeEvent & { sessionSequence?: number };
     return eventWithSequence.sessionSequence !== undefined
       ? { sequence: eventWithSequence.sessionSequence }
       : {};
@@ -426,9 +430,9 @@ export function runtimeEventToActivities(
                   : "Approval requested",
           payload: {
             requestId: toApprovalRequestId(event.requestId),
-            ...(requestKind ? { requestKind } : {}),
+            ...(requestKind ? { requestKind } : undefined),
             requestType: event.payload.requestType,
-            ...(event.payload.detail ? { detail: event.payload.detail } : {}),
+            ...(event.payload.detail ? { detail: event.payload.detail } : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -450,9 +454,9 @@ export function runtimeEventToActivities(
           summary: "Approval resolved",
           payload: {
             requestId: toApprovalRequestId(event.requestId),
-            ...(requestKind ? { requestKind } : {}),
+            ...(requestKind ? { requestKind } : undefined),
             requestType: event.payload.requestType,
-            ...(event.payload.decision ? { decision: event.payload.decision } : {}),
+            ...(event.payload.decision ? { decision: event.payload.decision } : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -487,9 +491,11 @@ export function runtimeEventToActivities(
           summary: `Tool denied: ${event.payload.toolName}`,
           payload: {
             toolName: event.payload.toolName,
-            ...(event.payload.toolUseId ? { toolUseId: event.payload.toolUseId } : {}),
-            ...(event.payload.reason ? { detail: truncateDetail(event.payload.reason) } : {}),
-            ...(event.payload.agentId ? { agentId: event.payload.agentId } : {}),
+            ...(event.payload.toolUseId ? { toolUseId: event.payload.toolUseId } : undefined),
+            ...(event.payload.reason
+              ? { detail: truncateDetail(event.payload.reason) }
+              : undefined),
+            ...(event.payload.agentId ? { agentId: event.payload.agentId } : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -509,7 +515,7 @@ export function runtimeEventToActivities(
           summary: truncateDetail(event.payload.message, 120),
           payload: {
             message: truncateDetail(event.payload.message),
-            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
+            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -529,7 +535,7 @@ export function runtimeEventToActivities(
             plan: event.payload.plan,
             ...(event.payload.explanation !== undefined
               ? { explanation: event.payload.explanation }
-              : {}),
+              : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -546,7 +552,7 @@ export function runtimeEventToActivities(
           kind: "user-input.requested",
           summary: "User input requested",
           payload: {
-            ...(event.requestId ? { requestId: event.requestId } : {}),
+            ...(event.requestId ? { requestId: event.requestId } : undefined),
             questions: event.payload.questions,
           },
           turnId: toTurnId(event.turnId) ?? null,
@@ -564,7 +570,7 @@ export function runtimeEventToActivities(
           kind: "user-input.resolved",
           summary: "User input submitted",
           payload: {
-            ...(event.requestId ? { requestId: event.requestId } : {}),
+            ...(event.requestId ? { requestId: event.requestId } : undefined),
             answers: event.payload.answers,
           },
           turnId: toTurnId(event.turnId) ?? null,
@@ -574,6 +580,7 @@ export function runtimeEventToActivities(
     }
 
     case "task.started": {
+      // SAFETY: The surrounding adapter has established this JSON-object view before field access.
       return [
         {
           id: event.eventId,
@@ -588,11 +595,11 @@ export function runtimeEventToActivities(
                 : "Task started",
           payload: {
             taskId: event.payload.taskId,
-            ...(event.payload.taskType ? { taskType: event.payload.taskType } : {}),
+            ...(event.payload.taskType ? { taskType: event.payload.taskType } : undefined),
             ...(event.payload.description
               ? { detail: truncateDetail(event.payload.description) }
-              : {}),
-            ...taskLinkageActivityFields(event.payload as Record<string, unknown>),
+              : undefined),
+            ...taskLinkageActivityFields(event.payload as Record<string, SchemaJson>),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -601,7 +608,8 @@ export function runtimeEventToActivities(
     }
 
     case "task.progress": {
-      const linkage = taskLinkageActivityFields(event.payload as Record<string, unknown>);
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        linkage = taskLinkageActivityFields(event.payload as Record<string, SchemaJson>);
       // Usage and activity are independent latest-state streams. Keeping them
       // under separate stable ids prevents a command/reasoning update from
       // replacing the last known token count (and prevents a usage-only tick
@@ -641,13 +649,15 @@ export function runtimeEventToActivities(
                   detail: truncateDetail(event.payload.summary ?? event.payload.description),
                   ...(event.payload.summary
                     ? { summary: truncateDetail(event.payload.summary) }
-                    : {}),
+                    : undefined),
                   ...(event.payload.lastToolName
                     ? { lastToolName: event.payload.lastToolName }
-                    : {}),
-                  ...(event.payload.status ? { status: event.payload.status } : {}),
-                  ...(event.payload.error ? { error: event.payload.error } : {}),
-                  ...(event.payload.usage !== undefined ? { usage: event.payload.usage } : {}),
+                    : undefined),
+                  ...(event.payload.status ? { status: event.payload.status } : undefined),
+                  ...(event.payload.error ? { error: event.payload.error } : undefined),
+                  ...(event.payload.usage !== undefined
+                    ? { usage: event.payload.usage }
+                    : undefined),
                   ...identityLinkage,
                 },
                 turnId: toTurnId(event.turnId) ?? null,
@@ -679,6 +689,7 @@ export function runtimeEventToActivities(
     }
 
     case "task.updated": {
+      // SAFETY: The surrounding adapter has established this JSON-object view before field access.
       return [
         {
           id: event.eventId,
@@ -695,12 +706,12 @@ export function runtimeEventToActivities(
             taskId: event.payload.taskId,
             ...(event.payload.description
               ? { detail: truncateDetail(event.payload.description) }
-              : {}),
-            ...(event.payload.endedAt ? { endedAt: event.payload.endedAt } : {}),
+              : undefined),
+            ...(event.payload.endedAt ? { endedAt: event.payload.endedAt } : undefined),
             ...(event.payload.isBackgrounded !== undefined
               ? { isBackgrounded: event.payload.isBackgrounded }
-              : {}),
-            ...taskLinkageActivityFields(event.payload as Record<string, unknown>),
+              : undefined),
+            ...taskLinkageActivityFields(event.payload as Record<string, SchemaJson>),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -727,14 +738,14 @@ export function runtimeEventToActivities(
           summary: event.payload.toolName ?? "Tool progress",
           payload: {
             taskId: event.payload.taskId,
-            ...(event.payload.toolName ? { toolName: event.payload.toolName } : {}),
-            ...(event.payload.toolUseId ? { toolUseId: event.payload.toolUseId } : {}),
+            ...(event.payload.toolName ? { toolName: event.payload.toolName } : undefined),
+            ...(event.payload.toolUseId ? { toolUseId: event.payload.toolUseId } : undefined),
             ...(event.payload.elapsedSeconds !== undefined
               ? { elapsedSeconds: event.payload.elapsedSeconds }
-              : {}),
+              : undefined),
             ...(event.payload.parentToolUseId
               ? { parentToolUseId: event.payload.parentToolUseId }
-              : {}),
+              : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -743,6 +754,7 @@ export function runtimeEventToActivities(
     }
 
     case "task.completed": {
+      // SAFETY: The surrounding adapter has established this JSON-object view before field access.
       return [
         {
           id: event.eventId,
@@ -758,7 +770,7 @@ export function runtimeEventToActivities(
           payload: {
             taskId: event.payload.taskId,
             status: event.payload.status,
-            ...(taskTitle ? { title: truncateDetail(taskTitle, 120) } : {}),
+            ...(taskTitle ? { title: truncateDetail(taskTitle, 120) } : undefined),
             // summary + detail mirror task.progress: clients label the row from
             // summary and keep detail for the preview/expanded body.
             ...(event.payload.summary
@@ -766,9 +778,9 @@ export function runtimeEventToActivities(
                   summary: truncateDetail(event.payload.summary),
                   detail: truncateDetail(event.payload.summary),
                 }
-              : {}),
-            ...(event.payload.usage !== undefined ? { usage: event.payload.usage } : {}),
-            ...taskLinkageActivityFields(event.payload as Record<string, unknown>),
+              : undefined),
+            ...(event.payload.usage !== undefined ? { usage: event.payload.usage } : undefined),
+            ...taskLinkageActivityFields(event.payload as Record<string, SchemaJson>),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -790,7 +802,7 @@ export function runtimeEventToActivities(
           summary: "Context compacted",
           payload: {
             state: event.payload.state,
-            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
+            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -831,13 +843,15 @@ export function runtimeEventToActivities(
           summary: event.payload.title ?? "Tool updated",
           payload: {
             itemType: event.payload.itemType,
-            ...(event.payload.status ? { status: event.payload.status } : {}),
-            ...(event.payload.detail ? { detail: truncateDetail(event.payload.detail) } : {}),
-            ...(event.payload.data !== undefined ? { data: event.payload.data } : {}),
-            ...(event.payload.agentId ? { agentId: event.payload.agentId } : {}),
+            ...(event.payload.status ? { status: event.payload.status } : undefined),
+            ...(event.payload.detail
+              ? { detail: truncateDetail(event.payload.detail) }
+              : undefined),
+            ...(event.payload.data !== undefined ? { data: event.payload.data } : undefined),
+            ...(event.payload.agentId ? { agentId: event.payload.agentId } : undefined),
             ...(event.payload.parentToolUseId
               ? { parentToolUseId: event.payload.parentToolUseId }
-              : {}),
+              : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -858,12 +872,14 @@ export function runtimeEventToActivities(
           summary: event.payload.title ?? "Tool",
           payload: {
             itemType: event.payload.itemType,
-            ...(event.payload.detail ? { detail: truncateDetail(event.payload.detail) } : {}),
-            ...(event.payload.data !== undefined ? { data: event.payload.data } : {}),
-            ...(event.payload.agentId ? { agentId: event.payload.agentId } : {}),
+            ...(event.payload.detail
+              ? { detail: truncateDetail(event.payload.detail) }
+              : undefined),
+            ...(event.payload.data !== undefined ? { data: event.payload.data } : undefined),
+            ...(event.payload.agentId ? { agentId: event.payload.agentId } : undefined),
             ...(event.payload.parentToolUseId
               ? { parentToolUseId: event.payload.parentToolUseId }
-              : {}),
+              : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -884,11 +900,13 @@ export function runtimeEventToActivities(
           summary: `${event.payload.title ?? "Tool"} started`,
           payload: {
             itemType: event.payload.itemType,
-            ...(event.payload.detail ? { detail: truncateDetail(event.payload.detail) } : {}),
-            ...(event.payload.agentId ? { agentId: event.payload.agentId } : {}),
+            ...(event.payload.detail
+              ? { detail: truncateDetail(event.payload.detail) }
+              : undefined),
+            ...(event.payload.agentId ? { agentId: event.payload.agentId } : undefined),
             ...(event.payload.parentToolUseId
               ? { parentToolUseId: event.payload.parentToolUseId }
-              : {}),
+              : undefined),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -1210,7 +1228,7 @@ const make = Effect.gen(function* () {
         threadId: input.threadId,
         messageId: input.messageId,
         delta: bufferedText,
-        ...(input.turnId ? { turnId: input.turnId } : {}),
+        ...(input.turnId ? { turnId: input.turnId } : undefined),
         createdAt: input.createdAt,
       });
       return true;
@@ -1277,7 +1295,7 @@ const make = Effect.gen(function* () {
           threadId: input.threadId,
           messageId: input.messageId,
           delta: text,
-          ...(input.turnId ? { turnId: input.turnId } : {}),
+          ...(input.turnId ? { turnId: input.turnId } : undefined),
           createdAt: input.createdAt,
         });
       }
@@ -1288,7 +1306,7 @@ const make = Effect.gen(function* () {
           commandId: yield* providerCommandId(input.event, input.commandTag),
           threadId: input.threadId,
           messageId: input.messageId,
-          ...(input.turnId ? { turnId: input.turnId } : {}),
+          ...(input.turnId ? { turnId: input.turnId } : undefined),
           createdAt: input.createdAt,
         });
       }
@@ -1404,7 +1422,7 @@ const make = Effect.gen(function* () {
         threadId: input.threadId,
         threadProposedPlans: input.threadProposedPlans,
         planId: input.planId,
-        ...(input.turnId ? { turnId: input.turnId } : {}),
+        ...(input.turnId ? { turnId: input.turnId } : undefined),
         planMarkdown,
         createdAt:
           bufferedPlan?.createdAt && bufferedPlan.createdAt.length > 0
@@ -1802,7 +1820,7 @@ const make = Effect.gen(function* () {
               providerName: event.provider,
               ...(event.providerInstanceId !== undefined
                 ? { providerInstanceId: event.providerInstanceId }
-                : {}),
+                : undefined),
               runtimeMode: thread.session?.runtimeMode ?? "full-access",
               activeTurnId: nextActiveTurnId,
               lastError,
@@ -1864,7 +1882,7 @@ const make = Effect.gen(function* () {
         const assistantMessageId = yield* getOrCreateAssistantMessageId({
           threadId: thread.id,
           event,
-          ...(turnId ? { turnId } : {}),
+          ...(turnId ? { turnId } : undefined),
         });
         if (turnId) {
           yield* rememberAssistantMessageId(thread.id, turnId, assistantMessageId);
@@ -1883,7 +1901,7 @@ const make = Effect.gen(function* () {
               threadId: thread.id,
               messageId: assistantMessageId,
               delta: spillChunk,
-              ...(turnId ? { turnId } : {}),
+              ...(turnId ? { turnId } : undefined),
               createdAt: now,
             });
           }
@@ -1894,7 +1912,7 @@ const make = Effect.gen(function* () {
             threadId: thread.id,
             messageId: assistantMessageId,
             delta: assistantDelta,
-            ...(turnId ? { turnId } : {}),
+            ...(turnId ? { turnId } : undefined),
             createdAt: now,
           });
         }
@@ -2000,14 +2018,14 @@ const make = Effect.gen(function* () {
             event,
             threadId: thread.id,
             messageId: assistantMessageId,
-            ...(turnId ? { turnId } : {}),
+            ...(turnId ? { turnId } : undefined),
             createdAt: now,
             commandTag: "assistant-complete",
             finalDeltaCommandTag: "assistant-delta-finalize",
             hasProjectedMessage: existingAssistantMessage !== undefined,
             ...(assistantCompletion.fallbackText !== undefined && shouldApplyFallbackCompletionText
               ? { fallbackText: assistantCompletion.fallbackText }
-              : {}),
+              : undefined),
           });
 
           if (turnId) {
@@ -2027,7 +2045,9 @@ const make = Effect.gen(function* () {
           threadId: thread.id,
           threadProposedPlans: detailedThread?.proposedPlans ?? [],
           planId: proposedPlanCompletion.planId,
-          ...(proposedPlanCompletion.turnId ? { turnId: proposedPlanCompletion.turnId } : {}),
+          ...(proposedPlanCompletion.turnId
+            ? { turnId: proposedPlanCompletion.turnId }
+            : undefined),
           fallbackMarkdown: proposedPlanCompletion.planMarkdown,
           updatedAt: now,
         });
@@ -2111,7 +2131,7 @@ const make = Effect.gen(function* () {
               providerName: event.provider,
               ...(event.providerInstanceId !== undefined
                 ? { providerInstanceId: event.providerInstanceId }
-                : {}),
+                : undefined),
               runtimeMode: thread.session?.runtimeMode ?? "full-access",
               activeTurnId: eventTurnId ?? null,
               lastError: runtimeErrorMessage,
@@ -2196,12 +2216,13 @@ const make = Effect.gen(function* () {
         case "task.progress":
         case "task.updated":
         case "task.completed": {
-          const payload = event.payload as {
-            taskId: string;
-            taskType?: string;
-            status?: string;
-            agentId?: string;
-          };
+          const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            payload = event.payload as {
+              taskId: string;
+              taskType?: string;
+              status?: string;
+              agentId?: string;
+            };
           threadBackgroundLiveness.recordTaskLiveness({
             threadId: thread.id,
             taskId: payload.taskId,

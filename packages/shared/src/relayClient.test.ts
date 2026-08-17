@@ -41,15 +41,16 @@ function makeHandle(exitCode = 0) {
   });
 }
 
-const makeHttpClientLayer = (bytes: Uint8Array) =>
-  Layer.succeed(
-    HttpClient.HttpClient,
-    HttpClient.make((request) =>
-      Effect.succeed(
-        HttpClientResponse.fromWeb(request, new Response(bytes.buffer as ArrayBuffer)),
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  makeHttpClientLayer = (bytes: Uint8Array) =>
+    Layer.succeed(
+      HttpClient.HttpClient,
+      HttpClient.make((request) =>
+        Effect.succeed(
+          HttpClientResponse.fromWeb(request, new Response(bytes.buffer as ArrayBuffer)),
+        ),
       ),
-    ),
-  );
+    );
 
 const makeSpawnerLayer = (commands: Array<string>) =>
   Layer.succeed(

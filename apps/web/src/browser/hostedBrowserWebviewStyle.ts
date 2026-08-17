@@ -33,7 +33,7 @@ export function resolveHostedBrowserWebviewWrapperStyle(input: {
       height: rect.height,
       zIndex: 30,
       pointerEvents: "auto",
-      ...(cornerRadius > 0 ? { borderRadius: cornerRadius } : {}),
+      ...(cornerRadius > 0 ? { borderRadius: cornerRadius } : undefined),
     };
   }
 

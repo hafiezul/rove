@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { PREVIEW_WEBVIEW_PREFERENCES } from "./WebviewPreferences.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /**
  * Mirrors Electron's webview attribute parser closely enough to catch the
@@ -26,7 +27,7 @@ import { PREVIEW_WEBVIEW_PREFERENCES } from "./WebviewPreferences.ts";
  * we accidentally ship `"contextIsolation=no"` again.
  */
 function parseWebPreferences(input: string) {
-  const out: Record<string, unknown> = {};
+  const out: Record<string, SchemaJson> = {};
   for (const pair of input.split(",")) {
     if (pair !== pair.trim()) {
       // Electron's parser doesn't trim; surface the bug as undefined-key.

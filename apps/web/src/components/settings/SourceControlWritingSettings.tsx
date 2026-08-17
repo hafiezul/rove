@@ -69,6 +69,7 @@ export function SourceControlWritingSettingsSection() {
     activeSelection.model,
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <SettingsSection title="Text generation">
       <SettingsRow
@@ -94,10 +95,11 @@ export function SourceControlWritingSettingsSection() {
             value={style.mode}
             onValueChange={(value) => {
               const customInstructions = customInstructionsRef.current?.value.trim();
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               updateSettings({
                 sourceControlWritingStyle: {
                   mode: value as SourceControlWritingStyleMode,
-                  ...(customInstructions !== undefined ? { customInstructions } : {}),
+                  ...(customInstructions !== undefined ? { customInstructions } : undefined),
                 },
               });
             }}

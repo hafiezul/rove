@@ -164,9 +164,10 @@ function assertExists(path: string, message: string): void {
 }
 
 function assertPackageVersion(path: string, version: string): void {
-  const packageJson = JSON.parse(NodeFS.readFileSync(path, "utf8")) as {
-    readonly version?: unknown;
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    packageJson = JSON.parse(NodeFS.readFileSync(path, "utf8")) as {
+      readonly version?: unknown;
+    };
 
   if (packageJson.version !== version) {
     throw new Error(`Expected ${path} to have version ${version}.`);

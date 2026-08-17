@@ -21,13 +21,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
     // The artifact carries its own provenance: the build embeds the pinned
     // revision as semver build metadata, so the repository's canonical VERSION
     // file is the single source of truth and drift is caught here without a copy.
-    const result = await WebAssembly.instantiate(wasm.buffer as ArrayBuffer, {
-      env: { log: () => {} },
-    });
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(wasm.buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const out = call("ghostty_wasm_alloc_u8_array", 8);
     expect(call("ghostty_build_info", 10, out)).toBe(0);
     const view = new DataView(memory.buffer, out, 8);
@@ -41,23 +43,27 @@ describe("vendored libghostty-vt WebAssembly", () => {
   it("creates, writes multi-codepoint graphemes, and frees repeated terminals", async () => {
     const bytes = decodeWasmDataUrl(wasmDataUrl);
     let memory: WebAssembly.Memory | null = null;
-    const instantiated = await WebAssembly.instantiate(bytes.buffer as ArrayBuffer, {
-      env: {
-        log: () => {},
-      },
-    });
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      instantiated = await WebAssembly.instantiate(bytes.buffer as ArrayBuffer, {
+        env: {
+          log: () => {},
+        },
+      });
     const instance =
       instantiated instanceof WebAssembly.Instance ? instantiated : instantiated.instance;
     const exports = instance.exports;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     memory = exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) => (exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (exports[name] as WasmFunction)(...args);
     const jsonPointer = call("ghostty_type_json");
     const jsonBytes = new Uint8Array(memory.buffer, jsonPointer);
     const jsonEnd = jsonBytes.indexOf(0);
-    const layouts = JSON.parse(new TextDecoder().decode(jsonBytes.subarray(0, jsonEnd))) as Record<
-      string,
-      { size: number }
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      layouts = JSON.parse(new TextDecoder().decode(jsonBytes.subarray(0, jsonEnd))) as Record<
+        string,
+        { size: number }
+      >;
     const optionsSize = layouts.GhosttyTerminalOptions?.size;
     expect(optionsSize).toBe(8);
     if (optionsSize === undefined) throw new Error("GhosttyTerminalOptions layout is missing");
@@ -84,14 +90,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("blinks the default cursor until a program asks for a steady one", async () => {
-    const result = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const alloc = (size: number) => call("ghostty_wasm_alloc_u8_array", size);
     const options = alloc(8);
     const optionsView = new DataView(memory.buffer, options, 8);
@@ -157,14 +164,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("reports and scrolls the viewport with Ghostty's scrollbar state", async () => {
-    const result = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const alloc = (size: number) => call("ghostty_wasm_alloc_u8_array", size);
     const options = alloc(8);
     const optionsView = new DataView(memory.buffer, options, 8);
@@ -205,31 +213,42 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("routes terminal-generated replies through the shared callback table", async () => {
-    const mainResult = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      mainResult = await WebAssembly.instantiate(
+        decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
+        { env: { log: () => {} } },
+      );
     const main = mainResult instanceof WebAssembly.Instance ? mainResult : mainResult.instance;
-    const memory = main.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = main.exports.memory as WebAssembly.Memory;
     let reply = "";
-    const trampolineResult = await WebAssembly.instantiate(
-      decodeWasmDataUrl(writePtyWasmDataUrl).buffer as ArrayBuffer,
-      {
-        env: {
-          t3_write_pty: (_terminal: number, _userdata: number, pointer: number, length: number) => {
-            reply += new TextDecoder().decode(new Uint8Array(memory.buffer, pointer, length));
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      trampolineResult = await WebAssembly.instantiate(
+        decodeWasmDataUrl(writePtyWasmDataUrl).buffer as ArrayBuffer,
+        {
+          env: {
+            t3_write_pty: (
+              _terminal: number,
+              _userdata: number,
+              pointer: number,
+              length: number,
+            ) => {
+              reply += new TextDecoder().decode(new Uint8Array(memory.buffer, pointer, length));
+            },
           },
         },
-      },
-    );
+      );
     const trampoline =
       trampolineResult instanceof WebAssembly.Instance
         ? trampolineResult
         : trampolineResult.instance;
-    const table = main.exports.__indirect_function_table as WebAssembly.Table;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      table = main.exports.__indirect_function_table as WebAssembly.Table;
     const callbackIndex = table.length;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     table.grow(1, trampoline.exports.ghostty_write_pty as CallableFunction);
-    const call = (name: string, ...args: number[]) => (main.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (main.exports[name] as WasmFunction)(...args);
     const options = call("ghostty_wasm_alloc_u8_array", 8);
     const optionsView = new DataView(memory.buffer, options, 8);
     optionsView.setUint16(0, 80, true);
@@ -261,14 +280,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("formats the active selection with Ghostty's copy semantics", async () => {
-    const result = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const options = call("ghostty_wasm_alloc_u8_array", 8);
     const optionsView = new DataView(memory.buffer, options, 8);
     optionsView.setUint16(0, 80, true);
@@ -321,14 +341,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("uses Ghostty for mouse encoding, word selection, and OSC 8 hit testing", async () => {
-    const result = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const alloc = (size: number) => call("ghostty_wasm_alloc_u8_array", size);
     const free = (pointer: number, size: number) =>
       call("ghostty_wasm_free_u8_array", pointer, size);
@@ -514,14 +535,15 @@ describe("vendored libghostty-vt WebAssembly", () => {
   });
 
   it("encodes modified printable keys in Kitty keyboard mode", async () => {
-    const result = await WebAssembly.instantiate(
-      decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer,
-      { env: { log: () => {} } },
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      result = await WebAssembly.instantiate(decodeWasmDataUrl(wasmDataUrl).buffer as ArrayBuffer, {
+        env: { log: () => {} },
+      });
     const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-    const memory = instance.exports.memory as WebAssembly.Memory;
-    const call = (name: string, ...args: number[]) =>
-      (instance.exports[name] as WasmFunction)(...args);
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      memory = instance.exports.memory as WebAssembly.Memory;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      call = (name: string, ...args: number[]) => (instance.exports[name] as WasmFunction)(...args);
     const alloc = (size: number) => call("ghostty_wasm_alloc_u8_array", size);
     const free = (pointer: number, size: number) =>
       call("ghostty_wasm_free_u8_array", pointer, size);

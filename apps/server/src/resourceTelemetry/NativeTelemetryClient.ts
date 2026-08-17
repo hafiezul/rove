@@ -37,6 +37,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import * as ResourceMonitorBinary from "./ResourceMonitorBinary.ts";
 import { ServerConfig } from "../config.ts";
 import { subscribeBeforeSnapshotWithoutMutex } from "../utils/subscribeBeforeSnapshot.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SAMPLE_INTERVAL_MS = 1_000;
 const UNKNOWN_BACKGROUND_SAMPLE_INTERVAL_MS = 5_000;
@@ -320,9 +321,9 @@ const isDecodeFailed = Schema.is(NativeTelemetryDecodeFailed);
 const isCommandFailed = Schema.is(NativeTelemetryCommandFailed);
 
 function eventVersion(value: unknown): number | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
+  if (!RuntimePredicate.isObjectOrArray(value)) return undefined;
   const version = Object.getOwnPropertyDescriptor(value, "version")?.value;
-  return typeof version === "number" ? version : undefined;
+  return RuntimePredicate.isNumber(version) ? version : undefined;
 }
 
 function restartDelay(attempt: number): Duration.Duration {

@@ -1,4 +1,5 @@
 import { isValidElement, type ReactElement } from "react";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /**
  * Depth-first search over a React element tree produced by calling a component
@@ -8,8 +9,8 @@ import { isValidElement, type ReactElement } from "react";
  */
 export function visitElements(
   node: unknown,
-  visitor: (element: ReactElement<Record<string, unknown>>) => boolean,
-): ReactElement<Record<string, unknown>> | null {
+  visitor: (element: ReactElement<Record<string, SchemaJson>>) => boolean,
+): ReactElement<Record<string, SchemaJson>> | null {
   if (Array.isArray(node)) {
     for (const child of node) {
       const found = visitElements(child, visitor);
@@ -17,7 +18,7 @@ export function visitElements(
     }
     return null;
   }
-  if (!isValidElement<Record<string, unknown>>(node)) return null;
+  if (!isValidElement<Record<string, SchemaJson>>(node)) return null;
   if (visitor(node)) return node;
   for (const value of Object.values(node.props)) {
     const found = visitElements(value, visitor);

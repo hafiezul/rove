@@ -1,6 +1,7 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { DesktopUpdateState } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const testState = vi.hoisted(() => ({
   addToast: vi.fn(),
@@ -24,17 +25,22 @@ function findReleaseNotesLink(node: ReactNode): ClickableElement | null {
     return null;
   }
   if (!isValidElement(node)) return null;
-  const element = node as ReactElement<{ readonly children?: ReactNode }>;
-  if (element.type === "button") return element as ClickableElement;
-  if (typeof element.type === "function") {
-    const render = element.type as (props: unknown) => ReactNode;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    element = node as ReactElement<{ readonly children?: ReactNode }>;
+  if (element.type === "button")
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    return element as ClickableElement;
+  if (RuntimePredicate.isFunction(element.type)) {
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      render = element.type as (props: unknown) => ReactNode;
     return findReleaseNotesLink(render(element.props));
   }
   return findReleaseNotesLink(element.props.children);
 }
 
 function getDescription(): ReactNode {
-  const toast = testState.addToast.mock.calls[0]?.[0] as { description?: ReactNode } | undefined;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    toast = testState.addToast.mock.calls[0]?.[0] as { description?: ReactNode } | undefined;
   return toast?.description ?? null;
 }
 

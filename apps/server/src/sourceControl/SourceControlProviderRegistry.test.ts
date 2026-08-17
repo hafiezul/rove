@@ -57,26 +57,27 @@ function makeRegistry(input: {
       }),
   } satisfies Partial<VcsDriver.VcsDriver["Service"]>;
 
-  const registryLayer = Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
-    get: () => Effect.succeed(driver as unknown as VcsDriver.VcsDriver["Service"]),
-    resolve:
-      input.resolve ??
-      (() =>
-        Effect.succeed({
-          kind: "git",
-          repository: {
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    registryLayer = Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
+      get: () => Effect.succeed(driver as VcsDriver.VcsDriver["Service"]),
+      resolve:
+        input.resolve ??
+        (() =>
+          Effect.succeed({
             kind: "git",
-            rootPath: "/repo",
-            metadataPath: null,
-            freshness: {
-              source: "live-local" as const,
-              observedAt: TEST_EPOCH,
-              expiresAt: Option.none(),
+            repository: {
+              kind: "git",
+              rootPath: "/repo",
+              metadataPath: null,
+              freshness: {
+                source: "live-local" as const,
+                observedAt: TEST_EPOCH,
+                expiresAt: Option.none(),
+              },
             },
-          },
-          driver: driver as unknown as VcsDriver.VcsDriver["Service"],
-        })),
-  });
+            driver: driver as VcsDriver.VcsDriver["Service"],
+          })),
+    });
 
   const processLayer = Layer.mock(VcsProcess.VcsProcess)({
     run: () => Effect.succeed(processOutput("")),

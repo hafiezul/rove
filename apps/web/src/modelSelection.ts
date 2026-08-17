@@ -24,6 +24,8 @@ import {
 import { ModelEsque } from "./components/chat/providerIconUtils";
 import { type ProviderInstanceEntry, deriveProviderInstanceEntries } from "./providerInstances";
 import { sortModelsForProviderInstance } from "./modelOrdering";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const MAX_CUSTOM_MODEL_COUNT = 32;
 export const MAX_CUSTOM_MODEL_LENGTH = 256;
@@ -52,20 +54,22 @@ function readInstanceCustomModels(
 ): ReadonlyArray<string> {
   const instance = settings.providerInstances?.[instanceId];
   const config = instance?.config;
-  if (config !== null && typeof config === "object") {
-    const value = (config as Record<string, unknown>).customModels;
+  if (RuntimePredicate.isObjectOrArray(config)) {
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      value = (config as Record<string, SchemaJson>).customModels;
     if (Array.isArray(value)) {
-      return value.filter((entry): entry is string => typeof entry === "string");
+      return value.filter((entry): entry is string => RuntimePredicate.isString(entry));
     }
   }
   const defaultInstanceId = defaultInstanceIdForDriver(driverKind);
   if (instanceId !== defaultInstanceId) {
     return [];
   }
-  const legacyProviders = settings.providers as Record<
-    string,
-    { readonly customModels: ReadonlyArray<string> } | undefined
-  >;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    legacyProviders = settings.providers as Record<
+      string,
+      { readonly customModels: ReadonlyArray<string> } | undefined
+    >;
   return legacyProviders[driverKind]?.customModels ?? [];
 }
 

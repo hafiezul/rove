@@ -315,8 +315,8 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
             worktreePath: launchLocation.worktreePath,
             cols: initialAttachGridSize.cols,
             rows: initialAttachGridSize.rows,
-            ...(pendingLaunch?.env ? { env: pendingLaunch.env } : {}),
-            ...(pendingLaunch ? { restartIfNotRunning: true } : {}),
+            ...(pendingLaunch?.env ? { env: pendingLaunch.env } : undefined),
+            ...(pendingLaunch ? { restartIfNotRunning: true } : undefined),
           }
         : null,
     [
@@ -392,7 +392,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
         worktreePath: terminalAttachInput.worktreePath,
         cols: terminalAttachInput.cols,
         rows: terminalAttachInput.rows,
-        ...(terminalAttachInput.env ? { env: terminalAttachInput.env } : {}),
+        ...(terminalAttachInput.env ? { env: terminalAttachInput.env } : undefined),
       },
     }).then((result) => {
       // Release the guard on failure so a later render can retry the respawn.

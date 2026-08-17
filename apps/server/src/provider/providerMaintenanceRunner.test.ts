@@ -139,10 +139,11 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childProcess = command as {
+          readonly command: string;
+          readonly args: ReadonlyArray<string>;
+        };
       return Effect.succeed(mockHandle(handler(childProcess.command, childProcess.args)));
     }),
   );
@@ -710,11 +711,12 @@ describe("providerMaintenanceRunner", () => {
           Layer.succeed(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make((command) => {
-              const childProcess = command as unknown as {
-                readonly command: string;
-                readonly args: ReadonlyArray<string>;
-                readonly options: { readonly shell?: boolean | string | undefined };
-              };
+              const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+                childProcess = command as {
+                  readonly command: string;
+                  readonly args: ReadonlyArray<string>;
+                  readonly options: { readonly shell?: boolean | string | undefined };
+                };
               captured.push({
                 command: childProcess.command,
                 args: childProcess.args,

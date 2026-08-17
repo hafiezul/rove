@@ -16,6 +16,7 @@ import { GrokSettings, ProviderInstanceId } from "@t3tools/contracts";
 import * as ServerConfig from "../config.ts";
 import * as TextGeneration from "./TextGeneration.ts";
 import { makeGrokTextGeneration } from "./GrokTextGeneration.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeGrokSettings = Schema.decodeSync(GrokSettings);
 
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
@@ -71,12 +72,13 @@ function withFakeAcpGrok<A, E, R>(
 
 function readJsonRpcRequests(
   filePath: string,
-): ReadonlyArray<{ readonly method?: string; readonly params?: Record<string, unknown> }> {
+): ReadonlyArray<{ readonly method?: string; readonly params?: Record<string, SchemaJson> }> {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return NodeFS.readFileSync(filePath, "utf8")
     .trim()
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as { method?: string; params?: Record<string, unknown> });
+    .map((line) => JSON.parse(line) as { method?: string; params?: Record<string, SchemaJson> });
 }
 
 it.layer(GrokTextGenerationTestLayer)("GrokTextGeneration", (it) => {

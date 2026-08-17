@@ -10,12 +10,13 @@ import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 
 import * as ServerRuntimeState from "./serverRuntimeState.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const isServerRuntimeStateError = Schema.is(ServerRuntimeState.ServerRuntimeStateError);
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, unknown>>;
+  readonly annotations: Readonly<Record<string, SchemaJson>>;
 }
 
 describe("serverRuntimeState", () => {

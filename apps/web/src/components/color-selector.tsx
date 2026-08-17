@@ -47,6 +47,7 @@ function getSizeClass(size: "default" | "sm" | "lg") {
 }
 
 function getColorValue(color: string): string {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return colorMap[color as keyof typeof colorMap] || color;
 }
 

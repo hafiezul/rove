@@ -19,6 +19,7 @@ import {
 } from "./reviewHighlighterEngine";
 import type { ReviewRenderableFile, ReviewRenderableLineRow } from "./reviewModel";
 import { applyDiffRangesToTokens, computeWordAltDiffRanges } from "./reviewWordDiffs";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type ReviewDiffTheme = "light" | "dark";
 export type { ReviewHighlighterEngine };
@@ -232,7 +233,10 @@ function isReviewHighlighterDebugLoggingEnabled(): boolean {
   return typeof __DEV__ !== "undefined" ? __DEV__ : false;
 }
 
-function logReviewHighlighterDiagnostic(message: string, details?: Record<string, unknown>): void {
+function logReviewHighlighterDiagnostic(
+  message: string,
+  details?: Record<string, SchemaJson>,
+): void {
   if (!isReviewHighlighterDebugLoggingEnabled()) {
     return;
   }

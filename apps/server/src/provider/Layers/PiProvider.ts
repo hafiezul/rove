@@ -76,7 +76,7 @@ const piModelCapabilities = (piSettings: Pick<PiSettings, "thinkingLevel">): Mod
         options: PI_THINKING_LEVELS.map((level) => ({
           value: level,
           label: THINKING_LEVEL_LABELS[level],
-          ...(piSettings.thinkingLevel === level ? { isDefault: true } : {}),
+          ...(piSettings.thinkingLevel === level ? { isDefault: true } : undefined),
         })),
       }),
     ],
@@ -212,7 +212,7 @@ export function checkPiProviderStatus(
         auth: { status: probed.provider !== undefined ? "authenticated" : "unknown" },
         ...(models.length === 0
           ? { message: "Pi SDK loaded but no models are configured in your Pi catalog." }
-          : {}),
+          : undefined),
       },
     });
   });

@@ -104,6 +104,7 @@ function signTestJwt<TPayload extends JsonWebTokenPayload>(
 function decodeRequestProof<T>(proof: string): T {
   const payload = proof.split(".")[1];
   if (!payload) throw new Error("Missing JWT payload.");
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as T;
 }
 
@@ -804,10 +805,13 @@ describe("EnvironmentConnector", () => {
     const requestStarted = new Promise<void>((resolve) => {
       resolveRequestStarted = () => resolve();
     });
-    const execute = () =>
-      Effect.sync(() => {
-        resolveRequestStarted?.();
-      }).pipe(Effect.andThen(Effect.never as Effect.Effect<HttpClientResponse.HttpClientResponse>));
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      execute = () =>
+        Effect.sync(() => {
+          resolveRequestStarted?.();
+        }).pipe(
+          Effect.andThen(Effect.never as Effect.Effect<HttpClientResponse.HttpClientResponse>),
+        );
 
     return Effect.gen(function* () {
       const connector = yield* EnvironmentConnector.EnvironmentConnector;

@@ -173,7 +173,7 @@ function toPersistenceSqlOrDecodeError(
       ? PersistenceDecodeError.fromSchemaError(decodeOperation, cause, correlation)
       : new PersistenceSqlError({
           operation: sqlOperation,
-          ...(correlation === undefined ? {} : { correlation }),
+          ...(correlation === undefined ? undefined : { correlation }),
           cause,
         });
 }

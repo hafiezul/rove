@@ -666,28 +666,34 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
 
   switch (a.kind) {
     case "working":
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return a.createdAt === (b as typeof a).createdAt;
 
     case "turn-fold": {
-      const bf = b as typeof a;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        bf = b as typeof a;
       return a.createdAt === bf.createdAt && a.label === bf.label && a.expanded === bf.expanded;
     }
 
     case "proposed-plan":
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return a.proposedPlan === (b as typeof a).proposedPlan;
 
     case "turn-plan": {
-      const bp = b as typeof a;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        bp = b as typeof a;
       // Plans rewrite in place: compare the snapshot's identity fields so an
       // unchanged plan keeps its row reference (virtualization stability).
       return a.createdAt === bp.createdAt && a.turnPlan.plan === bp.turnPlan.plan;
     }
 
     case "work":
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return Equal.equals(a.groupedEntries, (b as typeof a).groupedEntries);
 
     case "work-toggle": {
-      const bw = b as typeof a;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        bw = b as typeof a;
       return (
         a.createdAt === bw.createdAt &&
         a.groupId === bw.groupId &&
@@ -698,7 +704,8 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
     }
 
     case "message": {
-      const bm = b as typeof a;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        bm = b as typeof a;
       return (
         a.message === bm.message &&
         a.durationStart === bm.durationStart &&

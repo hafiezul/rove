@@ -5,9 +5,10 @@ import {
   themeColorToHex,
   THEME_FILE_VERSION,
   type ThemeAppearance,
-  type ThemeColorRole,
   type ThemeDefinition,
 } from "./themePalette";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /**
  * Best-effort import of a VS Code color theme (`*-color-theme.json`).
@@ -23,8 +24,8 @@ import {
 type VsCodeRgba = { r: number; g: number; b: number; a: number };
 type VsCodeRgb = { r: number; g: number; b: number };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
 /** sRGB transfer function, and its inverse, shared by the wide-gamut path. */
@@ -61,28 +62,31 @@ function parseColorFunction(value: string): VsCodeRgba | null {
         : Number.parseFloat(alphaRaw);
   if (!Number.isFinite(alpha)) return null;
 
-  const [red, green, blue] = channels as [number, number, number];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    [red, green, blue] = channels as [number, number, number];
   if (space === "srgb") {
     return { r: red * 255, g: green * 255, b: blue * 255, a: Math.max(0, Math.min(1, alpha)) };
   }
-  const [linearRed, linearGreen, linearBlue] = [red, green, blue].map(decodeGamma) as [
-    number,
-    number,
-    number,
-  ];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    [linearRed, linearGreen, linearBlue] = [red, green, blue].map(decodeGamma) as [
+      number,
+      number,
+      number,
+    ];
   // Display P3 linear -> sRGB linear.
-  const srgb = [
-    1.2249401762805 * linearRed - 0.2249401762805 * linearGreen,
-    -0.042056961239 * linearRed + 1.042056961239 * linearGreen,
-    -0.0196375547643 * linearRed - 0.0786360655012 * linearGreen + 1.0982736202656 * linearBlue,
-  ].map((channel) => encodeGamma(channel) * 255) as [number, number, number];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    srgb = [
+      1.2249401762805 * linearRed - 0.2249401762805 * linearGreen,
+      -0.042056961239 * linearRed + 1.042056961239 * linearGreen,
+      -0.0196375547643 * linearRed - 0.0786360655012 * linearGreen + 1.0982736202656 * linearBlue,
+    ].map((channel) => encodeGamma(channel) * 255) as [number, number, number];
   return { r: srgb[0], g: srgb[1], b: srgb[2], a: Math.max(0, Math.min(1, alpha)) };
 }
 
 /** VS Code accepts #RGB, #RGBA, #RRGGBB, and #RRGGBBAA; some themes also use
  *  CSS color() notation for wide-gamut palettes. */
 function parseVsCodeColor(value: unknown): VsCodeRgba | null {
-  if (typeof value !== "string") return null;
+  if (!RuntimePredicate.isString(value)) return null;
   const trimmed = value.trim();
   if (trimmed.startsWith("color(")) return parseColorFunction(trimmed);
   const hex = trimmed.replace(/^#/, "");
@@ -154,8 +158,8 @@ export function isVsCodeThemeFile(value: unknown): boolean {
   return hasWorkbenchColors || Array.isArray(value.tokenColors);
 }
 
-function resolveAppearance(value: Record<string, unknown>, canvas: VsCodeRgb): ThemeAppearance {
-  const type = typeof value.type === "string" ? value.type.toLowerCase() : null;
+function resolveAppearance(value: Record<string, SchemaJson>, canvas: VsCodeRgb): ThemeAppearance {
+  const type = RuntimePredicate.isString(value.type) ? value.type.toLowerCase() : null;
   if (type === "light" || type === "hc-light") return "light";
   if (type === "dark" || type === "hc-black") return "dark";
   // Unlabelled themes (and the odd custom `type`) follow the editor surface.
@@ -173,11 +177,11 @@ export function humanizeThemeName(raw: string): string {
     .join(" ");
 }
 
-function resolveName(value: Record<string, unknown>): string {
+function resolveName(value: Record<string, SchemaJson>): string {
   // Judge candidates by their humanized form: a displayName of "---"
   // humanizes to nothing and must fall through to the name.
   for (const candidate of [value.displayName, value.name]) {
-    if (typeof candidate !== "string") continue;
+    if (!RuntimePredicate.isString(candidate)) continue;
     const humanized = humanizeThemeName(candidate);
     if (humanized.length > 0) return humanized.slice(0, 48);
   }
@@ -379,7 +383,9 @@ export function pairVsCodeThemes(
           order: group.order,
           theme: parseThemeFile({
             version: THEME_FILE_VERSION,
-            ...(options?.pairedId ? { id: options.pairedId(group.light[0]!, group.dark[0]!) } : {}),
+            ...(options?.pairedId
+              ? { id: options.pairedId(group.light[0]!, group.dark[0]!) }
+              : undefined),
             name: key,
             appearance: "light",
             colors: group.light[0]!.colors,
@@ -417,8 +423,8 @@ export function resolveThemeLabelCollisions(
         name: name.slice(0, 48),
         appearance: theme.appearance,
         colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
+        ...(theme.variants ? { variants: theme.variants } : undefined),
+        ...(theme.managed ? { managed: true } : undefined),
       });
     } catch {
       return null;

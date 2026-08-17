@@ -460,9 +460,9 @@ export function createVcsActionManager<R, E>(
           actionId: transportActionId,
           cwd: target.cwd,
           action: input.action,
-          ...(input.commitMessage ? { commitMessage: input.commitMessage } : {}),
-          ...(input.featureBranch ? { featureBranch: true } : {}),
-          ...(input.filePaths?.length ? { filePaths: [...input.filePaths] } : {}),
+          ...(input.commitMessage ? { commitMessage: input.commitMessage } : undefined),
+          ...(input.featureBranch ? { featureBranch: true } : undefined),
+          ...(input.filePaths?.length ? { filePaths: [...input.filePaths] } : undefined),
         };
         return consumeVcsActionProgress(
           runStreamInEnvironment(

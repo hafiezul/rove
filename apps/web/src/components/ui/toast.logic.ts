@@ -1,4 +1,5 @@
 import type { ScopedThreadRef, ThreadId } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export function shouldHideCollapsedToastContent(
   visibleToastIndex: number,
@@ -83,7 +84,7 @@ export function buildVisibleToastLayout<TToast extends object>(
 }
 
 function normalizeToastHeight(height: number | null | undefined): number {
-  return typeof height === "number" && Number.isFinite(height) && height > 0 ? height : 0;
+  return RuntimePredicate.isNumber(height) && Number.isFinite(height) && height > 0 ? height : 0;
 }
 
 export function shouldRenderThreadScopedToast(

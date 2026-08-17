@@ -317,7 +317,9 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
       _tag: "Failed",
       reason: `WSL node-pty unavailable: ${nodePtyResult.reason}`,
       fatal: nodePtyResult.fatal,
-      ...(nodePtyResult.retryLimit === undefined ? {} : { retryLimit: nodePtyResult.retryLimit }),
+      ...(nodePtyResult.retryLimit === undefined
+        ? undefined
+        : { retryLimit: nodePtyResult.retryLimit }),
     } as const;
   }
 
@@ -540,7 +542,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
       ...parentEnvWithoutT3Home,
       ...backendChildEnvPatch(),
       ...forwardedEnv,
-      ...(wslEnv !== undefined ? { WSLENV: wslEnv } : {}),
+      ...(wslEnv !== undefined ? { WSLENV: wslEnv } : undefined),
     },
     // env is already a complete process.env minus T3CODE_HOME; pass it
     // verbatim instead of letting the spawner re-merge process.env on top.
@@ -549,7 +551,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
     bootstrapDelivery: "stdin" as const,
     httpBaseUrl,
     captureOutput: true,
-    ...(runningDistro !== null ? { runningDistro } : {}),
+    ...(runningDistro !== null ? { runningDistro } : undefined),
   };
 
   // Forward the dev-server URL as an explicit CLI flag so the WSL backend's
@@ -571,7 +573,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
       preflightFailure: Option.some({
         reason: preflight.reason,
         fatal: preflight.fatal,
-        ...(retryLimit === undefined ? {} : { retryLimit }),
+        ...(retryLimit === undefined ? undefined : { retryLimit }),
       }),
     } satisfies DesktopBackendManager.DesktopBackendStartConfig;
   }

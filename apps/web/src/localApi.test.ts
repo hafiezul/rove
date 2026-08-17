@@ -44,7 +44,8 @@ function createLocalStorageStub(): Storage {
 }
 
 function testWindow(): Window & typeof globalThis {
-  return globalThis.window ?? (globalThis as unknown as Window & typeof globalThis);
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  return globalThis.window ?? (globalThis as Window & typeof globalThis);
 }
 
 beforeEach(() => {
@@ -113,7 +114,7 @@ describe("LocalApi", () => {
       pickFolder,
       getClientSettings,
       setClientSettings,
-    } as unknown as DesktopBridge;
+    } as DesktopBridge;
 
     const { createLocalApi } = await import("./localApi");
     const api = createLocalApi();

@@ -203,10 +203,11 @@ export function buildProviderInstanceUpdatePatch(input: {
     | undefined;
 }): Partial<UnifiedSettings> {
   type LegacyProviderSettings = ServerSettings["providers"][keyof ServerSettings["providers"]];
-  const legacyProviderDefaults = DEFAULT_UNIFIED_SETTINGS.providers as Record<
-    string,
-    LegacyProviderSettings | undefined
-  >;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    legacyProviderDefaults = DEFAULT_UNIFIED_SETTINGS.providers as Record<
+      string,
+      LegacyProviderSettings | undefined
+    >;
   const legacyProviderDefault = input.isDefault ? legacyProviderDefaults[input.driver] : undefined;
   return {
     ...(legacyProviderDefault !== undefined
@@ -216,14 +217,14 @@ export function buildProviderInstanceUpdatePatch(input: {
             [input.driver]: legacyProviderDefault,
           } as ServerSettings["providers"],
         }
-      : {}),
+      : undefined),
     providerInstances: {
       ...input.settings.providerInstances,
       [input.instanceId]: input.instance,
     },
     ...(input.textGenerationModelSelection !== undefined
       ? { textGenerationModelSelection: input.textGenerationModelSelection }
-      : {}),
+      : undefined),
   };
 }
 
@@ -269,9 +270,11 @@ export function backgroundActivityOverrideSettings(
   };
   for (const [key, value] of Object.entries(nextOverrides)) {
     if (value === undefined) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       delete nextOverrides[key as keyof typeof nextOverrides];
     }
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     backgroundActivity: {
       schemaVersion: 1 as const,

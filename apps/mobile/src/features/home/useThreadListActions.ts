@@ -361,7 +361,7 @@ export function useThreadListActions() {
       }
       const result = await pinMutation({
         environmentId: thread.environmentId,
-        input: { threadId: thread.id, ...(orderKey !== undefined ? { orderKey } : {}) },
+        input: { threadId: thread.id, ...(orderKey !== undefined ? { orderKey } : undefined) },
       });
       if (result._tag === "Failure") {
         const error = Cause.squash(result.cause);

@@ -91,6 +91,7 @@ function useAction<
         if (AsyncResult.isSuccess(result)) {
           input.onSuccess?.();
         }
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return result as AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>;
       };
       return input.managedExternally === true
@@ -234,10 +235,10 @@ export function useGitStackedAction(scope: SourceControlActionScope) {
       return runStackedAction({
         actionId: input.actionId,
         action: input.action,
-        ...(input.commitMessage ? { commitMessage: input.commitMessage } : {}),
-        ...(input.featureBranch ? { featureBranch: true } : {}),
-        ...(input.filePaths?.length ? { filePaths: input.filePaths } : {}),
-        ...(input.onProgress ? { onProgress: input.onProgress } : {}),
+        ...(input.commitMessage ? { commitMessage: input.commitMessage } : undefined),
+        ...(input.featureBranch ? { featureBranch: true } : undefined),
+        ...(input.filePaths?.length ? { filePaths: input.filePaths } : undefined),
+        ...(input.onProgress ? { onProgress: input.onProgress } : undefined),
       });
     },
     [runStackedAction, scope],
@@ -328,7 +329,7 @@ export function usePreparePullRequestThreadAction(scope: SourceControlActionScop
           cwd: target.cwd,
           reference: input.reference,
           mode: input.mode,
-          ...(input.threadId ? { threadId: input.threadId } : {}),
+          ...(input.threadId ? { threadId: input.threadId } : undefined),
         },
       });
     },

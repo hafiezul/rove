@@ -6,6 +6,8 @@ import { createNativeReviewDiffTheme, type NativeReviewDiffData } from "./native
 import { useAppearanceCodeSurface } from "../settings/appearance/useAppearanceCodeSurface";
 import { useNativeReviewDiffHighlighting } from "./useNativeReviewDiffHighlighting";
 import { buildNativeReviewTokensResetKey } from "./reviewDiffBridgeKeys";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export { buildNativeReviewTokensResetKey, hashReviewDiffKey } from "./reviewDiffBridgeKeys";
 
@@ -68,13 +70,13 @@ export function useNativeReviewDiffBridge(input: {
   });
 
   const onDebug = useCallback(
-    (event: NativeSyntheticEvent<Record<string, unknown>>) => {
+    (event: NativeSyntheticEvent<Record<string, SchemaJson>>) => {
       const payload = event.nativeEvent;
       const message = payload.message;
       if (
         (message === "draw-metrics" || message === "visible-range") &&
-        typeof payload.firstRowIndex === "number" &&
-        typeof payload.lastRowIndex === "number"
+        RuntimePredicate.isNumber(payload.firstRowIndex) &&
+        RuntimePredicate.isNumber(payload.lastRowIndex)
       ) {
         updateVisibleRange({
           firstRowIndex: payload.firstRowIndex,

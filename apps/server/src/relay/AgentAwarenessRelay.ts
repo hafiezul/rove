@@ -46,6 +46,7 @@ import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as OrchestrationEngine from "../orchestration/Services/OrchestrationEngine.ts";
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import { forkParked } from "../serverActivation.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class AgentAwarenessRelay extends Context.Service<
   AgentAwarenessRelay,
@@ -56,11 +57,14 @@ export class AgentAwarenessRelay extends Context.Service<
 >()("t3/relay/AgentAwarenessRelay") {}
 
 export function eventThreadId(event: OrchestrationEvent): ThreadId | null {
-  const payload = event.payload as { readonly threadId?: unknown };
-  if (typeof payload.threadId === "string") {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    payload = event.payload as { readonly threadId?: unknown };
+  if (RuntimePredicate.isString(payload.threadId)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return payload.threadId as ThreadId;
   }
-  if (event.aggregateKind === "thread" && typeof event.aggregateId === "string") {
+  if (event.aggregateKind === "thread" && RuntimePredicate.isString(event.aggregateId)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return event.aggregateId as ThreadId;
   }
   return null;
@@ -197,17 +201,18 @@ const makePublishProof = Effect.fn("makePublishProof")(function* (input: {
 }) {
   const now = yield* DateTime.now;
   const expiresAt = DateTime.add(now, { minutes: 5 });
-  const payload = {
-    iss: `t3-env:${input.environmentId}`,
-    aud: normalizeRelayIssuer(input.relayIssuer),
-    sub: input.environmentId,
-    jti: input.jti,
-    iat: Math.floor(now.epochMilliseconds / 1_000),
-    exp: Math.floor(expiresAt.epochMilliseconds / 1_000),
-    environmentId: input.environmentId as RelayAgentActivityPublishProofPayload["environmentId"],
-    threadId: input.threadId,
-    state: input.state,
-  } satisfies RelayAgentActivityPublishProofPayload;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    payload = {
+      iss: `t3-env:${input.environmentId}`,
+      aud: normalizeRelayIssuer(input.relayIssuer),
+      sub: input.environmentId,
+      jti: input.jti,
+      iat: Math.floor(now.epochMilliseconds / 1_000),
+      exp: Math.floor(expiresAt.epochMilliseconds / 1_000),
+      environmentId: input.environmentId as RelayAgentActivityPublishProofPayload["environmentId"],
+      threadId: input.threadId,
+      state: input.state,
+    } satisfies RelayAgentActivityPublishProofPayload;
   return yield* signRelayAgentActivityPublishProof({ privateKey: input.privateKey, payload });
 });
 

@@ -30,6 +30,8 @@ import { Command, Flag, Prompt } from "effect/unstable/cli";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 
 import RelayStack from "../alchemy.run.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const relayDeployOutputFields = [
   "url",
@@ -232,7 +234,7 @@ const writeGithubOutput = Effect.fn("relay.deploy.writeGithubOutput")(function* 
         ? {
             relay_url: outcome.publicConfig.value.relayUrl,
           }
-        : {}),
+        : undefined),
     }),
     { flag: "a" },
   );
@@ -271,7 +273,7 @@ const deployBaseServices = Layer.mergeAll(
 const deployServices = deployBaseServices;
 
 function relayPublicConfigValues(output: unknown) {
-  if (typeof output !== "object" || output === null) {
+  if (!RuntimePredicate.isObjectOrArray(output)) {
     return {
       url: undefined,
       mobileTracingUrl: undefined,
@@ -282,10 +284,11 @@ function relayPublicConfigValues(output: unknown) {
       clientTracingToken: undefined,
     };
   }
-  const value = output as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    value = output as Record<string, SchemaJson>;
   const text = (name: string) => {
     const candidate = value[name];
-    return typeof candidate === "string" && candidate.length > 0 ? candidate : undefined;
+    return RuntimePredicate.isString(candidate) && candidate.length > 0 ? candidate : undefined;
   };
   const secret = (name: string): string | undefined => {
     const candidate = value[name];
@@ -293,7 +296,7 @@ function relayPublicConfigValues(output: unknown) {
       return text(name);
     }
     const redacted = Redacted.value(candidate);
-    return typeof redacted === "string" && redacted.length > 0 ? redacted : undefined;
+    return RuntimePredicate.isString(redacted) && redacted.length > 0 ? redacted : undefined;
   };
   return {
     url: text("url"),

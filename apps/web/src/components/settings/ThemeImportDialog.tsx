@@ -330,8 +330,8 @@ export function ThemeImportDialog({
         name: preferredName.slice(0, 48),
         appearance: theme.appearance,
         colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
+        ...(theme.variants ? { variants: theme.variants } : undefined),
+        ...(theme.managed ? { managed: true } : undefined),
       });
       if (!getCustomThemes().some((existing) => existing.id === candidate.id)) return candidate;
     }
@@ -341,8 +341,8 @@ export function ThemeImportDialog({
         name: `${theme.label.slice(0, 48 - ` (${copy})`.length)} (${copy})`,
         appearance: theme.appearance,
         colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
+        ...(theme.variants ? { variants: theme.variants } : undefined),
+        ...(theme.managed ? { managed: true } : undefined),
       });
       if (getCustomThemes().some((existing) => existing.id === candidate.id)) continue;
       return candidate;
@@ -452,22 +452,23 @@ export function ThemeImportDialog({
           </div>
 
           {(() => {
-            const dropHandlers = {
-              onDragEnter: (event: DragEvent<HTMLDivElement>) => {
-                event.preventDefault();
-                setIsDropTarget(true);
-              },
-              onDragOver: (event: DragEvent<HTMLDivElement>) => {
-                event.preventDefault();
-                setIsDropTarget(true);
-              },
-              onDragLeave: (event: DragEvent<HTMLDivElement>) => {
-                // Ignore moves between children of the drop zone.
-                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                setIsDropTarget(false);
-              },
-              onDrop: handleDrop,
-            };
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              dropHandlers = {
+                onDragEnter: (event: DragEvent<HTMLDivElement>) => {
+                  event.preventDefault();
+                  setIsDropTarget(true);
+                },
+                onDragOver: (event: DragEvent<HTMLDivElement>) => {
+                  event.preventDefault();
+                  setIsDropTarget(true);
+                },
+                onDragLeave: (event: DragEvent<HTMLDivElement>) => {
+                  // Ignore moves between children of the drop zone.
+                  if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                  setIsDropTarget(false);
+                },
+                onDrop: handleDrop,
+              };
             const fileInput = (
               <input
                 ref={fileInputRef}

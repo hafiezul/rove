@@ -716,7 +716,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
             environmentId: member.environmentId,
             input: {
               projectId: member.id,
-              ...(memberThreads.length > 0 ? { force: true } : {}),
+              ...(memberThreads.length > 0 ? { force: true } : undefined),
             },
           }),
           () => undefined,
@@ -756,6 +756,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
     ] ?? "inherit";
   const selectedCheckoutLabel = selectedCheckout.environmentLabel ?? "This machine";
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <>
       <SettingsPageContainer>

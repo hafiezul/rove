@@ -8,7 +8,7 @@ function ref(name: string, remoteName?: string): VcsRef {
     current: false,
     isDefault: false,
     isRemote: remoteName !== undefined,
-    ...(remoteName ? { remoteName } : {}),
+    ...(remoteName ? { remoteName } : undefined),
     worktreePath: null,
   };
 }

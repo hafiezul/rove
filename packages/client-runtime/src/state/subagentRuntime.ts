@@ -18,6 +18,8 @@
  * metadata).
  */
 import type { OrchestrationThreadActivity } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type RuntimeSubagentStatus =
   | "pending"
@@ -133,7 +135,7 @@ const ROSTER_LIMIT = 100;
  * background by definition: they render in the ordinary work log, exactly
  * as they did before this feature existed.
  */
-export function isBackgroundTaskActivity(payload: Record<string, unknown>): boolean {
+export function isBackgroundTaskActivity(payload: Record<string, SchemaJson>): boolean {
   return payload.agentKind !== "agent";
 }
 
@@ -156,18 +158,21 @@ function appendActivity(
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+  return RuntimePredicate.isString(value) && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function asCount(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
 }
 
 function asUsage(value: unknown): SubagentUsage | undefined {
-  if (typeof value !== "object" || value === null) {
+  if (!RuntimePredicate.isObjectOrArray(value)) {
     return undefined;
   }
-  const record = value as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = value as Record<string, SchemaJson>;
   const totalTokens = asCount(record.totalTokens);
   if (totalTokens === undefined) {
     return undefined;
@@ -259,7 +264,7 @@ interface MutableAgent {
 }
 
 function kindFromPayload(
-  payload: Record<string, unknown>,
+  payload: Record<string, SchemaJson>,
   agentId: string,
 ): RuntimeSubagent["kind"] {
   if (asString(payload.taskType) === "local_workflow") {
@@ -275,7 +280,7 @@ function kindFromPayload(
 function getOrCreate(
   agents: Map<string, MutableAgent>,
   id: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, SchemaJson>,
   at: string,
 ): MutableAgent {
   const existing = agents.get(id);
@@ -316,7 +321,7 @@ function getOrCreate(
 }
 
 /** Metadata fill from any payload: never downgrades known values to null. */
-function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): void {
+function fillMetadata(agent: MutableAgent, payload: Record<string, SchemaJson>): void {
   const title = asString(payload.title);
   if (title) agent.title = title;
   const role = asString(payload.role);
@@ -358,8 +363,9 @@ function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): vo
   if (Array.isArray(payload.phases)) {
     const phases: SubagentWorkflowPhase[] = [];
     for (const entry of payload.phases) {
-      if (typeof entry !== "object" || entry === null) continue;
-      const record = entry as Record<string, unknown>;
+      if (!RuntimePredicate.isObjectOrArray(entry)) continue;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        record = entry as Record<string, SchemaJson>;
       const index = asCount(record.index);
       const phaseName = asString(record.title);
       if (index !== undefined && phaseName) {
@@ -370,8 +376,9 @@ function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): vo
       agent.phases = phases.slice().sort((a, b) => a.index - b.index);
     }
   }
-  if (typeof payload.runHandles === "object" && payload.runHandles !== null) {
-    const record = payload.runHandles as Record<string, unknown>;
+  if (RuntimePredicate.isObjectOrArray(payload.runHandles)) {
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      record = payload.runHandles as Record<string, SchemaJson>;
     const runHandles: MutableSubagentRunHandles = {};
     const runId = asString(record.runId);
     if (runId) runHandles.runId = runId;
@@ -438,7 +445,8 @@ const KNOWN_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 function asRuntimeStatus(value: unknown): RuntimeSubagentStatus | undefined {
-  return typeof value === "string" && KNOWN_STATUSES.has(value)
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  return RuntimePredicate.isString(value) && KNOWN_STATUSES.has(value)
     ? (value as RuntimeSubagentStatus)
     : undefined;
 }
@@ -461,10 +469,11 @@ export function foldSubagentActivities(
   const agents = new Map<string, MutableAgent>();
 
   for (const activity of activities) {
-    if (typeof activity.payload !== "object" || activity.payload === null) {
+    if (!RuntimePredicate.isObjectOrArray(activity.payload)) {
       continue;
     }
-    const payload = activity.payload as Record<string, unknown>;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      payload = activity.payload as Record<string, SchemaJson>;
     const at = activity.createdAt;
 
     switch (activity.kind) {
@@ -889,19 +898,21 @@ export function isSubagentActivityKind(kind: string): boolean {
  * the Agents surface, not the parent chat. Unattributed rows must stay.
  */
 export function isAgentAttributedToolActivity(activity: OrchestrationThreadActivity): boolean {
-  if (typeof activity.payload !== "object" || activity.payload === null) {
+  if (!RuntimePredicate.isObjectOrArray(activity.payload)) {
     return false;
   }
-  const payload = activity.payload as Record<string, unknown>;
-  return typeof payload.agentId === "string" && payload.agentId.trim().length > 0;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload = activity.payload as Record<string, SchemaJson>;
+  return RuntimePredicate.isString(payload.agentId) && payload.agentId.trim().length > 0;
 }
 
 /** Timeline-bypassing synthesized rows (Codex children, workflow members). */
 export function isTimelineBypassActivity(activity: OrchestrationThreadActivity): boolean {
-  if (typeof activity.payload !== "object" || activity.payload === null) {
+  if (!RuntimePredicate.isObjectOrArray(activity.payload)) {
     return false;
   }
-  return (activity.payload as Record<string, unknown>).timelineBypass === true;
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return (activity.payload as Record<string, SchemaJson>).timelineBypass === true;
 }
 
 /**

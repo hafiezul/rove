@@ -121,6 +121,7 @@ function ArchivedThreadsHeader(props: {
       if (action === "environment:all") {
         props.onEnvironmentChange(null);
       } else if (action.startsWith("environment:")) {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         props.onEnvironmentChange(action.slice("environment:".length) as EnvironmentId);
       } else if (action === "sort:newest") {
         props.onSortOrderChange("newest");

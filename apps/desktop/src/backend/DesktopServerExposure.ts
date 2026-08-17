@@ -188,7 +188,7 @@ const resolveDesktopCoreAdvertisedEndpoints = (
           label: isHttpsEndpoint ? "Custom HTTPS" : "Custom endpoint",
           httpBaseUrl: customEndpointUrl,
           reachability: "public",
-          ...(isHttpsEndpoint ? ({ hostedHttpsCompatibility: "compatible" } as const) : {}),
+          ...(isHttpsEndpoint ? ({ hostedHttpsCompatibility: "compatible" } as const) : undefined),
           status: "unknown",
           description: isHttpsEndpoint
             ? "User-configured HTTPS endpoint for this desktop backend."
@@ -375,7 +375,7 @@ function resolveRuntimeState(input: {
     mode: input.requestedMode,
     port: input.port,
     networkInterfaces: input.networkInterfaces,
-    ...(advertisedHostOverride ? { advertisedHostOverride } : {}),
+    ...(advertisedHostOverride ? { advertisedHostOverride } : undefined),
   });
   const unavailable =
     input.requestedMode === "network-accessible" && requestedExposure.endpointUrl === null;
@@ -384,7 +384,7 @@ function resolveRuntimeState(input: {
         mode: "local-only",
         port: input.port,
         networkInterfaces: input.networkInterfaces,
-        ...(advertisedHostOverride ? { advertisedHostOverride } : {}),
+        ...(advertisedHostOverride ? { advertisedHostOverride } : undefined),
       })
     : requestedExposure;
 
@@ -490,7 +490,7 @@ export const make = Effect.gen(function* () {
     function* (input: { readonly enabled: boolean; readonly port?: number }) {
       yield* Effect.annotateCurrentSpan({
         enabled: input.enabled,
-        ...(input.port === undefined ? {} : { port: input.port }),
+        ...(input.port === undefined ? undefined : { port: input.port }),
       });
       const result = yield* desktopSettings
         .setTailscaleServe({

@@ -1,5 +1,6 @@
 import type { ProviderDriverKind, ThreadId } from "@t3tools/contracts";
 import { causeErrorTag, errorTag } from "@t3tools/shared/observability";
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -8,6 +9,8 @@ import type * as EffectAcpProtocol from "effect-acp/protocol";
 
 import type { EventNdjsonLogger } from "../Layers/EventNdjsonLogger.ts";
 import type * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function structuralMethod(value: string): string {
   return value.length <= 128 && /^[A-Za-z][A-Za-z0-9._:/-]*$/.test(value) ? value : "unknown";
@@ -15,7 +18,7 @@ function structuralMethod(value: string): string {
 
 function summarizePayload(payload: unknown) {
   if (payload === null) return { valueType: "null" };
-  if (typeof payload === "string") {
+  if (RuntimePredicate.isString(payload)) {
     return { valueType: "string", byteLength: new TextEncoder().encode(payload).byteLength };
   }
   if (payload instanceof Uint8Array) {
@@ -24,17 +27,20 @@ function summarizePayload(payload: unknown) {
   if (Array.isArray(payload)) {
     return { valueType: "array", itemCount: payload.length };
   }
-  if (typeof payload !== "object") {
-    return { valueType: typeof payload };
+  if (!(RuntimePredicate.isObjectOrArray(payload) || payload === null)) {
+    return { valueType: runtimeValueKind(payload) };
   }
 
   try {
-    const record = payload as Record<string, unknown>;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      record = payload as Record<string, SchemaJson>;
     return {
       valueType: "object",
       fieldCount: Object.keys(record).length,
-      ...(typeof record._tag === "string" ? { messageTag: errorTag(record) } : {}),
-      ...(typeof record.tag === "string" ? { method: structuralMethod(record.tag) } : {}),
+      ...(RuntimePredicate.isString(record._tag) ? { messageTag: errorTag(record) } : undefined),
+      ...(RuntimePredicate.isString(record.tag)
+        ? { method: structuralMethod(record.tag) }
+        : undefined),
     };
   } catch {
     return { valueType: "object" };
@@ -46,13 +52,13 @@ function formatRequestLogPayload(event: AcpSessionRuntime.AcpSessionRequestLogEv
     method: structuralMethod(event.method),
     status: event.status,
     request: summarizePayload(event.payload),
-    ...(event.result !== undefined ? { result: summarizePayload(event.result) } : {}),
+    ...(event.result !== undefined ? { result: summarizePayload(event.result) } : undefined),
     ...(event.cause !== undefined
       ? {
           errorTag: causeErrorTag(event.cause),
           reasonCount: event.cause.reasons.length,
         }
-      : {}),
+      : undefined),
   };
 }
 
@@ -123,7 +129,7 @@ export const makeAcpNativeLoggerFactory = Effect.fn("makeAcpNativeLoggerFactory"
                 }),
             } satisfies NonNullable<AcpSessionRuntime.AcpSessionRuntimeOptions["protocolLogging"]>,
           }
-        : {}),
+        : undefined),
     };
   };
 });

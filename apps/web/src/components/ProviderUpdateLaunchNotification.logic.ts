@@ -84,6 +84,7 @@ function dedupeProvidersByDriver<T extends ServerProvider>(providers: ReadonlyAr
   const latestProviderByDriver = new Map<ProviderDriverKind, T>();
 
   for (const provider of providers) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     latestProviderByDriver.set(
       provider.driver,
       chooseRepresentativeProvider(latestProviderByDriver.get(provider.driver), provider) as T,

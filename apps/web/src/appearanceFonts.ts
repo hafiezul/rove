@@ -16,6 +16,7 @@ import {
   MIN_INTERFACE_FONT_SIZE,
   MIN_PROMPT_FONT_SIZE,
 } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_SANS_FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
@@ -368,12 +369,13 @@ let installedFamiliesCache: InstalledFontFamiliesResult | null = null;
  */
 export async function queryInstalledFontFamilies(): Promise<InstalledFontFamiliesResult> {
   if (installedFamiliesCache !== null) return installedFamiliesCache;
-  const query = (
-    window as Window & {
-      queryLocalFonts?: () => Promise<ReadonlyArray<{ readonly family: string }>>;
-    }
-  ).queryLocalFonts;
-  if (typeof query !== "function") {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    query = (
+      window as Window & {
+        queryLocalFonts?: () => Promise<ReadonlyArray<{ readonly family: string }>>;
+      }
+    ).queryLocalFonts;
+  if (!RuntimePredicate.isFunction(query)) {
     installedFamiliesCache = { families: [], status: "unsupported" };
     return installedFamiliesCache;
   }

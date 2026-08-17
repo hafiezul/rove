@@ -66,6 +66,7 @@ export function resolveShowcaseAndroidAbi(
 ): NonNullable<ShowcaseAndroidDevice["abi"]> {
   if (!value) return "arm64-v8a";
   if (ANDROID_ABIS.some((abi) => abi === value)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return value as NonNullable<ShowcaseAndroidDevice["abi"]>;
   }
   throw new Error(

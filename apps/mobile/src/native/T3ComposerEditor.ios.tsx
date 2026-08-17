@@ -26,6 +26,7 @@ import {
   type ComposerNativeEventSnapshot,
 } from "./composerEditorRevision";
 import type { ComposerEditorProps, ComposerEditorSelection } from "./T3ComposerEditor.types";
+import * as RuntimePredicate from "effect/Predicate";
 
 const NATIVE_MODULE_NAME = "T3ComposerEditor";
 const EMPTY_SKILLS: NonNullable<ComposerEditorProps["skills"]> = [];
@@ -230,6 +231,7 @@ export function ComposerEditor({
     fileTint: String(fileTint),
   });
   const resolvedTextStyle = StyleSheet.flatten(textStyle) ?? {};
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <NativeView
       ref={nativeRef}
@@ -237,15 +239,17 @@ export function ComposerEditor({
       themeJson={themeJson}
       placeholder={props.placeholder ?? ""}
       fontFamily={
-        typeof resolvedTextStyle.fontFamily === "string" ? resolvedTextStyle.fontFamily : fontFamily
+        RuntimePredicate.isString(resolvedTextStyle.fontFamily)
+          ? resolvedTextStyle.fontFamily
+          : fontFamily
       }
       fontSize={
-        typeof resolvedTextStyle.fontSize === "number"
+        RuntimePredicate.isNumber(resolvedTextStyle.fontSize)
           ? resolvedTextStyle.fontSize
           : bodyText.fontSize
       }
       lineHeight={
-        typeof resolvedTextStyle.lineHeight === "number"
+        RuntimePredicate.isNumber(resolvedTextStyle.lineHeight)
           ? resolvedTextStyle.lineHeight
           : bodyText.lineHeight
       }

@@ -130,6 +130,7 @@ import { ConnectionStatusDot } from "../ConnectionStatusDot";
 import { ServerUpdateAction, ServerUpdateProgress } from "../ServerUpdateAction";
 import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectList";
 import { ITEM_ROW_CLASSNAME, ITEM_ROW_INNER_CLASSNAME } from "./itemRows";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
@@ -2275,7 +2276,7 @@ export function ConnectionsSettings() {
       }
       const result = await connectSshEnvironment({
         target,
-        ...(label === undefined ? {} : { label }),
+        ...(label === undefined ? undefined : { label }),
       });
       setConnectingSshHostAlias(null);
       if (result._tag === "Success") {
@@ -2828,7 +2829,7 @@ export function ConnectionsSettings() {
             <Select
               value={selectValue}
               onValueChange={(value) => {
-                if (typeof value !== "string") return;
+                if (!RuntimePredicate.isString(value)) return;
                 handleSelectWslMode(value);
               }}
             >

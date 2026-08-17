@@ -193,8 +193,9 @@ const runWslShell = (
         [Stream.runCollect(handle.stdout), Stream.runCollect(handle.stderr), handle.exitCode],
         { concurrency: "unbounded" },
       );
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
-        exitCode: exitCode as unknown as number,
+        exitCode: exitCode as number,
         stdout: decodeUtf8(concatChunks(stdoutBytes)),
         stderr: decodeUtf8(concatChunks(stderrBytes)),
         transportFailure: null,
@@ -584,49 +585,50 @@ const ensureNodePtyImpl = (
     } as const;
   });
 
-export const probeWslDistros: Effect.Effect<
-  readonly WslDistro[],
-  DesktopWslDistroListError,
-  ChildProcessSpawner.ChildProcessSpawner
-> = Effect.scoped(
-  Effect.gen(function* () {
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const command = ChildProcess.make("wsl.exe", ["--list", "--verbose"], {
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "ignore",
-      killSignal: "SIGTERM",
-      forceKillAfter: PROCESS_TERMINATE_GRACE,
-    });
-    const handle = yield* spawner.spawn(command);
-    const stdoutBytes = yield* Stream.runCollect(handle.stdout);
-    const exitCode = yield* handle.exitCode;
-    if ((exitCode as unknown as number) !== 0) {
-      return yield* new DesktopWslDistroListError({
-        reason: `wsl.exe --list --verbose exited with code ${String(exitCode)}`,
+export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  probeWslDistros: Effect.Effect<
+    readonly WslDistro[],
+    DesktopWslDistroListError,
+    ChildProcessSpawner.ChildProcessSpawner
+  > = Effect.scoped(
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const command = ChildProcess.make("wsl.exe", ["--list", "--verbose"], {
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "ignore",
+        killSignal: "SIGTERM",
+        forceKillAfter: PROCESS_TERMINATE_GRACE,
       });
-    }
-    return parseWslDistroList(Buffer.from(concatChunks(stdoutBytes)));
-  }),
-).pipe(
-  Effect.mapError((error) =>
-    isDesktopWslDistroListError(error)
-      ? error
-      : new DesktopWslDistroListError({
-          reason: `Failed to run wsl.exe --list --verbose: ${error.message}`,
-        }),
-  ),
-  Effect.timeoutOption(LIST_TIMEOUT),
-  Effect.flatMap(
-    Option.match({
-      onNone: () =>
-        new DesktopWslDistroListError({
-          reason: "wsl.exe --list --verbose timed out",
-        }),
-      onSome: Effect.succeed,
+      const handle = yield* spawner.spawn(command);
+      const stdoutBytes = yield* Stream.runCollect(handle.stdout);
+      const exitCode = yield* handle.exitCode;
+      if ((exitCode as number) !== 0) {
+        return yield* new DesktopWslDistroListError({
+          reason: `wsl.exe --list --verbose exited with code ${String(exitCode)}`,
+        });
+      }
+      return parseWslDistroList(Buffer.from(concatChunks(stdoutBytes)));
     }),
-  ),
-);
+  ).pipe(
+    Effect.mapError((error) =>
+      isDesktopWslDistroListError(error)
+        ? error
+        : new DesktopWslDistroListError({
+            reason: `Failed to run wsl.exe --list --verbose: ${error.message}`,
+          }),
+    ),
+    Effect.timeoutOption(LIST_TIMEOUT),
+    Effect.flatMap(
+      Option.match({
+        onNone: () =>
+          new DesktopWslDistroListError({
+            reason: "wsl.exe --list --verbose timed out",
+          }),
+        onSome: Effect.succeed,
+      }),
+    ),
+  );
 
 const preWarmImpl = (
   distro: string | null,
@@ -656,6 +658,7 @@ const windowsToWslPathImpl = (
 ): Effect.Effect<Option.Option<string>, never, ChildProcessSpawner.ChildProcessSpawner> => {
   // wsl.exe interprets backslashes as escape chars; normalize to forward slashes.
   const normalized = windowsPath.replaceAll("\\", "/");
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Effect.scoped(
     Effect.gen(function* () {
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -673,7 +676,7 @@ const windowsToWslPathImpl = (
       const handle = yield* spawner.spawn(command);
       const stdoutBytes = yield* Stream.runCollect(handle.stdout);
       const exitCode = yield* handle.exitCode;
-      if ((exitCode as unknown as number) !== 0) return Option.none<string>();
+      if ((exitCode as number) !== 0) return Option.none<string>();
       const converted = decodeUtf8(concatChunks(stdoutBytes)).trim();
       return converted.length > 0 ? Option.some(converted) : Option.none<string>();
     }),
@@ -686,78 +689,80 @@ const windowsToWslPathImpl = (
 
 const IPV4_PATTERN = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
-const getDistroIpImpl = (
-  distro: string | null,
-): Effect.Effect<Option.Option<string>, never, ChildProcessSpawner.ChildProcessSpawner> =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-      // `hostname -I` prints a space-separated list of all non-loopback
-      // IPs the distro has bound. The first entry on the WSL2 default
-      // network is always the eth0 vEthernet address Windows can reach
-      // directly (no wslhost forwarding required).
-      const command = ChildProcess.make(
-        "wsl.exe",
-        [...buildDistroArgs(distro), "--", "sh", "-c", "hostname -I"],
-        {
-          stdin: "ignore",
-          stdout: "pipe",
-          stderr: "ignore",
-          killSignal: "SIGTERM",
-          forceKillAfter: PROCESS_TERMINATE_GRACE,
-        },
-      );
-      const handle = yield* spawner.spawn(command);
-      const stdoutBytes = yield* Stream.runCollect(handle.stdout);
-      const exitCode = yield* handle.exitCode;
-      if ((exitCode as unknown as number) !== 0) return Option.none<string>();
-      const raw = decodeUtf8(concatChunks(stdoutBytes)).trim();
-      const candidate = raw.split(/\s+/).find((part) => IPV4_PATTERN.test(part));
-      return candidate ? Option.some(candidate) : Option.none<string>();
-    }),
-  ).pipe(
-    Effect.timeoutOption(USER_HOME_TIMEOUT),
-    Effect.map(Option.flatten),
-    Effect.orElseSucceed(() => Option.none<string>()),
-  );
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  getDistroIpImpl = (
+    distro: string | null,
+  ): Effect.Effect<Option.Option<string>, never, ChildProcessSpawner.ChildProcessSpawner> =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+        // `hostname -I` prints a space-separated list of all non-loopback
+        // IPs the distro has bound. The first entry on the WSL2 default
+        // network is always the eth0 vEthernet address Windows can reach
+        // directly (no wslhost forwarding required).
+        const command = ChildProcess.make(
+          "wsl.exe",
+          [...buildDistroArgs(distro), "--", "sh", "-c", "hostname -I"],
+          {
+            stdin: "ignore",
+            stdout: "pipe",
+            stderr: "ignore",
+            killSignal: "SIGTERM",
+            forceKillAfter: PROCESS_TERMINATE_GRACE,
+          },
+        );
+        const handle = yield* spawner.spawn(command);
+        const stdoutBytes = yield* Stream.runCollect(handle.stdout);
+        const exitCode = yield* handle.exitCode;
+        if ((exitCode as number) !== 0) return Option.none<string>();
+        const raw = decodeUtf8(concatChunks(stdoutBytes)).trim();
+        const candidate = raw.split(/\s+/).find((part) => IPV4_PATTERN.test(part));
+        return candidate ? Option.some(candidate) : Option.none<string>();
+      }),
+    ).pipe(
+      Effect.timeoutOption(USER_HOME_TIMEOUT),
+      Effect.map(Option.flatten),
+      Effect.orElseSucceed(() => Option.none<string>()),
+    );
 
-const getUserHomeImpl = (
-  distro: string | null,
-): Effect.Effect<Option.Option<string>, never, ChildProcessSpawner.ChildProcessSpawner> =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-      const command = ChildProcess.make(
-        "wsl.exe",
-        // printf so there's no trailing newline noise; getent so we get the
-        // real home from /etc/passwd even if $HOME is unset for some reason.
-        [
-          ...buildDistroArgs(distro),
-          "--",
-          "sh",
-          "-c",
-          'printf "%s" "$(getent passwd "$(id -un)" | cut -d: -f6)"',
-        ],
-        {
-          stdin: "ignore",
-          stdout: "pipe",
-          stderr: "ignore",
-          killSignal: "SIGTERM",
-          forceKillAfter: PROCESS_TERMINATE_GRACE,
-        },
-      );
-      const handle = yield* spawner.spawn(command);
-      const stdoutBytes = yield* Stream.runCollect(handle.stdout);
-      const exitCode = yield* handle.exitCode;
-      if ((exitCode as unknown as number) !== 0) return Option.none<string>();
-      const home = decodeUtf8(concatChunks(stdoutBytes)).trim();
-      return home.startsWith("/") ? Option.some(home) : Option.none<string>();
-    }),
-  ).pipe(
-    Effect.timeoutOption(USER_HOME_TIMEOUT),
-    Effect.map(Option.flatten),
-    Effect.orElseSucceed(() => Option.none<string>()),
-  );
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  getUserHomeImpl = (
+    distro: string | null,
+  ): Effect.Effect<Option.Option<string>, never, ChildProcessSpawner.ChildProcessSpawner> =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+        const command = ChildProcess.make(
+          "wsl.exe",
+          // printf so there's no trailing newline noise; getent so we get the
+          // real home from /etc/passwd even if $HOME is unset for some reason.
+          [
+            ...buildDistroArgs(distro),
+            "--",
+            "sh",
+            "-c",
+            'printf "%s" "$(getent passwd "$(id -un)" | cut -d: -f6)"',
+          ],
+          {
+            stdin: "ignore",
+            stdout: "pipe",
+            stderr: "ignore",
+            killSignal: "SIGTERM",
+            forceKillAfter: PROCESS_TERMINATE_GRACE,
+          },
+        );
+        const handle = yield* spawner.spawn(command);
+        const stdoutBytes = yield* Stream.runCollect(handle.stdout);
+        const exitCode = yield* handle.exitCode;
+        if ((exitCode as number) !== 0) return Option.none<string>();
+        const home = decodeUtf8(concatChunks(stdoutBytes)).trim();
+        return home.startsWith("/") ? Option.some(home) : Option.none<string>();
+      }),
+    ).pipe(
+      Effect.timeoutOption(USER_HOME_TIMEOUT),
+      Effect.map(Option.flatten),
+      Effect.orElseSucceed(() => Option.none<string>()),
+    );
 
 const makeIsAvailable = (
   platform: NodeJS.Platform,

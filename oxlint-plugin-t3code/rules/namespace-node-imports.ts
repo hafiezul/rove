@@ -1,4 +1,5 @@
 import { defineRule } from "@oxlint/plugins";
+import * as RuntimePredicate from "effect/Predicate";
 
 const NODE_MODULE_ALIASES = new Map([
   ["assert/strict", "Assert"],
@@ -31,16 +32,16 @@ const expectedNamespaceAlias = (source: string) => {
 };
 
 const literalStringValue = (node: unknown): string | undefined => {
-  if (typeof node !== "object" || node === null) return undefined;
+  if (!RuntimePredicate.isObjectOrArray(node)) return undefined;
   if (!("type" in node) || node.type !== "Literal") return undefined;
-  if (!("value" in node) || typeof node.value !== "string") return undefined;
+  if (!("value" in node) || !RuntimePredicate.isString(node.value)) return undefined;
   return node.value;
 };
 
 const identifierName = (node: unknown): string | undefined => {
-  if (typeof node !== "object" || node === null) return undefined;
+  if (!RuntimePredicate.isObjectOrArray(node)) return undefined;
   if (!("type" in node) || node.type !== "Identifier") return undefined;
-  if (!("name" in node) || typeof node.name !== "string") return undefined;
+  if (!("name" in node) || !RuntimePredicate.isString(node.name)) return undefined;
   return node.name;
 };
 

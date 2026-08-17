@@ -35,7 +35,7 @@ function makeBrowserWindow(input: { readonly id: number; readonly destroyed: boo
   return {
     id: input.id,
     isDestroyed: vi.fn(() => input.destroyed),
-  } as unknown as Electron.BrowserWindow;
+  } as Electron.BrowserWindow;
 }
 
 describe("ElectronWindow", () => {
@@ -162,7 +162,7 @@ describe("ElectronWindow", () => {
         restore: vi.fn(() => {
           throw cause;
         }),
-      } as unknown as Electron.BrowserWindow;
+      } as Electron.BrowserWindow;
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;
       const exit = yield* Effect.exit(electronWindow.reveal(window));
@@ -190,7 +190,7 @@ describe("ElectronWindow", () => {
             throw cause;
           }),
         },
-      } as unknown as Electron.BrowserWindow;
+      } as Electron.BrowserWindow;
       getAllWindowsMock.mockReturnValueOnce([window]);
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;
@@ -216,7 +216,7 @@ describe("ElectronWindow", () => {
         destroy: vi.fn(() => {
           throw cause;
         }),
-      } as unknown as Electron.BrowserWindow;
+      } as Electron.BrowserWindow;
       getAllWindowsMock.mockReturnValueOnce([window]);
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;

@@ -20,6 +20,7 @@ function makeEvent(input: {
   commandId: string | null;
   payload: unknown;
 }): OrchestrationEvent {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     sequence: input.sequence,
     eventId: EventId.make(`event-${input.sequence}`),

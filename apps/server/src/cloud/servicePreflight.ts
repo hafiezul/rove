@@ -1,5 +1,7 @@
 import packageJson from "../../package.json" with { type: "json" };
 import { SERVICE_LAUNCHER_PROTOCOL } from "./serviceProtocol.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type ServicePreflightResult =
   | {
@@ -33,14 +35,15 @@ export function runServicePreflight(input: {
 }
 
 export function decodeServicePreflightResult(value: unknown): ServicePreflightResult | undefined {
-  if (typeof value !== "object" || value === null) {
+  if (!RuntimePredicate.isObjectOrArray(value)) {
     return undefined;
   }
-  const record = value as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = value as Record<string, SchemaJson>;
   if (
     record.status === "ready" &&
     record.launcherProtocol === SERVICE_LAUNCHER_PROTOCOL &&
-    typeof record.version === "string"
+    RuntimePredicate.isString(record.version)
   ) {
     return {
       status: "ready",
@@ -50,8 +53,8 @@ export function decodeServicePreflightResult(value: unknown): ServicePreflightRe
   }
   if (
     record.status === "blocked" &&
-    typeof record.version === "string" &&
-    typeof record.reason === "string"
+    RuntimePredicate.isString(record.version) &&
+    RuntimePredicate.isString(record.reason)
   ) {
     return { status: "blocked", version: record.version, reason: record.reason };
   }

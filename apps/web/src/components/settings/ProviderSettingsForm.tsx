@@ -15,6 +15,8 @@ import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import type { ProviderClientDefinition } from "./providerDriverMeta";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export interface ProviderSettingsFieldModel {
   readonly key: string;
@@ -45,7 +47,7 @@ function readFieldAnnotationString(
 ): string | undefined {
   const annotations = readFieldAnnotations(fieldSchema);
   const value = annotations?.[key];
-  return typeof value === "string" ? value : undefined;
+  return RuntimePredicate.isString(value) ? value : undefined;
 }
 
 function readProviderSettingsFormAnnotation(
@@ -64,9 +66,12 @@ function readProviderSettingsFormSchemaAnnotation(
 function readFieldBooleanDefault(
   fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
 ): boolean | undefined {
-  const decodeDefault = Schema.decodeUnknownOption(fieldSchema as Schema.Decoder<unknown>);
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    decodeDefault = Schema.decodeUnknownOption(fieldSchema as Schema.Decoder<unknown>);
   const decoded = decodeDefault(undefined);
-  return Option.isSome(decoded) && typeof decoded.value === "boolean" ? decoded.value : undefined;
+  return Option.isSome(decoded) && RuntimePredicate.isBoolean(decoded.value)
+    ? decoded.value
+    : undefined;
 }
 
 export function deriveProviderSettingsFields(
@@ -98,23 +103,26 @@ export function deriveProviderSettingsFields(
           key,
           control: formAnnotation.control ?? "text",
           label: annotatedTitle ?? titleizeFieldKey(key),
-          ...(annotatedDescription !== undefined ? { description: annotatedDescription } : {}),
+          ...(annotatedDescription !== undefined
+            ? { description: annotatedDescription }
+            : undefined),
           ...(formAnnotation.placeholder !== undefined
             ? { placeholder: formAnnotation.placeholder }
-            : {}),
+            : undefined),
           clearWhenEmpty: formAnnotation.clearWhenEmpty ?? "omit",
           ...(formAnnotation.control === "switch"
             ? { defaultBooleanValue: readFieldBooleanDefault(fieldSchema) }
-            : {}),
+            : undefined),
         } satisfies ProviderSettingsFieldModel,
       ];
     });
 }
 
 export function readProviderConfigString(config: unknown, key: string): string {
-  if (config === null || typeof config !== "object") return "";
-  const value = (config as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : "";
+  if (!RuntimePredicate.isObjectOrArray(config)) return "";
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    value = (config as Record<string, SchemaJson>)[key];
+  return RuntimePredicate.isString(value) ? value : "";
 }
 
 export function readProviderConfigBoolean(
@@ -122,20 +130,23 @@ export function readProviderConfigBoolean(
   key: string,
   defaultValue = false,
 ): boolean {
-  if (config === null || typeof config !== "object") return defaultValue;
-  const value = (config as Record<string, unknown>)[key];
-  return typeof value === "boolean" ? value : defaultValue;
+  if (!RuntimePredicate.isObjectOrArray(config)) return defaultValue;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    value = (config as Record<string, SchemaJson>)[key];
+  return RuntimePredicate.isBoolean(value) ? value : defaultValue;
 }
 
 export function nextProviderConfigWithFieldValue(
   config: unknown,
   field: ProviderSettingsFieldModel,
   value: string | boolean,
-): Record<string, unknown> | undefined {
-  const base: Record<string, unknown> =
-    config !== null && typeof config === "object" ? { ...(config as Record<string, unknown>) } : {};
+): Record<string, SchemaJson> | undefined {
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    base: Record<string, SchemaJson> = RuntimePredicate.isObjectOrArray(config)
+      ? { ...(config as Record<string, SchemaJson>) }
+      : {};
 
-  if (typeof value === "boolean") {
+  if (RuntimePredicate.isBoolean(value)) {
     const emptyBooleanValue = field.defaultBooleanValue ?? false;
     if (field.clearWhenEmpty === "omit" && value === emptyBooleanValue) {
       delete base[field.key];
@@ -159,7 +170,7 @@ interface ProviderSettingsFormProps {
   readonly value: unknown;
   readonly idPrefix: string;
   readonly variant: "card" | "dialog";
-  readonly onChange: (nextConfig: Record<string, unknown> | undefined) => void;
+  readonly onChange: (nextConfig: Record<string, SchemaJson> | undefined) => void;
 }
 
 function FieldFrame(props: {

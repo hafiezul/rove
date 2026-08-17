@@ -5,6 +5,7 @@ import { getCachedNativeReviewDiffData } from "./nativeReviewDiffAdapter";
 import { markReviewEvent, measureReviewWork } from "./reviewPerf";
 import { getCachedReviewParsedDiff } from "./reviewState";
 import type { ReviewParsedDiff, ReviewSectionItem } from "./reviewModel";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const EMPTY_INLINE_REVIEW_COMMENTS = Object.freeze([]);
 
@@ -12,7 +13,7 @@ function isReviewDiffDebugLoggingEnabled(): boolean {
   return typeof __DEV__ !== "undefined" ? __DEV__ : false;
 }
 
-function logReviewDiffDiagnostic(message: string, details?: Record<string, unknown>): void {
+function logReviewDiffDiagnostic(message: string, details?: Record<string, SchemaJson>): void {
   if (!isReviewDiffDebugLoggingEnabled()) {
     return;
   }

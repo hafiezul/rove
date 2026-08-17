@@ -42,6 +42,7 @@ import {
 import { resolveClaudeSdkExecutablePath } from "../Drivers/ClaudeExecutable.ts";
 import { makeClaudeEnvironment } from "../Drivers/ClaudeHome.ts";
 import { discoverClaudeSkills } from "../Drivers/ClaudeSkills.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_CLAUDE_MODEL_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],
@@ -389,11 +390,11 @@ export function resolveClaudeEffort(
 ): string | undefined {
   const descriptors = getProviderOptionDescriptors({
     caps,
-    ...(raw ? { selections: [{ id: "effort", value: raw }] } : {}),
+    ...(raw ? { selections: [{ id: "effort", value: raw }] } : undefined),
   });
   const effortDescriptor = descriptors.find((descriptor) => descriptor.id === "effort");
   const value = getProviderOptionCurrentValue(effortDescriptor);
-  return typeof value === "string" ? value : undefined;
+  return RuntimePredicate.isString(value) ? value : undefined;
 }
 
 /**
@@ -442,11 +443,11 @@ export function resolveClaudeContextWindow(
   const raw = getModelSelectionStringOptionValue(modelSelection, "contextWindow");
   const descriptors = getProviderOptionDescriptors({
     caps,
-    ...(raw ? { selections: [{ id: "contextWindow", value: raw }] } : {}),
+    ...(raw ? { selections: [{ id: "contextWindow", value: raw }] } : undefined),
   });
   const descriptor = descriptors.find((candidate) => candidate.id === "contextWindow");
   const value = getProviderOptionCurrentValue(descriptor);
-  return typeof value === "string" ? value : undefined;
+  return RuntimePredicate.isString(value) ? value : undefined;
 }
 
 export function resolveClaudeApiModelId(modelSelection: ModelSelection): string {
@@ -605,7 +606,7 @@ export function buildClaudeCapabilitiesProbeQueryOptions(input: {
       // config; disable them independently for this health check.
       ENABLE_CLAUDEAI_MCP_SERVERS: "false",
     },
-    ...(input.cwd ? { cwd: input.cwd } : {}),
+    ...(input.cwd ? { cwd: input.cwd } : undefined),
     stderr: () => {},
   };
 }
@@ -644,8 +645,8 @@ function parseClaudeInitializationCommands(
       return [
         {
           name,
-          ...(description ? { description } : {}),
-          ...(argumentHint ? { input: { hint: argumentHint } } : {}),
+          ...(description ? { description } : undefined),
+          ...(argumentHint ? { input: { hint: argumentHint } } : undefined),
         } satisfies ServerProviderSlashCommand,
       ];
     }),
@@ -676,12 +677,12 @@ function dedupeSlashCommands(
     commandsByName.set(key, {
       ...existing,
       ...(existing.description
-        ? {}
+        ? undefined
         : command.description
           ? { description: command.description }
           : {}),
       ...(existing.input?.hint
-        ? {}
+        ? undefined
         : command.input?.hint
           ? { input: { hint: command.input.hint } }
           : {}),
@@ -741,14 +742,15 @@ const probeClaudeCapabilities = (
         }),
       });
       const init = await q.initializationResult();
-      const account = init.account as
-        | {
-            readonly email?: string;
-            readonly subscriptionType?: string;
-            readonly tokenSource?: string;
-            readonly apiProvider?: string;
-          }
-        | undefined;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        account = init.account as
+          | {
+              readonly email?: string;
+              readonly subscriptionType?: string;
+              readonly tokenSource?: string;
+              readonly apiProvider?: string;
+            }
+          | undefined;
       return {
         email: account?.email,
         subscriptionType: account?.subscriptionType,
@@ -950,10 +952,10 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
       status: "ready",
       auth: {
         status: "authenticated",
-        ...(capabilities.email ? { email: capabilities.email } : {}),
-        ...(authMetadata ? authMetadata : {}),
+        ...(capabilities.email ? { email: capabilities.email } : undefined),
+        ...(authMetadata ? authMetadata : undefined),
       },
-      ...(versionUpgradeMessage ? { message: versionUpgradeMessage } : {}),
+      ...(versionUpgradeMessage ? { message: versionUpgradeMessage } : undefined),
     },
   });
 });

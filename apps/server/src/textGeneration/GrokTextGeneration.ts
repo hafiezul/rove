@@ -29,6 +29,7 @@ import {
   makeGrokAcpRuntime,
   resolveGrokAcpBaseModelId,
 } from "../provider/acp/GrokAcpSupport.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const GROK_TIMEOUT_MS = 180_000;
 
@@ -178,9 +179,9 @@ export const makeGrokTextGeneration = Effect.fn("makeGrokTextGeneration")(functi
       return {
         subject: sanitizeCommitSubject(generated.subject),
         body: generated.body.trim(),
-        ...("branch" in generated && typeof generated.branch === "string"
+        ...("branch" in generated && RuntimePredicate.isString(generated.branch)
           ? { branch: sanitizeFeatureBranchName(generated.branch) }
-          : {}),
+          : undefined),
       };
     });
 

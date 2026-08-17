@@ -91,6 +91,7 @@ export function HostedBrowserWebview(props: {
   }, [initialUrl]);
 
   const setWebviewRef = useCallback((node: HTMLElement | null) => {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     webviewRef.current = node as ElectronWebview | null;
     if (node && !node.hasAttribute("allowpopups")) node.setAttribute("allowpopups", "true");
   }, []);

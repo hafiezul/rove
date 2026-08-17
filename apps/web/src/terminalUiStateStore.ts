@@ -16,6 +16,7 @@ import {
   MAX_TERMINALS_PER_GROUP,
   type ThreadTerminalGroup,
 } from "./types";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface ThreadTerminalUiState {
   terminalOpen: boolean;
@@ -38,11 +39,15 @@ export function migratePersistedTerminalUiStateStoreState(
   persistedState: unknown,
   _version: number,
 ): PersistedTerminalUiStateStoreState {
-  if (!persistedState || typeof persistedState !== "object") {
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  ) {
     return { terminalUiStateByThreadKey: {} };
   }
 
-  const candidate = persistedState as PersistedTerminalUiStateStoreState;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    candidate = persistedState as PersistedTerminalUiStateStoreState;
   const persistedUiStateByThreadKey =
     candidate.terminalUiStateByThreadKey ?? candidate.terminalStateByThreadKey ?? {};
   const terminalUiStateByThreadKey = Object.fromEntries(
@@ -126,7 +131,9 @@ function normalizeTerminalGroups(
     nextGroups.push({
       id: assignUniqueGroupId(baseGroupId, usedGroupIds),
       terminalIds: groupTerminalIds,
-      ...(group.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+      ...(group.splitDirection === "vertical"
+        ? { splitDirection: "vertical" as const }
+        : undefined),
     });
   }
 
@@ -247,7 +254,7 @@ function copyTerminalGroups(groups: ThreadTerminalGroup[]): ThreadTerminalGroup[
   return groups.map((group) => ({
     id: group.id,
     terminalIds: [...group.terminalIds],
-    ...(group.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+    ...(group.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : undefined),
   }));
 }
 

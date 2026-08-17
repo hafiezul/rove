@@ -21,6 +21,7 @@ import {
   type TerminalContextDraft,
 } from "../lib/terminalContext";
 import type { DraftThreadEnvMode } from "../composerDraftStore";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
 export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
@@ -73,8 +74,8 @@ export function resolveThreadMetadataUpdateForNextTurn(input: {
     return null;
   }
   return {
-    ...(modelSelectionChanged ? { modelSelection: nextModelSelection } : {}),
-    ...(branchChanged ? { branch: input.nextBranch, worktreePath: null } : {}),
+    ...(modelSelectionChanged ? { modelSelection: nextModelSelection } : undefined),
+    ...(branchChanged ? { branch: input.nextBranch, worktreePath: null } : undefined),
   };
 }
 
@@ -142,7 +143,7 @@ export function buildThreadTurnInterruptInput(thread: Pick<Thread, "id" | "sessi
   const runningTurnId = thread.session?.status === "running" ? thread.session.activeTurnId : null;
   return {
     threadId: thread.id,
-    ...(runningTurnId !== null ? { turnId: runningTurnId } : {}),
+    ...(runningTurnId !== null ? { turnId: runningTurnId } : undefined),
   };
 }
 
@@ -234,7 +235,7 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
-      if (typeof reader.result === "string") {
+      if (RuntimePredicate.isString(reader.result)) {
         resolve(reader.result);
         return;
       }

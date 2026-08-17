@@ -8,6 +8,7 @@ import {
 import { describe, expect, it } from "vite-plus/test";
 
 import { runtimeEventToActivities } from "./ProviderRuntimeIngestion.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 describe("runtimeEventToActivities approval details", () => {
   it("preserves complete multiline command details", () => {
@@ -28,6 +29,7 @@ describe("runtimeEventToActivities approval details", () => {
     const [activity] = runtimeEventToActivities(event);
 
     expect(activity?.kind).toBe("approval.requested");
-    expect((activity?.payload as Record<string, unknown> | undefined)?.detail).toBe(detail);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    expect((activity?.payload as Record<string, SchemaJson> | undefined)?.detail).toBe(detail);
   });
 });

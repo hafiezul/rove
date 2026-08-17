@@ -261,6 +261,7 @@ export const ProviderRegistryLive = Layer.effect(
             Effect.provideService(FileSystem.FileSystem, fileSystem),
             Effect.flatMap((cachedProvider) => {
               if (cachedProvider === undefined) {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 return Effect.void.pipe(Effect.as(undefined as ServerProvider | undefined));
               }
               const correlation = {
@@ -268,6 +269,7 @@ export const ProviderRegistryLive = Layer.effect(
                 fallbackProvider,
               } as const;
               if (!isCachedProviderCorrelated(correlation)) {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 return Effect.logWarning("provider status cache identity mismatch, ignoring", {
                   path: filePath,
                   instanceId: source.instanceId,

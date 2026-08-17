@@ -10,6 +10,8 @@ import {
   isTimelineBypassActivity,
   workflowCardMembers,
 } from "./subagentRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 let sequence = 0;
 /**
@@ -19,7 +21,7 @@ let sequence = 0;
  */
 function activity(
   kind: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, SchemaJson>,
   at = `2026-08-01T10:00:${String(sequence).padStart(2, "0")}.000Z`,
 ): OrchestrationThreadActivity {
   sequence += 1;
@@ -28,8 +30,8 @@ function activity(
       ? {
           ...payload,
           agentKind: classifyTaskAgentKind({
-            taskType: typeof payload.taskType === "string" ? payload.taskType : undefined,
-            agentId: typeof payload.agentId === "string" ? payload.agentId : undefined,
+            taskType: RuntimePredicate.isString(payload.taskType) ? payload.taskType : undefined,
+            agentId: RuntimePredicate.isString(payload.agentId) ? payload.agentId : undefined,
           }),
         }
       : payload;
@@ -41,13 +43,13 @@ function activity(
     payload: stamped,
     turnId: null,
     createdAt: at,
-  } as unknown as OrchestrationThreadActivity;
+  } as OrchestrationThreadActivity;
 }
 
 /** A pre-stamp row (legacy thread / old server): no agentKind at all. */
 function legacyActivity(
   kind: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, SchemaJson>,
 ): OrchestrationThreadActivity {
   sequence += 1;
   return {
@@ -58,7 +60,7 @@ function legacyActivity(
     payload,
     turnId: null,
     createdAt: `2026-08-01T10:00:${String(sequence).padStart(2, "0")}.000Z`,
-  } as unknown as OrchestrationThreadActivity;
+  } as OrchestrationThreadActivity;
 }
 
 function fold(rows: ReadonlyArray<OrchestrationThreadActivity>) {
@@ -491,7 +493,7 @@ describe("workflowCardMembers", () => {
           taskId: `wf-1:wf:${index}`,
           title: `agent-${letter}`,
           status: index === 3 ? "failed" : index < 3 ? "completed" : "running",
-          ...(index === 3 ? { error: "died" } : {}),
+          ...(index === 3 ? { error: "died" } : undefined),
           parentAgentId: "wf-1",
           agentIndex: index,
           phaseIndex: 0,

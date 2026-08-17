@@ -45,6 +45,7 @@ import {
   PUBLISH_AGENT_ACTIVITY_SECRET,
 } from "../cloud/config.ts";
 import * as AgentAwarenessRelay from "./AgentAwarenessRelay.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const state: RelayAgentActivityState = {
   environmentId: "env" as RelayAgentActivityState["environmentId"],
@@ -132,7 +133,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
       actor: { kind: "server" },
       payload: {},
       occurredAt: now,
-    } as unknown as OrchestrationEvent;
+    } as OrchestrationEvent;
 
     expect(AgentAwarenessRelay.eventThreadId(event)).toBe(threadId);
   });
@@ -156,7 +157,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
           threadId: "thread-1" as ThreadId,
           streaming: true,
         },
-      } as unknown as OrchestrationEvent),
+      } as OrchestrationEvent),
     ).toBe(false);
     expect(
       AgentAwarenessRelay.shouldPublishAgentAwarenessEvent({
@@ -168,7 +169,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
             kind: "task.progress",
           },
         },
-      } as unknown as OrchestrationEvent),
+      } as OrchestrationEvent),
     ).toBe(false);
     expect(
       AgentAwarenessRelay.shouldPublishAgentAwarenessEvent({
@@ -180,7 +181,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
             kind: "approval.requested",
           },
         },
-      } as unknown as OrchestrationEvent),
+      } as OrchestrationEvent),
     ).toBe(true);
     expect(
       AgentAwarenessRelay.shouldPublishAgentAwarenessEvent({
@@ -190,7 +191,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
           threadId: "thread-1" as ThreadId,
           streaming: false,
         },
-      } as unknown as OrchestrationEvent),
+      } as OrchestrationEvent),
     ).toBe(false);
     expect(
       AgentAwarenessRelay.shouldPublishAgentAwarenessEvent({
@@ -199,7 +200,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
         payload: {
           threadId: "thread-1" as ThreadId,
         },
-      } as unknown as OrchestrationEvent),
+      } as OrchestrationEvent),
     ).toBe(false);
   });
 
@@ -491,7 +492,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               Effect.as(Option.some(thread)),
             ),
           getProjectShellById: () => Effect.succeed(Option.some(project)),
-        } as unknown as ProjectionSnapshotQueryContract;
+        } as ProjectionSnapshotQueryContract;
 
         const descriptor = {
           environmentId,
@@ -537,7 +538,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               },
             },
             occurredAt: now,
-          } as unknown as OrchestrationEvent);
+          } as OrchestrationEvent);
 
           yield* Deferred.await(threadShellRequested).pipe(Effect.timeout("2 seconds"));
         }).pipe(
@@ -643,13 +644,11 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
 
         globalThis.fetch = ((input: Parameters<typeof fetch>[0]) => {
           const url = new URL(
-            typeof input === "string" || input instanceof URL
-              ? input
-              : (input as unknown as { readonly url: string }).url,
+            RuntimePredicate.isString(input) || input instanceof URL ? input : input.url,
           );
           runFork(Deferred.succeed(fetchSeen, url));
           return Promise.resolve(Response.json({ ok: true, deliveries: [] }));
-        }) as unknown as typeof fetch;
+        }) as typeof fetch;
         yield* Effect.addFinalizer(() =>
           Effect.sync(() => {
             globalThis.fetch = originalFetch;
@@ -678,7 +677,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               } satisfies OrchestrationShellSnapshot),
             getThreadShellById: () => Effect.succeed(Option.some(thread)),
             getProjectShellById: () => Effect.succeed(Option.some(project)),
-          } as unknown as ProjectionSnapshotQueryContract),
+          } as ProjectionSnapshotQueryContract),
         );
 
         yield* Effect.gen(function* () {
@@ -703,7 +702,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               },
             },
             occurredAt: now,
-          } as unknown as OrchestrationEvent);
+          } as OrchestrationEvent);
 
           const url = yield* Deferred.await(fetchSeen).pipe(Effect.timeout("2 seconds"));
           expect(url.origin).toBe("https://transport.example.test");

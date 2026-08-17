@@ -67,7 +67,7 @@ export function projectThreadAwareness(
     threadTitle: thread.title,
     phase,
     headline: headlineForPhase(phase),
-    ...(detail === undefined ? {} : { detail }),
+    ...(detail === undefined ? undefined : { detail }),
     modelTitle: thread.modelSelection.model,
     updatedAt: thread.updatedAt,
     deepLink: buildAgentAwarenessDeepLink({ environmentId, threadId: thread.id }),

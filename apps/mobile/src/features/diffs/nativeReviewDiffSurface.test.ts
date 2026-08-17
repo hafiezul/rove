@@ -9,7 +9,7 @@ const originalExpo = globalThis.expo;
 function setExpoViewConfigAvailable() {
   globalThis.expo = {
     getViewConfig: vi.fn().mockReturnValue({ validAttributes: {}, directEventTypes: {} }),
-  } as unknown as typeof globalThis.expo;
+  } as typeof globalThis.expo;
 }
 
 vi.mock("expo", () => ({
@@ -20,7 +20,8 @@ describe("resolveNativeReviewDiffView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    globalThis.expo = undefined as unknown as typeof globalThis.expo;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    globalThis.expo = undefined as typeof globalThis.expo;
   });
 
   afterEach(() => {
@@ -52,7 +53,7 @@ describe("resolveNativeReviewDiffView", () => {
         }
         return null;
       }),
-    } as unknown as typeof globalThis.expo;
+    } as typeof globalThis.expo;
     expoMocks.requireNativeView.mockReturnValue(nativeView);
     const { resolveNativeReviewDiffView } = await import("./nativeReviewDiffSurface");
     expect(resolveNativeReviewDiffView()).toBeNull();

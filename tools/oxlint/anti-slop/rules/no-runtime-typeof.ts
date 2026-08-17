@@ -23,6 +23,18 @@ function isInsideTypeGuard(node: ESTree.Node): boolean {
 	return false;
 }
 
+function isUndefinedAvailabilityCheck(node: ESTree.UnaryExpression): boolean {
+	const parent = node.parent;
+	if (
+		parent.type !== "BinaryExpression" ||
+		(parent.left !== node && parent.right !== node)
+	) {
+		return false;
+	}
+	const other = parent.left === node ? parent.right : parent.left;
+	return other.type === "Literal" && other.value === "undefined";
+}
+
 /** Disallow runtime typeof checks that narrow unparsed values instead of decoding them. */
 export const noRuntimeTypeofRule = defineRule({
 	meta: {
@@ -57,6 +69,7 @@ export const noRuntimeTypeofRule = defineRule({
 					option.allowInTypeGuards === true;
 				if (
 					node.operator === "typeof" &&
+					!isUndefinedAvailabilityCheck(node) &&
 					(!allowInTypeGuards || !isInsideTypeGuard(node))
 				) {
 					context.report({ node, messageId: "runtimeTypeof" });

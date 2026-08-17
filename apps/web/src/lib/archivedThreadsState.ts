@@ -1,6 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
-  type ArchivedSnapshotEntry,
   createArchivedThreadSnapshotsAtomFamily,
   makeArchivedThreadsEnvironmentKey,
 } from "@t3tools/client-runtime/state/threads";

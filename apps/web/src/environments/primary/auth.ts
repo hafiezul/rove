@@ -21,6 +21,7 @@ import {
 
 import { PrimaryEnvironmentHttpClient } from "./httpClient";
 import { runPrimaryHttp } from "../../lib/runtime";
+import * as RuntimePredicate from "effect/Predicate";
 
 const PrimaryEnvironmentRequestOperation = Schema.Literals([
   "fetch-session-state",
@@ -55,8 +56,8 @@ export class PrimaryEnvironmentRequestError extends Schema.TaggedErrorClass<Prim
     return new PrimaryEnvironmentRequestError({
       operation: input.operation,
       status,
-      ...(input.pairingLinkId !== undefined ? { pairingLinkId: input.pairingLinkId } : {}),
-      ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
+      ...(input.pairingLinkId !== undefined ? { pairingLinkId: input.pairingLinkId } : undefined),
+      ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : undefined),
       cause: input.cause,
     });
   }
@@ -181,7 +182,7 @@ function getDesktopBootstrapCredential(): string | null {
   // primary entry is fine even when the WSL backend is also registered.
   const bootstraps = window.desktopBridge?.getLocalEnvironmentBootstraps() ?? [];
   const primary = bootstraps.find((entry) => entry.id === PRIMARY_LOCAL_ENVIRONMENT_ID);
-  return typeof primary?.bootstrapToken === "string" && primary.bootstrapToken.length > 0
+  return RuntimePredicate.isString(primary?.bootstrapToken) && primary.bootstrapToken.length > 0
     ? primary.bootstrapToken
     : null;
 }
@@ -370,8 +371,8 @@ export async function createServerPairingCredential(input?: {
           client.auth.pairingCredential({
             headers: {},
             payload: {
-              ...(trimmedLabel ? { label: trimmedLabel } : {}),
-              ...(input?.scopes ? { scopes: input.scopes } : {}),
+              ...(trimmedLabel ? { label: trimmedLabel } : undefined),
+              ...(input?.scopes ? { scopes: input.scopes } : undefined),
             },
           }),
         ),

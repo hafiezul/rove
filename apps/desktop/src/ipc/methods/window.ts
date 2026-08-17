@@ -124,7 +124,7 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
         wsBaseUrl: toWebSocketBaseUrl(httpBaseUrl),
         ...(bootstrap.desktopBootstrapToken
           ? { bootstrapToken: bootstrap.desktopBootstrapToken }
-          : {}),
+          : undefined),
       });
     }
     return bootstraps;

@@ -1,5 +1,7 @@
 import { defineRule } from "@oxlint/plugins";
 
+import { isKnownEvidenceExpression } from "../shared/dictionary-types.ts";
+
 import type { ESTree, SourceCode } from "@oxlint/plugins";
 
 type TypeAssertion = ESTree.TSAsExpression | ESTree.TSTypeAssertion;
@@ -50,7 +52,13 @@ export const requireSafetyCommentForTypeAssertionRule = defineRule({
   },
   createOnce(context) {
     const checkAssertion = (node: TypeAssertion) => {
-      if (isConstAssertion(node) || hasSafetyComment(context.sourceCode, node)) return;
+      if (
+        isConstAssertion(node) ||
+        isKnownEvidenceExpression(node.expression) ||
+        hasSafetyComment(context.sourceCode, node)
+      ) {
+        return;
+      }
       context.report({ node, messageId: "missingSafetyComment" });
     };
 

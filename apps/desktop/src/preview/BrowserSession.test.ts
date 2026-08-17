@@ -93,6 +93,7 @@ describe("BrowserSession", () => {
         "geolocation",
       ]) {
         assert.isTrue(requestAllows(permission), `request handler should allow ${permission}`);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.isTrue(
           checkHandler(null, permission) as boolean,
           `check handler should allow ${permission}`,
@@ -104,6 +105,7 @@ describe("BrowserSession", () => {
       // and unrelated permissions stay denied.
       for (const permission of ["clipboard-write", "midi"]) {
         assert.isFalse(requestAllows(permission), `request handler should deny ${permission}`);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.isFalse(
           checkHandler(null, permission) as boolean,
           `check handler should deny ${permission}`,

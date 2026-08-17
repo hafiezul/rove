@@ -20,6 +20,7 @@ import {
   readBootstrapEnvelope,
 } from "./bootstrap.ts";
 import { assertNone, assertSome } from "@effect/vitest/utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 const openSyncInterceptor = vi.hoisted(() => ({
   failPath: null as string | null,
@@ -34,7 +35,7 @@ vi.mock("node:fs", async (importOriginal) => {
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       const [filePath, flags] = args;
       if (
-        typeof filePath === "string" &&
+        RuntimePredicate.isString(filePath) &&
         filePath === openSyncInterceptor.failPath &&
         flags === "r"
       ) {
@@ -42,6 +43,7 @@ vi.mock("node:fs", async (importOriginal) => {
         Object.assign(error, { code: openSyncInterceptor.errorCode });
         throw error;
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return (actual.openSync as (...a: typeof args) => number)(...args);
     },
     fstatSync: (...args: Parameters<typeof actual.fstatSync>) => {
@@ -50,6 +52,7 @@ vi.mock("node:fs", async (importOriginal) => {
         Object.assign(error, { code: "EACCES" });
         throw error;
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return (actual.fstatSync as (...a: typeof args) => NodeFS.Stats)(...args);
     },
   };
@@ -132,6 +135,7 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
         assert.equal(error.fd, fd);
         assert.equal(error.platform, "linux");
         assert.equal(error.fdPath, fdPath);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.equal((error.cause as NodeJS.ErrnoException).code, "EIO");
         assert.equal(
           error.message,
@@ -169,6 +173,7 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
 
         assert.instanceOf(error, BootstrapFdStatError);
         assert.equal(error.fd, fd);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.equal((error.cause as NodeJS.ErrnoException).code, "EACCES");
         assert.equal(error.message, `Failed to stat bootstrap file descriptor ${fd}.`);
       } finally {

@@ -5,6 +5,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
+import type { Json as SchemaJson } from "effect/Schema";
 import type * as Types from "effect/Types";
 import { McpProtocol, McpSchema, McpServer, Tool } from "effect/unstable/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
@@ -22,6 +23,7 @@ import {
   PreviewSnapshotToolkit,
   PreviewStandardToolkit,
 } from "./toolkits/preview/tools.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const unauthorized = HttpServerResponse.jsonUnsafe(
   {
@@ -103,10 +105,9 @@ const previewSnapshotFailure = <E>(cause: Cause.Cause<E>) => {
   const failures = cause.reasons.filter(Cause.isFailReason);
   const firstFailure = failures[0]?.error;
   const errorTag =
-    typeof firstFailure === "object" &&
-    firstFailure !== null &&
+    RuntimePredicate.isObjectOrArray(firstFailure) &&
     "_tag" in firstFailure &&
-    typeof firstFailure._tag === "string"
+    RuntimePredicate.isString(firstFailure._tag)
       ? firstFailure._tag
       : "PreviewSnapshotError";
   const result = new McpSchema.CallToolResult({
@@ -164,15 +165,16 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
           Effect.matchCauseEffect({
             onFailure: previewSnapshotFailure,
             onSuccess: ({ encodedResult }) => {
-              const snapshot = encodedResult as {
-                readonly screenshot: {
-                  readonly mimeType: "image/png";
-                  readonly data: string;
-                  readonly width: number;
-                  readonly height: number;
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                snapshot = encodedResult as {
+                  readonly screenshot: {
+                    readonly mimeType: "image/png";
+                    readonly data: string;
+                    readonly width: number;
+                    readonly height: number;
+                  };
+                  readonly [key: string]: SchemaJson;
                 };
-                readonly [key: string]: unknown;
-              };
               const { screenshot, ...page } = snapshot;
               const metadata = {
                 ...page,

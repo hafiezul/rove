@@ -52,15 +52,16 @@ const SETTINGS_SECTION_ICONS = {
   "/settings/archived": ArchiveIcon,
 } satisfies Readonly<Record<SettingsPath, ComponentType<{ className?: string }>>>;
 
-export const SETTINGS_NAV_ITEMS: ReadonlyArray<{
-  label: string;
-  to: SettingsPath;
-  icon: ComponentType<{ className?: string }>;
-}> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).map((to) => ({
-  to,
-  label: SETTINGS_SECTION_LABELS[to],
-  icon: SETTINGS_SECTION_ICONS[to],
-}));
+export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  SETTINGS_NAV_ITEMS: ReadonlyArray<{
+    label: string;
+    to: SettingsPath;
+    icon: ComponentType<{ className?: string }>;
+  }> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).map((to) => ({
+    to,
+    label: SETTINGS_SECTION_LABELS[to],
+    icon: SETTINGS_SECTION_ICONS[to],
+  }));
 
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];

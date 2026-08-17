@@ -16,6 +16,7 @@ import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import * as AcpSchema from "./_generated/schema.gen.ts";
 import { CLIENT_METHODS } from "./_generated/meta.gen.ts";
 import * as AcpError from "./errors.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isAcpError = Schema.is(AcpError.AcpError);
 const isProtocolError = Schema.is(AcpSchema.Error);
 
@@ -130,7 +131,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
       yield* logProtocol({
         direction: "outgoing",
         stage: "raw",
-        payload: typeof encoded === "string" ? encoded : new TextDecoder().decode(encoded),
+        payload: RuntimePredicate.isString(encoded) ? encoded : new TextDecoder().decode(encoded),
       });
 
       yield* Queue.offer(outgoing, encoded).pipe(Effect.asVoid);
@@ -407,12 +408,13 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
     }
   };
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   yield* options.stdio.stdin.pipe(
     Stream.runForEach((data) =>
       logProtocol({
         direction: "incoming",
         stage: "raw",
-        payload: typeof data === "string" ? data : new TextDecoder().decode(data),
+        payload: RuntimePredicate.isString(data) ? data : new TextDecoder().decode(data),
       }).pipe(
         Effect.flatMap(() =>
           Effect.try({
@@ -440,12 +442,12 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
             stage: "decode_failed",
             payload: {
               operation: error.operation,
-              ...(error.method === undefined ? {} : { method: error.method }),
-              ...(error.requestId === undefined ? {} : { requestId: error.requestId }),
-              ...(error.issueCount === undefined ? {} : { issueCount: error.issueCount }),
-              ...(error.issueKinds === undefined ? {} : { issueKinds: error.issueKinds }),
+              ...(error.method === undefined ? undefined : { method: error.method }),
+              ...(error.requestId === undefined ? undefined : { requestId: error.requestId }),
+              ...(error.issueCount === undefined ? undefined : { issueCount: error.issueCount }),
+              ...(error.issueKinds === undefined ? undefined : { issueKinds: error.issueKinds }),
               ...(error.maximumPathDepth === undefined
-                ? {}
+                ? undefined
                 : { maximumPathDepth: error.maximumPathDepth }),
             },
           }),

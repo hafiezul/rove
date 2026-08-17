@@ -21,6 +21,7 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const makeBroker = PreviewAutomationBroker.make.pipe(Effect.provide(NodeServices.layer));
 
@@ -219,7 +220,7 @@ it.effect("does not let a no-tab response suppress an earlier tab decision", () 
       yield* Stream.runForEach(requests, (request) => {
         routedRequests.push(request);
         const marker =
-          typeof request.input === "object" && request.input !== null && "marker" in request.input
+          RuntimePredicate.isObjectOrArray(request.input) && "marker" in request.input
             ? request.input.marker
             : undefined;
         const response = Effect.gen(function* () {

@@ -49,7 +49,7 @@ function parseLogLine(line: string) {
 }
 
 interface CircularLogEvent {
-  [field: string]: unknown;
+  [field: string]: string | CircularLogEvent;
 }
 
 describe("EventNdjsonLogger", () => {
@@ -146,7 +146,7 @@ describe("EventNdjsonLogger", () => {
           }
 
           yield* logger.write({ id: "evt-no-thread" }, null);
-          yield* logger.write({ id: "evt-invalid-thread" }, "!!!" as unknown as ThreadId);
+          yield* logger.write({ id: "evt-invalid-thread" }, "!!!" as ThreadId);
           yield* logger.close();
 
           const globalPath = ownedLogPath(basePath, "_global");

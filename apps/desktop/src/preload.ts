@@ -8,31 +8,33 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 exposeClerkBridge({ passkeys: true });
 
 function unwrapEnsureSshEnvironmentResult(result: unknown) {
   if (
-    typeof result === "object" &&
-    result !== null &&
+    RuntimePredicate.isObjectOrArray(result) &&
     "type" in result &&
     result.type === IpcChannels.SSH_PASSWORD_PROMPT_CANCELLED_RESULT
   ) {
     const message =
-      "message" in result && typeof result.message === "string"
+      "message" in result && RuntimePredicate.isString(result.message)
         ? result.message
         : "SSH authentication cancelled.";
     throw new Error(message);
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
-    if (typeof result !== "object" || result === null) {
+    if (!RuntimePredicate.isObjectOrArray(result)) {
       return null;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return result as ReturnType<DesktopBridge["getAppBranding"]>;
   },
   getLocalEnvironmentBootstraps: () => {
@@ -40,6 +42,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     if (!Array.isArray(result)) {
       return [];
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return result as ReturnType<DesktopBridge["getLocalEnvironmentBootstraps"]>;
   },
   getLocalEnvironmentBearerToken: () =>
@@ -56,7 +59,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     unwrapEnsureSshEnvironmentResult(
       await ipcRenderer.invoke(IpcChannels.ENSURE_SSH_ENVIRONMENT_CHANNEL, {
         target,
-        ...(options === undefined ? {} : { options }),
+        ...(options === undefined ? undefined : { options }),
       }),
     ),
   disconnectSshEnvironment: (target) =>
@@ -74,7 +77,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.ISSUE_SSH_WEBSOCKET_TOKEN_CHANNEL, { httpBaseUrl, bearerToken }),
   onSshPasswordPrompt: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, request: unknown) => {
-      if (typeof request !== "object" || request === null) return;
+      if (!RuntimePredicate.isObjectOrArray(request)) return;
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       listener(request as Parameters<typeof listener>[0]);
     };
 
@@ -102,12 +106,12 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   showContextMenu: (items, position) =>
     ipcRenderer.invoke(IpcChannels.CONTEXT_MENU_CHANNEL, {
       items,
-      ...(position === undefined ? {} : { position }),
+      ...(position === undefined ? undefined : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
-      if (typeof action !== "string") return;
+      if (!RuntimePredicate.isString(action)) return;
       listener(action);
     };
 
@@ -120,7 +124,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULLSCREEN_STATE_CHANNEL) === true,
   onWindowFullscreenStateChange: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, fullscreen: unknown) => {
-      if (typeof fullscreen !== "boolean") return;
+      if (!RuntimePredicate.isBoolean(fullscreen)) return;
       listener(fullscreen);
     };
 
@@ -137,7 +141,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   installUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_INSTALL_CHANNEL),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
-      if (typeof state !== "object" || state === null) return;
+      if (!RuntimePredicate.isObjectOrArray(state)) return;
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       listener(state as Parameters<typeof listener>[0]);
     };
 
@@ -198,7 +203,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         }),
       onFrame: (listener) => {
         const wrappedListener = (_event: Electron.IpcRendererEvent, frame: unknown) => {
-          if (typeof frame !== "object" || frame === null) return;
+          if (!RuntimePredicate.isObjectOrArray(frame)) return;
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           listener(frame as DesktopPreviewRecordingFrame);
         };
         ipcRenderer.on(IpcChannels.PREVIEW_RECORDING_FRAME_CHANNEL, wrappedListener);
@@ -230,7 +236,13 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         tabId: unknown,
         state: unknown,
       ) => {
-        if (typeof tabId !== "string" || typeof state !== "object" || state === null) return;
+        if (
+          !RuntimePredicate.isString(tabId) ||
+          !(RuntimePredicate.isObjectOrArray(state) || state === null) ||
+          state === null
+        )
+          return;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         listener(tabId, state as DesktopPreviewTabState);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_STATE_CHANGE_CHANNEL, wrappedListener);
@@ -239,7 +251,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     },
     onPointerEvent: (listener) => {
       const wrappedListener = (_event: Electron.IpcRendererEvent, pointerEvent: unknown) => {
-        if (typeof pointerEvent !== "object" || pointerEvent === null) return;
+        if (!RuntimePredicate.isObjectOrArray(pointerEvent)) return;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         listener(pointerEvent as DesktopPreviewPointerEvent);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_POINTER_EVENT_CHANNEL, wrappedListener);

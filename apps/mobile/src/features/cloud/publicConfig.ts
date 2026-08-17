@@ -2,6 +2,7 @@ import Constants from "expo-constants";
 import { relayClerkTokenOptions } from "@t3tools/shared/relayAuth";
 import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class CloudPublicConfigMissingError extends Schema.TaggedErrorClass<CloudPublicConfigMissingError>()(
   "CloudPublicConfigMissingError",
@@ -30,7 +31,7 @@ export interface CloudPublicConfig {
 }
 
 type UntrustedSection<T> = {
-  readonly [Key in keyof T]?: unknown;
+  readonly [Key in keyof T]?: Schema.Json;
 };
 
 type ExpoExtra =
@@ -40,7 +41,7 @@ type ExpoExtra =
   | undefined;
 
 function trimNonEmpty(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  return RuntimePredicate.isString(value) && value.trim() ? value.trim() : null;
 }
 
 function normalizeSecureUrl(value: unknown): string | null {

@@ -7,6 +7,7 @@ import * as Layer from "effect/Layer";
 import * as RelayDb from "../db.ts";
 import { relayEnvironmentCredentials } from "../persistence/schema.ts";
 import * as EnvironmentCredentials from "./EnvironmentCredentials.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 describe("EnvironmentCredentials", () => {
   it.effect("reports the credential creation persistence stage and preserves its cause", () => {
@@ -26,7 +27,7 @@ describe("EnvironmentCredentials", () => {
           }),
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -73,7 +74,7 @@ describe("EnvironmentCredentials", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -87,7 +88,8 @@ describe("EnvironmentCredentials", () => {
       expect(error).not.toHaveProperty("token");
       expect(whereConditions).toHaveLength(1);
 
-      const query = new PgDialect().sqlToQuery(whereConditions[0] as never);
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        query = new PgDialect().sqlToQuery(whereConditions[0] as never);
       expect(query.sql).toContain("exists");
       expect(query.sql).toContain('"relay_environment_links"."environment_id"');
       expect(query.sql).toContain('"relay_environment_links"."environment_public_key"');
@@ -115,7 +117,7 @@ describe("EnvironmentCredentials", () => {
         readonly updatedAt: string;
       }> = [];
       const staleCredentialRevocations: Array<{
-        readonly values: Record<string, unknown>;
+        readonly values: Record<string, SchemaJson>;
         readonly condition: unknown;
       }> = [];
 
@@ -132,7 +134,7 @@ describe("EnvironmentCredentials", () => {
         update: (table: unknown) => {
           expect(table).toBe(relayEnvironmentCredentials);
           return {
-            set: (values: Record<string, unknown>) => ({
+            set: (values: Record<string, SchemaJson>) => ({
               where: (condition: unknown) => {
                 staleCredentialRevocations.push({ values, condition });
                 return Effect.void;
@@ -140,7 +142,7 @@ describe("EnvironmentCredentials", () => {
             }),
           };
         },
-      } as unknown as RelayDb.RelayDb["Service"];
+      } as RelayDb.RelayDb["Service"];
 
       return Effect.gen(function* () {
         const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -168,7 +170,8 @@ describe("EnvironmentCredentials", () => {
           staleCredentialRevocations[0]?.values.updatedAt,
         );
 
-        const query = new PgDialect().sqlToQuery(staleCredentialRevocations[0]?.condition as never);
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          query = new PgDialect().sqlToQuery(staleCredentialRevocations[0]?.condition as never);
         expect(query.sql).toContain('"relay_environment_credentials"."environment_id" = $1');
         expect(query.sql).toContain(
           '"relay_environment_credentials"."environment_public_key" = $2',
@@ -188,13 +191,13 @@ describe("EnvironmentCredentials", () => {
   );
 
   it.effect("revokes active credentials for an environment public key", () => {
-    const updateValues: Array<Record<string, unknown>> = [];
+    const updateValues: Array<Record<string, SchemaJson>> = [];
     const whereConditions: Array<unknown> = [];
     const fakeDb = {
       update: (table: unknown) => {
         expect(table).toBe(relayEnvironmentCredentials);
         return {
-          set: (values: Record<string, unknown>) => {
+          set: (values: Record<string, SchemaJson>) => {
             updateValues.push(values);
             return {
               where: (condition: unknown) => {
@@ -210,7 +213,7 @@ describe("EnvironmentCredentials", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
@@ -224,7 +227,8 @@ describe("EnvironmentCredentials", () => {
       expect(updateValues[0]?.revokedAt).toEqual(updateValues[0]?.updatedAt);
       expect(whereConditions).toHaveLength(1);
 
-      const query = new PgDialect().sqlToQuery(whereConditions[0] as never);
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        query = new PgDialect().sqlToQuery(whereConditions[0] as never);
       expect(query.sql).toContain('"relay_environment_credentials"."environment_id" = $1');
       expect(query.sql).toContain('"relay_environment_credentials"."environment_public_key" = $2');
       expect(query.sql).toContain('"relay_environment_credentials"."revoked_at" is null');

@@ -10,6 +10,7 @@ import {
   prepareReviewHighlighterLanguages,
   type ReviewHighlighterEngine,
 } from "./shikiReviewHighlighter";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type ReviewHighlighterStatus = "idle" | "initializing" | "ready" | "error";
 
@@ -71,7 +72,7 @@ function isReviewHighlighterProviderDebugLoggingEnabled(): boolean {
 
 function logReviewHighlighterProviderDiagnostic(
   message: string,
-  details?: Record<string, unknown>,
+  details?: Record<string, SchemaJson>,
 ): void {
   if (!isReviewHighlighterProviderDebugLoggingEnabled()) {
     return;

@@ -201,8 +201,8 @@ export const make = Effect.gen(function* () {
           status: "running",
           providerKind: "cloudflare_tunnel",
           pid: Number(active.child.pid),
-          ...(active.config.tunnelId ? { tunnelId: active.config.tunnelId } : {}),
-          ...(active.config.tunnelName ? { tunnelName: active.config.tunnelName } : {}),
+          ...(active.config.tunnelId ? { tunnelId: active.config.tunnelId } : undefined),
+          ...(active.config.tunnelName ? { tunnelName: active.config.tunnelName } : undefined),
         } satisfies CloudManagedEndpointRuntimeStatus;
       }
     }
@@ -218,8 +218,8 @@ export const make = Effect.gen(function* () {
           executable.status === "unsupported"
             ? `Relay client is unsupported on ${executable.platform}-${executable.arch}.`
             : "The relay client is not installed.",
-        ...(config.tunnelId ? { tunnelId: config.tunnelId } : {}),
-        ...(config.tunnelName ? { tunnelName: config.tunnelName } : {}),
+        ...(config.tunnelId ? { tunnelId: config.tunnelId } : undefined),
+        ...(config.tunnelName ? { tunnelName: config.tunnelName } : undefined),
       } satisfies CloudManagedEndpointRuntimeStatus;
     }
 
@@ -257,8 +257,8 @@ export const make = Effect.gen(function* () {
               status: "failed",
               providerKind: "cloudflare_tunnel",
               reason: String(cause),
-              ...(config.tunnelId ? { tunnelId: config.tunnelId } : {}),
-              ...(config.tunnelName ? { tunnelName: config.tunnelName } : {}),
+              ...(config.tunnelId ? { tunnelId: config.tunnelId } : undefined),
+              ...(config.tunnelName ? { tunnelName: config.tunnelName } : undefined),
             } satisfies CloudManagedEndpointRuntimeStatus),
           ),
         ),
@@ -282,8 +282,8 @@ export const make = Effect.gen(function* () {
         status: "running",
         providerKind: "cloudflare_tunnel",
         pid: Number(child.pid),
-        ...(config.tunnelId ? { tunnelId: config.tunnelId } : {}),
-        ...(config.tunnelName ? { tunnelName: config.tunnelName } : {}),
+        ...(config.tunnelId ? { tunnelId: config.tunnelId } : undefined),
+        ...(config.tunnelName ? { tunnelName: config.tunnelName } : undefined),
       } satisfies CloudManagedEndpointRuntimeStatus;
     }
 
@@ -291,8 +291,8 @@ export const make = Effect.gen(function* () {
       status: "failed",
       providerKind: "cloudflare_tunnel",
       reason: "Relay client did not start.",
-      ...(config.tunnelId ? { tunnelId: config.tunnelId } : {}),
-      ...(config.tunnelName ? { tunnelName: config.tunnelName } : {}),
+      ...(config.tunnelId ? { tunnelId: config.tunnelId } : undefined),
+      ...(config.tunnelName ? { tunnelName: config.tunnelName } : undefined),
     } satisfies CloudManagedEndpointRuntimeStatus;
   });
 

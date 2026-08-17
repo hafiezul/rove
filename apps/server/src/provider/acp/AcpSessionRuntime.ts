@@ -35,6 +35,7 @@ import {
   type AcpSessionModeState,
   type AcpToolCallState,
 } from "./AcpRuntimeModel.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 function formatConfigOptionValue(value: string | boolean): string {
   return JSON.stringify(value);
@@ -337,8 +338,8 @@ export const make = (
     const child = yield* spawner
       .spawn(
         ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-          ...(options.spawn.cwd ? { cwd: options.spawn.cwd } : {}),
-          ...(options.spawn.env ? { env: options.spawn.env, extendEnv: true } : {}),
+          ...(options.spawn.cwd ? { cwd: options.spawn.cwd } : undefined),
+          ...(options.spawn.env ? { env: options.spawn.env, extendEnv: true } : undefined),
           shell: spawnCommand.shell,
         }),
       )
@@ -357,11 +358,13 @@ export const make = (
       EffectAcpClient.layerChildProcess(child, {
         ...(options.protocolLogging?.logIncoming !== undefined
           ? { logIncoming: options.protocolLogging.logIncoming }
-          : {}),
+          : undefined),
         ...(options.protocolLogging?.logOutgoing !== undefined
           ? { logOutgoing: options.protocolLogging.logOutgoing }
-          : {}),
-        ...(options.protocolLogging?.logger ? { logger: options.protocolLogging.logger } : {}),
+          : undefined),
+        ...(options.protocolLogging?.logger
+          ? { logger: options.protocolLogging.logger }
+          : undefined),
       }),
     ).pipe(Effect.provideService(Scope.Scope, runtimeScope));
 
@@ -410,11 +413,13 @@ export const make = (
         ...options.clientCapabilities?.fs,
       },
       terminal: options.clientCapabilities?.terminal ?? false,
-      ...(options.clientCapabilities?.auth ? { auth: options.clientCapabilities.auth } : {}),
+      ...(options.clientCapabilities?.auth ? { auth: options.clientCapabilities.auth } : undefined),
       ...(options.clientCapabilities?.elicitation
         ? { elicitation: options.clientCapabilities.elicitation }
-        : {}),
-      ...(options.clientCapabilities?._meta ? { _meta: options.clientCapabilities._meta } : {}),
+        : undefined),
+      ...(options.clientCapabilities?._meta
+        ? { _meta: options.clientCapabilities._meta }
+        : undefined),
     } satisfies NonNullable<EffectAcpSchema.InitializeRequest["clientCapabilities"]>;
 
     const getStartedState = Effect.gen(function* () {
@@ -438,7 +443,7 @@ export const make = (
           return;
         }
         if (configOption.type === "boolean") {
-          if (typeof value === "boolean") {
+          if (RuntimePredicate.isBoolean(value)) {
             return;
           }
           return yield* new EffectAcpErrors.AcpRequestError({
@@ -451,7 +456,7 @@ export const make = (
             },
           });
         }
-        if (typeof value !== "string") {
+        if (!RuntimePredicate.isString(value)) {
           return yield* new EffectAcpErrors.AcpRequestError({
             code: -32602,
             errorMessage: `Invalid value ${formatConfigOptionValue(value)} for session config option "${configOption.id}": expected string`,
@@ -505,19 +510,18 @@ export const make = (
                   configOptions,
                 } satisfies EffectAcpSchema.SetSessionConfigOptionResponse);
               }
-              const requestPayload =
-                typeof value === "boolean"
-                  ? ({
-                      sessionId: started.sessionId,
-                      configId,
-                      type: "boolean",
-                      value,
-                    } satisfies EffectAcpSchema.SetSessionConfigOptionRequest)
-                  : ({
-                      sessionId: started.sessionId,
-                      configId,
-                      value: String(value),
-                    } satisfies EffectAcpSchema.SetSessionConfigOptionRequest);
+              const requestPayload = RuntimePredicate.isBoolean(value)
+                ? ({
+                    sessionId: started.sessionId,
+                    configId,
+                    type: "boolean",
+                    value,
+                  } satisfies EffectAcpSchema.SetSessionConfigOptionRequest)
+                : ({
+                    sessionId: started.sessionId,
+                    configId,
+                    value: String(value),
+                  } satisfies EffectAcpSchema.SetSessionConfigOptionRequest);
               return runLoggedRequest(
                 "session/set_config_option",
                 requestPayload,
@@ -835,7 +839,7 @@ function configOptionCurrentValueMatches(
   if (configOption.type === "boolean") {
     return currentValue === value;
   }
-  if (typeof currentValue !== "string") {
+  if (!RuntimePredicate.isString(currentValue)) {
     return false;
   }
   return currentValue.trim() === String(value).trim();

@@ -26,7 +26,7 @@ describe("ManagedEndpointAllocations", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -51,7 +51,7 @@ describe("ManagedEndpointAllocations", () => {
           }),
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -78,7 +78,7 @@ describe("ManagedEndpointAllocations", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -119,7 +119,7 @@ describe("ManagedEndpointAllocations", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;

@@ -53,7 +53,7 @@ const makeSupervisor = Effect.fn("TestEnvironmentCommands.makeSupervisor")(funct
         dispatched.push(command);
         return { sequence: dispatched.length };
       }),
-  } as unknown as WsRpcProtocolClient;
+  } as WsRpcProtocolClient;
   const session: RpcSession.RpcSession = {
     client,
     initialConfig: Effect.never,

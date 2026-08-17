@@ -88,6 +88,7 @@ function makeTestWindow(
 }
 
 function makeElectronWindowLayer(window: ReturnType<typeof makeTestWindow>["window"]) {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return Layer.succeed(
     ElectronWindow.ElectronWindow,
     ElectronWindow.ElectronWindow.of({
@@ -134,7 +135,8 @@ describe("DesktopSshPasswordPrompts", () => {
       const sent = testWindow.sentMessages[0];
       assert.ok(sent);
       assert.equal(sent.channel, SSH_PASSWORD_PROMPT_CHANNEL);
-      const request = sent.args[0] as { readonly requestId: string; readonly destination: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = sent.args[0] as { readonly requestId: string; readonly destination: string };
       assert.equal(request.destination, "devbox");
       assert.equal(testWindow.isRestored(), true);
       assert.equal(testWindow.isFocused(), true);
@@ -216,7 +218,8 @@ describe("DesktopSshPasswordPrompts", () => {
       yield* Effect.yieldNow;
       const sent = testWindow.sentMessages[0];
       assert.ok(sent);
-      const request = sent.args[0] as { readonly requestId: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = sent.args[0] as { readonly requestId: string };
       yield* prompts.resolve({ requestId: request.requestId, password: "secret" });
       const password = yield* Fiber.join(requestFiber);
 

@@ -19,6 +19,7 @@ import { TrimmedNonEmptyString } from "@t3tools/contracts";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Bitbucket's enums are decoded as plain strings and normalized here, in the same tolerant
@@ -450,7 +451,7 @@ export function buildReviewThreads(
       threads.set(root.id, {
         id: String(root.id),
         path,
-        line: typeof line === "number" && line > 0 ? line : null,
+        line: RuntimePredicate.isNumber(line) && line > 0 ? line : null,
         side,
         isResolved: root.resolution !== null && root.resolution !== undefined,
         isOutdated: inline?.outdated === true,

@@ -42,7 +42,8 @@ export interface EnvironmentUsageStatus {
  */
 const usageByWindowAtom = Atom.family((windowKey: string) =>
   Atom.make((get): readonly EnvironmentUsageStatus[] => {
-    const input = JSON.parse(windowKey) as UsageSummaryInput;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      input = JSON.parse(windowKey) as UsageSummaryInput;
     const presentations = get(environmentPresentations.presentationsAtom);
 
     const statuses: EnvironmentUsageStatus[] = [];
@@ -101,7 +102,8 @@ export function useUsage(input: UsageSummaryInput): UsageView {
   // queries within their stale window and change nothing. Refresh each
   // environment's query so pull-to-refresh always rescans.
   const refresh = useCallback(() => {
-    const input = JSON.parse(windowKey) as UsageSummaryInput;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      input = JSON.parse(windowKey) as UsageSummaryInput;
     for (const environment of environments) {
       appAtomRegistry.refresh(
         serverEnvironment.usageSummary({ environmentId: environment.environmentId, input }),

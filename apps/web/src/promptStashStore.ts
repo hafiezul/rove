@@ -2,7 +2,8 @@ import * as Schema from "effect/Schema";
 import { create } from "zustand";
 
 import { PersistedComposerImageAttachment } from "./composerDraftStore";
-import { createMemoryStorage, type StateStorage } from "./lib/storage";
+import { createMemoryStorage } from "./lib/storage";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const PROMPT_STASH_STORAGE_KEY = "t3code:prompt-stash:v2";
 /**
@@ -167,9 +168,10 @@ function persistEntries(entries: ReadonlyArray<PromptStashEntry>) {
 function readPersistedEntries(): ReadonlyArray<PromptStashEntry> | null {
   try {
     const raw = baseStashStorage.getItem(PROMPT_STASH_STORAGE_KEY);
-    if (typeof raw !== "string" || raw.length === 0) return null;
+    if (!RuntimePredicate.isString(raw) || raw.length === 0) return null;
     const parsed: unknown = JSON.parse(raw);
-    const state = (parsed as { state?: unknown } | null)?.state;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      state = (parsed as { state?: unknown } | null)?.state;
     if (!state) return null;
     return clearOrphanedPendingImages(decodePersistedPromptStashState(state).entries);
   } catch {

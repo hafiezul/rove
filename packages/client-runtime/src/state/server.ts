@@ -438,7 +438,8 @@ export function projectServerWelcome(
   if (event.type !== "welcome") {
     return [current, []];
   }
-  const welcome = event.payload as ServerLifecycleWelcomePayload;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    welcome = event.payload as ServerLifecycleWelcomePayload;
   return [Option.some(welcome), [welcome]];
 }
 

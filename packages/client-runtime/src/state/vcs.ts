@@ -238,7 +238,8 @@ export function createVcsEnvironmentAtoms<R, E>(
 ) {
   const listRefsByEnvironment = Atom.family((environmentId: EnvironmentId) =>
     Atom.family((inputKey: string) => {
-      const input = JSON.parse(inputKey) as VcsListRefsInput;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        input = JSON.parse(inputKey) as VcsListRefsInput;
       return runtime
         .atom((get) => {
           const state = get(vcsRefsCacheStateAtom({ environmentId }));

@@ -8,6 +8,7 @@ import * as Layer from "effect/Layer";
 import * as RelayDb from "../db.ts";
 import { relayLiveActivities, relayMobileDevices } from "../persistence/schema.ts";
 import * as Devices from "./Devices.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const registration: RelayDeviceRegistrationRequest = {
   deviceId: "device-1" as RelayDeviceRegistrationRequest["deviceId"],
@@ -32,9 +33,9 @@ const registration: RelayDeviceRegistrationRequest = {
 describe("Devices", () => {
   it.effect("claims APNs tokens globally before upserting the current user device", () => {
     const calls: Array<string> = [];
-    const updateSets: Array<Record<string, unknown>> = [];
+    const updateSets: Array<Record<string, SchemaJson>> = [];
     const updateConditions: Array<SQL> = [];
-    const insertedValues: Array<Record<string, unknown>> = [];
+    const insertedValues: Array<Record<string, SchemaJson>> = [];
     const dialect = new PgDialect();
 
     const fakeDb = {
@@ -42,7 +43,7 @@ describe("Devices", () => {
         expect(table).toBe(relayMobileDevices);
         calls.push("update");
         return {
-          set: (values: Record<string, unknown>) => {
+          set: (values: Record<string, SchemaJson>) => {
             updateSets.push(values);
             calls.push("update.set");
             return {
@@ -60,7 +61,7 @@ describe("Devices", () => {
         expect(table).toBe(relayMobileDevices);
         calls.push("insert");
         return {
-          values: (values: Record<string, unknown>) => {
+          values: (values: Record<string, SchemaJson>) => {
             insertedValues.push(values);
             calls.push("insert.values");
             return {
@@ -73,7 +74,7 @@ describe("Devices", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -136,7 +137,7 @@ describe("Devices", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -192,7 +193,7 @@ describe("Devices", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -232,11 +233,11 @@ describe("Devices", () => {
     const cause = new Error("push-token claim failed");
     const fakeDb = {
       update: () => ({
-        set: (values: Record<string, unknown>) => ({
+        set: (values: Record<string, SchemaJson>) => ({
           where: () => ("pushToken" in values ? Effect.fail(cause) : Effect.void),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -262,7 +263,7 @@ describe("Devices", () => {
       delete: (table: unknown) => ({
         where: () => (table === relayLiveActivities ? Effect.fail(cause) : Effect.void),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;
@@ -292,7 +293,7 @@ describe("Devices", () => {
           where: () => Effect.fail(cause),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const devices = yield* Devices.Devices;

@@ -61,6 +61,7 @@ import {
   useActiveBrowserRecordingTabIds,
 } from "~/browser/browserRecording";
 import { stackedThreadToast, toastManager } from "~/components/ui/toast";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface Props {
   threadRef: ScopedThreadRef;
@@ -549,8 +550,9 @@ export function PreviewView({
     // focus into the guest webContents. We restore it when the pick
     // resolves so the user's typing context isn't lost — otherwise after
     // every pick they'd have to click back into the textarea.
-    const previouslyFocused =
-      typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      previouslyFocused =
+        typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
     pickActiveRef.current = true;
     setPickActive(true);
     void (async () => {
@@ -597,7 +599,7 @@ export function PreviewView({
         if (
           previouslyFocused &&
           previouslyFocused.isConnected &&
-          typeof previouslyFocused.focus === "function"
+          RuntimePredicate.isFunction(previouslyFocused.focus)
         ) {
           try {
             previouslyFocused.focus({ preventScroll: true });

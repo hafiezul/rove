@@ -244,18 +244,20 @@ const createManager = (
         logsDir,
         historyLineLimit,
         ptyAdapter,
-        ...(options.shellResolver !== undefined ? { shellResolver: options.shellResolver } : {}),
-        ...(options.env !== undefined ? { env: options.env } : {}),
+        ...(options.shellResolver !== undefined
+          ? { shellResolver: options.shellResolver }
+          : undefined),
+        ...(options.env !== undefined ? { env: options.env } : undefined),
         ...(options.subprocessInspector !== undefined
           ? { subprocessInspector: options.subprocessInspector }
-          : {}),
+          : undefined),
         ...(options.subprocessPollIntervalMs !== undefined
           ? { subprocessPollIntervalMs: options.subprocessPollIntervalMs }
-          : {}),
+          : undefined),
         processKillGraceMs: options.processKillGraceMs ?? 1,
         ...(options.maxRetainedInactiveSessions !== undefined
           ? { maxRetainedInactiveSessions: options.maxRetainedInactiveSessions }
-          : {}),
+          : undefined),
       });
       const eventsRef = yield* Ref.make<ReadonlyArray<TerminalEvent>>([]);
       const unsubscribe = yield* manager.subscribe((event) =>

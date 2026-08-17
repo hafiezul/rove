@@ -58,6 +58,7 @@ function formatYamlParseError(error: unknown): string {
 export function parseYaml<E extends string>(
   options?: YamlParseOptions,
 ): SchemaGetter.Getter<unknown, E> {
+  // SAFETY: This boundary intentionally widens the value before handing it to its owner.
   return SchemaGetter.transformOrFail((input: E) =>
     Effect.try({
       try: () => parseYamlString(input, options) as unknown,

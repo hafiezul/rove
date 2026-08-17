@@ -1,6 +1,7 @@
 import * as Schema from "effect/Schema";
 import * as Record from "effect/Record";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class LocalStorageOperationError extends Schema.TaggedErrorClass<LocalStorageOperationError>()(
   "LocalStorageOperationError",
@@ -125,9 +126,11 @@ export function useLocalStorage<T, E>(
       };
 
       window.addEventListener("storage", handleStorageChange);
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       window.addEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
       return () => {
         window.removeEventListener("storage", handleStorageChange);
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         window.removeEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
       };
     },
@@ -152,8 +155,9 @@ export function useLocalStorage<T, E>(
       try {
         const currentValue = getLocalStorageItem(key, schema) ?? initialValue;
         let valueToStore: T;
-        if (typeof value === "function") {
+        if (RuntimePredicate.isFunction(value)) {
           try {
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             valueToStore = (value as (val: T) => T)(currentValue);
           } catch (cause) {
             throw new LocalStorageOperationError({

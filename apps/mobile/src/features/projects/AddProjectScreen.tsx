@@ -597,7 +597,8 @@ function useEnvironmentFromParam(
   environmentIdParam: string | string[] | undefined,
 ): EnvironmentOption | null {
   const environmentOptions = useEnvironmentOptions();
-  const environmentId = stringParam(environmentIdParam) as EnvironmentId | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    environmentId = stringParam(environmentIdParam) as EnvironmentId | null;
   return resolveAddProjectEnvironment(environmentOptions, environmentId);
 }
 

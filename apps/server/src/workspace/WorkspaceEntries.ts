@@ -207,7 +207,8 @@ export const make = Effect.gen(function* () {
       }).pipe(
         Effect.catchIf(
           (error) => {
-            const code = (error.cause as NodeJS.ErrnoException | undefined)?.code;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              code = (error.cause as NodeJS.ErrnoException | undefined)?.code;
             return code === "EACCES" || code === "EPERM";
           },
           () => Effect.succeed([]),

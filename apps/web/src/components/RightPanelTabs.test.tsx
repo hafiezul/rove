@@ -63,7 +63,7 @@ function renderTabs(first: DesktopPreviewFavicon | null, second?: DesktopPreview
       previewSessions={sessions}
       desktopByTabId={{
         "tab-1": overlay(first),
-        ...(second ? { "tab-2": overlay(second) } : {}),
+        ...(second ? { "tab-2": overlay(second) } : undefined),
       }}
       terminalLabelsById={new Map()}
       onActivate={() => undefined}

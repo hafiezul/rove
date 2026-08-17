@@ -63,7 +63,7 @@ describe("environment shell synchronization", () => {
       const events = yield* Queue.unbounded<OrchestrationShellStreamItem>();
       const client = {
         [ORCHESTRATION_WS_METHODS.subscribeShell]: () => Stream.fromQueue(events),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const supervisorState = yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE);
       const activeSession = yield* SubscriptionRef.make<Option.Option<RpcSession.RpcSession>>(
         Option.some(session(client)),
@@ -179,7 +179,7 @@ describe("environment shell synchronization", () => {
           Stream.unwrap(
             Queue.offer(subscribeInputs, input).pipe(Effect.as(Stream.fromQueue(events))),
           ),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const supervisorState = yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE);
       const activeSession = yield* SubscriptionRef.make<Option.Option<RpcSession.RpcSession>>(
         Option.some(session(client)),
@@ -261,7 +261,7 @@ describe("environment shell synchronization", () => {
               input.afterSequence,
             ]).pipe(Effect.as(Stream.fromQueue(events))),
           ),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const supervisorState = yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE);
       const activeSession = yield* SubscriptionRef.make(Option.some(session(client)));
       const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({

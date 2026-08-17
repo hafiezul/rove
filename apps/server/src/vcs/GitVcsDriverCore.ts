@@ -37,6 +37,8 @@ import {
   parseRemoteRefWithRemoteNames,
 } from "../git/remoteRefs.ts";
 import { ServerConfig } from "../config.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_OUTPUT_BYTES = 1_000_000;
@@ -405,7 +407,7 @@ function isMissingGitCwdError(error: GitCommandError): boolean {
   return (
     reason._tag === "BadResource" &&
     reason.pathOrDescriptor === error.cwd &&
-    typeof reason.cause === "object" &&
+    (RuntimePredicate.isObjectOrArray(reason.cause) || reason.cause === null) &&
     reason.cause !== null &&
     "code" in reason.cause &&
     reason.cause.code === "ENOTDIR"
@@ -431,7 +433,7 @@ const nowUnixNano = DateTime.now.pipe(
   Effect.map((now) => BigInt(DateTime.toEpochMillis(now)) * 1_000_000n),
 );
 
-const addCurrentSpanEvent = (name: string, attributes: Record<string, unknown>) =>
+const addCurrentSpanEvent = (name: string, attributes: Record<string, SchemaJson>) =>
   Effect.gen(function* () {
     const span = yield* Effect.currentSpan;
     const timestamp = yield* nowUnixNano;
@@ -444,13 +446,13 @@ const addCurrentSpanEvent = (name: string, attributes: Record<string, unknown>) 
     }),
   );
 
-function trace2ChildKey(record: Record<string, unknown>): string | null {
+function trace2ChildKey(record: Record<string, SchemaJson>): string | null {
   const childId = record.child_id;
-  if (typeof childId === "number" || typeof childId === "string") {
+  if (RuntimePredicate.isNumber(childId) || RuntimePredicate.isString(childId)) {
     return String(childId);
   }
   const hookName = record.hook_name;
-  return typeof hookName === "string" && hookName.trim().length > 0 ? hookName.trim() : null;
+  return RuntimePredicate.isString(hookName) && hookName.trim().length > 0 ? hookName.trim() : null;
 }
 
 const Trace2Record = Schema.Record(Schema.String, Schema.Unknown);
@@ -507,8 +509,9 @@ const createTrace2Monitor = Effect.fn("createTrace2Monitor")(function* (
       return;
     }
     const started = hookStartByChildKey.get(childKey);
-    const hookNameFromEvent =
-      typeof traceRecord.success.hook_name === "string" ? traceRecord.success.hook_name.trim() : "";
+    const hookNameFromEvent = RuntimePredicate.isString(traceRecord.success.hook_name)
+      ? traceRecord.success.hook_name.trim()
+      : "";
     const hookName = hookNameFromEvent.length > 0 ? hookNameFromEvent : (started?.hookName ?? "");
     if (hookName.length === 0) {
       return;
@@ -529,7 +532,7 @@ const createTrace2Monitor = Effect.fn("createTrace2Monitor")(function* (
     if (event === "child_exit") {
       hookStartByChildKey.delete(childKey);
       const code = traceRecord.success.exitCode;
-      const exitCode = typeof code === "number" && Number.isInteger(code) ? code : null;
+      const exitCode = RuntimePredicate.isNumber(code) && Number.isInteger(code) ? code : null;
       const now = yield* DateTime.now;
       const durationMs = started
         ? Math.max(0, DateTime.toEpochMillis(now) - started.startedAtMs)
@@ -856,15 +859,17 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       operation,
       cwd,
       args,
-      ...(options.stdin !== undefined ? { stdin: options.stdin } : {}),
-      ...(options.env !== undefined ? { env: options.env } : {}),
+      ...(options.stdin !== undefined ? { stdin: options.stdin } : undefined),
+      ...(options.env !== undefined ? { env: options.env } : undefined),
       allowNonZeroExit: true,
-      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
-      ...(options.maxOutputBytes !== undefined ? { maxOutputBytes: options.maxOutputBytes } : {}),
+      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : undefined),
+      ...(options.maxOutputBytes !== undefined
+        ? { maxOutputBytes: options.maxOutputBytes }
+        : undefined),
       ...(options.appendTruncationMarker !== undefined
         ? { appendTruncationMarker: options.appendTruncationMarker }
-        : {}),
-      ...(options.progress ? { progress: options.progress } : {}),
+        : undefined),
+      ...(options.progress ? { progress: options.progress } : undefined),
     }).pipe(
       Effect.flatMap((result) => {
         if (options.allowNonZeroExit || result.exitCode === 0) {
@@ -874,7 +879,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           new GitCommandError({
             ...gitCommandContext({ operation, cwd, args }),
             detail: options.fallbackErrorDetail ?? "Git command exited with a non-zero status.",
-            ...(result.exitCode === null ? {} : { exitCode: result.exitCode }),
+            ...(result.exitCode === null ? undefined : { exitCode: result.exitCode }),
             stdoutLength: result.stdout.length,
             stderrLength: result.stderr.length,
           }),
@@ -1870,8 +1875,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
               options.progress?.onOutputLine?.({ stream: "stderr", text: line }) ?? Effect.void,
           };
     yield* executeGit("GitVcsDriver.commit.commit", cwd, args, {
-      ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
-      ...(progress ? { progress } : {}),
+      ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : undefined),
+      ...(progress ? { progress } : undefined),
     }).pipe(Effect.asVoid);
     const commitSha = yield* runGitStdout("GitVcsDriver.commit.revParseHead", cwd, [
       "rev-parse",
@@ -1920,7 +1925,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         return {
           status: "skipped_up_to_date" as const,
           branch,
-          ...(details.upstreamRef ? { upstreamBranch: details.upstreamRef } : {}),
+          ...(details.upstreamRef ? { upstreamBranch: details.upstreamRef } : undefined),
         };
       }
 
@@ -1998,7 +2003,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     return {
       status: "pushed" as const,
       branch,
-      ...(details.upstreamRef ? { upstreamBranch: details.upstreamRef } : {}),
+      ...(details.upstreamRef ? { upstreamBranch: details.upstreamRef } : undefined),
       setUpstream: false,
     };
   });
@@ -2291,7 +2296,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       command: "git",
       cwd: input.cwd,
       detail,
-      ...(cause === undefined ? {} : { cause }),
+      ...(cause === undefined ? undefined : { cause }),
     });
 
   const isPathWithinRoot = (root: string, candidate: string) => {
@@ -2329,7 +2334,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         command: stage,
         cwd: input.cwd,
         detail,
-        ...(cause === undefined ? {} : { cause }),
+        ...(cause === undefined ? undefined : { cause }),
       });
     const requestedPath = path.resolve(repositoryRoot, input.newPath);
     if (!isPathWithinRoot(repositoryRoot, requestedPath)) {
@@ -2558,7 +2563,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           parsedRemoteRef?.remoteName === "origin" &&
           parsedRemoteRef.branchName === defaultBranch,
         worktreePath: null,
-        ...(parsedRemoteRef ? { remoteName: parsedRemoteRef.remoteName } : {}),
+        ...(parsedRemoteRef ? { remoteName: parsedRemoteRef.remoteName } : undefined),
       };
       remoteBranches.push({ ref: remoteBranch, lastCommit });
     }

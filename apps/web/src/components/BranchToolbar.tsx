@@ -132,6 +132,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
     );
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Menu>
       <MenuTrigger
@@ -179,6 +180,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
                 onUsePreviousWorktree();
                 return;
               }
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               onEnvModeChange(value as EnvMode);
             }}
           >

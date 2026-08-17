@@ -14,6 +14,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import { describe, expect } from "vite-plus/test";
 
 import { makeGrokAcpRuntime } from "./GrokAcpSupport.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const makeProbeRuntime = Effect.gen(function* () {
   const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -41,14 +42,14 @@ describe.runIf(process.env.T3_GROK_ACP_PROBE === "1")("Grok ACP CLI probe", () =
       const started = yield* runtime.start();
       const result = started.sessionSetupResult;
 
-      expect(typeof started.sessionId).toBe("string");
+      expect(RuntimePredicate.isString(started.sessionId)).toBe(true);
 
       // Modern grok-shell advertises models through the typed
       // `SessionModelState` field, not via a `configOptions` entry.
       // If this assertion fails the upstream surface has regressed.
       const models = result.models;
       expect(models).toBeDefined();
-      expect(typeof models?.currentModelId).toBe("string");
+      expect(RuntimePredicate.isString(models?.currentModelId)).toBe(true);
       expect(models?.availableModels.length ?? 0).toBeGreaterThan(0);
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );

@@ -120,9 +120,9 @@ const logTelemetryIdentityError = (error: TelemetryIdentityError) =>
     Effect.annotateLogs({
       errorTag: error._tag,
       source: error.source,
-      ...("filePath" in error ? { filePath: error.filePath } : {}),
+      ...("filePath" in error ? { filePath: error.filePath } : undefined),
       ...getTelemetryIdentityCauseAnnotations(error.cause),
-      ...(error.stack === undefined ? {} : { errorStack: error.stack }),
+      ...(error.stack === undefined ? undefined : { errorStack: error.stack }),
     }),
   );
 

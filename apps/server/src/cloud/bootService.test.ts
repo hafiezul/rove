@@ -96,7 +96,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
     cliVersion: "1.2.3",
     host: {
       execPath: "/usr/bin/node",
-      ...(usePinnedLauncher ? {} : { launcherSourcePath: sourceLauncher }),
+      ...(usePinnedLauncher ? undefined : { launcherSourcePath: sourceLauncher }),
     },
   }).pipe(
     Effect.provideService(ProcessRunner.ProcessRunner, runner),

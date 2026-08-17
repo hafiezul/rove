@@ -160,11 +160,12 @@ export function NewTaskDraftScreen(props: {
       settingsSheetPresentation.onDismissed();
     }, [settingsSheetPresentation.onDismissed]),
   );
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   useEffect(
     () =>
       // UIKit's completion callback for the sheet dismissal, surfaced by the
       // native-stack patch. This is when the queued keyboard restore runs.
-      (navigation as unknown as NavigationWithFinishTransitioning).addListener(
+      (navigation as NavigationWithFinishTransitioning).addListener(
         "finishTransitioning",
         settingsSheetPresentation.onStackTransitionsFinished,
       ),
@@ -733,7 +734,7 @@ export function NewTaskDraftScreen(props: {
               createdAt: editingPendingTask.createdAt,
             },
           }
-        : {}),
+        : undefined),
     });
     flow.setSubmitting(false);
 

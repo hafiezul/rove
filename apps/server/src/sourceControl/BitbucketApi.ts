@@ -779,7 +779,7 @@ export const make = Effect.gen(function* () {
     const cloneUrls = yield* getRepository({
       cwd: input.cwd,
       repository: input.sourceRepositoryName,
-      ...(input.context ? { context: input.context } : {}),
+      ...(input.context ? { context: input.context } : undefined),
     }).pipe(Effect.map(normalizeRepositoryCloneUrls));
     const originRemoteUrl = yield* readConfigValueNullable(input.cwd, "remote.origin.url");
     return yield* git.ensureRemote({
@@ -983,7 +983,7 @@ export const make = Effect.gen(function* () {
                     full_name: `${sourceOwner}/${input.source?.repository ?? repository.repoSlug}`,
                   },
                 }
-              : {}),
+              : undefined),
           },
           destination: {
             branch: {
@@ -1043,7 +1043,7 @@ export const make = Effect.gen(function* () {
           destinationRepository,
           sourceRepositoryName,
           isCrossRepository,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
         });
         const remoteBranch = pullRequest.source.branch.name;
         const localBranch = checkoutBranchName({

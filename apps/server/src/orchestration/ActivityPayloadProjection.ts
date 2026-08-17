@@ -3,15 +3,18 @@ import type {
   OrchestrationThreadActivity,
   OrchestrationThreadDetailSnapshot,
 } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
+function asRecord(value: unknown): Record<string, SchemaJson> | null {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value)
+    ? (value as Record<string, SchemaJson>)
     : null;
 }
 
 function asTrimmedString(value: unknown): string | null {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return null;
   }
   const trimmed = value.trim();
@@ -80,13 +83,15 @@ function collectChangedFiles(
   }
 }
 
-function projectCommandData(data: Record<string, unknown>): Record<string, unknown> | undefined {
+function projectCommandData(
+  data: Record<string, SchemaJson>,
+): Record<string, SchemaJson> | undefined {
   const item = asRecord(data.item);
   if (!item) {
     return undefined;
   }
 
-  const projectedItem: Record<string, unknown> = {};
+  const projectedItem: Record<string, SchemaJson> = {};
   if ("command" in item) {
     projectedItem.command = item.command;
   }
@@ -149,16 +154,16 @@ const MCP_ITEM_KEPT_FIELDS = [
 function extractMcpResultText(result: unknown): string | null {
   const record = asRecord(result);
   if (!record) {
-    return typeof result === "string" ? result : null;
+    return RuntimePredicate.isString(result) ? result : null;
   }
-  if (typeof record.content === "string") {
+  if (RuntimePredicate.isString(record.content)) {
     return record.content;
   }
   if (Array.isArray(record.content)) {
     const texts: string[] = [];
     for (const entry of record.content) {
       const text = asRecord(entry)?.text;
-      if (typeof text === "string" && text.trim().length > 0) {
+      if (RuntimePredicate.isString(text) && text.trim().length > 0) {
         texts.push(text);
       }
     }
@@ -169,7 +174,7 @@ function extractMcpResultText(result: unknown): string | null {
   return null;
 }
 
-function summarizeMcpResult(result: unknown): Record<string, unknown> | undefined {
+function summarizeMcpResult(result: unknown): Record<string, SchemaJson> | undefined {
   if (result === undefined || result === null) {
     return undefined;
   }
@@ -184,12 +189,12 @@ function summarizeMcpResult(result: unknown): Record<string, unknown> | undefine
  * keep the expanded-row UI working. Keep the fields the UI actually renders
  * and summarize the result like regular tool output.
  */
-function projectMcpToolCallData(data: Record<string, unknown>) {
-  const projectedData: Record<string, unknown> = {};
+function projectMcpToolCallData(data: Record<string, SchemaJson>) {
+  const projectedData: Record<string, SchemaJson> = {};
 
   const item = asRecord(data.item);
   if (item) {
-    const projectedItem: Record<string, unknown> = {};
+    const projectedItem: Record<string, SchemaJson> = {};
     for (const key of MCP_ITEM_KEPT_FIELDS) {
       if (key in item) {
         projectedItem[key] = item[key];
@@ -231,16 +236,16 @@ function projectMcpToolCallData(data: Record<string, unknown>) {
   return projectedData;
 }
 
-function projectRawOutput(value: unknown): Record<string, unknown> | undefined {
+function projectRawOutput(value: unknown): Record<string, SchemaJson> | undefined {
   const rawOutput = asRecord(value);
   if (!rawOutput) {
     return undefined;
   }
 
-  if (typeof rawOutput.totalFiles === "number" && Number.isFinite(rawOutput.totalFiles)) {
+  if (RuntimePredicate.isNumber(rawOutput.totalFiles) && Number.isFinite(rawOutput.totalFiles)) {
     return {
       totalFiles: rawOutput.totalFiles,
-      ...(rawOutput.truncated === true ? { truncated: true } : {}),
+      ...(rawOutput.truncated === true ? { truncated: true } : undefined),
     };
   }
 
@@ -282,7 +287,7 @@ export function projectActivityPayload(
     };
   }
 
-  const projectedData: Record<string, unknown> = {};
+  const projectedData: Record<string, SchemaJson> = {};
   const item = projectCommandData(data);
   if (item) {
     projectedData.item = item;
@@ -331,7 +336,7 @@ function isResolvableContextWindowActivity(activity: OrchestrationThreadActivity
   }
   const payload = asRecord(activity.payload);
   const usedTokens = payload?.usedTokens;
-  return typeof usedTokens === "number" && Number.isFinite(usedTokens) && usedTokens >= 0;
+  return RuntimePredicate.isNumber(usedTokens) && Number.isFinite(usedTokens) && usedTokens >= 0;
 }
 
 /**

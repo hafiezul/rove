@@ -11,6 +11,7 @@ import * as Layer from "effect/Layer";
 import * as RelayDb from "../db.ts";
 import { relayLiveActivities } from "../persistence/schema.ts";
 import * as LiveActivities from "./LiveActivities.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const aggregate: RelayAgentActivityAggregateState = {
   title: "T3 Code",
@@ -43,11 +44,11 @@ describe("LiveActivities", () => {
           "activity-push-token" as RelayLiveActivityRegistrationRequest["activityPushToken"],
       };
       const calls: Array<string> = [];
-      const updateSets: Array<Record<string, unknown>> = [];
+      const updateSets: Array<Record<string, SchemaJson>> = [];
       const updateConditions: Array<SQL> = [];
-      const insertedValues: Array<Record<string, unknown>> = [];
+      const insertedValues: Array<Record<string, SchemaJson>> = [];
       const conflictConfigs: Array<{
-        readonly set?: Record<string, unknown>;
+        readonly set?: Record<string, SchemaJson>;
       }> = [];
       const dialect = new PgDialect();
 
@@ -56,7 +57,7 @@ describe("LiveActivities", () => {
           expect(table).toBe(relayLiveActivities);
           calls.push("update");
           return {
-            set: (values: Record<string, unknown>) => {
+            set: (values: Record<string, SchemaJson>) => {
               updateSets.push(values);
               calls.push("update.set");
               return {
@@ -74,11 +75,11 @@ describe("LiveActivities", () => {
           expect(table).toBe(relayLiveActivities);
           calls.push("insert");
           return {
-            values: (values: Record<string, unknown>) => {
+            values: (values: Record<string, SchemaJson>) => {
               insertedValues.push(values);
               calls.push("insert.values");
               return {
-                onConflictDoUpdate: (config: { readonly set?: Record<string, unknown> }) => {
+                onConflictDoUpdate: (config: { readonly set?: Record<string, SchemaJson> }) => {
                   expect(config).toBeDefined();
                   conflictConfigs.push(config);
                   calls.push("insert.onConflictDoUpdate");
@@ -88,7 +89,7 @@ describe("LiveActivities", () => {
             },
           };
         },
-      } as unknown as RelayDb.RelayDb["Service"];
+      } as RelayDb.RelayDb["Service"];
 
       return Effect.gen(function* () {
         const liveActivities = yield* LiveActivities.LiveActivities;
@@ -146,19 +147,19 @@ describe("LiveActivities", () => {
   );
 
   it.effect("preserves ended state when a delayed update delivery is marked", () => {
-    const insertedValues: Array<Record<string, unknown>> = [];
+    const insertedValues: Array<Record<string, SchemaJson>> = [];
     const conflictConfigs: Array<{
-      readonly set?: Record<string, unknown>;
+      readonly set?: Record<string, SchemaJson>;
     }> = [];
 
     const fakeDb = {
       insert: (table: unknown) => {
         expect(table).toBe(relayLiveActivities);
         return {
-          values: (values: Record<string, unknown>) => {
+          values: (values: Record<string, SchemaJson>) => {
             insertedValues.push(values);
             return {
-              onConflictDoUpdate: (config: { readonly set?: Record<string, unknown> }) => {
+              onConflictDoUpdate: (config: { readonly set?: Record<string, SchemaJson> }) => {
                 conflictConfigs.push(config);
                 return Effect.void;
               },
@@ -166,7 +167,7 @@ describe("LiveActivities", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;
@@ -199,17 +200,17 @@ describe("LiveActivities", () => {
   });
 
   it.effect("retires the previous activity token when a start or end is delivered", () => {
-    const conflictConfigs: Array<{ readonly set?: Record<string, unknown> }> = [];
+    const conflictConfigs: Array<{ readonly set?: Record<string, SchemaJson> }> = [];
     const fakeDb = {
       insert: () => ({
         values: () => ({
-          onConflictDoUpdate: (config: { readonly set?: Record<string, unknown> }) => {
+          onConflictDoUpdate: (config: { readonly set?: Record<string, SchemaJson> }) => {
             conflictConfigs.push(config);
             return Effect.void;
           },
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;
@@ -268,7 +269,7 @@ describe("LiveActivities", () => {
           leftJoin: () => ({ where: () => Effect.fail(cause) }),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const liveActivities = yield* LiveActivities.LiveActivities;

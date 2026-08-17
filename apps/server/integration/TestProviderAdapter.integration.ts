@@ -24,6 +24,8 @@ import type {
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../src/provider/Services/ProviderAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export interface TestTurnResponse {
   readonly events: ReadonlyArray<FixtureProviderRuntimeEvent>;
@@ -42,8 +44,8 @@ export type FixtureProviderRuntimeEvent = {
   readonly turnId?: string | undefined;
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
-  readonly payload?: unknown | undefined;
-  readonly [key: string]: unknown;
+  readonly payload?: SchemaJson | undefined;
+  readonly [key: string]: SchemaJson;
 };
 
 // Temporary alias while fixtures migrate to the new name.
@@ -57,8 +59,8 @@ interface SessionState {
   readonly rollbackCalls: Array<number>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value);
 }
 
 function normalizeTurnState(value: unknown): "completed" | "failed" | "interrupted" | "cancelled" {
@@ -96,11 +98,11 @@ function mapItemType(toolKind: unknown): "command_execution" | "file_change" | "
 }
 
 interface MutableFixtureRuntimeEvent {
-  [field: string]: unknown;
+  [field: string]: SchemaJson;
 }
 
-function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRuntimeEvent {
-  const type = typeof rawEvent.type === "string" ? rawEvent.type : "";
+function normalizeFixtureEvent(rawEvent: Record<string, SchemaJson>): ProviderRuntimeEvent {
+  const type = RuntimePredicate.isString(rawEvent.type) ? rawEvent.type : "";
   switch (type) {
     case "turn.started":
       return {
@@ -124,7 +126,7 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         type: "content.delta",
         payload: {
           streamKind: "assistant_text",
-          delta: typeof rawEvent.delta === "string" ? rawEvent.delta : "",
+          delta: RuntimePredicate.isString(rawEvent.delta) ? rawEvent.delta : "",
         },
       } as ProviderRuntimeEvent;
     case "message.completed":
@@ -133,7 +135,7 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         type: "item.completed",
         payload: {
           itemType: "assistant_message",
-          ...(typeof rawEvent.detail === "string" ? { detail: rawEvent.detail } : {}),
+          ...(RuntimePredicate.isString(rawEvent.detail) ? { detail: rawEvent.detail } : undefined),
         },
       } as ProviderRuntimeEvent;
     case "tool.started":
@@ -142,8 +144,8 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         type: "item.started",
         payload: {
           itemType: mapItemType(rawEvent.toolKind),
-          ...(typeof rawEvent.title === "string" ? { title: rawEvent.title } : {}),
-          ...(typeof rawEvent.detail === "string" ? { detail: rawEvent.detail } : {}),
+          ...(RuntimePredicate.isString(rawEvent.title) ? { title: rawEvent.title } : undefined),
+          ...(RuntimePredicate.isString(rawEvent.detail) ? { detail: rawEvent.detail } : undefined),
         },
       } as ProviderRuntimeEvent;
     case "tool.completed":
@@ -153,8 +155,8 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         payload: {
           itemType: mapItemType(rawEvent.toolKind),
           status: "completed",
-          ...(typeof rawEvent.title === "string" ? { title: rawEvent.title } : {}),
-          ...(typeof rawEvent.detail === "string" ? { detail: rawEvent.detail } : {}),
+          ...(RuntimePredicate.isString(rawEvent.title) ? { title: rawEvent.title } : undefined),
+          ...(RuntimePredicate.isString(rawEvent.detail) ? { detail: rawEvent.detail } : undefined),
         },
       } as ProviderRuntimeEvent;
     case "approval.requested":
@@ -163,7 +165,7 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         type: "request.opened",
         payload: {
           requestType: mapRequestType(rawEvent.requestKind),
-          ...(typeof rawEvent.detail === "string" ? { detail: rawEvent.detail } : {}),
+          ...(RuntimePredicate.isString(rawEvent.detail) ? { detail: rawEvent.detail } : undefined),
         },
       } as ProviderRuntimeEvent;
     case "approval.resolved":
@@ -172,10 +174,13 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
         type: "request.resolved",
         payload: {
           requestType: mapRequestType(rawEvent.requestKind),
-          ...(typeof rawEvent.decision === "string" ? { decision: rawEvent.decision } : {}),
+          ...(RuntimePredicate.isString(rawEvent.decision)
+            ? { decision: rawEvent.decision }
+            : undefined),
         },
       } as ProviderRuntimeEvent;
     default:
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return rawEvent as ProviderRuntimeEvent;
   }
 }
@@ -268,7 +273,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
           provider,
           ...(input.providerInstanceId !== undefined
             ? { providerInstanceId: input.providerInstanceId }
-            : {}),
+            : undefined),
           status: "ready",
           runtimeMode: input.runtimeMode,
           threadId,
@@ -315,27 +320,31 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
         const assistantDeltas: string[] = [];
         const deferredTurnCompletedEvents: ProviderRuntimeEvent[] = [];
         for (const fixtureEvent of response.events) {
-          const rawEvent: MutableFixtureRuntimeEvent = {
-            ...(fixtureEvent as Record<string, unknown>),
-            eventId: nextEventId(input.threadId),
-            provider,
-            sessionId: RuntimeSessionId.make(String(input.threadId)),
-          };
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            rawEvent: MutableFixtureRuntimeEvent = {
+              ...(fixtureEvent as Record<string, SchemaJson>),
+              eventId: nextEventId(input.threadId),
+              provider,
+              sessionId: RuntimeSessionId.make(String(input.threadId)),
+            };
           rawEvent.threadId = state.snapshot.threadId;
           if (Object.hasOwn(rawEvent, "turnId")) {
             rawEvent.turnId = turnId;
           }
 
           const runtimeEvent = normalizeFixtureEvent(rawEvent);
-          const runtimeType = (runtimeEvent as { type: string }).type;
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            runtimeType = (runtimeEvent as { type: string }).type;
           if (runtimeType === "content.delta") {
-            const payload = runtimeEvent.payload as { delta?: unknown } | undefined;
-            if (typeof payload?.delta === "string") {
+            const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+              payload = runtimeEvent.payload as { delta?: unknown } | undefined;
+            if (RuntimePredicate.isString(payload?.delta)) {
               assistantDeltas.push(payload.delta);
             }
           } else if (runtimeType === "message.delta") {
-            const legacyDelta = (runtimeEvent as { delta?: unknown }).delta;
-            if (typeof legacyDelta === "string") {
+            const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+              legacyDelta = (runtimeEvent as { delta?: unknown }).delta;
+            if (RuntimePredicate.isString(legacyDelta)) {
               assistantDeltas.push(legacyDelta);
             }
           }

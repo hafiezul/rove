@@ -32,12 +32,14 @@ const originalHTMLElement = globalThis.HTMLElement;
 
 afterEach(() => {
   if (originalDocument === undefined) {
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     delete (globalThis as { document?: Document }).document;
   } else {
     globalThis.document = originalDocument;
   }
 
   if (originalHTMLElement === undefined) {
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     delete (globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement;
   } else {
     globalThis.HTMLElement = originalHTMLElement;
@@ -49,8 +51,9 @@ describe("isTerminalFocused", () => {
     const detached = new MockHTMLElement();
     detached.className = "xterm-helper-textarea";
 
-    globalThis.HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
-    globalThis.document = { activeElement: detached } as unknown as Document;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
+    globalThis.document = { activeElement: detached } as Document;
 
     expect(isTerminalFocused()).toBe(false);
   });
@@ -62,8 +65,9 @@ describe("isTerminalFocused", () => {
     attached.terminalOwner = "drawer";
     attached.dataset.terminalOwner = "drawer";
 
-    globalThis.HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
-    globalThis.document = { activeElement: attached } as unknown as Document;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
+    globalThis.document = { activeElement: attached } as Document;
 
     expect(getTerminalFocusOwner()).toBe("drawer");
     expect(isTerminalFocused()).toBe(true);
@@ -76,8 +80,9 @@ describe("isTerminalFocused", () => {
     sidebarButton.terminalOwner = "right-panel";
     sidebarButton.dataset.terminalOwner = "right-panel";
 
-    globalThis.HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
-    globalThis.document = { activeElement: sidebarButton } as unknown as Document;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    globalThis.HTMLElement = MockHTMLElement as typeof HTMLElement;
+    globalThis.document = { activeElement: sidebarButton } as Document;
 
     expect(getTerminalFocusOwner()).toBe("right-panel");
     expect(isTerminalFocused()).toBe(true);

@@ -3,6 +3,8 @@ import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { ProviderDriverKind } from "./providerInstance.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const ProviderOptionDescriptorType = Schema.Literals(["select", "boolean"]);
 export type ProviderOptionDescriptorType = typeof ProviderOptionDescriptorType.Type;
@@ -94,16 +96,16 @@ export const ProviderOptionSelections = Schema.Union([
 export type ProviderOptionSelections = typeof ProviderOptionSelections.Type;
 
 function coerceLegacyOptionsObjectToArray(
-  record: Record<string, unknown>,
+  record: Record<string, SchemaJson>,
 ): ReadonlyArray<ProviderOptionSelection> {
   const entries: Array<ProviderOptionSelection> = [];
   for (const [rawKey, rawValue] of Object.entries(record)) {
-    const id = typeof rawKey === "string" ? rawKey.trim() : "";
+    const id = RuntimePredicate.isString(rawKey) ? rawKey.trim() : "";
     if (id.length === 0) continue;
-    if (typeof rawValue === "string") {
+    if (RuntimePredicate.isString(rawValue)) {
       const trimmed = rawValue.trim();
       if (trimmed.length > 0) entries.push({ id, value: trimmed });
-    } else if (typeof rawValue === "boolean") {
+    } else if (RuntimePredicate.isBoolean(rawValue)) {
       entries.push({ id, value: rawValue });
     }
     // Drop anything else (numbers, null, nested objects/arrays) to match the
@@ -129,7 +131,6 @@ const CODEX_DRIVER_KIND = ProviderDriverKind.make("codex");
 const CLAUDE_DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
 const CURSOR_DRIVER_KIND = ProviderDriverKind.make("cursor");
 const GROK_DRIVER_KIND = ProviderDriverKind.make("grok");
-const PI_DRIVER_KIND = ProviderDriverKind.make("pi");
 const OPENCODE_DRIVER_KIND = ProviderDriverKind.make("opencode");
 
 export const DEFAULT_MODEL = "gpt-5.6-sol";

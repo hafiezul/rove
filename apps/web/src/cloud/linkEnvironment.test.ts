@@ -87,7 +87,7 @@ function registryLayer(options?: {
           Effect.succeed(options?.status ?? { status: "available", version: "2026.6.0" }),
         [WS_METHODS.cloudInstallRelayClient]: () =>
           Stream.fromIterable(options?.installEvents ?? []),
-      } as unknown as RpcSession["client"];
+      } as RpcSession["client"];
       const session: RpcSession = {
         client,
         initialConfig: Effect.never,
@@ -115,7 +115,7 @@ function registryLayer(options?: {
           Effect.provideService(effect, EnvironmentSupervisor, supervisor),
         runStream: <A, E, R>(_environmentId: EnvironmentId, stream: Stream.Stream<A, E, R>) =>
           Stream.provideService(stream, EnvironmentSupervisor, supervisor),
-      } as unknown as EnvironmentRegistry["Service"];
+      } as EnvironmentRegistry["Service"];
       return EnvironmentRegistry.of(registry);
     }),
   );
@@ -245,7 +245,7 @@ describe("web cloud link environment client", () => {
         location: { origin: "t3code://app" },
         desktopBridge: {
           getLocalEnvironmentBearerToken: vi.fn().mockResolvedValue("desktop-bearer-token"),
-        } as unknown as DesktopBridge,
+        } as DesktopBridge,
       });
 
       yield* withServices(readPrimaryCloudLinkState({ target: TARGET }));

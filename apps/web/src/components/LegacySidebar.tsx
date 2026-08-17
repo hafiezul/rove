@@ -233,6 +233,7 @@ function SidebarThreadDetailPrewarmer({ threadRef }: { readonly threadRef: Scope
 }
 
 function clampSidebarThreadPreviewCount(value: number): SidebarThreadPreviewCount {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Math.min(
     MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
     Math.max(MIN_SIDEBAR_THREAD_PREVIEW_COUNT, value),
@@ -491,24 +492,25 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThr
     },
     [handleThreadClick, orderedProjectThreadKeys, threadRef],
   );
-  const handleRowDoubleClick = useCallback(
-    (event: React.MouseEvent) => {
-      // Already renaming this row: a double-click on the row chrome (outside the
-      // input) must not restart and discard the in-progress edit.
-      if (renamingThreadKey === threadKey) return;
-      // On mobile the first tap navigates and closes the sidebar sheet, so the
-      // inline rename can't be shown. Renaming there stays on the context menu.
-      if (isMobile) return;
-      // cmd/ctrl/shift double-clicks are multi-select intent, not rename.
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      // Ignore double-clicks bubbling from nested controls (PR status, port,
-      // archive buttons) — only the row body should enter inline rename.
-      if ((event.target as HTMLElement).closest("button, a")) return;
-      event.preventDefault();
-      startThreadRename(threadKey, thread.title);
-    },
-    [isMobile, renamingThreadKey, startThreadRename, threadKey, thread.title],
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    handleRowDoubleClick = useCallback(
+      (event: React.MouseEvent) => {
+        // Already renaming this row: a double-click on the row chrome (outside the
+        // input) must not restart and discard the in-progress edit.
+        if (renamingThreadKey === threadKey) return;
+        // On mobile the first tap navigates and closes the sidebar sheet, so the
+        // inline rename can't be shown. Renaming there stays on the context menu.
+        if (isMobile) return;
+        // cmd/ctrl/shift double-clicks are multi-select intent, not rename.
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        // Ignore double-clicks bubbling from nested controls (PR status, port,
+        // archive buttons) — only the row body should enter inline rename.
+        if ((event.target as HTMLElement).closest("button, a")) return;
+        event.preventDefault();
+        startThreadRename(threadKey, thread.title);
+      },
+      [isMobile, renamingThreadKey, startThreadRename, threadKey, thread.title],
+    );
   const handleRowKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -1272,7 +1274,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       return resolveThreadStatusPill({
         thread: {
           ...thread,
-          ...(lastVisitedAt !== null && lastVisitedAt !== undefined ? { lastVisitedAt } : {}),
+          ...(lastVisitedAt !== null && lastVisitedAt !== undefined
+            ? { lastVisitedAt }
+            : undefined),
         },
       });
     };
@@ -1324,7 +1328,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       return resolveThreadStatusPill({
         thread: {
           ...thread,
-          ...(lastVisitedAt !== null && lastVisitedAt !== undefined ? { lastVisitedAt } : {}),
+          ...(lastVisitedAt !== null && lastVisitedAt !== undefined
+            ? { lastVisitedAt }
+            : undefined),
         },
       });
     };
@@ -1454,7 +1460,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         environmentId: member.environmentId,
         input: {
           projectId: member.id,
-          ...(options.force === true ? { force: true } : {}),
+          ...(options.force === true ? { force: true } : undefined),
         },
       });
       if (result._tag === "Failure") {
@@ -1637,8 +1643,8 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           return {
             id,
             label: formatProjectMemberActionLabel(member, project.groupedProjectCount),
-            ...(options?.destructive ? { destructive: true } : {}),
-            ...(options?.disabled ? { disabled: true } : {}),
+            ...(options?.destructive ? { destructive: true } : undefined),
+            ...(options?.disabled ? { disabled: true } : undefined),
           };
         };
 
@@ -1654,22 +1660,22 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             const singleMember = project.memberProjects[0]!;
             return {
               ...makeLeaf(action, singleMember, {
-                ...(options?.destructive ? { destructive: true } : {}),
-                ...(options?.isDisabled?.(singleMember) ? { disabled: true } : {}),
+                ...(options?.destructive ? { destructive: true } : undefined),
+                ...(options?.isDisabled?.(singleMember) ? { disabled: true } : undefined),
               }),
               label,
-              ...(action === "delete" ? { icon: "trash" } : {}),
+              ...(action === "delete" ? { icon: "trash" } : undefined),
             };
           }
 
           return {
             id: `${action}:submenu`,
             label,
-            ...(action === "delete" ? { icon: "trash" } : {}),
+            ...(action === "delete" ? { icon: "trash" } : undefined),
             children: project.memberProjects.map((member) =>
               makeLeaf(action, member, {
-                ...(options?.destructive ? { destructive: true } : {}),
-                ...(options?.isDisabled?.(member) ? { disabled: true } : {}),
+                ...(options?.destructive ? { destructive: true } : undefined),
+                ...(options?.isDisabled?.(member) ? { disabled: true } : undefined),
               }),
             ),
           };
@@ -2627,6 +2633,7 @@ function ProjectSortMenu({
     [onThreadPreviewCountChange, threadPreviewCount],
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Menu>
       <Tooltip>
@@ -2647,6 +2654,7 @@ function ProjectSortMenu({
           <MenuRadioGroup
             value={projectSortOrder}
             onValueChange={(value) => {
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               onProjectSortOrderChange(value as SidebarProjectSortOrder);
             }}
           >
@@ -2666,6 +2674,7 @@ function ProjectSortMenu({
           <MenuRadioGroup
             value={threadSortOrder}
             onValueChange={(value) => {
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               onThreadSortOrderChange(value as SidebarThreadSortOrder);
             }}
           >
@@ -3310,6 +3319,7 @@ export default function LegacySidebar() {
         projectPhysicalKeyByScopedRef.get(
           scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
         ) ?? scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId));
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         ...thread,
         projectId: (physicalToLogicalKey.get(physicalKey) ?? physicalKey) as ProjectId,

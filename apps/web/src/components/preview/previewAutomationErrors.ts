@@ -9,6 +9,7 @@ import {
   TrimmedNonEmptyString,
 } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface PreviewAutomationOperationContext {
   readonly requestId: PreviewAutomationRequest["requestId"];
@@ -141,8 +142,7 @@ const targetNotEditableDiagnostics = (
   readonly selectorLength?: number;
 } | null => {
   if (
-    typeof cause !== "object" ||
-    cause === null ||
+    !RuntimePredicate.isObjectOrArray(cause) ||
     !("_tag" in cause) ||
     cause._tag !== "PreviewAutomationTargetNotEditableError"
   ) {
@@ -157,14 +157,14 @@ const targetNotEditableDiagnostics = (
       : undefined;
   const selectorLength =
     "selectorLength" in cause &&
-    typeof cause.selectorLength === "number" &&
+    RuntimePredicate.isNumber(cause.selectorLength) &&
     Number.isInteger(cause.selectorLength) &&
     cause.selectorLength >= 0
       ? cause.selectorLength
       : undefined;
   return {
-    ...(selectorKind === undefined ? {} : { selectorKind }),
-    ...(selectorLength === undefined ? {} : { selectorLength }),
+    ...(selectorKind === undefined ? undefined : { selectorKind }),
+    ...(selectorLength === undefined ? undefined : { selectorLength }),
   };
 };
 
@@ -230,6 +230,6 @@ export function serializePreviewAutomationHostError(
   return {
     _tag: error.responseTag,
     message: error.message,
-    ...(Object.keys(detail).length === 0 ? {} : { detail }),
+    ...(Object.keys(detail).length === 0 ? undefined : { detail }),
   };
 }

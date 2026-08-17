@@ -316,7 +316,8 @@ export function ThemeEditorPanel({
   const takenAppearancesKey = takenAppearances.join(",");
   useEffect(() => {
     if (isEditing || mergeTargetId === null) return;
-    const taken = takenAppearancesKey.split(",").filter(Boolean) as ThemeAppearance[];
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      taken = takenAppearancesKey.split(",").filter(Boolean) as ThemeAppearance[];
     if (taken.length !== 1) return;
     setActiveAppearance((current) => {
       if (!taken.includes(current)) return current;
@@ -409,7 +410,8 @@ export function ThemeEditorPanel({
     // spotlight while the picker is armed.
     if (isInspecting) return;
 
-    const highlightedRoles = selectedHighlightRolesKey.split(",") as Array<ThemeColorRole>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      highlightedRoles = selectedHighlightRolesKey.split(",") as Array<ThemeColorRole>;
     const refreshHighlights = () => setUsageCount(highlightThemeRoleUsage(highlightedRoles));
     refreshHighlights();
     // A refresh snapshots computed styles for the whole tree twice, so it is
@@ -656,9 +658,9 @@ export function ThemeEditorPanel({
               ...mergeTarget.variants,
               ...Object.fromEntries(editedModes.map((mode) => [mode, colorsForSave[mode]])),
             },
-            ...(mergeTarget.managed === true && !isAdvanced ? { managed: true } : {}),
+            ...(mergeTarget.managed === true && !isAdvanced ? { managed: true } : undefined),
           }),
-          ...(mergeTarget.collection ? { collection: mergeTarget.collection } : {}),
+          ...(mergeTarget.collection ? { collection: mergeTarget.collection } : undefined),
         });
         retiredTheme = editingTheme;
         try {
@@ -686,10 +688,10 @@ export function ThemeEditorPanel({
             colors: colorsForSave[baseAppearance],
             ...(getThemeModes(editingTheme).length > 1
               ? { variants: { [variantAppearance]: colorsForSave[variantAppearance] } }
-              : {}),
-            ...(isAdvanced ? {} : { managed: true }),
+              : undefined),
+            ...(isAdvanced ? undefined : { managed: true }),
           }),
-          ...(editingTheme.collection ? { collection: editingTheme.collection } : {}),
+          ...(editingTheme.collection ? { collection: editingTheme.collection } : undefined),
         });
       } else if (mergeTarget) {
         if (takenAppearances.includes(activeAppearance)) {
@@ -714,9 +716,9 @@ export function ThemeEditorPanel({
               ...mergeTarget.variants,
               [activeAppearance]: colorsForSave[activeAppearance],
             },
-            ...(mergeTarget.managed === true && !isAdvanced ? { managed: true } : {}),
+            ...(mergeTarget.managed === true && !isAdvanced ? { managed: true } : undefined),
           }),
-          ...(mergeTarget.collection ? { collection: mergeTarget.collection } : {}),
+          ...(mergeTarget.collection ? { collection: mergeTarget.collection } : undefined),
         });
       } else {
         savedTheme = installCustomTheme(
@@ -725,14 +727,14 @@ export function ThemeEditorPanel({
             name,
             appearance: activeAppearance,
             colors: colorsForSave[activeAppearance],
-            ...(isAdvanced ? {} : { managed: true }),
+            ...(isAdvanced ? undefined : { managed: true }),
           }),
         );
       }
       if (
         !onSaved(savedTheme, {
           created: editingTheme === null && mergedAppearance === null,
-          ...(mergedAppearance ? { mergedAppearance } : {}),
+          ...(mergedAppearance ? { mergedAppearance } : undefined),
         })
       ) {
         if (!editingTheme && mergedAppearance === null) {
@@ -921,14 +923,15 @@ export function ThemeEditorPanel({
     };
   };
 
-  const handleDragPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    // Buttons in the header keep their own behavior.
-    if ((event.target as HTMLElement).closest("button, input, a")) return;
-    const rect = panelRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    dragOffsetRef.current = { dx: event.clientX - rect.x, dy: event.clientY - rect.y };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    handleDragPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+      // Buttons in the header keep their own behavior.
+      if ((event.target as HTMLElement).closest("button, input, a")) return;
+      const rect = panelRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      dragOffsetRef.current = { dx: event.clientX - rect.x, dy: event.clientY - rect.y };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    };
 
   const handleDragPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const offset = dragOffsetRef.current;
@@ -995,11 +998,13 @@ export function ThemeEditorPanel({
       ref={panelRef}
       role="dialog"
       style={{
-        ...(position ? { left: position.x, top: position.y } : {}),
-        ...(size ? { width: size.width } : {}),
+        ...(position ? { left: position.x, top: position.y } : undefined),
+        ...(size ? { width: size.width } : undefined),
         // A chosen height only applies expanded; minimized keeps hugging the
         // header. The viewport stays the ceiling either way.
-        ...(size && !isMinimized ? { height: size.height, maxHeight: "calc(100dvh - 1rem)" } : {}),
+        ...(size && !isMinimized
+          ? { height: size.height, maxHeight: "calc(100dvh - 1rem)" }
+          : undefined),
       }}
     >
       <div

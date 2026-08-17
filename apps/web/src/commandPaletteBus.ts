@@ -16,6 +16,7 @@ export function onOpenCommandPalette(
   listener: (detail: CommandPaletteOpenDetail) => void,
 ): () => void {
   const handler = (event: Event) => {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     listener((event as CustomEvent<CommandPaletteOpenDetail>).detail ?? {});
   };
   window.addEventListener(COMMAND_PALETTE_OPEN_EVENT, handler);

@@ -18,6 +18,8 @@ import {
   resolveProviderStatusCachePath,
   writeProviderStatusCache,
 } from "./providerStatusCache.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const emptyCapabilities = createModelCapabilities({ optionDescriptors: [] });
 const CODEX_DRIVER = ProviderDriverKind.make("codex");
@@ -64,12 +66,12 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
 
       assert.strictEqual(result, undefined);
       const failure = messages.find(
-        (message): message is Record<string, unknown> =>
-          typeof message === "object" && message !== null && "path" in message,
+        (message): message is Record<string, SchemaJson> =>
+          RuntimePredicate.isObjectOrArray(message) && "path" in message,
       );
       assert.exists(failure);
       assert.strictEqual(failure.path, cachePath);
-      assert.strictEqual(typeof failure.errorTag, "string");
+      assert.strictEqual(RuntimePredicate.isString(failure.errorTag), true);
       assert.ok(!("cause" in failure));
       assert.ok(!("issues" in failure));
       assert.ok(!Object.values(failure).map(String).join("\n").includes(secretCacheValue));
@@ -234,7 +236,7 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
       ],
       slashCommands: [],
       skills: [],
-    } as unknown as ServerProvider;
+    } as ServerProvider;
     const mismatchedCachedCodex = makeProvider(CODEX_DRIVER, {
       instanceId: ProviderInstanceId.make("codex_personal"),
     });

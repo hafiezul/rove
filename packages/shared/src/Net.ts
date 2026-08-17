@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Context from "effect/Context";
 import * as Predicate from "effect/Predicate";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class NetError extends Data.TaggedError("NetError")<{
   readonly message: string;
@@ -165,7 +166,7 @@ export const make = () => {
 
       probe.listen(0, host, () => {
         const address = probe.address();
-        const port = typeof address === "object" && address !== null ? address.port : 0;
+        const port = RuntimePredicate.isObjectOrArray(address) ? address.port : 0;
         probe.close(() => {
           if (port > 0) {
             settle(Effect.succeed(port));

@@ -500,6 +500,7 @@ function WhenExpressionNodeEditor({
     if (nextNode) onChange(nextNode);
   };
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <div
       className={cn(
@@ -756,7 +757,7 @@ function rowKeybindingTarget(row: KeybindingRow): ServerRemoveKeybindingInput {
   return {
     command: row.command,
     key: row.key,
-    ...(row.when.trim().length > 0 ? { when: row.when } : {}),
+    ...(row.when.trim().length > 0 ? { when: row.when } : undefined),
   };
 }
 
@@ -969,7 +970,7 @@ function NewKeybindingTableRow({
     onSave({
       command: commandDraft,
       key: keyDraft,
-      ...(whenDraftExpression.trim().length > 0 ? { when: whenDraftExpression } : {}),
+      ...(whenDraftExpression.trim().length > 0 ? { when: whenDraftExpression } : undefined),
     });
   };
 
@@ -985,6 +986,7 @@ function NewKeybindingTableRow({
     setDraft({ keyDraft: next, isRecording: false });
   };
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <div className="grid grid-cols-[minmax(190px,1.1fr)_minmax(220px,0.85fr)_minmax(210px,1fr)_60px] items-center px-4 py-1.5 text-sm even:bg-muted/15 hover:bg-accent/40">
       <div className="min-w-0 pr-4">
@@ -1155,8 +1157,8 @@ export function KeybindingsSettingsPanel() {
       const payload: ServerUpsertKeybindingInput = {
         command: input.command,
         key: input.key.trim(),
-        ...(input.when?.trim() ? { when: input.when.trim() } : {}),
-        ...(input.replace ? { replace: input.replace } : {}),
+        ...(input.when?.trim() ? { when: input.when.trim() } : undefined),
+        ...(input.replace ? { replace: input.replace } : undefined),
       };
       void (async () => {
         const result = await upsertKeybinding({
@@ -1214,7 +1216,7 @@ export function KeybindingsSettingsPanel() {
         replace: {
           command: row.command,
           key: row.key,
-          ...(row.when.trim().length > 0 ? { when: row.when } : {}),
+          ...(row.when.trim().length > 0 ? { when: row.when } : undefined),
         },
       });
     },

@@ -2,6 +2,7 @@ import { Linking } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { tryOpenExternalUrl } from "./openExternalUrl";
+import type { Json as SchemaJson } from "effect/Schema";
 
 vi.mock("react-native", () => ({
   Linking: { openURL: vi.fn() },
@@ -49,9 +50,10 @@ describe("tryOpenExternalUrl", () => {
     );
     expect(attributes).not.toHaveProperty("url");
     expect(attributes).not.toHaveProperty("cause");
-    const diagnosticText = [message, ...Object.values(attributes as Record<string, unknown>)]
-      .map(String)
-      .join("\n");
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      diagnosticText = [message, ...Object.values(attributes as Record<string, SchemaJson>)]
+        .map(String)
+        .join("\n");
     expect(diagnosticText).not.toContain("token=secret");
     expect(diagnosticText).not.toContain("browser-unavailable-secret-sentinel");
   });

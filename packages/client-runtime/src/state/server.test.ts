@@ -51,7 +51,7 @@ const CONFIG = {
   observability: null,
   providers: [],
   settings: {},
-} as unknown as ServerConfig;
+} as ServerConfig;
 
 const snapshotEvent = (config: ServerConfig): ServerConfigStreamEvent => ({
   version: 1,
@@ -250,7 +250,7 @@ describe("server state projection", () => {
               fromVersion: "0.0.30",
               targetVersion: "0.0.31",
               status,
-              ...(status === "rolled-back" ? { reason: "prepared-timeout" } : {}),
+              ...(status === "rolled-back" ? { reason: "prepared-timeout" } : undefined),
             },
           },
         }) as Parameters<typeof matchesServerUpdateReadyEvent>[1];
@@ -307,7 +307,7 @@ describe("server state projection", () => {
         ...CONFIG,
         environment: { serverVersion },
         settings: { source },
-      }) as unknown as ServerConfig;
+      }) as ServerConfig;
     const cached = config("cache", "0.0.29");
     const staleLive = config("stale-live", "0.0.29");
     const initial = config("session", "0.0.30");
@@ -350,7 +350,7 @@ describe("server state projection", () => {
       const events = yield* Queue.unbounded<ServerConfigStreamEvent>();
       const client = {
         [WS_METHODS.subscribeServerConfig]: () => Stream.fromQueue(events),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
         target: TARGET,
         state: yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE),
@@ -411,7 +411,7 @@ describe("server state projection", () => {
     Effect.gen(function* () {
       const client = {
         [WS_METHODS.subscribeServerConfig]: () => Stream.empty,
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
         target: TARGET,
         state: yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE),

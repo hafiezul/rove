@@ -398,7 +398,7 @@ function buildFileLinkMetaFromTarget(targetPath: string, cwd?: string): Markdown
     displayPath: formatWorkspaceRelativePath(targetPath, cwd),
     workspaceRelativePath: workspaceRelativePath(path, cwd),
     basename: basenameOfPath(path),
-    ...(lineNumber !== undefined ? { line: lineNumber } : {}),
-    ...(columnNumber !== undefined ? { column: columnNumber } : {}),
+    ...(lineNumber !== undefined ? { line: lineNumber } : undefined),
+    ...(columnNumber !== undefined ? { column: columnNumber } : undefined),
   };
 }

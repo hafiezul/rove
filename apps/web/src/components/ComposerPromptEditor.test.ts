@@ -20,7 +20,7 @@ class TestClipboardEvent extends Event {
     this.clipboardData = {
       files: [],
       getData: (type: string) => (type === "text/plain" ? text : ""),
-    } as unknown as DataTransfer;
+    } as DataTransfer;
   }
 }
 
@@ -58,6 +58,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },
@@ -103,6 +104,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },
@@ -137,6 +139,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },

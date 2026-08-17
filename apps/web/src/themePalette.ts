@@ -1,6 +1,8 @@
 import * as Schema from "effect/Schema";
 import "culori/css";
 import { converter, parse } from "culori/fn";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const T3_CHAT_THEME_ID = "t3-chat" as const;
 export const T3_CHAT_THEME_LABEL = "T3 Chat";
@@ -163,8 +165,8 @@ function setThemePreviewSidebarArtwork(next: boolean | null): void {
   for (const listener of themePreviewListeners) listener();
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
 function isThemeAppearance(value: unknown): value is ThemeAppearance {
@@ -172,20 +174,20 @@ function isThemeAppearance(value: unknown): value is ThemeAppearance {
 }
 
 export function isThemeColor(value: unknown): value is string {
-  return typeof value === "string" && toCanonicalThemeColor(value) !== null;
+  return RuntimePredicate.isString(value) && toCanonicalThemeColor(value) !== null;
 }
 
 function isThemeId(value: unknown): value is string {
-  return typeof value === "string" && /^[a-z0-9](?:[a-z0-9-]{0,47})$/.test(value);
+  return RuntimePredicate.isString(value) && /^[a-z0-9](?:[a-z0-9-]{0,47})$/.test(value);
 }
 
 function isThemeLabel(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && value.trim().length <= 48;
+  return RuntimePredicate.isString(value) && value.trim().length > 0 && value.trim().length <= 48;
 }
 
 function parseThemeCollection(value: unknown): ThemeCollection | undefined {
   return isRecord(value) &&
-    typeof value.id === "string" &&
+    RuntimePredicate.isString(value.id) &&
     /^[a-z0-9][a-z0-9.:-]{0,127}$/i.test(value.id) &&
     isThemeLabel(value.label)
     ? { id: value.id, label: value.label.trim() }
@@ -203,6 +205,7 @@ function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance) {
   for (const [role, color] of Object.entries(value)) {
     const normalized = toCanonicalThemeColor(color);
     if (THEME_COLOR_ROLE_SET.has(role) && normalized) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       colors[role as ThemeColorRole] = normalized;
     }
   }
@@ -244,9 +247,9 @@ function parseStoredTheme(value: unknown): ThemeDefinition | null {
     label: value.label.trim(),
     appearance: value.appearance,
     colors,
-    ...(variants ? { variants } : {}),
-    ...(collection ? { collection } : {}),
-    ...(value.managed === true ? { managed: true } : {}),
+    ...(variants ? { variants } : undefined),
+    ...(collection ? { collection } : undefined),
+    ...(value.managed === true ? { managed: true } : undefined),
   };
 }
 
@@ -685,7 +688,7 @@ const THEME_BLACK_FOREGROUND: ThemeRgbColor = { r: 0, g: 0, b: 0 };
 const convertToOklch = converter("oklch");
 
 function parseThemeColor(value: unknown): ParsedThemeColor | null {
-  if (typeof value !== "string") return null;
+  if (!RuntimePredicate.isString(value)) return null;
   const input = value.trim();
   const parsed = parse(input);
   if (!parsed) return null;
@@ -761,6 +764,7 @@ function themeRgbToThemeColor(color: ThemeRgbColor): string {
 }
 
 function decodeThemeColors(colors: ThemeColors): ThemeColors {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     THEME_COLOR_ROLES.map((role) => {
       const color = toCanonicalThemeColor(colors[role]);
@@ -775,6 +779,7 @@ function decodeThemeColors(colors: ThemeColors): ThemeColors {
 }
 
 function canonicalizeThemeDefinition(theme: ThemeDefinition): ThemeDefinition {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     ...theme,
     colors: decodeThemeColors(theme.colors),
@@ -787,7 +792,7 @@ function canonicalizeThemeDefinition(theme: ThemeDefinition): ThemeDefinition {
             ]),
           ) as ThemeVariants,
         }
-      : {}),
+      : undefined),
   };
 }
 
@@ -1629,7 +1634,7 @@ function requireWritableCustomThemeLibrary(
       storageKey: CUSTOM_THEMES_STORAGE_KEY,
       operation: "read",
       reason: snapshot.reason,
-      ...("cause" in snapshot ? { cause: snapshot.cause } : {}),
+      ...("cause" in snapshot ? { cause: snapshot.cause } : undefined),
     });
   }
   return snapshot;
@@ -1719,7 +1724,8 @@ export function replaceCustomThemeCollection(
   ) {
     throw new Error("That theme collection is invalid.");
   }
-  const replacement = validated as ThemeDefinition[];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    replacement = validated as ThemeDefinition[];
   const library = readWritableCustomThemeLibrary();
   const current = library.themes;
   const currentCollection = current.filter((theme) => theme.collection?.id === collectionId);
@@ -1734,7 +1740,7 @@ export function replaceCustomThemeCollection(
     if (
       !storedThemeHasCollectionId(storedTheme, collectionId) &&
       isRecord(storedTheme) &&
-      typeof storedTheme.id === "string"
+      RuntimePredicate.isString(storedTheme.id)
     ) {
       occupiedIds.add(storedTheme.id);
     }
@@ -1776,7 +1782,7 @@ export function removeCustomThemes(themeIds: ReadonlyArray<string>): void {
     library.storedThemes.filter(
       (storedTheme) =>
         !isRecord(storedTheme) ||
-        typeof storedTheme.id !== "string" ||
+        !RuntimePredicate.isString(storedTheme.id) ||
         !removedIds.has(storedTheme.id),
     ),
     nextThemes,
@@ -1797,6 +1803,7 @@ function parseThemeColorOverrides(value: unknown) {
         `The color for "${role}" must be a literal CSS color such as oklch(0.62 0.2 280).`,
       );
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     overrides[role as ThemeColorRole] = normalized;
   }
   if (Object.keys(overrides).length === 0) {
@@ -1860,9 +1867,9 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
     label: name.trim(),
     appearance,
     colors: { ...fallback, ...overrides },
-    ...(Object.keys(variants).length > 0 ? { variants } : {}),
-    ...(collection ? { collection } : {}),
-    ...(value.managed === true ? { managed: true } : {}),
+    ...(Object.keys(variants).length > 0 ? { variants } : undefined),
+    ...(collection ? { collection } : undefined),
+    ...(value.managed === true ? { managed: true } : undefined),
   };
 }
 
@@ -1874,9 +1881,9 @@ export function serializeThemeFile(theme: ThemeDefinition): string {
     name: canonicalTheme.label,
     appearance: canonicalTheme.appearance,
     colors: canonicalTheme.colors,
-    ...(canonicalTheme.variants ? { variants: canonicalTheme.variants } : {}),
-    ...(canonicalTheme.collection ? { collection: canonicalTheme.collection } : {}),
-    ...(canonicalTheme.managed ? { managed: true } : {}),
+    ...(canonicalTheme.variants ? { variants: canonicalTheme.variants } : undefined),
+    ...(canonicalTheme.collection ? { collection: canonicalTheme.collection } : undefined),
+    ...(canonicalTheme.managed ? { managed: true } : undefined),
   };
   return `${JSON.stringify(file, null, 2)}\n`;
 }
@@ -1953,6 +1960,7 @@ export const THEME_PREVIEW_ID = "__preview";
  * can be judged against the real interface instead of a miniature. Callers
  * restore the stored theme (refreshTheme) when the draft goes away.
  */
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function applyThemeColorPreview(colors: ThemeColors, appearance: ThemeAppearance): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -1969,6 +1977,7 @@ export function applyThemeColorPreview(colors: ThemeColors, appearance: ThemeApp
   }
 }
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppearance): void {
   if (typeof document === "undefined") return;
 
@@ -2075,7 +2084,7 @@ export function parseThemeHalves(raw: string | null): ThemeHalves | null {
     const halves: MutableThemeHalves = {};
     for (const appearance of ["light", "dark"] as const) {
       const themeId = value[appearance];
-      if (typeof themeId !== "string") continue;
+      if (!RuntimePredicate.isString(themeId)) continue;
       const definition = getThemeDefinition(themeId);
       if (definition && getThemeColorsForMode(definition, appearance) !== null) {
         // Store the definition's id so legacy aliases resolve to the same

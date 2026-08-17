@@ -173,9 +173,9 @@ function makeTestInstance(input: MakeInstanceInput) {
     id: DesktopBackendManager.PRIMARY_INSTANCE_ID,
     label: Effect.succeed("Windows"),
     configResolve: input.configResolve ?? Effect.succeed(input.config ?? baseConfig),
-    ...(input.onReady ? { onReady: () => input.onReady! } : {}),
-    ...(input.onShutdown ? { onShutdown: () => input.onShutdown! } : {}),
-    ...(input.onPreflightFailed ? { onPreflightFailed: input.onPreflightFailed } : {}),
+    ...(input.onReady ? { onReady: () => input.onReady! } : undefined),
+    ...(input.onShutdown ? { onShutdown: () => input.onShutdown! } : undefined),
+    ...(input.onPreflightFailed ? { onPreflightFailed: input.onPreflightFailed } : undefined),
   });
 
   return instance.pipe(Effect.provide(servicesLayer));

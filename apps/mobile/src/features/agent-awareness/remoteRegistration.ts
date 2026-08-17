@@ -35,6 +35,7 @@ import AgentActivity, { type AgentActivityProps } from "../../widgets/AgentActiv
 import { resolveCloudPublicConfig } from "../cloud/publicConfig";
 import { supportsAgentAwarenessPush } from "./capabilities";
 import { makeRelayDeviceRegistrationRequest, resolveApsEnvironment } from "./registrationPayload";
+import * as RuntimePredicate from "effect/Predicate";
 
 const REMOTE_ACTIVITY_REGISTRATION_RETRY_MS = 15_000;
 
@@ -243,7 +244,7 @@ export function releaseAgentAwarenessRelayTokenProvider(): void {
 
 function iosMajorVersion(): number {
   const version = Platform.Version;
-  if (typeof version === "number") {
+  if (RuntimePredicate.isNumber(version)) {
     return Math.floor(version);
   }
   const major = Number.parseInt(version.split(".")[0] ?? "", 10);
@@ -285,7 +286,7 @@ function nativePushTokenRegistration(observedPushToken?: string) {
       Effect.orElseSucceed(() => null),
     );
     const pushToken =
-      token?.type === "ios" && typeof token.data === "string" && token.data.trim().length > 0
+      token?.type === "ios" && RuntimePredicate.isString(token.data) && token.data.trim().length > 0
         ? token.data.trim()
         : null;
     return { notificationsEnabled: pushToken !== null, pushToken };
@@ -734,9 +735,11 @@ function registerDevice(
         label: Constants.deviceName?.trim() || "iOS device",
         iosMajorVersion: iosMajorVersion(),
         appVersion: Constants.expoConfig?.version,
-        ...(bundleId ? { bundleId } : {}),
+        ...(bundleId ? { bundleId } : undefined),
         apsEnvironment: resolveApsEnvironment(Constants.expoConfig?.extra?.appVariant),
-        ...(pushTokenRegistration.pushToken ? { pushToken: pushTokenRegistration.pushToken } : {}),
+        ...(pushTokenRegistration.pushToken
+          ? { pushToken: pushTokenRegistration.pushToken }
+          : undefined),
         notificationsEnabled: pushTokenRegistration.notificationsEnabled,
         preferences,
       }),
@@ -759,7 +762,11 @@ function ensurePushTokenListener(): void {
   }
 
   pushTokenSubscription = Notifications.addPushTokenListener((token) => {
-    if (token.type === "ios" && typeof token.data === "string" && token.data.trim().length > 0) {
+    if (
+      token.type === "ios" &&
+      RuntimePredicate.isString(token.data) &&
+      token.data.trim().length > 0
+    ) {
       enqueueDeviceRegistration(
         { observedPushToken: token.data.trim() },
         "native APNs token rotation registration failed",

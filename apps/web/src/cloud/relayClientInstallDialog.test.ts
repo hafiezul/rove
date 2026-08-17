@@ -88,6 +88,7 @@ describe("relay client install dialog coordinator", () => {
       activeInstallStage: "downloading",
     });
     expect(error).not.toHaveProperty("cause");
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as Error).message).toBe(
       "Cannot confirm relay client installation 2026.6.0; installation 2026.5.2 has dialog status installing.",
     );

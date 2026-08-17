@@ -13,6 +13,8 @@ import {
   type ProviderRuntimeBindingWithMetadata,
   type ProviderSessionDirectoryContract,
 } from "../Services/ProviderSessionDirectory.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeProviderDriverKindValue = Schema.decodeUnknownEffect(ProviderDriverKind);
 
 function toPersistenceError(operation: string) {
@@ -40,14 +42,11 @@ function decodeProviderDriverKind(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
-function mergeRuntimePayload(
-  existing: unknown | null,
-  next: unknown | null | undefined,
-): unknown | null {
+function mergeRuntimePayload(existing: unknown | null, next: unknown | null | undefined) {
   if (next === undefined) {
     return existing ?? null;
   }

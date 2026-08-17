@@ -1,4 +1,5 @@
 import { buildNativeSourceRows } from "./nativeSourceFileAdapter";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MAX_CACHED_DOCUMENTS = 8;
 const MAX_CACHED_CHARACTERS = 4 * 1024 * 1024;
@@ -14,7 +15,7 @@ let cachedCharacterCount = 0;
 
 function removeOldestCachedDocument(): void {
   const oldestKey = documentCache.keys().next().value;
-  if (typeof oldestKey !== "string") {
+  if (!RuntimePredicate.isString(oldestKey)) {
     return;
   }
   const document = documentCache.get(oldestKey);

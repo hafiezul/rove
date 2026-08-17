@@ -34,10 +34,8 @@ describe("asset collection keys", () => {
 
 describe("createAssetEnvironmentAtoms", () => {
   it("keys asset URL queries by environment and resource", () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<EnvironmentRegistry, never>;
     const assets = createAssetEnvironmentAtoms(runtime);
     const environmentId = EnvironmentId.make("environment-1");
     const originalTarget = {
@@ -93,10 +91,8 @@ describe("createAssetEnvironmentAtoms", () => {
   });
 
   it("keys collections while preserving independent resource queries", () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<EnvironmentRegistry, never>;
     const assets = createAssetEnvironmentAtoms(runtime);
     const environmentId = EnvironmentId.make("environment-1");
     const resources = [

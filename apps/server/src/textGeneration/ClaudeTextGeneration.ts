@@ -44,6 +44,7 @@ import {
   resolveClaudeEffort,
 } from "../provider/Layers/ClaudeProvider.ts";
 import { makeClaudeEnvironment } from "../provider/Drivers/ClaudeHome.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CLAUDE_TIMEOUT_MS = 180_000;
 
@@ -143,9 +144,9 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
     const fastMode =
       fastModeDescriptor?.type === "boolean" ? fastModeDescriptor.currentValue : undefined;
     const settings = {
-      ...(typeof thinking === "boolean" ? { alwaysThinkingEnabled: thinking } : {}),
-      ...(fastMode ? { fastMode: true } : {}),
-      ...(ultracode ? { ultracode: true } : {}),
+      ...(RuntimePredicate.isBoolean(thinking) ? { alwaysThinkingEnabled: thinking } : undefined),
+      ...(fastMode ? { fastMode: true } : undefined),
+      ...(ultracode ? { ultracode: true } : undefined),
     };
     const settingsJson =
       Object.keys(settings).length > 0
@@ -286,9 +287,9 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
       return {
         subject: sanitizeCommitSubject(generated.subject),
         body: generated.body.trim(),
-        ...("branch" in generated && typeof generated.branch === "string"
+        ...("branch" in generated && RuntimePredicate.isString(generated.branch)
           ? { branch: sanitizeFeatureBranchName(generated.branch) }
-          : {}),
+          : undefined),
       };
     });
 

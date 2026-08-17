@@ -13,6 +13,7 @@ import type {
 } from "@t3tools/contracts";
 
 import { inferReviewCommentFenceLanguage, type ReviewCommentContext } from "~/reviewCommentContext";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Whether the pull request on a right-panel surface is the thread's own one. Repository and
@@ -692,7 +693,7 @@ const FAILURE_DETAIL_MAX_LENGTH = 320;
  */
 export function readableFailure(failure: unknown, hint: string): string {
   const raw =
-    failure instanceof Error ? failure.message : typeof failure === "string" ? failure : "";
+    failure instanceof Error ? failure.message : RuntimePredicate.isString(failure) ? failure : "";
   const detail = raw.replace(OPERATION_PREFIX, "").trim();
   if (detail.length === 0 || TOOL_NOISE.some((pattern) => pattern.test(detail))) return hint;
   const bounded =

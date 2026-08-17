@@ -11,6 +11,7 @@ import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import * as ServerConfig from "../config.ts";
 import { getTelemetryIdentifier } from "./Identify.ts";
 import * as AnalyticsService from "./AnalyticsService.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface RecordedBatchRequest {
   readonly path: string;
@@ -59,10 +60,11 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
             return HttpServerResponse.empty({ status: 404 });
           }
 
-          const payload = yield* request.json.pipe(
-            Effect.map((body) => body as RecordedBatchRequest["body"]),
-            Effect.orElseSucceed(() => null),
-          );
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            payload = yield* request.json.pipe(
+              Effect.map((body) => body as RecordedBatchRequest["body"]),
+              Effect.orElseSucceed(() => null),
+            );
 
           capturedRequests.push({ path: request.url, body: payload });
 
@@ -102,7 +104,7 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
         request.body.batch
           .filter((event) => event.event === "test.flush.drain")
           .map((event) => event.properties?.index)
-          .filter((index): index is number => typeof index === "number"),
+          .filter((index): index is number => RuntimePredicate.isNumber(index)),
       );
 
       const sorted = deliveredIndexes.toSorted((a, b) => a - b);

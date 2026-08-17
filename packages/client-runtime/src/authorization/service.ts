@@ -170,7 +170,7 @@ export const make = Effect.gen(function* () {
         httpBaseUrl: token.endpoint.httpBaseUrl,
         accessToken: token.accessToken,
         dpopProof: ticketProof,
-        ...(timeoutMs === undefined ? {} : { timeoutMs }),
+        ...(timeoutMs === undefined ? undefined : { timeoutMs }),
       }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient));
     },
   );

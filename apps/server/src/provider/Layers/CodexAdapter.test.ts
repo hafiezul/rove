@@ -69,7 +69,7 @@ class FakeCodexRuntime implements CodexSessionRuntimeContract {
       runtimeMode: this.options.runtimeMode,
       threadId: this.options.threadId,
       cwd: this.options.cwd,
-      ...(this.options.model ? { model: this.options.model } : {}),
+      ...(this.options.model ? { model: this.options.model } : undefined),
       createdAt: this.now,
       updatedAt: this.now,
     } satisfies ProviderSession),

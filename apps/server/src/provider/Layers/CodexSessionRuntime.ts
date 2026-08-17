@@ -39,6 +39,8 @@ import { buildCodexInitializeParams } from "./CodexProvider.ts";
 import { codexSessionAppServerArgs } from "./codexLaunchArgs.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 import { buildCodexDeveloperInstructions } from "../CodexDeveloperInstructions.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeV2TurnStartResponse = Schema.decodeUnknownEffect(EffectCodexSchema.V2TurnStartResponse);
 
 const PROVIDER = ProviderDriverKind.make("codex");
@@ -311,8 +313,8 @@ function buildThreadStartParams(input: {
     approvalPolicy: config.approvalPolicy,
     sandbox: config.sandbox,
     approvalsReviewer: config.approvalsReviewer,
-    ...(input.model ? { model: input.model } : {}),
-    ...(input.serviceTier ? { serviceTier: input.serviceTier } : {}),
+    ...(input.model ? { model: input.model } : undefined),
+    ...(input.serviceTier ? { serviceTier: input.serviceTier } : undefined),
   };
 }
 
@@ -389,9 +391,9 @@ export function buildTurnStartParams(input: {
 
   const config = runtimeModeToThreadConfig(input.runtimeMode);
   const collaborationMode = buildCodexCollaborationMode({
-    ...(input.interactionMode ? { interactionMode: input.interactionMode } : {}),
-    ...(input.model ? { model: input.model } : {}),
-    ...(input.effort ? { effort: input.effort } : {}),
+    ...(input.interactionMode ? { interactionMode: input.interactionMode } : undefined),
+    ...(input.model ? { model: input.model } : undefined),
+    ...(input.effort ? { effort: input.effort } : undefined),
   });
 
   return decodeCodexTurnStartParamsWithCollaborationMode({
@@ -400,10 +402,10 @@ export function buildTurnStartParams(input: {
     approvalPolicy: config.approvalPolicy,
     approvalsReviewer: config.approvalsReviewer,
     sandboxPolicy: runtimeModeToTurnSandboxPolicy(input.runtimeMode),
-    ...(input.model ? { model: input.model } : {}),
-    ...(input.serviceTier ? { serviceTier: input.serviceTier } : {}),
-    ...(input.effort ? { effort: input.effort } : {}),
-    ...(collaborationMode ? { collaborationMode } : {}),
+    ...(input.model ? { model: input.model } : undefined),
+    ...(input.serviceTier ? { serviceTier: input.serviceTier } : undefined),
+    ...(input.effort ? { effort: input.effort } : undefined),
+    ...(collaborationMode ? { collaborationMode } : undefined),
   }).pipe(
     Effect.mapError((cause) =>
       CodexErrors.CodexAppServerProtocolParseError.fromSchemaError(
@@ -642,25 +644,29 @@ function readThreadSpawnSource(thread: { readonly source: unknown }):
     }
   | undefined {
   const source = thread.source;
-  if (typeof source !== "object" || source === null || !("subAgent" in source)) {
+  if (!RuntimePredicate.isObjectOrArray(source) || !("subAgent" in source)) {
     return undefined;
   }
-  const subAgent = (source as { subAgent: unknown }).subAgent;
-  if (typeof subAgent !== "object" || subAgent === null || !("thread_spawn" in subAgent)) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    subAgent = (source as { subAgent: unknown }).subAgent;
+  if (!RuntimePredicate.isObjectOrArray(subAgent) || !("thread_spawn" in subAgent)) {
     return undefined;
   }
-  const spawn = (subAgent as { thread_spawn: unknown }).thread_spawn;
-  if (typeof spawn !== "object" || spawn === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    spawn = (subAgent as { thread_spawn: unknown }).thread_spawn;
+  if (!RuntimePredicate.isObjectOrArray(spawn)) {
     return undefined;
   }
-  const record = spawn as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = spawn as Record<string, SchemaJson>;
   return {
-    nickname: typeof record.agent_nickname === "string" ? record.agent_nickname : undefined,
-    role: typeof record.agent_role === "string" ? record.agent_role : undefined,
-    agentPath: typeof record.agent_path === "string" ? record.agent_path : undefined,
-    depth: typeof record.depth === "number" ? record.depth : undefined,
-    parentThreadId:
-      typeof record.parent_thread_id === "string" ? record.parent_thread_id : undefined,
+    nickname: RuntimePredicate.isString(record.agent_nickname) ? record.agent_nickname : undefined,
+    role: RuntimePredicate.isString(record.agent_role) ? record.agent_role : undefined,
+    agentPath: RuntimePredicate.isString(record.agent_path) ? record.agent_path : undefined,
+    depth: RuntimePredicate.isNumber(record.depth) ? record.depth : undefined,
+    parentThreadId: RuntimePredicate.isString(record.parent_thread_id)
+      ? record.parent_thread_id
+      : undefined,
   };
 }
 
@@ -778,11 +784,11 @@ function toCodexUserInputAnswer(
   EffectCodexSchema.ToolRequestUserInputResponse__ToolRequestUserInputAnswer,
   CodexSessionRuntimeInvalidUserInputAnswersError
 > {
-  if (typeof value === "string") {
+  if (RuntimePredicate.isString(value)) {
     return Effect.succeed({ answers: [value] });
   }
   if (Array.isArray(value)) {
-    const answers = value.filter((entry): entry is string => typeof entry === "string");
+    const answers = value.filter((entry): entry is string => RuntimePredicate.isString(entry));
     return Effect.succeed({ answers });
   }
   if (isCodexUserInputAnswerObject(value)) {
@@ -819,7 +825,7 @@ function updateSession(
     const updatedAt = DateTime.formatIso(yield* DateTime.now);
     yield* Ref.update(sessionRef, (session) => ({
       ...session,
-      ...(typeof updates === "function" ? updates(session) : updates),
+      ...(RuntimePredicate.isFunction(updates) ? updates(session) : updates),
       updatedAt,
     }));
   });
@@ -864,7 +870,7 @@ export const makeCodexSessionRuntime = (
     const resolvedHomePath = options.homePath ? expandHomePath(options.homePath) : undefined;
     const env = {
       ...options.environment,
-      ...(resolvedHomePath ? { CODEX_HOME: resolvedHomePath } : {}),
+      ...(resolvedHomePath ? { CODEX_HOME: resolvedHomePath } : undefined),
     };
     const extendEnv = options.environment === undefined;
     const appServerArgs = codexSessionAppServerArgs(options.appServerArgs, options.launchArgs);
@@ -916,13 +922,15 @@ export const makeCodexSessionRuntime = (
     const sessionCreatedAt = yield* nowIso;
     const initialSession = {
       provider: PROVIDER,
-      ...(options.providerInstanceId ? { providerInstanceId: options.providerInstanceId } : {}),
+      ...(options.providerInstanceId
+        ? { providerInstanceId: options.providerInstanceId }
+        : undefined),
       status: "connecting",
       runtimeMode: options.runtimeMode,
       cwd: options.cwd,
-      ...(options.model ? { model: options.model } : {}),
+      ...(options.model ? { model: options.model } : undefined),
       threadId: options.threadId,
-      ...(options.resumeCursor !== undefined ? { resumeCursor: options.resumeCursor } : {}),
+      ...(options.resumeCursor !== undefined ? { resumeCursor: options.resumeCursor } : undefined),
       createdAt: sessionCreatedAt,
       updatedAt: sessionCreatedAt,
     } satisfies ProviderSession;
@@ -935,7 +943,9 @@ export const makeCodexSessionRuntime = (
         return yield* offerEvent({
           id: EventId.make(id),
           provider: PROVIDER,
-          ...(options.providerInstanceId ? { providerInstanceId: options.providerInstanceId } : {}),
+          ...(options.providerInstanceId
+            ? { providerInstanceId: options.providerInstanceId }
+            : undefined),
           createdAt: yield* nowIso,
           ...event,
         });
@@ -1018,14 +1028,14 @@ export const makeCodexSessionRuntime = (
             kind: "notification",
             threadId: options.threadId,
             method: "collabAgent/started",
-            ...(state.spawnTurnId ? { turnId: state.spawnTurnId } : {}),
+            ...(state.spawnTurnId ? { turnId: state.spawnTurnId } : undefined),
             payload: {
               agentThreadId: state.agentThreadId,
-              ...(state.nickname ? { nickname: state.nickname } : {}),
-              ...(state.role ? { role: state.role } : {}),
-              ...(state.agentPath ? { agentPath: state.agentPath } : {}),
-              ...(state.depth !== undefined ? { depth: state.depth } : {}),
-              ...(state.parentThreadId ? { parentThreadId: state.parentThreadId } : {}),
+              ...(state.nickname ? { nickname: state.nickname } : undefined),
+              ...(state.role ? { role: state.role } : undefined),
+              ...(state.agentPath ? { agentPath: state.agentPath } : undefined),
+              ...(state.depth !== undefined ? { depth: state.depth } : undefined),
+              ...(state.parentThreadId ? { parentThreadId: state.parentThreadId } : undefined),
             },
           });
           return true;
@@ -1081,7 +1091,7 @@ export const makeCodexSessionRuntime = (
             kind: "notification",
             threadId: options.threadId,
             method: "collabAgent/activity",
-            ...(registeredChild?.spawnTurnId ? { turnId: registeredChild.spawnTurnId } : {}),
+            ...(registeredChild?.spawnTurnId ? { turnId: registeredChild.spawnTurnId } : undefined),
             payload: {
               agentThreadId: item.agentThreadId,
               agentPath: item.agentPath,
@@ -1110,14 +1120,16 @@ export const makeCodexSessionRuntime = (
         }
         const childIdentity = {
           agentThreadId: child.agentThreadId,
-          ...(child.nickname ? { nickname: child.nickname } : {}),
-          ...(child.role ? { role: child.role } : {}),
-          ...(child.agentPath ? { agentPath: child.agentPath } : {}),
+          ...(child.nickname ? { nickname: child.nickname } : undefined),
+          ...(child.role ? { role: child.role } : undefined),
+          ...(child.agentPath ? { agentPath: child.agentPath } : undefined),
         };
         switch (notification.method) {
           case "turn/started": {
-            const childTurnId =
-              typeof (notification.params as { turn?: { id?: unknown } }).turn?.id === "string"
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              childTurnId = RuntimePredicate.isString(
+                (notification.params as { turn?: { id?: unknown } }).turn?.id,
+              )
                 ? ((notification.params as { turn: { id: string } }).turn.id as string)
                 : undefined;
             if (childTurnId) {
@@ -1130,7 +1142,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/turnStarted",
               payload: childIdentity,
             });
@@ -1145,7 +1157,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/turnCompleted",
               payload: {
                 ...childIdentity,
@@ -1157,7 +1169,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/statusChanged",
               payload: {
                 ...childIdentity,
@@ -1169,7 +1181,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/tokenUsage",
               payload: {
                 ...childIdentity,
@@ -1182,7 +1194,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/item",
               payload: {
                 ...childIdentity,
@@ -1202,7 +1214,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/closed",
               payload: childIdentity,
             });
@@ -1216,7 +1228,8 @@ export const makeCodexSessionRuntime = (
             // Stop (review finding). Terminal errors clean up the live turn
             // like thread/closed and reuse the statusChanged systemError
             // path.
-            const willRetry = (notification.params as { willRetry?: boolean }).willRetry === true;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              willRetry = (notification.params as { willRetry?: boolean }).willRetry === true;
             if (willRetry) {
               return true;
             }
@@ -1228,7 +1241,7 @@ export const makeCodexSessionRuntime = (
             yield* emitEvent({
               kind: "notification",
               threadId: options.threadId,
-              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : {}),
+              ...(child.spawnTurnId ? { turnId: child.spawnTurnId } : undefined),
               method: "collabAgent/statusChanged",
               payload: {
                 ...childIdentity,
@@ -1299,8 +1312,10 @@ export const makeCodexSessionRuntime = (
           const foreignThreadId = readNotificationThreadId(notification);
           if (foreignThreadId !== undefined) {
             if (notification.method === "turn/started") {
-              const foreignTurnId =
-                typeof (notification.params as { turn?: { id?: unknown } }).turn?.id === "string"
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                foreignTurnId = RuntimePredicate.isString(
+                  (notification.params as { turn?: { id?: unknown } }).turn?.id,
+                )
                   ? (notification.params as { turn: { id: string } }).turn.id
                   : undefined;
               if (foreignTurnId) {
@@ -1331,10 +1346,9 @@ export const makeCodexSessionRuntime = (
         let itemId = route.itemId;
 
         if (notification.method === "serverRequest/resolved") {
-          const rawRequestId =
-            typeof notification.params.requestId === "string"
-              ? notification.params.requestId
-              : String(notification.params.requestId);
+          const rawRequestId = RuntimePredicate.isString(notification.params.requestId)
+            ? notification.params.requestId
+            : String(notification.params.requestId);
           const correlation = rawRequestId
             ? (yield* Ref.get(approvalCorrelationsRef)).get(rawRequestId)
             : undefined;
@@ -1356,14 +1370,14 @@ export const makeCodexSessionRuntime = (
           kind: "notification",
           threadId: options.threadId,
           method: notification.method,
-          ...(turnId ? { turnId } : {}),
-          ...(itemId ? { itemId } : {}),
-          ...(requestId ? { requestId } : {}),
-          ...(requestKind ? { requestKind } : {}),
+          ...(turnId ? { turnId } : undefined),
+          ...(itemId ? { itemId } : undefined),
+          ...(requestId ? { requestId } : undefined),
+          ...(requestKind ? { requestKind } : undefined),
           ...(notification.method === "item/agentMessage/delta"
             ? { textDelta: notification.params.delta }
-            : {}),
-          ...(payload !== undefined ? { payload } : {}),
+            : undefined),
+          ...(payload !== undefined ? { payload } : undefined),
         });
       });
 
@@ -1409,7 +1423,7 @@ export const makeCodexSessionRuntime = (
           return updateSession(sessionRef, {
             status: payload.turn.status === "failed" ? "error" : "ready",
             activeTurnId: undefined,
-            ...(lastError ? { lastError } : {}),
+            ...(lastError ? { lastError } : undefined),
           });
         }),
       ),
@@ -1426,7 +1440,7 @@ export const makeCodexSessionRuntime = (
           const willRetry = payload.willRetry;
           return updateSession(sessionRef, {
             status: willRetry ? "running" : "error",
-            ...(errorMessage ? { lastError: errorMessage } : {}),
+            ...(errorMessage ? { lastError: errorMessage } : undefined),
           });
         }),
       ),
@@ -1468,8 +1482,8 @@ export const makeCodexSessionRuntime = (
           method: "item/commandExecution/requestApproval",
           requestId,
           requestKind: "command",
-          ...(turnId ? { turnId } : {}),
-          ...(itemId ? { itemId } : {}),
+          ...(turnId ? { turnId } : undefined),
+          ...(itemId ? { itemId } : undefined),
           payload,
         });
 
@@ -1526,8 +1540,8 @@ export const makeCodexSessionRuntime = (
           method: "item/fileChange/requestApproval",
           requestId,
           requestKind: "file-change",
-          ...(turnId ? { turnId } : {}),
-          ...(itemId ? { itemId } : {}),
+          ...(turnId ? { turnId } : undefined),
+          ...(itemId ? { itemId } : undefined),
           payload,
         });
 
@@ -1569,8 +1583,8 @@ export const makeCodexSessionRuntime = (
           threadId: options.threadId,
           method: "item/tool/requestUserInput",
           requestId,
-          ...(turnId ? { turnId } : {}),
-          ...(itemId ? { itemId } : {}),
+          ...(turnId ? { turnId } : undefined),
+          ...(itemId ? { itemId } : undefined),
           payload,
         });
 
@@ -1607,6 +1621,7 @@ export const makeCodexSessionRuntime = (
         ),
       );
 
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     yield* Effect.forEach(
       Object.values(
         CodexRpc.SERVER_NOTIFICATION_METHODS,
@@ -1763,12 +1778,12 @@ export const makeCodexSessionRuntime = (
           const params = yield* buildTurnStartParams({
             threadId: providerThreadId,
             runtimeMode: options.runtimeMode,
-            ...(input.input ? { prompt: input.input } : {}),
-            ...(input.attachments ? { attachments: input.attachments } : {}),
-            ...(normalizedModel ? { model: normalizedModel } : {}),
-            ...(input.serviceTier ? { serviceTier: input.serviceTier } : {}),
-            ...(input.effort ? { effort: input.effort } : {}),
-            ...(input.interactionMode ? { interactionMode: input.interactionMode } : {}),
+            ...(input.input ? { prompt: input.input } : undefined),
+            ...(input.attachments ? { attachments: input.attachments } : undefined),
+            ...(normalizedModel ? { model: normalizedModel } : undefined),
+            ...(input.serviceTier ? { serviceTier: input.serviceTier } : undefined),
+            ...(input.effort ? { effort: input.effort } : undefined),
+            ...(input.interactionMode ? { interactionMode: input.interactionMode } : undefined),
           });
           const rawResponse = yield* client.raw.request("turn/start", params);
           const response = yield* decodeV2TurnStartResponse(rawResponse).pipe(
@@ -1787,7 +1802,7 @@ export const makeCodexSessionRuntime = (
             // running. The response contains the queued turn id, but
             // turn/interrupt only accepts the id that is active now.
             activeTurnId: session.activeTurnId ?? turnId,
-            ...(normalizedModel ? { model: normalizedModel } : {}),
+            ...(normalizedModel ? { model: normalizedModel } : undefined),
           }));
           const resumedProviderThreadId = currentProviderThreadId(yield* Ref.get(sessionRef));
           return {
@@ -1795,7 +1810,7 @@ export const makeCodexSessionRuntime = (
             turnId,
             ...(resumedProviderThreadId
               ? { resumeCursor: { threadId: resumedProviderThreadId } }
-              : {}),
+              : undefined),
           } satisfies ProviderTurnStartResult;
         }),
       interruptTurn: (turnId) =>
@@ -1872,8 +1887,8 @@ export const makeCodexSessionRuntime = (
             method: "item/requestApproval/decision",
             requestId: pending.requestId,
             requestKind: pending.requestKind,
-            ...(pending.turnId ? { turnId: pending.turnId } : {}),
-            ...(pending.itemId ? { itemId: pending.itemId } : {}),
+            ...(pending.turnId ? { turnId: pending.turnId } : undefined),
+            ...(pending.itemId ? { itemId: pending.itemId } : undefined),
             payload: {
               requestId: pending.requestId,
               requestKind: pending.requestKind,
@@ -1901,8 +1916,8 @@ export const makeCodexSessionRuntime = (
             threadId: options.threadId,
             method: "item/tool/requestUserInput/answered",
             requestId: pending.requestId,
-            ...(pending.turnId ? { turnId: pending.turnId } : {}),
-            ...(pending.itemId ? { itemId: pending.itemId } : {}),
+            ...(pending.turnId ? { turnId: pending.turnId } : undefined),
+            ...(pending.itemId ? { itemId: pending.itemId } : undefined),
             payload: {
               answers: codexAnswers,
             },

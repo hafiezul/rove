@@ -16,6 +16,8 @@ import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface TraceRecordLike {
   readonly name?: unknown;
@@ -91,15 +93,15 @@ function toRotatedTracePaths(traceFilePath: string, maxFiles: number): ReadonlyA
 }
 
 function isRecordObject(value: unknown): value is TraceRecordLike {
-  return typeof value === "object" && value !== null;
+  return RuntimePredicate.isObjectOrArray(value);
 }
 
 function toStringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  return RuntimePredicate.isString(value) && value.trim().length > 0 ? value : null;
 }
 
 function toNumberValue(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) ? value : null;
 }
 
 function unixNanoToDateTime(value: unknown): DateTime.Utc | null {
@@ -124,12 +126,13 @@ function readExitCause(exit: unknown): string {
 }
 
 function isTraceEvent(value: unknown): value is TraceEventLike {
-  return typeof value === "object" && value !== null;
+  return RuntimePredicate.isObjectOrArray(value);
 }
 
-function readEventAttributes(event: TraceEventLike): Readonly<Record<string, unknown>> {
-  return typeof event.attributes === "object" && event.attributes !== null
-    ? (event.attributes as Readonly<Record<string, unknown>>)
+function readEventAttributes(event: TraceEventLike): Readonly<Record<string, SchemaJson>> {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isObjectOrArray(event.attributes)
+    ? (event.attributes as Readonly<Record<string, SchemaJson>>)
     : {};
 }
 
@@ -202,7 +205,7 @@ export function aggregateTraceDiagnostics(
         kind: "trace-file-not-found",
         message: "No local trace files were found.",
       },
-      ...(input.partialFailure ? { partialFailure: true } : {}),
+      ...(input.partialFailure ? { partialFailure: true } : undefined),
     });
   }
 
@@ -472,7 +475,7 @@ export const make = Effect.gen(function* () {
         scannedFilePaths: paths,
         readAt,
         slowSpanThresholdMs,
-        ...(readFailureError ? { partialFailure: true, error: readFailureError } : {}),
+        ...(readFailureError ? { partialFailure: true, error: readFailureError } : undefined),
       });
     },
   );

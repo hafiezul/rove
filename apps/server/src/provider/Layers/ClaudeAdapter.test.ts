@@ -38,6 +38,8 @@ import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderAdapterProcessError, ProviderAdapterValidationError } from "../Errors.ts";
 import type { ClaudeAdapterContract } from "../Services/ClaudeAdapter.ts";
 import { makeClaudeAdapter, type ClaudeAdapterLiveOptions } from "./ClaudeAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* ClaudeAdapter`.
@@ -171,7 +173,7 @@ function makeHarness(config?: {
     | undefined;
 
   const adapterOptions: ClaudeAdapterLiveOptions = {
-    ...(config?.instanceId ? { instanceId: config.instanceId } : {}),
+    ...(config?.instanceId ? { instanceId: config.instanceId } : undefined),
     createQuery: (input) => {
       createInput = input;
       return query;
@@ -180,12 +182,12 @@ function makeHarness(config?: {
       ? {
           nativeEventLogger: config.nativeEventLogger,
         }
-      : {}),
+      : undefined),
     ...(config?.nativeEventLogPath
       ? {
           nativeEventLogPath: config.nativeEventLogPath,
         }
-      : {}),
+      : undefined),
   };
 
   return {
@@ -238,7 +240,7 @@ async function readFirstPromptText(
   if (next.done) {
     return undefined;
   }
-  if (typeof next.value.message.content === "string") {
+  if (RuntimePredicate.isString(next.value.message.content)) {
     return next.value.message.content;
   }
   const content = next.value.message.content[0];
@@ -837,7 +839,7 @@ describe("ClaudeAdapterLive", () => {
             text: "",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -852,7 +854,7 @@ describe("ClaudeAdapterLive", () => {
             text: "Hi",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -863,7 +865,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 0,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -882,7 +884,7 @@ describe("ClaudeAdapterLive", () => {
             },
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -893,7 +895,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 1,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "assistant",
@@ -904,7 +906,7 @@ describe("ClaudeAdapterLive", () => {
           id: "assistant-message-1",
           content: [{ type: "text", text: "Hi" }],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -913,7 +915,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-1",
         uuid: "result-1",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1009,7 +1011,7 @@ describe("ClaudeAdapterLive", () => {
         num_turns: 1,
         session_id: "sdk-session-1",
         uuid: "result-real",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       // Second result with no turn in flight — the shape the resume
       // handshake (system/init + result(num_turns: 0)) delivers, and the
@@ -1024,7 +1026,7 @@ describe("ClaudeAdapterLive", () => {
         usage: { input_tokens: 0, output_tokens: 0 },
         session_id: "sdk-session-1",
         uuid: "result-handshake",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.finish();
 
@@ -1084,7 +1086,7 @@ describe("ClaudeAdapterLive", () => {
           id: "assistant-message-steer-1",
           content: [{ type: "text", text: "Adjusting to 15." }],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -1093,7 +1095,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-steer",
         uuid: "result-steer-1",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const turnStartedEvents = runtimeEvents.filter((event) => event.type === "turn.started");
@@ -1146,7 +1148,7 @@ describe("ClaudeAdapterLive", () => {
             thinking: "Let",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -1163,7 +1165,7 @@ describe("ClaudeAdapterLive", () => {
             input: {},
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -1178,7 +1180,7 @@ describe("ClaudeAdapterLive", () => {
             partial_json: '{"pattern":"foo","path":"src"}',
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -1189,7 +1191,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 1,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "user",
@@ -1206,7 +1208,7 @@ describe("ClaudeAdapterLive", () => {
             },
           ],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -1215,7 +1217,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-tool-streams",
         uuid: "result-tool-streams",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1250,12 +1252,13 @@ describe("ClaudeAdapterLive", () => {
         assert.equal(toolStarted.payload.itemType, "dynamic_tool_call");
       }
 
-      const toolInputUpdated = runtimeEvents.find(
-        (event) =>
-          event.type === "item.updated" &&
-          (event.payload.data as { input?: { pattern?: string; path?: string } } | undefined)?.input
-            ?.pattern === "foo",
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        toolInputUpdated = runtimeEvents.find(
+          (event) =>
+            event.type === "item.updated" &&
+            (event.payload.data as { input?: { pattern?: string; path?: string } } | undefined)
+              ?.input?.pattern === "foo",
+        );
       assert.equal(toolInputUpdated?.type, "item.updated");
       if (toolInputUpdated?.type === "item.updated") {
         assert.deepEqual(toolInputUpdated.payload.data, {
@@ -1267,14 +1270,16 @@ describe("ClaudeAdapterLive", () => {
         });
       }
 
-      const toolResultUpdated = runtimeEvents.find(
-        (event) =>
-          event.type === "item.updated" &&
-          (event.payload.data as { result?: { tool_use_id?: string } } | undefined)?.result
-            ?.tool_use_id === "tool-grep-1",
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        toolResultUpdated = runtimeEvents.find(
+          (event) =>
+            event.type === "item.updated" &&
+            (event.payload.data as { result?: { tool_use_id?: string } } | undefined)?.result
+              ?.tool_use_id === "tool-grep-1",
+        );
       assert.equal(toolResultUpdated?.type, "item.updated");
       if (toolResultUpdated?.type === "item.updated") {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.equal(
           (
             toolResultUpdated.payload.data as {
@@ -1327,7 +1332,7 @@ describe("ClaudeAdapterLive", () => {
             input: {},
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -1343,7 +1348,7 @@ describe("ClaudeAdapterLive", () => {
               '{"todos":[{"content":"   ","status":"in_progress"},{"content":"Ship it","status":"completed"}]}',
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -1354,7 +1359,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 1,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -1363,7 +1368,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-todo-plan",
         uuid: "result-todo-plan",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const planUpdated = runtimeEvents.find((event) => event.type === "turn.plan.updated");
@@ -1422,7 +1427,7 @@ describe("ClaudeAdapterLive", () => {
             },
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "assistant",
@@ -1433,7 +1438,7 @@ describe("ClaudeAdapterLive", () => {
           id: "assistant-message-task-1",
           content: [{ type: "text", text: "Delegated" }],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -1442,7 +1447,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-task",
         uuid: "result-task-1",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const toolStarted = runtimeEvents.find((event) => event.type === "item.started");
@@ -1487,7 +1492,7 @@ describe("ClaudeAdapterLive", () => {
         stop_reason: "tool_use",
         session_id: "sdk-session-abort",
         uuid: "result-abort",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1549,7 +1554,7 @@ describe("ClaudeAdapterLive", () => {
         terminal_reason: "aborted_tools",
         session_id: "sdk-session-abort-tools",
         uuid: "result-abort-tools",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -1611,7 +1616,7 @@ describe("ClaudeAdapterLive", () => {
         task_type: "local_agent",
         uuid: "task-live-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       harness.query.emit({
         type: "system",
         subtype: "task_started",
@@ -1620,7 +1625,7 @@ describe("ClaudeAdapterLive", () => {
         task_type: "local_agent",
         uuid: "task-settled-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       harness.query.emit({
         type: "system",
         subtype: "task_notification",
@@ -1630,7 +1635,7 @@ describe("ClaudeAdapterLive", () => {
         summary: "done",
         uuid: "task-settled-done-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       yield* Fiber.join(taskEventsFiber);
 
@@ -1669,19 +1674,20 @@ describe("ClaudeAdapterLive", () => {
 
       // Collect task.progress until member-0's tick-3 emission lands, then
       // evaluate member emissions.
-      const progressFiber = yield* adapter.streamEvents.pipe(
-        Stream.filter((event) => event.type === "task.progress"),
-        Stream.takeUntil(
-          // Sentinel: member-0's tick-3 emission (tokens 20) — members are
-          // emitted after the coordinator row within a tick.
-          (event) =>
-            (event.payload as { taskId?: string }).taskId === "wf-coalesce:wf:0" &&
-            (event.payload as { typedUsage?: { totalTokens?: number } }).typedUsage?.totalTokens ===
-              20,
-        ),
-        Stream.runCollect,
-        Effect.forkChild,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        progressFiber = yield* adapter.streamEvents.pipe(
+          Stream.filter((event) => event.type === "task.progress"),
+          Stream.takeUntil(
+            // Sentinel: member-0's tick-3 emission (tokens 20) — members are
+            // emitted after the coordinator row within a tick.
+            (event) =>
+              (event.payload as { taskId?: string }).taskId === "wf-coalesce:wf:0" &&
+              (event.payload as { typedUsage?: { totalTokens?: number } }).typedUsage
+                ?.totalTokens === 20,
+          ),
+          Stream.runCollect,
+          Effect.forkChild,
+        );
 
       const session = yield* adapter.startSession({
         threadId: THREAD_ID,
@@ -1723,7 +1729,7 @@ describe("ClaudeAdapterLive", () => {
           workflow_progress: snapshot,
           uuid: `wf-tick-${usageTotal}`,
           session_id: "sdk-session",
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
       // Tick 1: both members are new -> 2 member events.
       tick(100, memberSnapshot(10));
@@ -1736,7 +1742,8 @@ describe("ClaudeAdapterLive", () => {
       const progressEvents = Array.from(yield* Fiber.join(progressFiber));
       const byMember = new Map<string, number>();
       for (const event of progressEvents) {
-        const taskId = (event.payload as { taskId: string }).taskId;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          taskId = (event.payload as { taskId: string }).taskId;
         if (!taskId.includes(":wf:")) continue;
         byMember.set(taskId, (byMember.get(taskId) ?? 0) + 1);
       }
@@ -1789,7 +1796,7 @@ describe("ClaudeAdapterLive", () => {
         tool_use_id: "toolu_agent_m",
         uuid: "task-model-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       // The subagent's assistant snapshot carries the authoritative API
       // model id, which refines the linkage on later rows.
       harness.query.emit({
@@ -1801,7 +1808,7 @@ describe("ClaudeAdapterLive", () => {
         },
         uuid: "subagent-snapshot-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       harness.query.emit({
         type: "system",
         subtype: "task_progress",
@@ -1810,7 +1817,7 @@ describe("ClaudeAdapterLive", () => {
         usage: { total_tokens: 100, tool_uses: 1, duration_ms: 10 },
         uuid: "task-model-progress-uuid",
         session_id: "sdk-session",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const taskEvents = Array.from(yield* Fiber.join(taskEventsFiber));
       const started = taskEvents[0];
@@ -2121,7 +2128,7 @@ describe("ClaudeAdapterLive", () => {
         },
         session_id: "sdk-session-task-summary",
         uuid: "task-progress-1",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const progressEvent = runtimeEvents.find((event) => event.type === "task.progress");
@@ -2208,7 +2215,8 @@ describe("ClaudeAdapterLive", () => {
           uuid: "notif",
         },
       ]) {
-        harness.query.emit(message as unknown as SDKMessage);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        harness.query.emit(message as SDKMessage);
       }
       // High-priority notifications DO surface as a warning row.
       harness.query.emit({
@@ -2219,7 +2227,7 @@ describe("ClaudeAdapterLive", () => {
         priority: "high",
         session_id: "session",
         uuid: "notif-high",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       // session_state_changed maps to the matching session states.
       for (const [state, uuid] of [
         ["running", "ssc-run"],
@@ -2232,7 +2240,7 @@ describe("ClaudeAdapterLive", () => {
           state,
           session_id: "session",
           uuid,
-        } as unknown as SDKMessage);
+        } as SDKMessage);
       }
       // api_retry maps to a session heartbeat, not a warning row.
       harness.query.emit({
@@ -2245,7 +2253,7 @@ describe("ClaudeAdapterLive", () => {
         error: { type: "api_error" },
         session_id: "session",
         uuid: "retry",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       yield* Effect.yieldNow;
       yield* Effect.yieldNow;
 
@@ -2273,7 +2281,7 @@ describe("ClaudeAdapterLive", () => {
       const heartbeat = runtimeEvents.find(
         (event) =>
           event.type === "session.state.changed" &&
-          typeof event.payload.reason === "string" &&
+          RuntimePredicate.isString(event.payload.reason) &&
           event.payload.reason.startsWith("api_retry:"),
       );
       assert.equal(heartbeat?.type, "session.state.changed");
@@ -2312,7 +2320,7 @@ describe("ClaudeAdapterLive", () => {
         },
         session_id: "sdk-session-task-usage",
         uuid: "task-usage-progress-1",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const usageEvent = runtimeEvents.find((event) => event.type === "thread.token-usage.updated");
@@ -2382,7 +2390,7 @@ describe("ClaudeAdapterLive", () => {
             maxOutputTokens: 64000,
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       harness.query.finish();
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2446,7 +2454,7 @@ describe("ClaudeAdapterLive", () => {
             maxOutputTokens: 64000,
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
       harness.query.finish();
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2502,7 +2510,7 @@ describe("ClaudeAdapterLive", () => {
           },
           session_id: "sdk-session-task-usage-clamped",
           uuid: "task-usage-progress-clamped",
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         harness.query.emit({
           type: "result",
@@ -2523,7 +2531,7 @@ describe("ClaudeAdapterLive", () => {
               maxOutputTokens: 64000,
             },
           },
-        } as unknown as SDKMessage);
+        } as SDKMessage);
         harness.query.finish();
 
         const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
@@ -2584,7 +2592,7 @@ describe("ClaudeAdapterLive", () => {
               { type: "tool_use", id: "tool-early", name: "Read", input: { path: "a.ts" } },
             ],
           },
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         harness.query.emit({
           type: "stream_event",
@@ -2599,7 +2607,7 @@ describe("ClaudeAdapterLive", () => {
               text: "Late text",
             },
           },
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         harness.query.emit({
           type: "result",
@@ -2608,7 +2616,7 @@ describe("ClaudeAdapterLive", () => {
           errors: [],
           session_id: "sdk-session-early-assistant",
           uuid: "result-early",
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
         assert.deepEqual(
@@ -2677,7 +2685,7 @@ describe("ClaudeAdapterLive", () => {
             text: "",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2692,7 +2700,7 @@ describe("ClaudeAdapterLive", () => {
             text: "First",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2703,7 +2711,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 0,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2718,7 +2726,7 @@ describe("ClaudeAdapterLive", () => {
             text: "",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2733,7 +2741,7 @@ describe("ClaudeAdapterLive", () => {
             text: "Second",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2744,7 +2752,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 0,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -2753,7 +2761,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-reused-text-index",
         uuid: "result-reused-text-index",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -2839,7 +2847,7 @@ describe("ClaudeAdapterLive", () => {
           id: "assistant-message-fallback",
           content: [{ type: "text", text: "Fallback hello" }],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -2848,7 +2856,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-fallback-text",
         uuid: "result-fallback",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -2912,7 +2920,7 @@ describe("ClaudeAdapterLive", () => {
             text: "",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2927,7 +2935,7 @@ describe("ClaudeAdapterLive", () => {
             text: "First message.",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2938,7 +2946,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 0,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2958,7 +2966,7 @@ describe("ClaudeAdapterLive", () => {
             },
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -2969,7 +2977,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 1,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "user",
@@ -2986,7 +2994,7 @@ describe("ClaudeAdapterLive", () => {
             },
           ],
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -3001,7 +3009,7 @@ describe("ClaudeAdapterLive", () => {
             text: "",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -3016,7 +3024,7 @@ describe("ClaudeAdapterLive", () => {
             text: "Second message.",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "stream_event",
@@ -3027,7 +3035,7 @@ describe("ClaudeAdapterLive", () => {
           type: "content_block_stop",
           index: 2,
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -3036,7 +3044,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-interleaved",
         uuid: "result-interleaved",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -3134,7 +3142,7 @@ describe("ClaudeAdapterLive", () => {
             id: "msg-thread-real",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -3143,7 +3151,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-thread-real",
         uuid: "result-thread-real",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       assert.deepEqual(
@@ -3208,7 +3216,7 @@ describe("ClaudeAdapterLive", () => {
             id: "msg-approval-thread",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const threadStarted = yield* Stream.runHead(adapter.streamEvents);
       assert.equal(threadStarted._tag, "Some");
@@ -3218,7 +3226,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -3252,7 +3260,7 @@ describe("ClaudeAdapterLive", () => {
         providerItemId: ProviderItemId.make("tool-use-1"),
       });
       const runtimeRequestId = requested.value.requestId;
-      assert.equal(typeof runtimeRequestId, "string");
+      assert.equal(RuntimePredicate.isString(runtimeRequestId), true);
       if (runtimeRequestId === undefined) {
         return;
       }
@@ -3279,6 +3287,7 @@ describe("ClaudeAdapterLive", () => {
       });
 
       const permissionResult = yield* Effect.promise(() => permissionPromise);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((permissionResult as PermissionResult).behavior, "allow");
     }).pipe(
       Effect.provideService(Random.Random, makeDeterministicRandomService()),
@@ -3301,7 +3310,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -3426,7 +3435,7 @@ describe("ClaudeAdapterLive", () => {
         hook_event: "SessionStart",
         session_id: transientHookSessionId,
         uuid: "resume-hook-started",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "system",
@@ -3440,7 +3449,7 @@ describe("ClaudeAdapterLive", () => {
         outcome: "success",
         session_id: transientHookSessionId,
         uuid: "resume-hook-response",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "system",
@@ -3458,7 +3467,7 @@ describe("ClaudeAdapterLive", () => {
         plugins: [],
         session_id: durableSessionId,
         uuid: "resume-init",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const runtimeEvents = Array.from(yield* Fiber.join(runtimeEventsFiber));
       const threadStartedEvents = runtimeEvents.filter((event) => event.type === "thread.started");
@@ -3472,11 +3481,12 @@ describe("ClaudeAdapterLive", () => {
       }
 
       const activeSessions = yield* adapter.listSessions();
-      const resumeCursor = activeSessions[0]?.resumeCursor as
-        | {
-            readonly resume?: string;
-          }
-        | undefined;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        resumeCursor = activeSessions[0]?.resumeCursor as
+          | {
+              readonly resume?: string;
+            }
+          | undefined;
       assert.equal(resumeCursor?.resume, durableSessionId);
     }).pipe(
       Effect.provideService(Random.Random, makeDeterministicRandomService()),
@@ -3496,13 +3506,14 @@ describe("ClaudeAdapterLive", () => {
       });
 
       const createInput = harness.getLastCreateQueryInput();
-      const sessionResumeCursor = session.resumeCursor as {
-        threadId?: string;
-        resume?: string;
-        turnCount?: number;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        sessionResumeCursor = session.resumeCursor as {
+          threadId?: string;
+          resume?: string;
+          turnCount?: number;
+        };
       assert.equal(sessionResumeCursor.threadId, THREAD_ID);
-      assert.equal(typeof sessionResumeCursor.resume, "string");
+      assert.equal(RuntimePredicate.isString(sessionResumeCursor.resume), true);
       assert.equal(sessionResumeCursor.turnCount, 0);
       assert.match(
         sessionResumeCursor.resume ?? "",
@@ -3547,7 +3558,7 @@ describe("ClaudeAdapterLive", () => {
           errors: [],
           session_id: "sdk-session-rollback",
           uuid: "result-first",
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         const firstCompleted = yield* Fiber.join(firstCompletedFiber);
         assert.equal(firstCompleted._tag, "Some");
@@ -3573,7 +3584,7 @@ describe("ClaudeAdapterLive", () => {
           errors: [],
           session_id: "sdk-session-rollback",
           uuid: "result-second",
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         const secondCompleted = yield* Fiber.join(secondCompletedFiber);
         assert.equal(secondCompleted._tag, "Some");
@@ -3793,7 +3804,7 @@ describe("ClaudeAdapterLive", () => {
           errors: [],
           session_id: `sdk-session-${runtimeMode}`,
           uuid: `result-${runtimeMode}`,
-        } as unknown as SDKMessage);
+        } as SDKMessage);
 
         yield* Fiber.join(turnCompletedFiber);
 
@@ -3859,7 +3870,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -3891,10 +3902,12 @@ describe("ClaudeAdapterLive", () => {
       });
 
       const permissionResult = yield* Effect.promise(() => permissionPromise);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((permissionResult as PermissionResult).behavior, "deny");
-      const deniedResult = permissionResult as PermissionResult & {
-        message?: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        deniedResult = permissionResult as PermissionResult & {
+          message?: string;
+        };
       assert.equal(deniedResult.message?.includes("captured your proposed plan"), true);
     }).pipe(
       Effect.provideService(Random.Random, makeDeterministicRandomService()),
@@ -3952,7 +3965,7 @@ describe("ClaudeAdapterLive", () => {
           stop_sequence: null,
           usage: {},
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const proposedEvent = yield* Fiber.join(proposedEventFiber);
       assert.equal(proposedEvent._tag, "Some");
@@ -4006,7 +4019,7 @@ describe("ClaudeAdapterLive", () => {
             id: "msg-user-input-thread",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const threadStarted = yield* Stream.runHead(adapter.streamEvents);
       assert.equal(threadStarted._tag, "Some");
@@ -4016,7 +4029,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -4052,7 +4065,7 @@ describe("ClaudeAdapterLive", () => {
         return;
       }
       const requestId = requestedEvent.value.requestId;
-      assert.equal(typeof requestId, "string");
+      assert.equal(RuntimePredicate.isString(requestId), true);
       assert.equal(requestedEvent.value.payload.questions.length, 1);
       assert.equal(requestedEvent.value.payload.questions[0]?.question, "Which framework?");
       // Regression for #2388: `id` must equal the full question text so the
@@ -4086,9 +4099,11 @@ describe("ClaudeAdapterLive", () => {
 
       // The canUseTool promise should resolve with the answers in SDK format.
       const permissionResult = yield* Effect.promise(() => permissionPromise);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((permissionResult as PermissionResult).behavior, "allow");
-      const updatedInput = (permissionResult as { updatedInput: Record<string, unknown> })
-        .updatedInput;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        updatedInput = (permissionResult as { updatedInput: Record<string, SchemaJson> })
+          .updatedInput;
       assert.deepEqual(updatedInput.answers, { "Which framework?": "React" });
       // Original questions should be passed through.
       assert.deepEqual(updatedInput.questions, askInput.questions);
@@ -4097,10 +4112,12 @@ describe("ClaudeAdapterLive", () => {
       // must produce a non-empty rendered tool_result on BOTH SDK iteration
       // patterns we have seen, so we don't regress the issue and we don't
       // break users still on the older Claude CLI.
-      const sdkAnswers = updatedInput.answers as Record<string, unknown>;
-      const sdkQuestions = updatedInput.questions as ReadonlyArray<{
-        readonly question: string;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        sdkAnswers = updatedInput.answers as Record<string, SchemaJson>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        sdkQuestions = updatedInput.questions as ReadonlyArray<{
+          readonly question: string;
+        }>;
 
       // Claude CLI 2.1.119 — key-agnostic Object.entries iteration. Any key
       // works here, but it must at least round-trip into a non-empty string.
@@ -4143,7 +4160,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -4184,9 +4201,11 @@ describe("ClaudeAdapterLive", () => {
       yield* Stream.runHead(adapter.streamEvents);
 
       const permissionResult = yield* Effect.promise(() => permissionPromise);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((permissionResult as PermissionResult).behavior, "allow");
-      const updatedInput = (permissionResult as { updatedInput: Record<string, unknown> })
-        .updatedInput;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        updatedInput = (permissionResult as { updatedInput: Record<string, SchemaJson> })
+          .updatedInput;
       assert.deepEqual(updatedInput.answers, { "Deploy to which env?": "Staging" });
     }).pipe(
       Effect.provideService(Random.Random, makeDeterministicRandomService()),
@@ -4209,7 +4228,7 @@ describe("ClaudeAdapterLive", () => {
 
       const createInput = harness.getLastCreateQueryInput();
       const canUseTool = createInput?.options.canUseTool;
-      assert.equal(typeof canUseTool, "function");
+      assert.equal(RuntimePredicate.isFunction(canUseTool), true);
       if (!canUseTool) {
         return;
       }
@@ -4276,6 +4295,7 @@ describe("ClaudeAdapterLive", () => {
       nativeEventLogger: {
         filePath: "memory://claude-native-events",
         write: (event, threadId) => {
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           nativeEvents.push(event as (typeof nativeEvents)[number]);
           nativeThreadIds.push(threadId ?? null);
           return Effect.void;
@@ -4315,7 +4335,7 @@ describe("ClaudeAdapterLive", () => {
             text: "hi",
           },
         },
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       harness.query.emit({
         type: "result",
@@ -4324,7 +4344,7 @@ describe("ClaudeAdapterLive", () => {
         errors: [],
         session_id: "sdk-session-native-log",
         uuid: "result-native-log",
-      } as unknown as SDKMessage);
+      } as SDKMessage);
 
       const turnCompleted = yield* Fiber.join(turnCompletedFiber);
       assert.equal(turnCompleted._tag, "Some");
@@ -4334,6 +4354,7 @@ describe("ClaudeAdapterLive", () => {
         nativeEvents.some((record) => record.event?.provider === "claudeAgent"),
         true,
       );
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal(
         nativeEvents.some(
           (record) =>

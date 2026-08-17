@@ -39,7 +39,7 @@ describe("AgentActivityRows", () => {
           }),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const rows = yield* AgentActivityRows.AgentActivityRows;

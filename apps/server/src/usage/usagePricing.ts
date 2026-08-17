@@ -8,6 +8,8 @@
  * @module usagePricing
  */
 import type { UsageCostSource, UsageTokenTotals } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /**
  * The subset of a LiteLLM entry we price against. All values are USD per token.
@@ -35,7 +37,7 @@ interface LiteLlmEntry {
 }
 
 function finiteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) ? value : null;
 }
 
 /**
@@ -45,13 +47,15 @@ function finiteNumber(value: unknown): number | null {
  * model would silently under-report cost, which is worse than reporting the
  * model as unpriced.
  */
+// SAFETY: The surrounding adapter has established this JSON-object view before field access.
 export function parseRateTable(document: unknown): RateTable {
   const table = new Map<string, ModelRate>();
-  if (typeof document !== "object" || document === null) return table;
+  if (!RuntimePredicate.isObjectOrArray(document)) return table;
 
-  for (const [name, raw] of Object.entries(document as Record<string, unknown>)) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const entry = raw as LiteLlmEntry;
+  for (const [name, raw] of Object.entries(document as Record<string, SchemaJson>)) {
+    if (!RuntimePredicate.isObjectOrArray(raw)) continue;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      entry = raw as LiteLlmEntry;
     const input = finiteNumber(entry.input_cost_per_token);
     const output = finiteNumber(entry.output_cost_per_token);
     if (input === null || output === null) continue;

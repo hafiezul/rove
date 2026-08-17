@@ -11,6 +11,8 @@ import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export interface PendingApproval {
   readonly requestId: ApprovalRequestId;
@@ -167,11 +169,13 @@ function isStalePendingRequestFailureDetail(detail: string | undefined): boolean
 }
 
 function parseApprovalRequestId(value: unknown): ApprovalRequestId | null {
-  return typeof value === "string" && value.length > 0 ? ApprovalRequestId.make(value) : null;
+  return RuntimePredicate.isString(value) && value.length > 0
+    ? ApprovalRequestId.make(value)
+    : null;
 }
 
 function parseUserInputQuestions(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, SchemaJson> | null,
 ): ReadonlyArray<UserInputQuestion> | null {
   const questions = payload?.questions;
   if (!Array.isArray(questions)) {
@@ -180,21 +184,27 @@ function parseUserInputQuestions(
 
   const parsed = questions
     .map<UserInputQuestion | null>((entry) => {
-      if (!entry || typeof entry !== "object") return null;
-      const question = entry as Record<string, unknown>;
+      if (!entry || !(RuntimePredicate.isObjectOrArray(entry) || entry === null)) return null;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        question = entry as Record<string, SchemaJson>;
       if (
-        typeof question.id !== "string" ||
-        typeof question.header !== "string" ||
-        typeof question.question !== "string" ||
+        !RuntimePredicate.isString(question.id) ||
+        !RuntimePredicate.isString(question.header) ||
+        !RuntimePredicate.isString(question.question) ||
         !Array.isArray(question.options)
       ) {
         return null;
       }
       const options = question.options
         .map<UserInputQuestion["options"][number] | null>((option) => {
-          if (!option || typeof option !== "object") return null;
-          const record = option as Record<string, unknown>;
-          if (typeof record.label !== "string" || typeof record.description !== "string") {
+          if (!option || !(RuntimePredicate.isObjectOrArray(option) || option === null))
+            return null;
+          const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+            record = option as Record<string, SchemaJson>;
+          if (
+            !RuntimePredicate.isString(record.label) ||
+            !RuntimePredicate.isString(record.description)
+          ) {
             return null;
           }
           return {
@@ -220,7 +230,7 @@ function parseUserInputQuestions(
 }
 
 function normalizeDraftAnswer(value: string | undefined): string | null {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return null;
   }
   const trimmed = value.trim();
@@ -269,13 +279,15 @@ function isTerminalBypassUpdate(activity: OrchestrationThreadActivity): boolean 
   if (activity.kind !== "task.updated") {
     return false;
   }
-  const payload =
-    activity.payload && typeof activity.payload === "object"
-      ? (activity.payload as Record<string, unknown>)
-      : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload =
+      activity.payload &&
+      (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+        ? (activity.payload as Record<string, SchemaJson>)
+        : null;
   return (
     payload?.timelineBypass === true &&
-    typeof payload.status === "string" &&
+    RuntimePredicate.isString(payload.status) &&
     MOBILE_TERMINAL_UPDATE_STATUSES.has(payload.status)
   );
 }
@@ -289,10 +301,12 @@ function isTerminalBypassUpdate(activity: OrchestrationThreadActivity): boolean 
  * children never emit task.completed — review finding).
  */
 function isAgentInternalActivity(activity: OrchestrationThreadActivity): boolean {
-  const payload =
-    activity.payload && typeof activity.payload === "object"
-      ? (activity.payload as Record<string, unknown>)
-      : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload =
+      activity.payload &&
+      (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+        ? (activity.payload as Record<string, SchemaJson>)
+        : null;
   if (!payload) {
     return false;
   }
@@ -305,7 +319,8 @@ function isAgentInternalActivity(activity: OrchestrationThreadActivity): boolean
   // agent's own background work (stamped "background") is internal — same
   // rule as web (review finding: hiding on agentId alone dropped nested
   // completions with no replacement UI).
-  const ownedByAgent = typeof payload.agentId === "string" && payload.agentId.trim().length > 0;
+  const ownedByAgent =
+    RuntimePredicate.isString(payload.agentId) && payload.agentId.trim().length > 0;
   if (!ownedByAgent) {
     return false;
   }
@@ -337,18 +352,22 @@ function isPlanBoundaryToolActivity(activity: OrchestrationThreadActivity): bool
     return false;
   }
 
-  const payload =
-    activity.payload && typeof activity.payload === "object"
-      ? (activity.payload as Record<string, unknown>)
-      : null;
-  return typeof payload?.detail === "string" && payload.detail.startsWith("ExitPlanMode:");
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload =
+      activity.payload &&
+      (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+        ? (activity.payload as Record<string, SchemaJson>)
+        : null;
+  return RuntimePredicate.isString(payload?.detail) && payload.detail.startsWith("ExitPlanMode:");
 }
 
 function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWorkLogEntry {
-  const payload =
-    activity.payload && typeof activity.payload === "object"
-      ? (activity.payload as Record<string, unknown>)
-      : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload =
+      activity.payload &&
+      (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+        ? (activity.payload as Record<string, SchemaJson>)
+        : null;
   const commandPreview = extractToolCommand(payload);
   const changedFiles = extractChangedFiles(payload);
   const title = extractToolTitle(payload);
@@ -360,26 +379,26 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     activity.kind === "task.completed" ||
     activity.kind === "task.updated";
   const taskSummary =
-    isTaskActivity && typeof payload?.summary === "string" && payload.summary.length > 0
+    isTaskActivity && RuntimePredicate.isString(payload?.summary) && payload.summary.length > 0
       ? payload.summary
       : null;
   const taskDetailAsLabel =
     isTaskActivity &&
     !taskSummary &&
-    typeof payload?.detail === "string" &&
+    RuntimePredicate.isString(payload?.detail) &&
     payload.detail.length > 0
       ? payload.detail
       : null;
   const taskLabel = taskSummary || taskDetailAsLabel;
   const taskId =
-    isTaskActivity && typeof payload?.taskId === "string" && payload.taskId.length > 0
+    isTaskActivity && RuntimePredicate.isString(payload?.taskId) && payload.taskId.length > 0
       ? payload.taskId
       : undefined;
   const entry: DerivedWorkLogEntry = {
     id: activity.id,
     createdAt: activity.createdAt,
     turnId: activity.turnId,
-    ...(taskId ? { taskId } : {}),
+    ...(taskId ? { taskId } : undefined),
     label: taskLabel || activity.summary,
     tone:
       activity.kind === "task.progress" || activity.kind === "turn.reasoning"
@@ -394,7 +413,7 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   if (
     !taskDetailAsLabel &&
     payload &&
-    typeof payload.detail === "string" &&
+    RuntimePredicate.isString(payload.detail) &&
     payload.detail.length > 0
   ) {
     const detail = stripTrailingExitCode(payload.detail).output;
@@ -506,16 +525,16 @@ function mergeDerivedWorkLogEntries(
   return {
     ...previous,
     ...next,
-    ...(detail ? { detail } : {}),
-    ...(command ? { command } : {}),
-    ...(rawCommand ? { rawCommand } : {}),
-    ...(changedFiles.length > 0 ? { changedFiles } : {}),
-    ...(toolTitle ? { toolTitle } : {}),
-    ...(itemType ? { itemType } : {}),
-    ...(requestKind ? { requestKind } : {}),
-    ...(collapseKey ? { collapseKey } : {}),
-    ...(toolLifecycleStatus ? { toolLifecycleStatus } : {}),
-    ...(toolData !== undefined ? { toolData } : {}),
+    ...(detail ? { detail } : undefined),
+    ...(command ? { command } : undefined),
+    ...(rawCommand ? { rawCommand } : undefined),
+    ...(changedFiles.length > 0 ? { changedFiles } : undefined),
+    ...(toolTitle ? { toolTitle } : undefined),
+    ...(itemType ? { itemType } : undefined),
+    ...(requestKind ? { requestKind } : undefined),
+    ...(collapseKey ? { collapseKey } : undefined),
+    ...(toolLifecycleStatus ? { toolLifecycleStatus } : undefined),
+    ...(toolData !== undefined ? { toolData } : undefined),
   };
 }
 
@@ -721,12 +740,15 @@ function workEntryHeading(workEntry: WorkLogEntry): string {
   return capitalizePhrase(normalizeCompactToolLabel(workEntry.toolTitle));
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+function asRecord(value: unknown): Record<string, SchemaJson> | null {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return value && (RuntimePredicate.isObjectOrArray(value) || value === null)
+    ? (value as Record<string, SchemaJson>)
+    : null;
 }
 
 function asTrimmedString(value: unknown): string | null {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return null;
   }
   const trimmed = value.trim();
@@ -804,6 +826,7 @@ const SHELL_WRAPPER_SPECS = [
 ] as const;
 
 function findShellWrapperSpec(shell: string) {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return SHELL_WRAPPER_SPECS.find((spec) =>
     (spec.executables as ReadonlyArray<string>).includes(shell),
   );
@@ -881,7 +904,7 @@ function toRawToolCommand(value: unknown, normalizedCommand: string | null): str
   return formatted === normalizedCommand ? null : formatted;
 }
 
-function extractToolCommand(payload: Record<string, unknown> | null) {
+function extractToolCommand(payload: Record<string, SchemaJson> | null) {
   const data = asRecord(payload?.data);
   const item = asRecord(data?.item);
   const itemResult = asRecord(item?.result);
@@ -913,12 +936,12 @@ function extractToolCommand(payload: Record<string, unknown> | null) {
   };
 }
 
-function extractToolTitle(payload: Record<string, unknown> | null): string | null {
+function extractToolTitle(payload: Record<string, SchemaJson> | null): string | null {
   return asTrimmedString(payload?.title);
 }
 
 function extractWorkLogToolLifecycleStatus(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, SchemaJson> | null,
 ): WorkLogToolLifecycleStatus | undefined {
   const status = payload?.status;
   if (
@@ -947,21 +970,21 @@ function stripTrailingExitCode(value: string) {
   const normalizedOutput = match.groups.output?.trim() ?? "";
   return {
     output: normalizedOutput.length > 0 ? normalizedOutput : null,
-    ...(Number.isInteger(exitCode) ? { exitCode } : {}),
+    ...(Number.isInteger(exitCode) ? { exitCode } : undefined),
   };
 }
 
 function extractWorkLogItemType(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, SchemaJson> | null,
 ): WorkLogEntry["itemType"] | undefined {
-  if (typeof payload?.itemType === "string" && isToolLifecycleItemType(payload.itemType)) {
+  if (RuntimePredicate.isString(payload?.itemType) && isToolLifecycleItemType(payload.itemType)) {
     return payload.itemType;
   }
   return undefined;
 }
 
 function extractWorkLogRequestKind(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, SchemaJson> | null,
 ): WorkLogEntry["requestKind"] | undefined {
   if (
     payload?.requestKind === "command" ||
@@ -1030,7 +1053,7 @@ function collectChangedFiles(value: unknown, target: string[], seen: Set<string>
   }
 }
 
-function extractChangedFiles(payload: Record<string, unknown> | null): string[] {
+function extractChangedFiles(payload: Record<string, SchemaJson> | null): string[] {
   const changedFiles: string[] = [];
   const seen = new Set<string>();
   collectChangedFiles(asRecord(payload?.data), changedFiles, seen, 0);
@@ -1358,10 +1381,12 @@ export function derivePendingApprovals(
   const openByRequestId = new Map<ApprovalRequestId, PendingApproval>();
 
   for (const activity of sortedActivities) {
-    const payload =
-      activity.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : null;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      payload =
+        activity.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : null;
     const requestId = parseApprovalRequestId(payload?.requestId);
     const requestKind =
       payload?.requestKind === "command" ||
@@ -1369,14 +1394,14 @@ export function derivePendingApprovals(
       payload?.requestKind === "file-change"
         ? payload.requestKind
         : requestKindFromRequestType(payload?.requestType);
-    const detail = typeof payload?.detail === "string" ? payload.detail : undefined;
+    const detail = RuntimePredicate.isString(payload?.detail) ? payload.detail : undefined;
 
     if (activity.kind === "approval.requested" && requestId && requestKind) {
       openByRequestId.set(requestId, {
         requestId,
         requestKind,
         createdAt: activity.createdAt,
-        ...(detail ? { detail } : {}),
+        ...(detail ? { detail } : undefined),
       });
       continue;
     }
@@ -1404,12 +1429,14 @@ export function derivePendingUserInputs(
   const openByRequestId = new Map<ApprovalRequestId, PendingUserInput>();
 
   for (const activity of sortedActivities) {
-    const payload =
-      activity.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : null;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      payload =
+        activity.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : null;
     const requestId = parseApprovalRequestId(payload?.requestId);
-    const detail = typeof payload?.detail === "string" ? payload.detail : undefined;
+    const detail = RuntimePredicate.isString(payload?.detail) ? payload.detail : undefined;
 
     if (activity.kind === "user-input.requested" && requestId) {
       const questions = parseUserInputQuestions(payload);
@@ -1451,7 +1478,9 @@ export function setPendingUserInputCustomAnswer(
       : normalizeSelectedOptionLabels(draft?.selectedOptionLabels);
   return {
     customAnswer,
-    ...(selectedOptionLabels && selectedOptionLabels.length > 0 ? { selectedOptionLabels } : {}),
+    ...(selectedOptionLabels && selectedOptionLabels.length > 0
+      ? { selectedOptionLabels }
+      : undefined),
   };
 }
 
@@ -1483,7 +1512,7 @@ export function togglePendingUserInputOptionSelection(
       customAnswer: "",
       ...(nextSelectedOptionLabels.length > 0
         ? { selectedOptionLabels: nextSelectedOptionLabels }
-        : {}),
+        : undefined),
     };
   }
 

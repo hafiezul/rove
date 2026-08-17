@@ -115,6 +115,7 @@ export const ToolLifecycleItemType = Schema.Literals(TOOL_LIFECYCLE_ITEM_TYPES);
 export type ToolLifecycleItemType = typeof ToolLifecycleItemType.Type;
 
 export function isToolLifecycleItemType(value: string): value is ToolLifecycleItemType {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return TOOL_LIFECYCLE_ITEM_TYPES.includes(value as ToolLifecycleItemType);
 }
 

@@ -1,4 +1,5 @@
 import * as Effect from "effect/Effect";
+import type { Json as SchemaJson } from "effect/Schema";
 import type {
   PreviewAutomationOperation,
   PreviewAutomationOpenInput,
@@ -43,8 +44,8 @@ const invoke = Effect.fn("PreviewToolkit.invoke")(function* <A>(
     scope,
     operation,
     input,
-    ...(timeoutMs === undefined ? {} : { timeoutMs }),
-    ...(tabId === undefined ? {} : { tabId }),
+    ...(timeoutMs === undefined ? undefined : { timeoutMs }),
+    ...(tabId === undefined ? undefined : { tabId }),
   });
 });
 
@@ -52,7 +53,7 @@ const invokeTargeted = <A>(
   operation: PreviewAutomationOperation,
   input: {
     readonly tabId?: PreviewTabId | undefined;
-    readonly [key: string]: unknown;
+    readonly [key: string]: SchemaJson;
   },
   timeoutMs?: number,
 ) => {

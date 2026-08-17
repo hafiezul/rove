@@ -146,7 +146,7 @@ export const make = ElectronDialog.of({
     const openDialogOptions: Electron.OpenDialogOptions = {
       properties: ["openFile", "multiSelections"],
       filters: [...input.filters],
-      ...(defaultPath === null ? {} : { defaultPath }),
+      ...(defaultPath === null ? undefined : { defaultPath }),
     };
     const result = yield* Effect.tryPromise({
       try: () =>

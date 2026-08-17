@@ -122,9 +122,11 @@ describe("truncateTraceAttributes", () => {
     };
     const truncated = truncateTraceAttributes(attributes);
 
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     assert.equal((truncated["db.query.text"] as string).length, 200 + "…[truncated]".length);
     assert.equal(truncated["short"], "ok");
-    const error = truncated["error"] as { stack: string; nested: Array<string> };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      error = truncated["error"] as { stack: string; nested: Array<string> };
     assert.equal(error.stack.length, 500 + "…[truncated]".length);
     assert.equal(error.nested[0]?.length, 500 + "…[truncated]".length);
     // Input is untouched: the live span's attributes are shared.

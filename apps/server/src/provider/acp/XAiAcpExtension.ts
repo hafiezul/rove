@@ -6,6 +6,7 @@ import * as Schema from "effect/Schema";
 import type * as EffectAcpSchema from "effect-acp/schema";
 
 import type * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const XAiPromptCompleteNotification = Schema.Struct({
   sessionId: Schema.String,
@@ -118,11 +119,11 @@ type XAiAnswerValue = string | ReadonlyArray<string> | undefined;
 function answerValues(answer: XAiAnswerValue): ReadonlyArray<string> {
   if (Array.isArray(answer)) {
     return answer.flatMap((entry) => {
-      const text = typeof entry === "string" ? trimmed(entry) : undefined;
+      const text = RuntimePredicate.isString(entry) ? trimmed(entry) : undefined;
       return text ? [text] : [];
     });
   }
-  const text = typeof answer === "string" ? trimmed(answer) : undefined;
+  const text = RuntimePredicate.isString(answer) ? trimmed(answer) : undefined;
   return text ? [text] : [];
 }
 
@@ -150,15 +151,15 @@ function normalizeAnswerForXAi(
   const annotation =
     preview || notes.length > 0
       ? {
-          ...(preview ? { preview } : {}),
-          ...(notes.length > 0 ? { notes: notes.join("\n") } : {}),
+          ...(preview ? { preview } : undefined),
+          ...(notes.length > 0 ? { notes: notes.join("\n") } : undefined),
         }
       : undefined;
 
   return {
     questionText: question.question,
     selectedLabels: selectedLabels.length > 0 ? selectedLabels : ["Other"],
-    ...(annotation ? { annotation } : {}),
+    ...(annotation ? { annotation } : undefined),
   };
 }
 
@@ -167,12 +168,12 @@ function findQuestionAnswer(
   question: XAiAskUserQuestionRequestParams["questions"][number],
 ): XAiAnswerValue {
   const answer = answers[question.id ?? question.question] ?? answers[question.question];
-  if (typeof answer === "string") {
+  if (RuntimePredicate.isString(answer)) {
     return answer;
   }
   if (Array.isArray(answer)) {
     return answer.flatMap(
-      (entry): ReadonlyArray<string> => (typeof entry === "string" ? [entry] : []),
+      (entry): ReadonlyArray<string> => (RuntimePredicate.isString(entry) ? [entry] : []),
     );
   }
   return undefined;
@@ -198,7 +199,7 @@ export function makeXAiAskUserQuestionResponse(
     answers: Object.fromEntries(
       normalized.map((entry) => [entry.questionText, entry.selectedLabels]),
     ),
-    ...(Object.keys(annotations).length > 0 ? { annotations } : {}),
+    ...(Object.keys(annotations).length > 0 ? { annotations } : undefined),
   };
 }
 
@@ -391,18 +392,18 @@ const rememberCompletedXAiPromptId = (
 
 function promptIdFromResponse(response: EffectAcpSchema.PromptResponse): string | undefined {
   const meta = response._meta;
-  if (meta === null || typeof meta !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(meta)) {
     return undefined;
   }
   const promptId = meta.promptId ?? meta.requestId;
-  return typeof promptId === "string" && promptId.length > 0 ? promptId : undefined;
+  return RuntimePredicate.isString(promptId) && promptId.length > 0 ? promptId : undefined;
 }
 
 export function promptResponseHasMissingXAiStopReason(
   response: EffectAcpSchema.PromptResponse,
 ): boolean {
   const meta = response._meta;
-  return meta !== null && typeof meta === "object" && meta[xAiStopReasonMissingMetaKey] === true;
+  return RuntimePredicate.isObjectOrArray(meta) && meta[xAiStopReasonMissingMetaKey] === true;
 }
 
 function promptResponseFromXAi(

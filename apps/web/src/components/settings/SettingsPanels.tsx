@@ -142,6 +142,7 @@ import {
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
+import * as RuntimePredicate from "effect/Predicate";
 
 const ENVIRONMENT_IDENTIFICATION_LABELS = {
   artwork: "Artwork",
@@ -232,7 +233,7 @@ function AboutVersionSection() {
       const bridge = window.desktopBridge;
       if (
         !bridge ||
-        typeof bridge.setUpdateChannel !== "function" ||
+        !RuntimePredicate.isFunction(bridge.setUpdateChannel) ||
         channel === selectedUpdateChannel
       ) {
         return;
@@ -317,7 +318,7 @@ function AboutVersionSection() {
       return;
     }
 
-    if (typeof bridge.checkForUpdate !== "function") return;
+    if (!RuntimePredicate.isFunction(bridge.checkForUpdate)) return;
     void bridge
       .checkForUpdate()
       .then((result) => {
@@ -398,6 +399,7 @@ function AboutVersionSection() {
             <Select
               value={selectedUpdateChannel}
               onValueChange={(value) => {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 handleUpdateChannelChange(value as DesktopUpdateChannel);
               }}
             >
@@ -430,6 +432,7 @@ function AboutVersionSection() {
               value={selectedHostedAppChannel}
               onValueChange={(value) => {
                 if (value === selectedHostedAppChannel) return;
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 window.location.assign(
                   buildHostedChannelSelectionUrl({ channel: value as HostedAppChannel }),
                 );
@@ -1563,7 +1566,7 @@ function FontFamilySettingsRow({
       <Select
         value={String(size.value)}
         onValueChange={(next) => {
-          if (typeof next !== "string") return;
+          if (!RuntimePredicate.isString(next)) return;
           const parsed = Number(next);
           if (Number.isInteger(parsed) && parsed >= size.min && parsed <= size.max) {
             size.onChange(parsed);

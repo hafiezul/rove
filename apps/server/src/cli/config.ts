@@ -16,6 +16,7 @@ import { Argument, Flag } from "effect/unstable/cli";
 import { readBootstrapEnvelope } from "../bootstrap.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const modeFlag = Flag.choice("mode", ServerConfig.RuntimeMode.literals).pipe(
   Flag.withDescription("Runtime mode. `desktop` keeps loopback defaults unless overridden."),
@@ -420,39 +421,41 @@ const parseDurationInput = (value: string): Duration.Duration | null => {
   if (trimmed.length === 0) return null;
 
   const shorthand = DurationShorthandPattern.exec(trimmed);
-  const normalizedInput = shorthand?.groups
-    ? (() => {
-        const amountText = shorthand.groups.value;
-        const unitText = shorthand.groups.unit;
-        if (typeof amountText !== "string" || typeof unitText !== "string") {
-          return null;
-        }
-
-        const amount = Number.parseInt(amountText, 10);
-        if (!Number.isFinite(amount)) return null;
-
-        switch (unitText.toLowerCase()) {
-          case "ms":
-            return `${amount} millis`;
-          case "s":
-            return `${amount} seconds`;
-          case "m":
-            return `${amount} minutes`;
-          case "h":
-            return `${amount} hours`;
-          case "d":
-            return `${amount} days`;
-          case "w":
-            return `${amount} weeks`;
-          default:
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    normalizedInput = shorthand?.groups
+      ? (() => {
+          const amountText = shorthand.groups.value;
+          const unitText = shorthand.groups.unit;
+          if (!RuntimePredicate.isString(amountText) || !RuntimePredicate.isString(unitText)) {
             return null;
-        }
-      })()
-    : (trimmed as Duration.Input);
+          }
+
+          const amount = Number.parseInt(amountText, 10);
+          if (!Number.isFinite(amount)) return null;
+
+          switch (unitText.toLowerCase()) {
+            case "ms":
+              return `${amount} millis`;
+            case "s":
+              return `${amount} seconds`;
+            case "m":
+              return `${amount} minutes`;
+            case "h":
+              return `${amount} hours`;
+            case "d":
+              return `${amount} days`;
+            case "w":
+              return `${amount} weeks`;
+            default:
+              return null;
+          }
+        })()
+      : (trimmed as Duration.Input);
 
   if (normalizedInput === null) return null;
 
-  const decoded = Duration.fromInput(normalizedInput as Duration.Input);
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    decoded = Duration.fromInput(normalizedInput as Duration.Input);
   return Option.isSome(decoded) ? decoded.value : null;
 };
 

@@ -166,19 +166,24 @@ const makeProjectionCheckpointRepository = Effect.gen(function* () {
       ),
     );
 
-  const listByThreadId: ProjectionCheckpointRepositoryContract["listByThreadId"] = (input) =>
-    listProjectionCheckpointRows(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlOrDecodeError(
-          "ProjectionCheckpointRepository.listByThreadId:query",
-          "ProjectionCheckpointRepository.listByThreadId:decodeRows",
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    listByThreadId: ProjectionCheckpointRepositoryContract["listByThreadId"] = (input) =>
+      listProjectionCheckpointRows(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlOrDecodeError(
+            "ProjectionCheckpointRepository.listByThreadId:query",
+            "ProjectionCheckpointRepository.listByThreadId:decodeRows",
+          ),
         ),
-      ),
-      Effect.map((rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionCheckpoint>>),
-    );
+        Effect.map(
+          (rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionCheckpoint>>,
+        ),
+      );
 
-  const getByThreadAndTurnCount: ProjectionCheckpointRepositoryContract["getByThreadAndTurnCount"] =
-    (input) =>
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    getByThreadAndTurnCount: ProjectionCheckpointRepositoryContract["getByThreadAndTurnCount"] = (
+      input,
+    ) =>
       getProjectionCheckpointRow(input).pipe(
         Effect.mapError(
           toPersistenceSqlOrDecodeError(

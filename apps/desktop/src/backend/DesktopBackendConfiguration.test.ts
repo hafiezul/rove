@@ -17,6 +17,7 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopServerExposure from "./DesktopServerExposure.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const PersistedServerObservabilitySettingsDocument = Schema.Struct({
   observability: Schema.Struct({
@@ -885,7 +886,7 @@ describe("DesktopBackendConfiguration", () => {
       );
       // oxlint-disable-next-line t3code/no-manual-effect-runtime-in-tests -- Same reason: this is the synchronous resolution the IPC handler performs.
       const label = Effect.runSync(configuration.resolvePrimaryLabel);
-      assert.equal(typeof label, "string");
+      assert.equal(RuntimePredicate.isString(label), true);
     } finally {
       await runtime.dispose();
     }

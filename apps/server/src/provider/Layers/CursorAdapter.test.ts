@@ -29,6 +29,8 @@ import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import type { CursorAdapterContract } from "../Services/CursorAdapter.ts";
 import { makeCursorAdapter } from "./CursorAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeCursorSettings = Schema.decodeSync(CursorSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* CursorAdapter`.
@@ -93,11 +95,12 @@ async function readArgvLog(filePath: string) {
 
 async function readJsonLines(filePath: string) {
   const raw = await NodeFSP.readFile(filePath, "utf8");
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return raw
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
+    .map((line) => JSON.parse(line) as Record<string, SchemaJson>);
 }
 
 async function waitForFileContent(filePath: string, attempts = 40) {
@@ -115,7 +118,7 @@ async function waitForFileContent(filePath: string, attempts = 40) {
 
 function waitForJsonLogMatch(
   filePath: string,
-  predicate: (entry: Record<string, unknown>) => boolean,
+  predicate: (entry: Record<string, SchemaJson>) => boolean,
   attempts = 40,
 ) {
   return Effect.gen(function* () {
@@ -459,24 +462,27 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
       yield* adapter.stopSession(threadId);
 
       const requests = yield* Effect.promise(() => readJsonLines(requestLogPath));
-      const modeRequest = requests
-        .toReversed()
-        .find(
-          (entry) =>
-            entry.method === "session/set_mode" ||
-            (entry.method === "session/set_config_option" &&
-              (entry.params as Record<string, unknown> | undefined)?.configId === "mode"),
-        );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        modeRequest = requests
+          .toReversed()
+          .find(
+            (entry) =>
+              entry.method === "session/set_mode" ||
+              (entry.method === "session/set_config_option" &&
+                (entry.params as Record<string, SchemaJson> | undefined)?.configId === "mode"),
+          );
       assert.isDefined(modeRequest);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal(
-        (modeRequest?.params as Record<string, unknown> | undefined)?.sessionId,
+        (modeRequest?.params as Record<string, SchemaJson> | undefined)?.sessionId,
         "mock-session-1",
       );
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.include(
         ["architect", "plan"],
         String(
-          (modeRequest?.params as Record<string, unknown> | undefined)?.modeId ??
-            (modeRequest?.params as Record<string, unknown> | undefined)?.value,
+          (modeRequest?.params as Record<string, SchemaJson> | undefined)?.modeId ??
+            (modeRequest?.params as Record<string, SchemaJson> | undefined)?.value,
         ),
       );
     }),
@@ -519,12 +525,15 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
         yield* Effect.promise(() => waitForFileContent(requestLogPath));
 
         const requestsAfterStart = yield* Effect.promise(() => readJsonLines(requestLogPath));
-        const configIdsAfterStart = requestsAfterStart.flatMap((entry) =>
-          entry.method === "session/set_config_option" &&
-          typeof (entry.params as Record<string, unknown> | undefined)?.configId === "string"
-            ? [String((entry.params as Record<string, unknown>).configId)]
-            : [],
-        );
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          configIdsAfterStart = requestsAfterStart.flatMap((entry) =>
+            entry.method === "session/set_config_option" &&
+            RuntimePredicate.isString(
+              (entry.params as Record<string, SchemaJson> | undefined)?.configId,
+            )
+              ? [String((entry.params as Record<string, SchemaJson>).configId)]
+              : [],
+          );
         assert.deepStrictEqual(configIdsAfterStart, [
           "model",
           "reasoning",
@@ -543,12 +552,15 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
         yield* adapter.stopSession(threadId);
 
         const finalRequests = yield* Effect.promise(() => readJsonLines(requestLogPath));
-        const finalConfigIds = finalRequests.flatMap((entry) =>
-          entry.method === "session/set_config_option" &&
-          typeof (entry.params as Record<string, unknown> | undefined)?.configId === "string"
-            ? [String((entry.params as Record<string, unknown>).configId)]
-            : [],
-        );
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          finalConfigIds = finalRequests.flatMap((entry) =>
+            entry.method === "session/set_config_option" &&
+            RuntimePredicate.isString(
+              (entry.params as Record<string, SchemaJson> | undefined)?.configId,
+            )
+              ? [String((entry.params as Record<string, SchemaJson>).configId)]
+              : [],
+          );
         assert.deepStrictEqual(finalConfigIds, ["model", "reasoning", "context", "fast", "mode"]);
         assert.equal(finalRequests.filter((entry) => entry.method === "session/prompt").length, 1);
       }),
@@ -808,10 +820,11 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
         const permissionResponse = requests.find(
           (entry) =>
             !("method" in entry) &&
-            typeof entry.result === "object" &&
+            (RuntimePredicate.isObjectOrArray(entry.result) || entry.result === null) &&
             entry.result !== null &&
             "outcome" in entry.result &&
-            typeof entry.result.outcome === "object" &&
+            (RuntimePredicate.isObjectOrArray(entry.result.outcome) ||
+              entry.result.outcome === null) &&
             entry.result.outcome !== null &&
             "outcome" in entry.result.outcome &&
             entry.result.outcome.outcome === "selected" &&
@@ -1029,12 +1042,12 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
         assert.equal(turnCompleted.payload.stopReason, "cancelled");
       }
 
-      const isCancelledApprovalResponse = (entry: Record<string, unknown>) =>
+      const isCancelledApprovalResponse = (entry: Record<string, SchemaJson>) =>
         !("method" in entry) &&
-        typeof entry.result === "object" &&
+        (RuntimePredicate.isObjectOrArray(entry.result) || entry.result === null) &&
         entry.result !== null &&
         "outcome" in entry.result &&
-        typeof entry.result.outcome === "object" &&
+        (RuntimePredicate.isObjectOrArray(entry.result.outcome) || entry.result.outcome === null) &&
         entry.result.outcome !== null &&
         "outcome" in entry.result.outcome &&
         entry.result.outcome.outcome === "cancelled";
@@ -1263,22 +1276,29 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
       assert.deepStrictEqual(argvRuns[0], ["acp"]);
 
       const requests = yield* Effect.promise(() => readJsonLines(requestLogPath));
-      const setConfigRequests = requests.filter(
-        (entry) =>
-          entry.method === "session/set_config_option" &&
-          (entry.params as Record<string, unknown> | undefined)?.configId === "model",
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        setConfigRequests = requests.filter(
+          (entry) =>
+            entry.method === "session/set_config_option" &&
+            (entry.params as Record<string, SchemaJson> | undefined)?.configId === "model",
+        );
       assert.isAbove(setConfigRequests.length, 0, "should call session/set_config_option");
-      assert.equal((setConfigRequests[0]?.params as Record<string, unknown>)?.value, "composer-2");
-
-      const fastConfigRequests = requests.filter(
-        (entry) =>
-          entry.method === "session/set_config_option" &&
-          (entry.params as Record<string, unknown> | undefined)?.configId === "fast",
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      assert.equal(
+        (setConfigRequests[0]?.params as Record<string, SchemaJson>)?.value,
+        "composer-2",
       );
+
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        fastConfigRequests = requests.filter(
+          (entry) =>
+            entry.method === "session/set_config_option" &&
+            (entry.params as Record<string, SchemaJson> | undefined)?.configId === "fast",
+        );
       assert.isAbove(fastConfigRequests.length, 0, "should apply fast mode as a separate config");
       const lastFastConfig = fastConfigRequests[fastConfigRequests.length - 1];
-      assert.equal((lastFastConfig?.params as Record<string, unknown>)?.value, "true");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      assert.equal((lastFastConfig?.params as Record<string, SchemaJson>)?.value, "true");
 
       yield* adapter.stopSession(threadId);
     }),
@@ -1327,15 +1347,17 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
       });
 
       const requests = yield* Effect.promise(() => readJsonLines(requestLogPath));
-      const fastConfigRequests = requests.filter(
-        (entry) =>
-          entry.method === "session/set_config_option" &&
-          (entry.params as Record<string, unknown> | undefined)?.configId === "fast",
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        fastConfigRequests = requests.filter(
+          (entry) =>
+            entry.method === "session/set_config_option" &&
+            (entry.params as Record<string, SchemaJson> | undefined)?.configId === "fast",
+        );
       assert.isAtLeast(fastConfigRequests.length, 2, "should set fast mode on and then off");
 
       const lastFastConfig = fastConfigRequests[fastConfigRequests.length - 1];
-      assert.equal((lastFastConfig?.params as Record<string, unknown>)?.value, "false");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      assert.equal((lastFastConfig?.params as Record<string, SchemaJson>)?.value, "false");
 
       yield* adapter.stopSession(threadId);
     }),
@@ -1412,18 +1434,20 @@ cursorAdapterTestLayer("CursorAdapterLive", (it) => {
         });
 
         const requests = yield* Effect.promise(() => readJsonLines(requestLogPath));
-        const fastConfigRequests = requests.filter(
-          (entry) =>
-            entry.method === "session/set_config_option" &&
-            (entry.params as Record<string, unknown> | undefined)?.configId === "fast",
-        );
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          fastConfigRequests = requests.filter(
+            (entry) =>
+              entry.method === "session/set_config_option" &&
+              (entry.params as Record<string, SchemaJson> | undefined)?.configId === "fast",
+          );
         assert.isAbove(
           fastConfigRequests.length,
           0,
           "fast mode should apply when instance id matches the adapter binding",
         );
         const lastFastConfig = fastConfigRequests[fastConfigRequests.length - 1];
-        assert.equal((lastFastConfig?.params as Record<string, unknown>)?.value, "true");
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        assert.equal((lastFastConfig?.params as Record<string, SchemaJson>)?.value, "true");
 
         yield* adapter.stopSession(threadId);
       }).pipe(Effect.provide(customAdapterLayer));

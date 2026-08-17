@@ -51,7 +51,7 @@ export function SidebarProviderUpdatePill() {
   const view = getProviderUpdateSidebarPillView(providers, {
     ...(effectiveVisibleAfterIso !== undefined
       ? { visibleAfterIso: effectiveVisibleAfterIso }
-      : {}),
+      : undefined),
     dismissedKeys,
   });
 

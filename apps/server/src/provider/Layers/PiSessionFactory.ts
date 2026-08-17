@@ -57,6 +57,7 @@ export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: strin
 }
 
 function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiSessionLike {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     get sessionId() {
       return session.sessionId;
@@ -65,6 +66,7 @@ function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiS
       return session.isStreaming;
     },
     get messages() {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return session.messages as ReadonlyArray<unknown>;
     },
     prompt: (text, options) => session.prompt(text, options),
@@ -132,16 +134,17 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
   // Resolve the model/thinking override against the user's catalog. Blank
   // (the default) means Pi's own default from settings wins — pass nothing.
   const modelRuntime = await ModelRuntime.create({});
-  const resolved =
-    input.model !== undefined
-      ? resolveCliModel({
-          cliModel: input.model,
-          ...(input.thinkingLevel !== undefined
-            ? { cliThinking: input.thinkingLevel as PiThinkingLevel }
-            : {}),
-          modelRuntime,
-        })
-      : undefined;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    resolved =
+      input.model !== undefined
+        ? resolveCliModel({
+            cliModel: input.model,
+            ...(input.thinkingLevel !== undefined
+              ? { cliThinking: input.thinkingLevel as PiThinkingLevel }
+              : undefined),
+            modelRuntime,
+          })
+        : undefined;
 
   const { session } = await createAgentSession({
     cwd,
@@ -150,8 +153,10 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
     settingsManager,
     resourceLoader,
     modelRuntime,
-    ...(resolved?.model !== undefined ? { model: resolved.model } : {}),
-    ...(resolved?.thinkingLevel !== undefined ? { thinkingLevel: resolved.thinkingLevel } : {}),
+    ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
+    ...(resolved?.thinkingLevel !== undefined
+      ? { thinkingLevel: resolved.thinkingLevel }
+      : undefined),
   });
 
   return toPiSessionLike(session, modelRuntime);

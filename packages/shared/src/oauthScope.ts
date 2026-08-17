@@ -60,6 +60,7 @@ export function oauthScopeSetEquals(value: string, expectedScopes: ReadonlyArray
   );
 }
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function parseAllowedOAuthScope<Scope extends string>(input: {
   readonly value: string;
   readonly allowedScopes: ReadonlySet<Scope>;

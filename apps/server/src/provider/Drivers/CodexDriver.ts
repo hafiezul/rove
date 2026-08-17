@@ -100,8 +100,8 @@ const withInstanceIdentity =
     ...snapshot,
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
-    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
+    ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
     continuation: { groupKey: input.continuationGroupKey },
   });
 
@@ -158,7 +158,7 @@ export const CodexDriver: ProviderDriver<CodexSettings, CodexDriverEnv> = {
       const adapter = yield* makeCodexAdapter(effectiveConfig, {
         instanceId,
         environment: processEnv,
-        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : {}),
+        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : undefined),
       });
       const textGeneration = yield* makeCodexTextGeneration(effectiveConfig, processEnv);
 

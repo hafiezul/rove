@@ -24,6 +24,7 @@ import {
   resolveCursorAcpBaseModelId,
   resolveCursorAcpConfigUpdates,
 } from "./CursorProvider.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const runNode = <A, E>(
   effect: Effect.Effect<
@@ -50,7 +51,7 @@ function selectDescriptor(
     options: [...options],
     ...(options.find((option) => option.isDefault)?.id
       ? { currentValue: options.find((option) => option.isDefault)?.id }
-      : {}),
+      : undefined),
   };
 }
 
@@ -59,7 +60,7 @@ function booleanDescriptor(id: string, label: string, currentValue?: boolean) {
     id,
     label,
     type: "boolean" as const,
-    ...(typeof currentValue === "boolean" ? { currentValue } : {}),
+    ...(RuntimePredicate.isBoolean(currentValue) ? { currentValue } : undefined),
   };
 }
 

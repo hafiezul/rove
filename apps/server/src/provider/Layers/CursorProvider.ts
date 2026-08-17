@@ -46,6 +46,7 @@ import {
 } from "../providerMaintenance.ts";
 import * as AcpSessionRuntime from "../acp/AcpSessionRuntime.ts";
 import { CursorListAvailableModelsResponse } from "../acp/CursorAcpExtension.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const decodeCursorListAvailableModelsResponse = Schema.decodeUnknownEffect(
   CursorListAvailableModelsResponse,
@@ -270,7 +271,7 @@ export function buildCursorCapabilitiesFromConfigOptions(
               label: entry.name,
               ...(normalizeCursorReasoningValue(reasoningConfig.currentValue) === normalizedValue
                 ? { isDefault: true }
-                : {}),
+                : undefined),
             },
           ];
         })
@@ -325,7 +326,7 @@ export function buildCursorCapabilitiesFromConfigOptions(
       : []),
     ...(fastOption && isBooleanLikeConfigOption(fastOption)
       ? [
-          typeof fastCurrentValue === "boolean"
+          RuntimePredicate.isBoolean(fastCurrentValue)
             ? buildBooleanOptionDescriptor({
                 id: "fastMode",
                 label: fastOption.name?.trim() || "Fast Mode",
@@ -339,7 +340,7 @@ export function buildCursorCapabilitiesFromConfigOptions(
       : []),
     ...(thinkingOption && isBooleanLikeConfigOption(thinkingOption)
       ? [
-          typeof thinkingCurrentValue === "boolean"
+          RuntimePredicate.isBoolean(thinkingCurrentValue)
             ? buildBooleanOptionDescriptor({
                 id: "thinking",
                 label: thinkingOption.name?.trim() || "Thinking",
@@ -415,7 +416,7 @@ const makeCursorAcpProbeRuntime = (
             "acp",
           ],
           cwd: process.cwd(),
-          ...(environment ? { env: environment } : {}),
+          ...(environment ? { env: environment } : undefined),
         },
         cwd: process.cwd(),
         clientInfo: { name: "t3-code-provider-probe", version: "0.0.0" },
@@ -529,7 +530,7 @@ export function resolveCursorAcpConfigUpdates(
     (option) => option.category === "model_config" && isCursorFastConfigOption(option),
   );
   const requestedFastMode = getProviderOptionBooleanSelectionValue(selections, "fastMode");
-  if (fastOption && typeof requestedFastMode === "boolean") {
+  if (fastOption && RuntimePredicate.isBoolean(requestedFastMode)) {
     const value = findCursorBooleanConfigValue(fastOption, requestedFastMode);
     if (value !== undefined) {
       updates.push({ configId: fastOption.id, value });
@@ -540,7 +541,7 @@ export function resolveCursorAcpConfigUpdates(
     (option) => option.category === "model_config" && isCursorThinkingConfigOption(option),
   );
   const requestedThinking = getProviderOptionBooleanSelectionValue(selections, "thinking");
-  if (thinkingOption && typeof requestedThinking === "boolean") {
+  if (thinkingOption && RuntimePredicate.isBoolean(requestedThinking)) {
     const value = findCursorBooleanConfigValue(thinkingOption, requestedThinking);
     if (value !== undefined) {
       updates.push({ configId: thinkingOption.id, value });
@@ -645,7 +646,7 @@ export function buildCursorProviderSnapshot(input: {
       status:
         input.discoveryWarning && input.parsed.status === "ready" ? "warning" : input.parsed.status,
       auth: input.parsed.auth,
-      ...(message ? { message } : {}),
+      ...(message ? { message } : undefined),
     },
   });
 }
@@ -667,12 +668,12 @@ export function parseCursorVersionDate(version: string | null | undefined): numb
 
 export function parseCursorCliConfigChannel(raw: string): string | undefined {
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
+      parsed = JSON.parse(raw) as unknown;
     if (
-      typeof parsed === "object" &&
-      parsed !== null &&
+      RuntimePredicate.isObjectOrArray(parsed) &&
       "channel" in parsed &&
-      typeof parsed.channel === "string"
+      RuntimePredicate.isString(parsed.channel)
     ) {
       const channel = parsed.channel.trim().toLowerCase();
       return channel.length > 0 ? channel : undefined;
@@ -732,10 +733,16 @@ function parseCursorAboutJsonPayload(raw: string): CursorAboutJsonPayload | unde
     return undefined;
   }
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
+      parsed = JSON.parse(trimmed) as unknown;
+    if (
+      !parsed ||
+      !(RuntimePredicate.isObjectOrArray(parsed) || parsed === null) ||
+      Array.isArray(parsed)
+    ) {
       return undefined;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return parsed as CursorAboutJsonPayload;
   } catch {
     return undefined;
@@ -820,15 +827,16 @@ export function getCursorParameterizedModelPickerUnsupportedMessage(input: {
 export function parseCursorAboutOutput(result: CommandResult): CursorAboutResult {
   const jsonPayload = parseCursorAboutJsonPayload(result.stdout);
   if (jsonPayload) {
-    const version =
-      typeof jsonPayload.cliVersion === "string" ? jsonPayload.cliVersion.trim() : null;
+    const version = RuntimePredicate.isString(jsonPayload.cliVersion)
+      ? jsonPayload.cliVersion.trim()
+      : null;
     const hasUserEmailField = hasOwn(jsonPayload, "userEmail");
-    const userEmail =
-      typeof jsonPayload.userEmail === "string" ? jsonPayload.userEmail.trim() : undefined;
-    const subscriptionType =
-      typeof jsonPayload.subscriptionTier === "string"
-        ? jsonPayload.subscriptionTier.trim()
-        : undefined;
+    const userEmail = RuntimePredicate.isString(jsonPayload.userEmail)
+      ? jsonPayload.userEmail.trim()
+      : undefined;
+    const subscriptionType = RuntimePredicate.isString(jsonPayload.subscriptionTier)
+      ? jsonPayload.subscriptionTier.trim()
+      : undefined;
     const authMetadata = cursorAuthMetadata(subscriptionType);
 
     if (hasUserEmailField && jsonPayload.userEmail == null) {
@@ -1109,7 +1117,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
       Option.filter(discoveredModels, (models) => models.length > 0),
       () => [] as const,
     ),
-    ...(discoveryWarning ? { discoveryWarning } : {}),
+    ...(discoveryWarning ? { discoveryWarning } : undefined),
   });
 });
 

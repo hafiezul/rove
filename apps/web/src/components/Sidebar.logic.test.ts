@@ -371,7 +371,7 @@ describe("shouldClearThreadSelectionOnMouseDown", () => {
     const child = {
       closest: (selector: string) =>
         selector.includes("[data-thread-item]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
+    } as HTMLElement;
 
     expect(shouldClearThreadSelectionOnMouseDown(child)).toBe(false);
   });
@@ -380,7 +380,7 @@ describe("shouldClearThreadSelectionOnMouseDown", () => {
     const selectionSafe = {
       closest: (selector: string) =>
         selector.includes("[data-thread-selection-safe]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
+    } as HTMLElement;
 
     expect(shouldClearThreadSelectionOnMouseDown(selectionSafe)).toBe(false);
   });
@@ -388,7 +388,7 @@ describe("shouldClearThreadSelectionOnMouseDown", () => {
   it("clears selection for unrelated sidebar clicks", () => {
     const unrelated = {
       closest: () => null,
-    } as unknown as HTMLElement;
+    } as HTMLElement;
 
     expect(shouldClearThreadSelectionOnMouseDown(unrelated)).toBe(true);
   });

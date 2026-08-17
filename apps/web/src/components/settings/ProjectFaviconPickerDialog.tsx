@@ -14,6 +14,7 @@ import {
 } from "../files/ProjectFilePicker.logic";
 import { useProjectFilePickerQuery } from "../files/projectFilesQueryState";
 import { CommandDialog, CommandDialogPopup } from "../ui/command";
+import * as RuntimePredicate from "effect/Predicate";
 
 function emptyMessage(query: string, error: string | null, isPending: boolean): string {
   if (error) return error;
@@ -70,7 +71,7 @@ export function ProjectFaviconPickerDialog(props: {
             inputProps={{ placeholder: "Search image files…" }}
             mode="none"
             onItemHighlighted={(value) => {
-              setHighlightedItemValue(typeof value === "string" ? value : null);
+              setHighlightedItemValue(RuntimePredicate.isString(value) ? value : null);
             }}
             onValueChange={(value) => {
               setHighlightedItemValue(null);

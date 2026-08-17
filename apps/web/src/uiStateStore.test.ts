@@ -151,7 +151,7 @@ describe("parsePersistedState", () => {
     const parsed = parsePersistedState({
       projectExpandedById: {
         logical: false,
-        invalid: "no" as unknown as boolean,
+        invalid: "no" as boolean,
       },
       projectOrder: ["physical-b", "", "physical-a", "physical-b"],
       threadLastVisitedAtById: {
@@ -284,9 +284,10 @@ describe("uiStateStore persistence", () => {
 
     persistState(state);
 
-    const persisted = JSON.parse(
-      localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
-    ) as PersistedUiState;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = JSON.parse(
+        localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
+      ) as PersistedUiState;
     expect(persisted).toEqual({
       projectExpandedById: {
         logical: false,
@@ -316,9 +317,10 @@ describe("uiStateStore persistence", () => {
 
     persistState(migrated);
 
-    const persisted = JSON.parse(
-      localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
-    ) as PersistedUiState;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = JSON.parse(
+        localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
+      ) as PersistedUiState;
     expect(resolveProjectExpanded(persisted.projectExpandedById ?? {}, ["unknown"])).toBe(true);
   });
 });

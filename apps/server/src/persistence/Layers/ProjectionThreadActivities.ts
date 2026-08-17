@@ -133,7 +133,7 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
           kind: row.kind,
           summary: row.summary,
           payload: row.payload,
-          ...(row.sequence !== null ? { sequence: row.sequence } : {}),
+          ...(row.sequence !== null ? { sequence: row.sequence } : undefined),
           createdAt: row.createdAt,
         })),
       ),

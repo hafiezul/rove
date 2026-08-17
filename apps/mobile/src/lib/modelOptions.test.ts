@@ -37,7 +37,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    } as ServerConfig;
 
     expect(groupByProvider(buildModelOptions(config, null))).toMatchObject([
       {
@@ -84,7 +84,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    } as ServerConfig;
 
     const [option] = buildModelOptions(config, {
       instanceId: ProviderInstanceId.make("codex"),
@@ -116,7 +116,7 @@ describe("mobile model options", () => {
           models: [],
         },
       ],
-    } as unknown as ServerConfig;
+    } as ServerConfig;
 
     const usable = {
       instanceId: ProviderInstanceId.make("codex"),
@@ -160,7 +160,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    } as ServerConfig;
 
     const current = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.6-sol" };
     const legacy = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" };

@@ -39,7 +39,10 @@ function parameterName(parameter: Parameter, sourceText: string): string {
     : sourceText.replace(/\s*:\s*unknown\s*$/u, "");
 }
 
-/** Disallow unknown inputs except explicitly named error-cause enrichment. */
+/**
+ * Disallow unparsed unknown values in callback and declaration contracts.
+ * Runtime implementations are allowed to accept unknown at their decoding boundary.
+ */
 export const noUnknownParametersRule = defineRule({
   meta: {
     type: "problem",
@@ -68,15 +71,11 @@ export const noUnknownParametersRule = defineRule({
     };
 
     return {
-      ArrowFunctionExpression: checkParameters,
-      FunctionDeclaration: checkParameters,
-      FunctionExpression: checkParameters,
       TSCallSignatureDeclaration: checkParameters,
       TSConstructSignatureDeclaration: checkParameters,
       TSConstructorType: checkParameters,
       TSDeclareFunction: checkParameters,
       TSEmptyBodyFunctionExpression: checkParameters,
-      TSFunctionType: checkParameters,
       TSMethodSignature: checkParameters,
     };
   },

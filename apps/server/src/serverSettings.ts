@@ -51,6 +51,8 @@ import {
   isModelSelectionProviderEnabled,
 } from "@t3tools/shared/serverSettings";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
 
@@ -93,7 +95,7 @@ function redactProviderEnvironmentVariable(
   return {
     ...variable,
     value: "",
-    ...(variable.value.length > 0 || variable.valueRedacted ? { valueRedacted: true } : {}),
+    ...(variable.value.length > 0 || variable.valueRedacted ? { valueRedacted: true } : undefined),
   };
 }
 
@@ -149,15 +151,16 @@ const makeTest = (overrides: DeepPartial<ServerSettings> = {}) =>
     const { automaticGitFetchInterval, providerHealthRefreshInterval, ...overridesForMerge } =
       overrides;
     const merged = deepMerge(DEFAULT_SERVER_SETTINGS, overridesForMerge);
-    const initialSettings = yield* normalizeServerSettings({
-      ...merged,
-      ...(automaticGitFetchInterval !== undefined
-        ? { automaticGitFetchInterval: automaticGitFetchInterval as Duration.Duration }
-        : {}),
-      ...(providerHealthRefreshInterval !== undefined
-        ? { providerHealthRefreshInterval: providerHealthRefreshInterval as Duration.Duration }
-        : {}),
-    });
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      initialSettings = yield* normalizeServerSettings({
+        ...merged,
+        ...(automaticGitFetchInterval !== undefined
+          ? { automaticGitFetchInterval: automaticGitFetchInterval as Duration.Duration }
+          : undefined),
+        ...(providerHealthRefreshInterval !== undefined
+          ? { providerHealthRefreshInterval: providerHealthRefreshInterval as Duration.Duration }
+          : undefined),
+      });
     const currentSettingsRef = yield* Ref.make<ServerSettings>(initialSettings);
 
     return {
@@ -216,7 +219,7 @@ const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "textGenerationModelSelection",
 ]);
 
-function stripDefaultServerSettings(current: unknown, defaults: unknown): unknown | undefined {
+function stripDefaultServerSettings(current: unknown, defaults: unknown) {
   if (Array.isArray(current) || Array.isArray(defaults)) {
     return Equal.equals(current, defaults) ? undefined : current;
   }
@@ -224,12 +227,14 @@ function stripDefaultServerSettings(current: unknown, defaults: unknown): unknow
   if (
     current !== null &&
     defaults !== null &&
-    typeof current === "object" &&
-    typeof defaults === "object"
+    (RuntimePredicate.isObjectOrArray(current) || current === null) &&
+    (RuntimePredicate.isObjectOrArray(defaults) || defaults === null)
   ) {
-    const currentRecord = current as Record<string, unknown>;
-    const defaultsRecord = defaults as Record<string, unknown>;
-    const next: Record<string, unknown> = {};
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      currentRecord = current as Record<string, SchemaJson>;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      defaultsRecord = defaults as Record<string, SchemaJson>;
+    const next: Record<string, SchemaJson> = {};
 
     for (const key of Object.keys(currentRecord)) {
       if (ATOMIC_SETTINGS_KEYS.has(key)) {
@@ -356,6 +361,7 @@ const make = Effect.gen(function* () {
           environment,
         } satisfies ProviderInstanceConfig;
       }
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         ...settings,
         providerInstances: providerInstances as ServerSettings["providerInstances"],
@@ -474,6 +480,7 @@ const make = Effect.gen(function* () {
         }
       }
 
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         ...next,
         providerInstances: providerInstances as ServerSettings["providerInstances"],

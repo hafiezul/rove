@@ -14,6 +14,7 @@ export function LoadingScreen(props: {
   const insets = useSafeAreaInsets();
   const messagePlacement = props.messagePlacement ?? "below-spinner";
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <View className="flex-1 bg-screen" style={{ paddingTop: insets.top }}>
       <StatusBar

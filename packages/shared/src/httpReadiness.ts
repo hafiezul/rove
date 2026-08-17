@@ -5,6 +5,7 @@ import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import type { Json } from "effect/Schema";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
 
@@ -15,7 +16,7 @@ export const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
  * `cause`/`reason` chains.
  */
 interface ReadinessCauseRecord {
-  readonly [field: string]: unknown;
+  readonly [field: string]: Json | Error | ReadinessCauseRecord | Function;
 }
 
 interface TaggedReadinessError extends Error {
@@ -24,7 +25,7 @@ interface TaggedReadinessError extends Error {
 }
 
 function isReadinessCauseRecord(value: unknown): value is ReadinessCauseRecord {
-  return typeof value === "object" && value !== null;
+  return RuntimePredicate.isObjectOrArray(value);
 }
 
 export function describeReadinessCause(cause: unknown): Json {
@@ -33,18 +34,22 @@ export function describeReadinessCause(cause: unknown): Json {
     const tag = taggedCause._tag;
     const nested = taggedCause.cause;
     return {
-      ...(typeof tag === "string" ? { _tag: tag } : { name: cause.name }),
+      ...(RuntimePredicate.isString(tag) ? { _tag: tag } : { name: cause.name }),
       message: cause.message,
-      ...(nested === undefined ? {} : { cause: describeReadinessCause(nested) }),
+      ...(nested === undefined ? undefined : { cause: describeReadinessCause(nested) }),
     };
   }
   if (cause === null) {
     return null;
   }
-  if (typeof cause === "string" || typeof cause === "number" || typeof cause === "boolean") {
+  if (
+    RuntimePredicate.isString(cause) ||
+    RuntimePredicate.isNumber(cause) ||
+    RuntimePredicate.isBoolean(cause)
+  ) {
     return cause;
   }
-  if (typeof cause === "bigint") {
+  if (RuntimePredicate.isBigInt(cause)) {
     return cause.toString();
   }
   if (!isReadinessCauseRecord(cause)) {
@@ -52,10 +57,10 @@ export function describeReadinessCause(cause: unknown): Json {
   }
 
   return {
-    ...(typeof cause._tag === "string" ? { _tag: cause._tag } : {}),
-    ...(typeof cause.message === "string" ? { message: cause.message } : {}),
-    ...(cause.reason === undefined ? {} : { reason: describeReadinessCause(cause.reason) }),
-    ...(cause.cause === undefined ? {} : { cause: describeReadinessCause(cause.cause) }),
+    ...(RuntimePredicate.isString(cause._tag) ? { _tag: cause._tag } : undefined),
+    ...(RuntimePredicate.isString(cause.message) ? { message: cause.message } : undefined),
+    ...(cause.reason === undefined ? undefined : { reason: describeReadinessCause(cause.reason) }),
+    ...(cause.cause === undefined ? undefined : { cause: describeReadinessCause(cause.cause) }),
   };
 }
 
@@ -104,13 +109,13 @@ export const waitForHttpReady = Effect.fn("shared.httpReadiness.waitForHttpReady
   const madeErrors = new WeakSet<object>();
   const fail = (cause: unknown): E => {
     const error = makeError({ requestUrl, probeTimeoutMs, attempt, cause });
-    if (typeof error === "object" && error !== null) {
+    if (RuntimePredicate.isObjectOrArray(error)) {
       madeErrors.add(error);
     }
     return error;
   };
   const isMadeError = (value: unknown): value is E =>
-    typeof value === "object" && value !== null && madeErrors.has(value);
+    RuntimePredicate.isObjectOrArray(value) && madeErrors.has(value);
 
   yield* Effect.logDebug("httpReadiness.start", {
     baseUrl: input.baseUrl,

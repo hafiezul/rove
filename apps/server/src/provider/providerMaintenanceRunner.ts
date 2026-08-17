@@ -26,6 +26,7 @@ import { makeProviderMaintenanceCommandCoordinator } from "./providerMaintenance
 import { enrichProviderSnapshotWithVersionAdvisory } from "./providerMaintenance.ts";
 import type { ProviderMaintenanceCapabilities } from "./providerMaintenance.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isServerProviderUpdateError = Schema.is(ServerProviderUpdateError);
 
 const UPDATE_TIMEOUT_MS = 5 * 60_000;
@@ -287,11 +288,10 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
   const updateProvider: ProviderMaintenanceRunnerContract["updateProvider"] = Effect.fn(
     "ProviderMaintenanceRunner.updateProvider",
   )(function* (target) {
-    const provider = typeof target === "string" ? target : target.provider;
-    const instanceId =
-      typeof target === "string"
-        ? defaultInstanceIdForDriver(provider)
-        : (target.instanceId ?? defaultInstanceIdForDriver(provider));
+    const provider = RuntimePredicate.isString(target) ? target : target.provider;
+    const instanceId = RuntimePredicate.isString(target)
+      ? defaultInstanceIdForDriver(provider)
+      : (target.instanceId ?? defaultInstanceIdForDriver(provider));
     const targetKey = `instance:${instanceId}`;
     const capabilities = yield* providerRegistry.getProviderMaintenanceCapabilitiesForInstance(
       instanceId,

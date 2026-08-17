@@ -20,6 +20,7 @@ import * as Schema from "effect/Schema";
 
 import * as DpopProofs from "../auth/DpopProofs.ts";
 import * as RelayConfiguration from "../Config.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class EnvironmentPublishSignatureExpired extends Schema.TaggedErrorClass<EnvironmentPublishSignatureExpired>()(
   "EnvironmentPublishSignatureExpired",
@@ -126,7 +127,7 @@ const make = Effect.gen(function* () {
           }),
       });
       if (
-        typeof decoded.exp === "number" &&
+        RuntimePredicate.isNumber(decoded.exp) &&
         decoded.exp <= Math.floor(now.epochMilliseconds / 1_000)
       ) {
         return yield* new EnvironmentPublishSignatureExpired({

@@ -63,7 +63,7 @@ describe("DesktopLocalEnvironmentAuth", () => {
             currentConfig: Effect.succeed(Option.some(config)),
           },
         ]),
-      } as unknown as DesktopBackendPool.DesktopBackendPool["Service"]);
+      } as DesktopBackendPool.DesktopBackendPool["Service"]);
       const testLayer = DesktopLocalEnvironmentAuth.layer.pipe(
         Layer.provide(Layer.mergeAll(poolLayer, httpClientLayer)),
       );

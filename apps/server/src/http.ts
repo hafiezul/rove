@@ -51,7 +51,7 @@ export function assetResponseHeaders(filePath: string) {
     "X-Content-Type-Options": "nosniff",
     ...(filePath.toLowerCase().endsWith(".svg")
       ? { "Content-Security-Policy": SVG_CONTENT_SECURITY_POLICY }
-      : {}),
+      : undefined),
   };
 }
 
@@ -76,7 +76,7 @@ export const browserApiCorsLayer = Layer.unwrap(
             allowedOrigins: [devOrigin, ...DESKTOP_RENDERER_ORIGINS, ...config.devAllowedOrigins],
             credentials: true,
           }
-        : {}),
+        : undefined),
       allowedMethods: browserApiCorsAllowedMethods,
       allowedHeaders: browserApiCorsAllowedHeaders,
       maxAge: 600,

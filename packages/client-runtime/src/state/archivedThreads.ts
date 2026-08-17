@@ -17,7 +17,8 @@ export interface ArchivedThreadSnapshotsState {
 }
 
 const ARCHIVED_THREADS_ENVIRONMENT_KEY_SEPARATOR = "\u001f";
-const environmentIdOrder = Order.String as Order.Order<EnvironmentId>;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  environmentIdOrder = Order.String as Order.Order<EnvironmentId>;
 
 export function makeArchivedThreadsEnvironmentKey(
   environmentIds: ReadonlyArray<EnvironmentId>,

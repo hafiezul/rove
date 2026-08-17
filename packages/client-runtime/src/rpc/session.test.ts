@@ -158,7 +158,8 @@ const makeFactory = Effect.fn("TestRpcSessionFactory.make")(function* () {
   const constructorLayer = Layer.succeed(Socket.WebSocketConstructor, (url) => {
     const socket = new TestWebSocket(url);
     sockets.push(socket);
-    return socket as unknown as globalThis.WebSocket;
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    return socket as globalThis.WebSocket;
   });
   const layer = RpcSession.layer.pipe(Layer.provide(constructorLayer));
   const factory = yield* RpcSession.RpcSessionFactory.pipe(Effect.provide(layer));

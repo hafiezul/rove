@@ -12,9 +12,10 @@ import {
   decodeStatusesJson,
   decodeViewerJson,
 } from "./bitbucketPullRequestJson.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /** Shaped after a real api.bitbucket.org pull request, trimmed to the fields that are read. */
-function pullRequest(overrides: Record<string, unknown> = {}) {
+function pullRequest(overrides: Record<string, SchemaJson> = {}) {
   return {
     id: 897,
     title: "Add trustabl-pipe",
@@ -31,7 +32,7 @@ function pullRequest(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function page(values: ReadonlyArray<unknown>, extra: Record<string, unknown> = {}): string {
+function page(values: ReadonlyArray<unknown>, extra: Record<string, SchemaJson> = {}): string {
   return JSON.stringify({ pagelen: 50, page: 1, size: values.length, values, ...extra });
 }
 

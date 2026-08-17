@@ -387,7 +387,7 @@ export const issueAssetUrl = Effect.fn("AssetAccess.issueAssetUrl")(function* (i
   return {
     relativeUrl: `${ASSET_ROUTE_PREFIX}/${token}/${encodeURIComponent(fileName)}`,
     expiresAt,
-    ...(sourcePath !== undefined ? { sourcePath } : {}),
+    ...(sourcePath !== undefined ? { sourcePath } : undefined),
   };
 });
 

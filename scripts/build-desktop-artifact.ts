@@ -41,6 +41,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
@@ -702,7 +703,7 @@ interface StagePackageJson {
   readonly author: string;
   readonly main: string;
   readonly build: DesktopBuildConfig;
-  readonly dependencies: Record<string, unknown>;
+  readonly dependencies: Record<string, SchemaJson>;
   readonly devDependencies: {
     readonly electron: string;
   };
@@ -1076,17 +1077,17 @@ export function createStageWorkspaceConfig(input: {
 
   return {
     supportedArchitectures,
-    ...(allowBuilds && Object.keys(allowBuilds).length > 0 ? { allowBuilds } : {}),
+    ...(allowBuilds && Object.keys(allowBuilds).length > 0 ? { allowBuilds } : undefined),
     ...(patchedDependencies && Object.keys(patchedDependencies).length > 0
       ? { patchedDependencies }
-      : {}),
-    ...(overrides && Object.keys(overrides).length > 0 ? { overrides } : {}),
+      : undefined),
+    ...(overrides && Object.keys(overrides).length > 0 ? { overrides } : undefined),
   };
 }
 
 export function createStagePatchedDependencies(
   patchedDependencies: Record<string, string>,
-  dependencies: Record<string, unknown>,
+  dependencies: Record<string, SchemaJson>,
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(patchedDependencies).filter(([patchKey]) =>
@@ -1263,8 +1264,8 @@ const runCommand = Effect.fn("runCommand")(function* (
     return yield* new BuildCommandFailedError({
       command: options.label,
       exitCode,
-      ...(stdout.trim() ? { stdoutTail: stdout } : {}),
-      ...(stderr.trim() ? { stderrTail: stderr } : {}),
+      ...(stdout.trim() ? { stdoutTail: stdout } : undefined),
+      ...(stderr.trim() ? { stderrTail: stderr } : undefined),
     });
   }
 });
@@ -1833,7 +1834,7 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     owner,
     repo,
     releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : undefined),
   };
 });
 
@@ -1910,7 +1911,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // Only the Windows WSL backend needs files outside the asar (see
     // WINDOWS_ASAR_UNPACK); macOS and Linux stay packed — smart unpack
     // extracts native libraries, which fff-node finds in app.asar.unpacked.
-    ...(platform === "win" ? { asarUnpack: [...WINDOWS_ASAR_UNPACK] } : {}),
+    ...(platform === "win" ? { asarUnpack: [...WINDOWS_ASAR_UNPACK] } : undefined),
     extraResources: DESKTOP_EXTRA_RESOURCES,
   };
   const updateChannel = resolveDesktopUpdateChannel(version);
@@ -1942,7 +1943,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
             entitlements: macPasskeySigning.entitlementsPath,
             provisioningProfile: macPasskeySigning.provisioningProfilePath,
           }
-        : {}),
+        : undefined),
     };
   }
 
@@ -2330,7 +2331,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
           options.arch,
           serverPackageJson.dependencies["@ff-labs/fff-node"],
         )
-      : {}),
+      : undefined),
   };
   const stagePatchedDependencies = createStagePatchedDependencies(
     workspacePatchedDependencies,

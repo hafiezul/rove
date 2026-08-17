@@ -30,10 +30,10 @@ function selectDescriptor(
     label: id,
     type: "select",
     options: [...options],
-    ...(defaultId ? { currentValue: defaultId } : {}),
+    ...(defaultId ? { currentValue: defaultId } : undefined),
     ...(promptInjectedValues && promptInjectedValues.length > 0
       ? { promptInjectedValues: [...promptInjectedValues] }
-      : {}),
+      : undefined),
   };
 }
 

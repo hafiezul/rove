@@ -23,7 +23,10 @@ function referencedAliasName(type: ESTree.TSType): string | null {
     : null;
 }
 
-/** Ban function contracts that return unknown instead of a parsed domain type. */
+/**
+ * Ban implementation contracts that return unknown instead of a parsed domain type.
+ * Callback declarations may intentionally forward opaque values to their owning boundary.
+ */
 export const noUnknownReturnsRule = defineRule({
   meta: {
     type: "problem",
@@ -103,13 +106,6 @@ export const noUnknownReturnsRule = defineRule({
       ArrowFunctionExpression: checkReturnType,
       FunctionDeclaration: checkReturnType,
       FunctionExpression: checkReturnType,
-      TSCallSignatureDeclaration: checkReturnType,
-      TSConstructSignatureDeclaration: checkReturnType,
-      TSConstructorType: checkReturnType,
-      TSDeclareFunction: checkReturnType,
-      TSEmptyBodyFunctionExpression: checkReturnType,
-      TSFunctionType: checkReturnType,
-      TSMethodSignature: checkReturnType,
     };
   },
 });

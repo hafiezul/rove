@@ -41,7 +41,7 @@ describe("DpopProofReplay", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;
@@ -86,7 +86,7 @@ describe("DpopProofReplay", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;
@@ -106,7 +106,7 @@ describe("DpopProofReplay", () => {
           where: () => Effect.fail(cause),
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    } as RelayDb.RelayDb["Service"];
 
     return Effect.gen(function* () {
       const replay = yield* DpopProofs.DpopProofReplay;

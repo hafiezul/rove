@@ -31,7 +31,8 @@ const spawnerLayer = (input: { readonly off?: CallResult; readonly serve?: CallR
   Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const args = "args" in command ? (command.args as ReadonlyArray<string>) : [];
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        args = "args" in command ? (command.args as ReadonlyArray<string>) : [];
       const result: CallResult = args.includes("status")
         ? { exitCode: 0 }
         : args.includes("off")
@@ -121,6 +122,7 @@ describe("shareDevServer", () => {
       assert.equal(error.stage, "serve");
       assert.equal(error.webPort, 5788);
       // The underlying failure is preserved rather than flattened to a string.
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal(
         (error.cause as { _tag?: string } | undefined)?._tag,
         "TailscaleCommandExitError",

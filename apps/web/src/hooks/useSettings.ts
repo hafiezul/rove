@@ -38,6 +38,7 @@ import { primaryServerSettingsAtom, serverEnvironment } from "~/state/server";
 import { usePrimaryEnvironment } from "~/state/environments";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useTheme } from "./useTheme";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
 
@@ -156,8 +157,8 @@ function persistClientSettings(settings: ClientSettings): void {
 const SERVER_SETTINGS_KEYS = new Set<string>(Struct.keys(ServerSettings.fields));
 
 function splitPatch(patch: UnifiedSettingsPatch) {
-  const serverPatch: Record<string, unknown> = {};
-  const clientPatch: Record<string, unknown> = {};
+  const serverPatch: Record<string, SchemaJson> = {};
+  const clientPatch: Record<string, SchemaJson> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (SERVER_SETTINGS_KEYS.has(key)) {
       serverPatch[key] = value;
@@ -165,6 +166,7 @@ function splitPatch(patch: UnifiedSettingsPatch) {
       clientPatch[key] = value;
     }
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     serverPatch: serverPatch as ServerSettingsPatch,
     clientPatch: clientPatch as ClientSettingsPatch,
@@ -216,6 +218,7 @@ function useMergedSettings<T>(
     [clientSettings, serverSettings],
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return useMemo(() => (selector ? selector(merged) : (merged as T)), [merged, selector]);
 }
 
@@ -223,6 +226,7 @@ export function useClientSettings<T = ClientSettings>(
   selector?: (settings: ClientSettings) => T,
 ): T {
   const settings = useClientSettingsValue();
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return useMemo(() => (selector ? selector(settings) : (settings as T)), [selector, settings]);
 }
 

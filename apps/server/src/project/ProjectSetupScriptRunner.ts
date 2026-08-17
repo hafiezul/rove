@@ -88,8 +88,8 @@ export const make = Effect.gen(function* () {
     const errorContext = {
       threadId: input.threadId,
       worktreePath: input.worktreePath,
-      ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
-      ...(input.projectCwd === undefined ? {} : { projectCwd: input.projectCwd }),
+      ...(input.projectId === undefined ? undefined : { projectId: input.projectId }),
+      ...(input.projectCwd === undefined ? undefined : { projectCwd: input.projectCwd }),
     };
     const projectById = input.projectId
       ? yield* projectionSnapshotQuery.getProjectShellById(ProjectId.make(input.projectId)).pipe(

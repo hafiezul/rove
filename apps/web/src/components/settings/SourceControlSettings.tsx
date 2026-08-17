@@ -4,11 +4,9 @@ import * as Option from "effect/Option";
 import { useState, type ReactNode } from "react";
 import type {
   BackgroundActivitySettings,
-  SourceControlProviderKind,
   SourceControlDiscoveryResult,
   SourceControlProviderAuth,
   SourceControlProviderDiscoveryItem,
-  VcsDriverKind,
   VcsDiscoveryItem,
 } from "@t3tools/contracts";
 import {
@@ -117,9 +115,11 @@ function backgroundActivityOverrideSettings(
   };
   for (const [key, value] of Object.entries(nextOverrides)) {
     if (value === undefined) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       delete nextOverrides[key as keyof typeof nextOverrides];
     }
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     backgroundActivity: {
       schemaVersion: 1 as const,

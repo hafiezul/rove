@@ -161,7 +161,9 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
       .setExternalProcesses([
         {
           pid: initialDesktop.value.electronPid,
-          ...(electronRoot === undefined ? {} : { startTimeMs: electronRoot.creationTimeMs }),
+          ...(electronRoot === undefined
+            ? undefined
+            : { startTimeMs: electronRoot.creationTimeMs }),
         },
       ])
       .pipe(Effect.ignore);
@@ -341,7 +343,9 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
         .setExternalProcesses([
           {
             pid: snapshot.electronPid,
-            ...(electronRoot === undefined ? {} : { startTimeMs: electronRoot.creationTimeMs }),
+            ...(electronRoot === undefined
+              ? undefined
+              : { startTimeMs: electronRoot.creationTimeMs }),
           },
         ])
         .pipe(Effect.ignore);

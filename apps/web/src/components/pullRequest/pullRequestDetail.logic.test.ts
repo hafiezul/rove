@@ -27,6 +27,7 @@ import {
   describePullRequestState,
 } from "./pullRequestDetail.logic";
 import type { ReviewCommentContext } from "~/reviewCommentContext";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const TIMELINE_SOURCE: Pick<
   PullRequestDetailView,
@@ -816,7 +817,7 @@ describe("a second ask into the same composer", () => {
 });
 
 describe("how the branch stands against its base", () => {
-  const detail = (overrides: Record<string, unknown> = {}) =>
+  const detail = (overrides: Record<string, SchemaJson> = {}) =>
     ({
       state: "open",
       mergeability: "mergeable",

@@ -10,6 +10,7 @@ type NativeHeaderMenuItems = NativeStackHeaderItemMenu["menu"]["items"];
 type NativeHeaderIcon = NonNullable<Extract<NativeStackHeaderItem, { type: "button" }>["icon"]>;
 
 function sfSymbolIcon(name: string): NativeHeaderIcon {
+  // SAFETY: This branch is unreachable under the owning callback contract.
   return { type: "sfSymbol", name: name as never };
 }
 

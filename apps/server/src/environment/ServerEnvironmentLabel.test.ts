@@ -12,6 +12,7 @@ import { vi } from "vite-plus/test";
 
 import * as ProcessRunner from "../processRunner.ts";
 import * as ServerEnvironmentLabel from "./ServerEnvironmentLabel.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const isServerEnvironmentLabelFileError = Schema.is(
   ServerEnvironmentLabel.ServerEnvironmentLabelFileError,
@@ -22,7 +23,7 @@ const isServerEnvironmentLabelCommandError = Schema.is(
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, unknown>>;
+  readonly annotations: Readonly<Record<string, SchemaJson>>;
 }
 
 const runMock = vi.fn<ProcessRunner.ProcessRunner["Service"]["run"]>();

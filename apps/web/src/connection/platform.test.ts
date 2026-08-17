@@ -68,7 +68,7 @@ function makeBridge(
         scope: AuthStandardClientScopes.join(" "),
       };
     },
-  } as unknown as DesktopBridge;
+  } as DesktopBridge;
 }
 
 describe("desktop SSH pairing", () => {

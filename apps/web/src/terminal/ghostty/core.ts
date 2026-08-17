@@ -5,6 +5,7 @@ import {
   loadGhosttyKeyboardLayoutMap,
 } from "./keyCodes";
 import { GhosttyRuntime, loadGhosttyRuntime } from "./runtime";
+import * as RuntimePredicate from "effect/Predicate";
 
 const GHOSTTY_SUCCESS = 0;
 const GHOSTTY_OUT_OF_SPACE = -3;
@@ -292,7 +293,7 @@ export class GhosttyTerminalCore {
 
   write(data: string | Uint8Array): void {
     this.ensureActive();
-    const bytes = typeof data === "string" ? encoder.encode(data) : data;
+    const bytes = RuntimePredicate.isString(data) ? encoder.encode(data) : data;
     if (bytes.length === 0) return;
     const pointer = this.runtime.alloc(bytes.length);
     this.runtime.bytes(pointer, bytes.length).set(bytes);

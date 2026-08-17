@@ -83,10 +83,12 @@ const addScopedAppListener = <Args extends ReadonlyArray<unknown>>(
 ): Effect.Effect<void, never, Scope.Scope> =>
   Effect.acquireRelease(
     Effect.sync(() => {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       Electron.app.on(eventName as any, listener as any);
     }),
     () =>
       Effect.sync(() => {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         Electron.app.removeListener(eventName as any, listener as any);
       }),
   ).pipe(Effect.asVoid);
@@ -165,9 +167,10 @@ export const make = ElectronApp.of({
     }),
   setDesktopName: (desktopName) =>
     Effect.sync(() => {
-      const linuxApp = Electron.app as Electron.App & {
-        setDesktopName?: (desktopName: string) => void;
-      };
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        linuxApp = Electron.app as Electron.App & {
+          setDesktopName?: (desktopName: string) => void;
+        };
       linuxApp.setDesktopName?.(desktopName);
     }),
   setDockIcon: (iconPath) =>

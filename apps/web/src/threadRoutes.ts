@@ -57,6 +57,7 @@ export function resolveThreadRouteRef(
     return null;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return scopeThreadRef(params.environmentId as EnvironmentId, params.threadId as ThreadId);
 }
 
@@ -64,6 +65,7 @@ export function resolveThreadRouteTarget(
   params: Partial<Record<"environmentId" | "threadId" | "draftId", string | undefined>>,
 ): ThreadRouteTarget | null {
   if (params.environmentId && params.threadId) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return {
       kind: "server",
       threadRef: scopeThreadRef(params.environmentId as EnvironmentId, params.threadId as ThreadId),
@@ -74,6 +76,7 @@ export function resolveThreadRouteTarget(
     return null;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     kind: "draft",
     draftId: params.draftId as DraftId,

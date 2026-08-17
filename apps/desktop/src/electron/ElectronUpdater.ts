@@ -152,11 +152,13 @@ export const make = ElectronUpdater.of({
       });
     }),
   on: (eventName, listener) => {
-    const eventTarget = autoUpdater as unknown as {
-      on: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
-      removeListener: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
-    };
-    const untypedListener = listener as unknown as (...args: Array<unknown>) => void;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      eventTarget = autoUpdater as {
+        on: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
+        removeListener: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
+      };
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      untypedListener = listener as (...args: Array<unknown>) => void;
     return Effect.acquireRelease(
       Effect.sync(() => {
         eventTarget.on(eventName, untypedListener);

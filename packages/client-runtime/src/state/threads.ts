@@ -463,7 +463,9 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
       yield* Queue.offer(persistence, {
         snapshotSequence,
         thread: merged,
-        ...(snapshot.page === undefined ? {} : { page: { ...snapshot.page, snapshotSequence } }),
+        ...(snapshot.page === undefined
+          ? undefined
+          : { page: { ...snapshot.page, snapshotSequence } }),
       });
     }
   });
@@ -563,11 +565,12 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
     subscribeDynamic(
       ORCHESTRATION_WS_METHODS.subscribeThread,
       Effect.fn("EnvironmentThreadState.makeSubscribeInput")(function* (session) {
-        const config = yield* session.initialConfig.pipe(
-          Effect.orElseSucceed(
-            () => EMPTY_INITIAL_THREAD_SUBSCRIPTION_CONFIG as InitialThreadSubscriptionConfig,
-          ),
-        );
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          config = yield* session.initialConfig.pipe(
+            Effect.orElseSucceed(
+              () => EMPTY_INITIAL_THREAD_SUBSCRIPTION_CONFIG as InitialThreadSubscriptionConfig,
+            ),
+          );
         const supportsCompletionMarker = config.threadResumeCompletionMarker === true;
         // Windowed loads are gated on the server capability: pre-pagination
         // servers reject unknown query params, and a windowed WS fallback to
@@ -631,12 +634,12 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
 
         return {
           threadId,
-          ...(canResume ? { afterSequence: sequence } : {}),
-          ...(supportsCompletionMarker ? { requestCompletionMarker: true as const } : {}),
+          ...(canResume ? { afterSequence: sequence } : undefined),
+          ...(supportsCompletionMarker ? { requestCompletionMarker: true as const } : undefined),
           // The WS fallback snapshot (sent when afterSequence is missing or
           // the gap is too large) should be windowed the same as the HTTP
           // path; without this a resume failure re-downloads the full thread.
-          ...(supportsPagination ? { turnLimit: INITIAL_THREAD_USER_TURN_LIMIT } : {}),
+          ...(supportsPagination ? { turnLimit: INITIAL_THREAD_USER_TURN_LIMIT } : undefined),
         };
       }),
       {

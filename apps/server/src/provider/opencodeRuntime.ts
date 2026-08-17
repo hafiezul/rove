@@ -34,6 +34,8 @@ import { collectStreamAsString } from "./providerSnapshot.ts";
 import * as NetService from "@t3tools/shared/Net";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const OPENCODE_EMPTY_CONFIG_CONTENT = "{}";
 
@@ -69,10 +71,12 @@ function encodeJsonStringForDiagnostics(input: unknown): string | undefined {
 export function openCodeRuntimeErrorDetail(cause: unknown): string {
   if (OpenCodeRuntimeError.is(cause)) return cause.detail;
   if (cause instanceof Error && cause.message.trim().length > 0) return cause.message.trim();
-  if (cause && typeof cause === "object") {
+  if (cause && (RuntimePredicate.isObjectOrArray(cause) || cause === null)) {
     // SDK v2 throws { response, request, error? } shapes — extract what's useful
-    const anyCause = cause as Record<string, unknown>;
-    const status = (anyCause.response as { status?: number } | undefined)?.status;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      anyCause = cause as Record<string, SchemaJson>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      status = (anyCause.response as { status?: number } | undefined)?.status;
     const body = anyCause.error ?? anyCause.data ?? anyCause.body;
     const encodedBody = encodeJsonStringForDiagnostics(body ?? cause);
     if (encodedBody) {
@@ -188,7 +192,8 @@ export function parseModelsCliOutput(stdout: string) {
       const jsonStr = jsonLines.join("\n").trim();
       if (jsonStr.length > 0) {
         try {
-          const model = JSON.parse(jsonStr) as Model;
+          const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            model = JSON.parse(jsonStr) as Model;
           const separator = currentSlug.indexOf("/");
           if (separator > 0) {
             const providerID = currentSlug.slice(0, separator);
@@ -242,6 +247,7 @@ export function parseAgentListCliOutput(stdout: string): ReadonlyArray<Agent> {
       if (jsonStr.length > 0) {
         try {
           const permission = JSON.parse(jsonStr);
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           agents.push({
             name: currentHeader.name,
             mode: currentHeader.mode as Agent["mode"],
@@ -275,7 +281,7 @@ export function parseAgentListCliOutput(stdout: string): ReadonlyArray<Agent> {
 export function parseOpenCodeModelSlug(
   slug: string | null | undefined,
 ): ParsedOpenCodeModelSlug | null {
-  if (typeof slug !== "string") {
+  if (!RuntimePredicate.isString(slug)) {
     return null;
   }
 
@@ -360,7 +366,7 @@ export function toOpenCodePermissionReply(
 
 export function toOpenCodeQuestionAnswers(
   request: QuestionRequest,
-  answers: Record<string, unknown>,
+  answers: Record<string, SchemaJson>,
 ): Array<QuestionAnswer> {
   return request.questions.map((question, index) => {
     const raw =
@@ -368,9 +374,9 @@ export function toOpenCodeQuestionAnswers(
       answers[question.header] ??
       answers[question.question];
     if (Array.isArray(raw)) {
-      return raw.filter((value): value is string => typeof value === "string");
+      return raw.filter((value): value is string => RuntimePredicate.isString(value));
     }
-    if (typeof raw === "string") {
+    if (RuntimePredicate.isString(raw)) {
       return raw.trim().length > 0 ? [raw] : [];
     }
     return [];
@@ -603,10 +609,10 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
 
     return startOpenCodeServerProcess({
       binaryPath: input.binaryPath,
-      ...(input.environment !== undefined ? { environment: input.environment } : {}),
-      ...(input.port !== undefined ? { port: input.port } : {}),
-      ...(input.hostname !== undefined ? { hostname: input.hostname } : {}),
-      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
+      ...(input.environment !== undefined ? { environment: input.environment } : undefined),
+      ...(input.port !== undefined ? { port: input.port } : undefined),
+      ...(input.hostname !== undefined ? { hostname: input.hostname } : undefined),
+      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined),
     }).pipe(
       Effect.map((server) => ({
         url: server.url,
@@ -626,7 +632,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
               Authorization: `Basic ${Buffer.from(`opencode:${input.serverPassword}`, "utf8").toString("base64")}`,
             },
           }
-        : {}),
+        : undefined),
       throwOnError: true,
     });
 

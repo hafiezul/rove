@@ -133,7 +133,8 @@ export function makeWebSocketTransferRecorder(): WebSocketTransferRecorder {
         decodedBytes += bytes;
         messages += 1;
       });
-      return nextSocket as unknown as globalThis.WebSocket;
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      return nextSocket as globalThis.WebSocket;
     },
     totals: () => ({
       wireBytes: socket?._socket?.bytesRead ?? 0,

@@ -4,11 +4,12 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
 import * as Electron from "electron";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SAFE_EXTERNAL_PROTOCOLS = new Set(["http:", "https:"]);
 
 export function parseSafeExternalUrl(rawUrl: unknown): Option.Option<string> {
-  if (typeof rawUrl !== "string") {
+  if (!RuntimePredicate.isString(rawUrl)) {
     return Option.none();
   }
 

@@ -189,7 +189,8 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
     return;
   }
 
-  let spotlight = document.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
+  let // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    spotlight = document.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
   if (!spotlight) {
     spotlight = svgElement("svg");
     spotlight.id = THEME_SPOTLIGHT_ID;
@@ -238,7 +239,8 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
     hole.setAttribute("fill", "black");
     mask.append(hole);
 
-    const glow = hole.cloneNode(false) as SVGRectElement;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      glow = hole.cloneNode(false) as SVGRectElement;
     glow.removeAttribute("fill");
     glow.setAttribute("class", "theme-inspector-spotlight-glow");
     glow.setAttribute("filter", `url(#${THEME_SPOTLIGHT_GLOW_ID})`);

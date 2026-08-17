@@ -12,8 +12,9 @@ import {
   decodeViewerJson,
   gitLabAwardName,
 } from "./gitLabMergeRequestJson.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function listJson(entries: ReadonlyArray<Record<string, unknown>>): string {
+function listJson(entries: ReadonlyArray<Record<string, SchemaJson>>): string {
   return JSON.stringify(
     entries.map((entry) => ({
       iid: 1,
@@ -28,7 +29,7 @@ function listJson(entries: ReadonlyArray<Record<string, unknown>>): string {
   );
 }
 
-function detailJson(entry: Record<string, unknown>): string {
+function detailJson(entry: Record<string, SchemaJson>): string {
   return JSON.stringify({
     iid: 1,
     title: "Add the merge requests page",
@@ -181,7 +182,7 @@ describe("decodeMergeRequestDetailJson", () => {
   });
 
   it("reads either auto-merge field, and says nothing where GitLab named neither", () => {
-    const armed = (entry: Record<string, unknown>) =>
+    const armed = (entry: Record<string, SchemaJson>) =>
       expectSuccess(decodeMergeRequestDetailJson(detailJson(entry))).autoMergeEnabled;
 
     expect(armed({ merge_when_pipeline_succeeds: true })).toBe(true);
@@ -193,7 +194,7 @@ describe("decodeMergeRequestDetailJson", () => {
   });
 
   it("keeps a divergence GitLab did not count apart from a divergence of none", () => {
-    const behind = (entry: Record<string, unknown>) =>
+    const behind = (entry: Record<string, SchemaJson>) =>
       expectSuccess(decodeMergeRequestDetailJson(detailJson(entry))).divergedCommits;
 
     expect(behind({ diverged_commits_count: 3 })).toBe(3);

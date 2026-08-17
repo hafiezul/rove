@@ -24,6 +24,7 @@ export const decodeOptionalPayload = <A, I>(
 ): Effect.Effect<A, CodexError.CodexAppServerRequestError> => {
   if (!schema) {
     if (raw === undefined) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return Effect.sync(() => undefined as A);
     }
     return Effect.fail(

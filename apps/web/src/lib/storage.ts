@@ -1,4 +1,5 @@
 import { Debouncer } from "@tanstack/react-pacer";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface StateStorage<R = unknown> {
   getItem: (name: string) => string | null | Promise<string | null>;
@@ -29,9 +30,9 @@ export function isStateStorage(
   return (
     storage !== null &&
     storage !== undefined &&
-    typeof storage.getItem === "function" &&
-    typeof storage.setItem === "function" &&
-    typeof storage.removeItem === "function"
+    RuntimePredicate.isFunction(storage.getItem) &&
+    RuntimePredicate.isFunction(storage.setItem) &&
+    RuntimePredicate.isFunction(storage.removeItem)
   );
 }
 

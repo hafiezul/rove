@@ -234,6 +234,7 @@ it.layer(NodeServices.layer)("ServerSecretStore.layer", (it) => {
       assert.instanceOf(error, ServerSecretStore.SecretStoreReadError);
       assert.include(error.message, "Failed to read secret session-signing-key.");
       assert.instanceOf(error.cause, PlatformError.PlatformError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((error.cause as PlatformError.PlatformError).reason._tag, "PermissionDenied");
     }).pipe(Effect.provide(makePermissionDeniedSecretStoreLayer())),
   );
@@ -249,6 +250,7 @@ it.layer(NodeServices.layer)("ServerSecretStore.layer", (it) => {
       assert.instanceOf(error, ServerSecretStore.SecretStorePersistError);
       assert.include(error.message, "Failed to persist secret session-signing-key.");
       assert.instanceOf(error.cause, PlatformError.PlatformError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((error.cause as PlatformError.PlatformError).reason._tag, "PermissionDenied");
     }).pipe(Effect.provide(makeRenameFailureSecretStoreLayer())),
   );
@@ -262,6 +264,7 @@ it.layer(NodeServices.layer)("ServerSecretStore.layer", (it) => {
       assert.instanceOf(error, ServerSecretStore.SecretStoreRemoveError);
       assert.include(error.message, "Failed to remove secret session-signing-key.");
       assert.instanceOf(error.cause, PlatformError.PlatformError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal((error.cause as PlatformError.PlatformError).reason._tag, "PermissionDenied");
     }).pipe(Effect.provide(makeRemoveFailureSecretStoreLayer())),
   );

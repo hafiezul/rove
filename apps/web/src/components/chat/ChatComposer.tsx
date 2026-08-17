@@ -106,6 +106,8 @@ import { buildExpandedImagePreview, type ExpandedImagePreview } from "./Expanded
 import { basenameOfPath } from "../../pierre-icons";
 import { cn, randomUUID } from "~/lib/utils";
 import { Separator } from "../ui/separator";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 type ComposerCommandMenuPosition = {
   bottom: number;
@@ -250,7 +252,8 @@ const runtimeModeConfig = {
   },
 } satisfies Record<RuntimeMode, { label: string; description: string; icon: LucideIcon }>;
 
-const runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];
 const COMPOSER_FLOATING_LAYER_SELECTOR = [
   '[data-slot="popover-popup"]',
   '[data-slot="menu-popup"]',
@@ -525,7 +528,7 @@ export interface ChatComposerProps {
     customAnswer: string;
     activeQuestion: { id: string; multiSelect?: boolean | undefined } | null;
   } | null;
-  activePendingResolvedAnswers: Record<string, unknown> | null;
+  activePendingResolvedAnswers: Record<string, SchemaJson> | null;
   activePendingIsResponding: boolean;
   activePendingDraftAnswers: Record<string, PendingUserInputDraftAnswer>;
   activePendingQuestionIndex: number;
@@ -1196,8 +1199,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const providerTraitsMenuContent = renderProviderTraitsMenuContent({
     provider: selectedProvider,
     instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
+    ...(routeKind === "server" ? { threadRef: routeThreadRef } : undefined),
+    ...(routeKind === "draft" && draftId ? { draftId } : undefined),
     model: selectedModel,
     models: selectedProviderModels,
     modelOptions: composerModelOptions?.[selectedInstanceId],
@@ -1207,8 +1210,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const providerTraitsPicker = renderProviderTraitsPicker({
     provider: selectedProvider,
     instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
+    ...(routeKind === "server" ? { threadRef: routeThreadRef } : undefined),
+    ...(routeKind === "draft" && draftId ? { draftId } : undefined),
     model: selectedModel,
     models: selectedProviderModels,
     modelOptions: composerModelOptions?.[selectedInstanceId],
@@ -1351,7 +1354,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
 
   useEffect(() => {
     const nextCustomAnswer = activePendingProgress?.customAnswer;
-    if (typeof nextCustomAnswer !== "string") {
+    if (!RuntimePredicate.isString(nextCustomAnswer)) {
       lastSyncedPendingInputRef.current = null;
       return;
     }

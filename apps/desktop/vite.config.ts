@@ -47,7 +47,9 @@ export default defineConfig({
       deps: {
         alwaysBundle: (id) => id.startsWith("@t3tools/"),
       },
-      ...(shouldLaunchElectronAfterPack ? { onSuccess: "node scripts/dev-electron.mjs" } : {}),
+      ...(shouldLaunchElectronAfterPack
+        ? { onSuccess: "node scripts/dev-electron.mjs" }
+        : undefined),
     },
     {
       format: "cjs",

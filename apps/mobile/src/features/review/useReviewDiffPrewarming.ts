@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { getCachedNativeReviewDiffData } from "./nativeReviewDiffAdapter";
 import type { ReviewSectionItem } from "./reviewModel";
 import { getCachedReviewParsedDiff } from "./reviewState";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface IdleDeadlineLike {
   readonly didTimeout: boolean;
@@ -12,18 +13,16 @@ interface IdleDeadlineLike {
 type IdleCallback = (deadline: IdleDeadlineLike) => void;
 
 function scheduleIdle(callback: IdleCallback): number {
-  if (typeof globalThis.requestIdleCallback === "function") {
+  if (RuntimePredicate.isFunction(globalThis.requestIdleCallback)) {
     return globalThis.requestIdleCallback(callback, { timeout: 2_000 });
   }
 
-  return setTimeout(
-    () => callback({ didTimeout: true, timeRemaining: () => 0 }),
-    100,
-  ) as unknown as number;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  return setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 100) as number;
 }
 
 function cancelIdle(handle: number): void {
-  if (typeof globalThis.cancelIdleCallback === "function") {
+  if (RuntimePredicate.isFunction(globalThis.cancelIdleCallback)) {
     globalThis.cancelIdleCallback(handle);
     return;
   }

@@ -7,7 +7,7 @@ export function getTimestampFormatOptions(
   const baseOptions: Intl.DateTimeFormatOptions = {
     hour: "numeric",
     minute: "2-digit",
-    ...(includeSeconds ? { second: "2-digit" } : {}),
+    ...(includeSeconds ? { second: "2-digit" } : undefined),
   };
 
   if (timestampFormat === "locale") {

@@ -9,6 +9,7 @@ import * as Schema from "effect/Schema";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopObservability from "./DesktopObservability.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DesktopBackendChildLogRecord = Schema.Struct({
   message: Schema.String,
@@ -283,8 +284,8 @@ describe("DesktopObservability", () => {
       const lines = (yield* fileSystem.readFileString(logPath)).trimEnd().split("\n");
       const record = yield* decodeDesktopBackendChildLogRecord(lines[1] ?? "");
       const text = record.annotations.text;
-      assert.equal(typeof text, "string");
-      if (typeof text !== "string") {
+      assert.equal(RuntimePredicate.isString(text), true);
+      if (!RuntimePredicate.isString(text)) {
         return;
       }
       assert.equal(new TextEncoder().encode(text).byteLength, maxBufferedBytes);

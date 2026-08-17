@@ -11,10 +11,12 @@ import * as References from "effect/References";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "./DesktopClientSettings.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface LogRecord {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, unknown>>;
+  readonly annotations: Readonly<Record<string, SchemaJson>>;
 }
 
 const baseDir = "/virtual-home";
@@ -119,7 +121,7 @@ describe("DesktopClientSettings diagnostics", () => {
       }
       assert.equal(message[0], "Could not decode desktop client settings.");
       const schemaError = message[1];
-      if (schemaError === null || typeof schemaError !== "object") {
+      if (!RuntimePredicate.isObjectOrArray(schemaError)) {
         return assert.fail("expected the schema error in the warning");
       }
       assert.equal("_tag" in schemaError ? schemaError._tag : undefined, "SchemaError");

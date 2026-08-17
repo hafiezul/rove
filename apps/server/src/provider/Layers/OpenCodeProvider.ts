@@ -198,7 +198,7 @@ function openCodeCapabilitiesForModel(input: {
               label: "Variant",
               type: "select" as const,
               options: variantOptions,
-              ...(defaultVariant ? { currentValue: defaultVariant } : {}),
+              ...(defaultVariant ? { currentValue: defaultVariant } : undefined),
             },
           ]
         : []),
@@ -209,7 +209,7 @@ function openCodeCapabilitiesForModel(input: {
               label: "Agent",
               type: "select" as const,
               options: agentOptions,
-              ...(defaultAgent ? { currentValue: defaultAgent } : {}),
+              ...(defaultAgent ? { currentValue: defaultAgent } : undefined),
             },
           ]
         : []),
@@ -236,7 +236,7 @@ function flattenOpenCodeModels(input: OpenCodeInventory): ReadonlyArray<ServerPr
       models.push({
         slug: `${provider.id}/${model.id}`,
         name,
-        ...(subProvider ? { subProvider } : {}),
+        ...(subProvider ? { subProvider } : undefined),
         isCustom: false,
         capabilities: openCodeCapabilitiesForModel({
           providerID: provider.id,
@@ -405,7 +405,7 @@ export const checkOpenCodeProviderStatus = Effect.fn("checkOpenCodeProviderStatu
                 directory: cwd,
                 ...(openCodeSettings.serverPassword
                   ? { serverPassword: openCodeSettings.serverPassword }
-                  : {}),
+                  : undefined),
               }),
             );
           }),

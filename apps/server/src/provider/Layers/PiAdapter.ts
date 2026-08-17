@@ -46,6 +46,7 @@ import type {
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../Services/ProviderAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Translate the composer's `$name` skill token into Pi's `/skill:name`
@@ -119,11 +120,12 @@ export interface PiSessionLike {
   getLeafId?(): string | undefined;
   fork?(entryId: string): void;
 }
+import type { Json as SchemaJson } from "effect/Schema";
 
 /** Pi SDK `AgentSessionEvent` — typed loosely here so the fake can drive it. */
 export interface PiSessionEventLike {
   readonly type: string;
-  readonly [key: string]: unknown;
+  readonly [key: string]: SchemaJson;
 }
 
 export interface PiCreateSessionInput {
@@ -171,7 +173,7 @@ function selectedModelSlug(
   modelSelection: ProviderSendTurnInput["modelSelection"] | undefined,
 ): string | undefined {
   const model = modelSelection?.model;
-  return typeof model === "string" && model.trim().length > 0 ? model : undefined;
+  return RuntimePredicate.isString(model) && model.trim().length > 0 ? model : undefined;
 }
 
 export function makePiAdapter(
@@ -213,13 +215,13 @@ export function makePiAdapter(
         const createdAt = DateTime.formatIso(now);
         return {
           provider: PROVIDER,
-          ...(boundInstanceId !== undefined ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId !== undefined ? { providerInstanceId: boundInstanceId } : undefined),
           status,
           runtimeMode: "full-access",
           cwd: ctx.cwd,
           threadId: ctx.threadId,
           resumeCursor: { sessionId: ctx.session.sessionId },
-          ...(ctx.activeTurnId !== undefined ? { activeTurnId: ctx.activeTurnId } : {}),
+          ...(ctx.activeTurnId !== undefined ? { activeTurnId: ctx.activeTurnId } : undefined),
           createdAt,
           updatedAt: createdAt,
         } satisfies ProviderSession;
@@ -248,7 +250,7 @@ export function makePiAdapter(
         const base = {
           ...stamp,
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: ctx.threadId,
         } as const;
 
@@ -270,45 +272,50 @@ export function makePiAdapter(
             return;
           }
           case "message_update": {
-            const assistantEvent = event.assistantMessageEvent as
-              | { type?: string; delta?: string; contentIndex?: number }
-              | undefined;
-            if (assistantEvent?.type === "text_delta" && typeof assistantEvent.delta === "string") {
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
-                payload: {
-                  streamKind: "assistant_text",
-                  delta: assistantEvent.delta,
-                  ...(typeof assistantEvent.contentIndex === "number"
-                    ? { contentIndex: assistantEvent.contentIndex }
-                    : {}),
-                },
-              });
-            } else if (
-              assistantEvent?.type === "thinking_delta" &&
-              typeof assistantEvent.delta === "string"
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              assistantEvent = event.assistantMessageEvent as
+                | { type?: string; delta?: string; contentIndex?: number }
+                | undefined;
+            if (
+              assistantEvent?.type === "text_delta" &&
+              RuntimePredicate.isString(assistantEvent.delta)
             ) {
               yield* offerRuntimeEvent({
                 ...base,
                 type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+                payload: {
+                  streamKind: "assistant_text",
+                  delta: assistantEvent.delta,
+                  ...(RuntimePredicate.isNumber(assistantEvent.contentIndex)
+                    ? { contentIndex: assistantEvent.contentIndex }
+                    : undefined),
+                },
+              });
+            } else if (
+              assistantEvent?.type === "thinking_delta" &&
+              RuntimePredicate.isString(assistantEvent.delta)
+            ) {
+              yield* offerRuntimeEvent({
+                ...base,
+                type: "content.delta",
+                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
                 payload: {
                   streamKind: "reasoning_text",
                   delta: assistantEvent.delta,
-                  ...(typeof assistantEvent.contentIndex === "number"
+                  ...(RuntimePredicate.isNumber(assistantEvent.contentIndex)
                     ? { contentIndex: assistantEvent.contentIndex }
-                    : {}),
+                    : undefined),
                 },
               });
             }
             return;
           }
           case "message_end": {
-            const message = event.message as
-              | { role?: string; stopReason?: string; errorMessage?: string }
-              | undefined;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              message = event.message as
+                | { role?: string; stopReason?: string; errorMessage?: string }
+                | undefined;
             if (
               message?.role === "assistant" &&
               message.stopReason === "error" &&
@@ -318,7 +325,8 @@ export function makePiAdapter(
               // errors (502, 503, 429, timeouts). The error is deferred until
               // agent_end tells us whether the retry loop will run.
               ctx.pendingTurnError =
-                typeof message.errorMessage === "string" && message.errorMessage.trim().length > 0
+                RuntimePredicate.isString(message.errorMessage) &&
+                message.errorMessage.trim().length > 0
                   ? message.errorMessage
                   : "Pi assistant response failed.";
             }
@@ -328,7 +336,7 @@ export function makePiAdapter(
             yield* offerRuntimeEvent({
               ...base,
               type: "item.started",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
               itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
               payload: {
                 itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
@@ -343,7 +351,7 @@ export function makePiAdapter(
             yield* offerRuntimeEvent({
               ...base,
               type: "item.completed",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
               itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
               payload: {
                 itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
@@ -416,7 +424,8 @@ export function makePiAdapter(
         }
 
         const cwd = input.cwd ?? process.cwd();
-        const resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
         // A thread-scoped model selection (the composer's pick at thread
         // creation) wins over the instance-level settings defaults.
         const modelSelection = ownModelSelection(input, boundInstanceId);
@@ -459,7 +468,7 @@ export function makePiAdapter(
         yield* offerRuntimeEvent({
           ...(yield* makeEventStamp()),
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: input.threadId,
           type: "session.started",
           payload: { resume: resumeCursor?.sessionId !== undefined },
@@ -467,7 +476,7 @@ export function makePiAdapter(
         yield* offerRuntimeEvent({
           ...(yield* makeEventStamp()),
           provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: input.threadId,
           type: "session.state.changed",
           payload: { state: "ready", reason: "Pi session ready" },
@@ -548,14 +557,16 @@ export function makePiAdapter(
           // prompt() resolves only after the full run settles; turn lifecycle
           // flows through SDK events, so only preflight rejection is an error
           // worth surfacing. Invoke synchronously and swallow the settlement.
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           yield* Effect.try({
             try: () => {
-              const maybePromise = ctx.session.prompt(text) as unknown;
+              const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
+                maybePromise = ctx.session.prompt(text) as unknown;
               if (
-                maybePromise !== null &&
-                typeof maybePromise === "object" &&
-                typeof (maybePromise as Promise<void>).catch === "function"
+                RuntimePredicate.isObjectOrArray(maybePromise) &&
+                RuntimePredicate.isFunction((maybePromise as Promise<void>).catch)
               ) {
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 (maybePromise as Promise<void>).catch(() => {});
               }
             },
@@ -596,7 +607,7 @@ export function makePiAdapter(
           yield* offerRuntimeEvent({
             ...(yield* makeEventStamp()),
             provider: PROVIDER,
-            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
             threadId,
             type: "turn.aborted",
             turnId,

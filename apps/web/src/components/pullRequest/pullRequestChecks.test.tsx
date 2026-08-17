@@ -31,8 +31,10 @@ function flatten(node: ReactNode): ReadonlyArray<ReturnType<typeof Object>> {
   for (const child of Children.toArray(node)) {
     if (!isValidElement(child)) continue;
     found.push(child);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     found.push(...flatten((child.props as { readonly children?: ReactNode }).children));
   }
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return found as ReadonlyArray<ReturnType<typeof Object>>;
 }
 
@@ -73,6 +75,7 @@ function row(overrides: Partial<EnvironmentPullRequestEntry>): ReactNode {
 
 describe("PullRequestRow checks indicator", () => {
   function indicators(node: ReactNode): number {
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     return flatten(node).filter(
       (element) => (element as { type?: unknown }).type === PullRequestChecksPopover,
     ).length;

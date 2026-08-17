@@ -295,11 +295,11 @@ export const authHttpApiLayer = HttpApiBuilder.group(
               deriveAuthClientMetadata({
                 request,
                 presented: {
-                  ...(args.payload.client_label ? { label: args.payload.client_label } : {}),
+                  ...(args.payload.client_label ? { label: args.payload.client_label } : undefined),
                   ...(args.payload.client_device_type
                     ? { deviceType: args.payload.client_device_type }
-                    : {}),
-                  ...(args.payload.client_os ? { os: args.payload.client_os } : {}),
+                    : undefined),
+                  ...(args.payload.client_os ? { os: args.payload.client_os } : undefined),
                 },
               }),
               proofKeyThumbprint ? { proofKeyThumbprint } : undefined,

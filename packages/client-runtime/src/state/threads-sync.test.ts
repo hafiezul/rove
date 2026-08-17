@@ -166,7 +166,7 @@ const makeHarness = Effect.fn("TestEnvironmentThreads.makeHarness")(function* (o
           Effect.as(streamFrom(inputs)),
         ),
       ),
-  } as unknown as WsRpcProtocolClient;
+  } as WsRpcProtocolClient;
   const supervisorSession = yield* SubscriptionRef.make<Option.Option<RpcSession.RpcSession>>(
     Option.some(
       testSession(

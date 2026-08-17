@@ -238,6 +238,7 @@ export const ApiLive = Api.make(
       Layer.provide(runtimeLayer),
     );
 
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     yield* Cloudflare.Queues.consumeQueueMessages<unknown>(
       apnsDeliveryQueue,
       {
@@ -245,7 +246,7 @@ export const ApiLive = Api.make(
         maxRetries: 5,
         maxWaitTime: "5 seconds",
         retryDelay: "30 seconds",
-        deadLetterQueue: apnsDeliveryDeadLetterQueue.queueName as unknown as string,
+        deadLetterQueue: apnsDeliveryDeadLetterQueue.queueName as string,
       },
       (stream) =>
         stream.pipe(

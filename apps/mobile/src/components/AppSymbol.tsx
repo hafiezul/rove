@@ -77,6 +77,7 @@ import {
 } from "@tabler/icons-react-native";
 import { Platform } from "react-native";
 import { SymbolView as ExpoSymbolView, type SymbolViewProps } from "expo-symbols";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface AndroidIconsBySfSymbol {
   readonly [symbol: string]: Icon | undefined;
@@ -195,8 +196,8 @@ export function SymbolView(props: SymbolViewProps) {
     return <ExpoSymbolView {...props} />;
   }
 
-  const materialName = typeof props.name === "string" ? undefined : props.name.android;
-  const sfSymbol = typeof props.name === "string" ? props.name : props.name.ios;
+  const materialName = RuntimePredicate.isString(props.name) ? undefined : props.name.android;
+  const sfSymbol = RuntimePredicate.isString(props.name) ? props.name : props.name.ios;
   const AndroidIcon =
     (materialName ? ANDROID_ICON_BY_MATERIAL_NAME[materialName] : undefined) ??
     (sfSymbol ? ANDROID_ICON_BY_SF_SYMBOL[sfSymbol] : undefined);

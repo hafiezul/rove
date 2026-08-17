@@ -7,12 +7,13 @@ import {
   decodeThreadsJson,
   decodeViewerJson,
 } from "./azureDevOpsPullRequestJson.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const REST_URL =
   "https://dev.azure.com/acme/_apis/git/repositories/6f9c9b7f-0000-0000-0000-000000000000/pullRequests/42";
 
 /** Shaped after Azure's `GitPullRequest`, trimmed to the fields that are read. */
-function pullRequest(overrides: Record<string, unknown> = {}) {
+function pullRequest(overrides: Record<string, SchemaJson> = {}) {
   return {
     pullRequestId: 42,
     title: "Add the change requests page",

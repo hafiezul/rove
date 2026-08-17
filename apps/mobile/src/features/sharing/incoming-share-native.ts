@@ -1,12 +1,13 @@
 import type { SharePayload } from "expo-sharing";
+import * as RuntimePredicate from "effect/Predicate";
 
 const IOS_APP_GROUP_UNAVAILABLE_ERROR_CODE = "ERR_FAILED_TO_RESOLVE_APP_GROUP_ID";
 
 function errorCode(error: unknown): string | null {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
+  if (!RuntimePredicate.isObjectOrArray(error) || !("code" in error)) {
     return null;
   }
-  return typeof error.code === "string" ? error.code : null;
+  return RuntimePredicate.isString(error.code) ? error.code : null;
 }
 
 /**

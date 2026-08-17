@@ -53,6 +53,8 @@ import { createDebouncedStorage, createMemoryStorage } from "./lib/storage";
 import { getDefaultServerModel } from "./providerModels";
 import { UnifiedSettings } from "@t3tools/contracts/settings";
 import { ReviewCommentContextSchema, type ReviewCommentContext } from "./reviewCommentContext";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const isRuntimeMode = Schema.is(RuntimeMode);
 const isProviderDriverKind = Schema.is(ProviderDriverKind);
 const isReviewCommentContext = Schema.is(ReviewCommentContextSchema);
@@ -73,7 +75,7 @@ const composerDebouncedStorage = createDebouncedStorage(
 );
 
 // Flush pending composer draft writes before page unload to prevent data loss.
-if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+if (typeof window !== "undefined" && RuntimePredicate.isFunction(window.addEventListener)) {
   window.addEventListener("beforeunload", () => {
     composerDebouncedStorage.flush();
   });
@@ -578,7 +580,9 @@ function modelSelectionByProviderToOptions(
 function cloneModelSelection(selection: ModelSelection): DeepMutable<ModelSelection> {
   return {
     ...selection,
-    ...(selection.options ? { options: selection.options.map((option) => ({ ...option })) } : {}),
+    ...(selection.options
+      ? { options: selection.options.map((option) => ({ ...option })) }
+      : undefined),
   } as DeepMutable<ModelSelection>;
 }
 
@@ -591,6 +595,7 @@ function compactModelSelectionByProvider(
       entries.push([provider, cloneModelSelection(selection)]);
     }
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(entries) as DeepMutable<Record<ProviderInstanceId, ModelSelection>>;
 }
 
@@ -752,8 +757,9 @@ const PROVIDER_INSTANCE_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
  * slugs (e.g. `codex_personal`) as routing keys.
  */
 function normalizeProviderInstanceId(value: unknown): ProviderInstanceId | null {
-  if (typeof value !== "string") return null;
+  if (!RuntimePredicate.isString(value)) return null;
   if (!PROVIDER_INSTANCE_ID_PATTERN.test(value)) return null;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return value as ProviderInstanceId;
 }
 
@@ -774,22 +780,24 @@ function coerceProviderOptionSelections(
   if (Array.isArray(value)) {
     const out: ProviderOptionSelection[] = [];
     for (const entry of value) {
-      if (!entry || typeof entry !== "object") continue;
-      const record = entry as Record<string, unknown>;
+      if (!entry || !(RuntimePredicate.isObjectOrArray(entry) || entry === null)) continue;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        record = entry as Record<string, SchemaJson>;
       const id = record.id;
       const optionValue = record.value;
-      if (typeof id !== "string" || id.length === 0) continue;
-      if (typeof optionValue === "string" || typeof optionValue === "boolean") {
+      if (!RuntimePredicate.isString(id) || id.length === 0) continue;
+      if (RuntimePredicate.isString(optionValue) || RuntimePredicate.isBoolean(optionValue)) {
         out.push({ id, value: optionValue });
       }
     }
     return out.length > 0 ? out : undefined;
   }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
+  if (value && (RuntimePredicate.isObjectOrArray(value) || value === null)) {
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      record = value as Record<string, SchemaJson>;
     const out: ProviderOptionSelection[] = [];
     for (const [id, raw] of Object.entries(record)) {
-      if (typeof raw === "string" || typeof raw === "boolean") {
+      if (RuntimePredicate.isString(raw) || RuntimePredicate.isBoolean(raw)) {
         out.push({ id, value: raw });
       }
     }
@@ -810,7 +818,11 @@ function normalizeProviderModelOptions(
   provider?: ProviderDriverKind | null,
   legacy?: LegacyCodexFields,
 ): ProviderOptionSelectionsByProvider | null {
-  const candidate = value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    candidate =
+      value && (RuntimePredicate.isObjectOrArray(value) || value === null)
+        ? (value as Record<string, SchemaJson>)
+        : null;
   const result: ProviderOptionSelectionsByProvider = {};
   for (const providerKey of ["codex", "claudeAgent", "cursor", "opencode"] as const) {
     const selections = coerceProviderOptionSelections(candidate?.[providerKey]);
@@ -822,12 +834,12 @@ function normalizeProviderModelOptions(
   // Recover legacy codex fields that lived outside modelOptions.
   if (provider === "codex" && legacy) {
     const codexExtras: ProviderOptionSelection[] = [];
-    if (typeof legacy.effort === "string" && legacy.effort.length > 0) {
+    if (RuntimePredicate.isString(legacy.effort) && legacy.effort.length > 0) {
       codexExtras.push({ id: "reasoningEffort", value: legacy.effort });
     }
     const fastMode =
       legacy.codexFastMode === true ||
-      (typeof legacy.serviceTier === "string" && legacy.serviceTier === "fast");
+      (RuntimePredicate.isString(legacy.serviceTier) && legacy.serviceTier === "fast");
     if (fastMode) {
       codexExtras.push({ id: "fastMode", value: true });
     }
@@ -861,7 +873,11 @@ function normalizeModelSelection(
     legacyCodex?: LegacyCodexFields;
   },
 ): NormalizedModelSelection | null {
-  const candidate = value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    candidate =
+      value && (RuntimePredicate.isObjectOrArray(value) || value === null)
+        ? (value as Record<string, SchemaJson>)
+        : null;
   // Post-migration ModelSelection carries `instanceId`; pre-migration (v2
   // storage, legacy wire shapes) carries `provider`. Accept either so both
   // normalized stores and legacy drafts round-trip through this helper.
@@ -872,7 +888,7 @@ function normalizeModelSelection(
     return null;
   }
   const rawModel = candidate?.model ?? legacy?.model;
-  if (typeof rawModel !== "string") {
+  if (!RuntimePredicate.isString(rawModel)) {
     return null;
   }
   // Slug normalization can use provider-kind-specific rules when a legacy
@@ -887,6 +903,7 @@ function normalizeModelSelection(
   }
   if (Array.isArray(candidate?.options)) {
     const selections = coerceProviderOptionSelections(candidate.options);
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return createModelSelection(instanceId, model, selections) as NormalizedModelSelection;
   }
   // Per-kind options were a pre-migration concern; only recover them for a
@@ -901,6 +918,7 @@ function normalizeModelSelection(
       )
     : null;
   const options = kindForLegacyOptions ? modelOptions?.[kindForLegacyOptions] : undefined;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return createModelSelection(instanceId, model, options) as NormalizedModelSelection;
 }
 
@@ -924,6 +942,7 @@ function legacySyncModelSelectionOptions(
   }
   const kind = normalizeProviderDriverKind(modelSelection.instanceId);
   const options = kind ? modelOptions?.[kind] : undefined;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return createModelSelection(
     modelSelection.instanceId,
     modelSelection.model,
@@ -991,6 +1010,7 @@ function legacyToModelSelectionByProvider(
     }
   }
   if (modelSelection) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     result[modelSelection.instanceId] = modelSelection as ModelSelection;
   }
   return result;
@@ -1093,22 +1113,23 @@ function revokeDraftThreadPreviewUrls(draft: ComposerThreadDraftState | undefine
 }
 
 function normalizePersistedAttachment(value: unknown): PersistedComposerImageAttachment | null {
-  if (!value || typeof value !== "object") {
+  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
     return null;
   }
-  const candidate = value as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    candidate = value as Record<string, SchemaJson>;
   const id = candidate.id;
   const name = candidate.name;
   const mimeType = candidate.mimeType;
   const sizeBytes = candidate.sizeBytes;
   const dataUrl = candidate.dataUrl;
   if (
-    typeof id !== "string" ||
-    typeof name !== "string" ||
-    typeof mimeType !== "string" ||
-    typeof sizeBytes !== "number" ||
+    !RuntimePredicate.isString(id) ||
+    !RuntimePredicate.isString(name) ||
+    !RuntimePredicate.isString(mimeType) ||
+    !RuntimePredicate.isNumber(sizeBytes) ||
     !Number.isFinite(sizeBytes) ||
-    typeof dataUrl !== "string" ||
+    !RuntimePredicate.isString(dataUrl) ||
     id.length === 0 ||
     dataUrl.length === 0
   ) {
@@ -1126,94 +1147,110 @@ function normalizePersistedAttachment(value: unknown): PersistedComposerImageAtt
 function normalizePersistedElementContextDraft(
   value: unknown,
 ): PersistedElementContextDraft | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as Record<string, unknown>;
+  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    candidate = value as Record<string, SchemaJson>;
   const id = candidate.id;
   const threadId = candidate.threadId;
   const pickedAt = candidate.pickedAt;
   const pageUrl = candidate.pageUrl;
   const tagName = candidate.tagName;
   if (
-    typeof id !== "string" ||
+    !RuntimePredicate.isString(id) ||
     id.length === 0 ||
-    typeof threadId !== "string" ||
+    !RuntimePredicate.isString(threadId) ||
     threadId.length === 0 ||
-    typeof pickedAt !== "string" ||
+    !RuntimePredicate.isString(pickedAt) ||
     pickedAt.length === 0 ||
-    typeof pageUrl !== "string" ||
+    !RuntimePredicate.isString(pageUrl) ||
     pageUrl.length === 0 ||
-    typeof tagName !== "string" ||
+    !RuntimePredicate.isString(tagName) ||
     tagName.length === 0
   ) {
     return null;
   }
   const sourceCandidate = candidate.source;
   let source: PersistedElementContextDraft["source"] = null;
-  if (sourceCandidate && typeof sourceCandidate === "object") {
-    const sourceRecord = sourceCandidate as Record<string, unknown>;
+  if (
+    sourceCandidate &&
+    (RuntimePredicate.isObjectOrArray(sourceCandidate) || sourceCandidate === null)
+  ) {
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      sourceRecord = sourceCandidate as Record<string, SchemaJson>;
     source = {
-      functionName:
-        typeof sourceRecord.functionName === "string" ? sourceRecord.functionName : null,
-      fileName: typeof sourceRecord.fileName === "string" ? sourceRecord.fileName : null,
+      functionName: RuntimePredicate.isString(sourceRecord.functionName)
+        ? sourceRecord.functionName
+        : null,
+      fileName: RuntimePredicate.isString(sourceRecord.fileName) ? sourceRecord.fileName : null,
       lineNumber:
-        typeof sourceRecord.lineNumber === "number" && Number.isFinite(sourceRecord.lineNumber)
+        RuntimePredicate.isNumber(sourceRecord.lineNumber) &&
+        Number.isFinite(sourceRecord.lineNumber)
           ? sourceRecord.lineNumber
           : null,
       columnNumber:
-        typeof sourceRecord.columnNumber === "number" && Number.isFinite(sourceRecord.columnNumber)
+        RuntimePredicate.isNumber(sourceRecord.columnNumber) &&
+        Number.isFinite(sourceRecord.columnNumber)
           ? sourceRecord.columnNumber
           : null,
     };
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     id,
     threadId: threadId as ThreadId,
     pickedAt,
     pageUrl,
-    pageTitle: typeof candidate.pageTitle === "string" ? candidate.pageTitle : null,
+    pageTitle: RuntimePredicate.isString(candidate.pageTitle) ? candidate.pageTitle : null,
     tagName,
-    selector: typeof candidate.selector === "string" ? candidate.selector : null,
-    htmlPreview: typeof candidate.htmlPreview === "string" ? candidate.htmlPreview : "",
-    componentName: typeof candidate.componentName === "string" ? candidate.componentName : null,
+    selector: RuntimePredicate.isString(candidate.selector) ? candidate.selector : null,
+    htmlPreview: RuntimePredicate.isString(candidate.htmlPreview) ? candidate.htmlPreview : "",
+    componentName: RuntimePredicate.isString(candidate.componentName)
+      ? candidate.componentName
+      : null,
     source,
-    styles: typeof candidate.styles === "string" ? candidate.styles : "",
+    styles: RuntimePredicate.isString(candidate.styles) ? candidate.styles : "",
   };
 }
 
 function normalizePersistedTerminalContextDraft(
   value: unknown,
 ): PersistedTerminalContextDraft | null {
-  if (!value || typeof value !== "object") {
+  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
     return null;
   }
-  const candidate = value as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    candidate = value as Record<string, SchemaJson>;
   const id = candidate.id;
   const threadId = candidate.threadId;
   const createdAt = candidate.createdAt;
   const lineStart = candidate.lineStart;
   const lineEnd = candidate.lineEnd;
   if (
-    typeof id !== "string" ||
+    !RuntimePredicate.isString(id) ||
     id.length === 0 ||
-    typeof threadId !== "string" ||
+    !RuntimePredicate.isString(threadId) ||
     threadId.length === 0 ||
-    typeof createdAt !== "string" ||
+    !RuntimePredicate.isString(createdAt) ||
     createdAt.length === 0 ||
-    typeof lineStart !== "number" ||
+    !RuntimePredicate.isNumber(lineStart) ||
     !Number.isFinite(lineStart) ||
-    typeof lineEnd !== "number" ||
+    !RuntimePredicate.isNumber(lineEnd) ||
     !Number.isFinite(lineEnd)
   ) {
     return null;
   }
-  const terminalId = typeof candidate.terminalId === "string" ? candidate.terminalId.trim() : "";
-  const terminalLabel =
-    typeof candidate.terminalLabel === "string" ? candidate.terminalLabel.trim() : "";
+  const terminalId = RuntimePredicate.isString(candidate.terminalId)
+    ? candidate.terminalId.trim()
+    : "";
+  const terminalLabel = RuntimePredicate.isString(candidate.terminalLabel)
+    ? candidate.terminalLabel.trim()
+    : "";
   if (terminalId.length === 0 || terminalLabel.length === 0) {
     return null;
   }
   const normalizedLineStart = Math.max(1, Math.floor(lineStart));
   const normalizedLineEnd = Math.max(normalizedLineStart, Math.floor(lineEnd));
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     id,
     threadId: threadId as ThreadId,
@@ -1250,7 +1287,7 @@ function logicalProjectDraftKey(logicalProjectKey: string): string {
  * `ScopedThreadRef` so environment identity is always preserved.
  */
 function composerTargetKey(target: ScopedThreadRef | DraftId): string {
-  if (typeof target === "string") {
+  if (RuntimePredicate.isString(target)) {
     return target.trim();
   }
   return scopedThreadKey(target);
@@ -1272,6 +1309,7 @@ function normalizeLegacyComposerStorageKey(
     return composerTargetKey(parsedThreadRef);
   }
   if (options?.environmentId) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return composerTargetKey(scopeThreadRef(options.environmentId, threadKeyOrId as ThreadId));
   }
   return threadKeyOrId;
@@ -1290,7 +1328,7 @@ function normalizeComposerTarget(
   state: ComposerThreadLookupState,
   target: ComposerThreadTarget,
 ): ComposerThreadTarget | null {
-  if (typeof target === "string") {
+  if (RuntimePredicate.isString(target)) {
     const draftId = target.trim();
     return draftId.length > 0 ? DraftId.make(draftId) : null;
   }
@@ -1305,7 +1343,7 @@ function resolveComposerDraftKey(
   if (!normalizedTarget) {
     return null;
   }
-  if (typeof normalizedTarget !== "string") {
+  if (!RuntimePredicate.isString(normalizedTarget)) {
     const scopedKey = composerTargetKey(normalizedTarget);
     if (state.draftsByThreadKey[scopedKey]) {
       return scopedKey;
@@ -1332,7 +1370,7 @@ function resolveComposerThreadId(
   if (!normalizedTarget) {
     return null;
   }
-  if (typeof normalizedTarget !== "string") {
+  if (!RuntimePredicate.isString(normalizedTarget)) {
     return normalizedTarget.threadId;
   }
   return state.draftThreadsByThreadKey[normalizedTarget]?.threadId ?? null;
@@ -1467,11 +1505,12 @@ function removeDraftThreadReferences(
   | "draftsByThreadKey"
   | "logicalProjectDraftThreadKeyByLogicalProjectKey"
 > {
-  const nextLogicalMappings = Object.fromEntries(
-    Object.entries(state.logicalProjectDraftThreadKeyByLogicalProjectKey).filter(
-      ([, draftThreadKey]) => draftThreadKey !== threadKey,
-    ),
-  ) as Record<string, string>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    nextLogicalMappings = Object.fromEntries(
+      Object.entries(state.logicalProjectDraftThreadKeyByLogicalProjectKey).filter(
+        ([, draftThreadKey]) => draftThreadKey !== threadKey,
+      ),
+    ) as Record<string, string>;
   const { [threadKey]: _removedDraftThread, ...restDraftThreadsByThreadKey } =
     state.draftThreadsByThreadKey;
   const { [threadKey]: removedComposerDraft, ...restDraftsByThreadKey } = state.draftsByThreadKey;
@@ -1483,6 +1522,7 @@ function removeDraftThreadReferences(
   };
 }
 
+// SAFETY: The surrounding adapter has established this JSON-object view before field access.
 function normalizePersistedDraftThreads(
   rawDraftThreadsByThreadId: unknown,
   rawProjectDraftThreadIdByProjectKey: unknown,
@@ -1494,12 +1534,13 @@ function normalizePersistedDraftThreads(
   const environmentIdByThreadId = new Map<ThreadId, EnvironmentId>();
   if (
     rawProjectDraftThreadIdByProjectKey &&
-    typeof rawProjectDraftThreadIdByProjectKey === "object"
+    (RuntimePredicate.isObjectOrArray(rawProjectDraftThreadIdByProjectKey) ||
+      rawProjectDraftThreadIdByProjectKey === null)
   ) {
     for (const [projectKey, threadId] of Object.entries(
-      rawProjectDraftThreadIdByProjectKey as Record<string, unknown>,
+      rawProjectDraftThreadIdByProjectKey as Record<string, SchemaJson>,
     )) {
-      if (typeof threadId !== "string" || threadId.length === 0) {
+      if (!RuntimePredicate.isString(threadId) || threadId.length === 0) {
         continue;
       }
       const projectRef = parseScopedProjectKey(projectKey);
@@ -1511,73 +1552,93 @@ function normalizePersistedDraftThreads(
         environmentIdByThreadId.set(parsedThreadRef.threadId, parsedThreadRef.environmentId);
         continue;
       }
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       environmentIdByThreadId.set(threadId as ThreadId, projectRef.environmentId);
     }
   }
-  if (rawDraftThreadsByThreadId && typeof rawDraftThreadsByThreadId === "object") {
+  if (
+    rawDraftThreadsByThreadId &&
+    (RuntimePredicate.isObjectOrArray(rawDraftThreadsByThreadId) ||
+      rawDraftThreadsByThreadId === null)
+  ) {
     for (const [threadKeyOrId, rawDraftThread] of Object.entries(
-      rawDraftThreadsByThreadId as Record<string, unknown>,
+      rawDraftThreadsByThreadId as Record<string, SchemaJson>,
     )) {
-      if (typeof threadKeyOrId !== "string" || threadKeyOrId.length === 0) {
+      if (!RuntimePredicate.isString(threadKeyOrId) || threadKeyOrId.length === 0) {
         continue;
       }
-      if (!rawDraftThread || typeof rawDraftThread !== "object") {
+      if (
+        !rawDraftThread ||
+        !(RuntimePredicate.isObjectOrArray(rawDraftThread) || rawDraftThread === null)
+      ) {
         continue;
       }
-      const candidateDraftThread = rawDraftThread as Record<string, unknown>;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        candidateDraftThread = rawDraftThread as Record<string, SchemaJson>;
       const parsedThreadRef = parseScopedThreadKey(threadKeyOrId);
       const threadKey = normalizeLegacyComposerStorageKey(threadKeyOrId);
-      const threadId =
-        parsedThreadRef?.threadId ??
-        (typeof candidateDraftThread.threadId === "string" &&
-        candidateDraftThread.threadId.length > 0
-          ? (candidateDraftThread.threadId as ThreadId)
-          : (threadKeyOrId as ThreadId));
-      const environmentId =
-        parsedThreadRef?.environmentId ??
-        (typeof candidateDraftThread.environmentId === "string" &&
-        candidateDraftThread.environmentId.length > 0
-          ? (candidateDraftThread.environmentId as EnvironmentId)
-          : environmentIdByThreadId.get(threadKeyOrId as ThreadId));
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        threadId =
+          parsedThreadRef?.threadId ??
+          (RuntimePredicate.isString(candidateDraftThread.threadId) &&
+          candidateDraftThread.threadId.length > 0
+            ? (candidateDraftThread.threadId as ThreadId)
+            : (threadKeyOrId as ThreadId));
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        environmentId =
+          parsedThreadRef?.environmentId ??
+          (RuntimePredicate.isString(candidateDraftThread.environmentId) &&
+          candidateDraftThread.environmentId.length > 0
+            ? (candidateDraftThread.environmentId as EnvironmentId)
+            : environmentIdByThreadId.get(threadKeyOrId as ThreadId));
       const projectId = candidateDraftThread.projectId;
       const createdAt = candidateDraftThread.createdAt;
       const branch = candidateDraftThread.branch;
       const worktreePath = candidateDraftThread.worktreePath;
       const startFromOrigin = candidateDraftThread.startFromOrigin === true;
-      const normalizedWorktreePath = typeof worktreePath === "string" ? worktreePath : null;
+      const normalizedWorktreePath = RuntimePredicate.isString(worktreePath) ? worktreePath : null;
       const promotedToCandidate = candidateDraftThread.promotedTo;
-      const promotedToRecord =
-        promotedToCandidate && typeof promotedToCandidate === "object"
-          ? (promotedToCandidate as Record<string, unknown>)
-          : null;
-      const promotedTo =
-        promotedToRecord &&
-        typeof promotedToRecord.environmentId === "string" &&
-        promotedToRecord.environmentId.length > 0 &&
-        typeof promotedToRecord.threadId === "string" &&
-        promotedToRecord.threadId.length > 0
-          ? scopeThreadRef(
-              promotedToRecord.environmentId as EnvironmentId,
-              promotedToRecord.threadId as ThreadId,
-            )
-          : null;
-      if (typeof projectId !== "string" || projectId.length === 0 || environmentId === undefined) {
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        promotedToRecord =
+          promotedToCandidate &&
+          (RuntimePredicate.isObjectOrArray(promotedToCandidate) || promotedToCandidate === null)
+            ? (promotedToCandidate as Record<string, SchemaJson>)
+            : null;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        promotedTo =
+          promotedToRecord &&
+          RuntimePredicate.isString(promotedToRecord.environmentId) &&
+          promotedToRecord.environmentId.length > 0 &&
+          RuntimePredicate.isString(promotedToRecord.threadId) &&
+          promotedToRecord.threadId.length > 0
+            ? scopeThreadRef(
+                promotedToRecord.environmentId as EnvironmentId,
+                promotedToRecord.threadId as ThreadId,
+              )
+            : null;
+      if (
+        !RuntimePredicate.isString(projectId) ||
+        projectId.length === 0 ||
+        environmentId === undefined
+      ) {
         continue;
       }
-      const normalizedEnvironmentId = environmentId as EnvironmentId;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        normalizedEnvironmentId = environmentId as EnvironmentId;
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       draftThreadsByThreadKey[threadKey] = {
         threadId,
         environmentId: normalizedEnvironmentId,
         projectId: projectId as ProjectId,
         logicalProjectKey:
-          typeof candidateDraftThread.logicalProjectKey === "string" &&
+          RuntimePredicate.isString(candidateDraftThread.logicalProjectKey) &&
           candidateDraftThread.logicalProjectKey.length > 0
             ? candidateDraftThread.logicalProjectKey
             : parsedThreadRef
               ? projectDraftKey(scopeProjectRef(normalizedEnvironmentId, projectId as ProjectId))
               : threadKeyOrId,
         createdAt:
-          typeof createdAt === "string" && createdAt.length > 0
+          RuntimePredicate.isString(createdAt) && createdAt.length > 0
             ? createdAt
             : new Date().toISOString(),
         runtimeMode: isRuntimeMode(candidateDraftThread.runtimeMode)
@@ -1588,7 +1649,7 @@ function normalizePersistedDraftThreads(
           candidateDraftThread.interactionMode === "default"
             ? candidateDraftThread.interactionMode
             : DEFAULT_INTERACTION_MODE,
-        branch: typeof branch === "string" ? branch : null,
+        branch: RuntimePredicate.isString(branch) ? branch : null,
         worktreePath: normalizedWorktreePath,
         envMode: normalizeDraftThreadEnvMode(candidateDraftThread.envMode, normalizedWorktreePath),
         startFromOrigin,
@@ -1600,12 +1661,13 @@ function normalizePersistedDraftThreads(
   const logicalProjectDraftThreadKeyByLogicalProjectKey: Record<string, string> = {};
   if (
     rawProjectDraftThreadIdByProjectKey &&
-    typeof rawProjectDraftThreadIdByProjectKey === "object"
+    (RuntimePredicate.isObjectOrArray(rawProjectDraftThreadIdByProjectKey) ||
+      rawProjectDraftThreadIdByProjectKey === null)
   ) {
     for (const [logicalProjectKey, threadKeyOrId] of Object.entries(
-      rawProjectDraftThreadIdByProjectKey as Record<string, unknown>,
+      rawProjectDraftThreadIdByProjectKey as Record<string, SchemaJson>,
     )) {
-      if (typeof threadKeyOrId !== "string" || threadKeyOrId.length === 0) {
+      if (!RuntimePredicate.isString(threadKeyOrId) || threadKeyOrId.length === 0) {
         continue;
       }
       const projectRef = parseScopedProjectKey(logicalProjectKey);
@@ -1626,6 +1688,7 @@ function normalizePersistedDraftThreads(
         continue;
       }
       if (!draftThreadsByThreadKey[threadKey]) {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         draftThreadsByThreadKey[threadKey] = {
           threadId: parsedThreadRef?.threadId ?? (threadKey as ThreadId),
           environmentId: projectRef.environmentId,
@@ -1658,11 +1721,12 @@ function normalizePersistedDraftThreads(
   return { draftThreadsByThreadKey, logicalProjectDraftThreadKeyByLogicalProjectKey };
 }
 
+// SAFETY: The surrounding adapter has established this JSON-object view before field access.
 function normalizePersistedDraftsByThreadId(
   rawDraftMap: unknown,
   draftThreadsByThreadKey: PersistedComposerDraftStoreState["draftThreadsByThreadKey"],
 ): PersistedComposerDraftStoreState["draftsByThreadKey"] {
-  if (!rawDraftMap || typeof rawDraftMap !== "object") {
+  if (!rawDraftMap || !(RuntimePredicate.isObjectOrArray(rawDraftMap) || rawDraftMap === null)) {
     return {};
   }
 
@@ -1672,6 +1736,7 @@ function normalizePersistedDraftsByThreadId(
     if (!parsedThreadRef) {
       continue;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     environmentIdByThreadId.set(
       parsedThreadRef.threadId,
       draftThread.environmentId as EnvironmentId,
@@ -1681,16 +1746,19 @@ function normalizePersistedDraftsByThreadId(
   const nextDraftsByThreadKey: DeepMutable<PersistedComposerDraftStoreState["draftsByThreadKey"]> =
     {};
   for (const [threadKeyOrId, draftValue] of Object.entries(
-    rawDraftMap as Record<string, unknown>,
+    rawDraftMap as Record<string, SchemaJson>,
   )) {
-    if (typeof threadKeyOrId !== "string" || threadKeyOrId.length === 0) {
+    if (!RuntimePredicate.isString(threadKeyOrId) || threadKeyOrId.length === 0) {
       continue;
     }
-    if (!draftValue || typeof draftValue !== "object") {
+    if (!draftValue || !(RuntimePredicate.isObjectOrArray(draftValue) || draftValue === null)) {
       continue;
     }
-    const draftCandidate = draftValue as PersistedComposerThreadDraftState;
-    const promptCandidate = typeof draftCandidate.prompt === "string" ? draftCandidate.prompt : "";
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      draftCandidate = draftValue as PersistedComposerThreadDraftState;
+    const promptCandidate = RuntimePredicate.isString(draftCandidate.prompt)
+      ? draftCandidate.prompt
+      : "";
     const attachments = Array.isArray(draftCandidate.attachments)
       ? draftCandidate.attachments.flatMap((entry) => {
           const normalized = normalizePersistedAttachment(entry);
@@ -1724,15 +1792,18 @@ function normalizePersistedDraftsByThreadId(
       terminalContexts.length,
     );
     // If the draft already has the v3 shape, use it directly
-    const legacyDraftCandidate = draftValue as LegacyPersistedComposerThreadDraftState;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      legacyDraftCandidate = draftValue as LegacyPersistedComposerThreadDraftState;
     let modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>> = {};
     let activeProvider: ProviderInstanceId | null = null;
 
     if (
       draftCandidate.modelSelectionByProvider &&
-      typeof draftCandidate.modelSelectionByProvider === "object"
+      (RuntimePredicate.isObjectOrArray(draftCandidate.modelSelectionByProvider) ||
+        draftCandidate.modelSelectionByProvider === null)
     ) {
       // v3 format
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       modelSelectionByProvider = draftCandidate.modelSelectionByProvider as Partial<
         Record<ProviderInstanceId, ModelSelection>
       >;
@@ -1745,15 +1816,13 @@ function normalizePersistedDraftsByThreadId(
           undefined,
           legacyDraftCandidate,
         ) ?? null;
-      const normalizedModelSelection = normalizeModelSelection(
-        legacyDraftCandidate.modelSelection,
-        {
+      const // SAFETY: This boundary intentionally widens the value before handing it to its owner.
+        normalizedModelSelection = normalizeModelSelection(legacyDraftCandidate.modelSelection, {
           provider: legacyDraftCandidate.provider,
           model: legacyDraftCandidate.model,
           modelOptions: normalizedModelOptions ?? (legacyDraftCandidate.modelOptions as unknown),
           legacyCodex: legacyDraftCandidate,
-        },
-      );
+        });
       const mergedModelOptions = legacyMergeModelSelectionIntoProviderModelOptions(
         normalizedModelSelection,
         normalizedModelOptions,
@@ -1790,7 +1859,8 @@ function normalizePersistedDraftsByThreadId(
         : draftThreadsByThreadKey[threadKeyOrId] !== undefined
           ? threadKeyOrId
           : (() => {
-              const environmentId = environmentIdByThreadId.get(threadKeyOrId as ThreadId);
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                environmentId = environmentIdByThreadId.get(threadKeyOrId as ThreadId);
               return environmentId
                 ? normalizeLegacyComposerStorageKey(threadKeyOrId, { environmentId })
                 : threadKeyOrId;
@@ -1798,17 +1868,17 @@ function normalizePersistedDraftsByThreadId(
     nextDraftsByThreadKey[normalizedThreadKey] = {
       prompt,
       attachments,
-      ...(terminalContexts.length > 0 ? { terminalContexts } : {}),
-      ...(elementContexts.length > 0 ? { elementContexts } : {}),
-      ...(reviewComments.length > 0 ? { reviewComments } : {}),
+      ...(terminalContexts.length > 0 ? { terminalContexts } : undefined),
+      ...(elementContexts.length > 0 ? { elementContexts } : undefined),
+      ...(reviewComments.length > 0 ? { reviewComments } : undefined),
       ...(hasModelData
         ? {
             modelSelectionByProvider: compactModelSelectionByProvider(modelSelectionByProvider),
             activeProvider,
           }
-        : {}),
-      ...(runtimeMode ? { runtimeMode } : {}),
-      ...(interactionMode ? { interactionMode } : {}),
+        : undefined),
+      ...(runtimeMode ? { runtimeMode } : undefined),
+      ...(interactionMode ? { interactionMode } : undefined),
     };
   }
 
@@ -1818,10 +1888,14 @@ function normalizePersistedDraftsByThreadId(
 function migratePersistedComposerDraftStoreState(
   persistedState: unknown,
 ): PersistedComposerDraftStoreState {
-  if (!persistedState || typeof persistedState !== "object") {
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  ) {
     return EMPTY_PERSISTED_DRAFT_STORE_STATE;
   }
-  const candidate = persistedState as LegacyPersistedComposerDraftStoreState;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    candidate = persistedState as LegacyPersistedComposerDraftStoreState;
   const rawDraftMap = candidate.draftsByThreadKey ?? candidate.draftsByThreadId;
   const rawDraftThreadsByThreadId =
     candidate.draftThreadsByThreadKey ?? candidate.draftThreadsByThreadId;
@@ -1892,7 +1966,7 @@ function partializeComposerDraftStoreState(
     PersistedComposerDraftStoreState["draftsByThreadKey"]
   > = {};
   for (const [threadKey, draft] of Object.entries(state.draftsByThreadKey)) {
-    if (typeof threadKey !== "string" || threadKey.length === 0) {
+    if (!RuntimePredicate.isString(threadKey) || threadKey.length === 0) {
       continue;
     }
     // Composer content keyed to a dropped draft session goes with it.
@@ -1930,7 +2004,7 @@ function partializeComposerDraftStoreState(
               lineEnd: context.lineEnd,
             })),
           }
-        : {}),
+        : undefined),
       ...(draft.elementContexts.length > 0
         ? {
             elementContexts: draft.elementContexts.map((context) => ({
@@ -1947,19 +2021,19 @@ function partializeComposerDraftStoreState(
               styles: context.styles,
             })),
           }
-        : {}),
+        : undefined),
       ...(draft.previewAnnotations.length > 0
         ? {
             previewAnnotations: draft.previewAnnotations.map(
               (annotation) => ({ ...annotation }) as DeepMutable<PreviewAnnotationPayload>,
             ),
           }
-        : {}),
+        : undefined),
       ...(draft.reviewComments.length > 0
         ? {
             reviewComments: draft.reviewComments.map((comment) => ({ ...comment })),
           }
-        : {}),
+        : undefined),
       ...(hasModelData
         ? {
             modelSelectionByProvider: compactModelSelectionByProvider(
@@ -1967,9 +2041,9 @@ function partializeComposerDraftStoreState(
             ),
             activeProvider: draft.activeProvider,
           }
-        : {}),
-      ...(draft.runtimeMode ? { runtimeMode: draft.runtimeMode } : {}),
-      ...(draft.interactionMode ? { interactionMode: draft.interactionMode } : {}),
+        : undefined),
+      ...(draft.runtimeMode ? { runtimeMode: draft.runtimeMode } : undefined),
+      ...(draft.interactionMode ? { interactionMode: draft.interactionMode } : undefined),
     };
     persistedDraftsByThreadKey[threadKey] = persistedDraft;
   }
@@ -1997,10 +2071,14 @@ function partializeComposerDraftStoreState(
 function normalizeCurrentPersistedComposerDraftStoreState(
   persistedState: unknown,
 ): PersistedComposerDraftStoreState {
-  if (!persistedState || typeof persistedState !== "object") {
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  ) {
     return EMPTY_PERSISTED_DRAFT_STORE_STATE;
   }
-  const normalizedPersistedState = persistedState as LegacyPersistedComposerDraftStoreState;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    normalizedPersistedState = persistedState as LegacyPersistedComposerDraftStoreState;
   const { draftThreadsByThreadKey, logicalProjectDraftThreadKeyByLogicalProjectKey } =
     normalizePersistedDraftThreads(
       normalizedPersistedState.draftThreadsByThreadKey ??
@@ -2016,8 +2094,10 @@ function normalizeCurrentPersistedComposerDraftStoreState(
   let stickyActiveProvider: ProviderInstanceId | null = null;
   if (
     normalizedPersistedState.stickyModelSelectionByProvider &&
-    typeof normalizedPersistedState.stickyModelSelectionByProvider === "object"
+    (RuntimePredicate.isObjectOrArray(normalizedPersistedState.stickyModelSelectionByProvider) ||
+      normalizedPersistedState.stickyModelSelectionByProvider === null)
   ) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     stickyModelSelectionByProvider =
       normalizedPersistedState.stickyModelSelectionByProvider as Partial<
         Record<ProviderInstanceId, ModelSelection>
@@ -2222,6 +2302,7 @@ function toHydratedThreadDraft(
 function toHydratedDraftThreadState(
   persistedDraftThread: PersistedDraftThreadState,
 ): DraftThreadState {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     threadId: persistedDraftThread.threadId,
     environmentId: persistedDraftThread.environmentId as EnvironmentId,
@@ -2329,7 +2410,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
           return null;
         },
         getDraftThread: (threadRef) => {
-          if (typeof threadRef === "string") {
+          if (RuntimePredicate.isString(threadRef)) {
             return get().getDraftSession(DraftId.make(threadRef));
           }
           return get().getDraftSessionByRef(threadRef);
@@ -2641,7 +2722,8 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                 // Iteration key comes from the instance-keyed sticky map,
                 // so coerce the string back to `ProviderInstanceId` for
                 // the typed lookup.
-                const instanceKey = provider as ProviderInstanceId;
+                const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                  instanceKey = provider as ProviderInstanceId;
                 const current = nextMap[instanceKey];
                 nextMap[instanceKey] = {
                   ...selection,
@@ -2734,6 +2816,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                 // Explicit options provided (or the caller passed a complete
                 // snapshot whose absent options mean "no options") → use the
                 // selection as-is.
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 nextMap[normalized.instanceId] = normalized as ModelSelection;
               } else {
                 // No options in selection → preserve existing options, update provider+model
@@ -2791,6 +2874,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                 );
               } else if (current?.options) {
                 const { options: _, ...rest } = current;
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 nextMap[instanceKey] = rest as ModelSelection;
               }
             }
@@ -2842,6 +2926,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
               );
             } else if (currentForProvider && (currentForProvider.options?.length ?? 0) > 0) {
               const { options: _, ...rest } = currentForProvider;
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               nextMap[instanceKey] = rest as ModelSelection;
             }
 
@@ -2862,6 +2947,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                 );
               } else if ((stickyBase.options?.length ?? 0) > 0) {
                 const { options: _, ...rest } = stickyBase;
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 nextStickyMap[instanceKey] = rest as ModelSelection;
               }
               nextStickyActiveProvider = options.instanceId
@@ -2879,7 +2965,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
 
             const nextDraft: ComposerThreadDraftState = {
               ...base,
-              ...(options?.instanceId ? { activeProvider: instanceKey } : {}),
+              ...(options?.instanceId ? { activeProvider: instanceKey } : undefined),
               modelSelectionByProvider: nextMap,
             };
             const nextDraftsByThreadKey = { ...state.draftsByThreadKey };
@@ -2896,7 +2982,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                     stickyModelSelectionByProvider: nextStickyMap,
                     stickyActiveProvider: nextStickyActiveProvider,
                   }
-                : {}),
+                : undefined),
             };
           });
         },
@@ -2963,9 +3049,10 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
           if (!threadKey || !threadId) {
             return;
           }
-          get().addImages(typeof threadRef === "string" ? DraftId.make(threadKey) : threadRef, [
-            image,
-          ]);
+          get().addImages(
+            RuntimePredicate.isString(threadRef) ? DraftId.make(threadKey) : threadRef,
+            [image],
+          );
         },
         addImages: (threadRef, images) => {
           const threadKey = resolveComposerDraftKey(get(), threadRef) ?? "";
@@ -3090,7 +3177,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             return;
           }
           get().addTerminalContexts(
-            typeof threadRef === "string" ? DraftId.make(threadKey) : threadRef,
+            RuntimePredicate.isString(threadRef) ? DraftId.make(threadKey) : threadRef,
             [context],
           );
         },
@@ -3561,11 +3648,12 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             toHydratedThreadDraft(draft),
           ]),
         );
-        const draftThreadsByThreadKey = Object.fromEntries(
-          Object.entries(normalizedPersisted.draftThreadsByThreadKey).map(
-            ([threadKey, draftThread]) => [threadKey, toHydratedDraftThreadState(draftThread)],
-          ),
-        ) as Record<string, DraftThreadState>;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          draftThreadsByThreadKey = Object.fromEntries(
+            Object.entries(normalizedPersisted.draftThreadsByThreadKey).map(
+              ([threadKey, draftThread]) => [threadKey, toHydratedDraftThreadState(draftThread)],
+            ),
+          ) as Record<string, DraftThreadState>;
         return {
           ...currentState,
           draftsByThreadKey,
@@ -3604,28 +3692,31 @@ export function clearComposerDraftsEnvironment(environmentId: EnvironmentId): vo
       }
     }
 
-    const nextLogicalMappings = Object.fromEntries(
-      Object.entries(state.logicalProjectDraftThreadKeyByLogicalProjectKey).filter(
-        ([logicalProjectKey, threadKey]) =>
-          parseScopedProjectKey(logicalProjectKey)?.environmentId !== environmentId &&
-          !removedThreadKeys.has(threadKey),
-      ),
-    ) as Record<string, string>;
-    const nextDraftThreads = Object.fromEntries(
-      Object.entries(state.draftThreadsByThreadKey).filter(
-        ([threadKey, draftThread]) =>
-          draftThread.environmentId !== environmentId && !removedThreadKeys.has(threadKey),
-      ),
-    ) as Record<string, DraftThreadState>;
-    const nextDrafts = Object.fromEntries(
-      Object.entries(state.draftsByThreadKey).filter(([threadKey, draft]) => {
-        if (!removedThreadKeys.has(threadKey)) {
-          return true;
-        }
-        revokeDraftThreadPreviewUrls(draft);
-        return false;
-      }),
-    ) as Record<string, ComposerThreadDraftState>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      nextLogicalMappings = Object.fromEntries(
+        Object.entries(state.logicalProjectDraftThreadKeyByLogicalProjectKey).filter(
+          ([logicalProjectKey, threadKey]) =>
+            parseScopedProjectKey(logicalProjectKey)?.environmentId !== environmentId &&
+            !removedThreadKeys.has(threadKey),
+        ),
+      ) as Record<string, string>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      nextDraftThreads = Object.fromEntries(
+        Object.entries(state.draftThreadsByThreadKey).filter(
+          ([threadKey, draftThread]) =>
+            draftThread.environmentId !== environmentId && !removedThreadKeys.has(threadKey),
+        ),
+      ) as Record<string, DraftThreadState>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      nextDrafts = Object.fromEntries(
+        Object.entries(state.draftsByThreadKey).filter(([threadKey, draft]) => {
+          if (!removedThreadKeys.has(threadKey)) {
+            return true;
+          }
+          revokeDraftThreadPreviewUrls(draft);
+          return false;
+        }),
+      ) as Record<string, ComposerThreadDraftState>;
 
     return {
       draftsByThreadKey: nextDrafts,

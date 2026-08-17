@@ -20,7 +20,7 @@ describe("desktop primary auth", () => {
     const getLocalEnvironmentBearerToken = vi.fn().mockResolvedValue("desktop-bearer-token");
     window.desktopBridge = {
       getLocalEnvironmentBearerToken,
-    } as unknown as DesktopBridge;
+    } as DesktopBridge;
 
     await expect(readDesktopPrimaryBearerToken()).resolves.toBe("desktop-bearer-token");
     await expect(readDesktopPrimaryBearerToken()).resolves.toBe("desktop-bearer-token");

@@ -652,8 +652,8 @@ function matchesFilters(
   viewer: string,
 ): boolean {
   if (filters === undefined) return true;
-  const labels = item.labels.map((label) => label.name.trim().toLowerCase());
-  const holds = (label: string) => labels.includes(label.trim().toLowerCase());
+  const labels = new Set(item.labels.map((label) => label.name.trim().toLowerCase()));
+  const holds = (label: string) => labels.has(label.trim().toLowerCase());
   return (
     (filters.draft === undefined || item.isDraft === (filters.draft === "only")) &&
     (filters.review === undefined ||
@@ -1036,7 +1036,7 @@ export const make = Effect.gen(function* () {
             truncated: decoded.success.truncated,
             nextCursor: morePages ? String(input.page + 1) : null,
             ...(decoded.success.omittedFileStats.length === 0
-              ? {}
+              ? undefined
               : { omittedFileStats: decoded.success.omittedFileStats }),
           });
         }),
@@ -1084,7 +1084,7 @@ export const make = Effect.gen(function* () {
             command: "gh",
             cwd: input.cwd,
             number: input.number,
-            ...(input.commit === undefined ? {} : { commit: input.commit }),
+            ...(input.commit === undefined ? undefined : { commit: input.commit }),
           });
         }
 
@@ -1386,7 +1386,7 @@ export const make = Effect.gen(function* () {
           host: input.host,
           number: input.number,
           page,
-          ...(input.commit === undefined ? {} : { commit: input.commit }),
+          ...(input.commit === undefined ? undefined : { commit: input.commit }),
         });
       if (input.commit !== undefined && !isCommitSha(input.commit)) {
         return Effect.fail(new GitHubDiffCommitError({ command: "gh", cwd: input.cwd }));
@@ -1820,8 +1820,8 @@ export const make = Effect.gen(function* () {
             // keeps the words that are there rather than being asked for an empty one.
             variables: {
               pullRequestId,
-              ...(input.title === undefined ? {} : { title: input.title }),
-              ...(input.body === undefined ? {} : { body: input.body }),
+              ...(input.title === undefined ? undefined : { title: input.title }),
+              ...(input.body === undefined ? undefined : { body: input.body }),
             },
           }),
         ),

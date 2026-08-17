@@ -21,6 +21,8 @@ import { useIsMobile } from "~/hooks/useMediaQuery";
 import { getLocalStorageItem, setLocalStorageItem } from "~/hooks/useLocalStorage";
 import { resolveSidebarState, type ResponsiveSidebarState } from "./sidebarState";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -113,7 +115,7 @@ function SidebarProvider({
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
     async (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value;
+      const openState = RuntimePredicate.isFunction(value) ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -197,13 +199,13 @@ function Sidebar({
       return null;
     }
 
-    const options = typeof resizable === "boolean" ? {} : resizable;
+    const options = RuntimePredicate.isBoolean(resizable) ? {} : resizable;
     return {
       maxWidth: options.maxWidth ?? Number.POSITIVE_INFINITY,
       minWidth: options.minWidth ?? SIDEBAR_RESIZE_DEFAULT_MIN_WIDTH,
       storageKey: options.storageKey ?? null,
-      ...(options.onResize ? { onResize: options.onResize } : {}),
-      ...(options.shouldAcceptWidth ? { shouldAcceptWidth: options.shouldAcceptWidth } : {}),
+      ...(options.onResize ? { onResize: options.onResize } : undefined),
+      ...(options.shouldAcceptWidth ? { shouldAcceptWidth: options.shouldAcceptWidth } : undefined),
     };
   }, [collapsible, isMobile, resizable]);
   const instanceContextValue = React.useMemo<SidebarInstanceContextProps>(
@@ -851,15 +853,16 @@ function SidebarMenuButton({
     return buttonElement;
   }
 
-  if (typeof tooltip === "string") {
+  if (RuntimePredicate.isString(tooltip)) {
     tooltip = {
       children: tooltip,
     };
   }
 
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
   return (
     <Tooltip>
-      <TooltipTrigger render={buttonElement as React.ReactElement<Record<string, unknown>>} />
+      <TooltipTrigger render={buttonElement as React.ReactElement<Record<string, SchemaJson>>} />
       <TooltipPopup
         align="center"
         hidden={state !== "collapsed" || isMobile}

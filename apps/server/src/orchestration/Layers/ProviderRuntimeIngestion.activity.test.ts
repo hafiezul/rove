@@ -8,6 +8,7 @@ import {
 import { describe, expect, it } from "vite-plus/test";
 
 import { runtimeEventToActivities } from "./ProviderRuntimeIngestion.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const base = {
   provider: ProviderDriverKind.make("codex"),
@@ -47,7 +48,8 @@ describe("runtimeEventToActivities task progress", () => {
     expect(commandActivities.map((activity) => activity.id)).toEqual([
       "task-progress:thread-1:agent-1",
     ]);
-    const usagePayload = usageActivities[0]?.payload as Record<string, unknown> | undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      usagePayload = usageActivities[0]?.payload as Record<string, SchemaJson> | undefined;
     expect(usagePayload?.typedUsage).toEqual({ totalTokens: 73_700_000 });
     expect(usagePayload?.usageSnapshot).toBe(true);
   });
@@ -67,8 +69,10 @@ describe("runtimeEventToActivities task progress", () => {
     } satisfies ProviderRuntimeEvent;
 
     const activities = runtimeEventToActivities(event);
-    const progressPayload = activities[0]?.payload as Record<string, unknown>;
-    const usagePayload = activities[1]?.payload as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      progressPayload = activities[0]?.payload as Record<string, SchemaJson>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      usagePayload = activities[1]?.payload as Record<string, SchemaJson>;
 
     expect(activities.map((activity) => activity.id)).toEqual([
       "task-progress:thread-1:agent-2",

@@ -16,6 +16,7 @@ import {
   XAiAskUserQuestionRequest,
 } from "./XAiAcpExtension.ts";
 import * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
 const mockAgentPath = NodePath.join(__dirname, "../../../scripts/acp-mock-agent.ts");
@@ -287,7 +288,7 @@ describe("XAiAcpExtension", () => {
       });
       const promptId = promptResult._meta?.promptId;
 
-      expect(typeof promptId).toBe("string");
+      expect(RuntimePredicate.isString(promptId)).toBe(true);
       expect(promptResult).toMatchObject({
         stopReason: "end_turn",
         _meta: {
@@ -318,7 +319,7 @@ describe("XAiAcpExtension", () => {
         prompt: [{ type: "text", text: "second" }],
       });
       const secondPromptId = secondPromptResult._meta?.promptId;
-      expect(typeof secondPromptId).toBe("string");
+      expect(RuntimePredicate.isString(secondPromptId)).toBe(true);
       expect(secondPromptId).not.toBe("mock-stale-xai-prompt-1");
       expect(secondPromptResult).toMatchObject({
         stopReason: "end_turn",

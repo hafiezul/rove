@@ -32,6 +32,7 @@ import { getProviderModelCapabilities } from "../../providerModels";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
 import { ComposerControl, ComposerControlChevron, ComposerControlIcon } from "./ComposerControl";
+import * as RuntimePredicate from "effect/Predicate";
 
 type ProviderOptions = ReadonlyArray<ProviderOptionSelection>;
 
@@ -70,11 +71,11 @@ function replaceDescriptorCurrentValue(
       : descriptor.type === "boolean"
         ? {
             ...descriptor,
-            ...(typeof currentValue === "boolean" ? { currentValue } : {}),
+            ...(RuntimePredicate.isBoolean(currentValue) ? { currentValue } : undefined),
           }
         : {
             ...descriptor,
-            ...(typeof currentValue === "string" ? { currentValue } : {}),
+            ...(RuntimePredicate.isString(currentValue) ? { currentValue } : undefined),
           },
   );
 }
@@ -86,7 +87,7 @@ function getDescriptorStringValue(
     return null;
   }
   const value = getProviderOptionCurrentValue(descriptor);
-  return typeof value === "string" ? value : null;
+  return RuntimePredicate.isString(value) ? value : null;
 }
 
 function getSelectedTraits(
@@ -132,8 +133,9 @@ function getSelectedTraits(
     (ultrathinkPromptControlled
       ? "ultrathink"
       : getDescriptorStringValue(primarySelectDescriptor)) ?? null;
-  const thinkingEnabled =
-    typeof thinkingDescriptor?.currentValue === "boolean" ? thinkingDescriptor.currentValue : null;
+  const thinkingEnabled = RuntimePredicate.isBoolean(thinkingDescriptor?.currentValue)
+    ? thinkingDescriptor.currentValue
+    : null;
   const contextWindow = getDescriptorStringValue(contextWindowDescriptor);
   const selectedAgent = getDescriptorStringValue(agentDescriptor);
   const selectedAgentLabel = agentDescriptor
@@ -241,7 +243,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
         return;
       }
       setProviderModelOptions(threadTarget, provider, nextOptions, {
-        ...(instanceId ? { instanceId } : {}),
+        ...(instanceId ? { instanceId } : undefined),
         model,
         persistSticky: true,
       });
@@ -421,7 +423,7 @@ export function buildTraitsTriggerDisplay(input: {
         : descriptor.type === "boolean"
           ? `${descriptor.label} ${descriptor.currentValue === true ? "On" : "Off"}`
           : getProviderOptionCurrentLabel(descriptor);
-    if (typeof label === "string" && label.length > 0) {
+    if (RuntimePredicate.isString(label) && label.length > 0) {
       labels.push(label);
     }
   }

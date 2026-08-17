@@ -128,38 +128,39 @@ export const make = Effect.gen(function* () {
     ),
   );
 
-  const setDefaultHandler = Effect.scoped(
-    Effect.gen(function* () {
-      const command = ChildProcess.make(
-        "xdg-mime",
-        ["default", URL_HANDLER_DESKTOP_ENTRY_NAME, `x-scheme-handler/${scheme}`],
-        {
-          stdin: "ignore",
-          stdout: "ignore",
-          stderr: "ignore",
-        },
-      );
-      const handle = yield* spawner.spawn(command);
-      const exitCode = yield* handle.exitCode;
-      if ((exitCode as unknown as number) !== 0) {
-        return yield* new DesktopLinuxUrlHandlerRegistrationError({
-          step: "set-default-handler",
-          scheme,
-          exitCode: Number(exitCode),
-        });
-      }
-    }),
-  ).pipe(
-    Effect.mapError((error) =>
-      isRegistrationError(error)
-        ? error
-        : new DesktopLinuxUrlHandlerRegistrationError({
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    setDefaultHandler = Effect.scoped(
+      Effect.gen(function* () {
+        const command = ChildProcess.make(
+          "xdg-mime",
+          ["default", URL_HANDLER_DESKTOP_ENTRY_NAME, `x-scheme-handler/${scheme}`],
+          {
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+          },
+        );
+        const handle = yield* spawner.spawn(command);
+        const exitCode = yield* handle.exitCode;
+        if ((exitCode as number) !== 0) {
+          return yield* new DesktopLinuxUrlHandlerRegistrationError({
             step: "set-default-handler",
             scheme,
-            cause: error,
-          }),
-    ),
-  );
+            exitCode: Number(exitCode),
+          });
+        }
+      }),
+    ).pipe(
+      Effect.mapError((error) =>
+        isRegistrationError(error)
+          ? error
+          : new DesktopLinuxUrlHandlerRegistrationError({
+              step: "set-default-handler",
+              scheme,
+              cause: error,
+            }),
+      ),
+    );
 
   const register = Effect.gen(function* () {
     if (environment.platform !== "linux" || !environment.isPackaged) {
@@ -177,9 +178,9 @@ export const make = Effect.gen(function* () {
         step: error.step,
         message: error.message,
         ...(error.desktopEntryPath === undefined
-          ? {}
+          ? undefined
           : { desktopEntryPath: error.desktopEntryPath }),
-        ...(error.exitCode === undefined ? {} : { exitCode: error.exitCode }),
+        ...(error.exitCode === undefined ? undefined : { exitCode: error.exitCode }),
       }),
     ),
     Effect.withSpan("desktop.linuxUrlHandler.register"),

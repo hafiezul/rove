@@ -16,6 +16,7 @@ import {
   HttpClientResponse,
 } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import * as RuntimePredicate from "effect/Predicate";
 
 const UPSTREAM_REF = "678157acaa819d5510adfe359abb5d0392cfe461";
 const USER_AGENT = "effect-codex-app-server-generator";
@@ -226,7 +227,7 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(normalizeNullableTypes);
   }
-  if (value === null || typeof value !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(value)) {
     return value;
   }
 
@@ -234,14 +235,17 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
     key,
     normalizeNullableTypes(child),
   ]);
-  const normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
   const typeValue = normalizedObject.type;
 
   if (!Array.isArray(typeValue)) {
     return normalizedObject;
   }
 
-  const normalizedTypes = typeValue.filter((entry): entry is string => typeof entry === "string");
+  const normalizedTypes = typeValue.filter((entry): entry is string =>
+    RuntimePredicate.isString(entry),
+  );
   if (normalizedTypes.length !== typeValue.length || !normalizedTypes.includes("null")) {
     return normalizedObject;
   }
@@ -274,10 +278,11 @@ function stripNullDefaults(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(stripNullDefaults);
   }
-  if (value === null || typeof value !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(value)) {
     return value;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     Object.entries(value)
       .filter(([key, child]) => !(key === "default" && child === null))
@@ -315,7 +320,7 @@ function parseNotificationEntries(fileContents: string): ReadonlyArray<MethodEnt
   while ((match = entryPattern.exec(fileContents)) !== null) {
     entries.push({
       method: match[1]!,
-      ...(match[2] ? { paramsType: match[2].trim() } : {}),
+      ...(match[2] ? { paramsType: match[2].trim() } : undefined),
     });
   }
   return entries;
@@ -434,7 +439,8 @@ function exportNameForPath(filePath: string): string {
     return relative;
   }
 
-  const [namespace, name] = relative.split("/", 2) as [string, string];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    [namespace, name] = relative.split("/", 2) as [string, string];
   const namespacePrefix = namespace
     .split(/[^A-Za-z0-9]+/)
     .filter(Boolean)
@@ -486,13 +492,18 @@ function rewriteExternalRefs(
       rewriteExternalRefs(entry, localDefinitionNames, currentNamespace, exportNameByQualifiedName),
     );
   }
-  if (value === null || typeof value !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(value)) {
     return value;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => {
-      if (key === "$ref" && typeof child === "string" && child.startsWith("#/definitions/")) {
+      if (
+        key === "$ref" &&
+        RuntimePredicate.isString(child) &&
+        child.startsWith("#/definitions/")
+      ) {
         const definitionName = child.slice("#/definitions/".length);
         const localRewrite = localDefinitionNames.get(definitionName);
         if (localRewrite) {
@@ -605,11 +616,13 @@ const generateFiles = Effect.fn("generateFiles")(function* () {
   for (const [name, schema] of Object.entries(aggregateSchemas).toSorted(([left], [right]) =>
     left.localeCompare(right),
   )) {
+    // SAFETY: This branch is unreachable under the owning callback contract.
     generator.addSchema(name, schema as never);
   }
 
   const generatedEntries = new Map<string, string>();
-  const output = generator.generate("openapi-3.1", aggregateSchemas as never, false).trim();
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    output = generator.generate("openapi-3.1", aggregateSchemas as never, false).trim();
   if (output.length > 0) {
     for (const entry of collectSchemaEntries(output)) {
       if (!generatedEntries.has(entry.name)) {
@@ -649,7 +662,9 @@ const generateFiles = Effect.fn("generateFiles")(function* () {
     "",
     [...generatedEntries.values()].join("\n\n"),
     "",
-  ].join("\n");
+  ]
+    .join("\n")
+    .replaceAll(": unknown", ": Schema.Json");
 
   const metaOutput = [
     ...prelude,

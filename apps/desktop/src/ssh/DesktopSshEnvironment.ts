@@ -160,10 +160,10 @@ export const layer = (options: DesktopSshEnvironmentLayerOptions = {}) =>
     Layer.provide(
       SshTunnel.SshEnvironmentManager.layer({
         ...(options.resolveCliPackageSpec === undefined
-          ? {}
+          ? undefined
           : { resolveCliPackageSpec: options.resolveCliPackageSpec }),
         ...(options.resolveCliRunner === undefined
-          ? {}
+          ? undefined
           : { resolveCliRunner: options.resolveCliRunner }),
       }),
     ),

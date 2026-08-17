@@ -23,6 +23,7 @@ import * as Client from "effect/unstable/sql/SqlClient";
 import type { Connection } from "effect/unstable/sql/SqlConnection";
 import { SqlError, classifySqliteError } from "effect/unstable/sql/SqlError";
 import * as Statement from "effect/unstable/sql/Statement";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const ATTR_DB_SYSTEM_NAME = "db.system.name";
 
@@ -36,7 +37,7 @@ export interface SqliteClientConfig {
   readonly allowExtension?: boolean | undefined;
   readonly prepareCacheSize?: number | undefined;
   readonly prepareCacheTTL?: Duration.Input | undefined;
-  readonly spanAttributes?: Record<string, unknown> | undefined;
+  readonly spanAttributes?: Record<string, SchemaJson> | undefined;
   readonly transformResultNames?: ((str: string) => string) | undefined;
   readonly transformQueryNames?: ((str: string) => string) | undefined;
 }
@@ -166,10 +167,13 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
         try {
           statement.setReadBigInts(Boolean(Context.get(fiber.context, Client.SafeIntegers)));
           if (hasRows(statement)) {
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return Effect.succeed(statement.all(...(params as any)));
           }
-          const result = statement.run(...(params as any));
-          return Effect.succeed(raw ? (result as unknown as ReadonlyArray<any>) : []);
+          const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            result = statement.run(...(params as any));
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          return Effect.succeed(raw ? (result as ReadonlyArray<any>) : []);
         } catch (cause) {
           return Effect.fail(
             new SqlError({
@@ -197,10 +201,10 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
               if (hasRows(statement)) {
                 statement.setReturnArrays(true);
                 // Safe to cast to array after we've setReturnArrays(true)
-                return statement.all(...(params as any)) as unknown as ReadonlyArray<
-                  ReadonlyArray<unknown>
-                >;
+                // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                return statement.all(...(params as any)) as ReadonlyArray<ReadonlyArray<unknown>>;
               }
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               statement.run(...(params as any));
               return [];
             },

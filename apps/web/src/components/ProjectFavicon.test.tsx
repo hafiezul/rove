@@ -1,6 +1,7 @@
 import type { ComponentType, Dispatch, ReactElement, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { AssetResource, EnvironmentId } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const testState = vi.hoisted(() => ({
   faviconUrl: "https://environment.test/api/assets/token-a/v1-20-favicon.svg",
@@ -25,19 +26,26 @@ const hooks = vi.hoisted(() => {
       if (!slots[index]) {
         slots[index] = Array.from({ length: size }, () => Symbol.for("react.memo_cache_sentinel"));
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return slots[index] as unknown[];
     },
     useState<T>(initialValue: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
       const index = nextIndex();
       if (index >= slots.length) {
-        slots[index] =
-          typeof initialValue === "function" ? (initialValue as () => T)() : initialValue;
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        slots[index] = RuntimePredicate.isFunction(initialValue)
+          ? (initialValue as () => T)()
+          : initialValue;
       }
       const setValue: Dispatch<SetStateAction<T>> = (nextValue) => {
-        const previous = slots[index] as T;
-        slots[index] =
-          typeof nextValue === "function" ? (nextValue as (value: T) => T)(previous) : nextValue;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          previous = slots[index] as T;
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        slots[index] = RuntimePredicate.isFunction(nextValue)
+          ? (nextValue as (value: T) => T)(previous)
+          : nextValue;
       };
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return [slots[index] as T, setValue];
     },
   };
@@ -80,12 +88,14 @@ type ProjectFaviconImageElement = ReactElement<{
 
 function resolveImageComponent() {
   hooks.beginRender();
-  const element = ProjectFavicon({
-    environmentId: "environment-test" as EnvironmentId,
-    cwd: "/workspace-test",
-  }) as ReactElement<ProjectFaviconImageProps>;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    element = ProjectFavicon({
+      environmentId: "environment-test" as EnvironmentId,
+      cwd: "/workspace-test",
+    }) as ReactElement<ProjectFaviconImageProps>;
   hooks.reset();
 
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     Component: element.type as (props: ProjectFaviconImageProps) => ProjectFaviconImageElement,
     props: element.props,

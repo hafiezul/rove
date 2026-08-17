@@ -1,6 +1,7 @@
 import { useCSSVariable } from "uniwind";
 
 import { MOBILE_TYPOGRAPHY } from "../../../lib/typography";
+import * as RuntimePredicate from "effect/Predicate";
 
 const TEXT_ROLE_VARIABLES = {
   micro: "--text-3xs",
@@ -30,7 +31,9 @@ export function useScaledTextRole(role: keyof typeof MOBILE_TYPOGRAPHY): ScaledT
   const [fontSize, lineHeight] = useCSSVariable([variable, `${variable}--line-height`]);
 
   return {
-    fontSize: typeof fontSize === "number" ? fontSize : MOBILE_TYPOGRAPHY[role].fontSize,
-    lineHeight: typeof lineHeight === "number" ? lineHeight : MOBILE_TYPOGRAPHY[role].lineHeight,
+    fontSize: RuntimePredicate.isNumber(fontSize) ? fontSize : MOBILE_TYPOGRAPHY[role].fontSize,
+    lineHeight: RuntimePredicate.isNumber(lineHeight)
+      ? lineHeight
+      : MOBILE_TYPOGRAPHY[role].lineHeight,
   };
 }

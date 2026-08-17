@@ -94,10 +94,10 @@ function splitToken(line: string, token: CodeToken, ranges: ReadonlyArray<Range>
 function tokenStyle(token: CodeToken): CSSProperties {
   const fontStyle = token.fontStyle ?? 0;
   return {
-    ...(token.color ? { color: token.color } : {}),
-    ...(fontStyle & 1 ? { fontStyle: "italic" } : {}),
-    ...(fontStyle & 2 ? { fontWeight: 700 } : {}),
-    ...(fontStyle & 4 ? { textDecoration: "underline" } : {}),
+    ...(token.color ? { color: token.color } : undefined),
+    ...(fontStyle & 1 ? { fontStyle: "italic" } : undefined),
+    ...(fontStyle & 2 ? { fontWeight: 700 } : undefined),
+    ...(fontStyle & 4 ? { textDecoration: "underline" } : undefined),
   };
 }
 

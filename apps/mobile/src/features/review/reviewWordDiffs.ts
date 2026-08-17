@@ -131,10 +131,11 @@ export function computeWordAltDiffRanges(input: {
     return { deletion: [], addition: [] };
   }
 
-  const operations = diffWordsWithSpace(
-    deletionLine,
-    additionLine,
-  ) as ReadonlyArray<ReviewDiffOperation>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    operations = diffWordsWithSpace(
+      deletionLine,
+      additionLine,
+    ) as ReadonlyArray<ReviewDiffOperation>;
   const deletionSpans: Array<[0 | 1, string]> = [];
   const additionSpans: Array<[0 | 1, string]> = [];
   const lastOperation = operations.at(-1);

@@ -22,6 +22,7 @@ import {
   projectScriptMenuLabel,
   type TerminalMenuSession,
 } from "../terminal/terminalMenu";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function truncateMiddle(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -64,7 +65,7 @@ function compactMenuStatus(gitStatus: VcsStatusResult | null): string {
   return parts.join(" · ");
 }
 
-type HeaderItem = Record<string, unknown>;
+type HeaderItem = Record<string, SchemaJson>;
 type HeaderItems = HeaderItem[];
 type ThreadGitHeaderActionItems = {
   readonly terminal: HeaderItem;

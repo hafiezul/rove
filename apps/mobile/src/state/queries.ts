@@ -122,7 +122,7 @@ export function useBranches(input: {
           environmentId: input.environmentId,
           input: {
             cwd: input.cwd,
-            ...(query.length > 0 ? { query } : {}),
+            ...(query.length > 0 ? { query } : undefined),
             limit: VCS_REF_LIST_LIMIT,
           },
         })
@@ -152,8 +152,8 @@ export function usePaginatedBranches(target: VcsRefTarget) {
               environmentId: target.environmentId!,
               input: {
                 cwd: target.cwd!,
-                ...(query.length > 0 ? { query } : {}),
-                ...(cursor === undefined ? {} : { cursor }),
+                ...(query.length > 0 ? { query } : undefined),
+                ...(cursor === undefined ? undefined : { cursor }),
                 limit: VCS_REF_LIST_LIMIT,
               },
             }),

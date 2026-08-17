@@ -46,62 +46,62 @@ export function loadRepoEnv({
           VITE_CLERK_PUBLISHABLE_KEY: config.clerkPublishableKey,
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: config.clerkPublishableKey,
         }
-      : {}),
+      : undefined),
     ...(config.clerkJwtTemplate
       ? {
           T3CODE_CLERK_JWT_TEMPLATE: config.clerkJwtTemplate,
           VITE_CLERK_JWT_TEMPLATE: config.clerkJwtTemplate,
           EXPO_PUBLIC_CLERK_JWT_TEMPLATE: config.clerkJwtTemplate,
         }
-      : {}),
+      : undefined),
     ...(config.clerkCliOAuthClientId
       ? {
           T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: config.clerkCliOAuthClientId,
           VITE_CLERK_CLI_OAUTH_CLIENT_ID: config.clerkCliOAuthClientId,
         }
-      : {}),
+      : undefined),
     ...(config.relayUrl
       ? {
           T3CODE_RELAY_URL: config.relayUrl,
           VITE_T3CODE_RELAY_URL: config.relayUrl,
         }
-      : {}),
+      : undefined),
     ...(config.mobileOtlpTracesUrl
       ? {
           T3CODE_MOBILE_OTLP_TRACES_URL: config.mobileOtlpTracesUrl,
           EXPO_PUBLIC_OTLP_TRACES_URL: config.mobileOtlpTracesUrl,
         }
-      : {}),
+      : undefined),
     ...(config.mobileOtlpTracesDataset
       ? {
           T3CODE_MOBILE_OTLP_TRACES_DATASET: config.mobileOtlpTracesDataset,
           EXPO_PUBLIC_OTLP_TRACES_DATASET: config.mobileOtlpTracesDataset,
         }
-      : {}),
+      : undefined),
     ...(config.mobileOtlpTracesToken
       ? {
           T3CODE_MOBILE_OTLP_TRACES_TOKEN: config.mobileOtlpTracesToken,
           EXPO_PUBLIC_OTLP_TRACES_TOKEN: config.mobileOtlpTracesToken,
         }
-      : {}),
+      : undefined),
     ...(config.relayClientOtlpTracesUrl
       ? {
           T3CODE_RELAY_CLIENT_OTLP_TRACES_URL: config.relayClientOtlpTracesUrl,
           VITE_RELAY_OTLP_TRACES_URL: config.relayClientOtlpTracesUrl,
         }
-      : {}),
+      : undefined),
     ...(config.relayClientOtlpTracesDataset
       ? {
           T3CODE_RELAY_CLIENT_OTLP_TRACES_DATASET: config.relayClientOtlpTracesDataset,
           VITE_RELAY_OTLP_TRACES_DATASET: config.relayClientOtlpTracesDataset,
         }
-      : {}),
+      : undefined),
     ...(config.relayClientOtlpTracesToken
       ? {
           T3CODE_RELAY_CLIENT_OTLP_TRACES_TOKEN: config.relayClientOtlpTracesToken,
           VITE_RELAY_OTLP_TRACES_TOKEN: config.relayClientOtlpTracesToken,
         }
-      : {}),
+      : undefined),
   };
 }
 

@@ -1,4 +1,5 @@
 import type { DesktopUpdateReleaseNote } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface ElectronReleaseNoteInfo {
   readonly version: string;
@@ -6,11 +7,14 @@ interface ElectronReleaseNoteInfo {
 }
 
 function isElectronReleaseNoteInfo(value: unknown): value is ElectronReleaseNoteInfo {
-  if (typeof value !== "object" || value === null) return false;
-  const candidate = value as { readonly version?: unknown; readonly note?: unknown };
+  if (!RuntimePredicate.isObjectOrArray(value)) return false;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    candidate = value as { readonly version?: unknown; readonly note?: unknown };
   return (
-    typeof candidate.version === "string" &&
-    (typeof candidate.note === "string" || candidate.note === null || candidate.note === undefined)
+    RuntimePredicate.isString(candidate.version) &&
+    (RuntimePredicate.isString(candidate.note) ||
+      candidate.note === null ||
+      candidate.note === undefined)
   );
 }
 
@@ -112,12 +116,11 @@ export function normalizeDesktopUpdateReleaseNotes(
   releaseNotes: unknown,
   fallbackVersion: string,
 ): ReadonlyArray<DesktopUpdateReleaseNote> {
-  const rawNotes =
-    typeof releaseNotes === "string"
-      ? [{ version: fallbackVersion, note: releaseNotes }]
-      : Array.isArray(releaseNotes)
-        ? releaseNotes.filter(isElectronReleaseNoteInfo)
-        : [];
+  const rawNotes = RuntimePredicate.isString(releaseNotes)
+    ? [{ version: fallbackVersion, note: releaseNotes }]
+    : Array.isArray(releaseNotes)
+      ? releaseNotes.filter(isElectronReleaseNoteInfo)
+      : [];
 
   return rawNotes
     .map((entry) => ({

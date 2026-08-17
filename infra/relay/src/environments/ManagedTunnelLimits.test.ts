@@ -42,7 +42,7 @@ function makeFakeDb(input: {
         };
       },
     }),
-  } as unknown as RelayDb.RelayDb["Service"];
+  } as RelayDb.RelayDb["Service"];
 }
 
 describe("ManagedTunnelLimits", () => {

@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from "expo";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const SHOWCASE_SCENES = ["threads", "thread", "terminal", "review", "environments"] as const;
 export type ShowcaseScene = (typeof SHOWCASE_SCENES)[number];
@@ -35,7 +36,7 @@ export function getNativeShowcasePairingUrls(): ReadonlyArray<string> {
       if (Array.isArray(parsed)) {
         return parsed.filter(
           (candidate): candidate is string =>
-            typeof candidate === "string" && candidate.trim().length > 0,
+            RuntimePredicate.isString(candidate) && candidate.trim().length > 0,
         );
       }
     } catch {

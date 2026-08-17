@@ -7,10 +7,11 @@ import type { SqlError } from "effect/unstable/sql/SqlError";
 
 import { runMigrations } from "../Migrations.ts";
 import { ServerConfig } from "../../config.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 type RuntimeSqliteLayerConfig = {
   readonly filename: string;
-  readonly spanAttributes?: Record<string, unknown>;
+  readonly spanAttributes?: Record<string, SchemaJson>;
 };
 
 type Loader = {

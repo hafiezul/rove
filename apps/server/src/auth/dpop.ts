@@ -45,8 +45,10 @@ export const verifyRequestDpopProof = (input: {
       method: input.request.method,
       url: url.value.href,
       nowEpochSeconds: Math.floor(now.epochMilliseconds / 1_000),
-      ...(input.expectedThumbprint ? { expectedThumbprint: input.expectedThumbprint } : {}),
-      ...(input.expectedAccessToken ? { expectedAccessToken: input.expectedAccessToken } : {}),
+      ...(input.expectedThumbprint ? { expectedThumbprint: input.expectedThumbprint } : undefined),
+      ...(input.expectedAccessToken
+        ? { expectedAccessToken: input.expectedAccessToken }
+        : undefined),
     });
     if (!result.ok) {
       return yield* new ServerAuthInvalidCredentialError({

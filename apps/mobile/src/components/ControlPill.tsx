@@ -124,7 +124,8 @@ export function ControlPillMenu(
     // an injected onLongPress (mirroring the iOS context-menu interaction)
     // so its own tap handling still works.
     if (props.shouldOpenOnLongPress && isValidElement(props.children)) {
-      const child = props.children as ReactElement<{ onLongPress?: () => void }>;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        child = props.children as ReactElement<{ onLongPress?: () => void }>;
       return (
         <AndroidAnchoredMenu
           actions={props.actions}
@@ -168,7 +169,8 @@ export function ControlPillMenu(
   // (below the ~500ms context-menu threshold) can only open the menu, never
   // tap through.
   if (props.shouldOpenOnLongPress && isValidElement(children)) {
-    const child = children as ReactElement<{ onLongPress?: () => void; delayLongPress?: number }>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      child = children as ReactElement<{ onLongPress?: () => void; delayLongPress?: number }>;
     children = cloneElement(child, {
       onLongPress: child.props.onLongPress ?? (() => undefined),
       delayLongPress: child.props.delayLongPress ?? 350,

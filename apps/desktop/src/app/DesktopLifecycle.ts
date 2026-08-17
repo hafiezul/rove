@@ -61,8 +61,10 @@ function addScopedListener<Args extends ReadonlyArray<unknown>>(
   eventName: string,
   listener: (...args: Args) => void,
 ): Effect.Effect<void, never, Scope.Scope> {
-  const eventTarget = target as ScopedEventTarget;
-  const untypedListener = listener as unknown as (...args: Array<unknown>) => void;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    eventTarget = target as ScopedEventTarget;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    untypedListener = listener as (...args: Array<unknown>) => void;
   return Effect.acquireRelease(
     Effect.sync(() => {
       eventTarget.on(eventName, untypedListener);

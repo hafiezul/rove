@@ -10,10 +10,11 @@ import * as References from "effect/References";
 
 import * as ServerConfig from "../config.ts";
 import * as Identify from "./Identify.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface CapturedLog {
   readonly message: unknown;
-  readonly annotations: Readonly<Record<string, unknown>>;
+  readonly annotations: Readonly<Record<string, SchemaJson>>;
 }
 
 const sha256 = (value: string) =>

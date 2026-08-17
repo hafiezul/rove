@@ -28,6 +28,7 @@ import type {
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Enum-ish GitHub CLI fields are decoded as plain strings and normalized here: a `gh`
@@ -1357,7 +1358,7 @@ function toDetail(raw: Schema.Schema.Type<typeof RawDetailSchema>): GitHubPullRe
     // A JSON null is GitHub saying "nobody armed this"; a missing key is GitHub not saying, and
     // the difference survives here rather than being flattened into false.
     ...(raw.autoMergeRequest === undefined
-      ? {}
+      ? undefined
       : { autoMergeEnabled: raw.autoMergeRequest !== null }),
   };
 }
@@ -1962,7 +1963,7 @@ export function decodeBaseComparisonJson(
   const pullRequest = decoded.success.data.repository?.pullRequest;
   const behindBy = pullRequest?.baseRef?.compare?.behindBy;
   return Result.succeed({
-    behindBy: typeof behindBy === "number" && behindBy >= 0 ? behindBy : null,
+    behindBy: RuntimePredicate.isNumber(behindBy) && behindBy >= 0 ? behindBy : null,
     viewerCanUpdate: pullRequest?.viewerCanUpdateBranch === true,
   });
 }

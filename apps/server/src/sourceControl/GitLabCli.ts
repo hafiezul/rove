@@ -402,8 +402,10 @@ export const make = Effect.gen(function* () {
         args: input.args,
         cwd: input.cwd,
         timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-        ...(input.stdin === undefined ? {} : { stdin: input.stdin }),
-        ...(input.maxOutputBytes === undefined ? {} : { maxOutputBytes: input.maxOutputBytes }),
+        ...(input.stdin === undefined ? undefined : { stdin: input.stdin }),
+        ...(input.maxOutputBytes === undefined
+          ? undefined
+          : { maxOutputBytes: input.maxOutputBytes }),
       })
       .pipe(Effect.mapError(mapError));
 

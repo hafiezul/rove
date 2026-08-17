@@ -1,19 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const testState = vi.hoisted(() => ({
-  codeViewOptions: null as Record<string, unknown> | null,
+  codeViewOptions: null as Record<string, SchemaJson> | null,
 }));
 
 vi.mock("@pierre/diffs/react", () => ({
-  CodeView: (props: { options: Record<string, unknown> }) => {
+  CodeView: (props: { options: Record<string, SchemaJson> }) => {
     testState.codeViewOptions = props.options;
     return null;
   },
 }));
 
 vi.mock("~/composerDraftStore", () => ({
-  useComposerDraftStore: (selector: (store: Record<string, unknown>) => unknown) =>
+  useComposerDraftStore: (selector: (store: Record<string, SchemaJson>) => unknown) =>
     selector({
       addReviewComment: vi.fn(),
       removeReviewComment: vi.fn(),

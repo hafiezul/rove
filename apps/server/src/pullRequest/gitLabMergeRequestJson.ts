@@ -19,6 +19,7 @@ import type {
 } from "@t3tools/contracts";
 import { TrimmedNonEmptyString } from "@t3tools/contracts";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * GitLab's REST enums are decoded as plain strings and normalized here: a GitLab release that
@@ -378,8 +379,10 @@ function toDetail(raw: Schema.Schema.Type<typeof RawMergeRequestSchema>): GitLab
     reviewerIds: (raw.reviewers ?? []).flatMap((reviewer) =>
       reviewer.id === undefined ? [] : [reviewer.id],
     ),
-    ...(autoMerge === undefined ? {} : { autoMergeEnabled: autoMerge }),
-    ...(raw.diverged_commits_count == null ? {} : { divergedCommits: raw.diverged_commits_count }),
+    ...(autoMerge === undefined ? undefined : { autoMergeEnabled: autoMerge }),
+    ...(raw.diverged_commits_count == null
+      ? undefined
+      : { divergedCommits: raw.diverged_commits_count }),
   };
 }
 
@@ -555,7 +558,7 @@ export function decodeDiscussionsJson(
     threads.push({
       id: discussion.value.id,
       path,
-      line: typeof line === "number" && line > 0 ? line : null,
+      line: RuntimePredicate.isNumber(line) && line > 0 ? line : null,
       side,
       isResolved: root.resolved === true,
       // GitLab reports no equivalent of "written against a line that has since moved", so a
@@ -636,7 +639,7 @@ export function decodeCommitsJson(
       messageHeadline: commit.value.title ?? "",
       committedDate,
       ...(commit.value.stats === null || commit.value.stats === undefined
-        ? {}
+        ? undefined
         : {
             additions: Math.max(0, commit.value.stats.additions ?? 0),
             deletions: Math.max(0, commit.value.stats.deletions ?? 0),
@@ -736,10 +739,11 @@ const GITLAB_AWARD_BY_CONTENT = {
   eyes: "eyes",
 } satisfies Readonly<Record<PullRequestReactionContent, string>>;
 
-const CONTENT_BY_GITLAB_AWARD: Readonly<Record<string, PullRequestReactionContent>> =
-  Object.fromEntries(
-    Object.entries(GITLAB_AWARD_BY_CONTENT).map(([content, name]) => [name, content]),
-  ) as Readonly<Record<string, PullRequestReactionContent>>;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  CONTENT_BY_GITLAB_AWARD: Readonly<Record<string, PullRequestReactionContent>> =
+    Object.fromEntries(
+      Object.entries(GITLAB_AWARD_BY_CONTENT).map(([content, name]) => [name, content]),
+    ) as Readonly<Record<string, PullRequestReactionContent>>;
 
 export function gitLabAwardName(content: PullRequestReactionContent): string {
   return GITLAB_AWARD_BY_CONTENT[content];

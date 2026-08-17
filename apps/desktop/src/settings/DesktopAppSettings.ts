@@ -23,6 +23,7 @@ import {
 } from "../linuxSecretStorage.ts";
 import { resolveDefaultDesktopUpdateChannel } from "../updates/updateChannels.ts";
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface DesktopSettings {
   readonly linuxPasswordStore: LinuxPasswordStorePreference;
@@ -191,13 +192,16 @@ export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettin
 }
 
 function normalizeTailscaleServePort(value: unknown): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65_535
+  return RuntimePredicate.isNumber(value) &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 65_535
     ? value
     : DEFAULT_TAILSCALE_SERVE_PORT;
 }
 
 function normalizeWslDistro(value: unknown): string | null {
-  return typeof value === "string" && isValidDistroName(value) ? value : null;
+  return RuntimePredicate.isString(value) && isValidDistroName(value) ? value : null;
 }
 
 export function normalizeMainWindowBounds(value: unknown): DesktopWindowBounds | null {

@@ -298,33 +298,35 @@ const makeProjectionTurnRepository = Effect.gen(function* () {
         ),
       );
 
-  const listByThreadId: ProjectionTurnRepositoryContract["listByThreadId"] = (input) =>
-    listProjectionTurnsByThread(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlOrDecodeError(
-          "ProjectionTurnRepository.listByThreadId:query",
-          "ProjectionTurnRepository.listByThreadId:decodeRows",
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    listByThreadId: ProjectionTurnRepositoryContract["listByThreadId"] = (input) =>
+      listProjectionTurnsByThread(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlOrDecodeError(
+            "ProjectionTurnRepository.listByThreadId:query",
+            "ProjectionTurnRepository.listByThreadId:decodeRows",
+          ),
         ),
-      ),
-      Effect.map((rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionTurn>>),
-    );
+        Effect.map((rows) => rows as ReadonlyArray<Schema.Schema.Type<typeof ProjectionTurn>>),
+      );
 
-  const getByTurnId: ProjectionTurnRepositoryContract["getByTurnId"] = (input) =>
-    getProjectionTurnByTurnId(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlOrDecodeError(
-          "ProjectionTurnRepository.getByTurnId:query",
-          "ProjectionTurnRepository.getByTurnId:decodeRow",
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    getByTurnId: ProjectionTurnRepositoryContract["getByTurnId"] = (input) =>
+      getProjectionTurnByTurnId(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlOrDecodeError(
+            "ProjectionTurnRepository.getByTurnId:query",
+            "ProjectionTurnRepository.getByTurnId:decodeRow",
+          ),
         ),
-      ),
-      Effect.flatMap((rowOption) =>
-        Option.match(rowOption, {
-          onNone: () => Effect.succeed(Option.none()),
-          onSome: (row) =>
-            Effect.succeed(Option.some(row as Schema.Schema.Type<typeof ProjectionTurnById>)),
-        }),
-      ),
-    );
+        Effect.flatMap((rowOption) =>
+          Option.match(rowOption, {
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: (row) =>
+              Effect.succeed(Option.some(row as Schema.Schema.Type<typeof ProjectionTurnById>)),
+          }),
+        ),
+      );
 
   const clearCheckpointTurnConflict: ProjectionTurnRepositoryContract["clearCheckpointTurnConflict"] =
     (input) =>

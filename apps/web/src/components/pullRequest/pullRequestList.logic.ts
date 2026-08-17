@@ -245,14 +245,14 @@ export function parsePullRequestQuery(raw: string) {
   return {
     text: text.join(" "),
     filters: {
-      ...(labels.length === 0 ? {} : { labels: labels.slice(0, MAX_QUALIFIER_VALUES) }),
+      ...(labels.length === 0 ? undefined : { labels: labels.slice(0, MAX_QUALIFIER_VALUES) }),
       ...(excludedLabels.length === 0
-        ? {}
+        ? undefined
         : { excludedLabels: excludedLabels.slice(0, MAX_QUALIFIER_VALUES) }),
-      ...(author === undefined ? {} : { author }),
-      ...(draft === undefined ? {} : { draft }),
-      ...(review === undefined ? {} : { review }),
-      ...(checks === undefined ? {} : { checks }),
+      ...(author === undefined ? undefined : { author }),
+      ...(draft === undefined ? undefined : { draft }),
+      ...(review === undefined ? undefined : { review }),
+      ...(checks === undefined ? undefined : { checks }),
     },
   };
 }
@@ -328,8 +328,8 @@ export function matchesPullRequestFilters(
   filters: PullRequestListFilters,
   viewer?: string | null,
 ): boolean {
-  const labels = entry.labels.map((label) => label.name.trim().toLowerCase());
-  const holds = (label: string) => labels.includes(label.trim().toLowerCase());
+  const labels = new Set(entry.labels.map((label) => label.name.trim().toLowerCase()));
+  const holds = (label: string) => labels.has(label.trim().toLowerCase());
   return (
     (filters.draft === undefined || entry.isDraft === (filters.draft === "only")) &&
     (filters.review === undefined ||
@@ -649,7 +649,7 @@ export function writePullRequestListSnapshot(
           truncatedEnvironments: [],
         },
         ...(snapshot.partitions === undefined
-          ? {}
+          ? undefined
           : {
               partitions: {
                 authored: snapshot.partitions.authored.slice(0, SNAPSHOT_MAX_ENTRIES),

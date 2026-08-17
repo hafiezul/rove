@@ -54,7 +54,8 @@ const drainFibers = Effect.forEach(Array.from({ length: 10 }), () => Effect.yiel
   discard: true,
 });
 
-const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
 
 function makeReadModel(
   threads: ReadonlyArray<{
@@ -152,14 +153,15 @@ describe("ProviderSessionReaper", () => {
     }) => ReturnType<ProviderServiceContract["stopSession"]>;
   }) {
     const stoppedThreadIds = new Set<ThreadId>();
-    const stopSession = vi.fn<ProviderServiceContract["stopSession"]>(
-      (request) =>
-        (input.stopSessionImplementation
-          ? input.stopSessionImplementation(request)
-          : Effect.sync(() => {
-              stoppedThreadIds.add(request.threadId);
-            })) as ReturnType<ProviderServiceContract["stopSession"]>,
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      stopSession = vi.fn<ProviderServiceContract["stopSession"]>(
+        (request) =>
+          (input.stopSessionImplementation
+            ? input.stopSessionImplementation(request)
+            : Effect.sync(() => {
+                stoppedThreadIds.add(request.threadId);
+              })) as ReturnType<ProviderServiceContract["stopSession"]>,
+      );
 
     const providerService: ProviderServiceContract = {
       startSession: () => unsupported(),

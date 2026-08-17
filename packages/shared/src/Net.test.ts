@@ -4,6 +4,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 
 import * as NetService from "./Net.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const closeServer = (server: NodeNet.Server) =>
   Effect.sync(() => {
@@ -16,7 +17,7 @@ const closeServer = (server: NodeNet.Server) =>
 
 const getPort = (server: NodeNet.Server): number => {
   const address = server.address();
-  return typeof address === "object" && address !== null ? address.port : 0;
+  return RuntimePredicate.isObjectOrArray(address) ? address.port : 0;
 };
 
 const openServer = (host?: string): Effect.Effect<NodeNet.Server, NetService.NetError> =>

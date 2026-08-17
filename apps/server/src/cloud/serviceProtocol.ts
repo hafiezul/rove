@@ -1,4 +1,6 @@
 import type { ServerSelfUpdateOutcome } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 /** Protocol 2 snapshots SQLite before trials so migrations can be rolled back safely. */
 export const SERVICE_LAUNCHER_PROTOCOL = 2 as const;
@@ -68,37 +70,38 @@ const EXACT_SERVICE_VERSION = new RegExp(
 export const isExactServiceVersion = (version: string): boolean =>
   EXACT_SERVICE_VERSION.test(version);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, SchemaJson> =>
+  RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 
 export function decodeServiceUpdate(value: unknown): ServiceUpdateRecord | undefined {
   if (!isRecord(value)) return undefined;
   const { id, fromVersion, targetVersion, status } = value;
   if (
-    typeof id !== "string" ||
+    !RuntimePredicate.isString(id) ||
     id.trim() === "" ||
-    typeof fromVersion !== "string" ||
+    !RuntimePredicate.isString(fromVersion) ||
     !isExactServiceVersion(fromVersion) ||
-    typeof targetVersion !== "string" ||
+    !RuntimePredicate.isString(targetVersion) ||
     !isExactServiceVersion(targetVersion)
   ) {
     return undefined;
   }
   if (status === "pending") {
-    return typeof value.dbPath === "string" && value.dbPath.trim() !== ""
+    return RuntimePredicate.isString(value.dbPath) && value.dbPath.trim() !== ""
       ? { id, fromVersion, targetVersion, dbPath: value.dbPath, status }
       : undefined;
   }
   if (
     (status === "committed" || status === "rolled-back" || status === "failed") &&
-    (value.reason === undefined || (typeof value.reason === "string" && value.reason.trim() !== ""))
+    (value.reason === undefined ||
+      (RuntimePredicate.isString(value.reason) && value.reason.trim() !== ""))
   ) {
     return {
       id,
       fromVersion,
       targetVersion,
       status,
-      ...(typeof value.reason === "string" ? { reason: value.reason } : {}),
+      ...(RuntimePredicate.isString(value.reason) ? { reason: value.reason } : undefined),
     };
   }
   return undefined;
@@ -147,7 +150,7 @@ export function decodeServiceState(value: unknown): ServiceState | undefined {
   const update = value.update === undefined ? undefined : decodeServiceUpdate(value.update);
   if (
     value.protocol !== SERVICE_LAUNCHER_PROTOCOL ||
-    typeof value.activeVersion !== "string" ||
+    !RuntimePredicate.isString(value.activeVersion) ||
     !isExactServiceVersion(value.activeVersion) ||
     (value.update !== undefined && update === undefined) ||
     (update !== undefined &&
@@ -162,12 +165,13 @@ export function decodeServiceState(value: unknown): ServiceState | undefined {
   return {
     protocol: SERVICE_LAUNCHER_PROTOCOL,
     activeVersion: value.activeVersion,
-    ...(update === undefined ? {} : { update }),
+    ...(update === undefined ? undefined : { update }),
   };
 }
 
 export function parseServiceState(value: string): ServiceState | undefined {
   try {
+    // SAFETY: This boundary intentionally widens the value before handing it to its owner.
     return decodeServiceState(JSON.parse(value) as unknown);
   } catch {
     return undefined;
@@ -187,6 +191,7 @@ export function serviceStateHasPendingUpdate(value: string): boolean {
 export function decodeServiceLauncherContext(value: string): ServiceLauncherContext | undefined {
   let parsed: unknown;
   try {
+    // SAFETY: This boundary intentionally widens the value before handing it to its owner.
     parsed = JSON.parse(value) as unknown;
   } catch {
     return undefined;
@@ -194,7 +199,7 @@ export function decodeServiceLauncherContext(value: string): ServiceLauncherCont
   if (
     !isRecord(parsed) ||
     parsed.protocol !== SERVICE_LAUNCHER_PROTOCOL ||
-    typeof parsed.childVersion !== "string" ||
+    !RuntimePredicate.isString(parsed.childVersion) ||
     !isExactServiceVersion(parsed.childVersion)
   ) {
     return undefined;
@@ -213,7 +218,7 @@ export function decodeServiceLauncherContext(value: string): ServiceLauncherCont
   return {
     protocol: SERVICE_LAUNCHER_PROTOCOL,
     childVersion: parsed.childVersion,
-    ...(update === undefined ? {} : { update }),
+    ...(update === undefined ? undefined : { update }),
   };
 }
 
@@ -223,12 +228,12 @@ export function decodeServiceLauncherChildMessage(
   if (!isRecord(value)) return undefined;
   if (
     value.type === "request-update" &&
-    typeof value.targetVersion === "string" &&
-    typeof value.dbPath === "string"
+    RuntimePredicate.isString(value.targetVersion) &&
+    RuntimePredicate.isString(value.dbPath)
   ) {
     return { type: value.type, targetVersion: value.targetVersion, dbPath: value.dbPath };
   }
-  return value.type === "prepared" && typeof value.updateId === "string"
+  return value.type === "prepared" && RuntimePredicate.isString(value.updateId)
     ? { type: value.type, updateId: value.updateId }
     : undefined;
 }
@@ -237,13 +242,13 @@ export function decodeServiceLauncherParentMessage(
   value: unknown,
 ): ServiceLauncherParentMessage | undefined {
   if (!isRecord(value)) return undefined;
-  if (value.type === "update-rejected" && typeof value.reason === "string") {
+  if (value.type === "update-rejected" && RuntimePredicate.isString(value.reason)) {
     return { type: value.type, reason: value.reason };
   }
-  if (value.type === "update-accepted" && typeof value.updateId === "string") {
+  if (value.type === "update-accepted" && RuntimePredicate.isString(value.updateId)) {
     return { type: value.type, updateId: value.updateId };
   }
-  return value.type === "committed" && typeof value.updateId === "string"
+  return value.type === "committed" && RuntimePredicate.isString(value.updateId)
     ? { type: value.type, updateId: value.updateId }
     : undefined;
 }

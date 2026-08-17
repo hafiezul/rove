@@ -43,10 +43,12 @@ interface NewThreadWorkspaceOptions {
 // state. Every reuse path applies exactly this set.
 function pickExplicitWorkspaceOptions(options: NewThreadWorkspaceOptions | undefined) {
   return {
-    ...(options?.branch !== undefined ? { branch: options.branch } : {}),
-    ...(options?.worktreePath !== undefined ? { worktreePath: options.worktreePath } : {}),
-    ...(options?.envMode !== undefined ? { envMode: options.envMode } : {}),
-    ...(options?.startFromOrigin !== undefined ? { startFromOrigin: options.startFromOrigin } : {}),
+    ...(options?.branch !== undefined ? { branch: options.branch } : undefined),
+    ...(options?.worktreePath !== undefined ? { worktreePath: options.worktreePath } : undefined),
+    ...(options?.envMode !== undefined ? { envMode: options.envMode } : undefined),
+    ...(options?.startFromOrigin !== undefined
+      ? { startFromOrigin: options.startFromOrigin }
+      : undefined),
   };
 }
 
@@ -270,8 +272,8 @@ export function useNewThreadHandler() {
           if (workspaceContext) {
             setDraftThreadContext(emptyStoredDraftThread.draftId, {
               ...workspaceContext,
-              ...(carryRuntimeMode ? { runtimeMode: carryRuntimeMode } : {}),
-              ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
+              ...(carryRuntimeMode ? { runtimeMode: carryRuntimeMode } : undefined),
+              ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : undefined),
             });
             if (carryModelSelection) {
               // The carried selection is a complete snapshot of the viewed
@@ -293,8 +295,8 @@ export function useNewThreadHandler() {
             {
               threadId: emptyStoredDraftThread.threadId,
               ...workspaceContext,
-              ...(carryRuntimeMode ? { runtimeMode: carryRuntimeMode } : {}),
-              ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
+              ...(carryRuntimeMode ? { runtimeMode: carryRuntimeMode } : undefined),
+              ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : undefined),
             },
           );
           carryComposerContentTo(emptyStoredDraftThread.draftId);
@@ -406,7 +408,7 @@ export function useNewThreadHandler() {
               newWorktreesStartFromOrigin: primaryServerSettings.newWorktreesStartFromOrigin,
             }),
           runtimeMode: carryRuntimeMode ?? DEFAULT_RUNTIME_MODE,
-          ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
+          ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : undefined),
         });
         applyStickyState(draftId);
         if (carryModelSelection) {

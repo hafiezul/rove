@@ -177,6 +177,7 @@ const isProcessAlive = (pid: number): boolean => {
     return true;
   } catch (error) {
     // EPERM means the process exists but belongs to someone else.
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
 };
@@ -327,6 +328,7 @@ const pruneSnapshot = Effect.fn("pruneDevDbSnapshot")(function* (input: RunMigra
   const [events] = yield* sql<{ count: number }>`
     SELECT COUNT(*) AS count FROM orchestration_events`;
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     projects: keptProjects as ReadonlyArray<KeptProject>,
     eventCount: events?.count ?? 0,

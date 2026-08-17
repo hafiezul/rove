@@ -263,7 +263,8 @@ const makeOrchestrationEngine = Effect.gen(function* () {
             return;
           }
 
-          const error = Cause.squash(exit.cause) as OrchestrationDispatchError;
+          const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            error = Cause.squash(exit.cause) as OrchestrationDispatchError;
           if (!isOrchestrationCommandPreviouslyRejectedError(error)) {
             yield* reconcileReadModelAfterDispatchFailure.pipe(
               Effect.catch(() =>

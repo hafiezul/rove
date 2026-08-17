@@ -9,6 +9,7 @@ import {
   SKILL_CHIP_ICON_SVG,
 } from "../composerInlineChip";
 import { cn } from "~/lib/utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SKILL_TOKEN_REGEX = /(^|\s)\$([a-zA-Z][a-zA-Z0-9:_-]*)(?=\s|$)/g;
 
@@ -49,7 +50,7 @@ export function renderSkillInlineMarkdownChildren(
   skills: ReadonlyArray<InlineSkill>,
 ): ReactNode {
   return Children.map(children, (child) => {
-    if (typeof child === "string") {
+    if (RuntimePredicate.isString(child)) {
       return <SkillInlineText text={child} skills={skills} />;
     }
     if (!isValidElement<{ children?: ReactNode; node?: { tagName?: string } }>(child)) {
@@ -57,7 +58,9 @@ export function renderSkillInlineMarkdownChildren(
     }
     // Custom react-markdown components replace the intrinsic type, so also
     // check the hast node they carry.
-    const markdownTagName = typeof child.type === "string" ? child.type : child.props.node?.tagName;
+    const markdownTagName = RuntimePredicate.isString(child.type)
+      ? child.type
+      : child.props.node?.tagName;
     if (markdownTagName === "code" || markdownTagName === "a") {
       return child;
     }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { isPickedElementPayload, isPreviewAnnotationPayload } from "./PickedElementPayload.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function validPayload(overrides?: Record<string, unknown>) {
+function validPayload(overrides?: Record<string, SchemaJson>) {
   return {
     pageUrl: "https://example.com/",
     pageTitle: "Example",
@@ -72,7 +73,7 @@ describe("isPickedElementPayload", () => {
     expect(isPickedElementPayload([])).toBe(false);
   });
 
-  it.each<[string, Record<string, unknown>]>([
+  it.each<[string, Record<string, SchemaJson>]>([
     ["missing pageUrl", validPayload({ pageUrl: undefined })],
     ["wrong-type pageUrl", validPayload({ pageUrl: 123 })],
     ["missing tagName", validPayload({ tagName: undefined })],
@@ -134,7 +135,7 @@ describe("isPickedElementPayload", () => {
   });
 });
 
-function validAnnotation(overrides?: Record<string, unknown>) {
+function validAnnotation(overrides?: Record<string, SchemaJson>) {
   return {
     id: "annotation_1",
     pageUrl: "https://example.com/",

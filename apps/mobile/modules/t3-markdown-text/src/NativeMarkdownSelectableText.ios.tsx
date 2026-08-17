@@ -4,6 +4,7 @@ import { MarkdownTextPrimitive } from "./MarkdownTextPrimitive";
 import { markdownFileIconSource } from "./markdownFileIcons";
 import type { NativeMarkdownTextRun } from "./nativeMarkdownText";
 import type { NativeMarkdownTextStyle } from "./SelectableMarkdownText.types";
+import * as RuntimePredicate from "effect/Predicate";
 
 const EXTERNAL_LINK_PREFIX = "◉ ";
 const INLINE_ATTACHMENT_PREFIX = "\uFFFC\u00A0";
@@ -38,7 +39,7 @@ const DEFAULT_HEADING_FONT_SIZES = [22, 19, 17, 16, 15, 15] as const;
 function resolveHeadingFontSize(textStyle: NativeMarkdownTextStyle, headingLevel: number): number {
   const index = Math.max(0, Math.min(5, headingLevel - 1));
   const configured = textStyle.headingFontSizes?.[index];
-  if (typeof configured === "number" && Number.isFinite(configured)) {
+  if (RuntimePredicate.isNumber(configured) && Number.isFinite(configured)) {
     return configured;
   }
 
@@ -129,7 +130,7 @@ function runStyle(run: NativeMarkdownTextRun, textStyle: NativeMarkdownTextStyle
           },
           shadowRadius: PARAGRAPH_STYLE_ENCODING_OFFSET + (run.paragraphSpacing ?? 0),
         }
-      : {}),
+      : undefined),
   };
 }
 

@@ -32,6 +32,7 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DATABASE_NAME = "t3code:connection-runtime";
 const DATABASE_VERSION = 4;
@@ -286,7 +287,7 @@ export function makeCatalogBackend(database: IDBDatabase): CatalogBackend {
 
   return {
     read: readDatabaseValue(database, CATALOG_STORE_NAME, CATALOG_KEY).pipe(
-      Effect.map((value) => (typeof value === "string" ? value : null)),
+      Effect.map((value) => (RuntimePredicate.isString(value) ? value : null)),
     ),
     write: (raw) => writeDatabaseValue(database, CATALOG_STORE_NAME, CATALOG_KEY, raw),
     quarantine: (raw) =>
@@ -469,7 +470,7 @@ export const connectionStorageLayer = Layer.effectContext(
       loadShell: (environmentId) =>
         readDatabaseValue(database, SHELL_STORE_NAME, environmentId).pipe(
           Effect.flatMap((raw) => {
-            if (typeof raw !== "string") {
+            if (!RuntimePredicate.isString(raw)) {
               return Effect.succeed(Option.none());
             }
             return decodeStoredShellSnapshot(raw).pipe(
@@ -505,7 +506,7 @@ export const connectionStorageLayer = Layer.effectContext(
       loadServerConfig: (environmentId) =>
         readDatabaseValue(database, SERVER_CONFIG_STORE_NAME, environmentId).pipe(
           Effect.flatMap((raw) => {
-            if (typeof raw !== "string") {
+            if (!RuntimePredicate.isString(raw)) {
               return Effect.succeed(Option.none());
             }
             return decodeStoredServerConfig(raw).pipe(
@@ -543,7 +544,7 @@ export const connectionStorageLayer = Layer.effectContext(
           threadCacheKey(environmentId, threadId),
         ).pipe(
           Effect.flatMap((raw) => {
-            if (typeof raw !== "string") {
+            if (!RuntimePredicate.isString(raw)) {
               return Effect.succeed(Option.none());
             }
             return decodeStoredThreadSnapshot(raw).pipe(
@@ -585,7 +586,7 @@ export const connectionStorageLayer = Layer.effectContext(
       loadVcsRefs: (environmentId, cwd) =>
         readDatabaseValue(database, VCS_REFS_STORE_NAME, vcsRefsCacheKey(environmentId, cwd)).pipe(
           Effect.flatMap((raw) => {
-            if (typeof raw !== "string") {
+            if (!RuntimePredicate.isString(raw)) {
               return Effect.succeed(Option.none());
             }
             return decodeStoredVcsRefs(raw).pipe(

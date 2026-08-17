@@ -36,7 +36,7 @@ function toProjectionThreadMessage(
     isStreaming: row.isStreaming === 1,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    ...(row.attachments !== null ? { attachments: row.attachments } : {}),
+    ...(row.attachments !== null ? { attachments: row.attachments } : undefined),
   };
 }
 

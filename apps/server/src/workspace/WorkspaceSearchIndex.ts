@@ -511,7 +511,7 @@ export const make = Effect.fn("WorkspaceSearchIndex.make")(function* (
     return {
       matches: matches.slice(0, input.limit),
       truncated: matches.length > input.limit || nextCursor !== null,
-      ...(regexFallbackError !== undefined ? { regexFallbackError } : {}),
+      ...(regexFallbackError !== undefined ? { regexFallbackError } : undefined),
     };
   });
 
@@ -531,6 +531,7 @@ export const workspaceSearchIndexKey = (cwd: string, variant: WorkspaceSearchInd
 
 function parseWorkspaceSearchIndexKey(key: string) {
   const separatorIndex = key.indexOf("\n");
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     variant: key.slice(0, separatorIndex) as WorkspaceSearchIndexVariant,
     cwd: key.slice(separatorIndex + 1),

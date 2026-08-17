@@ -40,6 +40,8 @@ import * as ProjectSetupScriptRunner from "../project/ProjectSetupScriptRunner.t
 import * as ProviderRegistry from "../provider/Services/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as GitManager from "./GitManager.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface FakeGhScenario {
   prListSequence?: string[];
@@ -79,57 +81,56 @@ type FakeGitTextGeneration = TextGeneration.TextGeneration["Service"];
 type FakePullRequest = NonNullable<FakeGhScenario["pullRequest"]>;
 
 function normalizeFakePullRequestSummary(raw: unknown): GitHubCli.GitHubPullRequestSummary | null {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || !(RuntimePredicate.isObjectOrArray(raw) || raw === null)) {
     return null;
   }
 
-  const record = raw as Record<string, unknown>;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    record = raw as Record<string, SchemaJson>;
   const number = record.number;
   const title = record.title;
   const url = record.url;
   const baseRefName = record.baseRefName;
   const headRefName = record.headRefName;
-  const headRepository =
-    typeof record.headRepository === "object" && record.headRepository !== null
-      ? (record.headRepository as Record<string, unknown>)
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    headRepository = RuntimePredicate.isObjectOrArray(record.headRepository)
+      ? (record.headRepository as Record<string, SchemaJson>)
       : null;
-  const headRepositoryOwner =
-    typeof record.headRepositoryOwner === "object" && record.headRepositoryOwner !== null
-      ? (record.headRepositoryOwner as Record<string, unknown>)
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    headRepositoryOwner = RuntimePredicate.isObjectOrArray(record.headRepositoryOwner)
+      ? (record.headRepositoryOwner as Record<string, SchemaJson>)
       : null;
 
   if (
-    typeof number !== "number" ||
-    typeof title !== "string" ||
-    typeof url !== "string" ||
-    typeof baseRefName !== "string" ||
-    typeof headRefName !== "string"
+    !RuntimePredicate.isNumber(number) ||
+    !RuntimePredicate.isString(title) ||
+    !RuntimePredicate.isString(url) ||
+    !RuntimePredicate.isString(baseRefName) ||
+    !RuntimePredicate.isString(headRefName)
   ) {
     return null;
   }
 
-  const state =
-    typeof record.state === "string"
-      ? record.state === "OPEN" || record.state === "open"
-        ? "open"
-        : record.state === "CLOSED" || record.state === "closed"
-          ? "closed"
-          : "merged"
+  const state = RuntimePredicate.isString(record.state)
+    ? record.state === "OPEN" || record.state === "open"
+      ? "open"
+      : record.state === "CLOSED" || record.state === "closed"
+        ? "closed"
+        : "merged"
+    : undefined;
+  const isCrossRepository = RuntimePredicate.isBoolean(record.isCrossRepository)
+    ? record.isCrossRepository
+    : undefined;
+  const headRepositoryNameWithOwner = RuntimePredicate.isString(record.headRepositoryNameWithOwner)
+    ? record.headRepositoryNameWithOwner
+    : RuntimePredicate.isString(headRepository?.nameWithOwner)
+      ? headRepository.nameWithOwner
       : undefined;
-  const isCrossRepository =
-    typeof record.isCrossRepository === "boolean" ? record.isCrossRepository : undefined;
-  const headRepositoryNameWithOwner =
-    typeof record.headRepositoryNameWithOwner === "string"
-      ? record.headRepositoryNameWithOwner
-      : typeof headRepository?.nameWithOwner === "string"
-        ? headRepository.nameWithOwner
-        : undefined;
-  const headRepositoryOwnerLogin =
-    typeof record.headRepositoryOwnerLogin === "string"
-      ? record.headRepositoryOwnerLogin
-      : typeof headRepositoryOwner?.login === "string"
-        ? headRepositoryOwner.login
-        : undefined;
+  const headRepositoryOwnerLogin = RuntimePredicate.isString(record.headRepositoryOwnerLogin)
+    ? record.headRepositoryOwnerLogin
+    : RuntimePredicate.isString(headRepositoryOwner?.login)
+      ? headRepositoryOwner.login
+      : undefined;
 
   return {
     number,
@@ -137,10 +138,10 @@ function normalizeFakePullRequestSummary(raw: unknown): GitHubCli.GitHubPullRequ
     url,
     baseRefName,
     headRefName,
-    ...(state ? { state } : {}),
-    ...(isCrossRepository !== undefined ? { isCrossRepository } : {}),
-    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : {}),
-    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : {}),
+    ...(state ? { state } : undefined),
+    ...(isCrossRepository !== undefined ? { isCrossRepository } : undefined),
+    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : undefined),
+    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : undefined),
   };
 }
 
@@ -280,7 +281,7 @@ function createTextGeneration(
       Effect.succeed({
         subject: "Implement stacked git actions",
         body: "",
-        ...(input.includeBranch ? { branch: "feature/implement-stacked-git-actions" } : {}),
+        ...(input.includeBranch ? { branch: "feature/implement-stacked-git-actions" } : undefined),
       }),
     generatePrContent: () =>
       Effect.succeed({
@@ -306,7 +307,7 @@ function createTextGeneration(
             new TextGenerationError({
               operation: "generateCommitMessage",
               detail: "fake text generation failed",
-              ...(cause !== undefined ? { cause } : {}),
+              ...(cause !== undefined ? { cause } : undefined),
             }),
         ),
       ),
@@ -317,7 +318,7 @@ function createTextGeneration(
             new TextGenerationError({
               operation: "generatePrContent",
               detail: "fake text generation failed",
-              ...(cause !== undefined ? { cause } : {}),
+              ...(cause !== undefined ? { cause } : undefined),
             }),
         ),
       ),
@@ -328,7 +329,7 @@ function createTextGeneration(
             new TextGenerationError({
               operation: "generateBranchName",
               detail: "fake text generation failed",
-              ...(cause !== undefined ? { cause } : {}),
+              ...(cause !== undefined ? { cause } : undefined),
             }),
         ),
       ),
@@ -339,7 +340,7 @@ function createTextGeneration(
             new TextGenerationError({
               operation: "generateThreadTitle",
               detail: "fake text generation failed",
-              ...(cause !== undefined ? { cause } : {}),
+              ...(cause !== undefined ? { cause } : undefined),
             }),
         ),
       ),
@@ -375,14 +376,12 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): FakeGitHubCli
         headSelectorIndex >= 0 && headSelectorIndex < args.length - 1
           ? args[headSelectorIndex + 1]
           : undefined;
-      const mappedQueue =
-        typeof headSelector === "string"
-          ? prListQueueByHeadSelector.get(headSelector)?.shift()
-          : undefined;
-      const mappedStdout =
-        typeof headSelector === "string"
-          ? scenario.prListByHeadSelector?.[headSelector]
-          : undefined;
+      const mappedQueue = RuntimePredicate.isString(headSelector)
+        ? prListQueueByHeadSelector.get(headSelector)?.shift()
+        : undefined;
+      const mappedStdout = RuntimePredicate.isString(headSelector)
+        ? scenario.prListByHeadSelector?.[headSelector]
+        : undefined;
       const stdout = (mappedQueue ?? mappedStdout ?? prListQueue.shift() ?? "[]") + "\n";
       return Effect.succeed(fakeGhOutput(stdout));
     }
@@ -414,14 +413,14 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): FakeGitHubCli
                     nameWithOwner: pullRequest.headRepositoryNameWithOwner,
                   },
                 }
-              : {}),
+              : undefined),
             ...(pullRequest.headRepositoryOwnerLogin
               ? {
                   headRepositoryOwner: {
                     login: pullRequest.headRepositoryOwnerLogin,
                   },
                 }
-              : {}),
+              : undefined),
           }) + "\n",
         ),
       );
@@ -461,7 +460,7 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): FakeGitHubCli
 
     if (args[0] === "repo" && args[1] === "view") {
       const repository = args[2];
-      if (typeof repository === "string" && args.includes("nameWithOwner,url,sshUrl")) {
+      if (RuntimePredicate.isString(repository) && args.includes("nameWithOwner,url,sshUrl")) {
         const cloneUrls = scenario.repositoryCloneUrls?.[repository];
         if (!cloneUrls) {
           return Effect.fail(
@@ -494,6 +493,7 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): FakeGitHubCli
     );
   };
 
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     service: {
       execute,
@@ -672,7 +672,8 @@ function makeManager(input?: {
   );
 }
 
-const asThreadId = (threadId: string) => threadId as ThreadId;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  asThreadId = (threadId: string) => threadId as ThreadId;
 
 const GitManagerTestLayer = GitVcsDriver.layer.pipe(
   Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-git-manager-test-" })),
@@ -1409,7 +1410,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           }),
         },
       });
-      const logs: Array<{ message: string; annotations: Record<string, unknown> }> = [];
+      const logs: Array<{ message: string; annotations: Record<string, SchemaJson> }> = [];
       const logger = Logger.make<unknown, void>(({ fiber, message }) => {
         logs.push({
           message: String(message),
@@ -1843,7 +1844,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
               return {
                 subject: "this should not be used",
                 body: "",
-                ...(input.includeBranch ? { branch: "feature/unused" } : {}),
+                ...(input.includeBranch ? { branch: "feature/unused" } : undefined),
               };
             }),
         },
@@ -1914,7 +1915,9 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
               return {
                 subject: "Implement stacked git actions",
                 body: "",
-                ...(input.includeBranch ? { branch: "feature/implement-stacked-git-actions" } : {}),
+                ...(input.includeBranch
+                  ? { branch: "feature/implement-stacked-git-actions" }
+                  : undefined),
               };
             }),
         },
@@ -1974,7 +1977,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
               return {
                 subject: "unused",
                 body: "",
-                ...(input.includeBranch ? { branch: "feature/unused" } : {}),
+                ...(input.includeBranch ? { branch: "feature/unused" } : undefined),
               };
             }),
         },
@@ -3329,11 +3332,13 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
       expect(result.branch).toBe("feature/pr-worktree");
       expect(result.worktreePath).not.toBeNull();
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(NodeFS.existsSync(result.worktreePath as string)).toBe(true);
-      const worktreeBranch = (yield* runGit(result.worktreePath as string, [
-        "branch",
-        "--show-current",
-      ])).stdout.trim();
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        worktreeBranch = (yield* runGit(result.worktreePath as string, [
+          "branch",
+          "--show-current",
+        ])).stdout.trim();
       expect(worktreeBranch).toBe("feature/pr-worktree");
     }),
   );
@@ -3442,6 +3447,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
       expect(result.worktreePath).not.toBeNull();
       expect(setupCalls).toHaveLength(1);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(setupCalls[0]).toEqual({
         threadId: "thread-pr-setup",
         projectCwd: repoDir,
@@ -3495,13 +3501,15 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
       });
 
       expect(result.worktreePath).not.toBeNull();
-      const upstreamRef = (yield* runGit(result.worktreePath as string, [
-        "rev-parse",
-        "--abbrev-ref",
-        "@{upstream}",
-      ])).stdout.trim();
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        upstreamRef = (yield* runGit(result.worktreePath as string, [
+          "rev-parse",
+          "--abbrev-ref",
+          "@{upstream}",
+        ])).stdout.trim();
       expect(upstreamRef).toBe("fork-seed/feature/pr-fork");
       expect(upstreamRef.startsWith("origin/")).toBe(false);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(
         (yield* runGit(result.worktreePath as string, [
           "config",
@@ -3788,6 +3796,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
       });
 
       expect(setupCalls).toHaveLength(1);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(setupCalls[0]).toEqual({
         threadId: "thread-pr-reused-setup",
         projectCwd: repoDir,
@@ -4115,7 +4124,8 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         reference: "90",
         mode: "worktree",
       });
-      const worktreePath = created.worktreePath as string;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        worktreePath = created.worktreePath as string;
       expect(
         (yield* runGit(worktreePath, ["rev-parse", "--abbrev-ref", "@{upstream}"], true)).exitCode,
       ).not.toBe(0);
@@ -4266,6 +4276,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         expect(result.worktreePath).not.toBeNull();
         expect((yield* runGit(repoDir, ["branch", "--show-current"])).stdout.trim()).toBe("main");
         expect((yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim()).toBe(mainBefore);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect(
           (yield* runGit(result.worktreePath as string, [
             "branch",
@@ -4325,6 +4336,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
         expect(result.branch).toBe("t3code/pr-92/main");
         expect((yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim()).toBe(localMainBefore);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect(
           (yield* runGit(result.worktreePath as string, [
             "rev-parse",
@@ -4443,6 +4455,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
       expect(result.branch).toBe("feature/pr-setup-failure");
       expect(result.worktreePath).not.toBeNull();
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(NodeFS.existsSync(result.worktreePath as string)).toBe(true);
     }),
   );

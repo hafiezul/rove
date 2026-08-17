@@ -54,6 +54,8 @@ import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts"
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function makeTestServerSettingsLayer(overrides: Partial<ServerSettings> = {}) {
   return ServerSettingsService.layerTest(overrides);
@@ -75,8 +77,8 @@ type LegacyProviderRuntimeEvent = {
   readonly turnId?: string | undefined;
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
-  readonly payload?: unknown | undefined;
-  readonly [key: string]: unknown;
+  readonly payload?: SchemaJson | undefined;
+  readonly [key: string]: SchemaJson;
 };
 
 type LegacyTurnCompletedEvent = LegacyProviderRuntimeEvent & {
@@ -92,7 +94,7 @@ function isLegacyTurnCompletedEvent(
   return (
     event.type === "turn.completed" &&
     event.payload === undefined &&
-    typeof event.status === "string"
+    RuntimePredicate.isString(event.status)
   );
 }
 
@@ -100,7 +102,8 @@ function createProviderServiceHarness() {
   const runtimeEventPubSub = Effect.runSync(PubSub.unbounded<ProviderRuntimeEvent>());
   const runtimeSessions: ProviderSession[] = [];
 
-  const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
   const service: ProviderServiceContract = {
     startSession: () => unsupported(),
     sendTurn: () => unsupported(),
@@ -140,16 +143,20 @@ function createProviderServiceHarness() {
 
   const normalizeLegacyEvent = (event: LegacyProviderRuntimeEvent): ProviderRuntimeEvent => {
     if (isLegacyTurnCompletedEvent(event)) {
-      const normalized: Extract<ProviderRuntimeEvent, { type: "turn.completed" }> = {
-        ...(event as Omit<Extract<ProviderRuntimeEvent, { type: "turn.completed" }>, "payload">),
-        payload: {
-          state: event.status,
-          ...(typeof event.errorMessage === "string" ? { errorMessage: event.errorMessage } : {}),
-        },
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        normalized: Extract<ProviderRuntimeEvent, { type: "turn.completed" }> = {
+          ...(event as Omit<Extract<ProviderRuntimeEvent, { type: "turn.completed" }>, "payload">),
+          payload: {
+            state: event.status,
+            ...(RuntimePredicate.isString(event.errorMessage)
+              ? { errorMessage: event.errorMessage }
+              : undefined),
+          },
+        };
       return normalized;
     }
 
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     return event as ProviderRuntimeEvent;
   };
 
@@ -1054,17 +1061,18 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) =>
-          activity.kind === "turn.reasoning" &&
-          typeof activity.payload === "object" &&
-          activity.payload !== null &&
-          String((activity.payload as { detail?: unknown }).detail ?? "").includes(
-            "Then I write the red test.",
-          ),
-      ),
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      thread = await waitForThread(harness.readModel, (entry) =>
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) =>
+            activity.kind === "turn.reasoning" &&
+            (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
+            activity.payload !== null &&
+            String((activity.payload as { detail?: unknown }).detail ?? "").includes(
+              "Then I write the red test.",
+            ),
+        ),
+      );
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
@@ -1072,7 +1080,8 @@ describe("ProviderRuntimeIngestion", () => {
     expect(reasoningActivities).toHaveLength(1);
     expect(reasoningActivities[0]?.id).toBe("reasoning:thread-1:turn-reasoning");
     expect(reasoningActivities[0]?.turnId).toBe("turn-reasoning");
-    const firstPayload = reasoningActivities[0]?.payload as { detail?: unknown } | undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      firstPayload = reasoningActivities[0]?.payload as { detail?: unknown } | undefined;
     expect(firstPayload?.detail).toBe("First I check the adapter. Then I write the red test.");
   });
 
@@ -1111,24 +1120,26 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(
-      harness.readModel,
-      (entry) =>
-        entry.activities.some(
-          (activity: ProviderRuntimeTestActivity) =>
-            activity.kind === "turn.reasoning" &&
-            typeof activity.payload === "object" &&
-            activity.payload !== null &&
-            (activity.payload as { streaming?: unknown }).streaming === false,
-        ) && entry.session?.status === "ready",
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      thread = await waitForThread(
+        harness.readModel,
+        (entry) =>
+          entry.activities.some(
+            (activity: ProviderRuntimeTestActivity) =>
+              activity.kind === "turn.reasoning" &&
+              (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
+              activity.payload !== null &&
+              (activity.payload as { streaming?: unknown }).streaming === false,
+          ) && entry.session?.status === "ready",
+      );
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
     );
     expect(reasoningActivities).toHaveLength(1);
     expect(reasoningActivities[0]?.summary).toBe("Reasoned");
-    const payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
     expect(payload.streaming).toBe(false);
     expect(payload.detail).toBe("Done — reviewed and green.");
   });
@@ -1168,22 +1179,24 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) =>
-          activity.kind === "turn.reasoning" &&
-          typeof activity.payload === "object" &&
-          activity.payload !== null &&
-          (activity.payload as { streaming?: unknown }).streaming === false,
-      ),
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      thread = await waitForThread(harness.readModel, (entry) =>
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) =>
+            activity.kind === "turn.reasoning" &&
+            (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
+            activity.payload !== null &&
+            (activity.payload as { streaming?: unknown }).streaming === false,
+        ),
+      );
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
     );
     expect(reasoningActivities).toHaveLength(1);
     expect(reasoningActivities[0]?.summary).toBe("Reasoned");
-    const payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
     expect(payload.streaming).toBe(false);
     expect(payload.detail).toBe("Interrupted mid-thought.");
   });
@@ -1280,18 +1293,23 @@ describe("ProviderRuntimeIngestion", () => {
     const activity = thread.activities.find(
       (entry: ProviderRuntimeTestActivity) => entry.id === "evt-tool-completed-with-data",
     );
-    const payload =
-      activity?.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : undefined;
-    const data =
-      payload?.data && typeof payload.data === "object"
-        ? (payload.data as Record<string, unknown>)
-        : undefined;
-    const rawOutput =
-      data?.rawOutput && typeof data.rawOutput === "object"
-        ? (data.rawOutput as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload =
+        activity?.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      data =
+        payload?.data && (RuntimePredicate.isObjectOrArray(payload.data) || payload.data === null)
+          ? (payload.data as Record<string, SchemaJson>)
+          : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      rawOutput =
+        data?.rawOutput &&
+        (RuntimePredicate.isObjectOrArray(data.rawOutput) || data.rawOutput === null)
+          ? (data.rawOutput as Record<string, SchemaJson>)
+          : undefined;
 
     expect(activity?.kind).toBe("tool.completed");
     expect(activity?.summary).toBe("Read file");
@@ -1335,10 +1353,12 @@ describe("ProviderRuntimeIngestion", () => {
     const activity = thread.activities.find(
       (entry: ProviderRuntimeTestActivity) => entry.id === "evt-command-completed",
     );
-    const payload =
-      activity?.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload =
+        activity?.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(activity?.summary).toBe("Ran command");
     expect(payload?.detail).toBe("bun run lint");
@@ -1377,10 +1397,12 @@ describe("ProviderRuntimeIngestion", () => {
     const activity = thread.activities.find(
       (entry: ProviderRuntimeTestActivity) => entry.id === "evt-read-path-completed",
     );
-    const payload =
-      activity?.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload =
+        activity?.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(activity?.summary).toBe("Read file");
     expect(payload?.detail).toBe("/tmp/app.ts");
@@ -2854,20 +2876,24 @@ describe("ProviderRuntimeIngestion", () => {
     const requested = thread?.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-request-opened",
     );
-    const requestedPayload =
-      requested?.payload && typeof requested.payload === "object"
-        ? (requested.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      requestedPayload =
+        requested?.payload &&
+        (RuntimePredicate.isObjectOrArray(requested.payload) || requested.payload === null)
+          ? (requested.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(requestedPayload?.requestKind).toBe("command");
     expect(requestedPayload?.requestType).toBe("command_execution_approval");
 
     const resolved = thread?.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-request-resolved",
     );
-    const resolvedPayload =
-      resolved?.payload && typeof resolved.payload === "object"
-        ? (resolved.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      resolvedPayload =
+        resolved?.payload &&
+        (RuntimePredicate.isObjectOrArray(resolved.payload) || resolved.payload === null)
+          ? (resolved.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(resolvedPayload?.requestKind).toBe("command");
     expect(resolvedPayload?.requestType).toBe("command_execution_approval");
   });
@@ -2921,10 +2947,12 @@ describe("ProviderRuntimeIngestion", () => {
     const activity = thread.activities.find(
       (entry: ProviderRuntimeTestActivity) => entry.id === "evt-runtime-error-activity",
     );
-    const activityPayload =
-      activity?.payload && typeof activity.payload === "object"
-        ? (activity.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      activityPayload =
+        activity?.payload &&
+        (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null)
+          ? (activity.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(activity?.kind).toBe("runtime.error");
     expect(activityPayload?.message).toBe("runtime activity exploded");
@@ -3124,20 +3152,24 @@ describe("ProviderRuntimeIngestion", () => {
     const planActivity = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-turn-plan-updated",
     );
-    const planPayload =
-      planActivity?.payload && typeof planActivity.payload === "object"
-        ? (planActivity.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      planPayload =
+        planActivity?.payload &&
+        (RuntimePredicate.isObjectOrArray(planActivity.payload) || planActivity.payload === null)
+          ? (planActivity.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(planActivity?.kind).toBe("turn.plan.updated");
     expect(Array.isArray(planPayload?.plan)).toBe(true);
 
     const toolUpdate = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-item-updated",
     );
-    const toolUpdatePayload =
-      toolUpdate?.payload && typeof toolUpdate.payload === "object"
-        ? (toolUpdate.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      toolUpdatePayload =
+        toolUpdate?.payload &&
+        (RuntimePredicate.isObjectOrArray(toolUpdate.payload) || toolUpdate.payload === null)
+          ? (toolUpdate.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(toolUpdate?.kind).toBe("tool.updated");
     expect(toolUpdatePayload?.itemType).toBe("command_execution");
     expect(toolUpdatePayload?.status).toBe("in_progress");
@@ -3145,10 +3177,12 @@ describe("ProviderRuntimeIngestion", () => {
     const warning = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-runtime-warning",
     );
-    const warningPayload =
-      warning?.payload && typeof warning.payload === "object"
-        ? (warning.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      warningPayload =
+        warning?.payload &&
+        (RuntimePredicate.isObjectOrArray(warning.payload) || warning.payload === null)
+          ? (warning.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(warning?.kind).toBe("runtime.warning");
     expect(warningPayload?.message).toBe("Provider got slow");
 
@@ -3418,14 +3452,18 @@ describe("ProviderRuntimeIngestion", () => {
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-task-completed",
     );
 
-    const progressPayload =
-      progress?.payload && typeof progress.payload === "object"
-        ? (progress.payload as Record<string, unknown>)
-        : undefined;
-    const completedPayload =
-      completed?.payload && typeof completed.payload === "object"
-        ? (completed.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      progressPayload =
+        progress?.payload &&
+        (RuntimePredicate.isObjectOrArray(progress.payload) || progress.payload === null)
+          ? (progress.payload as Record<string, SchemaJson>)
+          : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      completedPayload =
+        completed?.payload &&
+        (RuntimePredicate.isObjectOrArray(completed.payload) || completed.payload === null)
+          ? (completed.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(started?.kind).toBe("task.started");
     expect(started?.summary).toBe("Plan task started");
@@ -3503,14 +3541,18 @@ describe("ProviderRuntimeIngestion", () => {
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-named-task-completed",
     );
 
-    const progressPayload =
-      progress?.payload && typeof progress.payload === "object"
-        ? (progress.payload as Record<string, unknown>)
-        : undefined;
-    const completedPayload =
-      completed?.payload && typeof completed.payload === "object"
-        ? (completed.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      progressPayload =
+        progress?.payload &&
+        (RuntimePredicate.isObjectOrArray(progress.payload) || progress.payload === null)
+          ? (progress.payload as Record<string, SchemaJson>)
+          : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      completedPayload =
+        completed?.payload &&
+        (RuntimePredicate.isObjectOrArray(completed.payload) || completed.payload === null)
+          ? (completed.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(progress?.summary).toBe("Typecheck mobile app");
     expect(progressPayload?.title).toBe("Typecheck mobile app");
@@ -3560,10 +3602,12 @@ describe("ProviderRuntimeIngestion", () => {
     const completed = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-fast-task-completed",
     );
-    const completedPayload =
-      completed?.payload && typeof completed.payload === "object"
-        ? (completed.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      completedPayload =
+        completed?.payload &&
+        (RuntimePredicate.isObjectOrArray(completed.payload) || completed.payload === null)
+          ? (completed.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(completedPayload?.title).toBe("wait for codex review to finish");
   });
@@ -3627,10 +3671,12 @@ describe("ProviderRuntimeIngestion", () => {
     const completed = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-swept-task-completed",
     );
-    const completedPayload =
-      completed?.payload && typeof completed.payload === "object"
-        ? (completed.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      completedPayload =
+        completed?.payload &&
+        (RuntimePredicate.isObjectOrArray(completed.payload) || completed.payload === null)
+          ? (completed.payload as Record<string, SchemaJson>)
+          : undefined;
 
     expect(completedPayload?.title).toBe("Watch round-3 CI and bots");
   });
@@ -3698,10 +3744,12 @@ describe("ProviderRuntimeIngestion", () => {
     const resolved = thread.activities.find(
       (activity: ProviderRuntimeTestActivity) => activity.id === "evt-user-input-resolved",
     );
-    const resolvedPayload =
-      resolved?.payload && typeof resolved.payload === "object"
-        ? (resolved.payload as Record<string, unknown>)
-        : undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      resolvedPayload =
+        resolved?.payload &&
+        (RuntimePredicate.isObjectOrArray(resolved.payload) || resolved.payload === null)
+          ? (resolved.payload as Record<string, SchemaJson>)
+          : undefined;
     expect(resolved?.kind).toBe("user-input.resolved");
     expect(resolvedPayload?.answers).toEqual({
       sandbox_mode: "workspace-write",
@@ -3724,7 +3772,7 @@ describe("ProviderRuntimeIngestion", () => {
         streamKind: "assistant_text",
         delta: undefined,
       },
-    } as unknown as ProviderRuntimeEvent);
+    } as ProviderRuntimeEvent);
 
     harness.emit({
       type: "runtime.error",

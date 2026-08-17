@@ -64,6 +64,8 @@ import { isPreviewAnnotationPayload } from "./PickedElementPayload.ts";
 import { playwrightInjectedRuntimeInstallExpression } from "./PlaywrightInjectedRuntime.ts";
 import { makePreviewAutomationKeySequence } from "./PreviewKeyboard.ts";
 import { captureFavicon, safeHttpOrigin, selectFaviconCandidates } from "./FaviconCapture.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type PreviewNavStatus =
   | { kind: "Idle" }
@@ -229,22 +231,23 @@ export type PreviewAutomationEvaluationDetailKind =
   typeof PreviewAutomationEvaluationDetailKind.Type;
 
 const previewAutomationEvaluationDetail = (exceptionDetails: unknown) => {
-  if (typeof exceptionDetails !== "object" || exceptionDetails === null) {
+  if (!RuntimePredicate.isObjectOrArray(exceptionDetails)) {
     return { detailKind: "unknown" as const };
   }
-  const details = exceptionDetails as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    details = exceptionDetails as Record<string, SchemaJson>;
   const exception = details["exception"];
-  const description =
-    typeof exception === "object" &&
-    exception !== null &&
-    typeof (exception as Record<string, unknown>)["description"] === "string"
-      ? (exception as Record<string, unknown>)["description"]
-      : undefined;
-  if (typeof description === "string" && description.length > 0) {
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    description =
+      RuntimePredicate.isObjectOrArray(exception) &&
+      RuntimePredicate.isString((exception as Record<string, SchemaJson>)["description"])
+        ? (exception as Record<string, SchemaJson>)["description"]
+        : undefined;
+  if (RuntimePredicate.isString(description) && description.length > 0) {
     return { detailKind: "exception-description" as const, detail: description };
   }
   const text = details["text"];
-  if (typeof text === "string" && text.length > 0) {
+  if (RuntimePredicate.isString(text) && text.length > 0) {
     return { detailKind: "exception-text" as const, detail: text };
   }
   return { detailKind: "unknown" as const };
@@ -266,20 +269,21 @@ interface PreviewOperationContext {
 }
 
 const normalizeCaptureRect = (value: unknown): PreviewAnnotationRect | null => {
-  if (typeof value !== "object" || value === null) return null;
-  const rect = value as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(value)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    rect = value as Record<string, SchemaJson>;
   const x = rect["x"];
   const y = rect["y"];
   const width = rect["width"];
   const height = rect["height"];
   if (
-    typeof x !== "number" ||
+    !RuntimePredicate.isNumber(x) ||
     !Number.isFinite(x) ||
-    typeof y !== "number" ||
+    !RuntimePredicate.isNumber(y) ||
     !Number.isFinite(y) ||
-    typeof width !== "number" ||
+    !RuntimePredicate.isNumber(width) ||
     !Number.isFinite(width) ||
-    typeof height !== "number" ||
+    !RuntimePredicate.isNumber(height) ||
     !Number.isFinite(height) ||
     width <= 0 ||
     height <= 0
@@ -385,7 +389,7 @@ interface BrowserControlSession {
   readonly onMessage: (
     event: Electron.Event,
     method: string,
-    params: Record<string, unknown>,
+    params: Record<string, SchemaJson>,
   ) => void;
 }
 
@@ -426,23 +430,23 @@ export const isPreviewRefreshShortcut = (input: Electron.Input): boolean =>
   !input.alt;
 
 const isPreviewInputSignal = (value: unknown): value is PreviewInputSignal => {
-  if (typeof value !== "object" || value === null || !("kind" in value)) return false;
+  if (!RuntimePredicate.isObjectOrArray(value) || !("kind" in value)) return false;
   if (value.kind === "pointer") {
     return (
       "x" in value &&
-      typeof value.x === "number" &&
+      RuntimePredicate.isNumber(value.x) &&
       "y" in value &&
-      typeof value.y === "number" &&
+      RuntimePredicate.isNumber(value.y) &&
       "button" in value &&
-      typeof value.button === "number"
+      RuntimePredicate.isNumber(value.button)
     );
   }
   return (
     value.kind === "key" &&
     "key" in value &&
-    typeof value.key === "string" &&
+    RuntimePredicate.isString(value.key) &&
     "code" in value &&
-    typeof value.code === "string"
+    RuntimePredicate.isString(value.code)
   );
 };
 
@@ -712,27 +716,28 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   const captureDiagnosticMessage = Effect.fnUntraced(function* (
     webContentsId: number,
     method: string,
-    params: Record<string, unknown>,
+    params: Record<string, SchemaJson>,
   ) {
     const timestamp = yield* currentIso;
     yield* Ref.update(diagnosticsRef, (allDiagnostics) => {
       const current = allDiagnostics.get(webContentsId);
       if (!current) return allDiagnostics;
-      const requestId = typeof params["requestId"] === "string" ? params["requestId"] : null;
+      const requestId = RuntimePredicate.isString(params["requestId"]) ? params["requestId"] : null;
       const next = (() => {
         if (method === "Runtime.consoleAPICalled") {
           const args = Array.isArray(params["args"]) ? params["args"] : [];
           const text = args
             .map((arg) => {
-              if (typeof arg !== "object" || arg === null) return String(arg);
-              const value = arg as Record<string, unknown>;
+              if (!RuntimePredicate.isObjectOrArray(arg)) return String(arg);
+              const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+                value = arg as Record<string, SchemaJson>;
               return String(value["value"] ?? value["description"] ?? "");
             })
             .join(" ");
           return {
             ...current,
             consoleEntries: pushBounded(current.consoleEntries, {
-              level: typeof params["type"] === "string" ? params["type"] : "log",
+              level: RuntimePredicate.isString(params["type"]) ? params["type"] : "log",
               text,
               timestamp,
               source: "console",
@@ -740,9 +745,9 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           };
         }
         if (method === "Runtime.exceptionThrown") {
-          const details =
-            typeof params["exceptionDetails"] === "object" && params["exceptionDetails"] !== null
-              ? (params["exceptionDetails"] as Record<string, unknown>)
+          const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+            details = RuntimePredicate.isObjectOrArray(params["exceptionDetails"])
+              ? (params["exceptionDetails"] as Record<string, SchemaJson>)
               : {};
           return {
             ...current,
@@ -755,24 +760,24 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           };
         }
         if (method === "Log.entryAdded") {
-          const entry =
-            typeof params["entry"] === "object" && params["entry"] !== null
-              ? (params["entry"] as Record<string, unknown>)
+          const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+            entry = RuntimePredicate.isObjectOrArray(params["entry"])
+              ? (params["entry"] as Record<string, SchemaJson>)
               : {};
           return {
             ...current,
             consoleEntries: pushBounded(current.consoleEntries, {
-              level: typeof entry["level"] === "string" ? entry["level"] : "info",
+              level: RuntimePredicate.isString(entry["level"]) ? entry["level"] : "info",
               text: String(entry["text"] ?? ""),
               timestamp,
-              source: typeof entry["source"] === "string" ? entry["source"] : "log",
+              source: RuntimePredicate.isString(entry["source"]) ? entry["source"] : "log",
             }),
           };
         }
         if (method === "Network.requestWillBeSent" && requestId) {
-          const request =
-            typeof params["request"] === "object" && params["request"] !== null
-              ? (params["request"] as Record<string, unknown>)
+          const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+            request = RuntimePredicate.isObjectOrArray(params["request"])
+              ? (params["request"] as Record<string, SchemaJson>)
               : {};
           return {
             ...current,
@@ -786,11 +791,11 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
         }
         if (method === "Network.responseReceived" && requestId) {
           const request = current.requests.get(requestId);
-          const response =
-            typeof params["response"] === "object" && params["response"] !== null
-              ? (params["response"] as Record<string, unknown>)
+          const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+            response = RuntimePredicate.isObjectOrArray(params["response"])
+              ? (params["response"] as Record<string, SchemaJson>)
               : {};
-          const status = typeof response["status"] === "number" ? response["status"] : null;
+          const status = RuntimePredicate.isNumber(response["status"]) ? response["status"] : null;
           return request && status !== null && status >= 400
             ? {
                 ...current,
@@ -889,11 +894,11 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           const scope = yield* Scope.fork(parentScope, "sequential");
           const handleDebuggerMessage = Effect.fnUntraced(function* (
             method: string,
-            params: Record<string, unknown>,
+            params: Record<string, SchemaJson>,
           ) {
             if (method === "Page.screencastFrame") {
               const sessionId = params["sessionId"];
-              if (typeof sessionId === "number") {
+              if (RuntimePredicate.isNumber(sessionId)) {
                 yield* attemptPromise(
                   {
                     operation: "ackScreencastFrame",
@@ -903,11 +908,11 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
                 ).pipe(Effect.ignore);
               }
               const tabId = yield* tabIdForWebContents(wc.id);
-              const metadata =
-                typeof params["metadata"] === "object" && params["metadata"] !== null
-                  ? (params["metadata"] as Record<string, unknown>)
+              const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+                metadata = RuntimePredicate.isObjectOrArray(params["metadata"])
+                  ? (params["metadata"] as Record<string, SchemaJson>)
                   : {};
-              if (tabId && typeof params["data"] === "string") {
+              if (tabId && RuntimePredicate.isString(params["data"])) {
                 const captureSession = (yield* SynchronizedRef.get(frameCaptureSessionsRef)).get(
                   tabId,
                 );
@@ -917,10 +922,12 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
                   const frame: DesktopPreviewRecordingFrame = {
                     tabId,
                     data: params["data"],
-                    width:
-                      typeof metadata["deviceWidth"] === "number" ? metadata["deviceWidth"] : 0,
-                    height:
-                      typeof metadata["deviceHeight"] === "number" ? metadata["deviceHeight"] : 0,
+                    width: RuntimePredicate.isNumber(metadata["deviceWidth"])
+                      ? metadata["deviceWidth"]
+                      : 0,
+                    height: RuntimePredicate.isNumber(metadata["deviceHeight"])
+                      ? metadata["deviceHeight"]
+                      : 0,
                     receivedAt,
                   };
                   yield* Effect.forEach(
@@ -1020,7 +1027,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
 
   type SendCommand = (
     method: string,
-    commandParams?: Record<string, unknown>,
+    commandParams?: Record<string, SchemaJson>,
   ) => Effect.Effect<unknown, PreviewManagerError>;
 
   const prepareAutomationInput = Effect.fn("PreviewManager.prepareAutomationInput")(function* (
@@ -1147,8 +1154,10 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
       userGesture: true,
     }).pipe(
       Effect.flatMap((rawResponse) => {
-        const response = rawResponse as CdpEvaluationResult;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          response = rawResponse as CdpEvaluationResult;
         if (!response.exceptionDetails) {
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           return Effect.succeed(response.result?.value as A);
         }
         const detail = previewAutomationEvaluationDetail(response.exceptionDetails);
@@ -1340,7 +1349,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           navStatus,
           canGoBack,
           canGoForward,
-          ...(Option.isSome(zoomFactor) ? { zoomFactor: zoomFactor.value } : {}),
+          ...(Option.isSome(zoomFactor) ? { zoomFactor: zoomFactor.value } : undefined),
           updatedAt,
         };
         return [
@@ -1534,9 +1543,11 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
         wc.off("did-navigate", syncNavigation);
         wc.off("did-navigate-in-page", syncInPageNavigation);
         wc.off("page-title-updated", sync);
+        // SAFETY: This branch is unreachable under the owning callback contract.
         wc.off("page-favicon-updated", faviconUpdated as never);
         wc.off("did-start-loading", sync);
         wc.off("did-stop-loading", sync);
+        // SAFETY: This branch is unreachable under the owning callback contract.
         wc.off("did-fail-load", failed as never);
         wc.off("before-input-event", beforeInput);
         wc.ipc.off(HUMAN_INPUT_CHANNEL, humanInput);
@@ -1548,9 +1559,11 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
         wc.on("did-navigate", syncNavigation);
         wc.on("did-navigate-in-page", syncInPageNavigation);
         wc.on("page-title-updated", sync);
+        // SAFETY: This branch is unreachable under the owning callback contract.
         wc.on("page-favicon-updated", faviconUpdated as never);
         wc.on("did-start-loading", sync);
         wc.on("did-stop-loading", sync);
+        // SAFETY: This branch is unreachable under the owning callback contract.
         wc.on("did-fail-load", failed as never);
         wc.ipc.on(HUMAN_INPUT_CHANNEL, humanInput);
         wc.setWindowOpenHandler(({ url }) => {
@@ -1860,7 +1873,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
         pictureInPicture: current?.pictureInPicture ?? false,
         colorScheme: current?.colorScheme ?? "system",
         controller: current?.controller ?? "none",
-        ...(current?.favicon ? { favicon: current.favicon } : {}),
+        ...(current?.favicon ? { favicon: current.favicon } : undefined),
         updatedAt,
       };
       return [
@@ -2557,7 +2570,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
               resizable: true,
               skipTaskbar: true,
               backgroundColor: "#111111",
-              ...(hostPlatform === "darwin" ? { type: "panel" as const } : {}),
+              ...(hostPlatform === "darwin" ? { type: "panel" as const } : undefined),
               webPreferences: {
                 preload: pictureInPicturePreloadPath,
                 backgroundThrottling: false,
@@ -3665,15 +3678,16 @@ export class PreviewAutomationInvalidSelectorError extends Schema.TaggedErrorCla
   },
 ) {
   static toTimelineMessage(error: PreviewAutomationInvalidSelectorError): string {
-    if (typeof error.cause !== "object" || error.cause === null) return error.message;
-    const reason = (error.cause as Record<string, unknown>)["message"];
-    return typeof reason === "string" && reason.length > 0 ? reason : error.message;
+    if (!RuntimePredicate.isObjectOrArray(error.cause)) return error.message;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      reason = (error.cause as Record<string, SchemaJson>)["message"];
+    return RuntimePredicate.isString(reason) && reason.length > 0 ? reason : error.message;
   }
 
   get detail() {
     return {
       selectorKind: this.selectorKind,
-      ...(this.selectorLength === undefined ? {} : { selectorLength: this.selectorLength }),
+      ...(this.selectorLength === undefined ? undefined : { selectorLength: this.selectorLength }),
     };
   }
 

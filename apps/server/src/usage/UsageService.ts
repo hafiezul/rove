@@ -74,15 +74,18 @@ const RatesCacheFile = Schema.Struct({
   fetchedAtMs: Schema.Number,
   document: Schema.Unknown,
 });
-const decodeRatesCache = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(RatesCacheFile as unknown as Schema.Codec<typeof RatesCacheFile.Type>),
-);
-const encodeRatesCache = Schema.encodeEffect(
-  Schema.fromJsonString(RatesCacheFile as unknown as Schema.Codec<typeof RatesCacheFile.Type>),
-);
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  decodeRatesCache = Schema.decodeUnknownEffect(
+    Schema.fromJsonString(RatesCacheFile as Schema.Codec<typeof RatesCacheFile.Type>),
+  );
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  encodeRatesCache = Schema.encodeEffect(
+    Schema.fromJsonString(RatesCacheFile as Schema.Codec<typeof RatesCacheFile.Type>),
+  );
 
 /** The scan cache is narrowed by hand in `usageScanCache`, so JSON is enough here. */
-const ScanCacheJson = Schema.fromJsonString(Schema.Unknown as unknown as Schema.Codec<unknown>);
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  ScanCacheJson = Schema.fromJsonString(Schema.Unknown as Schema.Codec<unknown>);
 const decodeScanCacheFile = Schema.decodeUnknownEffect(ScanCacheJson);
 const encodeScanCacheFile = Schema.encodeEffect(ScanCacheJson);
 

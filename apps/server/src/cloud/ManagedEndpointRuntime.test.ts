@@ -253,16 +253,17 @@ describe("CloudManagedEndpointRuntime", () => {
           if (pid === 401) {
             yield* Deferred.succeed(secondSpawned, undefined);
           }
-          const handle = makeHandle({
-            pid,
-            exitCode:
-              pid === 400
-                ? Deferred.await(firstExit)
-                : (Effect.never as Effect.Effect<ChildProcessSpawner.ExitCode>),
-            onKill: () => {
-              killed.push(pid);
-            },
-          });
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            handle = makeHandle({
+              pid,
+              exitCode:
+                pid === 400
+                  ? Deferred.await(firstExit)
+                  : (Effect.never as Effect.Effect<ChildProcessSpawner.ExitCode>),
+              onKill: () => {
+                killed.push(pid);
+              },
+            });
           yield* Effect.addFinalizer(() => handle.kill().pipe(Effect.ignore));
           return handle;
         }),

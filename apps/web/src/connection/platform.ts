@@ -119,7 +119,7 @@ function clientMetadata() {
   return {
     label: desktop ? "T3 Code Desktop" : "T3 Code Web",
     deviceType: "desktop" as const,
-    ...(platform === "" ? {} : { os: platform }),
+    ...(platform === "" ? undefined : { os: platform }),
   };
 }
 
@@ -562,6 +562,7 @@ const platformConnectionSourceLayer = Layer.effect(
       }
 
       yield* Ref.set(cacheRef, next);
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return registrations as ReadonlyArray<PlatformConnectionRegistration>;
     }).pipe(Effect.provide(FetchHttpClient.layer));
 

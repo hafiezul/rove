@@ -3,11 +3,13 @@ import type { DesktopPreviewRecordingFrame } from "@t3tools/contracts";
 import { contextBridge, ipcRenderer } from "electron";
 
 import { PREVIEW_PICTURE_IN_PICTURE_FRAME_CHANNEL } from "./ipc/channels.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 contextBridge.exposeInMainWorld("previewPictureInPicture", {
   onFrame: (listener: (frame: DesktopPreviewRecordingFrame) => void) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, frame: unknown) => {
-      if (typeof frame !== "object" || frame === null) return;
+      if (!RuntimePredicate.isObjectOrArray(frame)) return;
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       listener(frame as DesktopPreviewRecordingFrame);
     };
     ipcRenderer.on(PREVIEW_PICTURE_IN_PICTURE_FRAME_CHANNEL, wrappedListener);

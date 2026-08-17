@@ -57,6 +57,7 @@ export const mobileBackgroundActivityReporterLayer = Layer.effectDiscard(
       const observedAtMs = yield* Clock.currentTimeMillis;
       const active = appState === "active";
       const entries = yield* SubscriptionRef.get(registry.entries);
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       yield* Effect.forEach(
         entries.keys(),
         (environmentId) =>

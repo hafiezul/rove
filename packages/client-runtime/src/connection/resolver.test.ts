@@ -320,7 +320,7 @@ describe("ConnectionResolver", () => {
             {
               clerkToken: input.clerkToken,
               scopes: input.scopes,
-              ...(input.deviceId ? { deviceId: input.deviceId } : {}),
+              ...(input.deviceId ? { deviceId: input.deviceId } : undefined),
             },
           ]).pipe(
             Effect.as({

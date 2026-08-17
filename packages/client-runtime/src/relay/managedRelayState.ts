@@ -18,6 +18,7 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/unstable/reactivity";
 
 import { findErrorTraceId } from "../errors/errorTrace.ts";
 import * as ManagedRelay from "./managedRelay.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_STALE_TIME_MS = 15_000;
 const DEFAULT_IDLE_TTL_MS = 5 * 60_000;
@@ -97,10 +98,9 @@ export function createManagedRelaySession(input: ManagedRelaySessionInput): Mana
       }
       try {
         const expiresAtSeconds = decodeRelayJwt(token).exp;
-        cachedToken =
-          typeof expiresAtSeconds === "number"
-            ? { token, expiresAtMillis: expiresAtSeconds * 1_000 }
-            : null;
+        cachedToken = RuntimePredicate.isNumber(expiresAtSeconds)
+          ? { token, expiresAtMillis: expiresAtSeconds * 1_000 }
+          : null;
       } catch {
         cachedToken = null;
       }
@@ -263,6 +263,7 @@ function parseStatusKey(key: string): {
   readonly accountId: string;
   readonly environment: RelayClientEnvironmentRecord;
 } {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return JSON.parse(key) as {
     readonly accountId: string;
     readonly environment: RelayClientEnvironmentRecord;

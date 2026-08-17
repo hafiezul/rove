@@ -12,6 +12,7 @@ import * as RelayConfiguration from "../Config.ts";
 import * as ManagedEndpointAllocations from "./ManagedEndpointAllocations.ts";
 import * as ManagedEndpointProvider from "./ManagedEndpointProvider.ts";
 import * as ManagedTunnelLimits from "./ManagedTunnelLimits.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const config = RelayConfiguration.RelayConfiguration.of({
   relayIssuer: "https://relay.example.test",
@@ -312,13 +313,13 @@ describe("ManagedEndpointProvider", () => {
       putConfiguration: () => Effect.void,
       getToken: () => Effect.succeed("connector-token"),
       delete: () => Effect.void,
-    } as unknown as Cloudflare.Tunnel.ReadWriteTunnelClient;
+    } as Cloudflare.Tunnel.ReadWriteTunnelClient;
     const dnsClient = {
       listDnsRecords: () => Effect.succeed({ result: [] }),
       createDnsRecord: () => Effect.succeed({ id: "dns-record-id" }),
       updateDnsRecord: () => Effect.void,
       deleteDnsRecord: () => Effect.void,
-    } as unknown as Cloudflare.DNS.ReadWriteDnsClient;
+    } as Cloudflare.DNS.ReadWriteDnsClient;
     const runtimeContext = {} as Alchemy.BaseRuntimeContext;
     const layer = ManagedEndpointProvider.layerCloudflareBindings(
       tunnelClient,
@@ -496,17 +497,19 @@ describe("ManagedEndpointProvider", () => {
         origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
       });
 
-      const requestedName = (
-        tunnelCalls.find((call) => call.operation === "list")?.input as
-          | { readonly name?: string }
-          | undefined
-      )?.name;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        requestedName = (
+          tunnelCalls.find((call) => call.operation === "list")?.input as
+            | { readonly name?: string }
+            | undefined
+        )?.name;
       expect(requestedName).toMatch(/^t3coderelay-managedendpoint-dev-julius-[a-f0-9]{16}$/);
-      const configBody = (
-        tunnelCalls.find((call) => call.operation === "putConfiguration")?.input as
-          | { readonly tunnelConfig?: unknown }
-          | undefined
-      )?.tunnelConfig;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        configBody = (
+          tunnelCalls.find((call) => call.operation === "putConfiguration")?.input as
+            | { readonly tunnelConfig?: unknown }
+            | undefined
+        )?.tunnelConfig;
       expect(configBody).toMatchObject({
         ingress: [
           {
@@ -515,16 +518,17 @@ describe("ManagedEndpointProvider", () => {
           { service: "http_status:404" },
         ],
       });
-      const hostname = (
-        configBody as
-          | {
-              readonly ingress?: readonly [{ readonly hostname?: unknown }, unknown];
-            }
-          | undefined
-      )?.ingress?.[0]?.hostname;
-      expect(typeof hostname === "string" ? hostname.split(".")[0]?.length : 0).toBeLessThanOrEqual(
-        63,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        hostname = (
+          configBody as
+            | {
+                readonly ingress?: readonly [{ readonly hostname?: unknown }, unknown];
+              }
+            | undefined
+        )?.ingress?.[0]?.hostname;
+      expect(
+        RuntimePredicate.isString(hostname) ? hostname.split(".")[0]?.length : 0,
+      ).toBeLessThanOrEqual(63);
       expect(tunnelCalls.find((call) => call.operation === "create")?.input).toMatchObject({
         name: requestedName,
         configSrc: "cloudflare",

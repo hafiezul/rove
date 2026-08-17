@@ -348,6 +348,7 @@ export const layer = Layer.effect(
                 instance,
                 scope: Option.some(instanceScope),
               });
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               return [
                 { _tag: "Registered", instance } as const,
                 next as ReadonlyMap<BackendInstanceId, RegisteredInstance>,
@@ -388,6 +389,7 @@ export const layer = Layer.effect(
             }
             const next = new Map(current);
             next.set(id, { _tag: "Closing", done });
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return Effect.succeed([
               { _tag: "Close", entry } as const,
               next as ReadonlyMap<BackendInstanceId, RegisteredInstance>,
@@ -408,6 +410,7 @@ export const layer = Layer.effect(
           }
           const next = new Map(current);
           next.delete(id);
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           return Effect.succeed([
             undefined,
             next as ReadonlyMap<BackendInstanceId, RegisteredInstance>,

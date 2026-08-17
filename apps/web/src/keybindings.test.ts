@@ -80,7 +80,7 @@ function compile(bindings: TestBinding[]): ResolvedKeybindingsConfig {
   return bindings.map((binding) => ({
     command: binding.command,
     shortcut: binding.shortcut,
-    ...(binding.whenAst ? { whenAst: binding.whenAst } : {}),
+    ...(binding.whenAst ? { whenAst: binding.whenAst } : undefined),
   }));
 }
 

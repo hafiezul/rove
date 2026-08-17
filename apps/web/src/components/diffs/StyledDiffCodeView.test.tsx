@@ -1,13 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const testState = vi.hoisted(() => ({
   codeViewClassName: null as string | null,
-  codeViewOptions: null as Record<string, unknown> | null,
+  codeViewOptions: null as Record<string, SchemaJson> | null,
 }));
 
 vi.mock("@pierre/diffs/react", () => ({
-  CodeView: (props: { className: string; options: Record<string, unknown> }) => {
+  CodeView: (props: { className: string; options: Record<string, SchemaJson> }) => {
     testState.codeViewClassName = props.className;
     testState.codeViewOptions = props.options;
     return null;

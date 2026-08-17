@@ -10,6 +10,7 @@ import type { SidebarProjectGroupingMode } from "@t3tools/contracts";
 import * as MobileDatabase from "./mobile-database";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import { MobileStorageDecodeError, MobileStorageEncodeError } from "./mobile-storage";
+import * as RuntimePredicate from "effect/Predicate";
 
 const PREFERENCES_KEY = "t3code.preferences";
 const PREFERENCES_FALLBACK_KEY = "t3code.preferences.fallback";
@@ -95,31 +96,33 @@ interface SanitizedMobilePreferences {
 function sanitizePreferences(parsed: Preferences): Preferences {
   const preferences: SanitizedMobilePreferences = {};
 
-  if (typeof parsed.liveActivitiesEnabled === "boolean") {
+  if (RuntimePredicate.isBoolean(parsed.liveActivitiesEnabled)) {
     preferences.liveActivitiesEnabled = parsed.liveActivitiesEnabled;
   }
-  if (typeof parsed.baseFontSize === "number") preferences.baseFontSize = parsed.baseFontSize;
-  if (typeof parsed.terminalFontSize === "number" || parsed.terminalFontSize === null) {
+  if (RuntimePredicate.isNumber(parsed.baseFontSize))
+    preferences.baseFontSize = parsed.baseFontSize;
+  if (RuntimePredicate.isNumber(parsed.terminalFontSize) || parsed.terminalFontSize === null) {
     preferences.terminalFontSize = parsed.terminalFontSize;
   }
-  if (typeof parsed.markdownFontSize === "number") {
+  if (RuntimePredicate.isNumber(parsed.markdownFontSize)) {
     preferences.markdownFontSize = parsed.markdownFontSize;
   }
-  if (typeof parsed.codeFontSize === "number" || parsed.codeFontSize === null) {
+  if (RuntimePredicate.isNumber(parsed.codeFontSize) || parsed.codeFontSize === null) {
     preferences.codeFontSize = parsed.codeFontSize;
   }
-  if (typeof parsed.codeWordBreak === "boolean") preferences.codeWordBreak = parsed.codeWordBreak;
+  if (RuntimePredicate.isBoolean(parsed.codeWordBreak))
+    preferences.codeWordBreak = parsed.codeWordBreak;
   if (Array.isArray(parsed.connectOnboardingOptOutAccounts)) {
     preferences.connectOnboardingOptOutAccounts = parsed.connectOnboardingOptOutAccounts.filter(
-      (account): account is string => typeof account === "string",
+      (account): account is string => RuntimePredicate.isString(account),
     );
   }
   if (Array.isArray(parsed.collapsedProjectGroups)) {
     preferences.collapsedProjectGroups = parsed.collapsedProjectGroups.filter(
-      (key): key is string => typeof key === "string",
+      (key): key is string => RuntimePredicate.isString(key),
     );
   }
-  if (typeof parsed.projectGroupingEnabled === "boolean") {
+  if (RuntimePredicate.isBoolean(parsed.projectGroupingEnabled)) {
     preferences.projectGroupingEnabled = parsed.projectGroupingEnabled;
   }
   if (
@@ -129,13 +132,13 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   ) {
     preferences.projectGroupingMode = parsed.projectGroupingMode;
   }
-  if (typeof parsed.autoSettleOnMerge === "boolean") {
+  if (RuntimePredicate.isBoolean(parsed.autoSettleOnMerge)) {
     preferences.autoSettleOnMerge = parsed.autoSettleOnMerge;
   }
-  if (typeof parsed.legacyThreadListEnabled === "boolean") {
+  if (RuntimePredicate.isBoolean(parsed.legacyThreadListEnabled)) {
     preferences.legacyThreadListEnabled = parsed.legacyThreadListEnabled;
   }
-  if (typeof parsed.planModeEnabled === "boolean") {
+  if (RuntimePredicate.isBoolean(parsed.planModeEnabled)) {
     preferences.planModeEnabled = parsed.planModeEnabled;
   }
   return preferences;
@@ -159,7 +162,8 @@ export const make = Effect.fn("MobilePreferencesStore.make")(function* () {
       );
       return null;
     }
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    return RuntimePredicate.isObjectOrArray(parsed) && !Array.isArray(parsed)
       ? (parsed as Preferences)
       : null;
   };
@@ -177,12 +181,11 @@ export const make = Effect.fn("MobilePreferencesStore.make")(function* () {
       return null;
     }
     if (
-      typeof parsed !== "object" ||
-      parsed === null ||
+      !RuntimePredicate.isObjectOrArray(parsed) ||
       !("payload" in parsed) ||
-      typeof parsed.payload !== "string" ||
+      !RuntimePredicate.isString(parsed.payload) ||
       !("updatedAt" in parsed) ||
-      typeof parsed.updatedAt !== "number"
+      !RuntimePredicate.isNumber(parsed.updatedAt)
     ) {
       return null;
     }

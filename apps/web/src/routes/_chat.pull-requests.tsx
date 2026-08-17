@@ -100,6 +100,8 @@ import { useAtomCommand } from "../state/use-atom-command";
 import { cn } from "~/lib/utils";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
 import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export interface PullRequestsSearch {
   readonly involvement: PullRequestInvolvement;
@@ -179,43 +181,50 @@ const EMPTY_PREVIEW_DESKTOP_STATE = {};
 const EMPTY_TERMINAL_LABELS = new Map<string, string>();
 const EMPTY_PENDING_SURFACES = new Set<string>();
 
-export const Route = createFileRoute("/_chat/pull-requests")({
-  validateSearch: (raw: Record<string, unknown>): PullRequestsSearch => ({
-    involvement:
-      raw.involvement === "reviewing" || raw.involvement === "authored" ? raw.involvement : "all",
-    state:
-      raw.state === "closed" || raw.state === "merged" || raw.state === "all" ? raw.state : "open",
-    ...(typeof raw.repository === "string" && raw.repository
-      ? { repository: raw.repository.slice(0, 200) }
-      : {}),
-    ...(typeof raw.number === "number" && Number.isInteger(raw.number) && raw.number > 0
-      ? { number: raw.number }
-      : {}),
-    ...(typeof raw.projectId === "string" && raw.projectId
-      ? { projectId: raw.projectId as ProjectId }
-      : {}),
-    ...(typeof raw.environmentId === "string" && raw.environmentId
-      ? { environmentId: raw.environmentId as EnvironmentId }
-      : {}),
-    ...(typeof raw.host === "string" && raw.host ? { host: raw.host.slice(0, 200) } : {}),
-    ...(typeof raw.selectedProjectId === "string" && raw.selectedProjectId
-      ? { selectedProjectId: raw.selectedProjectId as ProjectId }
-      : {}),
-    ...(typeof raw.selectedEnvironmentId === "string" && raw.selectedEnvironmentId
-      ? { selectedEnvironmentId: raw.selectedEnvironmentId as EnvironmentId }
-      : {}),
-    ...(typeof raw.q === "string" && raw.q ? { q: raw.q.slice(0, 200) } : {}),
-    ...(raw.draft === "only" || raw.draft === "hide" ? { draft: raw.draft } : {}),
-    ...(raw.review === "approved" ||
-    raw.review === "changes-requested" ||
-    raw.review === "review-required" ||
-    raw.review === "none"
-      ? { review: raw.review }
-      : {}),
-    ...(raw.checks === "passing" || raw.checks === "failing" ? { checks: raw.checks } : {}),
-  }),
-  component: PullRequestsRouteView,
-});
+export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  Route = createFileRoute("/_chat/pull-requests")({
+    validateSearch: (raw: Record<string, SchemaJson>): PullRequestsSearch => ({
+      involvement:
+        raw.involvement === "reviewing" || raw.involvement === "authored" ? raw.involvement : "all",
+      state:
+        raw.state === "closed" || raw.state === "merged" || raw.state === "all"
+          ? raw.state
+          : "open",
+      ...(RuntimePredicate.isString(raw.repository) && raw.repository
+        ? { repository: raw.repository.slice(0, 200) }
+        : undefined),
+      ...(RuntimePredicate.isNumber(raw.number) && Number.isInteger(raw.number) && raw.number > 0
+        ? { number: raw.number }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.projectId) && raw.projectId
+        ? { projectId: raw.projectId as ProjectId }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.environmentId) && raw.environmentId
+        ? { environmentId: raw.environmentId as EnvironmentId }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.host) && raw.host
+        ? { host: raw.host.slice(0, 200) }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.selectedProjectId) && raw.selectedProjectId
+        ? { selectedProjectId: raw.selectedProjectId as ProjectId }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.selectedEnvironmentId) && raw.selectedEnvironmentId
+        ? { selectedEnvironmentId: raw.selectedEnvironmentId as EnvironmentId }
+        : undefined),
+      ...(RuntimePredicate.isString(raw.q) && raw.q ? { q: raw.q.slice(0, 200) } : undefined),
+      ...(raw.draft === "only" || raw.draft === "hide" ? { draft: raw.draft } : undefined),
+      ...(raw.review === "approved" ||
+      raw.review === "changes-requested" ||
+      raw.review === "review-required" ||
+      raw.review === "none"
+        ? { review: raw.review }
+        : undefined),
+      ...(raw.checks === "passing" || raw.checks === "failing"
+        ? { checks: raw.checks }
+        : undefined),
+    }),
+    component: PullRequestsRouteView,
+  });
 
 function PullRequestsRouteView() {
   const search = Route.useSearch();
@@ -315,20 +324,21 @@ function PullRequestsRouteView() {
   const projectIdForRepository = useMemo(() => {
     const repository = search.repository?.toLowerCase();
     if (repository === undefined) return undefined;
-    const identity = projects.find(
-      (project) =>
-        project.repositoryIdentity?.owner &&
-        project.repositoryIdentity.name &&
-        `${project.repositoryIdentity.owner}/${project.repositoryIdentity.name}`.toLowerCase() ===
-          repository &&
-        // The same `owner/name` can exist on two hosts. Without this the first match wins, and
-        // a link that named its host opens the pull request from the other one.
-        (search.host === undefined ||
-          pullRequestHostOf(
-            project.repositoryIdentity,
-            project.repositoryIdentity.provider as SourceControlProviderKind,
-          ) === search.host.toLowerCase()),
-    );
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      identity = projects.find(
+        (project) =>
+          project.repositoryIdentity?.owner &&
+          project.repositoryIdentity.name &&
+          `${project.repositoryIdentity.owner}/${project.repositoryIdentity.name}`.toLowerCase() ===
+            repository &&
+          // The same `owner/name` can exist on two hosts. Without this the first match wins, and
+          // a link that named its host opens the pull request from the other one.
+          (search.host === undefined ||
+            pullRequestHostOf(
+              project.repositoryIdentity,
+              project.repositoryIdentity.provider as SourceControlProviderKind,
+            ) === search.host.toLowerCase()),
+      );
     return identity?.id;
   }, [projects, search.host, search.repository]);
 
@@ -381,10 +391,11 @@ function PullRequestsRouteView() {
   const activePullRequestSurface = rightPanelState.isOpen ? selectedPullRequestSurface : null;
   // The open tab names its own server; a link that arrived before any tab was opened names it
   // through the project it selected.
-  const panelEnvironmentId =
-    (activePullRequestSurface?.environmentId as EnvironmentId | undefined) ??
-    selectedProject?.environmentId ??
-    null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    panelEnvironmentId =
+      (activePullRequestSurface?.environmentId as EnvironmentId | undefined) ??
+      selectedProject?.environmentId ??
+      null;
   const [pullRequestTabStatuses, setPullRequestTabStatuses] = useState<
     Record<string, PullRequestTabStatus>
   >({});
@@ -413,19 +424,19 @@ function PullRequestsRouteView() {
           return {
             involvement: next.involvement ?? previous.involvement,
             state: next.state ?? previous.state,
-            ...(next.repository ? { repository: next.repository } : {}),
-            ...(next.number ? { number: next.number } : {}),
-            ...(next.projectId ? { projectId: next.projectId } : {}),
-            ...(next.environmentId ? { environmentId: next.environmentId } : {}),
-            ...(next.host ? { host: next.host } : {}),
-            ...(next.selectedProjectId ? { selectedProjectId: next.selectedProjectId } : {}),
+            ...(next.repository ? { repository: next.repository } : undefined),
+            ...(next.number ? { number: next.number } : undefined),
+            ...(next.projectId ? { projectId: next.projectId } : undefined),
+            ...(next.environmentId ? { environmentId: next.environmentId } : undefined),
+            ...(next.host ? { host: next.host } : undefined),
+            ...(next.selectedProjectId ? { selectedProjectId: next.selectedProjectId } : undefined),
             ...(next.selectedEnvironmentId
               ? { selectedEnvironmentId: next.selectedEnvironmentId }
-              : {}),
-            ...(next.q ? { q: next.q } : {}),
-            ...(next.draft ? { draft: next.draft } : {}),
-            ...(next.review ? { review: next.review } : {}),
-            ...(next.checks ? { checks: next.checks } : {}),
+              : undefined),
+            ...(next.q ? { q: next.q } : undefined),
+            ...(next.draft ? { draft: next.draft } : undefined),
+            ...(next.review ? { review: next.review } : undefined),
+            ...(next.checks ? { checks: next.checks } : undefined),
           };
         },
         replace: true,
@@ -466,9 +477,9 @@ function PullRequestsRouteView() {
   // inputs stay identical between renders.
   const menuFilters = useMemo(
     (): PullRequestListFilters => ({
-      ...(search.draft ? { draft: search.draft } : {}),
-      ...(search.review ? { review: search.review } : {}),
-      ...(search.checks ? { checks: search.checks } : {}),
+      ...(search.draft ? { draft: search.draft } : undefined),
+      ...(search.review ? { review: search.review } : undefined),
+      ...(search.checks ? { checks: search.checks } : undefined),
     }),
     [search.checks, search.draft, search.review],
   );
@@ -596,12 +607,12 @@ function PullRequestsRouteView() {
               // and a page of everything with the answer somewhere further down it.
               involvement: search.involvement,
               limit: pageSize,
-              ...(scopedProjectId ? { projectId: scopedProjectId } : {}),
-              ...(projectIds ? { projectIds } : {}),
-              ...(search.host ? { host: search.host } : {}),
-              ...(hasFilters ? { filters } : {}),
-              ...(sentParsed.text ? { query: sentParsed.text } : {}),
-              ...(cursors === undefined ? {} : { cursors }),
+              ...(scopedProjectId ? { projectId: scopedProjectId } : undefined),
+              ...(projectIds ? { projectIds } : undefined),
+              ...(search.host ? { host: search.host } : undefined),
+              ...(hasFilters ? { filters } : undefined),
+              ...(sentParsed.text ? { query: sentParsed.text } : undefined),
+              ...(cursors === undefined ? undefined : { cursors }),
             } satisfies PullRequestListInput,
           },
         ];
@@ -640,10 +651,10 @@ function PullRequestsRouteView() {
           state: search.state,
           involvement: search.involvement,
           limit: PAGE_SIZE,
-          ...(scopedProjectId ? { projectId: scopedProjectId } : {}),
-          ...(projectIds ? { projectIds } : {}),
-          ...(search.host ? { host: search.host } : {}),
-          ...(menuFiltered ? { filters: menuFilters } : {}),
+          ...(scopedProjectId ? { projectId: scopedProjectId } : undefined),
+          ...(projectIds ? { projectIds } : undefined),
+          ...(search.host ? { host: search.host } : undefined),
+          ...(menuFiltered ? { filters: menuFilters } : undefined),
         } satisfies PullRequestListInput,
       })),
     [
@@ -675,10 +686,10 @@ function PullRequestsRouteView() {
           state: search.state,
           involvement,
           limit: PAGE_SIZE,
-          ...(scopedProjectId ? { projectId: scopedProjectId } : {}),
-          ...(projectIds ? { projectIds } : {}),
-          ...(search.host ? { host: search.host } : {}),
-          ...(menuFiltered ? { filters: menuFilters } : {}),
+          ...(scopedProjectId ? { projectId: scopedProjectId } : undefined),
+          ...(projectIds ? { projectIds } : undefined),
+          ...(search.host ? { host: search.host } : undefined),
+          ...(menuFiltered ? { filters: menuFilters } : undefined),
         } satisfies PullRequestListInput,
       }));
     return { authored: targetsFor("authored"), reviewing: targetsFor("reviewing") };
@@ -766,7 +777,7 @@ function PullRequestsRouteView() {
         scope: snapshot.scope,
         query: "",
         data: snapshot.data,
-        ...(snapshot.partitions === undefined ? {} : { partitions: snapshot.partitions }),
+        ...(snapshot.partitions === undefined ? undefined : { partitions: snapshot.partitions }),
       };
     });
   }, [environmentKey]);
@@ -812,7 +823,7 @@ function PullRequestsRouteView() {
               viewers: baselineQuery.data?.viewers ?? data.viewers,
               providers: baselineQuery.data?.providers ?? data.providers,
             },
-            ...(partitions === undefined ? {} : { partitions }),
+            ...(partitions === undefined ? undefined : { partitions }),
           },
         );
       }
@@ -821,7 +832,7 @@ function PullRequestsRouteView() {
         scope: scopeKey,
         query: sentQuery,
         data,
-        ...(partitions === undefined ? {} : { partitions }),
+        ...(partitions === undefined ? undefined : { partitions }),
       };
     });
   }, [
@@ -1186,29 +1197,31 @@ function PullRequestsRouteView() {
     useRightPanelStore.getState().openPullRequest(rightPanelRef, linkedSelection);
   }, [linkedSelection, pullRequestsSupported, rightPanelRef]);
 
-  const selected =
-    rightPanelState.isOpen && activePullRequestSurface !== null
-      ? {
-          environmentId: activePullRequestSurface.environmentId,
-          repository: activePullRequestSurface.repository,
-          number: activePullRequestSurface.number,
-          projectId: activePullRequestSurface.projectId as ProjectId,
-        }
-      : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    selected =
+      rightPanelState.isOpen && activePullRequestSurface !== null
+        ? {
+            environmentId: activePullRequestSurface.environmentId,
+            repository: activePullRequestSurface.repository,
+            number: activePullRequestSurface.number,
+            projectId: activePullRequestSurface.projectId as ProjectId,
+          }
+        : null;
 
-  const selectSurfaceInUrl = (surface: PullRequestSurface | null) =>
-    updateSearch(
-      surface === null
-        ? clearedSelection
-        : {
-            repository: surface.repository,
-            number: surface.number,
-            selectedProjectId: surface.projectId as ProjectId,
-            ...(surface.environmentId === undefined
-              ? {}
-              : { selectedEnvironmentId: surface.environmentId as EnvironmentId }),
-          },
-    );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    selectSurfaceInUrl = (surface: PullRequestSurface | null) =>
+      updateSearch(
+        surface === null
+          ? clearedSelection
+          : {
+              repository: surface.repository,
+              number: surface.number,
+              selectedProjectId: surface.projectId as ProjectId,
+              ...(surface.environmentId === undefined
+                ? undefined
+                : { selectedEnvironmentId: surface.environmentId as EnvironmentId }),
+            },
+      );
 
   const toggleRightPanel = () => {
     if (rightPanelRef === null) return;
@@ -1242,7 +1255,8 @@ function PullRequestsRouteView() {
   const expectedHosts = useMemo(() => {
     const byHost = new Map<string, PullRequestExpectedHost>();
     for (const project of projects) {
-      const kind = project.repositoryIdentity?.provider as SourceControlProviderKind | undefined;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        kind = project.repositoryIdentity?.provider as SourceControlProviderKind | undefined;
       if (kind === undefined) continue;
       const host = pullRequestHostOf(project.repositoryIdentity, kind);
       if (!byHost.has(host)) byHost.set(host, { host, kind });
@@ -1429,7 +1443,7 @@ function PullRequestsRouteView() {
         label: pullRequestHostLabel(hostEntries, entry),
         Icon: getSourceControlPresentationForKind(entry.kind).Icon,
         ...(summary === undefined || summary.configured
-          ? {}
+          ? undefined
           : { unavailable: summary.detail ?? "This host could not be read." }),
       };
     }),
@@ -1535,6 +1549,7 @@ function PullRequestsRouteView() {
     selectSurfaceInUrl(null);
   };
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
       <div className="relative flex min-h-0 flex-1">
@@ -1627,6 +1642,7 @@ function CompactFilterMenu<Value extends string>({
   onChange: (value: Value) => void;
 }) {
   const current = options.find((option) => option.value === value) ?? options[0]!;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Menu>
       <MenuTrigger

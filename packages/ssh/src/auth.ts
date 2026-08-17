@@ -200,8 +200,10 @@ export const buildSshChildEnvironment = Effect.fn("ssh/auth.buildSshChildEnviron
     ...baseEnv,
     SSH_ASKPASS: sshAskpass,
     SSH_ASKPASS_REQUIRE: "force",
-    ...(input.authSecret === undefined ? {} : { T3_SSH_AUTH_SECRET: input.authSecret ?? "" }),
-    ...(platform === "win32" || baseEnv.DISPLAY || hostDisplay ? {} : { DISPLAY: "t3code" }),
+    ...(input.authSecret === undefined
+      ? undefined
+      : { T3_SSH_AUTH_SECRET: input.authSecret ?? "" }),
+    ...(platform === "win32" || baseEnv.DISPLAY || hostDisplay ? undefined : { DISPLAY: "t3code" }),
   };
 });
 

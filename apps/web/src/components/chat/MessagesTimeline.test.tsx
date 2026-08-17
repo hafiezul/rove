@@ -3,6 +3,7 @@ import { createRef, type ReactNode, type Ref } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import type { LegendListRef } from "@legendapp/list/react";
+import * as RuntimePredicate from "effect/Predicate";
 
 vi.mock("@legendapp/list/react", async () => {
   const legendListTestId = "legend-list";
@@ -54,42 +55,50 @@ vi.mock("@legendapp/list/react", async () => {
         data-class-name={props.className}
         data-maintain-scroll-at-end={props.maintainScrollAtEnd ? "enabled" : undefined}
         data-maintain-scroll-at-end-animated={
-          typeof props.maintainScrollAtEnd === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainScrollAtEnd) ||
+          props.maintainScrollAtEnd === null
             ? props.maintainScrollAtEnd.animated
             : undefined
         }
         data-maintain-scroll-at-end-data-change={
-          typeof props.maintainScrollAtEnd === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainScrollAtEnd) ||
+          props.maintainScrollAtEnd === null
             ? props.maintainScrollAtEnd.on?.dataChange
             : undefined
         }
         data-maintain-scroll-at-end-item-layout={
-          typeof props.maintainScrollAtEnd === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainScrollAtEnd) ||
+          props.maintainScrollAtEnd === null
             ? props.maintainScrollAtEnd.on?.itemLayout
             : undefined
         }
         data-maintain-scroll-at-end-layout={
-          typeof props.maintainScrollAtEnd === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainScrollAtEnd) ||
+          props.maintainScrollAtEnd === null
             ? props.maintainScrollAtEnd.on?.layout
             : undefined
         }
         data-maintain-visible-content-position={
-          typeof props.maintainVisibleContentPosition === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainVisibleContentPosition) ||
+          props.maintainVisibleContentPosition === null
             ? "object"
             : props.maintainVisibleContentPosition
         }
         data-maintain-visible-content-position-data={
-          typeof props.maintainVisibleContentPosition === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainVisibleContentPosition) ||
+          props.maintainVisibleContentPosition === null
             ? props.maintainVisibleContentPosition.data
             : undefined
         }
         data-maintain-visible-content-position-size={
-          typeof props.maintainVisibleContentPosition === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainVisibleContentPosition) ||
+          props.maintainVisibleContentPosition === null
             ? props.maintainVisibleContentPosition.size
             : undefined
         }
         data-maintain-visible-content-position-restore={
-          typeof props.maintainVisibleContentPosition === "object"
+          RuntimePredicate.isObjectOrArray(props.maintainVisibleContentPosition) ||
+          props.maintainVisibleContentPosition === null
             ? Boolean(props.maintainVisibleContentPosition.shouldRestorePosition)
             : undefined
         }

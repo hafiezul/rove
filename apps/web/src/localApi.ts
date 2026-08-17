@@ -37,6 +37,7 @@ function createBrowserLocalApi(): LocalApi {
         position?: { x: number; y: number },
       ): Promise<T | null> => {
         if (window.desktopBridge) {
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           return window.desktopBridge.showContextMenu(items, position) as Promise<T | null>;
         }
         return showContextMenuFallback(items, position);

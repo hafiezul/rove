@@ -214,7 +214,7 @@ const config: ExpoConfig = {
               "UIInterfaceOrientationLandscapeRight",
             ],
           }
-        : {}),
+        : undefined),
     },
   },
   android: {

@@ -94,7 +94,8 @@ describe("withRelayClientTracing", () => {
       Effect.andThen(
         Effect.sync(() => {
           expect(fetchFn).toHaveBeenCalledOnce();
-          const payload = new TextDecoder().decode(fetchFn.mock.calls[0]?.[1]?.body as Uint8Array);
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            payload = new TextDecoder().decode(fetchFn.mock.calls[0]?.[1]?.body as Uint8Array);
           expect(payload).toContain("relay request failed");
           expect(payload).toContain("relay socket closed");
         }),

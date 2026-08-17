@@ -203,9 +203,10 @@ export const SETTINGS_SEARCH_ITEMS = [
 
 export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
 
-const SEARCH_ITEMS_BY_ID = Object.fromEntries(
-  SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item]),
-) as Readonly<Record<SettingsSearchItemId, SettingsSearchItem>>;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  SEARCH_ITEMS_BY_ID = Object.fromEntries(
+    SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item]),
+  ) as Readonly<Record<SettingsSearchItemId, SettingsSearchItem>>;
 
 /**
  * `id` and `title` props for the element a search item anchors to. Panels

@@ -6,6 +6,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import * as GitHubCli from "../sourceControl/GitHubCli.ts";
 import * as GitHubPullRequestCli from "./GitHubPullRequestCli.ts";
 import { BASE_COMPARISON_GRAPHQL_QUERY } from "./gitHubPullRequestJson.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const mockedExecute = vi.fn<GitHubCli.GitHubCli["Service"]["execute"]>();
 
@@ -33,7 +34,7 @@ function output(stdout: string, stdoutTruncated = false, stdoutInvalidUtf8 = fal
 function pullRequests(
   count: number,
   firstNumber: number,
-  overrides: (number: number) => Readonly<Record<string, unknown>> = () => ({}),
+  overrides: (number: number) => Readonly<Record<string, SchemaJson>> = () => ({}),
 ): string {
   return JSON.stringify(
     Array.from({ length: count }, (_, index) => ({
@@ -85,7 +86,7 @@ function thread(id: string, ...commentIds: ReadonlyArray<string>) {
 }
 
 function reviewThreadsPage(
-  nodes: ReadonlyArray<Record<string, unknown>>,
+  nodes: ReadonlyArray<Record<string, SchemaJson>>,
   endCursor: string | null,
 ): string {
   return JSON.stringify({
@@ -161,7 +162,8 @@ function searchPage(nodes: ReadonlyArray<unknown>, hasNextPage = false) {
 
 /** The search a batched read sent, which travels in the request body rather than in argv. */
 function searchQueryOfCall(index: number): string | undefined {
-  const body = JSON.parse(callAt(index).stdin ?? "{}") as { variables?: { q?: string } };
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    body = JSON.parse(callAt(index).stdin ?? "{}") as { variables?: { q?: string } };
   return body.variables?.q;
 }
 
@@ -903,7 +905,7 @@ layer("GitHubPullRequestCli.layer", (it) => {
           output(
             pullRequests(4, 1, (number) => ({
               state: number === 4 ? "OPEN" : "CLOSED",
-              ...(number === 3 ? { mergedAt: "2026-07-03T00:00:00Z" } : {}),
+              ...(number === 3 ? { mergedAt: "2026-07-03T00:00:00Z" } : undefined),
               reviewRequests:
                 number === 2 ? [{ slug: "platform", name: "Platform" }] : [{ login: "bilal" }],
             })),
@@ -1671,10 +1673,11 @@ layer("GitHubPullRequestCli.layer", (it) => {
         "-",
       ]);
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const request = JSON.parse(callAt(0).stdin ?? "") as {
-        query: string;
-        variables: Record<string, string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = JSON.parse(callAt(0).stdin ?? "") as {
+          query: string;
+          variables: Record<string, string>;
+        };
       expect(request.query).toContain("addPullRequestReviewThreadReply");
       expect(request.variables).toEqual({ threadId: "PRRT_1", body: "Fixed in 42ff8ec." });
       expect(callAt(0).args.join(" ")).not.toContain("Fixed in 42ff8ec.");
@@ -1701,7 +1704,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
         resolved: false,
       });
 
-      const parse = (index: number) => JSON.parse(callAt(index).stdin ?? "") as { query: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        parse = (index: number) => JSON.parse(callAt(index).stdin ?? "") as { query: string };
       expect(parse(0).query).toContain("resolveReviewThread(");
       expect(parse(1).query).toContain("unresolveReviewThread(");
       // A GitHub Enterprise thread is resolved on its own host, not on github.com.
@@ -1744,10 +1748,11 @@ layer("GitHubPullRequestCli.layer", (it) => {
       expect(scopeCheck).toContain("number=7");
       expect(scopeCheck).toContain("subjectId=IC_1");
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const request = JSON.parse(callAt(1).stdin ?? "") as {
-        query: string;
-        variables: Record<string, string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = JSON.parse(callAt(1).stdin ?? "") as {
+          query: string;
+          variables: Record<string, string>;
+        };
       expect(request.query).toContain("addReaction(");
       expect(request.variables).toEqual({ subjectId: "IC_1", content: "HEART" });
     }),
@@ -1818,10 +1823,11 @@ layer("GitHubPullRequestCli.layer", (it) => {
       expect(lookup).toContain("name=web");
       expect(lookup).toContain("number=7");
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const request = JSON.parse(callAt(1).stdin ?? "") as {
-        query: string;
-        variables: Record<string, string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = JSON.parse(callAt(1).stdin ?? "") as {
+          query: string;
+          variables: Record<string, string>;
+        };
       expect(request.query).toContain("addReaction(");
       expect(request.variables).toEqual({ subjectId: "PR_kwDOA", content: "ROCKET" });
     }),
@@ -1856,7 +1862,8 @@ layer("GitHubPullRequestCli.layer", (it) => {
       });
 
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const request = JSON.parse(callAt(1).stdin ?? "") as { query: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        request = JSON.parse(callAt(1).stdin ?? "") as { query: string };
       expect(request.query).toContain("removeReaction(");
     }),
   );
@@ -1886,8 +1893,10 @@ layer("GitHubPullRequestCli.layer", (it) => {
       yield* rewrite({ title: "Both", body: "at once." });
 
       // Each rewrite looks the pull request's node id up first, then mutates.
-      const variablesAt = (index: number) =>
-        (JSON.parse(callAt(index).stdin ?? "") as { variables: Record<string, string> }).variables;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        variablesAt = (index: number) =>
+          (JSON.parse(callAt(index).stdin ?? "") as { variables: Record<string, string> })
+            .variables;
       expect(variablesAt(1)).toEqual({ pullRequestId: "PR_kwDOA", title: "A better title" });
       expect(variablesAt(3)).toEqual({
         pullRequestId: "PR_kwDOA",
@@ -1933,11 +1942,12 @@ layer("GitHubPullRequestCli.layer", (it) => {
       yield* rewrite("issue-comment");
       yield* rewrite("review-comment");
 
-      const parse = (index: number) =>
-        JSON.parse(callAt(index).stdin ?? "") as {
-          query: string;
-          variables: Record<string, string>;
-        };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        parse = (index: number) =>
+          JSON.parse(callAt(index).stdin ?? "") as {
+            query: string;
+            variables: Record<string, string>;
+          };
       expect(callAt(0).args).toContain("subjectId=IC_1");
       expect(parse(1).query).toContain("updateIssueComment(");
       expect(parse(1).variables).toEqual({ commentId: "IC_1", body: "Reworded." });

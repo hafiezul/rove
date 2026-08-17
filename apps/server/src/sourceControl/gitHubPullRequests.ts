@@ -6,6 +6,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { PositiveInt, TrimmedNonEmptyString } from "@t3tools/contracts";
 import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface NormalizedGitHubPullRequestRecord {
   readonly number: number;
@@ -61,7 +62,7 @@ function normalizeGitHubPullRequestState(input: {
 }): "open" | "closed" | "merged" {
   const normalizedState = input.state?.trim().toUpperCase();
   if (
-    (typeof input.mergedAt === "string" && input.mergedAt.trim().length > 0) ||
+    (RuntimePredicate.isString(input.mergedAt) && input.mergedAt.trim().length > 0) ||
     normalizedState === "MERGED"
   ) {
     return "merged";
@@ -94,11 +95,11 @@ function normalizeGitHubPullRequestRecord(
     headRefName: raw.headRefName,
     state: normalizeGitHubPullRequestState(raw),
     updatedAt: raw.updatedAt ?? Option.none(),
-    ...(typeof raw.isCrossRepository === "boolean"
+    ...(RuntimePredicate.isBoolean(raw.isCrossRepository)
       ? { isCrossRepository: raw.isCrossRepository }
-      : {}),
-    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : {}),
-    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : {}),
+      : undefined),
+    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : undefined),
+    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : undefined),
   };
 }
 

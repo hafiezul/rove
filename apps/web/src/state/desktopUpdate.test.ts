@@ -118,12 +118,14 @@ describe("desktopUpdateStateAtom", () => {
       errorTag: "DesktopUpdateStateReadError",
       attemptCount: 3,
     });
-    const loggedError = (errorContext as { readonly error: unknown }).error;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      loggedError = (errorContext as { readonly error: unknown }).error;
     expect(loggedError).toBeInstanceOf(DesktopUpdateStateReadError);
     expect(loggedError).toMatchObject({
       _tag: "DesktopUpdateStateReadError",
       attemptCount: 3,
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((loggedError as DesktopUpdateStateReadError).cause).toBe(cause);
 
     listener?.(baseState);

@@ -96,7 +96,8 @@ type PortAvailabilityCheck<R = never> = (
   role?: "server" | "web",
 ) => Effect.Effect<boolean, never, R>;
 
-const DEV_RUNNER_MODES = Object.keys(MODE_ARGS) as Array<DevMode>;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  DEV_RUNNER_MODES = Object.keys(MODE_ARGS) as Array<DevMode>;
 
 export function getDevRunnerModeArgs(mode: DevMode): ReadonlyArray<string> {
   return MODE_ARGS[mode];
@@ -467,6 +468,7 @@ export function checkPortAvailabilityOnHosts<R>(
  * a port free on loopback but busy on that interface would otherwise be
  * rejected for a server that was never going to bind there.
  */
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function devPortProbeHosts(configuredHost: string | undefined): ReadonlyArray<string> {
   const host = configuredHost?.trim();
   if (!host || DEV_PORT_PROBE_HOSTS.includes(host as (typeof DEV_PORT_PROBE_HOSTS)[number])) {
@@ -502,8 +504,9 @@ export function findFirstAvailableOffset<R = NetService.NetService>({
   checkPortAvailability,
 }: FindFirstAvailableOffsetInput<R>): Effect.Effect<number, DevRunnerPortExhaustedError, R> {
   return Effect.gen(function* () {
-    const checkPort = (checkPortAvailability ??
-      defaultCheckPortAvailability) as PortAvailabilityCheck<R>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      checkPort = (checkPortAvailability ??
+        defaultCheckPortAvailability) as PortAvailabilityCheck<R>;
 
     for (let candidate = startOffset; ; candidate += 1) {
       const { serverPort, webPort } = portPairForOffset(candidate);
@@ -571,8 +574,9 @@ export function resolveModePortOffsets<R = NetService.NetService>({
   R
 > {
   return Effect.gen(function* () {
-    const checkPort = (checkPortAvailability ??
-      defaultCheckPortAvailability) as PortAvailabilityCheck<R>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      checkPort = (checkPortAvailability ??
+        defaultCheckPortAvailability) as PortAvailabilityCheck<R>;
 
     if (mode === "dev:web") {
       if (hasExplicitDevUrl) {

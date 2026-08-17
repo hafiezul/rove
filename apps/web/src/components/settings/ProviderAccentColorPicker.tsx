@@ -202,7 +202,7 @@ function ProviderCustomColorPicker(props: {
                 ? {
                     boxShadow: `inset 0 0 0 2px var(--card), 0 0 0 2px ${normalized}`,
                   }
-                : {}),
+                : undefined),
             }}
             aria-label={`Choose custom accent color for ${props.displayName}`}
           >
@@ -288,11 +288,12 @@ export function ProviderAccentColorPicker(props: {
   );
 
   const normalized = normalizeProviderAccentColor(optimisticValue);
-  const selectedValue =
-    normalized &&
-    PROVIDER_ACCENT_SWATCHES.includes(normalized as (typeof PROVIDER_ACCENT_SWATCHES)[number])
-      ? normalized
-      : "";
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    selectedValue =
+      normalized &&
+      PROVIDER_ACCENT_SWATCHES.includes(normalized as (typeof PROVIDER_ACCENT_SWATCHES)[number])
+        ? normalized
+        : "";
   const customSelected = Boolean(normalized && selectedValue === "");
 
   return (

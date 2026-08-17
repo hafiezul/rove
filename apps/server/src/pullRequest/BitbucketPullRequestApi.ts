@@ -726,8 +726,8 @@ export const make = Effect.gen(function* () {
             method: "PUT",
             url: `${path}/pullrequests/${input.number}`,
             body: JSON.stringify({
-              ...(input.title === undefined ? {} : { title: input.title }),
-              ...(input.body === undefined ? {} : { description: input.body }),
+              ...(input.title === undefined ? undefined : { title: input.title }),
+              ...(input.body === undefined ? undefined : { description: input.body }),
             }),
           })
           .pipe(Effect.asVoid),

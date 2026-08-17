@@ -333,7 +333,7 @@ export const makeOrchestrationIntegrationHarness = (
     const textGenerationLayer = Layer.succeed(TextGeneration, {
       generateBranchName: () => Effect.succeed({ branch: "update" }),
       generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
-    } as unknown as TextGenerationContract);
+    } as TextGenerationContract);
     const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitWorkflowLayer),
@@ -441,23 +441,24 @@ export const makeOrchestrationIntegrationHarness = (
     ).pipe(Effect.forkIn(scope));
     yield* Effect.sleep(10);
 
-    const waitForThread: OrchestrationIntegrationHarness["waitForThread"] = (
-      threadId,
-      predicate,
-      timeoutMs,
-    ) =>
-      waitFor(
-        snapshotQuery
-          .getSnapshot()
-          .pipe(
-            Effect.map(
-              (snapshot) => snapshot.threads.find((thread) => thread.id === threadId) ?? null,
-            ),
-          ),
-        (thread): thread is OrchestrationThread => thread !== null && predicate(thread),
-        `projected thread '${threadId}'`,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      waitForThread: OrchestrationIntegrationHarness["waitForThread"] = (
+        threadId,
+        predicate,
         timeoutMs,
-      ) as Effect.Effect<OrchestrationThread, never>;
+      ) =>
+        waitFor(
+          snapshotQuery
+            .getSnapshot()
+            .pipe(
+              Effect.map(
+                (snapshot) => snapshot.threads.find((thread) => thread.id === threadId) ?? null,
+              ),
+            ),
+          (thread): thread is OrchestrationThread => thread !== null && predicate(thread),
+          `projected thread '${threadId}'`,
+          timeoutMs,
+        ) as Effect.Effect<OrchestrationThread, never>;
 
     const waitForDomainEvent: OrchestrationIntegrationHarness["waitForDomainEvent"] = (
       predicate,
@@ -472,43 +473,44 @@ export const makeOrchestrationIntegrationHarness = (
         timeoutMs,
       );
 
-    const waitForPendingApproval: OrchestrationIntegrationHarness["waitForPendingApproval"] = (
-      requestId,
-      predicate,
-      timeoutMs,
-    ) =>
-      waitFor(
-        pendingApprovalRepository
-          .getByRequestId({ requestId: ApprovalRequestId.make(requestId) })
-          .pipe(
-            Effect.map((row) =>
-              Option.match(row, {
-                onNone: () => null,
-                onSome: (value) => ({
-                  status: value.status,
-                  decision: value.decision,
-                  resolvedAt: value.resolvedAt,
-                }),
-              }),
-            ),
-          ),
-        (
-          row,
-        ): row is {
-          readonly status: "pending" | "resolved";
-          readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
-          readonly resolvedAt: string | null;
-        } => row !== null && predicate(row),
-        `pending approval '${requestId}'`,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      waitForPendingApproval: OrchestrationIntegrationHarness["waitForPendingApproval"] = (
+        requestId,
+        predicate,
         timeoutMs,
-      ) as Effect.Effect<
-        {
-          readonly status: "pending" | "resolved";
-          readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
-          readonly resolvedAt: string | null;
-        },
-        never
-      >;
+      ) =>
+        waitFor(
+          pendingApprovalRepository
+            .getByRequestId({ requestId: ApprovalRequestId.make(requestId) })
+            .pipe(
+              Effect.map((row) =>
+                Option.match(row, {
+                  onNone: () => null,
+                  onSome: (value) => ({
+                    status: value.status,
+                    decision: value.decision,
+                    resolvedAt: value.resolvedAt,
+                  }),
+                }),
+              ),
+            ),
+          (
+            row,
+          ): row is {
+            readonly status: "pending" | "resolved";
+            readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
+            readonly resolvedAt: string | null;
+          } => row !== null && predicate(row),
+          `pending approval '${requestId}'`,
+          timeoutMs,
+        ) as Effect.Effect<
+          {
+            readonly status: "pending" | "resolved";
+            readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
+            readonly resolvedAt: string | null;
+          },
+          never
+        >;
 
     function waitForReceipt(
       predicate: (receipt: OrchestrationRuntimeReceipt) => boolean,

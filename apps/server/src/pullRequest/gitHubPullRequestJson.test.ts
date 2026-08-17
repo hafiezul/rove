@@ -19,8 +19,9 @@ import {
   reviewThreadConversation,
   REVIEW_THREADS_GRAPHQL_QUERY,
 } from "./gitHubPullRequestJson.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function listJson(entries: ReadonlyArray<Record<string, unknown>>): string {
+function listJson(entries: ReadonlyArray<Record<string, SchemaJson>>): string {
   return JSON.stringify(
     entries.map((entry) => ({
       number: 1,
@@ -224,8 +225,9 @@ describe("pull request detail decoding", () => {
   });
 
   it("reads an auto-merge request as armed, its null as off and its absence as neither", () => {
-    const raw = JSON.parse(detailJson) as Record<string, unknown>;
-    const armed = (entry: Record<string, unknown>) =>
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      raw = JSON.parse(detailJson) as Record<string, SchemaJson>;
+    const armed = (entry: Record<string, SchemaJson>) =>
       expectSuccess(decodePullRequestDetailJson(JSON.stringify({ ...raw, ...entry })))
         .autoMergeEnabled;
 
@@ -240,7 +242,8 @@ describe("pull request detail decoding", () => {
   it("shows a re-running check once, as the run that is happening now", () => {
     // What `statusCheckRollup` reports while a workflow is being re-run: the same check twice,
     // the finished run and the one that replaced it, with no id to tell them apart.
-    const raw = JSON.parse(detailJson) as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      raw = JSON.parse(detailJson) as Record<string, SchemaJson>;
     const detail = expectSuccess(
       decodePullRequestDetailJson(
         JSON.stringify({
@@ -291,7 +294,8 @@ describe("pull request detail decoding", () => {
   });
 
   it("drops the bodyless review GitHub opens to hold line comments", () => {
-    const raw = JSON.parse(detailJson) as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      raw = JSON.parse(detailJson) as Record<string, SchemaJson>;
     const detail = expectSuccess(
       decodePullRequestActivityJson(
         JSON.stringify({
@@ -317,7 +321,8 @@ describe("pull request detail decoding", () => {
   it.each(["APPROVED", "CHANGES_REQUESTED", "DISMISSED"])(
     "keeps a bodyless %s review, which is the event itself",
     (state) => {
-      const raw = JSON.parse(detailJson) as Record<string, unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        raw = JSON.parse(detailJson) as Record<string, SchemaJson>;
       const detail = expectSuccess(
         decodePullRequestActivityJson(
           JSON.stringify({
@@ -332,7 +337,8 @@ describe("pull request detail decoding", () => {
   );
 
   it("drops a review that carries neither a body nor a state", () => {
-    const raw = JSON.parse(detailJson) as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      raw = JSON.parse(detailJson) as Record<string, SchemaJson>;
     const detail = expectSuccess(
       decodePullRequestActivityJson(
         JSON.stringify({
@@ -347,9 +353,9 @@ describe("pull request detail decoding", () => {
 
 describe("review thread decoding", () => {
   const threadsJson = (
-    nodes: ReadonlyArray<Record<string, unknown>>,
+    nodes: ReadonlyArray<Record<string, SchemaJson>>,
     totalCount = nodes.length,
-    pageInfo: Record<string, unknown> = { hasNextPage: false, endCursor: null },
+    pageInfo: Record<string, SchemaJson> = { hasNextPage: false, endCursor: null },
   ): string =>
     JSON.stringify({
       data: { repository: { pullRequest: { reviewThreads: { totalCount, pageInfo, nodes } } } },
@@ -620,7 +626,7 @@ describe("review thread decoding", () => {
 });
 
 describe("reaction decoding", () => {
-  const commentWithGroups = (reactionGroups: ReadonlyArray<Record<string, unknown>>) =>
+  const commentWithGroups = (reactionGroups: ReadonlyArray<Record<string, SchemaJson>>) =>
     JSON.stringify({
       data: {
         node: {
@@ -708,7 +714,7 @@ describe("repository access decoding", () => {
       mergeCommitAllowed: true,
       squashMergeAllowed: false,
       rebaseMergeAllowed: true,
-      ...(viewerPermission === undefined ? {} : { viewerPermission }),
+      ...(viewerPermission === undefined ? undefined : { viewerPermission }),
     });
 
   it("reads the three settings gh reports", () => {
@@ -744,7 +750,7 @@ describe("repository access decoding", () => {
 });
 
 describe("viewer permission decoding", () => {
-  const viewerJson = (repository: Record<string, unknown>) =>
+  const viewerJson = (repository: Record<string, SchemaJson>) =>
     JSON.stringify({ data: { repository } });
 
   it("reads the repository's role and the pull request's own viewer fields together", () => {
@@ -787,8 +793,8 @@ describe("viewer permission decoding", () => {
 
 describe("review thread decoding", () => {
   const threadsJson = (
-    nodes: ReadonlyArray<Record<string, unknown>>,
-    pullRequest: Record<string, unknown> = {},
+    nodes: ReadonlyArray<Record<string, SchemaJson>>,
+    pullRequest: Record<string, SchemaJson> = {},
   ) =>
     JSON.stringify({
       data: {
@@ -1018,8 +1024,8 @@ describe("REVIEW_THREADS_GRAPHQL_QUERY", () => {
 
 describe("reviewer candidate decoding", () => {
   const candidatesJson = (input: {
-    readonly assignable: ReadonlyArray<Record<string, unknown> | null>;
-    readonly requested?: ReadonlyArray<Record<string, unknown> | null>;
+    readonly assignable: ReadonlyArray<Record<string, SchemaJson> | null>;
+    readonly requested?: ReadonlyArray<Record<string, SchemaJson> | null>;
     readonly author?: string;
     readonly hasNextPage?: boolean;
   }) =>
@@ -1142,16 +1148,17 @@ describe("reviewer request payload", () => {
 
 describe("review submission payload", () => {
   it("sends the verdict, the summary and every line comment in one body", () => {
-    const payload = JSON.parse(
-      buildReviewSubmissionJson({
-        verdict: "request-changes",
-        body: "Two things.",
-        comments: [
-          { path: "src/a.ts", line: 12, side: "right", body: "rename this" },
-          { path: "src/b.ts", line: 3, side: "left", body: "why remove?" },
-        ],
-      }),
-    ) as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload = JSON.parse(
+        buildReviewSubmissionJson({
+          verdict: "request-changes",
+          body: "Two things.",
+          comments: [
+            { path: "src/a.ts", line: 12, side: "right", body: "rename this" },
+            { path: "src/b.ts", line: 3, side: "left", body: "why remove?" },
+          ],
+        }),
+      ) as Record<string, SchemaJson>;
     expect(payload).toEqual({
       event: "REQUEST_CHANGES",
       body: "Two things.",

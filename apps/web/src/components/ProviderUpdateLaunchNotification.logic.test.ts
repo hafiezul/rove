@@ -88,6 +88,7 @@ function provider(input: {
 }
 
 function updateCandidate(input: Parameters<typeof provider>[0]): ProviderUpdateCandidate {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return provider(input) as ProviderUpdateCandidate;
 }
 
@@ -698,20 +699,21 @@ describe("provider update launch notification logic", () => {
       output: null,
     });
 
-    const fulfilledOutcome = (
-      isPrimary: boolean,
-      snapshot: ServerProvider | null,
-      environment = "env",
-    ): PromiseSettledResult<LocalProviderUpdateOutcome> => ({
-      status: "fulfilled",
-      value: {
-        environmentId: environment as LocalProviderUpdateOutcome["environmentId"],
-        isPrimary,
-        driver: snapshot?.driver ?? driver("codex"),
-        instanceId: snapshot?.instanceId ?? instanceId("codex"),
-        provider: snapshot,
-      },
-    });
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      fulfilledOutcome = (
+        isPrimary: boolean,
+        snapshot: ServerProvider | null,
+        environment = "env",
+      ): PromiseSettledResult<LocalProviderUpdateOutcome> => ({
+        status: "fulfilled",
+        value: {
+          environmentId: environment as LocalProviderUpdateOutcome["environmentId"],
+          isPrimary,
+          driver: snapshot?.driver ?? driver("codex"),
+          instanceId: snapshot?.instanceId ?? instanceId("codex"),
+          provider: snapshot,
+        },
+      });
 
     it("surfaces a secondary backend's failed update over the primary's success", () => {
       const snapshots = collectProviderUpdateOutcomeSnapshots([
@@ -847,18 +849,19 @@ describe("provider update launch notification logic", () => {
   });
 
   describe("per-environment update grouping", () => {
-    const environment = (
-      input: {
-        readonly environmentId: string;
-        readonly providers: ReadonlyArray<ServerProvider>;
-      } & Partial<Omit<LocalEnvironmentProvidersInput, "environmentId" | "providers">>,
-    ): LocalEnvironmentProvidersInput => ({
-      environmentId: input.environmentId as EnvironmentId,
-      label: input.label ?? input.environmentId,
-      isPrimary: input.isPrimary ?? false,
-      connectionState: input.connectionState ?? "ready",
-      providers: input.providers,
-    });
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      environment = (
+        input: {
+          readonly environmentId: string;
+          readonly providers: ReadonlyArray<ServerProvider>;
+        } & Partial<Omit<LocalEnvironmentProvidersInput, "environmentId" | "providers">>,
+      ): LocalEnvironmentProvidersInput => ({
+        environmentId: input.environmentId as EnvironmentId,
+        label: input.label ?? input.environmentId,
+        isPrimary: input.isPrimary ?? false,
+        connectionState: input.connectionState ?? "ready",
+        providers: input.providers,
+      });
 
     it("groups each environment's outdated one-click candidates", () => {
       const result = buildLocalEnvironmentUpdateGroups([

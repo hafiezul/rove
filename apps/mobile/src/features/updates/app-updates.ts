@@ -7,6 +7,7 @@ import {
   settlePromise,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type AppUpdateCheckState =
   | "idle"
@@ -549,9 +550,9 @@ function reportUpdateFailure(
 }
 
 function isAppUpdateUnavailableError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("code" in error)) return false;
+  if (!RuntimePredicate.isObjectOrArray(error) || !("code" in error)) return false;
   const code = error.code;
-  return typeof code === "string" && UPDATE_CHECK_UNAVAILABLE_ERROR_CODES.has(code);
+  return RuntimePredicate.isString(code) && UPDATE_CHECK_UNAVAILABLE_ERROR_CODES.has(code);
 }
 
 export function createAppUpdateLaunchCheck(

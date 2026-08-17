@@ -145,7 +145,9 @@ export function buildProjectActionItems(input: {
     title: project.title,
     description: project.workspaceRoot,
     icon: input.icon(project),
-    ...(input.shortcutCommand !== undefined ? { shortcutCommand: input.shortcutCommand } : {}),
+    ...(input.shortcutCommand !== undefined
+      ? { shortcutCommand: input.shortcutCommand }
+      : undefined),
     run: async () => {
       await input.runProject(project);
     },

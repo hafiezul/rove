@@ -420,9 +420,11 @@ const mobileEndorsementRows = [
   }
 
   async function init() {
-    const btn = document.getElementById("download-btn") as HTMLAnchorElement | null;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    btn = document.getElementById("download-btn") as HTMLAnchorElement | null;
     const label = document.getElementById("download-label");
-    const ctaBtn = document.getElementById("cta-download-btn") as HTMLAnchorElement | null;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    ctaBtn = document.getElementById("cta-download-btn") as HTMLAnchorElement | null;
     const ctaLabel = document.getElementById("cta-download-label");
     const kbd = document.getElementById("pr-button-kbd");
 

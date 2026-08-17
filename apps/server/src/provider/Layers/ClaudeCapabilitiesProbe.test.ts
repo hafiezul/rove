@@ -136,12 +136,13 @@ it.layer(NodeServices.layer)("Claude capability probe SDK boundary", (it) => {
       });
 
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const invocation = JSON.parse(yield* fs.readFileString(invocationPath)) as {
-        readonly args: ReadonlyArray<string>;
-        readonly cwd: string;
-        readonly connectorEnv: string;
-        readonly mcpConfig: unknown;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        invocation = JSON.parse(yield* fs.readFileString(invocationPath)) as {
+          readonly args: ReadonlyArray<string>;
+          readonly cwd: string;
+          readonly connectorEnv: string;
+          readonly mcpConfig: unknown;
+        };
       assert.equal(invocation.cwd, yield* fs.realPath(workspaceCwd));
       assert.equal(invocation.connectorEnv, "false");
       assert.equal(invocation.args.includes("--strict-mcp-config"), true);

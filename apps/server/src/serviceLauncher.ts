@@ -223,7 +223,7 @@ function terminalUpdate<S extends TerminalStatus>(input: {
     fromVersion: input.pending.fromVersion,
     targetVersion: input.pending.targetVersion,
     status: input.status,
-    ...(input.reason === undefined ? {} : { reason: input.reason }),
+    ...(input.reason === undefined ? undefined : { reason: input.reason }),
   };
 }
 
@@ -397,7 +397,7 @@ export class Launcher {
     const context: ServiceLauncherContext = {
       protocol: SERVICE_LAUNCHER_PROTOCOL,
       childVersion: version,
-      ...(update === undefined ? {} : { update }),
+      ...(update === undefined ? undefined : { update }),
     };
     const child = NodeChildProcess.spawn(process.execPath, [paths.entryPath, "serve"], {
       env: { ...process.env, [SERVICE_LAUNCHER_CONTEXT_ENV]: JSON.stringify(context) },

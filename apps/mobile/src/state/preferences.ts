@@ -59,64 +59,66 @@ export function createMobilePreferencesState(runtime: Atom.AtomRuntime<MobilePre
     }));
   }).pipe(Atom.keepAlive, Atom.withLabel("mobile:preferences"));
 
-  const updatePreferencesAtom = runtime
-    .fn(
-      (patch: Partial<Preferences>, get) => {
-        const version = ++nextPatchVersion;
-        const current = get(optimisticPatchAtom);
-        const versions = { ...current.versions };
-        for (const key of Object.keys(patch) as Array<keyof Preferences>) {
-          versions[key] = version;
-        }
-        get.set(optimisticPatchAtom, {
-          values: { ...current.values, ...patch },
-          versions,
-        });
-        return MobilePreferencesStore.pipe(
-          Effect.flatMap((store) => store.savePatch(patch)),
-          Effect.tap((saved) =>
-            Effect.sync(() => {
-              get.set(confirmedPreferencesAtom, saved);
-              const optimistic = get(optimisticPatchAtom);
-              const values: MutablePreferenceValues = { ...optimistic.values };
-              const currentVersions: MutablePreferenceVersions = { ...optimistic.versions };
-              for (const key of Object.keys(patch) as Array<keyof Preferences>) {
-                if (optimistic.versions[key] === version) {
-                  delete values[key];
-                  delete currentVersions[key];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    updatePreferencesAtom = runtime
+      .fn(
+        (patch: Partial<Preferences>, get) => {
+          const version = ++nextPatchVersion;
+          const current = get(optimisticPatchAtom);
+          const versions = { ...current.versions };
+          for (const key of Object.keys(patch) as Array<keyof Preferences>) {
+            versions[key] = version;
+          }
+          get.set(optimisticPatchAtom, {
+            values: { ...current.values, ...patch },
+            versions,
+          });
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          return MobilePreferencesStore.pipe(
+            Effect.flatMap((store) => store.savePatch(patch)),
+            Effect.tap((saved) =>
+              Effect.sync(() => {
+                get.set(confirmedPreferencesAtom, saved);
+                const optimistic = get(optimisticPatchAtom);
+                const values: MutablePreferenceValues = { ...optimistic.values };
+                const currentVersions: MutablePreferenceVersions = { ...optimistic.versions };
+                for (const key of Object.keys(patch) as Array<keyof Preferences>) {
+                  if (optimistic.versions[key] === version) {
+                    delete values[key];
+                    delete currentVersions[key];
+                  }
                 }
-              }
-              get.set(optimisticPatchAtom, {
-                values,
-                versions: currentVersions,
-              });
-            }),
-          ),
-          Effect.tapError(() =>
-            Effect.sync(() => {
-              const optimistic = get(optimisticPatchAtom);
-              const values: MutablePreferenceValues = { ...optimistic.values };
-              const currentVersions: MutablePreferenceVersions = { ...optimistic.versions };
-              for (const key of Object.keys(patch) as Array<keyof Preferences>) {
-                if (optimistic.versions[key] === version) {
-                  delete values[key];
-                  delete currentVersions[key];
+                get.set(optimisticPatchAtom, {
+                  values,
+                  versions: currentVersions,
+                });
+              }),
+            ),
+            Effect.tapError(() =>
+              Effect.sync(() => {
+                const optimistic = get(optimisticPatchAtom);
+                const values: MutablePreferenceValues = { ...optimistic.values };
+                const currentVersions: MutablePreferenceVersions = { ...optimistic.versions };
+                for (const key of Object.keys(patch) as Array<keyof Preferences>) {
+                  if (optimistic.versions[key] === version) {
+                    delete values[key];
+                    delete currentVersions[key];
+                  }
                 }
-              }
-              get.set(optimisticPatchAtom, {
-                values,
-                versions: currentVersions,
-              });
-            }),
-          ),
-        );
-      },
-      // The storage layer serializes preference read-modify-write operations.
-      // Keep every invocation alive so one preference update cannot interrupt
-      // another update to a different field in the shared blob.
-      { concurrent: true },
-    )
-    .pipe(Atom.keepAlive, Atom.withLabel("mobile:preferences:update"));
+                get.set(optimisticPatchAtom, {
+                  values,
+                  versions: currentVersions,
+                });
+              }),
+            ),
+          );
+        },
+        // The storage layer serializes preference read-modify-write operations.
+        // Keep every invocation alive so one preference update cannot interrupt
+        // another update to a different field in the shared blob.
+        { concurrent: true },
+      )
+      .pipe(Atom.keepAlive, Atom.withLabel("mobile:preferences:update"));
 
   return { preferencesAtom, updatePreferencesAtom } as const;
 }

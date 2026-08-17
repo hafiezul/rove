@@ -68,6 +68,7 @@ describe("normalizePreviewUrl", () => {
       expect(error).toBeInstanceOf(PreviewUrlNormalizationError);
       expect(error).toMatchObject({ inputLength: 3, reason: "empty" });
       expect(error).not.toHaveProperty("rawUrl");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect("cause" in (error as object)).toBe(false);
     }
   });
@@ -99,10 +100,13 @@ describe("normalizePreviewUrl", () => {
         protocol: "https:",
       });
       expect(error).not.toHaveProperty("rawUrl");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error as PreviewUrlNormalizationError).cause).toBeInstanceOf(Error);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error as PreviewUrlNormalizationError).message).not.toContain(
         ((error as PreviewUrlNormalizationError).cause as Error).message,
       );
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error as PreviewUrlNormalizationError).message).not.toMatch(
         /user|password|access_token|secret|fragment/,
       );

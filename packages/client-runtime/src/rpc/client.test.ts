@@ -83,7 +83,7 @@ describe("environment RPC", () => {
       const client = {
         [WS_METHODS.cloudGetRelayClientStatus]: () =>
           Effect.succeed({ status: "available", version: "2026.6.0" }),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, supervisor } = yield* makeHarness();
       yield* SubscriptionRef.set(activeSession, Option.some(session(client)));
 
@@ -117,10 +117,10 @@ describe("environment RPC", () => {
       const secondEvents = yield* Queue.unbounded<RelayClientInstallProgressEvent>();
       const firstClient = {
         [WS_METHODS.cloudInstallRelayClient]: () => Stream.fromQueue(firstEvents),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const secondClient = {
         [WS_METHODS.cloudInstallRelayClient]: () => Stream.fromQueue(secondEvents),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, supervisor } = yield* makeHarness();
 
       yield* SubscriptionRef.set(activeSession, Option.some(session(firstClient)));
@@ -149,13 +149,13 @@ describe("environment RPC", () => {
           subscriptions.push("first");
           return Stream.never;
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const secondClient = {
         [WS_METHODS.subscribeTerminalEvents]: () => {
           subscriptions.push("second");
           return Stream.never;
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, retryCount, supervisor } = yield* makeHarness();
       const awaitSubscriptions = Effect.fn("TestEnvironmentRpc.awaitSubscriptions")(function* (
         count: number,
@@ -200,13 +200,13 @@ describe("environment RPC", () => {
             }),
           );
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const secondClient = {
         [WS_METHODS.subscribeTerminalEvents]: () => {
           subscriptions.push("second");
           return Stream.never;
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, retryCount, supervisor } = yield* makeHarness();
 
       const subscriptionFiber = yield* subscribe(WS_METHODS.subscribeTerminalEvents, {}).pipe(
@@ -236,7 +236,7 @@ describe("environment RPC", () => {
       const domainError = new Error("terminal subscription rejected");
       const client = {
         [WS_METHODS.subscribeTerminalEvents]: () => Stream.fail(domainError),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, retryCount, supervisor } = yield* makeHarness();
 
       yield* SubscriptionRef.set(activeSession, Option.some(session(client)));
@@ -261,13 +261,13 @@ describe("environment RPC", () => {
           subscriptions.push("first");
           return Stream.fail(domainError);
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const secondClient = {
         [WS_METHODS.subscribeTerminalEvents]: () => {
           subscriptions.push("second");
           return Stream.never;
         },
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, retryCount, supervisor } = yield* makeHarness();
 
       yield* SubscriptionRef.set(activeSession, Option.some(session(firstClient)));
@@ -277,6 +277,7 @@ describe("environment RPC", () => {
         {
           onExpectedFailure: (cause) =>
             Effect.sync(() => {
+              // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
               observedFailures.push(Cause.squash(cause) as Error);
             }),
         },
@@ -315,7 +316,7 @@ describe("environment RPC", () => {
               Effect.map((count) => (count === 0 ? Stream.fail(domainError) : Stream.never)),
             ),
           ),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, supervisor } = yield* makeHarness();
 
       yield* SubscriptionRef.set(activeSession, Option.some(session(client)));
@@ -361,7 +362,7 @@ describe("environment RPC", () => {
       let expectedFailureCount = 0;
       const client = {
         [WS_METHODS.subscribeTerminalEvents]: () => Stream.die(defect),
-      } as unknown as WsRpcProtocolClient;
+      } as WsRpcProtocolClient;
       const { activeSession, supervisor } = yield* makeHarness();
 
       yield* SubscriptionRef.set(activeSession, Option.some(session(client)));

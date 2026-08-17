@@ -21,6 +21,8 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import { toSafeThreadAttachmentSegment } from "../../attachmentStore.ts";
 import type { ResourceAttribution } from "../../resourceTelemetry/ResourceAttribution.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const MEBIBYTE = 1024 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -154,12 +156,12 @@ interface DrainResult {
   readonly failures: ReadonlyArray<FileOperationFailure>;
 }
 
-function logWarning(message: string, context: Record<string, unknown>): Effect.Effect<void> {
+function logWarning(message: string, context: Record<string, SchemaJson>): Effect.Effect<void> {
   return Effect.logWarning(message, context).pipe(Effect.annotateLogs({ scope: LOG_SCOPE }));
 }
 
 function resolveThreadSegment(raw: string | null | undefined): string {
-  const normalized = typeof raw === "string" ? toSafeThreadAttachmentSegment(raw) : null;
+  const normalized = RuntimePredicate.isString(raw) ? toSafeThreadAttachmentSegment(raw) : null;
   return normalized ?? GLOBAL_THREAD_SEGMENT;
 }
 
@@ -178,12 +180,16 @@ function providerLogPath(directory: string, prefix: string, threadSegment: strin
 }
 
 function shouldPersist(stream: EventNdjsonStream, event: unknown): boolean {
-  if (stream !== "canonical" || typeof event !== "object" || event === null) {
+  if (
+    stream !== "canonical" ||
+    !(RuntimePredicate.isObjectOrArray(event) || event === null) ||
+    event === null
+  ) {
     return true;
   }
   try {
     const type = Object.getOwnPropertyDescriptor(event, "type")?.value;
-    return typeof type !== "string" || !transientCanonicalEventTypes.has(type);
+    return !RuntimePredicate.isString(type) || !transientCanonicalEventTypes.has(type);
   } catch {
     return true;
   }

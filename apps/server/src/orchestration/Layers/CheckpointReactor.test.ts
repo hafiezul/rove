@@ -20,6 +20,7 @@ import {
   TurnId,
 } from "@t3tools/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import type { Json as SchemaJson } from "effect/Schema";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -72,8 +73,8 @@ type LegacyProviderRuntimeEvent = {
   readonly turnId?: string | undefined;
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
-  readonly payload?: unknown | undefined;
-  readonly [key: string]: unknown;
+  readonly payload?: SchemaJson | undefined;
+  readonly [key: string]: SchemaJson;
 };
 
 function createProviderServiceHarness(
@@ -88,8 +89,9 @@ function createProviderServiceHarness(
     (_input: { readonly threadId: ThreadId; readonly numTurns: number }) => Effect.void,
   );
 
-  const unsupported = <A>() =>
-    Effect.die(new Error("Unsupported provider call in test")) as Effect.Effect<A, never>;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    unsupported = <A>() =>
+      Effect.die(new Error("Unsupported provider call in test")) as Effect.Effect<A, never>;
   const listSessions = () =>
     hasSession
       ? Effect.succeed([
@@ -131,7 +133,8 @@ function createProviderServiceHarness(
   };
 
   const emit = (event: LegacyProviderRuntimeEvent): void => {
-    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as unknown as ProviderRuntimeEvent));
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as ProviderRuntimeEvent));
   };
 
   return {
@@ -569,12 +572,12 @@ describe("CheckpointReactor", () => {
     });
 
     await harness.drain();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     await waitForEvent(
       harness.engine,
       (event) =>
         event.type === "thread.meta-updated" &&
-        (event as unknown as { payload: { branch?: string } }).payload.branch ===
-          "t3code/renamed-by-agent",
+        (event as { payload: { branch?: string } }).payload.branch === "t3code/renamed-by-agent",
     );
 
     const snapshot = await harness.readModel();

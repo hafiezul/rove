@@ -160,7 +160,7 @@ const makeRelayBroker = Effect.fn("clientRuntime.connection.broker.makeRelay")(f
               clerkToken,
               scopes: [RelayEnvironmentConnectScope],
               environmentId: target.environmentId,
-              ...(Option.isSome(deviceId) ? { deviceId: deviceId.value } : {}),
+              ...(Option.isSome(deviceId) ? { deviceId: deviceId.value } : undefined),
             })
             .pipe(Effect.mapError(mapManagedRelayError));
           if (connected.environmentId !== target.environmentId) {

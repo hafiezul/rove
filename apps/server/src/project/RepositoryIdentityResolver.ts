@@ -80,10 +80,10 @@ function buildRepositoryIdentity(input: {
       remoteUrl: input.remoteUrl,
     },
     rootPath: input.rootPath,
-    ...(repositoryPath ? { displayName: repositoryPath } : {}),
-    ...(sourceControlProvider ? { provider: sourceControlProvider.kind } : {}),
-    ...(owner ? { owner } : {}),
-    ...(repositoryName ? { name: repositoryName } : {}),
+    ...(repositoryPath ? { displayName: repositoryPath } : undefined),
+    ...(sourceControlProvider ? { provider: sourceControlProvider.kind } : undefined),
+    ...(owner ? { owner } : undefined),
+    ...(repositoryName ? { name: repositoryName } : undefined),
   };
 }
 

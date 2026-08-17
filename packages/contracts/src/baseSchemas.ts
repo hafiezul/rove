@@ -30,7 +30,9 @@ export type IsoDateTime = typeof IsoDateTime.Type;
  * couldn't act on anyway. Encoding is the plain array encoding.
  */
 export const ForwardCompatibleArray = <Element extends Schema.Top>(element: Element) => {
-  const decodeElement = Schema.decodeUnknownOption(element as never);
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    decodeElement = Schema.decodeUnknownOption(element as never);
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Schema.Array(Schema.Unknown).pipe(
     Schema.decodeTo(
       Schema.Array(element),

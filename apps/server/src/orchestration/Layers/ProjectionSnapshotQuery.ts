@@ -278,7 +278,7 @@ function mapLatestTurn(
             planId: row.sourceProposedPlanId,
           },
         }
-      : {}),
+      : undefined),
   };
 }
 
@@ -298,7 +298,9 @@ function mapSessionRow(
     threadId: row.threadId,
     status: row.status,
     providerName: row.providerName,
-    ...(row.providerInstanceId !== null ? { providerInstanceId: row.providerInstanceId } : {}),
+    ...(row.providerInstanceId !== null
+      ? { providerInstanceId: row.providerInstanceId }
+      : undefined),
     runtimeMode: row.runtimeMode,
     activeTurnId: row.activeTurnId,
     lastError: row.lastError,
@@ -1432,7 +1434,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
                   id: row.messageId,
                   role: row.role,
                   text: row.text,
-                  ...(row.attachments !== null ? { attachments: row.attachments } : {}),
+                  ...(row.attachments !== null ? { attachments: row.attachments } : undefined),
                   turnId: row.turnId,
                   streaming: row.isStreaming === 1,
                   createdAt: row.createdAt,
@@ -1466,7 +1468,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
                   summary: row.summary,
                   payload: row.payload,
                   turnId: row.turnId,
-                  ...(row.sequence !== null ? { sequence: row.sequence } : {}),
+                  ...(row.sequence !== null ? { sequence: row.sequence } : undefined),
                   createdAt: row.createdAt,
                 });
                 activitiesByThread.set(row.threadId, threadActivities);
@@ -1519,7 +1521,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
                           planId: row.sourceProposedPlanId,
                         },
                       }
-                    : {}),
+                    : undefined),
                 });
               }
 
@@ -1531,7 +1533,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
                   providerName: row.providerName,
                   ...(row.providerInstanceId !== null
                     ? { providerInstanceId: row.providerInstanceId }
-                    : {}),
+                    : undefined),
                   runtimeMode: row.runtimeMode,
                   activeTurnId: row.activeTurnId,
                   lastError: row.lastError,

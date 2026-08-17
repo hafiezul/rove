@@ -59,7 +59,7 @@ function makeThreadOpenResponse(
         activeFlags: [],
       },
     },
-  } as unknown as CodexRpc.ClientRequestResponsesByMethod["thread/start"];
+  } as CodexRpc.ClientRequestResponsesByMethod["thread/start"];
 }
 
 describe("buildTurnStartParams", () => {
@@ -72,7 +72,7 @@ describe("buildTurnStartParams", () => {
         attachments: [
           {
             type: "image",
-            url: { secret } as unknown as string,
+            url: { secret } as string,
           },
         ],
       }).pipe(Effect.flip),
@@ -411,6 +411,7 @@ describe("openCodexThread", () => {
               }),
             );
           }
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           return Effect.succeed(started as CodexRpc.ClientRequestResponsesByMethod[M]);
         },
       };
@@ -448,6 +449,7 @@ describe("openCodexThread", () => {
               }),
             );
           }
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           return Effect.succeed(
             makeThreadOpenResponse("fresh-thread") as CodexRpc.ClientRequestResponsesByMethod[M],
           );

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { showContextMenuFallback } from "./contextMenuFallback";
+import type { Json as SchemaJson } from "effect/Schema";
 
 type FakeListener = (event: FakeDomEvent) => void;
 
@@ -9,7 +10,7 @@ class FakeDomEvent {
 
   constructor(
     readonly type: string,
-    init: Record<string, unknown> = {},
+    init: Record<string, SchemaJson> = {},
   ) {
     Object.assign(this, init);
   }
@@ -145,7 +146,8 @@ class FakeDocument {
 }
 
 function findButton(label: string): FakeElement | undefined {
-  return (document as unknown as FakeDocument)
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  return (document as FakeDocument)
     .querySelectorAll("button")
     .find((button) => button.textContent.includes(label));
 }
@@ -163,7 +165,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "MouseEvent",
     class extends FakeDomEvent {
-      constructor(type: string, init: Record<string, unknown> = {}) {
+      constructor(type: string, init: Record<string, SchemaJson> = {}) {
         super(type, init);
       }
     },
@@ -171,7 +173,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "KeyboardEvent",
     class extends FakeDomEvent {
-      constructor(type: string, init: Record<string, unknown> = {}) {
+      constructor(type: string, init: Record<string, SchemaJson> = {}) {
         super(type, init);
       }
     },

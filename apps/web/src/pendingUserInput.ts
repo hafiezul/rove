@@ -1,4 +1,5 @@
 import type { UserInputQuestion } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface PendingUserInputDraftAnswer {
   selectedOptionLabels?: string[];
@@ -20,7 +21,7 @@ export interface PendingUserInputProgress {
 }
 
 function normalizeDraftAnswer(value: string | undefined): string | null {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return null;
   }
 
@@ -35,7 +36,7 @@ function normalizeSelectedOptionLabels(value: string[] | undefined): string[] {
 
   const normalized: string[] = [];
   for (const entry of value) {
-    if (typeof entry !== "string") continue;
+    if (!RuntimePredicate.isString(entry)) continue;
     const trimmed = entry.trim();
     if (trimmed.length > 0) {
       normalized.push(trimmed);
@@ -73,7 +74,9 @@ export function setPendingUserInputCustomAnswer(
 
   return {
     customAnswer,
-    ...(selectedOptionLabels && selectedOptionLabels.length > 0 ? { selectedOptionLabels } : {}),
+    ...(selectedOptionLabels && selectedOptionLabels.length > 0
+      ? { selectedOptionLabels }
+      : undefined),
   };
 }
 
@@ -92,7 +95,7 @@ export function togglePendingUserInputOptionSelection(
       customAnswer: "",
       ...(nextSelectedOptionLabels.length > 0
         ? { selectedOptionLabels: nextSelectedOptionLabels }
-        : {}),
+        : undefined),
     };
   }
 

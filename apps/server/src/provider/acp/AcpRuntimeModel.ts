@@ -6,13 +6,15 @@ import * as Ref from "effect/Ref";
 import type * as EffectAcpSchema from "effect-acp/schema";
 import { deriveToolActivityPresentation } from "@t3tools/shared/toolActivity";
 import type { ToolLifecycleItemType } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
 function isSessionModelState(value: unknown): value is EffectAcpSchema.SessionModelState {
-  if (!isRecord(value) || typeof value.currentModelId !== "string") {
+  if (!isRecord(value) || !RuntimePredicate.isString(value.currentModelId)) {
     return false;
   }
   if (!Array.isArray(value.availableModels)) {
@@ -21,16 +23,16 @@ function isSessionModelState(value: unknown): value is EffectAcpSchema.SessionMo
   return value.availableModels.every(
     (model) =>
       isRecord(model) &&
-      typeof model.modelId === "string" &&
-      typeof model.name === "string" &&
+      RuntimePredicate.isString(model.modelId) &&
+      RuntimePredicate.isString(model.name) &&
       (model.description === undefined ||
         model.description === null ||
-        typeof model.description === "string"),
+        RuntimePredicate.isString(model.description)),
   );
 }
 
 function isSessionModeState(value: unknown): value is EffectAcpSchema.SessionModeState {
-  if (!isRecord(value) || typeof value.currentModeId !== "string") {
+  if (!isRecord(value) || !RuntimePredicate.isString(value.currentModeId)) {
     return false;
   }
   if (!Array.isArray(value.availableModes)) {
@@ -39,9 +41,9 @@ function isSessionModeState(value: unknown): value is EffectAcpSchema.SessionMod
   return value.availableModes.every(
     (mode) =>
       isRecord(mode) &&
-      typeof mode.id === "string" &&
-      typeof mode.name === "string" &&
-      (mode.description === undefined || typeof mode.description === "string"),
+      RuntimePredicate.isString(mode.id) &&
+      RuntimePredicate.isString(mode.name) &&
+      (mode.description === undefined || RuntimePredicate.isString(mode.description)),
   );
 }
 
@@ -57,7 +59,7 @@ export interface AcpSessionModeState {
 }
 
 export interface AcpToolCallData {
-  [field: string]: unknown;
+  [field: string]: SchemaJson;
   toolCallId?: string;
 }
 
@@ -225,7 +227,7 @@ function normalizeToolCallStatus(
 }
 
 function normalizeCommandValue(value: unknown): string | undefined {
-  if (typeof value === "string" && value.trim().length > 0) {
+  if (RuntimePredicate.isString(value) && value.trim().length > 0) {
     return value.trim();
   }
   if (!Array.isArray(value)) {
@@ -233,7 +235,7 @@ function normalizeCommandValue(value: unknown): string | undefined {
   }
   const parts: Array<string> = [];
   for (const entry of value) {
-    if (typeof entry === "string") {
+    if (RuntimePredicate.isString(entry)) {
       const part = entry.trim();
       if (part.length > 0) {
         parts.push(part);
@@ -257,7 +259,9 @@ function extractToolCallCommand(rawInput: unknown, title: string | undefined): s
     if (directCommand) {
       return directCommand;
     }
-    const executable = typeof rawInput.executable === "string" ? rawInput.executable.trim() : "";
+    const executable = RuntimePredicate.isString(rawInput.executable)
+      ? rawInput.executable.trim()
+      : "";
     const args = normalizeCommandValue(rawInput.args);
     if (executable && args) {
       return `${executable} ${args}`;
@@ -291,7 +295,7 @@ function extractTextContentFromToolCallContent(
 }
 
 function normalizeToolKind(kind: unknown): string | undefined {
-  return typeof kind === "string" && kind.trim().length > 0 ? kind.trim() : undefined;
+  return RuntimePredicate.isString(kind) && kind.trim().length > 0 ? kind.trim() : undefined;
 }
 
 function canonicalItemTypeFromAcpToolKind(kind: string | undefined): ToolLifecycleItemType {
@@ -375,11 +379,11 @@ function makeToolCallState(
   const status = normalizeToolCallStatus(input.status, options?.fallbackStatus);
   return {
     toolCallId,
-    ...(kind ? { kind } : {}),
-    ...(presentation?.summary ? { title: presentation.summary } : {}),
-    ...(status ? { status } : {}),
-    ...(command ? { command } : {}),
-    ...(presentation?.detail ? { detail: presentation.detail } : {}),
+    ...(kind ? { kind } : undefined),
+    ...(presentation?.summary ? { title: presentation.summary } : undefined),
+    ...(status ? { status } : undefined),
+    ...(command ? { command } : undefined),
+    ...(presentation?.detail ? { detail: presentation.detail } : undefined),
     data,
   };
 }
@@ -409,7 +413,7 @@ export function mergeToolCallState(
   previous: AcpToolCallState | undefined,
   next: AcpToolCallState,
 ): AcpToolCallState {
-  const nextKind = typeof next.data.kind === "string" ? next.data.kind : undefined;
+  const nextKind = RuntimePredicate.isString(next.data.kind) ? next.data.kind : undefined;
   const kind = nextKind ?? previous?.kind;
   const title = next.title ?? previous?.title;
   const status = next.status ?? previous?.status;
@@ -417,11 +421,11 @@ export function mergeToolCallState(
   const detail = next.detail ?? previous?.detail;
   return {
     toolCallId: next.toolCallId,
-    ...(kind ? { kind } : {}),
-    ...(title ? { title } : {}),
-    ...(status ? { status } : {}),
-    ...(command ? { command } : {}),
-    ...(detail ? { detail } : {}),
+    ...(kind ? { kind } : undefined),
+    ...(title ? { title } : undefined),
+    ...(status ? { status } : undefined),
+    ...(command ? { command } : undefined),
+    ...(detail ? { detail } : undefined),
     data: {
       ...previous?.data,
       ...next.data,
@@ -450,11 +454,11 @@ export function parsePermissionRequest(
     toolCall?.command ??
     toolCall?.title ??
     toolCall?.detail ??
-    (typeof params.sessionId === "string" ? `Session ${params.sessionId}` : undefined);
+    (RuntimePredicate.isString(params.sessionId) ? `Session ${params.sessionId}` : undefined);
   return {
     kind,
-    ...(detail ? { detail } : {}),
-    ...(toolCall ? { toolCall } : {}),
+    ...(detail ? { detail } : undefined),
+    ...(toolCall ? { toolCall } : undefined),
   };
 }
 
@@ -502,8 +506,8 @@ export function syntheticLoadSessionResponseFromInitialize(
   const modes = isSessionModeState(modeState) ? modeState : undefined;
 
   return {
-    ...(models ? { models } : {}),
-    ...(modes ? { modes } : {}),
+    ...(models ? { models } : undefined),
+    ...(modes ? { modes } : undefined),
     _meta: {
       t3SessionLoadReady: "replay_idle",
     },
@@ -580,5 +584,5 @@ export function parseSessionUpdateEvent(params: EffectAcpSchema.SessionNotificat
       break;
   }
 
-  return { ...(modeId !== undefined ? { modeId } : {}), events };
+  return { ...(modeId !== undefined ? { modeId } : undefined), events };
 }

@@ -257,11 +257,11 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
           pid: metric.pid,
           creationTimeMs: Math.max(0, Math.round(metric.creationTime)),
           type: metric.type,
-          ...(metric.name === undefined ? {} : { name: metric.name }),
-          ...(metric.serviceName === undefined ? {} : { serviceName: metric.serviceName }),
+          ...(metric.name === undefined ? undefined : { name: metric.name }),
+          ...(metric.serviceName === undefined ? undefined : { serviceName: metric.serviceName }),
           cpuPercent: metric.cpu.percentCPUUsage,
           ...(metric.cpu.cumulativeCPUUsage === undefined
-            ? {}
+            ? undefined
             : { cumulativeCpuSeconds: metric.cpu.cumulativeCPUUsage }),
           idleWakeupsPerSecond: metric.cpu.idleWakeupsPerSecond,
           workingSetBytes: Math.max(0, Math.round(metric.memory.workingSetSize * 1024)),

@@ -10,6 +10,7 @@ import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawne
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface RecordedRegistration {
   readonly directories: string[];
@@ -17,7 +18,7 @@ interface RecordedRegistration {
   readonly commands: Array<{ readonly command: string; readonly args: ReadonlyArray<string> }>;
 }
 
-const makeEnvironment = (overrides: Record<string, unknown> = {}) =>
+const makeEnvironment = (overrides: Record<string, SchemaJson> = {}) =>
   DesktopEnvironment.DesktopEnvironment.of({
     platform: "linux",
     isPackaged: true,
@@ -28,7 +29,7 @@ const makeEnvironment = (overrides: Record<string, unknown> = {}) =>
     appImagePath: Option.some("/home/alice/Applications/T3-Code.AppImage"),
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
     ...overrides,
-  } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]);
+  } as DesktopEnvironment.DesktopEnvironment["Service"]);
 
 const mockProcess = (exitCode: number) =>
   ChildProcessSpawner.makeHandle({
@@ -48,7 +49,7 @@ const mockProcess = (exitCode: number) =>
 const makeHandlerLayer = (
   recorded: RecordedRegistration,
   input: {
-    readonly environment?: Record<string, unknown>;
+    readonly environment?: Record<string, SchemaJson>;
     readonly xdgMimeExitCode?: number;
     readonly writeError?: PlatformError.PlatformError;
   } = {},
@@ -72,10 +73,11 @@ const makeHandlerLayer = (
         Layer.succeed(
           ChildProcessSpawner.ChildProcessSpawner,
           ChildProcessSpawner.make((command) => {
-            const childProcess = command as unknown as {
-              readonly command: string;
-              readonly args: ReadonlyArray<string>;
-            };
+            const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+              childProcess = command as {
+                readonly command: string;
+                readonly args: ReadonlyArray<string>;
+              };
             recorded.commands.push({
               command: childProcess.command,
               args: childProcess.args,

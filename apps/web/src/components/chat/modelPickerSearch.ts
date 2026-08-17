@@ -1,4 +1,5 @@
 import { normalizeSearchQuery, scoreQueryMatch } from "@t3tools/shared/searchRanking";
+import * as RuntimePredicate from "effect/Predicate";
 
 type ModelPickerSearchableModel = {
   /** Driver kind — indexed so "codex" still matches a Codex Personal instance. */
@@ -40,14 +41,14 @@ function scoreModelPickerSearchToken(
     prefixBase: fieldBase + 2,
     boundaryBase: fieldBase + 4,
     includesBase: fieldBase + 6,
-    ...(token.length >= 3 ? { fuzzyBase: fieldBase + 100 } : {}),
+    ...(token.length >= 3 ? { fuzzyBase: fieldBase + 100 } : undefined),
   });
 }
 
 export function buildModelPickerSearchText(model: ModelPickerSearchableModel): string {
   return normalizeSearchQuery(
     [model.name, model.shortName, model.subProvider, model.driverKind, model.providerDisplayName]
-      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .filter((value): value is string => RuntimePredicate.isString(value) && value.length > 0)
       .join(" "),
   );
 }

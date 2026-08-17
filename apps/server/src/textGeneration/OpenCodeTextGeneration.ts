@@ -31,6 +31,7 @@ import {
   sanitizeThreadTitle,
 } from "./TextGenerationUtils.ts";
 import * as OpenCodeRuntime from "../provider/opencodeRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const OPENCODE_TEXT_GENERATION_IDLE_TTL = "30 seconds";
 
@@ -126,25 +127,25 @@ interface OpenCodeTextPart {
 }
 
 function getOpenCodePromptFailure(error: unknown): OpenCodePromptFailure | null {
-  if (!error || typeof error !== "object") {
+  if (!error || !(RuntimePredicate.isObjectOrArray(error) || error === null)) {
     return null;
   }
 
   const name =
-    "name" in error && typeof error.name === "string" && error.name.trim().length > 0
+    "name" in error && RuntimePredicate.isString(error.name) && error.name.trim().length > 0
       ? error.name.trim()
       : undefined;
   const message =
     "data" in error &&
     error.data &&
-    typeof error.data === "object" &&
+    (RuntimePredicate.isObjectOrArray(error.data) || error.data === null) &&
     "message" in error.data &&
-    typeof error.data.message === "string"
+    RuntimePredicate.isString(error.data.message)
       ? error.data.message.trim()
       : "";
   if (message.length > 0) {
     return {
-      ...(name ? { name } : {}),
+      ...(name ? { name } : undefined),
       message,
     };
   }
@@ -158,12 +159,11 @@ function getOpenCodePromptFailure(error: unknown): OpenCodePromptFailure | null 
 
 function isOpenCodeTextPart(part: unknown): part is OpenCodeTextPart {
   return (
-    part !== null &&
-    typeof part === "object" &&
+    RuntimePredicate.isObjectOrArray(part) &&
     "type" in part &&
     part.type === "text" &&
     "text" in part &&
-    typeof part.text === "string"
+    RuntimePredicate.isString(part.text)
   );
 }
 
@@ -387,7 +387,7 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
           directory: input.cwd,
           ...(openCodeSettings.serverUrl.length > 0 && openCodeSettings.serverPassword
             ? { serverPassword: openCodeSettings.serverPassword }
-            : {}),
+            : undefined),
         });
         const session = yield* Effect.tryPromise({
           try: () =>
@@ -423,8 +423,8 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
             client.session.prompt({
               sessionID: session.data.id,
               model: parsedModel,
-              ...(selectedAgent ? { agent: selectedAgent } : {}),
-              ...(selectedVariant ? { variant: selectedVariant } : {}),
+              ...(selectedAgent ? { agent: selectedAgent } : undefined),
+              ...(selectedVariant ? { variant: selectedVariant } : undefined),
               parts: [{ type: "text", text: input.prompt }, ...fileParts],
             }),
           catch: (cause) =>
@@ -437,7 +437,7 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
         if (promptFailure) {
           return yield* new OpenCodeTextGenerationPromptResponseError({
             ...promptContext,
-            ...(promptFailure.name ? { providerErrorName: promptFailure.name } : {}),
+            ...(promptFailure.name ? { providerErrorName: promptFailure.name } : undefined),
             providerMessage: promptFailure.message,
           });
         }
@@ -543,9 +543,9 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
       return {
         subject: sanitizeCommitSubject(generated.subject),
         body: generated.body.trim(),
-        ...("branch" in generated && typeof generated.branch === "string"
+        ...("branch" in generated && RuntimePredicate.isString(generated.branch)
           ? { branch: sanitizeFeatureBranchName(generated.branch) }
-          : {}),
+          : undefined),
       };
     });
 

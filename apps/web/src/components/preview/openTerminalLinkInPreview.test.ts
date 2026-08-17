@@ -56,7 +56,7 @@ describe("openTerminalLinkInPreview", () => {
             throw cause;
           }),
         },
-      } as unknown as LocalApi,
+      } as LocalApi,
       fallbackToBrowser,
     });
 
@@ -90,7 +90,7 @@ describe("openTerminalLinkInPreview", () => {
         contextMenu: {
           show: vi.fn(async () => "open-in-preview"),
         },
-      } as unknown as LocalApi,
+      } as LocalApi,
       fallbackToBrowser,
     });
 
@@ -120,7 +120,7 @@ describe("openTerminalLinkInPreview", () => {
         contextMenu: {
           show: vi.fn(async () => "open-in-preview"),
         },
-      } as unknown as LocalApi,
+      } as LocalApi,
       fallbackToBrowser,
     });
 

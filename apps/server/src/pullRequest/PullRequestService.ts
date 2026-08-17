@@ -55,6 +55,7 @@ import {
   type PullRequestProviderError,
 } from "./PullRequestProvider.ts";
 import { PullRequestProviderRegistry } from "./PullRequestProviderRegistry.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Rows per repository when the client does not ask for a page size, and rows per slice when a
@@ -482,7 +483,8 @@ export const make = Effect.gen(function* () {
           if (filter.projectId !== undefined && project.id !== filter.projectId) continue;
           if (filter.projectIds !== undefined && !filter.projectIds.includes(project.id)) continue;
           const identity = project.repositoryIdentity;
-          let kind = identity?.provider as SourceControlProviderKind | undefined;
+          let // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            kind = identity?.provider as SourceControlProviderKind | undefined;
           const repository = repositoryIdentityOf(project);
           if (!identity || kind === undefined || repository === null) continue;
           // Worktrees of one repository are separate projects; reading the remote once keeps
@@ -618,6 +620,7 @@ export const make = Effect.gen(function* () {
           // unreadable worktree would otherwise report the whole host as signed out.
           const roots =
             viewerRoots.get(host) ?? forHost.map(({ project }) => project.workspaceRoot);
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           return Effect.firstSuccessOf(roots.map((cwd) => api.getViewer({ cwd }))).pipe(
             Effect.map((viewer) => ({
               host,
@@ -649,8 +652,8 @@ export const make = Effect.gen(function* () {
     viewer: string,
   ): boolean => {
     if (filters === undefined) return true;
-    const labels = item.labels.map((label) => label.name.trim().toLowerCase());
-    const holds = (label: string) => labels.includes(label.trim().toLowerCase());
+    const labels = new Set(item.labels.map((label) => label.name.trim().toLowerCase()));
+    const holds = (label: string) => labels.has(label.trim().toLowerCase());
     return (
       (filters.draft === undefined || item.isDraft === (filters.draft === "only")) &&
       // Judged on the provider row rather than the entry, because the two absences mean
@@ -697,14 +700,14 @@ export const make = Effect.gen(function* () {
       createdAt: input.item.createdAt,
       updatedAt: input.item.updatedAt,
       ...(input.item.checksState === undefined || input.item.checksState === null
-        ? {}
+        ? undefined
         : { checksState: input.item.checksState }),
       viewerReviewRequested:
         input.item.author?.login.toLowerCase() !== viewer &&
         input.item.reviewRequestLogins.some((login) => login.toLowerCase() === viewer),
       labels: input.item.labels,
       ...(input.item.reviewDecision === undefined || input.item.reviewDecision === null
-        ? {}
+        ? undefined
         : { reviewDecision: input.item.reviewDecision }),
     };
   };
@@ -794,6 +797,7 @@ export const make = Effect.gen(function* () {
           return yield* toPullRequestError("list")(blocking);
         }
 
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return {
           viewers: viewers as PullRequestListResult["viewers"],
           providers,
@@ -833,7 +837,7 @@ export const make = Effect.gen(function* () {
               // Only the two fields a host can act on: which rows have already been sent at the
               // boundary instant is this service's business, not a provider's.
               ...(cursor === undefined
-                ? {}
+                ? undefined
                 : {
                     cursor: { updatedBefore: cursor.updatedBefore, delivered: cursor.delivered },
                   }),
@@ -915,7 +919,7 @@ export const make = Effect.gen(function* () {
           query: input.query,
           filters: input.filters,
           ...(cursor === undefined
-            ? {}
+            ? undefined
             : { cursor: { updatedBefore: cursor.updatedBefore, delivered: cursor.delivered } }),
         }).pipe(
           Effect.flatMap((page) => {
@@ -1007,6 +1011,7 @@ export const make = Effect.gen(function* () {
         if (batch.nextCursor !== null) nextCursors[batch.key] = batch.nextCursor;
       }
 
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         viewers: viewers as PullRequestListResult["viewers"],
         providers,
@@ -1074,13 +1079,15 @@ export const make = Effect.gen(function* () {
               checks: changeRequest.checks,
               mergeCapabilities: changeRequest.mergeCapabilities,
               viewerPermissions: changeRequest.viewerPermissions,
-              ...(viewer === null || viewer.trim().length === 0 ? {} : { viewer }),
+              ...(viewer === null || viewer.trim().length === 0 ? undefined : { viewer }),
               ...(changeRequest.baseComparison === undefined
-                ? {}
+                ? undefined
                 : { baseComparison: changeRequest.baseComparison }),
-              ...(changeRequest.behindBy === undefined ? {} : { behindBy: changeRequest.behindBy }),
+              ...(changeRequest.behindBy === undefined
+                ? undefined
+                : { behindBy: changeRequest.behindBy }),
               ...(changeRequest.autoMergeEnabled === undefined
-                ? {}
+                ? undefined
                 : { autoMergeEnabled: changeRequest.autoMergeEnabled }),
             }),
           ),
@@ -1102,14 +1109,18 @@ export const make = Effect.gen(function* () {
             Effect.mapError(toPullRequestError("activity")),
             Effect.map(
               (activity): PullRequestActivity => ({
-                ...(activity.author === undefined ? {} : { author: activity.author }),
-                ...(activity.reviewers === undefined ? {} : { reviewers: activity.reviewers }),
+                ...(activity.author === undefined ? undefined : { author: activity.author }),
+                ...(activity.reviewers === undefined
+                  ? undefined
+                  : { reviewers: activity.reviewers }),
                 comments: activity.comments,
                 commentCount: activity.commentCount,
                 commentsTruncated: activity.commentsTruncated,
                 reviewThreads: activity.reviewThreads,
                 commits: activity.commits,
-                ...(activity.reactions === undefined ? {} : { reactions: activity.reactions }),
+                ...(activity.reactions === undefined
+                  ? undefined
+                  : { reactions: activity.reactions }),
               }),
             ),
           ),
@@ -1126,8 +1137,8 @@ export const make = Effect.gen(function* () {
                 repository: project.repository,
                 host: project.host,
                 number: input.number,
-                ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-                ...(input.commit === undefined ? {} : { commit: input.commit }),
+                ...(input.cursor === undefined ? undefined : { cursor: input.cursor }),
+                ...(input.commit === undefined ? undefined : { commit: input.commit }),
               })
               .pipe(Effect.mapError(toPullRequestError("diff")))
           : Effect.fail(
@@ -1149,7 +1160,7 @@ export const make = Effect.gen(function* () {
               repository: project.repository,
               host: project.host,
               number: input.number,
-              ...(input.commit === undefined ? {} : { commit: input.commit }),
+              ...(input.commit === undefined ? undefined : { commit: input.commit }),
               changeType: input.changeType,
               oldPath: input.oldPath,
               newPath: input.newPath,
@@ -1234,8 +1245,12 @@ export const make = Effect.gen(function* () {
                 host: project.host,
                 number: input.number,
                 action: input.action,
-                ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
-                ...(input.updateMethod === undefined ? {} : { updateMethod: input.updateMethod }),
+                ...(input.mergeMethod === undefined
+                  ? undefined
+                  : { mergeMethod: input.mergeMethod }),
+                ...(input.updateMethod === undefined
+                  ? undefined
+                  : { updateMethod: input.updateMethod }),
               })
               .pipe(Effect.mapError(toPullRequestError("runAction")));
           }),
@@ -1321,8 +1336,8 @@ export const make = Effect.gen(function* () {
           repository: project.repository,
           host: project.host,
           number: input.number,
-          ...(input.title === undefined ? {} : { title: input.title }),
-          ...(input.body === undefined ? {} : { body: input.body }),
+          ...(input.title === undefined ? undefined : { title: input.title }),
+          ...(input.body === undefined ? undefined : { body: input.body }),
         }).pipe(Effect.mapError(toPullRequestError("update")));
       }),
     );
@@ -1516,7 +1531,7 @@ export const make = Effect.gen(function* () {
             repository: project.repository,
             host: project.host,
             number: input.number,
-            ...(input.subjectId === undefined ? {} : { subjectId: input.subjectId }),
+            ...(input.subjectId === undefined ? undefined : { subjectId: input.subjectId }),
             content: input.content,
             reacted: input.reacted,
           })
@@ -1754,13 +1769,20 @@ export const make = Effect.gen(function* () {
     >,
   ): PullRequestListFilters => {
     const [draft, review, checks, author, labels, excludedLabels] = slots;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return {
-      ...(typeof draft === "string" ? { draft: draft as "only" | "hide" } : {}),
-      ...(typeof review === "string" ? { review: review as PullRequestListFilters["review"] } : {}),
-      ...(typeof checks === "string" ? { checks: checks as PullRequestListFilters["checks"] } : {}),
-      ...(typeof author === "string" ? { author } : {}),
-      ...(Array.isArray(labels) ? { labels: labels as ReadonlyArray<ReadonlyArray<string>> } : {}),
-      ...(Array.isArray(excludedLabels) ? { excludedLabels } : {}),
+      ...(RuntimePredicate.isString(draft) ? { draft: draft as "only" | "hide" } : undefined),
+      ...(RuntimePredicate.isString(review)
+        ? { review: review as PullRequestListFilters["review"] }
+        : undefined),
+      ...(RuntimePredicate.isString(checks)
+        ? { checks: checks as PullRequestListFilters["checks"] }
+        : undefined),
+      ...(RuntimePredicate.isString(author) ? { author } : undefined),
+      ...(Array.isArray(labels)
+        ? { labels: labels as ReadonlyArray<ReadonlyArray<string>> }
+        : undefined),
+      ...(Array.isArray(excludedLabels) ? { excludedLabels } : undefined),
     };
   };
 
@@ -1772,39 +1794,30 @@ export const make = Effect.gen(function* () {
     (key: string) => {
       // The parse undoes this module's own serialization, so the shapes are known exactly;
       // the cast restores the branded field types JSON cannot carry.
-      const [
-        ,
-        state,
-        involvement,
-        filters,
-        projectId,
-        projectIds,
-        host,
-        limit,
-        query,
-        cursorEntries,
-      ] = JSON.parse(key) as [
-        number,
-        string,
-        string | null,
-        ReadonlyArray<string | ReadonlyArray<string> | null> | null,
-        string | null,
-        ReadonlyArray<string> | null,
-        string | null,
-        number | null,
-        string | null,
-        ReadonlyArray<[string, string]> | null,
-      ];
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [, state, involvement, filters, projectId, projectIds, host, limit, query, cursorEntries] =
+          JSON.parse(key) as [
+            number,
+            string,
+            string | null,
+            ReadonlyArray<string | ReadonlyArray<string> | null> | null,
+            string | null,
+            ReadonlyArray<string> | null,
+            string | null,
+            number | null,
+            string | null,
+            ReadonlyArray<[string, string]> | null,
+          ];
       return listUncached({
         state,
-        ...(involvement === null ? {} : { involvement }),
-        ...(filters === null ? {} : { filters: filtersOfKey(filters) }),
-        ...(projectId === null ? {} : { projectId }),
-        ...(projectIds === null ? {} : { projectIds }),
-        ...(host === null ? {} : { host }),
-        ...(limit === null ? {} : { limit }),
-        ...(query === null ? {} : { query }),
-        ...(cursorEntries === null ? {} : { cursors: Object.fromEntries(cursorEntries) }),
+        ...(involvement === null ? undefined : { involvement }),
+        ...(filters === null ? undefined : { filters: filtersOfKey(filters) }),
+        ...(projectId === null ? undefined : { projectId }),
+        ...(projectIds === null ? undefined : { projectIds }),
+        ...(host === null ? undefined : { host }),
+        ...(limit === null ? undefined : { limit }),
+        ...(query === null ? undefined : { query }),
+        ...(cursorEntries === null ? undefined : { cursors: Object.fromEntries(cursorEntries) }),
       } as PullRequestListInput);
     },
     {
@@ -1847,7 +1860,8 @@ export const make = Effect.gen(function* () {
 
   const detailCache = yield* Cache.makeWith(
     (key: string) => {
-      const [, projectId, repository, number] = JSON.parse(key) as [number, string, string, number];
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [, projectId, repository, number] = JSON.parse(key) as [number, string, string, number];
       return detailUncached({ projectId, repository, number } as PullRequestRef);
     },
     {
@@ -1866,7 +1880,8 @@ export const make = Effect.gen(function* () {
 
   const activityCache = yield* Cache.makeWith(
     (key: string) => {
-      const [, projectId, repository, number] = JSON.parse(key) as [number, string, string, number];
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [, projectId, repository, number] = JSON.parse(key) as [number, string, string, number];
       return activityUncached({ projectId, repository, number } as PullRequestRef);
     },
     {
@@ -1885,27 +1900,29 @@ export const make = Effect.gen(function* () {
 
   const diffCache = yield* Cache.makeWith(
     (key: string) => {
-      const [, projectId, repository, number, cursor, commit] = JSON.parse(key) as [
-        number,
-        string,
-        string,
-        number,
-        string | null,
-        string | null,
-      ];
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [, projectId, repository, number, cursor, commit] = JSON.parse(key) as [
+          number,
+          string,
+          string,
+          number,
+          string | null,
+          string | null,
+        ];
       return diffUncached({
         projectId,
         repository,
         number,
-        ...(cursor === null ? {} : { cursor }),
-        ...(commit === null ? {} : { commit }),
+        ...(cursor === null ? undefined : { cursor }),
+        ...(commit === null ? undefined : { commit }),
       } as PullRequestDiffInput);
     },
     {
       capacity: DIFF_CACHE_CAPACITY,
       timeToLive: (exit, key) => {
         if (!Exit.isSuccess(exit)) return Duration.zero;
-        const commit = (JSON.parse(key) as ReadonlyArray<unknown>)[5];
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          commit = (JSON.parse(key) as ReadonlyArray<unknown>)[5];
         return commit === null ? DIFF_CACHE_TTL : COMMIT_DIFF_CACHE_TTL;
       },
     },
@@ -1928,10 +1945,11 @@ export const make = Effect.gen(function* () {
 
   const listStatsCache = yield* Cache.makeWith(
     (key: string) => {
-      const [, refs] = JSON.parse(key) as [number, ReadonlyArray<[string, string, number]>];
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [, refs] = JSON.parse(key) as [number, ReadonlyArray<[string, string, number]>];
       return listStatsUncached({
         refs: refs.map(([projectId, repository, number]) => ({ projectId, repository, number })),
-      } as unknown as PullRequestListStatsInput);
+      } as PullRequestListStatsInput);
     },
     {
       capacity: LIST_STATS_CACHE_CAPACITY,

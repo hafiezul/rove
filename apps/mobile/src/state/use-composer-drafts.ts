@@ -160,6 +160,7 @@ async function loadPersistedComposerDrafts(): Promise<Record<string, ComposerDra
     operation = "read";
     const raw = await file.text();
     operation = "decode";
+    // SAFETY: This boundary intentionally widens the value before handing it to its owner.
     return decodePersistedComposerDrafts(JSON.parse(raw) as unknown);
   } catch (cause) {
     console.warn(
@@ -404,7 +405,7 @@ export function clearComposerDraftContentState(
   const draft = {
     ...retained,
     ...(options?.clearWorkspaceSelection || workspaceSelection === undefined
-      ? {}
+      ? undefined
       : { workspaceSelection }),
     text: "",
     attachments: [],
@@ -461,7 +462,7 @@ export function copyComposerDraftContentState(
       ...target,
       text: source.text,
       attachments: source.attachments,
-      ...(source.importedShareIds ? { importedShareIds: source.importedShareIds } : {}),
+      ...(source.importedShareIds ? { importedShareIds: source.importedShareIds } : undefined),
     },
   };
 }
@@ -532,7 +533,7 @@ export function mergeComposerDraftContentState(
       ...existing,
       text,
       attachments,
-      ...(importedShareIds ? { importedShareIds } : {}),
+      ...(importedShareIds ? { importedShareIds } : undefined),
     },
   };
 }

@@ -57,6 +57,7 @@ import * as ProviderEventLoggers from "./ProviderEventLoggers.ts";
 import * as AnalyticsService from "../../telemetry/AnalyticsService.ts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
 import * as McpSessionRegistry from "../../mcp/McpSessionRegistry.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isModelSelection = Schema.is(ModelSelection);
 
 /**
@@ -84,7 +85,7 @@ function toValidationError(
   return new ProviderValidationError({
     operation,
     issue,
-    ...(cause !== undefined ? { cause } : {}),
+    ...(cause !== undefined ? { cause } : undefined),
   });
 }
 
@@ -134,18 +135,24 @@ function toRuntimePayloadFromSession(
     model: session.model ?? null,
     activeTurnId: session.activeTurnId ?? null,
     lastError: session.lastError ?? null,
-    ...(extra?.modelSelection !== undefined ? { modelSelection: extra.modelSelection } : {}),
-    ...(extra?.lastRuntimeEvent !== undefined ? { lastRuntimeEvent: extra.lastRuntimeEvent } : {}),
+    ...(extra?.modelSelection !== undefined ? { modelSelection: extra.modelSelection } : undefined),
+    ...(extra?.lastRuntimeEvent !== undefined
+      ? { lastRuntimeEvent: extra.lastRuntimeEvent }
+      : undefined),
     ...(extra?.lastRuntimeEventAt !== undefined
       ? { lastRuntimeEventAt: extra.lastRuntimeEventAt }
-      : {}),
+      : undefined),
   };
 }
 
 function readPersistedModelSelection(
   runtimePayload: ProviderSessionDirectory.ProviderRuntimeBinding["runtimePayload"],
 ): ModelSelection | undefined {
-  if (!runtimePayload || typeof runtimePayload !== "object" || Array.isArray(runtimePayload)) {
+  if (
+    !runtimePayload ||
+    !(RuntimePredicate.isObjectOrArray(runtimePayload) || runtimePayload === null) ||
+    Array.isArray(runtimePayload)
+  ) {
     return undefined;
   }
   const raw = "modelSelection" in runtimePayload ? runtimePayload.modelSelection : undefined;
@@ -155,11 +162,15 @@ function readPersistedModelSelection(
 function readPersistedCwd(
   runtimePayload: ProviderSessionDirectory.ProviderRuntimeBinding["runtimePayload"],
 ): string | undefined {
-  if (!runtimePayload || typeof runtimePayload !== "object" || Array.isArray(runtimePayload)) {
+  if (
+    !runtimePayload ||
+    !(RuntimePredicate.isObjectOrArray(runtimePayload) || runtimePayload === null) ||
+    Array.isArray(runtimePayload)
+  ) {
     return undefined;
   }
   const rawCwd = "cwd" in runtimePayload ? runtimePayload.cwd : undefined;
-  if (typeof rawCwd !== "string") return undefined;
+  if (!RuntimePredicate.isString(rawCwd)) return undefined;
   const trimmed = rawCwd.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
@@ -279,7 +290,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         providerInstanceId,
         runtimeMode: session.runtimeMode,
         status: toRuntimeStatus(session),
-        ...(session.resumeCursor !== undefined ? { resumeCursor: session.resumeCursor } : {}),
+        ...(session.resumeCursor !== undefined
+          ? { resumeCursor: session.resumeCursor }
+          : undefined),
         runtimePayload: toRuntimePayloadFromSession(session, extra),
       });
     });
@@ -406,9 +419,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           threadId: input.binding.threadId,
           provider: input.binding.provider,
           providerInstanceId: bindingInstanceId,
-          ...(persistedCwd ? { cwd: persistedCwd } : {}),
-          ...(persistedModelSelection ? { modelSelection: persistedModelSelection } : {}),
-          ...(hasResumeCursor ? { resumeCursor: input.binding.resumeCursor } : {}),
+          ...(persistedCwd ? { cwd: persistedCwd } : undefined),
+          ...(persistedModelSelection ? { modelSelection: persistedModelSelection } : undefined),
+          ...(hasResumeCursor ? { resumeCursor: input.binding.resumeCursor } : undefined),
           runtimeMode: input.binding.runtimeMode ?? "full-access",
         })
         .pipe(Effect.onError(() => clearMcpSession(input.binding.threadId)));
@@ -601,8 +614,10 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           .startSession({
             ...input,
             providerInstanceId: resolvedInstanceId,
-            ...(effectiveCwd !== undefined ? { cwd: effectiveCwd } : {}),
-            ...(effectiveResumeCursor !== undefined ? { resumeCursor: effectiveResumeCursor } : {}),
+            ...(effectiveCwd !== undefined ? { cwd: effectiveCwd } : undefined),
+            ...(effectiveResumeCursor !== undefined
+              ? { resumeCursor: effectiveResumeCursor }
+              : undefined),
           })
           .pipe(Effect.onError(() => clearMcpSession(threadId)));
 
@@ -629,9 +644,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           provider: sessionWithInstance.provider,
           runtimeMode: input.runtimeMode,
           hasResumeCursor: sessionWithInstance.resumeCursor !== undefined,
-          hasCwd: typeof effectiveCwd === "string" && effectiveCwd.trim().length > 0,
+          hasCwd: RuntimePredicate.isString(effectiveCwd) && effectiveCwd.trim().length > 0,
           hasModel:
-            typeof input.modelSelection?.model === "string" &&
+            RuntimePredicate.isString(input.modelSelection?.model) &&
             input.modelSelection.model.trim().length > 0,
         });
 
@@ -696,14 +711,14 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       attachmentPathLines.length === 0
         ? parsed.input
         : [parsed.input, attachmentPathLines.join("\n")]
-            .filter((part): part is string => typeof part === "string" && part.length > 0)
+            .filter((part): part is string => RuntimePredicate.isString(part) && part.length > 0)
             .join("\n\n");
 
     const input = {
       ...parsed,
       ...(inputTextWithAttachmentPaths !== undefined
         ? { input: inputTextWithAttachmentPaths }
-        : {}),
+        : undefined),
       attachments,
     };
     yield* Effect.annotateCurrentSpan({
@@ -724,7 +739,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       metricModel = input.modelSelection?.model;
       yield* Effect.annotateCurrentSpan({
         "provider.kind": routed.adapter.provider,
-        ...(input.modelSelection?.model ? { "provider.model": input.modelSelection.model } : {}),
+        ...(input.modelSelection?.model
+          ? { "provider.model": input.modelSelection.model }
+          : undefined),
       });
       // A turn is the clearest sign a session is still alive. The MCP
       // credential is minted once at session start and cannot be rotated into
@@ -738,9 +755,11 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         provider: routed.adapter.provider,
         providerInstanceId: routed.instanceId,
         status: "running",
-        ...(turn.resumeCursor !== undefined ? { resumeCursor: turn.resumeCursor } : {}),
+        ...(turn.resumeCursor !== undefined ? { resumeCursor: turn.resumeCursor } : undefined),
         runtimePayload: {
-          ...(input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {}),
+          ...(input.modelSelection !== undefined
+            ? { modelSelection: input.modelSelection }
+            : undefined),
           activeTurnId: turn.turnId,
           lastRuntimeEvent: "provider.sendTurn",
           lastRuntimeEventAt: yield* nowIso,
@@ -755,7 +774,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         // gives a usage-weighted view and lets it cross with interactionMode.
         runtimeMode: routed.runtimeMode,
         attachmentCount: input.attachments.length,
-        hasInput: typeof input.input === "string" && input.input.trim().length > 0,
+        hasInput: RuntimePredicate.isString(input.input) && input.input.trim().length > 0,
       });
       return turn;
     }).pipe(

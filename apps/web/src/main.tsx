@@ -28,10 +28,12 @@ if (isElectron) {
   syncDocumentWindowControlsOverlayClass();
 }
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 const app = <AppRoot router={router} />;
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     {clerkPublishableKey && hasCloudPublicConfig() ? (

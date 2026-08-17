@@ -21,9 +21,11 @@ import type {
   VcsStatusStreamEvent,
 } from "@t3tools/contracts";
 import { mergeGitStatusParts } from "@t3tools/shared/git";
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
 
 import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_VCS_STATUS_REFRESH_INTERVAL = Duration.seconds(30);
 const VCS_STATUS_REFRESH_FAILURE_BASE_DELAY = Duration.seconds(30);
@@ -38,17 +40,16 @@ function boundedDiagnosticValue(value: string): string {
 function diagnosticValueTag(value: unknown): string {
   try {
     if (
-      typeof value === "object" &&
-      value !== null &&
+      RuntimePredicate.isObjectOrArray(value) &&
       "_tag" in value &&
-      typeof value._tag === "string"
+      RuntimePredicate.isString(value._tag)
     ) {
       return boundedDiagnosticValue(value._tag);
     }
     if (value instanceof Error) {
       return boundedDiagnosticValue(value.name);
     }
-    return typeof value;
+    return runtimeValueKind(value);
   } catch {
     return "Uninspectable";
   }
@@ -57,10 +58,9 @@ function diagnosticValueTag(value: unknown): string {
 function diagnosticFailureOperation(value: unknown): string | undefined {
   try {
     if (
-      typeof value === "object" &&
-      value !== null &&
+      RuntimePredicate.isObjectOrArray(value) &&
       "operation" in value &&
-      typeof value.operation === "string"
+      RuntimePredicate.isString(value.operation)
     ) {
       return boundedDiagnosticValue(value.operation);
     }

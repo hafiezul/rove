@@ -5,6 +5,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 
 import * as GitLabCli from "../sourceControl/GitLabCli.ts";
 import * as GitLabPullRequestCli from "./GitLabPullRequestCli.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const mockedExecute = vi.fn<GitLabCli.GitLabCli["Service"]["execute"]>();
 
@@ -71,7 +72,7 @@ const author = { id: 1, username: "bilal" };
 const reviewer = { id: 5, username: "octocat" };
 
 /** One merge request as `/merge_requests/:iid` answers with it. */
-function mergeRequestJson(overrides: Record<string, unknown>): string {
+function mergeRequestJson(overrides: Record<string, SchemaJson>): string {
   return JSON.stringify({
     iid: 7,
     title: "Merge request 7",
@@ -227,7 +228,8 @@ layer("GitLabPullRequestCli.layer", (it) => {
   it.effect("advances the cursor through malformed raw rows", () =>
     Effect.gen(function* () {
       // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const rows = JSON.parse(mergeRequests(2, 1)) as ReadonlyArray<unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        rows = JSON.parse(mergeRequests(2, 1)) as ReadonlyArray<unknown>;
       mockedExecute.mockReturnValueOnce(
         // @effect-diagnostics-next-line preferSchemaOverJson:off
         Effect.succeed(output(JSON.stringify([{ iid: "malformed" }, ...rows]))),

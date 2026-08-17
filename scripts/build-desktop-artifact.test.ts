@@ -50,6 +50,7 @@ import {
 } from "./build-desktop-artifact.ts";
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function mockProcess(exitCode: number) {
   return ChildProcessSpawner.makeHandle({
@@ -75,10 +76,11 @@ function iconResizeSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childProcess = command as {
+          readonly command: string;
+          readonly args: ReadonlyArray<string>;
+        };
       commands.push({
         command: childProcess.command,
         args: childProcess.args,
@@ -355,7 +357,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.deepStrictEqual(win.asarUnpack, WINDOWS_ASAR_UNPACK);
       // Linux must register the renderer schemes so the generated .desktop
       // entry advertises MimeType=x-scheme-handler/t3code; for OAuth deep links.
-      assert.deepStrictEqual((linux.linux as Record<string, unknown>).protocols, [
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      assert.deepStrictEqual((linux.linux as Record<string, SchemaJson>).protocols, [
         { name: "T3 Code", schemes: ["t3code", "t3code-dev"] },
       ]);
       for (const config of [mac, linux, win]) {
@@ -385,13 +388,16 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.notInclude(error.message, "non-zero exit code");
 
       assert.instanceOf(error.cause, AggregateError);
-      const aggregateCause = error.cause as AggregateError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        aggregateCause = error.cause as AggregateError;
       assert.lengthOf(aggregateCause.errors, 2);
       assert.strictEqual(aggregateCause.cause, aggregateCause.errors[0]);
       assert.instanceOf(aggregateCause.errors[0], BuildCommandFailedError);
       assert.instanceOf(aggregateCause.errors[1], BuildCommandFailedError);
-      const primaryError = aggregateCause.errors[0] as BuildCommandFailedError;
-      const fallbackError = aggregateCause.errors[1] as BuildCommandFailedError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        primaryError = aggregateCause.errors[0] as BuildCommandFailedError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        fallbackError = aggregateCause.errors[1] as BuildCommandFailedError;
       assert.equal(primaryError.command, "magick linux icon 512x512");
       assert.equal(primaryError.exitCode, 1);
       assert.include(primaryError.message, "magick linux icon");
@@ -527,7 +533,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         provisioningProfilePath: "/tmp/t3code.provisionprofile",
       });
 
-      const mac = config.mac as Record<string, unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        mac = config.mac as Record<string, SchemaJson>;
       assert.equal(config.appId, "com.t3tools.t3code");
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/t3code.provisionprofile");
@@ -549,7 +556,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         undefined,
       );
 
-      const win = config.win as Record<string, unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        win = config.win as Record<string, SchemaJson>;
       assert.equal(win.icon, "icon.ico");
       assert.equal(win.signAndEditExecutable, true);
       assert.notProperty(win, "azureSignOptions");

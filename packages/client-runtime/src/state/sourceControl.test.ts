@@ -81,7 +81,7 @@ describe("source control environment atoms", () => {
                   }),
                 );
           },
-        } as unknown as WsRpcProtocolClient;
+        } as WsRpcProtocolClient;
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(connectionState),
@@ -97,7 +97,7 @@ describe("source control environment atoms", () => {
         ) => Effect.provideService(effect, EnvironmentSupervisor.EnvironmentSupervisor, supervisor);
         const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
           run,
-        } as unknown as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+        } as EnvironmentRegistry.EnvironmentRegistry["Service"]);
         const removed = new Array<string>();
         const cache = Persistence.EnvironmentCacheStore.of({
           loadShell: () => Effect.succeed(Option.none()),

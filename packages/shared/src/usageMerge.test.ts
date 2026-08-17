@@ -70,6 +70,7 @@ function summary(
 }
 
 function environment(id: string, usageSummary: UsageSummary): EnvironmentUsage {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return { environmentId: id as EnvironmentId, label: id, summary: usageSummary };
 }
 

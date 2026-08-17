@@ -75,13 +75,14 @@ import {
   ThreadInspectorContentStack,
   type ThreadInspectorMode,
 } from "./thread-inspector-content-stack";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface ThreadInspectorSelection {
   readonly routeThreadIdentity: string | null;
   readonly mode: ThreadInspectorMode;
 }
 
-type NativeHeaderItems = ReadonlyArray<Record<string, unknown>>;
+type NativeHeaderItems = ReadonlyArray<Record<string, SchemaJson>>;
 
 function InspectorPaneRoleActivation() {
   useAdaptiveWorkspacePaneRole("inspector");
@@ -492,7 +493,7 @@ function ThreadRouteContent(
         threadId: selectedThread.id,
         ...(selectedThread.session.activeTurnId
           ? { turnId: selectedThread.session.activeTurnId }
-          : {}),
+          : undefined),
       },
     });
   }, [interruptThreadTurn, selectedThread]);
@@ -512,7 +513,7 @@ function ThreadRouteContent(
       void navigation.navigate("ThreadTerminal", {
         environmentId: String(selectedThread.environmentId),
         threadId: String(selectedThread.id),
-        ...(nextTerminalId ? { terminalId: nextTerminalId } : {}),
+        ...(nextTerminalId ? { terminalId: nextTerminalId } : undefined),
       });
     },
     [navigation, selectedThread, selectedThreadProject?.workspaceRoot],

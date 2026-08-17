@@ -34,7 +34,7 @@ export function ProjectFavicon(props: {
       : {
           _tag: "project-favicon",
           cwd: props.workspaceRoot,
-          ...(props.faviconPath ? { path: props.faviconPath } : {}),
+          ...(props.faviconPath ? { path: props.faviconPath } : undefined),
         },
   );
   const renderableFaviconUrl = isProjectFaviconFallbackUrl(faviconUrl) ? null : faviconUrl;
@@ -117,7 +117,7 @@ function ProjectFaviconImage(props: {
             width: props.size,
             height: props.size,
             borderRadius: props.size * 0.16,
-            ...(showImage ? {} : { position: "absolute" as const, opacity: 0 }),
+            ...(showImage ? undefined : { position: "absolute" as const, opacity: 0 }),
           }}
           contentFit="contain"
           onLoad={() => {

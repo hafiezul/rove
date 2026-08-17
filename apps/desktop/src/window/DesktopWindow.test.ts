@@ -13,6 +13,7 @@ import * as TestClock from "effect/testing/TestClock";
 
 import * as Electron from "electron";
 import { vi } from "vite-plus/test";
+import type { Json as SchemaJson } from "effect/Schema";
 
 vi.mock("electron", async (importOriginal) => ({
   ...(await importOriginal<typeof import("electron")>()),
@@ -103,8 +104,9 @@ function makeFakeBrowserWindow() {
     webContents,
   };
 
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
-    window: window as unknown as Electron.BrowserWindow,
+    window: window as Electron.BrowserWindow,
     getBounds: window.getBounds,
     getNormalBounds: window.getNormalBounds,
     isDestroyed: window.isDestroyed,
@@ -807,7 +809,7 @@ describe("DesktopWindow", () => {
       });
       const logRecords: Array<{
         readonly message: unknown;
-        readonly annotations: Readonly<Record<string, unknown>>;
+        readonly annotations: Readonly<Record<string, SchemaJson>>;
       }> = [];
       const logger = Logger.make(({ fiber, message }) => {
         logRecords.push({

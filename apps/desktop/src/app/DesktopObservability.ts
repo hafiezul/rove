@@ -20,6 +20,8 @@ import * as Tracer from "effect/Tracer";
 import { OtlpExporter, OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const DESKTOP_LOG_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const DESKTOP_LOG_FILE_MAX_FILES = 10;
@@ -63,7 +65,7 @@ export class DesktopBackendOutputLogFactory extends Context.Service<
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-export type DesktopLogAnnotations = Record<string, unknown>;
+export type DesktopLogAnnotations = Record<string, SchemaJson>;
 
 export interface DesktopComponentLogger {
   readonly annotate: <A, E, R>(
@@ -206,7 +208,7 @@ export function appendBoundedOutputChunk(
 const currentDesktopRunId = Effect.gen(function* () {
   const annotations = yield* References.CurrentLogAnnotations;
   const runId = annotations.runId;
-  return typeof runId === "string" && runId.length > 0 ? runId : "unknown";
+  return RuntimePredicate.isString(runId) && runId.length > 0 ? runId : "unknown";
 });
 
 const refreshFileSize = (
@@ -361,7 +363,7 @@ const writeBackendChildLogRecord = Effect.fn("desktop.observability.writeBackend
     input: {
       readonly message: string;
       readonly level: "INFO" | "ERROR";
-      readonly annotations: Record<string, unknown>;
+      readonly annotations: Record<string, SchemaJson>;
     },
   ): Effect.fn.Return<void> {
     return yield* Effect.gen(function* () {
@@ -534,6 +536,7 @@ const backendOutputLogFactoryLayer = Layer.effect(
             Effect.map((outputLog) => [outputLog, cache] as const),
           );
         }
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return makeBackendOutputSinkForInstance(environment, id).pipe(
           Effect.provideService(FileSystem.FileSystem, fileSystem),
           Effect.provideService(Path.Path, path),
@@ -598,7 +601,7 @@ const tracerLayer = Layer.unwrap(
       maxFiles: DESKTOP_LOG_FILE_MAX_FILES,
       batchWindowMs: DESKTOP_TRACE_BATCH_WINDOW_MS,
       sink,
-      ...(delegate ? { delegate } : {}),
+      ...(delegate ? { delegate } : undefined),
     });
 
     return Layer.succeed(Tracer.Tracer, tracer);

@@ -40,7 +40,7 @@ describe("settings search targets", () => {
       classList: { remove, add },
       addEventListener,
       offsetWidth: 100,
-    } as unknown as HTMLElement;
+    } as HTMLElement;
     vi.stubGlobal("document", {
       getElementById: vi.fn(() => target),
     });
@@ -72,7 +72,7 @@ describe("settings search targets", () => {
       focus,
       classList: { remove, add },
       offsetWidth: 100,
-    } as unknown as HTMLElement;
+    } as HTMLElement;
     vi.stubGlobal("document", {
       getElementById: vi.fn(() => target),
     });

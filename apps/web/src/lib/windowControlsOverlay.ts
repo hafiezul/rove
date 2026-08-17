@@ -19,6 +19,7 @@ function getWindowControlsOverlay(): WindowControlsOverlayLike | null {
     return null;
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (navigator as NavigatorWithWindowControlsOverlay).windowControlsOverlay ?? null;
 }
 

@@ -9,6 +9,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
 import type { ApnsCredentials } from "../Config.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class ApnsJwtEncodingError extends Schema.TaggedErrorClass<ApnsJwtEncodingError>()(
   "ApnsJwtEncodingError",
@@ -134,7 +135,7 @@ function apnsSigningScalar(privateKeyPem: string): Uint8Array {
   const jwk = NodeCrypto.createPrivateKey(privateKeyPem.replace(/\\n/g, "\n")).export({
     format: "jwk",
   });
-  if (jwk.crv !== "P-256" || typeof jwk.d !== "string") {
+  if (jwk.crv !== "P-256" || !RuntimePredicate.isString(jwk.d)) {
     throw new Error("APNs signing key is not a P-256 private key.");
   }
   const scalar = Result.getOrThrowWith(

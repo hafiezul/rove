@@ -9,6 +9,7 @@ import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
 
 import * as TraceDiagnostics from "./TraceDiagnostics.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function ns(ms: number): string {
   return String(BigInt(ms) * 1_000_000n);
@@ -210,7 +211,7 @@ describe("TraceDiagnostics", () => {
                 }),
               ),
       });
-      const logAnnotations: Array<Record<string, unknown>> = [];
+      const logAnnotations: Array<Record<string, SchemaJson>> = [];
       const logger = Logger.make<unknown, void>((options) => {
         logAnnotations.push({ ...options.fiber.getRef(References.CurrentLogAnnotations) });
       });

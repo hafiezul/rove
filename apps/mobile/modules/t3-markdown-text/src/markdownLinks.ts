@@ -298,8 +298,8 @@ function splitFilePosition(path: string, hash: string) {
   const pathWithoutPosition = suffixMatch ? path.slice(0, -suffixMatch[0].length) : path;
   return {
     path: pathWithoutPosition,
-    ...(line > 0 ? { line } : {}),
-    ...(column !== undefined && column > 0 ? { column } : {}),
+    ...(line > 0 ? { line } : undefined),
+    ...(column !== undefined && column > 0 ? { column } : undefined),
   };
 }
 
@@ -392,8 +392,8 @@ export function resolveMarkdownLinkPresentation(href: string): MarkdownLinkPrese
       icon: resolveMarkdownFileIcon(fileTarget.path),
       label: fileLabel(targetWithPosition),
       path: fileTarget.path,
-      ...(fileTarget.line ? { line: fileTarget.line } : {}),
-      ...(fileTarget.column ? { column: fileTarget.column } : {}),
+      ...(fileTarget.line ? { line: fileTarget.line } : undefined),
+      ...(fileTarget.column ? { column: fileTarget.column } : undefined),
     };
   }
 

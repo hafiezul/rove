@@ -21,6 +21,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface UpdatesHarnessOptions {
   readonly checkForUpdates?: Effect.Effect<
@@ -87,11 +88,13 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
     on: (eventName, listener) =>
       Effect.acquireRelease(
         Effect.sync(() => {
-          addListener(eventName, listener as unknown as (...args: readonly unknown[]) => void);
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          addListener(eventName, listener as (...args: readonly unknown[]) => void);
         }),
         () =>
           Effect.sync(() => {
-            removeListener(eventName, listener as unknown as (...args: readonly unknown[]) => void);
+            // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            removeListener(eventName, listener as (...args: readonly unknown[]) => void);
           }),
       ).pipe(Effect.asVoid),
   } satisfies ElectronUpdater.ElectronUpdater["Service"]);
@@ -106,6 +109,7 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
     reveal: () => Effect.void,
     sendAll: (_channel, state) =>
       Effect.sync(() => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         sentStates.push(state as DesktopUpdateState);
       }),
     destroyAll: Effect.void,
@@ -368,7 +372,7 @@ describe("DesktopUpdates", () => {
       cause,
     });
     const harness = makeHarness({ checkForUpdates: Effect.fail(updaterError) });
-    const loggedAnnotations: Array<Record<string, unknown>> = [];
+    const loggedAnnotations: Array<Record<string, SchemaJson>> = [];
     const logger = Logger.make(({ fiber }) => {
       const annotations = fiber.getRef(References.CurrentLogAnnotations);
       if (annotations.errorTag === "ElectronUpdaterCheckForUpdatesError") {

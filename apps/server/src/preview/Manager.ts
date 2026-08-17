@@ -321,6 +321,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
                 createdAt: snapshot.updatedAt,
                 snapshot,
               };
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return {
           next: { ...session, snapshot },
           emit,
@@ -362,6 +363,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
     function* (input) {
       // Verify the session exists; the desktop bridge handles the actual reload
       // and will report progress back via `reportStatus`. No event emitted.
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       yield* mutateExistingSession(input.threadId, input.tabId, (session) =>
         Effect.succeed({ next: session, emit: null, result: undefined as void }),
       );

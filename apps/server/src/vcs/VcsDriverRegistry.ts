@@ -56,6 +56,7 @@ function parseDetectionCacheKey(key: string): ParsedDetectionCacheKey {
       requestedKind: "auto",
     };
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     requestedKind: key.slice(0, separatorIndex) as VcsDriverKind | "auto",
     cwd: key.slice(separatorIndex + 1),

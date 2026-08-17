@@ -1,4 +1,4 @@
-/**
+import * as RuntimePredicate from "effect/Predicate"; /**
  * Downscale + re-encode for image attachments that are too big for where
  * they're headed. Two consumers share the same pipeline:
  *
@@ -108,8 +108,8 @@ function fileNameForMimeType(name: string, mimeType: string): string {
 
 function canRecompress(): boolean {
   return (
-    typeof createImageBitmap === "function" &&
-    (typeof OffscreenCanvas === "function" || typeof document !== "undefined")
+    RuntimePredicate.isFunction(createImageBitmap) &&
+    (RuntimePredicate.isFunction(OffscreenCanvas) || typeof document !== "undefined")
   );
 }
 
@@ -119,7 +119,7 @@ interface Canvas2D {
 }
 
 function createCanvas(width: number, height: number): Canvas2D | null {
-  if (typeof OffscreenCanvas === "function") {
+  if (RuntimePredicate.isFunction(OffscreenCanvas)) {
     const canvas = new OffscreenCanvas(width, height);
     const context = canvas.getContext("2d");
     if (!context) return null;
@@ -152,7 +152,8 @@ async function encodeCanvas(
     if (!dataUrl.startsWith(`data:${mimeType}`)) return null;
     return { dataUrl: dataUrl.length <= budgetChars ? dataUrl : null, mimeType };
   }
-  const blob = await (canvas as OffscreenCanvas).convertToBlob({ type: mimeType, quality });
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    blob = await (canvas as OffscreenCanvas).convertToBlob({ type: mimeType, quality });
   if (blob.type && blob.type !== mimeType) return null;
   const dataUrlLength = `data:${mimeType};base64,`.length + 4 * Math.ceil(blob.size / 3);
   if (dataUrlLength > budgetChars) return { dataUrl: null, mimeType };

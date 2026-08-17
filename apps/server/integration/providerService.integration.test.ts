@@ -39,6 +39,7 @@ import {
   codexTurnToolFixture,
   codexTurnTextFixture,
 } from "./fixtures/providerRuntime.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const codexInstanceId = ProviderInstanceId.make("codex");
 
@@ -58,7 +59,7 @@ interface IntegrationFixture {
 
 interface RecordedAnalyticsEvent {
   readonly event: string;
-  readonly properties: Readonly<Record<string, unknown>> | undefined;
+  readonly properties: Readonly<Record<string, SchemaJson>> | undefined;
 }
 
 /**

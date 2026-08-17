@@ -1,5 +1,6 @@
 import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
 import { isWindowsPlatform } from "../lib/utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
@@ -76,8 +77,9 @@ export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string
     return `Update ${state.availableVersion ?? "available"} ready to download`;
   }
   if (state.status === "downloading") {
-    const progress =
-      typeof state.downloadPercent === "number" ? ` (${Math.floor(state.downloadPercent)}%)` : "";
+    const progress = RuntimePredicate.isNumber(state.downloadPercent)
+      ? ` (${Math.floor(state.downloadPercent)}%)`
+      : "";
     return `Downloading update${progress}`;
   }
   if (state.status === "downloaded") {
@@ -108,7 +110,7 @@ export function getDesktopUpdateInstallConfirmationMessage(
 
 export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): string | null {
   if (!result.accepted || result.completed) return null;
-  if (typeof result.state.message !== "string") return null;
+  if (!RuntimePredicate.isString(result.state.message)) return null;
   const message = result.state.message.trim();
   return message.length > 0 ? message : null;
 }

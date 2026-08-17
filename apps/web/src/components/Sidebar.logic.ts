@@ -73,7 +73,8 @@ export async function archiveSelectedThreadEntries<
       archivedThreadKeys.push(entry.threadKey);
     }
     if (result._tag === "Success") continue;
-    const failure = result as Extract<TResult, { readonly _tag: "Failure" }>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      failure = result as Extract<TResult, { readonly _tag: "Failure" }>;
     if (didArchive) {
       followupFailures.push(failure);
       continue;
