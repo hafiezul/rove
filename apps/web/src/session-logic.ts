@@ -173,6 +173,12 @@ export type TimelineEntry =
     };
 
 export function workLogEntryIsToolLike(entry: WorkLogEntry): boolean {
+  // Reasoning is a narrative progress phase, not a tool call. Keeping this
+  // distinct prevents disclosure labels such as "+3 tool calls" from hiding
+  // the thought that separates two runs of work.
+  if (entry.sourceActivityKind === "turn.reasoning") {
+    return false;
+  }
   if (entry.tone === "tool" || entry.tone === "thinking" || entry.tone === "error") {
     return true;
   }

@@ -22,6 +22,7 @@ import {
   workEntryIndicatesToolFailure,
   workEntryIndicatesToolNeutralStatus,
   workEntryIndicatesToolSuccess,
+  workLogEntryIsToolLike,
 } from "./session-logic";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
@@ -810,6 +811,7 @@ describe("deriveWorkLogEntries", () => {
       tone: "thinking",
       detail: "Done — reviewed and green.",
     });
+    expect(workLogEntryIsToolLike(entries[0]!)).toBe(false);
   });
 
   it("uses payload summary as label for task entries when available", () => {

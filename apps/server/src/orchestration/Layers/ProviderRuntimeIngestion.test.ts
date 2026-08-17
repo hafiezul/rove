@@ -1033,7 +1033,7 @@ describe("ProviderRuntimeIngestion", () => {
     expect(message?.streaming).toBe(false);
   });
 
-  it("accumulates reasoning_text deltas into a single upserted turn.reasoning activity", async () => {
+  it("coalesces consecutive reasoning_text deltas into one reasoning phase", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";
 
@@ -1079,11 +1079,118 @@ describe("ProviderRuntimeIngestion", () => {
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
     );
     expect(reasoningActivities).toHaveLength(1);
-    expect(reasoningActivities[0]?.id).toBe("reasoning:thread-1:turn-reasoning");
+    expect(reasoningActivities[0]?.id).toBe("reasoning:thread-1:turn-reasoning:0");
     expect(reasoningActivities[0]?.turnId).toBe("turn-reasoning");
     const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       firstPayload = reasoningActivities[0]?.payload as { detail?: unknown } | undefined;
     expect(firstPayload?.detail).toBe("First I check the adapter. Then I write the red test.");
+  });
+
+  it("splits reasoning into chronological phases when visible tools start", async () => {
+    const harness = await createHarness();
+    const threadId = asThreadId("thread-1");
+    const turnId = asTurnId("turn-reasoning-phases");
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-phase-1"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:01.000Z",
+      threadId,
+      turnId,
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "I will inspect the adapter first.",
+      },
+    });
+    harness.emit({
+      type: "item.started",
+      eventId: asEventId("evt-tool-phase-1-started"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:02.000Z",
+      threadId,
+      turnId,
+      itemId: asItemId("tool-phase-1"),
+      payload: {
+        itemType: "command_execution",
+        status: "inProgress",
+        title: "bash",
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-tool-phase-1-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:03.000Z",
+      threadId,
+      turnId,
+      itemId: asItemId("tool-phase-1"),
+      payload: {
+        itemType: "command_execution",
+        status: "completed",
+        title: "bash",
+      },
+    });
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-phase-2"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:04.000Z",
+      threadId,
+      turnId,
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "The result means I should verify the tests.",
+      },
+    });
+    harness.emit({
+      type: "item.started",
+      eventId: asEventId("evt-tool-phase-2-started"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:05.000Z",
+      threadId,
+      turnId,
+      itemId: asItemId("tool-phase-2"),
+      payload: {
+        itemType: "command_execution",
+        status: "inProgress",
+        title: "bash",
+      },
+    });
+    harness.emit({
+      type: "turn.completed",
+      eventId: asEventId("evt-reasoning-phases-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:06.000Z",
+      threadId,
+      turnId,
+      payload: { state: "completed" },
+    });
+
+    await harness.drain();
+    const snapshot = await harness.readModel();
+    const thread = snapshot.threads.find((entry) => entry.id === threadId);
+    const phases = thread?.activities.filter(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+    );
+
+    expect(phases).toMatchObject([
+      {
+        id: "reasoning:thread-1:turn-reasoning-phases:0",
+        createdAt: "2026-01-01T00:00:01.000Z",
+        summary: "Reasoned",
+        payload: { detail: "I will inspect the adapter first.", streaming: false },
+      },
+      {
+        id: "reasoning:thread-1:turn-reasoning-phases:1",
+        createdAt: "2026-01-01T00:00:04.000Z",
+        summary: "Reasoned",
+        payload: {
+          detail: "The result means I should verify the tests.",
+          streaming: false,
+        },
+      },
+    ]);
   });
 
   it("finalizes the turn.reasoning activity when the turn settles", async () => {

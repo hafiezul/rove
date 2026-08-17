@@ -1350,17 +1350,22 @@ const WorkGroupSection = memo(function WorkGroupSection({
     [groupedEntries],
   );
   const onlyToolEntries = nonEmptyEntries.every((entry) => workLogEntryIsToolLike(entry));
+  const onlyReasoningEntries = nonEmptyEntries.every(
+    (entry) => entry.sourceActivityKind === "turn.reasoning",
+  );
   const groupLabel = onlyToolEntries
     ? nonEmptyEntries.length === 1
       ? "1 tool call"
       : `${nonEmptyEntries.length} tool calls`
-    : "Work Log";
+    : onlyReasoningEntries
+      ? "Reasoning"
+      : "Work Log";
 
   if (nonEmptyEntries.length === 0) return null;
 
   return (
     <section className="-mx-1 space-y-0.5 px-1 py-0.5" aria-label={groupLabel}>
-      {!onlyToolEntries && (
+      {!onlyToolEntries && !onlyReasoningEntries && (
         <p className="px-0.5 pb-0.5 font-medium text-secondary-label text-[11px]">{groupLabel}</p>
       )}
       <div className="space-y-px">
