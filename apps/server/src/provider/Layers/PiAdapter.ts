@@ -29,6 +29,7 @@ import {
   type ProviderSessionStartInput,
   type ProviderTurnStartResult,
   type ThreadId,
+  type ThreadTokenUsageSnapshot,
   type ToolLifecycleItemType,
 } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
@@ -99,10 +100,42 @@ const PROVIDER = ProviderDriverKind.make("pi");
  * the composer slug (`provider/model-id`) and resolves it against the user's
  * catalog; `setThinkingLevel` clamps to model capabilities inside the SDK.
  */
+export interface PiUsageLike {
+  readonly input?: number | undefined;
+  readonly output?: number | undefined;
+  readonly cacheRead?: number | undefined;
+  readonly cacheWrite?: number | undefined;
+}
+
+export interface PiSessionEntryLike {
+  readonly id: string;
+  readonly parentId?: string | null | undefined;
+  readonly type?: string | undefined;
+  readonly message?:
+    | {
+        readonly role?: string | undefined;
+        readonly usage?: PiUsageLike | undefined;
+      }
+    | undefined;
+  readonly usage?: PiUsageLike | undefined;
+}
+
+export interface PiSessionStatsLike {
+  readonly assistantMessages?: number | undefined;
+  readonly contextUsage?:
+    | {
+        readonly tokens: number | null;
+        readonly contextWindow: number;
+        readonly percent: number | null;
+      }
+    | undefined;
+}
+
 export interface PiSessionLike {
   readonly sessionId: string;
   readonly isStreaming: boolean;
   readonly messages: ReadonlyArray<unknown>;
+  readonly autoCompactionEnabled?: boolean | undefined;
   prompt(text: string, options?: { streamingBehavior?: "steer" | "followUp" }): Promise<void>;
   steer(text: string): Promise<void>;
   followUp(text: string): Promise<void>;
@@ -111,13 +144,11 @@ export interface PiSessionLike {
   setModel?(model: string): Promise<void>;
   setThinkingLevel?(level: string): void;
   subscribe(listener: (event: PiSessionEventLike) => void): () => void;
-  getEntries?(): ReadonlyArray<{
-    id: string;
-    parentId?: string | undefined;
-    message?: { role?: string } | undefined;
-  }>;
+  getEntries?(): ReadonlyArray<PiSessionEntryLike>;
+  getBranch?(): ReadonlyArray<PiSessionEntryLike>;
+  getSessionStats?(): PiSessionStatsLike | undefined;
   getLeafId?(): string | undefined;
-  fork?(entryId: string): unknown;
+  fork?(entryId: string): Promise<void>;
 }
 
 /** Pi SDK `AgentSessionEvent` — typed loosely here so the fake can drive it. */
@@ -146,10 +177,66 @@ interface PiSessionContext {
   readonly threadId: ThreadId;
   readonly session: PiSessionLike;
   readonly cwd: string;
+  readonly resumed: boolean;
+  currentModelSlug: string | undefined;
   activeTurnId: TurnId | undefined;
   /** Deferred error from a failed assistant message, held until we know whether Pi will auto-retry. */
   pendingTurnError: string | undefined;
   unsubscribe: () => void;
+}
+
+type PiTokenUsagePublishReason = "startup" | "settled" | "model-switch" | "rollback" | "compaction";
+
+function finiteNonNegativeInteger(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : undefined;
+}
+
+function finitePositiveInteger(value: number | undefined): number | undefined {
+  const integer = finiteNonNegativeInteger(value);
+  return integer !== undefined && integer > 0 ? integer : undefined;
+}
+
+function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>): {
+  readonly hasAssistantMessage: boolean;
+  readonly totalProcessedTokens: number | undefined;
+} {
+  let hasAssistantMessage = false;
+  let hasUsage = false;
+  let total = 0;
+
+  for (const entry of entries) {
+    const message = entry.message;
+    if (entry.type === "message" && message?.role === "assistant") {
+      hasAssistantMessage = true;
+    }
+
+    const usage =
+      entry.type === "compaction" || entry.type === "branch_summary"
+        ? entry.usage
+        : entry.type === "message" &&
+            (message?.role === "assistant" || message?.role === "toolResult")
+          ? message.usage
+          : undefined;
+    if (!usage) {
+      continue;
+    }
+
+    const components = [usage.input, usage.output, usage.cacheRead, usage.cacheWrite];
+    for (const component of components) {
+      const tokens = finiteNonNegativeInteger(component);
+      if (tokens !== undefined) {
+        total += tokens;
+        hasUsage = true;
+      }
+    }
+  }
+
+  return {
+    hasAssistantMessage,
+    totalProcessedTokens: hasUsage && total > 0 ? total : undefined,
+  };
 }
 
 export interface PiAdapterShape extends ProviderAdapterShape<ProviderAdapterRequestError> {}
@@ -204,6 +291,119 @@ export function makePiAdapter(
 
     const offerRuntimeEvent = (event: ProviderRuntimeEvent) =>
       PubSub.publish(runtimeEventPubSub, event).pipe(Effect.asVoid);
+
+    const emitThreadTokenUsage = Effect.fn("emitPiThreadTokenUsage")(function* (
+      ctx: PiSessionContext,
+      usage: ThreadTokenUsageSnapshot,
+      turnId: TurnId | null = ctx.activeTurnId ?? null,
+    ) {
+      const stamp = yield* makeEventStamp();
+      yield* offerRuntimeEvent({
+        ...stamp,
+        provider: PROVIDER,
+        ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+        threadId: ctx.threadId,
+        ...(turnId !== null ? { turnId } : {}),
+        type: "thread.token-usage.updated",
+        payload: { usage },
+      });
+    });
+
+    const publishPiTokenUsageImpl = Effect.fn("publishPiTokenUsage")(function* (
+      ctx: PiSessionContext,
+      reason: PiTokenUsagePublishReason,
+    ) {
+      // Revert projection removes rows belonging to discarded turns. The
+      // post-fork snapshot must remain thread-scoped so it survives that pass.
+      const usageTurnId = reason === "rollback" ? null : (ctx.activeTurnId ?? null);
+      const stats = yield* Effect.try(() => ctx.session.getSessionStats?.()).pipe(
+        Effect.orElseSucceed(() => undefined),
+      );
+      if (!stats) {
+        if (reason !== "startup" || ctx.resumed) {
+          yield* emitThreadTokenUsage(ctx, { contextUsageState: "unavailable" }, usageTurnId);
+        }
+        return;
+      }
+
+      // Current context remains useful even if the optional branch walk is
+      // unavailable; omit the branch-scoped processed total in that case.
+      const branchEntries = yield* Effect.try(() => ctx.session.getBranch?.()).pipe(
+        Effect.orElseSucceed(() => undefined),
+      );
+      const branchUsage = branchEntries ? activeBranchUsage(branchEntries) : undefined;
+      const hasMeaningfulUsage =
+        branchUsage?.hasAssistantMessage ?? (stats.assistantMessages ?? 0) > 0;
+      const shouldClearPreviousMeter = reason !== "startup" || ctx.resumed;
+      if (!hasMeaningfulUsage && reason !== "settled") {
+        if (shouldClearPreviousMeter) {
+          yield* emitThreadTokenUsage(ctx, { contextUsageState: "unavailable" }, usageTurnId);
+        }
+        return;
+      }
+
+      const contextUsage = stats.contextUsage;
+      const maxTokens = finitePositiveInteger(contextUsage?.contextWindow);
+      if (!contextUsage || maxTokens === undefined) {
+        if (shouldClearPreviousMeter) {
+          yield* emitThreadTokenUsage(ctx, { contextUsageState: "unavailable" }, usageTurnId);
+        }
+        return;
+      }
+
+      const totalProcessedTokens = branchUsage?.totalProcessedTokens;
+      const totalProcessed =
+        totalProcessedTokens !== undefined
+          ? {
+              totalProcessedTokens,
+              totalProcessedTokensScope: "activeBranch" as const,
+            }
+          : {};
+      const autoCompaction =
+        typeof ctx.session.autoCompactionEnabled === "boolean"
+          ? { compactsAutomatically: ctx.session.autoCompactionEnabled }
+          : {};
+
+      if (contextUsage.tokens === null) {
+        yield* emitThreadTokenUsage(
+          ctx,
+          {
+            contextUsageState: "unknown",
+            contextUsageUnknownReason: "compacted",
+            maxTokens,
+            ...totalProcessed,
+            ...autoCompaction,
+          },
+          usageTurnId,
+        );
+        return;
+      }
+
+      const usedTokens = finiteNonNegativeInteger(contextUsage.tokens);
+      if (usedTokens === undefined) {
+        if (shouldClearPreviousMeter) {
+          yield* emitThreadTokenUsage(ctx, { contextUsageState: "unavailable" }, usageTurnId);
+        }
+        return;
+      }
+
+      yield* emitThreadTokenUsage(
+        ctx,
+        {
+          usedTokens,
+          maxTokens,
+          ...totalProcessed,
+          ...autoCompaction,
+        },
+        usageTurnId,
+      );
+    });
+
+    // Context telemetry is advisory. A failure to stamp or enqueue it must
+    // never turn a successful model switch, rollback, or completed turn into
+    // an adapter failure after Pi has already changed its session state.
+    const publishPiTokenUsage = (ctx: PiSessionContext, reason: PiTokenUsagePublishReason) =>
+      publishPiTokenUsageImpl(ctx, reason).pipe(Effect.orElseSucceed(() => undefined));
 
     const providerSessionFor = (
       ctx: PiSessionContext,
@@ -382,9 +582,16 @@ export function makePiAdapter(
             }
             return;
           }
+          case "compaction_end": {
+            if (event.aborted !== true) {
+              yield* publishPiTokenUsage(ctx, "compaction");
+            }
+            return;
+          }
           case "agent_settled": {
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
+              yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
               ctx.pendingTurnError = undefined;
               yield* offerRuntimeEvent({
@@ -397,7 +604,7 @@ export function makePiAdapter(
             return;
           }
           default:
-            // Deferred Pi events (compaction_*, auto_retry_*, queue_update,
+            // Deferred Pi events (compaction_start, auto_retry_*, queue_update,
             // extension_error, …) are intentionally dropped for v1. See the
             // carry-forward list in the provider design notes.
             return;
@@ -420,13 +627,14 @@ export function makePiAdapter(
         // A thread-scoped model selection (the composer's pick at thread
         // creation) wins over the instance-level settings defaults.
         const modelSelection = ownModelSelection(input, boundInstanceId);
+        const initialModelSlug =
+          selectedModelSlug(modelSelection) ??
+          (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
         const session = yield* Effect.tryPromise({
           try: () =>
             createSession({
               cwd,
-              model:
-                selectedModelSlug(modelSelection) ??
-                (piSettings.model.trim().length > 0 ? piSettings.model : undefined),
+              model: initialModelSlug,
               thinkingLevel:
                 getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
                 piSettings.thinkingLevel ??
@@ -446,6 +654,8 @@ export function makePiAdapter(
           threadId: input.threadId,
           session,
           cwd,
+          resumed: resumeCursor?.sessionId !== undefined,
+          currentModelSlug: initialModelSlug,
           activeTurnId: undefined,
           pendingTurnError: undefined,
           unsubscribe: () => {},
@@ -472,6 +682,7 @@ export function makePiAdapter(
           type: "session.state.changed",
           payload: { state: "ready", reason: "Pi session ready" },
         });
+        yield* publishPiTokenUsage(ctx, "startup");
 
         return yield* providerSessionFor(ctx, "ready");
       });
@@ -508,6 +719,7 @@ export function makePiAdapter(
         // Pi sessions support in-session model switches, so a changed picker
         // value takes effect on the very next turn of the same thread.
         const modelSelection = ownModelSelection(input, boundInstanceId);
+        let modelChanged = false;
         if (modelSelection !== undefined) {
           const modelSlug = selectedModelSlug(modelSelection);
           const thinkingLevel = getModelSelectionStringOptionValue(
@@ -517,7 +729,9 @@ export function makePiAdapter(
           yield* Effect.tryPromise({
             try: async () => {
               if (ctx.session.setModel !== undefined && modelSlug !== undefined) {
+                modelChanged = modelSlug !== ctx.currentModelSlug;
                 await ctx.session.setModel(modelSlug);
+                ctx.currentModelSlug = modelSlug;
               }
               if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
                 ctx.session.setThinkingLevel(thinkingLevel);
@@ -531,6 +745,9 @@ export function makePiAdapter(
                 cause,
               }),
           });
+        }
+        if (modelChanged) {
+          yield* publishPiTokenUsage(ctx, "model-switch");
         }
 
         if (ctx.session.isStreaming) {
@@ -657,8 +874,9 @@ export function makePiAdapter(
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "rollbackThread");
         const session = ctx.session;
+        const fork = session.fork;
         if (
-          session.fork === undefined ||
+          fork === undefined ||
           session.getEntries === undefined ||
           session.getLeafId === undefined
         ) {
@@ -674,7 +892,7 @@ export function makePiAdapter(
         // the fork target is the parent of that turn's user entry.
         const entries = session.getEntries();
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
-        const userEntries: Array<{ id: string; parentId: string | undefined }> = [];
+        const userEntries: Array<{ id: string; parentId: string | null | undefined }> = [];
         {
           let cursor = session.getLeafId();
           while (cursor !== undefined) {
@@ -683,14 +901,14 @@ export function makePiAdapter(
             if (entry.message?.role === "user") {
               userEntries.unshift({ id: entry.id, parentId: entry.parentId });
             }
-            cursor = entry.parentId;
+            cursor = entry.parentId ?? undefined;
           }
         }
 
         const turnIndex = userEntries.length - numTurns;
         const target = turnIndex >= 0 ? userEntries[turnIndex] : undefined;
         const forkTarget = target?.parentId;
-        if (target === undefined || forkTarget === undefined) {
+        if (target === undefined || typeof forkTarget !== "string") {
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "rollbackThread",
@@ -698,7 +916,17 @@ export function makePiAdapter(
           });
         }
 
-        session.fork(forkTarget);
+        yield* Effect.tryPromise({
+          try: () => fork.call(session, forkTarget),
+          catch: (cause) =>
+            new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "rollbackThread",
+              detail: `Failed to fork Pi session ${session.sessionId}.`,
+              cause,
+            }),
+        });
+        yield* publishPiTokenUsage(ctx, "rollback");
         const turn: ProviderThreadTurnSnapshot = {
           id: ctx.activeTurnId ?? TurnId.make("pi-history"),
           items: [...session.messages],

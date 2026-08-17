@@ -14,7 +14,13 @@ import {
   type ProviderRuntimeEvent,
 } from "@t3tools/contracts";
 
-import { makePiAdapter, type PiSessionEventLike, type PiSessionLike } from "./PiAdapter.ts";
+import {
+  makePiAdapter,
+  type PiSessionEntryLike,
+  type PiSessionEventLike,
+  type PiSessionLike,
+  type PiSessionStatsLike,
+} from "./PiAdapter.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 const testLayer = Layer.mergeAll(NodeServices.layer);
@@ -26,6 +32,15 @@ class FakePiSession implements PiSessionLike {
     { role: "user", content: "earlier question" },
     { role: "assistant", content: "earlier answer" },
   ];
+  entries: Array<PiSessionEntryLike> = [
+    { id: "entry-1", parentId: undefined, type: "message", message: { role: "user" } },
+    { id: "entry-2", parentId: "entry-1", type: "message", message: { role: "assistant" } },
+    { id: "entry-3", parentId: "entry-2", type: "message", message: { role: "user" } },
+    { id: "entry-4", parentId: "entry-3", type: "message", message: { role: "assistant" } },
+  ];
+  leafId = "entry-4";
+  sessionStats: PiSessionStatsLike | undefined;
+  autoCompactionEnabled = true;
   readonly promptCalls: Array<{ text: string }> = [];
   readonly steerCalls: Array<{ text: string }> = [];
   readonly forkCalls: Array<{ entryId: string }> = [];
@@ -37,19 +52,30 @@ class FakePiSession implements PiSessionLike {
   private listeners = new Set<(event: PiSessionEventLike) => void>();
 
   getEntries() {
-    // branch: user(1) → assistant(2) → user(3) → assistant(4); leaf is 4
-    return [
-      { id: "entry-1", parentId: undefined, message: { role: "user" } },
-      { id: "entry-2", parentId: "entry-1", message: { role: "assistant" } },
-      { id: "entry-3", parentId: "entry-2", message: { role: "user" } },
-      { id: "entry-4", parentId: "entry-3", message: { role: "assistant" } },
-    ];
+    return this.entries;
   }
   getLeafId() {
-    return "entry-4";
+    return this.leafId;
   }
-  fork(entryId: string): void {
+  getBranch() {
+    const entriesById = new Map(this.entries.map((entry) => [entry.id, entry]));
+    const branch = [] as typeof this.entries;
+    let entry = entriesById.get(this.leafId);
+    while (entry !== undefined) {
+      branch.unshift(entry);
+      entry =
+        entry.parentId === undefined || entry.parentId === null
+          ? undefined
+          : entriesById.get(entry.parentId);
+    }
+    return branch;
+  }
+  getSessionStats() {
+    return this.sessionStats;
+  }
+  async fork(entryId: string): Promise<void> {
     this.forkCalls.push({ entryId });
+    this.leafId = entryId;
     this.forkedMessages = this.messages;
   }
 
@@ -315,6 +341,254 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(deltas[0]?.turnId, turnId);
       assert.strictEqual(events.find((e) => e.type === "turn.started")?.turnId, turnId);
       assert.strictEqual(events.find((e) => e.type === "turn.completed")?.turnId, turnId);
+    }),
+  );
+
+  it.effect("emits Pi context and current-branch processed usage after an assistant settles", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.entries = [
+        { id: "entry-1", parentId: undefined, type: "message", message: { role: "user" } },
+        {
+          id: "entry-2",
+          parentId: "entry-1",
+          type: "message",
+          message: {
+            role: "assistant",
+            usage: { input: 100, output: 20, cacheRead: 30, cacheWrite: 40 },
+          },
+        },
+        {
+          id: "entry-3",
+          parentId: "entry-2",
+          type: "message",
+          message: { role: "toolResult", usage: { input: 3, output: 2, cacheRead: 1 } },
+        },
+        {
+          id: "entry-4",
+          parentId: "entry-3",
+          type: "compaction",
+          usage: { input: 7, output: 5 },
+        },
+      ];
+      fake.leafId = "entry-4";
+      fake.sessionStats = {
+        assistantMessages: 1,
+        contextUsage: { tokens: 1_000, contextWindow: 400_000, percent: 0.25 },
+      };
+
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "continue" });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.strictEqual(usageEvent.turnId, turnId);
+      assert.deepStrictEqual(usageEvent.payload.usage, {
+        usedTokens: 1_000,
+        maxTokens: 400_000,
+        totalProcessedTokens: 208,
+        totalProcessedTokensScope: "activeBranch",
+        compactsAutomatically: true,
+      });
+    }),
+  );
+
+  it.effect("publishes available context usage as soon as a persisted Pi session resumes", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: 24_000, contextWindow: 400_000, percent: 6 },
+      };
+
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: { sessionId: "persisted-pi-session" },
+      });
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.deepStrictEqual(usageEvent.payload.usage, {
+        usedTokens: 24_000,
+        maxTokens: 400_000,
+        compactsAutomatically: true,
+      });
+    }),
+  );
+
+  it.effect("clears stale Pi context usage when a resumed session has no usable metadata", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.sessionStats = undefined;
+
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: { sessionId: "persisted-pi-session" },
+      });
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.deepStrictEqual(usageEvent.payload.usage, { contextUsageState: "unavailable" });
+    }),
+  );
+
+  it.effect("replaces context usage with an honest unknown state after Pi compacts", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: 24_000, contextWindow: 400_000, percent: 6 },
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: null, contextWindow: 400_000, percent: null },
+      };
+      fake.emit({ type: "compaction_end", aborted: false });
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.deepStrictEqual(usageEvent.payload.usage, {
+        contextUsageState: "unknown",
+        contextUsageUnknownReason: "compacted",
+        maxTokens: 400_000,
+        compactsAutomatically: true,
+      });
+    }),
+  );
+
+  it.effect("updates the Pi context window immediately after a model switch", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: 24_000, contextWindow: 400_000, percent: 6 },
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: 24_000, contextWindow: 200_000, percent: 12 },
+      };
+      const { turnId } = yield* adapter.sendTurn({
+        threadId,
+        input: "switch models",
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("pi"),
+          model: "anthropic/claude-sonnet-5",
+        },
+      });
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.strictEqual(usageEvent.turnId, turnId);
+      assert.deepStrictEqual(usageEvent.payload.usage, {
+        usedTokens: 24_000,
+        maxTokens: 200_000,
+        compactsAutomatically: true,
+      });
+    }),
+  );
+
+  it.effect("recalculates Pi processed usage from the active branch after a fork", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.entries = [
+        { id: "entry-1", parentId: undefined, type: "message", message: { role: "user" } },
+        {
+          id: "entry-2",
+          parentId: "entry-1",
+          type: "message",
+          message: { role: "assistant", usage: { input: 100, output: 20 } },
+        },
+        { id: "entry-3", parentId: "entry-2", type: "message", message: { role: "user" } },
+        {
+          id: "entry-4",
+          parentId: "entry-3",
+          type: "message",
+          message: { role: "assistant", usage: { input: 300, output: 40 } },
+        },
+      ];
+      fake.leafId = "entry-4";
+      fake.sessionStats = {
+        assistantMessages: 2,
+        contextUsage: { tokens: 120, contextWindow: 400_000, percent: 0.03 },
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      yield* adapter.sendTurn({ threadId, input: "undo the active turn" });
+      yield* adapter.rollbackThread(threadId, 1);
+
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "thread.token-usage.updated"),
+      );
+      const usageEvent = events.find((event) => event.type === "thread.token-usage.updated");
+      assert.strictEqual(usageEvent?.type, "thread.token-usage.updated");
+      if (usageEvent?.type !== "thread.token-usage.updated") {
+        return;
+      }
+      assert.deepStrictEqual(fake.forkCalls, [{ entryId: "entry-2" }]);
+      assert.isUndefined(usageEvent.turnId);
+      assert.deepStrictEqual(usageEvent.payload.usage, {
+        usedTokens: 120,
+        maxTokens: 400_000,
+        totalProcessedTokens: 120,
+        totalProcessedTokensScope: "activeBranch",
+        compactsAutomatically: true,
+      });
     }),
   );
 

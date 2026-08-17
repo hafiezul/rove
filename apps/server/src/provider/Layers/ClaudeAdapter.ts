@@ -43,7 +43,7 @@ import {
   type ProviderRuntimeTurnStatus,
   type ProviderSendTurnInput,
   type ProviderSession,
-  type ThreadTokenUsageSnapshot,
+  type ThreadTokenUsageKnownSnapshot,
   type TurnTokenUsage,
   type ProviderUserInputAnswers,
   type RuntimeContentStreamKind,
@@ -353,7 +353,7 @@ interface ClaudeSessionContext {
   readonly liveTaskIds: Set<string>;
   turnState: ClaudeTurnState | undefined;
   lastKnownContextWindow: number | undefined;
-  lastKnownTokenUsage: ThreadTokenUsageSnapshot | undefined;
+  lastKnownTokenUsage: ThreadTokenUsageKnownSnapshot | undefined;
   lastKnownTotalProcessedTokens: number | undefined;
   lastAssistantUuid: string | undefined;
   lastThreadStartedId: string | undefined;
@@ -655,7 +655,7 @@ function makeClaudeTokenUsageSnapshot(input: {
   readonly lastUsedTokens?: number;
   readonly compactsAutomatically?: boolean;
   readonly autoCompactThreshold?: number;
-}): ThreadTokenUsageSnapshot | undefined {
+}): ThreadTokenUsageKnownSnapshot | undefined {
   const activeTokens = finiteNonNegativeInteger(input.activeTokens);
   if (activeTokens === undefined || activeTokens <= 0) {
     return undefined;
@@ -692,7 +692,7 @@ function normalizeClaudeActiveTokenUsage(
   value: unknown,
   contextWindow?: number,
   totalProcessedTokens?: number,
-): ThreadTokenUsageSnapshot | undefined {
+): ThreadTokenUsageKnownSnapshot | undefined {
   if (!value || typeof value !== "object") {
     return undefined;
   }
@@ -798,7 +798,7 @@ function compactBoundaryTokenUsageSnapshot(
   message: Record<string, unknown>,
   contextWindow?: number,
   totalProcessedTokens?: number,
-): ThreadTokenUsageSnapshot | undefined {
+): ThreadTokenUsageKnownSnapshot | undefined {
   const metadata = message.compact_metadata;
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return undefined;
@@ -827,7 +827,7 @@ function compactBoundaryTokenUsageSnapshot(
 function normalizeClaudeTaskProgressTokenUsage(
   value: unknown,
   context: ClaudeSessionContext,
-): ThreadTokenUsageSnapshot | undefined {
+): ThreadTokenUsageKnownSnapshot | undefined {
   const totalTokens = claudeTotalProcessedTokens(value);
   if (totalTokens === undefined || totalTokens <= 0) {
     return undefined;
@@ -2357,7 +2357,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
 
   const emitThreadTokenUsage = Effect.fn("emitThreadTokenUsage")(function* (
     context: ClaudeSessionContext,
-    usage: ThreadTokenUsageSnapshot | undefined,
+    usage: ThreadTokenUsageKnownSnapshot | undefined,
     options?: {
       readonly rawMethod?: string;
       readonly rawPayload?: unknown;
@@ -2524,7 +2524,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       accumulatedTotalProcessedTokens ?? context.lastKnownTotalProcessedTokens,
     );
     const lastGoodUsage = context.lastKnownTokenUsage;
-    const usageSnapshot: ThreadTokenUsageSnapshot | undefined =
+    const usageSnapshot: ThreadTokenUsageKnownSnapshot | undefined =
       latestAssistantSnapshot ??
       (context.turnState?.compactedSinceLatestAssistantUsage
         ? undefined
