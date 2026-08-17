@@ -771,6 +771,42 @@ describe("deriveWorkLogEntries", () => {
     expect(entries.map((entry) => entry.id)).toEqual(["task-progress", "task-complete"]);
   });
 
+  it("renders turn.reasoning activities as thinking entries with expandable detail", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "reasoning-streaming",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "turn.reasoning",
+        summary: "Reasoning",
+        tone: "info",
+        payload: { detail: "First I check the adapter.", streaming: true },
+      }),
+      makeActivity({
+        id: "reasoning-settled",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "turn.reasoning",
+        summary: "Reasoned",
+        tone: "info",
+        payload: { detail: "Done — reviewed and green.", streaming: false },
+      }),
+    ];
+
+    const entries = deriveWorkLogEntries(activities);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      id: "reasoning-streaming",
+      label: "Reasoning",
+      tone: "thinking",
+      detail: "First I check the adapter.",
+    });
+    expect(entries[1]).toMatchObject({
+      id: "reasoning-settled",
+      label: "Reasoned",
+      tone: "thinking",
+      detail: "Done — reviewed and green.",
+    });
+  });
+
   it("uses payload summary as label for task entries when available", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({

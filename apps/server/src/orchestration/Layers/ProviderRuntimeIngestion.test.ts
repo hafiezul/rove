@@ -1025,6 +1025,195 @@ describe("ProviderRuntimeIngestion", () => {
     expect(message?.streaming).toBe(false);
   });
 
+  it("accumulates reasoning_text deltas into a single upserted turn.reasoning activity", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-delta-1"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning"),
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "First I check the adapter. ",
+      },
+    });
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-delta-2"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning"),
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "Then I write the red test.",
+      },
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) =>
+          activity.kind === "turn.reasoning" &&
+          typeof activity.payload === "object" &&
+          activity.payload !== null &&
+          String((activity.payload as { detail?: unknown }).detail ?? "").includes(
+            "Then I write the red test.",
+          ),
+      ),
+    );
+
+    const reasoningActivities = thread.activities.filter(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+    );
+    expect(reasoningActivities).toHaveLength(1);
+    expect(reasoningActivities[0]?.id).toBe("reasoning:thread-1:turn-reasoning");
+    expect(reasoningActivities[0]?.turnId).toBe("turn-reasoning");
+    const firstPayload = reasoningActivities[0]?.payload as { detail?: unknown } | undefined;
+    expect(firstPayload?.detail).toBe("First I check the adapter. Then I write the red test.");
+  });
+
+  it("finalizes the turn.reasoning activity when the turn settles", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-final-delta"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning-final"),
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "Done — reviewed and green.",
+      },
+    });
+
+    await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+      ),
+    );
+
+    harness.emit({
+      type: "turn.completed",
+      eventId: asEventId("evt-reasoning-turn-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning-final"),
+      payload: {
+        state: "completed",
+      },
+    });
+
+    const thread = await waitForThread(
+      harness.readModel,
+      (entry) =>
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) =>
+            activity.kind === "turn.reasoning" &&
+            typeof activity.payload === "object" &&
+            activity.payload !== null &&
+            (activity.payload as { streaming?: unknown }).streaming === false,
+        ) && entry.session?.status === "ready",
+    );
+
+    const reasoningActivities = thread.activities.filter(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+    );
+    expect(reasoningActivities).toHaveLength(1);
+    expect(reasoningActivities[0]?.summary).toBe("Reasoned");
+    const payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
+    expect(payload.streaming).toBe(false);
+    expect(payload.detail).toBe("Done — reviewed and green.");
+  });
+
+  it("settles the turn.reasoning activity when the turn is aborted", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-abort-delta"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning-abort"),
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "Interrupted mid-thought.",
+      },
+    });
+
+    await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+      ),
+    );
+
+    harness.emit({
+      type: "turn.aborted",
+      eventId: asEventId("evt-reasoning-turn-aborted"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning-abort"),
+      payload: {
+        reason: "Interrupted by user",
+      },
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) =>
+          activity.kind === "turn.reasoning" &&
+          typeof activity.payload === "object" &&
+          activity.payload !== null &&
+          (activity.payload as { streaming?: unknown }).streaming === false,
+      ),
+    );
+
+    const reasoningActivities = thread.activities.filter(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+    );
+    expect(reasoningActivities).toHaveLength(1);
+    expect(reasoningActivities[0]?.summary).toBe("Reasoned");
+    const payload = reasoningActivities[0]?.payload as { detail?: unknown; streaming?: unknown };
+    expect(payload.streaming).toBe(false);
+    expect(payload.detail).toBe("Interrupted mid-thought.");
+  });
+
+  it("ignores reasoning_text deltas without a turn id", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-reasoning-orphan"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      payload: {
+        streamKind: "reasoning_text",
+        delta: "orphaned reasoning",
+      },
+    });
+    await harness.drain();
+
+    const snapshot = await harness.readModel();
+    const thread = snapshot.threads.find((entry) => entry.id === "thread-1");
+    expect(
+      thread?.activities.filter(
+        (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
+      ),
+    ).toHaveLength(0);
+  });
+
   it("uses assistant item completion detail when no assistant deltas were streamed", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";

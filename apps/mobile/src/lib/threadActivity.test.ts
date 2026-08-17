@@ -151,6 +151,46 @@ function makeThread(
 }
 
 describe("buildThreadFeed", () => {
+  it("renders turn.reasoning activities as thinking rows with expandable detail", () => {
+    const thread = makeThread({
+      id: ThreadId.make("thread-reasoning"),
+      projectId: ProjectId.make("project-1"),
+      title: "Reasoning thread",
+      latestTurn: {
+        turnId: TurnId.make("turn-1"),
+        state: "completed",
+        requestedAt: "2026-04-01T00:00:00.000Z",
+        startedAt: "2026-04-01T00:00:01.000Z",
+        completedAt: "2026-04-01T00:00:05.000Z",
+        assistantMessageId: null,
+      },
+      activities: [
+        makeActivity({
+          id: EventId.make("activity-reasoning"),
+          kind: "turn.reasoning",
+          summary: "Reasoned",
+          createdAt: "2026-04-01T00:00:02.000Z",
+          turnId: TurnId.make("turn-1"),
+          payload: { detail: "Done — reviewed and green.", streaming: false },
+        }),
+      ],
+    });
+
+    const feed = buildThreadFeed(thread);
+    const group = feed.find((entry) => entry.type === "activity-group");
+    expect(group).toBeDefined();
+    const reasoningRow =
+      group?.type === "activity-group"
+        ? group.activities.find((activity) => activity.id === "activity-reasoning")
+        : undefined;
+    expect(reasoningRow).toMatchObject({
+      summary: "Reasoned",
+      icon: "agent",
+      detail: "Done — reviewed and green.",
+    });
+    expect(reasoningRow?.canExpand).toBe(true);
+  });
+
   it("keeps historic work entries attributed to their turns", () => {
     const thread = makeThread({
       id: ThreadId.make("thread-1"),
