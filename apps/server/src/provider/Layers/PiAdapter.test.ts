@@ -337,6 +337,8 @@ it.layer(testLayer)("PiAdapter", (it) => {
           errorMessage: "OAuth auth derivation failed for openai-codex",
         },
       });
+      // Non-retryable errors (auth, context overflow) get willRetry: false.
+      fake.emit({ type: "agent_end", willRetry: false });
       fake.emit({ type: "agent_settled" });
 
       const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
@@ -346,6 +348,120 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.deepStrictEqual(completed[0]?.payload, {
         state: "failed",
         errorMessage: "OAuth auth derivation failed for openai-codex",
+      });
+    }),
+  );
+
+  it.effect("defers turn failure when Pi auto-retries a transient error", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "hello pi" });
+      fake.emit({ type: "turn_start" });
+      // Transient error — Pi will auto-retry.
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [],
+          stopReason: "error",
+          errorMessage: "502: Service temporarily unavailable",
+        },
+      });
+      fake.emit({ type: "agent_end", willRetry: true });
+      fake.emit({
+        type: "auto_retry_start",
+        attempt: 1,
+        maxAttempts: 3,
+        delayMs: 5000,
+        errorMessage: "502: Service temporarily unavailable",
+      });
+
+      // The turn must NOT be marked failed — Pi is retrying.
+      const eventsAfterRetryStart = yield* Ref.get(eventsRef);
+      assert.isFalse(
+        eventsAfterRetryStart.some((e) => e.type === "turn.completed"),
+        "turn.completed must not fire while Pi is auto-retrying",
+      );
+
+      // Retry succeeds — a fresh turn_start and clean completion.
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
+      const completed = events.filter((event) => event.type === "turn.completed");
+      assert.strictEqual(completed.length, 1);
+      assert.strictEqual(completed[0]?.turnId, turnId);
+      assert.deepStrictEqual(completed[0]?.payload, { state: "completed" });
+    }),
+  );
+
+  it.effect("emits turn failure only after retry budget is exhausted", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "hello pi" });
+      fake.emit({ type: "turn_start" });
+      // First attempt fails — Pi will retry.
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [],
+          stopReason: "error",
+          errorMessage: "502: Service temporarily unavailable",
+        },
+      });
+      fake.emit({ type: "agent_end", willRetry: true });
+      fake.emit({
+        type: "auto_retry_start",
+        attempt: 1,
+        maxAttempts: 1,
+        delayMs: 1000,
+        errorMessage: "502: Service temporarily unavailable",
+      });
+
+      // No failure yet — still retrying.
+      const eventsAfterFirstError = yield* Ref.get(eventsRef);
+      assert.isFalse(
+        eventsAfterFirstError.some((e) => e.type === "turn.completed"),
+        "turn.completed must not fire while Pi is auto-retrying",
+      );
+
+      // Retry also fails — budget exhausted.
+      fake.emit({ type: "turn_start" });
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [],
+          stopReason: "error",
+          errorMessage: "502: Service temporarily unavailable",
+        },
+      });
+      fake.emit({ type: "agent_end", willRetry: false });
+      fake.emit({
+        type: "auto_retry_end",
+        success: false,
+        attempt: 1,
+        finalError: "502: Service temporarily unavailable",
+      });
+
+      const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
+      const completed = events.filter((event) => event.type === "turn.completed");
+      assert.strictEqual(completed.length, 1);
+      assert.strictEqual(completed[0]?.turnId, turnId);
+      assert.deepStrictEqual(completed[0]?.payload, {
+        state: "failed",
+        errorMessage: "502: Service temporarily unavailable",
       });
     }),
   );
