@@ -21,6 +21,7 @@ import {
 } from "@t3tools/contracts";
 import * as Cache from "effect/Cache";
 import * as Cause from "effect/Cause";
+import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -96,6 +97,15 @@ const BUFFERED_PROPOSED_PLAN_BY_ID_CACHE_CAPACITY = 10_000;
 const BUFFERED_PROPOSED_PLAN_BY_ID_TTL = Duration.minutes(120);
 const TASK_DESCRIPTION_BY_TASK_CACHE_CAPACITY = 10_000;
 const TASK_DESCRIPTION_BY_TASK_TTL = Duration.minutes(120);
+const REASONING_TEXT_BY_TURN_CACHE_CAPACITY = 10_000;
+const REASONING_TEXT_BY_TURN_TTL = Duration.minutes(120);
+// Reasoning streams are per-token floods; the timeline activity re-dispatches
+// at this cadence at most, and always once more when the turn settles.
+const REASONING_ACTIVITY_FLUSH_INTERVAL_MS = 500;
+// Bound the rendered reasoning text: full stream can be tens of thousands of
+// chars on long turns; keep head (early plan) + tail (latest reasoning).
+const MAX_REASONING_ACTIVITY_HEAD_CHARS = 600;
+const MAX_REASONING_ACTIVITY_TAIL_CHARS = 4_000;
 const MAX_BUFFERED_ASSISTANT_CHARS = 24_000;
 const STRICT_PROVIDER_LIFECYCLE_GUARD = process.env.T3CODE_STRICT_PROVIDER_LIFECYCLE_GUARD !== "0";
 
@@ -207,6 +217,29 @@ function maxCheckpointTurnCount(
 
 function truncateDetail(value: string, limit = 180): string {
   return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
+}
+
+/**
+ * Present a bounded window of a turn's reasoning stream: the head carries the
+ * early plan, the tail stays live as reasoning progresses. Omitted middle is
+ * marked so the reader knows it was elided, and the cut starts on a line
+ * boundary so markdown blocks are not sliced in half.
+ */
+function formatReasoningStreamWindow(
+  text: string,
+  maxHeadChars = MAX_REASONING_ACTIVITY_HEAD_CHARS,
+  maxTailChars = MAX_REASONING_ACTIVITY_TAIL_CHARS,
+): string {
+  if (text.length <= maxHeadChars + maxTailChars) {
+    return text;
+  }
+  const head = text.slice(0, maxHeadChars);
+  let tail = text.slice(-maxTailChars);
+  const firstNewline = tail.indexOf("\n");
+  if (firstNewline >= 0 && firstNewline < tail.length - 1) {
+    tail = tail.slice(firstNewline + 1);
+  }
+  return `${head}\n…\n${tail}`;
 }
 
 function normalizeProposedPlanMarkdown(planMarkdown: string | undefined): string | undefined {
@@ -918,6 +951,39 @@ const make = Effect.gen(function* () {
   const rememberTaskDescription = (threadId: ThreadId, taskId: string, description: string) =>
     Cache.set(taskDescriptionByTaskKey, providerTaskKey(threadId, taskId), description);
 
+  interface ReasoningTurnBuffer {
+    text: string;
+    lastFlushedAt: number;
+    trailingFlushScheduled: boolean;
+  }
+
+  // The reasoning stream is turn-scoped latest-state, not history: one
+  // collapsible timeline row per turn, replaced in place as the stream grows.
+  const reasoningBufferByTurnKey = yield* Cache.make<string, ReasoningTurnBuffer>({
+    capacity: REASONING_TEXT_BY_TURN_CACHE_CAPACITY,
+    timeToLive: REASONING_TEXT_BY_TURN_TTL,
+    lookup: () => Effect.succeed({ text: "", lastFlushedAt: 0, trailingFlushScheduled: false }),
+  });
+
+  const appendReasoningDelta = (threadId: ThreadId, turnId: TurnId, delta: string) =>
+    Cache.get(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId)).pipe(
+      Effect.flatMap((buffer) =>
+        Cache.set(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId), {
+          ...buffer,
+          text: buffer.text + delta,
+        }),
+      ),
+    );
+
+  const takeReasoningBuffer = (threadId: ThreadId, turnId: TurnId) =>
+    Cache.getOption(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId)).pipe(
+      Effect.tap((buffer) =>
+        Option.isSome(buffer)
+          ? Cache.invalidate(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId))
+          : Effect.void,
+      ),
+    );
+
   // Entries are left in place after completion so replayed or duplicate
   // terminal events stay titled; TTL, capacity, and the session-exit sweep
   // bound the cache.
@@ -1394,6 +1460,108 @@ const make = Effect.gen(function* () {
           key.startsWith(prefix) ? Cache.invalidate(taskDescriptionByTaskKey, key) : Effect.void,
         { concurrency: 1 },
       ).pipe(Effect.asVoid);
+      const reasoningTurnKeys = Array.from(yield* Cache.keys(reasoningBufferByTurnKey));
+      yield* Effect.forEach(
+        reasoningTurnKeys,
+        (key) =>
+          key.startsWith(prefix) ? Cache.invalidate(reasoningBufferByTurnKey, key) : Effect.void,
+        { concurrency: 1 },
+      ).pipe(Effect.asVoid);
+    });
+
+  /**
+   * Upsert the turn's reasoning-stream activity. The stable activity id makes
+   * every dispatch replace the previous row, so a streaming turn renders one
+   * collapsible "Reasoning…" entry that finalizes to "Reasoned" at settle.
+   */
+  const dispatchReasoningActivity = (input: {
+    commandTag: string;
+    threadId: ThreadId;
+    turnId: TurnId;
+    text: string;
+    streaming: boolean;
+    createdAt: string;
+  }) =>
+    Effect.gen(function* () {
+      const detail = formatReasoningStreamWindow(input.text.trim());
+      if (detail.length === 0) {
+        return;
+      }
+      yield* orchestrationEngine.dispatch({
+        type: "thread.activity.append",
+        commandId: CommandId.make(
+          `provider:${input.commandTag}:${input.threadId}:${input.turnId}:${yield* crypto.randomUUIDv4}`,
+        ),
+        threadId: input.threadId,
+        activity: {
+          id: EventId.make(`reasoning:${input.threadId}:${input.turnId}`),
+          tone: "info",
+          kind: "turn.reasoning",
+          summary: input.streaming ? "Reasoning" : "Reasoned",
+          payload: { detail, streaming: input.streaming },
+          turnId: input.turnId,
+          createdAt: input.createdAt,
+        },
+        createdAt: input.createdAt,
+      });
+    });
+
+  /**
+   * Trailing edge for the reasoning-stream throttle: leading-only flushes
+   * would leave a burst shorter than the cadence (or the tail of a long
+   * stream) stale until the turn settles. One scheduled flush per quiet
+   * period re-renders the latest text; flush state lives in the turn buffer
+   * so the settle sweep and session-exit invalidation naturally cancel the
+   * trailing write (a late firing finds the buffer gone and no-ops).
+   */
+  const scheduleReasoningTrailingFlush = (input: {
+    threadId: ThreadId;
+    turnId: TurnId;
+    createdAt: string;
+  }) =>
+    Effect.gen(function* () {
+      const turnKey = providerTurnKey(input.threadId, input.turnId);
+      const buffer = yield* Cache.get(reasoningBufferByTurnKey, turnKey);
+      if (buffer.trailingFlushScheduled) {
+        return;
+      }
+      yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
+        ...buffer,
+        trailingFlushScheduled: true,
+      });
+      yield* Effect.sleep(REASONING_ACTIVITY_FLUSH_INTERVAL_MS).pipe(
+        Effect.andThen(
+          Effect.gen(function* () {
+            const latest = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
+            if (Option.isNone(latest)) {
+              return;
+            }
+            yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
+              ...latest.value,
+              trailingFlushScheduled: false,
+              lastFlushedAt: yield* Clock.currentTimeMillis,
+            });
+            yield* dispatchReasoningActivity({
+              commandTag: "reasoning-trailing-flush",
+              threadId: input.threadId,
+              turnId: input.turnId,
+              text: latest.value.text,
+              streaming: true,
+              createdAt: input.createdAt,
+            });
+          }),
+        ),
+        // A trailing flush that raced the settle sweep or hit a dropped
+        // engine must never tear down the ingestion worker.
+        Effect.catchCause((cause) =>
+          Effect.logWarning("reasoning trailing flush failed", {
+            threadId: input.threadId,
+            turnId: input.turnId,
+            cause: Cause.pretty(cause),
+          }),
+        ),
+        Effect.forkScoped,
+      );
     });
 
   const getSourceProposedPlanReferenceForPendingTurnStart = Effect.fn(
@@ -1645,8 +1813,47 @@ const make = Effect.gen(function* () {
         event.type === "content.delta" && event.payload.streamKind === "assistant_text"
           ? event.payload.delta
           : undefined;
+      const reasoningDelta =
+        event.type === "content.delta" && event.payload.streamKind === "reasoning_text"
+          ? event.payload.delta
+          : undefined;
       const proposedPlanDelta =
         event.type === "turn.proposed.delta" ? event.payload.delta : undefined;
+
+      // Reasoning stream: accumulate the turn's text and re-render its single
+      // timeline activity on a flush cadence. Deltas with no turn id cannot
+      // anchor a row and are dropped, matching the lifecycle guard's stale-
+      // turn rule — reasoning for a superseded turn must not clobber the
+      // active turn's row.
+      if (reasoningDelta !== undefined && reasoningDelta.length > 0) {
+        const reasoningTurnId = toTurnId(event.turnId);
+        if (reasoningTurnId !== undefined && !conflictsWithActiveTurn) {
+          const turnKey = providerTurnKey(thread.id, reasoningTurnId);
+          yield* appendReasoningDelta(thread.id, reasoningTurnId, reasoningDelta);
+          const buffer = yield* Cache.get(reasoningBufferByTurnKey, turnKey);
+          const nowMillis = yield* Clock.currentTimeMillis;
+          if (nowMillis - buffer.lastFlushedAt >= REASONING_ACTIVITY_FLUSH_INTERVAL_MS) {
+            yield* dispatchReasoningActivity({
+              commandTag: "reasoning-activity",
+              threadId: thread.id,
+              turnId: reasoningTurnId,
+              text: buffer.text,
+              streaming: true,
+              createdAt: now,
+            });
+            yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
+              ...buffer,
+              lastFlushedAt: nowMillis,
+            });
+          } else {
+            yield* scheduleReasoningTrailingFlush({
+              threadId: thread.id,
+              turnId: reasoningTurnId,
+              createdAt: now,
+            });
+          }
+        }
+      }
 
       if (assistantDelta && assistantDelta.length > 0) {
         const turnId = toTurnId(event.turnId);
@@ -1820,6 +2027,26 @@ const make = Effect.gen(function* () {
           fallbackMarkdown: proposedPlanCompletion.planMarkdown,
           updatedAt: now,
         });
+      }
+
+      if (event.type === "turn.completed" || event.type === "turn.aborted") {
+        const turnId = toTurnId(event.turnId);
+        if (turnId) {
+          // Settle the turn's reasoning stream exactly once: replace the
+          // streaming row with the final text and drop the buffer. A replayed
+          // or foreign-turn completion finds no buffer and no-ops.
+          const reasoningBuffer = yield* takeReasoningBuffer(thread.id, turnId);
+          if (Option.isSome(reasoningBuffer)) {
+            yield* dispatchReasoningActivity({
+              commandTag: "reasoning-settle",
+              threadId: thread.id,
+              turnId,
+              text: reasoningBuffer.value.text,
+              streaming: false,
+              createdAt: now,
+            });
+          }
+        }
       }
 
       if (event.type === "turn.completed") {
