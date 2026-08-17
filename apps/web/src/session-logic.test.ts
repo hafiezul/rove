@@ -797,6 +797,7 @@ describe("deriveWorkLogEntries", () => {
       id: "reasoning-streaming",
       label: "Reasoning",
       tone: "thinking",
+      sourceActivityKind: "turn.reasoning",
       detail: "First I check the adapter.",
     });
     expect(entries[1]).toMatchObject({

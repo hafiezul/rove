@@ -281,6 +281,11 @@ export function workEntryIndicatesToolSuccess(entry: WorkLogEntry): boolean {
 
 /** Tool-like row with neither clear success nor failure (empty, incomplete, in progress, etc.). */
 export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolean {
+  // Reasoning is an expandable, in-progress narrative row, not a tool status.
+  // Keep it visible while its turn runs instead of filtering it as neutral.
+  if (entry.sourceActivityKind === "turn.reasoning") {
+    return false;
+  }
   // Spawn CTA rows are never neutral-hidden: mid-run they derive from
   // task.progress (tone "thinking") and the neutral filter was swallowing
   // them exactly while the fleet ran — the one moment they matter most.

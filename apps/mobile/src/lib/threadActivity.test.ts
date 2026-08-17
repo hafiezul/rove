@@ -187,8 +187,55 @@ describe("buildThreadFeed", () => {
       summary: "Reasoned",
       icon: "agent",
       detail: "Done — reviewed and green.",
+      status: null,
     });
     expect(reasoningRow?.canExpand).toBe(true);
+  });
+
+  it("keeps streaming turn.reasoning activity in the active feed", () => {
+    const turnId = TurnId.make("turn-reasoning-streaming");
+    const thread = makeThread({
+      id: ThreadId.make("thread-reasoning-streaming"),
+      projectId: ProjectId.make("project-1"),
+      title: "Streaming reasoning thread",
+      latestTurn: {
+        turnId,
+        state: "running",
+        requestedAt: "2026-04-01T00:00:00.000Z",
+        startedAt: "2026-04-01T00:00:01.000Z",
+        completedAt: null,
+        assistantMessageId: null,
+      },
+      activities: [
+        makeActivity({
+          id: EventId.make("activity-reasoning-streaming"),
+          kind: "turn.reasoning",
+          summary: "Reasoning",
+          createdAt: "2026-04-01T00:00:02.000Z",
+          turnId,
+          payload: { detail: "Checking the adapter first.", streaming: true },
+        }),
+      ],
+    });
+
+    const presented = deriveThreadFeedPresentation(
+      buildThreadFeed(thread),
+      thread.latestTurn,
+      new Set<TurnId>(),
+    );
+
+    expect(presented).toMatchObject([
+      {
+        type: "activity-group",
+        activities: [
+          {
+            id: "activity-reasoning-streaming",
+            summary: "Reasoning",
+            detail: "Checking the adapter first.",
+          },
+        ],
+      },
+    ]);
   });
 
   it("keeps historic work entries attributed to their turns", () => {
