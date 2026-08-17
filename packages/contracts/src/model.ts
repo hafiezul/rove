@@ -4,7 +4,6 @@ import * as SchemaTransformation from "effect/SchemaTransformation";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { ProviderDriverKind } from "./providerInstance.ts";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export const ProviderOptionDescriptorType = Schema.Literals(["select", "boolean"]);
 export type ProviderOptionDescriptorType = typeof ProviderOptionDescriptorType.Type;
@@ -66,6 +65,7 @@ export type ProviderOptionSelection = typeof ProviderOptionSelection.Type;
  *   - any future regression that re-introduces the legacy shape.
  */
 const LegacyProviderOptionSelectionsObject = Schema.Record(Schema.String, Schema.Unknown);
+type LegacyProviderOptionSelectionsObject = typeof LegacyProviderOptionSelectionsObject.Type;
 
 const ProviderOptionSelectionsFromLegacyObject = LegacyProviderOptionSelectionsObject.pipe(
   Schema.decodeTo(
@@ -96,7 +96,7 @@ export const ProviderOptionSelections = Schema.Union([
 export type ProviderOptionSelections = typeof ProviderOptionSelections.Type;
 
 function coerceLegacyOptionsObjectToArray(
-  record: Record<string, SchemaJson>,
+  record: LegacyProviderOptionSelectionsObject,
 ): ReadonlyArray<ProviderOptionSelection> {
   const entries: Array<ProviderOptionSelection> = [];
   for (const [rawKey, rawValue] of Object.entries(record)) {

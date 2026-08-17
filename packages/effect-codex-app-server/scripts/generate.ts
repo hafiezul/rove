@@ -223,11 +223,15 @@ function collectSchemaEntries(
   return entries;
 }
 
+function isJsonObject(value: Schema.Json): value is Schema.JsonObject {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+}
+
 function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(normalizeNullableTypes);
   }
-  if (!RuntimePredicate.isObjectOrArray(value)) {
+  if (!isJsonObject(value)) {
     return value;
   }
 
@@ -278,7 +282,7 @@ function stripNullDefaults(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(stripNullDefaults);
   }
-  if (!RuntimePredicate.isObjectOrArray(value)) {
+  if (!isJsonObject(value)) {
     return value;
   }
 
@@ -492,7 +496,7 @@ function rewriteExternalRefs(
       rewriteExternalRefs(entry, localDefinitionNames, currentNamespace, exportNameByQualifiedName),
     );
   }
-  if (!RuntimePredicate.isObjectOrArray(value)) {
+  if (!isJsonObject(value)) {
     return value;
   }
 

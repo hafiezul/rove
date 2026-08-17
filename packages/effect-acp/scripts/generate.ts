@@ -147,11 +147,15 @@ function collectSchemaEntries(
   return entries;
 }
 
+function isJsonObject(value: Schema.Json): value is Schema.JsonObject {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+}
+
 function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(normalizeNullableTypes);
   }
-  if (!RuntimePredicate.isObjectOrArray(value)) {
+  if (!isJsonObject(value)) {
     return value;
   }
 
