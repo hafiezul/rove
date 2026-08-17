@@ -51,23 +51,31 @@ export class DesktopLifecycle extends Context.Service<
 const { logInfo: logLifecycleInfo, logError: logLifecycleError } =
   makeComponentLogger("desktop-lifecycle");
 
+interface ScopedEventTarget {
+  on: <Args extends ReadonlyArray<unknown>>(
+    eventName: string,
+    listener: (...args: Args) => void,
+  ) => void;
+  removeListener: <Args extends ReadonlyArray<unknown>>(
+    eventName: string,
+    listener: (...args: Args) => void,
+  ) => void;
+}
+
 function addScopedListener<Args extends ReadonlyArray<unknown>>(
   target: unknown,
   eventName: string,
   listener: (...args: Args) => void,
 ): Effect.Effect<void, never, Scope.Scope> {
-  const eventTarget = target as {
-    on: (eventName: string, listener: (...args: Array<unknown>) => void) => unknown;
-    removeListener: (eventName: string, listener: (...args: Array<unknown>) => void) => unknown;
-  };
-  const untypedListener = listener as unknown as (...args: Array<unknown>) => void;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    eventTarget = target as ScopedEventTarget;
   return Effect.acquireRelease(
     Effect.sync(() => {
-      eventTarget.on(eventName, untypedListener);
+      eventTarget.on(eventName, listener);
     }),
     () =>
       Effect.sync(() => {
-        eventTarget.removeListener(eventName, untypedListener);
+        eventTarget.removeListener(eventName, listener);
       }),
   ).pipe(Effect.asVoid);
 }
@@ -162,7 +170,7 @@ export const make = DesktopLifecycle.of({
     }).pipe(
       Effect.catchCause((cause) => {
         const error = new DesktopLifecycleRelaunchError({ reason, cause });
-        return logLifecycleError(error.message, { error });
+        return logLifecycleError(error.message, { reason });
       }),
       Effect.forkDetach,
       Effect.asVoid,

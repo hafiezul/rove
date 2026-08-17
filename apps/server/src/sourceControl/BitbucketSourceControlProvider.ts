@@ -20,13 +20,13 @@ function toChangeRequest(summary: NormalizedBitbucketPullRequestRecord): ChangeR
     updatedAt: summary.updatedAt ?? Option.none(),
     ...(summary.isCrossRepository !== undefined
       ? { isCrossRepository: summary.isCrossRepository }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryNameWithOwner !== undefined
       ? { headRepositoryNameWithOwner: summary.headRepositoryNameWithOwner }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryOwnerLogin !== undefined
       ? { headRepositoryOwnerLogin: summary.headRepositoryOwnerLogin }
-      : {}),
+      : undefined),
   };
 }
 
@@ -40,11 +40,11 @@ export const make = Effect.gen(function* () {
       return bitbucket
         .listPullRequests({
           cwd: input.cwd,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
           headSelector: input.headSelector,
-          ...(source ? { source } : {}),
+          ...(source ? { source } : undefined),
           state: input.state,
-          ...(input.limit !== undefined ? { limit: input.limit } : {}),
+          ...(input.limit !== undefined ? { limit: input.limit } : undefined),
         })
         .pipe(
           Effect.map((items) => items.map(toChangeRequest)),
@@ -85,11 +85,11 @@ export const make = Effect.gen(function* () {
       return bitbucket
         .createPullRequest({
           cwd: input.cwd,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
           baseBranch: input.baseRefName,
           headSelector: input.headSelector,
-          ...(source ? { source } : {}),
-          ...(input.target ? { target: input.target } : {}),
+          ...(source ? { source } : undefined),
+          ...(input.target ? { target: input.target } : undefined),
           title: input.title,
           bodyFile: input.bodyFile,
         })
@@ -145,7 +145,7 @@ export const make = Effect.gen(function* () {
       bitbucket
         .getDefaultBranch({
           cwd: input.cwd,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
         })
         .pipe(
           Effect.mapError(
@@ -163,9 +163,9 @@ export const make = Effect.gen(function* () {
       bitbucket
         .checkoutPullRequest({
           cwd: input.cwd,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
           reference: input.reference,
-          ...(input.force !== undefined ? { force: input.force } : {}),
+          ...(input.force !== undefined ? { force: input.force } : undefined),
         })
         .pipe(
           Effect.mapError(

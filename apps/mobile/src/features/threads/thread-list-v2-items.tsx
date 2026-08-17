@@ -33,7 +33,6 @@ import {
   resolveThreadListV2SnoozeGateExpiryMs,
   resolveThreadListV2Status,
   resolveThreadListV2SwipeActions,
-  type ThreadListV2Status,
 } from "./threadListV2";
 import { ThreadSearchMatchExcerpt } from "./thread-search-match";
 
@@ -53,9 +52,20 @@ const MONO_FONT = Platform.select({
 // Status hues follow the system-wide convention set by sidebar v1 and the
 // Live Activity/widgets (amber approval, indigo input, sky working) so a
 // thread reads the same color everywhere it surfaces.
-const STATUS_LABEL_BY_STATUS: Partial<
-  Record<ThreadListV2Status, { label: string; className: string }>
-> = {
+interface ThreadStatusLabel {
+  readonly label: string;
+  readonly className: string;
+}
+
+interface ThreadStatusLabels {
+  readonly approval?: ThreadStatusLabel;
+  readonly input?: ThreadStatusLabel;
+  readonly working?: ThreadStatusLabel;
+  readonly failed?: ThreadStatusLabel;
+  readonly ready?: ThreadStatusLabel;
+}
+
+const STATUS_LABEL_BY_STATUS: ThreadStatusLabels = {
   approval: { label: "Approval", className: "text-amber-700 dark:text-amber-300" },
   input: { label: "Input", className: "text-indigo-600 dark:text-indigo-300" },
   working: { label: "Working", className: "text-sky-600 dark:text-sky-400" },

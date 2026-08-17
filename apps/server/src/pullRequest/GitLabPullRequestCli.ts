@@ -514,9 +514,11 @@ export const make = Effect.gen(function* () {
           ? []
           : ["--input", "-", "--header", "Content-Type: application/json"]),
       ],
-      ...(input.stdin === undefined ? {} : { stdin: input.stdin }),
-      ...(input.maxOutputBytes === undefined ? {} : { maxOutputBytes: input.maxOutputBytes }),
-      ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
+      ...(input.stdin === undefined ? undefined : { stdin: input.stdin }),
+      ...(input.maxOutputBytes === undefined
+        ? undefined
+        : { maxOutputBytes: input.maxOutputBytes }),
+      ...(input.timeoutMs === undefined ? undefined : { timeoutMs: input.timeoutMs }),
     });
 
   /**
@@ -1113,7 +1115,7 @@ export const make = Effect.gen(function* () {
         cwd: input.cwd,
         repository: input.repository,
         number: input.number,
-        ...(input.commit === undefined ? {} : { commit: input.commit }),
+        ...(input.commit === undefined ? undefined : { commit: input.commit }),
       };
       if (input.cursor === undefined) {
         return diffPage({ ...target, page: 1 });
@@ -1268,8 +1270,8 @@ export const make = Effect.gen(function* () {
         // clears what it is sent empty — so a title corrected on its own must carry no
         // description at all.
         stdin: JSON.stringify({
-          ...(input.title === undefined ? {} : { title: input.title }),
-          ...(input.description === undefined ? {} : { description: input.description }),
+          ...(input.title === undefined ? undefined : { title: input.title }),
+          ...(input.description === undefined ? undefined : { description: input.description }),
         }),
       }).pipe(Effect.asVoid),
 

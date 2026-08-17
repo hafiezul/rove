@@ -36,7 +36,7 @@ import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   ProviderCommandReactor,
-  type ProviderCommandReactorShape,
+  type ProviderCommandReactorContract,
 } from "../Services/ProviderCommandReactor.ts";
 import { forkParked, ServerActivation } from "../../serverActivation.ts";
 import {
@@ -132,11 +132,7 @@ function limitFirstUserSection(section: string): string {
 function collectRecentThreadTitleContext(
   messages: ReadonlyArray<ThreadTitleMessage>,
   maxChars: number,
-): {
-  readonly context: string;
-  readonly attachments: ReadonlyArray<ChatAttachment>;
-  readonly truncated: boolean;
-} {
+) {
   let context = "";
   let truncated = false;
   const retainedAttachments: Array<ChatAttachment> = [];
@@ -164,10 +160,7 @@ function collectRecentThreadTitleContext(
   return { context, attachments: retainedAttachments, truncated };
 }
 
-function formatThreadTitleContext(messages: ReadonlyArray<ThreadTitleMessage>): {
-  readonly message: string;
-  readonly attachments: ReadonlyArray<ChatAttachment>;
-} {
+function formatThreadTitleContext(messages: ReadonlyArray<ThreadTitleMessage>) {
   const recent = collectRecentThreadTitleContext(messages, MAX_THREAD_TITLE_CONTEXT_CHARS);
   if (!recent.truncated) {
     return {
@@ -368,7 +361,7 @@ const make = Effect.gen(function* () {
             summary: input.summary,
             payload: {
               detail: input.detail,
-              ...(input.requestId ? { requestId: input.requestId } : {}),
+              ...(input.requestId ? { requestId: input.requestId } : undefined),
             },
             turnId: input.turnId,
             createdAt: input.createdAt,
@@ -623,11 +616,11 @@ const make = Effect.gen(function* () {
     }) =>
       providerService.startSession(threadId, {
         threadId,
-        ...(preferredProvider ? { provider: preferredProvider } : {}),
+        ...(preferredProvider ? { provider: preferredProvider } : undefined),
         providerInstanceId: desiredInstanceId,
-        ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
+        ...(effectiveCwd ? { cwd: effectiveCwd } : undefined),
         modelSelection: desiredModelSelection,
-        ...(input?.resumeCursor !== undefined ? { resumeCursor: input.resumeCursor } : {}),
+        ...(input?.resumeCursor !== undefined ? { resumeCursor: input.resumeCursor } : undefined),
         runtimeMode: desiredRuntimeMode,
       });
 
@@ -747,7 +740,9 @@ const make = Effect.gen(function* () {
       );
     }
     yield* ensureSessionForThread(input.threadId, input.createdAt, {
-      ...(input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {}),
+      ...(input.modelSelection !== undefined
+        ? { modelSelection: input.modelSelection }
+        : undefined),
       pendingTurnStart: true,
     });
     if (input.modelSelection !== undefined) {
@@ -785,10 +780,12 @@ const make = Effect.gen(function* () {
 
     return {
       threadId: input.threadId,
-      ...(normalizedInput ? { input: normalizedInput } : {}),
-      ...(normalizedAttachments.length > 0 ? { attachments: normalizedAttachments } : {}),
-      ...(modelForTurn !== undefined ? { modelSelection: modelForTurn } : {}),
-      ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
+      ...(normalizedInput ? { input: normalizedInput } : undefined),
+      ...(normalizedAttachments.length > 0 ? { attachments: normalizedAttachments } : undefined),
+      ...(modelForTurn !== undefined ? { modelSelection: modelForTurn } : undefined),
+      ...(input.interactionMode !== undefined
+        ? { interactionMode: input.interactionMode }
+        : undefined),
     };
   });
 
@@ -824,7 +821,7 @@ const make = Effect.gen(function* () {
       const generated = yield* textGeneration.generateBranchName({
         cwd,
         message: input.messageText,
-        ...(attachments.length > 0 ? { attachments } : {}),
+        ...(attachments.length > 0 ? { attachments } : undefined),
         modelSelection,
       });
       if (!generated) return;
@@ -869,7 +866,7 @@ const make = Effect.gen(function* () {
         const generated = yield* textGeneration.generateThreadTitle({
           cwd: input.cwd,
           message: input.messageText,
-          ...(attachments.length > 0 ? { attachments } : {}),
+          ...(attachments.length > 0 ? { attachments } : undefined),
           modelSelection,
         });
         if (!generated) return;
@@ -932,7 +929,7 @@ const make = Effect.gen(function* () {
       cwd,
       message,
       previousTitle,
-      ...(attachments.length > 0 ? { attachments } : {}),
+      ...(attachments.length > 0 ? { attachments } : undefined),
       modelSelection,
     });
     if (generated.title === DEFAULT_THREAD_TITLE || generated.title === previousTitle) {
@@ -962,7 +959,7 @@ const make = Effect.gen(function* () {
       commandId: yield* serverCommandId("thread-title-regeneration-complete"),
       threadId: input.threadId,
       requestId: input.requestId,
-      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.title !== undefined ? { title: input.title } : undefined),
     });
   });
   const findInterruptedThreadTitleRegenerations = Effect.fn(
@@ -1031,7 +1028,7 @@ const make = Effect.gen(function* () {
       const completion = {
         threadId: event.payload.threadId,
         requestId,
-        ...(result.title !== undefined ? { title: result.title } : {}),
+        ...(result.title !== undefined ? { title: result.title } : undefined),
       };
       yield* dispatchThreadTitleRegenerationCompletion(completion).pipe(
         Effect.catchCause((cause) => {
@@ -1105,8 +1102,10 @@ const make = Effect.gen(function* () {
         }) ?? process.cwd();
       const generationInput = {
         messageText: message.text,
-        ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),
-        ...(event.payload.titleSeed !== undefined ? { titleSeed: event.payload.titleSeed } : {}),
+        ...(message.attachments !== undefined ? { attachments: message.attachments } : undefined),
+        ...(event.payload.titleSeed !== undefined
+          ? { titleSeed: event.payload.titleSeed }
+          : undefined),
       };
 
       yield* maybeGenerateAndRenameWorktreeBranchForFirstTurn({
@@ -1164,10 +1163,10 @@ const make = Effect.gen(function* () {
     const sendTurnRequest = yield* buildSendTurnRequestForThread({
       threadId: event.payload.threadId,
       messageText: message.text,
-      ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),
+      ...(message.attachments !== undefined ? { attachments: message.attachments } : undefined),
       ...(event.payload.modelSelection !== undefined
         ? { modelSelection: event.payload.modelSelection }
-        : {}),
+        : undefined),
       interactionMode: event.payload.interactionMode,
       createdAt: event.payload.createdAt,
     }).pipe(
@@ -1316,7 +1315,7 @@ const make = Effect.gen(function* () {
         providerName: thread.session?.providerName ?? null,
         ...(thread.session?.providerInstanceId !== undefined
           ? { providerInstanceId: thread.session.providerInstanceId }
-          : {}),
+          : undefined),
         runtimeMode: thread.session?.runtimeMode ?? DEFAULT_RUNTIME_MODE,
         activeTurnId: null,
         lastError: thread.session?.lastError ?? null,
@@ -1332,7 +1331,7 @@ const make = Effect.gen(function* () {
     yield* Effect.annotateCurrentSpan({
       "orchestration.event_type": event.type,
       "orchestration.thread_id": event.payload.threadId,
-      ...(event.commandId ? { "orchestration.command_id": event.commandId } : {}),
+      ...(event.commandId ? { "orchestration.command_id": event.commandId } : undefined),
     });
     yield* increment(orchestrationEventsProcessedTotal, {
       eventType: event.type,
@@ -1387,7 +1386,7 @@ const make = Effect.gen(function* () {
 
   const worker = yield* makeDrainableWorker(processDomainEventSafely);
 
-  const start: ProviderCommandReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: ProviderCommandReactorContract["start"] = Effect.fn("start")(function* () {
     const interruptedTitleRegenerations = yield* findInterruptedThreadTitleRegenerations().pipe(
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {
@@ -1447,7 +1446,7 @@ const make = Effect.gen(function* () {
       yield* worker.drain;
       yield* threadTitleRegenerationWorker.drain;
     }),
-  } satisfies ProviderCommandReactorShape;
+  } satisfies ProviderCommandReactorContract;
 });
 
 export const ProviderCommandReactorLive = Layer.effect(ProviderCommandReactor, make);

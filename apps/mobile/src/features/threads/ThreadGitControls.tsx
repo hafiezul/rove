@@ -11,7 +11,7 @@ import {
   resolveQuickAction,
 } from "@t3tools/client-runtime/state/vcs";
 import { useNavigation } from "@react-navigation/native";
-import { NativeHeaderToolbar } from "../../native/StackHeader";
+import { NativeHeaderToolbar, type NativeHeaderItemInput } from "../../native/StackHeader";
 import { useCallback, useMemo } from "react";
 import { Alert } from "react-native";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
@@ -64,7 +64,7 @@ function compactMenuStatus(gitStatus: VcsStatusResult | null): string {
   return parts.join(" · ");
 }
 
-type HeaderItem = Record<string, unknown>;
+type HeaderItem = NativeHeaderItemInput;
 type HeaderItems = HeaderItem[];
 type ThreadGitHeaderActionItems = {
   readonly terminal: HeaderItem;

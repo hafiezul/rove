@@ -33,6 +33,7 @@ import type { SavedRemoteConnection } from "../../lib/connection";
 import * as MobilePreferences from "../../persistence/mobile-preferences";
 import * as MobileStorage from "../../persistence/mobile-storage";
 import { resolveCloudPublicConfig } from "./publicConfig";
+import * as RuntimePredicate from "effect/Predicate";
 
 const RELAY_STATUS_AND_CONNECT_SCOPES = [
   RelayEnvironmentStatusScope,
@@ -86,7 +87,7 @@ function cloudEnvironmentLinkError(message: string) {
         ? `${message.replace(/[.:]$/, "")}: ${environmentError.message}`
         : withDevCause(message, cause),
       cause,
-      ...(traceId === null ? {} : { traceId }),
+      ...(traceId === null ? undefined : { traceId }),
     });
   };
 }
@@ -99,9 +100,10 @@ function causeMessage(cause: unknown): string | null {
   if (cause instanceof Error && cause.message) {
     return cause.message;
   }
-  if (typeof cause === "object" && cause !== null) {
-    const record = cause as { readonly message?: unknown; readonly cause?: unknown };
-    if (typeof record.message === "string" && record.message.length > 0) {
+  if (RuntimePredicate.isObjectOrArray(cause)) {
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      record = cause as { readonly message?: unknown; readonly cause?: unknown };
+    if (RuntimePredicate.isString(record.message) && record.message.length > 0) {
       const nested = causeMessage(record.cause);
       return nested ? `${record.message}: ${nested}` : record.message;
     }
@@ -170,7 +172,7 @@ function decodedRelayClientError(message: string) {
     return new CloudEnvironmentLinkError({
       message: detail ? `${message}: ${detail}` : message,
       cause,
-      ...(traceId ? { traceId } : {}),
+      ...(traceId ? { traceId } : undefined),
     });
   };
 }
@@ -179,7 +181,7 @@ function findEnvironmentCloudApiError(cause: unknown): { readonly message: strin
   if (isEnvironmentCloudApiError(cause)) {
     return cause;
   }
-  if (typeof cause !== "object" || cause === null) {
+  if (!RuntimePredicate.isObjectOrArray(cause)) {
     return null;
   }
   return "cause" in cause ? findEnvironmentCloudApiError(cause.cause) : null;

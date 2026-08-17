@@ -1,6 +1,7 @@
 import type { EnvironmentRpcSubscriptionObservation } from "@t3tools/client-runtime/rpc";
 import { type BackgroundScope, type EnvironmentId, WS_METHODS } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface RetainedScope {
   readonly environmentId: EnvironmentId;
@@ -45,8 +46,9 @@ function scopeForSubscription(
   if (observation.method !== WS_METHODS.subscribeVcsStatus) {
     return null;
   }
-  const input = observation.input as { readonly cwd?: unknown };
-  return typeof input.cwd === "string" ? { type: "vcs-status", cwd: input.cwd } : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    input = observation.input as { readonly cwd?: unknown };
+  return RuntimePredicate.isString(input.cwd) ? { type: "vcs-status", cwd: input.cwd } : null;
 }
 
 export function retainedMobileBackgroundScopes(
@@ -63,7 +65,8 @@ export function observeMobileBackgroundActivitySubscription(
   const scope = scopeForSubscription(observation);
   if (scope === null) return Effect.succeed(Effect.void);
   return Effect.sync(() => {
-    const environmentId = observation.environmentId as EnvironmentId;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      environmentId = observation.environmentId as EnvironmentId;
     const key = stableScopeKey(environmentId, scope);
     const current = retainedScopes.get(key);
     if (current) {

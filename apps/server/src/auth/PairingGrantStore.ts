@@ -19,6 +19,7 @@ import * as Stream from "effect/Stream";
 
 import * as ServerConfig from "../config.ts";
 import * as AuthPairingLinks from "../persistence/AuthPairingLinks.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface BootstrapGrant {
   readonly method: ServerAuthBootstrapMethod;
@@ -394,8 +395,8 @@ export const make = Effect.gen(function* () {
     const issued: IssuedBootstrapCredential = {
       id,
       credential,
-      ...(input?.label ? { label: input.label } : {}),
-      ...(input?.proofKeyThumbprint ? { proofKeyThumbprint: input.proofKeyThumbprint } : {}),
+      ...(input?.label ? { label: input.label } : undefined),
+      ...(input?.proofKeyThumbprint ? { proofKeyThumbprint: input.proofKeyThumbprint } : undefined),
       expiresAt,
     };
     const subject = input?.subject ?? "one-time-token";
@@ -417,7 +418,7 @@ export const make = Effect.gen(function* () {
             new PairingCredentialIssueError({
               pairingLinkId: id,
               subject,
-              ...(input?.label ? { label: input.label } : {}),
+              ...(input?.label ? { label: input.label } : undefined),
               cause,
             }),
         ),
@@ -427,7 +428,7 @@ export const make = Effect.gen(function* () {
       credential,
       scopes: input?.scopes ?? AuthStandardClientScopes,
       subject: input?.subject ?? "one-time-token",
-      ...(input?.label ? { label: input.label } : {}),
+      ...(input?.label ? { label: input.label } : undefined),
       createdAt: now,
       expiresAt,
     });
@@ -477,7 +478,7 @@ export const make = Effect.gen(function* () {
           }
 
           const remainingUses = grant.remainingUses;
-          if (typeof remainingUses === "number") {
+          if (RuntimePredicate.isNumber(remainingUses)) {
             if (remainingUses <= 1) {
               next.delete(credential);
             } else {
@@ -495,10 +496,10 @@ export const make = Effect.gen(function* () {
                 method: grant.method,
                 scopes: grant.scopes,
                 subject: grant.subject,
-                ...(grant.label ? { label: grant.label } : {}),
+                ...(grant.label ? { label: grant.label } : undefined),
                 ...(grant.proofKeyThumbprint
                   ? { proofKeyThumbprint: grant.proofKeyThumbprint }
-                  : {}),
+                  : undefined),
                 expiresAt: grant.expiresAt,
               } satisfies BootstrapGrant,
             },
@@ -529,10 +530,10 @@ export const make = Effect.gen(function* () {
           method: consumed.value.method,
           scopes: consumed.value.scopes,
           subject: consumed.value.subject,
-          ...(consumed.value.label ? { label: consumed.value.label } : {}),
+          ...(consumed.value.label ? { label: consumed.value.label } : undefined),
           ...(consumed.value.proofKeyThumbprint
             ? { proofKeyThumbprint: consumed.value.proofKeyThumbprint }
-            : {}),
+            : undefined),
           expiresAt: consumed.value.expiresAt,
         } satisfies BootstrapGrant;
       }

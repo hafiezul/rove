@@ -124,7 +124,7 @@ export function formatHourShort(hourStart: string, timeZone?: string): string {
 
   if (!isRepeatedHour) return hourFormat.format(instant);
   return new Intl.DateTimeFormat("en-US", {
-    ...(timeZone === undefined ? {} : { timeZone }),
+    ...(timeZone === undefined ? undefined : { timeZone }),
     hour: "numeric",
     timeZoneName: "short",
   }).format(instant);
@@ -135,7 +135,7 @@ export function formatDateTimeShort(instant: string, timeZone?: string): string 
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return instant;
   return new Intl.DateTimeFormat("en-US", {
-    ...(timeZone === undefined ? {} : { timeZone }),
+    ...(timeZone === undefined ? undefined : { timeZone }),
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -155,7 +155,7 @@ export function formatRelativeHourShort(
   }
 
   const dayFormat = new Intl.DateTimeFormat("en-CA", {
-    ...(timeZone === undefined ? {} : { timeZone }),
+    ...(timeZone === undefined ? undefined : { timeZone }),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

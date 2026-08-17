@@ -78,7 +78,7 @@ export function PullRequestReactionBar({
       environmentId,
       input: {
         ...reference,
-        ...(subjectId === undefined ? {} : { subjectId }),
+        ...(subjectId === undefined ? undefined : { subjectId }),
         content,
         reacted,
       },

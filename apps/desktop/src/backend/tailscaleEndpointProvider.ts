@@ -72,7 +72,7 @@ const resolveTailscaleMagicDnsAdvertisedEndpoint = Effect.fn(
 
   const httpBaseUrl = buildTailscaleHttpsBaseUrl({
     magicDnsName: input.dnsName,
-    ...(input.servePort === undefined ? {} : { servePort: input.servePort }),
+    ...(input.servePort === undefined ? undefined : { servePort: input.servePort }),
   });
   const probe =
     input.probe?.(httpBaseUrl) ??
@@ -134,8 +134,8 @@ export const resolveTailscaleAdvertisedEndpoints = Effect.fn("resolveTailscaleAd
     const magicDnsEndpoint = yield* resolveTailscaleMagicDnsAdvertisedEndpoint({
       dnsName,
       serveEnabled: input.serveEnabled === true,
-      ...(input.servePort === undefined ? {} : { servePort: input.servePort }),
-      ...(input.probe === undefined ? {} : { probe: input.probe }),
+      ...(input.servePort === undefined ? undefined : { servePort: input.servePort }),
+      ...(input.probe === undefined ? undefined : { probe: input.probe }),
     });
 
     return Option.match(magicDnsEndpoint, {

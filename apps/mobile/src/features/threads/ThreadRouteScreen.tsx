@@ -1,4 +1,4 @@
-import { NativeStackScreenOptions } from "../../native/StackHeader";
+import { NativeStackScreenOptions, type NativeHeaderItemInput } from "../../native/StackHeader";
 import {
   StackActions,
   useFocusEffect,
@@ -81,7 +81,7 @@ interface ThreadInspectorSelection {
   readonly mode: ThreadInspectorMode;
 }
 
-type NativeHeaderItems = ReadonlyArray<Record<string, unknown>>;
+type NativeHeaderItems = ReadonlyArray<NativeHeaderItemInput>;
 
 function InspectorPaneRoleActivation() {
   useAdaptiveWorkspacePaneRole("inspector");
@@ -492,7 +492,7 @@ function ThreadRouteContent(
         threadId: selectedThread.id,
         ...(selectedThread.session.activeTurnId
           ? { turnId: selectedThread.session.activeTurnId }
-          : {}),
+          : undefined),
       },
     });
   }, [interruptThreadTurn, selectedThread]);
@@ -512,7 +512,7 @@ function ThreadRouteContent(
       void navigation.navigate("ThreadTerminal", {
         environmentId: String(selectedThread.environmentId),
         threadId: String(selectedThread.id),
-        ...(nextTerminalId ? { terminalId: nextTerminalId } : {}),
+        ...(nextTerminalId ? { terminalId: nextTerminalId } : undefined),
       });
     },
     [navigation, selectedThread, selectedThreadProject?.workspaceRoot],

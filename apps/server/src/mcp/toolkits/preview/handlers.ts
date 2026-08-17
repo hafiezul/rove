@@ -43,17 +43,14 @@ const invoke = Effect.fn("PreviewToolkit.invoke")(function* <A>(
     scope,
     operation,
     input,
-    ...(timeoutMs === undefined ? {} : { timeoutMs }),
-    ...(tabId === undefined ? {} : { tabId }),
+    ...(timeoutMs === undefined ? undefined : { timeoutMs }),
+    ...(tabId === undefined ? undefined : { tabId }),
   });
 });
 
 const invokeTargeted = <A>(
   operation: PreviewAutomationOperation,
-  input: {
-    readonly tabId?: PreviewTabId | undefined;
-    readonly [key: string]: unknown;
-  },
+  input: { readonly tabId?: PreviewTabId | undefined },
   timeoutMs?: number,
 ) => {
   const { tabId, ...operationInput } = input;

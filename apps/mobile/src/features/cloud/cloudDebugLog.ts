@@ -1,4 +1,6 @@
+import type { Json as SchemaJson } from "effect/Schema";
 export function isCloudDebugEnabled(): boolean {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     (typeof __DEV__ !== "undefined" && __DEV__) ||
     (typeof globalThis !== "undefined" &&
@@ -6,7 +8,7 @@ export function isCloudDebugEnabled(): boolean {
   );
 }
 
-export function cloudDebugLog(event: string, data?: Record<string, unknown>): void {
+export function cloudDebugLog(event: string, data?: Record<string, SchemaJson>): void {
   if (!isCloudDebugEnabled()) {
     return;
   }

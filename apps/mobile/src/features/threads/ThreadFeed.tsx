@@ -674,7 +674,7 @@ function useMarkdownStyles(onLinkPress: (href: string) => void): MarkdownStyleSe
         ? {
             soft_break: () => <NativeText>{"\n"}</NativeText>,
           }
-        : {}),
+        : undefined),
       code_block: ({ content = "", language }) => (
         <MarkdownCodeBlock
           backgroundColor={blockBackgroundColor}
@@ -1429,7 +1429,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             environmentId: String(props.environmentId),
             threadId: String(props.threadId),
             path: relativePath.split("/").filter((segment) => segment.length > 0),
-            ...(presentation.line ? { line: String(presentation.line) } : {}),
+            ...(presentation.line ? { line: String(presentation.line) } : undefined),
           });
         }
         return;

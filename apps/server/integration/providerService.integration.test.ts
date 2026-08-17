@@ -21,7 +21,7 @@ import {
 import { makeProviderServiceLive } from "../src/provider/Layers/ProviderService.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../src/provider/Services/ProviderService.ts";
 import * as ServerConfig from "../src/config.ts";
 import { ServerSettingsService } from "../src/serverSettings.ts";
@@ -39,6 +39,7 @@ import {
   codexTurnToolFixture,
   codexTurnTextFixture,
 } from "./fixtures/providerRuntime.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const codexInstanceId = ProviderInstanceId.make("codex");
 
@@ -58,7 +59,7 @@ interface IntegrationFixture {
 
 interface RecordedAnalyticsEvent {
   readonly event: string;
-  readonly properties: Readonly<Record<string, unknown>> | undefined;
+  readonly properties: Readonly<Record<string, SchemaJson>> | undefined;
 }
 
 /**
@@ -131,7 +132,7 @@ const collectEventsDuring = <A, E, R>(
   });
 
 const runTurn = (input: {
-  readonly provider: ProviderServiceShape;
+  readonly provider: ProviderServiceContract;
   readonly harness: TestProviderAdapterHarness;
   readonly threadId: ThreadId;
   readonly userText: string;

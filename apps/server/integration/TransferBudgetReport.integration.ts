@@ -38,7 +38,11 @@ const TRANSFER_BUDGET = {
   measuredTurnWebSocketMessages: 21,
 } satisfies ProviderTransferBudget;
 
-export const TRANSFER_BUDGETS: Readonly<Record<string, ProviderTransferBudget>> = {
+interface ProviderTransferBudgets {
+  readonly [provider: string]: ProviderTransferBudget | undefined;
+}
+
+export const TRANSFER_BUDGETS: ProviderTransferBudgets = {
   codex: TRANSFER_BUDGET,
   claudeAgent: TRANSFER_BUDGET,
 };

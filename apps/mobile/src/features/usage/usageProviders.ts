@@ -7,16 +7,16 @@ import { useColorScheme } from "react-native";
  */
 export const PROVIDER_ORDER: readonly UsageProviderKind[] = ["codex", "claude"];
 
-export const PROVIDER_LABEL: Record<UsageProviderKind, string> = {
+export const PROVIDER_LABEL = {
   claude: "Claude Code",
   codex: "Codex",
-};
+} satisfies Record<UsageProviderKind, string>;
 
 /**
  * Claude's brand orange holds in both themes; Codex is neutral and must flip
  * with the theme or its bars vanish against the matching background.
  */
-export function useProviderColors(): Record<UsageProviderKind, string> {
+export function useProviderColors() {
   const scheme = useColorScheme();
   return {
     claude: "#d97757",

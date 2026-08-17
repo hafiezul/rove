@@ -47,6 +47,10 @@ it("survives the kernel OOM-killing a greedy agent child", () => {
   expect(unit).toContain("OOMPolicy=continue");
 });
 
+interface BootServiceHarnessControl {
+  failCommand: string | undefined;
+}
+
 const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
   platform: NodeJS.Platform = "linux",
   usePinnedLauncher = false,
@@ -68,7 +72,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
   yield* fs.writeFileString(runtime.sentinelPath, "1.2.3\n");
 
   const commands: string[] = [];
-  const control: { failCommand: string | undefined } = { failCommand: undefined };
+  const control: BootServiceHarnessControl = { failCommand: undefined };
   const runner = ProcessRunner.ProcessRunner.of({
     run: (input) =>
       Effect.sync(() => {
@@ -92,7 +96,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
     cliVersion: "1.2.3",
     host: {
       execPath: "/usr/bin/node",
-      ...(usePinnedLauncher ? {} : { launcherSourcePath: sourceLauncher }),
+      ...(usePinnedLauncher ? undefined : { launcherSourcePath: sourceLauncher }),
     },
   }).pipe(
     Effect.provideService(ProcessRunner.ProcessRunner, runner),

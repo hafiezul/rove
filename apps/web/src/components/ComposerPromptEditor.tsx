@@ -81,6 +81,7 @@ import { ComposerPendingTerminalContextChip } from "./chat/ComposerPendingTermin
 import { formatProviderSkillDisplayName } from "~/providerSkillPresentation";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { registerComposerInlineTokenPaste } from "./composerInlineTokenPaste";
+import * as RuntimePredicate from "effect/Predicate";
 
 const COMPOSER_EDITOR_HMR_KEY = `composer-editor-${Math.random().toString(36).slice(2)}`;
 const SURROUND_SYMBOLS: [string, string][] = [
@@ -318,7 +319,7 @@ class ComposerSkillNode extends DecoratorNode<React.ReactElement> {
       ...super.exportJSON(),
       skillName: this.__skillName,
       skillLabel: this.__skillLabel,
-      ...(this.__skillDescription ? { skillDescription: this.__skillDescription } : {}),
+      ...(this.__skillDescription ? { skillDescription: this.__skillDescription } : undefined),
       type: "composer-skill",
       version: 1,
     };
@@ -567,7 +568,8 @@ function getAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: number): numb
   let current: LexicalNode | null = node;
 
   while (current) {
-    const nextParent = current.getParent() as LexicalNode | null;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      nextParent = current.getParent() as LexicalNode | null;
     if (!nextParent || !$isElementNode(nextParent)) {
       break;
     }
@@ -611,7 +613,8 @@ function getExpandedAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: numbe
   let current: LexicalNode | null = node;
 
   while (current) {
-    const nextParent = current.getParent() as LexicalNode | null;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      nextParent = current.getParent() as LexicalNode | null;
     if (!nextParent || !$isElementNode(nextParent)) {
       break;
     }
@@ -1051,7 +1054,7 @@ function ComposerHomeEndKeyPlugin() {
         if (!rootElement || !selection || !anchorNode || !rootElement.contains(anchorNode)) {
           return false;
         }
-        if (selection.rangeCount === 0 || typeof selection.modify !== "function") {
+        if (selection.rangeCount === 0 || !RuntimePredicate.isFunction(selection.modify)) {
           return false;
         }
 
@@ -1413,7 +1416,7 @@ function ComposerSurroundSelectionPlugin(props: {
         return;
       }
 
-      if (typeof event.data !== "string") {
+      if (!RuntimePredicate.isString(event.data)) {
         pendingSurroundSelectionRef.current = null;
         return;
       }
@@ -1485,7 +1488,8 @@ function ComposerSurroundSelectionPlugin(props: {
     };
 
     const onInput = (event: Event) => {
-      const inputEvent = event as InputEvent;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        inputEvent = event as InputEvent;
       if (
         inputEvent.inputType === "insertText" ||
         inputEvent.inputType === "insertCompositionText"

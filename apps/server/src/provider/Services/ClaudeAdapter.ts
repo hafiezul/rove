@@ -10,10 +10,10 @@
  * @module ClaudeAdapter
  */
 import type { ProviderAdapterError } from "../Errors.ts";
-import type { ProviderAdapterShape } from "./ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
  * ClaudeAdapterShape — per-instance Claude adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
-export interface ClaudeAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {}
+export interface ClaudeAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

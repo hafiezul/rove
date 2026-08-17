@@ -5,6 +5,8 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type { SQLiteDatabase } from "expo-sqlite";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const DATABASE_NAME = "t3code-client.db";
 const DATABASE_SCHEMA_VERSION = 1;
@@ -78,15 +80,16 @@ interface LegacyCacheRecord {
   readonly payload: string;
 }
 
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+function objectRecord(value: unknown): Record<string, SchemaJson> | null {
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isObjectOrArray(value) ? (value as Record<string, SchemaJson>) : null;
 }
 
 export function decodeLegacyCacheRecord(
   directoryName: (typeof LEGACY_CACHE_DIRECTORIES)[number],
   payload: string,
 ): LegacyCacheRecord | null {
-  let parsed: Record<string, unknown> | null;
+  let parsed: Record<string, SchemaJson> | null;
   try {
     parsed = objectRecord(JSON.parse(payload));
   } catch {
@@ -94,8 +97,8 @@ export function decodeLegacyCacheRecord(
   }
   if (
     parsed === null ||
-    typeof parsed.environmentId !== "string" ||
-    typeof parsed.schemaVersion !== "number"
+    !RuntimePredicate.isString(parsed.environmentId) ||
+    !RuntimePredicate.isNumber(parsed.schemaVersion)
   ) {
     return null;
   }
@@ -111,7 +114,7 @@ export function decodeLegacyCacheRecord(
         payload,
       };
     case "connection-thread-snapshots":
-      return typeof parsed.threadId === "string"
+      return RuntimePredicate.isString(parsed.threadId)
         ? {
             environmentId: parsed.environmentId,
             kind: "thread",
@@ -129,7 +132,7 @@ export function decodeLegacyCacheRecord(
         payload,
       };
     case "connection-vcs-refs":
-      return typeof parsed.cwd === "string"
+      return RuntimePredicate.isString(parsed.cwd)
         ? {
             environmentId: parsed.environmentId,
             kind: "vcs-refs",
@@ -277,6 +280,7 @@ const makeAvailable = Effect.gen(function* () {
     catch: databaseError("migrate"),
   });
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return MobileDatabase.of({
     loadCache: Effect.fn("MobileDatabase.loadCache")((environmentId, kind, cacheKey) =>
       Effect.tryPromise({

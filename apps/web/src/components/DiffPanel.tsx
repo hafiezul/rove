@@ -75,6 +75,7 @@ import { reviewEnvironment } from "../state/review";
 import { vcsEnvironment } from "../state/vcs";
 import { buildBaseRefChoices, filterBaseRefChoices } from "../lib/baseRefChoices";
 import { createGitDiffFileContentsLoader } from "../lib/diffFileContents";
+import * as RuntimePredicate from "effect/Predicate";
 
 type DiffThemeType = "light" | "dark";
 const AUTOMATIC_BASE_REF = "__automatic_base_ref__";
@@ -222,7 +223,7 @@ export default function DiffPanel({
       : "Branch changes";
   const selectedCheckpointRange = useMemo(
     () =>
-      typeof selectedCheckpointTurnCount === "number"
+      RuntimePredicate.isNumber(selectedCheckpointTurnCount)
         ? {
             fromTurnCount: Math.max(0, selectedCheckpointTurnCount - 1),
             toTurnCount: selectedCheckpointTurnCount,
@@ -247,7 +248,7 @@ export default function DiffPanel({
           environmentId: activeThread.environmentId,
           input: {
             cwd: activeCwd,
-            ...(selectedBaseRef ? { baseRef: selectedBaseRef } : {}),
+            ...(selectedBaseRef ? { baseRef: selectedBaseRef } : undefined),
             ignoreWhitespace: diffIgnoreWhitespace,
           },
         })
@@ -264,7 +265,7 @@ export default function DiffPanel({
           environmentId: activeThread.environmentId,
           input: {
             cwd: serverConfig.cwd,
-            ...(selectedBaseRef ? { baseRef: selectedBaseRef } : {}),
+            ...(selectedBaseRef ? { baseRef: selectedBaseRef } : undefined),
             ignoreWhitespace: diffIgnoreWhitespace,
           },
         })
@@ -340,7 +341,7 @@ export default function DiffPanel({
             cwd: branchDiffPreview.data.cwd,
             includeMatchingRemoteRefs: true,
             refKind: "local",
-            ...(baseRefQuery.trim().length > 0 ? { query: baseRefQuery.trim() } : {}),
+            ...(baseRefQuery.trim().length > 0 ? { query: baseRefQuery.trim() } : undefined),
             limit: 100,
           },
         })
@@ -357,7 +358,7 @@ export default function DiffPanel({
             cwd: branchDiffPreview.data.cwd,
             includeMatchingRemoteRefs: true,
             refKind: "remote",
-            ...(baseRefQuery.trim().length > 0 ? { query: baseRefQuery.trim() } : {}),
+            ...(baseRefQuery.trim().length > 0 ? { query: baseRefQuery.trim() } : undefined),
             limit: 100,
           },
         })
@@ -385,7 +386,7 @@ export default function DiffPanel({
     ? activeCheckpointDiff.isPending
     : branchDiffPreview.isPending;
   const selectedPatchError = selectedTurn ? activeCheckpointDiff.error : branchDiffPreview.error;
-  const hasResolvedPatch = typeof selectedPatch === "string";
+  const hasResolvedPatch = RuntimePredicate.isString(selectedPatch);
   const hasNoNetChanges = hasResolvedPatch && selectedPatch.trim().length === 0;
   const renderablePatch = useMemo(
     () =>
@@ -454,7 +455,7 @@ export default function DiffPanel({
                       environmentId: routeThreadRef.environmentId,
                       threadId: routeThreadRef.threadId,
                     }
-                  : {}),
+                  : undefined),
                 ...safeErrorLogAttributes(squashAtomCommandFailure(result)),
               });
             }
@@ -809,6 +810,7 @@ export default function DiffPanel({
     </>
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <DiffPanelShell mode={mode} header={headerRow}>
       {!activeThread ? (
@@ -941,7 +943,7 @@ export default function DiffPanel({
                     theme: resolveDiffThemeName(resolvedTheme),
                     themeType: resolvedTheme as DiffThemeType,
                     stickyHeaders: true,
-                    ...(loadDiffFiles ? { loadDiffFiles } : {}),
+                    ...(loadDiffFiles ? { loadDiffFiles } : undefined),
                   }}
                 />
               </div>

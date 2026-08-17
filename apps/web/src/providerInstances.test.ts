@@ -10,6 +10,7 @@ import {
   resolveSelectableProviderInstance,
   resolveProviderDriverKindForInstanceSelection,
 } from "./providerInstances";
+import * as RuntimePredicate from "effect/Predicate";
 
 function provider(input: {
   provider: ProviderDriverKind;
@@ -23,12 +24,12 @@ function provider(input: {
   return {
     instanceId: ProviderInstanceId.make(input.instanceId),
     driver: input.provider,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
     enabled: input.enabled ?? true,
     installed: true,
     version: null,
     status: input.status ?? "ready",
-    ...(input.availability ? { availability: input.availability } : {}),
+    ...(input.availability ? { availability: input.availability } : undefined),
     auth: { status: "authenticated" },
     checkedAt: "2026-01-01T00:00:00.000Z",
     models: input.models ?? [],
@@ -41,7 +42,7 @@ const model = (slug: string, isCustom = false, isDefault = false) => ({
   slug,
   name: slug,
   isCustom,
-  ...(isDefault ? { isDefault: true } : {}),
+  ...(isDefault ? { isDefault: true } : undefined),
   capabilities: {},
 });
 
@@ -309,7 +310,7 @@ describe("getDefaultProviderInstanceModel", () => {
       providers,
       ProviderInstanceId.make("claudeAgent"),
     );
-    expect(typeof resolved).toBe("string");
+    expect(RuntimePredicate.isString(resolved)).toBe(true);
     expect(resolved?.length).toBeGreaterThan(0);
   });
 

@@ -331,7 +331,7 @@ const EnvironmentOrchestrationDispatchErrors = [
   EnvironmentInternalError,
 ] as const;
 
-export interface EnvironmentSessionPrincipalShape {
+export interface EnvironmentSessionPrincipalContract {
   readonly sessionId: AuthSessionId;
   readonly subject: string;
   readonly method: ServerAuthSessionMethod;
@@ -342,7 +342,7 @@ export interface EnvironmentSessionPrincipalShape {
 
 export class EnvironmentAuthenticatedPrincipal extends Context.Service<
   EnvironmentAuthenticatedPrincipal,
-  EnvironmentSessionPrincipalShape
+  EnvironmentSessionPrincipalContract
 >()("@t3tools/contracts/environmentHttp/EnvironmentAuthenticatedPrincipal") {}
 
 export class EnvironmentAuthenticatedAuth extends HttpApiMiddleware.Service<

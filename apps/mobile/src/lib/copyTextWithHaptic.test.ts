@@ -76,6 +76,7 @@ describe("copyTextWithHaptic", () => {
       target: "connection-trace-id",
       cause: clipboardCause,
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((clipboardError as Error).message).not.toContain("secret clipboard contents");
 
     const hapticError = failures.find((failure) => failure instanceof CopyTextHapticFeedbackError);
@@ -85,6 +86,7 @@ describe("copyTextWithHaptic", () => {
       feedback: "light-impact",
       cause: hapticCause,
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((hapticError as Error).message).not.toContain("secret clipboard contents");
   });
 });

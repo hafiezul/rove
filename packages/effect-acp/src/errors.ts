@@ -149,8 +149,8 @@ export class AcpProtocolParseError extends Schema.TaggedErrorClass<AcpProtocolPa
   ) {
     return new AcpProtocolParseError({
       operation: "encode-message",
-      ...(method === undefined ? {} : { method }),
-      ...(requestId === undefined ? {} : { requestId }),
+      ...(method === undefined ? undefined : { method }),
+      ...(requestId === undefined ? undefined : { requestId }),
       cause,
     });
   }
@@ -188,7 +188,7 @@ export class AcpInputStreamEndedError extends Schema.TaggedErrorClass<AcpInputSt
 export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()("AcpRequestError", {
   code: AcpSchema.ErrorCode,
   errorMessage: Schema.String,
-  data: Schema.optional(Schema.Unknown),
+  data: Schema.optional(Schema.Json),
   method: Schema.optionalKey(Schema.String),
   requestId: Schema.optionalKey(AcpRequestId),
   operation: Schema.optionalKey(AcpRequestOperation),
@@ -212,9 +212,9 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: error.code,
       errorMessage: error.message,
-      ...(error.data !== undefined ? { data: error.data } : {}),
+      ...(error.data !== undefined ? { data: error.data } : undefined),
       method: context.method,
-      ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
+      ...(context.requestId === undefined ? undefined : { requestId: context.requestId }),
       operation: "receive-response",
       cause: context.cause ?? error,
     });
@@ -288,7 +288,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32700,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -296,7 +296,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32600,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -311,7 +311,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32602,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -336,7 +336,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32603,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
       ...diagnostics,
     });
   }
@@ -345,7 +345,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32000,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -353,7 +353,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return new AcpRequestError({
       code: -32002,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -361,7 +361,7 @@ export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()(
     return AcpSchema.Error.make({
       code: this.code,
       message: this.errorMessage,
-      ...(this.data !== undefined ? { data: this.data } : {}),
+      ...(this.data !== undefined ? { data: this.data } : undefined),
     });
   }
 }

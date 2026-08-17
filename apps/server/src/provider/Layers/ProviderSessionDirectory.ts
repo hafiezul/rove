@@ -11,8 +11,10 @@ import {
   ProviderSessionDirectory,
   type ProviderRuntimeBinding,
   type ProviderRuntimeBindingWithMetadata,
-  type ProviderSessionDirectoryShape,
+  type ProviderSessionDirectoryContract,
 } from "../Services/ProviderSessionDirectory.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeProviderDriverKindValue = Schema.decodeUnknownEffect(ProviderDriverKind);
 
 function toPersistenceError(operation: string) {
@@ -40,14 +42,11 @@ function decodeProviderDriverKind(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
-function mergeRuntimePayload(
-  existing: unknown | null,
-  next: unknown | null | undefined,
-): unknown | null {
+function mergeRuntimePayload(existing: unknown | null, next: unknown | null | undefined) {
   if (next === undefined) {
     return existing ?? null;
   }
@@ -100,7 +99,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       ),
     );
 
-  const upsert: ProviderSessionDirectoryShape["upsert"] = Effect.fn(function* (binding) {
+  const upsert: ProviderSessionDirectoryContract["upsert"] = Effect.fn(function* (binding) {
     const existing = yield* repository
       .getByThreadId({ threadId: binding.threadId })
       .pipe(Effect.mapError(toPersistenceError("ProviderSessionDirectory.upsert:getByThreadId")));
@@ -148,7 +147,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       .pipe(Effect.mapError(toPersistenceError("ProviderSessionDirectory.upsert:upsert")));
   });
 
-  const getProvider: ProviderSessionDirectoryShape["getProvider"] = (threadId) =>
+  const getProvider: ProviderSessionDirectoryContract["getProvider"] = (threadId) =>
     getBinding(threadId).pipe(
       Effect.flatMap((binding) =>
         Option.match(binding, {
@@ -164,13 +163,13 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       ),
     );
 
-  const listThreadIds: ProviderSessionDirectoryShape["listThreadIds"] = () =>
+  const listThreadIds: ProviderSessionDirectoryContract["listThreadIds"] = () =>
     repository.list().pipe(
       Effect.mapError(toPersistenceError("ProviderSessionDirectory.listThreadIds:list")),
       Effect.map((rows) => rows.map((row) => row.threadId)),
     );
 
-  const listBindings: ProviderSessionDirectoryShape["listBindings"] = () =>
+  const listBindings: ProviderSessionDirectoryContract["listBindings"] = () =>
     repository.list().pipe(
       Effect.mapError(toPersistenceError("ProviderSessionDirectory.listBindings:list")),
       Effect.flatMap((rows) =>
@@ -188,7 +187,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
     getBinding,
     listThreadIds,
     listBindings,
-  } satisfies ProviderSessionDirectoryShape;
+  } satisfies ProviderSessionDirectoryContract;
 });
 
 export const ProviderSessionDirectoryLive = Layer.effect(

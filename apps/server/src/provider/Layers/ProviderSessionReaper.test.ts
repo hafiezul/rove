@@ -22,7 +22,7 @@ import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import * as ProviderSessionRuntime from "../../persistence/ProviderSessionRuntime.ts";
 import { ProviderValidationError } from "../Errors.ts";
 import { ProviderSessionReaper } from "../Services/ProviderSessionReaper.ts";
-import { ProviderService, type ProviderServiceShape } from "../Services/ProviderService.ts";
+import { ProviderService, type ProviderServiceContract } from "../Services/ProviderService.ts";
 import { ProviderSessionDirectoryLive } from "./ProviderSessionDirectory.ts";
 import { makeProviderSessionReaperLive } from "./ProviderSessionReaper.ts";
 
@@ -54,7 +54,8 @@ const drainFibers = Effect.forEach(Array.from({ length: 10 }), () => Effect.yiel
   discard: true,
 });
 
-const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
 
 function makeReadModel(
   threads: ReadonlyArray<{
@@ -149,19 +150,20 @@ describe("ProviderSessionReaper", () => {
     readonly readModel: ReturnType<typeof makeReadModel>;
     readonly stopSessionImplementation?: (input: {
       readonly threadId: ThreadId;
-    }) => ReturnType<ProviderServiceShape["stopSession"]>;
+    }) => ReturnType<ProviderServiceContract["stopSession"]>;
   }) {
     const stoppedThreadIds = new Set<ThreadId>();
-    const stopSession = vi.fn<ProviderServiceShape["stopSession"]>(
-      (request) =>
-        (input.stopSessionImplementation
-          ? input.stopSessionImplementation(request)
-          : Effect.sync(() => {
-              stoppedThreadIds.add(request.threadId);
-            })) as ReturnType<ProviderServiceShape["stopSession"]>,
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      stopSession = vi.fn<ProviderServiceContract["stopSession"]>(
+        (request) =>
+          (input.stopSessionImplementation
+            ? input.stopSessionImplementation(request)
+            : Effect.sync(() => {
+                stoppedThreadIds.add(request.threadId);
+              })) as ReturnType<ProviderServiceContract["stopSession"]>,
+      );
 
-    const providerService: ProviderServiceShape = {
+    const providerService: ProviderServiceContract = {
       startSession: () => unsupported(),
       sendTurn: () => unsupported(),
       interruptTurn: () => unsupported(),

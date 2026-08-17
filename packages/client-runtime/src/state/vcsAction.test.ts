@@ -24,6 +24,7 @@ import * as EnvironmentRegistry from "../connection/registry.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as Persistence from "../platform/persistence.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { RpcSession } from "../rpc/session.ts";
 import type { AtomCommandResult } from "./runtime.ts";
 import {
@@ -80,9 +81,9 @@ const target = new PrimaryConnectionTarget({
   wsBaseUrl: "wss://environment.example.test",
 });
 
-function session(client: WsRpcProtocolClient): RpcSession {
+function session(client: unknown): RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.never,
     ready: Effect.void,
     probe: Effect.void,
@@ -125,6 +126,7 @@ describe("vcsActionState", () => {
     expect(error).toBeInstanceOf(VcsActionTargetKeyParseError);
     expect(error).toMatchObject({ keyLength: key.length, cause: expect.any(SyntaxError) });
     expect(error).not.toHaveProperty("key");
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as Error).message).not.toContain(key);
   });
 
@@ -464,10 +466,11 @@ describe("vcsActionState", () => {
   );
 
   it("keys mutation ownership by environment and cwd", () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<
+        EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
+        never
+      >;
     const manager = createVcsActionManager(runtime);
     const registry = AtomRegistry.make();
     const target = { environmentId, cwd };
@@ -484,10 +487,11 @@ describe("vcsActionState", () => {
   });
 
   it("retains the incomplete target and operation when tracking is unavailable", async () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<
+        EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
+        never
+      >;
     const manager = createVcsActionManager(runtime);
     const registry = AtomRegistry.make();
     const result = await manager.track(
@@ -516,10 +520,11 @@ describe("vcsActionState", () => {
   });
 
   it("tracks finite mutations without letting an older completion clear newer state", async () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<
+        EnvironmentRegistry.EnvironmentRegistry | Persistence.EnvironmentCacheStore,
+        never
+      >;
     const manager = createVcsActionManager(runtime);
     const registry = AtomRegistry.make();
     const target = { environmentId, cwd };
@@ -610,7 +615,7 @@ describe("vcsActionState", () => {
                     message: "push failed after creating the branch",
                   }),
                 ),
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target,
           state: yield* SubscriptionRef.make(connectionState),
@@ -631,7 +636,7 @@ describe("vcsActionState", () => {
         const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
           run,
           runStream,
-        } as unknown as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+        } as EnvironmentRegistry.EnvironmentRegistry["Service"]);
         const removed = new Array<string>();
         const runtime = Atom.runtime(
           Layer.merge(

@@ -19,6 +19,7 @@ import {
   CommandSeparator,
 } from "../ui/command";
 import { PierreEntryIcon } from "./PierreEntryIcon";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type ComposerCommandItem =
   | {
@@ -135,7 +136,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
       mode="none"
       onItemHighlighted={(highlightedValue) => {
         props.onHighlightedItemChange(
-          typeof highlightedValue === "string" ? highlightedValue : null,
+          RuntimePredicate.isString(highlightedValue) ? highlightedValue : null,
         );
       }}
     >

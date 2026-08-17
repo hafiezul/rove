@@ -1,5 +1,6 @@
 import { ProjectId, ThreadId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { testDouble } from "~/testDouble";
 
 import {
   legacyProjectCwdPreferenceKey,
@@ -151,7 +152,7 @@ describe("parsePersistedState", () => {
     const parsed = parsePersistedState({
       projectExpandedById: {
         logical: false,
-        invalid: "no" as unknown as boolean,
+        invalid: testDouble<boolean>("no"),
       },
       projectOrder: ["physical-b", "", "physical-a", "physical-b"],
       threadLastVisitedAtById: {
@@ -284,9 +285,10 @@ describe("uiStateStore persistence", () => {
 
     persistState(state);
 
-    const persisted = JSON.parse(
-      localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
-    ) as PersistedUiState;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = JSON.parse(
+        localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
+      ) as PersistedUiState;
     expect(persisted).toEqual({
       projectExpandedById: {
         logical: false,
@@ -316,9 +318,10 @@ describe("uiStateStore persistence", () => {
 
     persistState(migrated);
 
-    const persisted = JSON.parse(
-      localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
-    ) as PersistedUiState;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = JSON.parse(
+        localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
+      ) as PersistedUiState;
     expect(resolveProjectExpanded(persisted.projectExpandedById ?? {}, ["unknown"])).toBe(true);
   });
 });

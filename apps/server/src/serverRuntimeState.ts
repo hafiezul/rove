@@ -54,10 +54,10 @@ export const makePersistedServerRuntimeState = (input: {
   Effect.map(DateTime.now, (now) => ({
     version: 1,
     pid: process.pid,
-    ...(input.config.host ? { host: input.config.host } : {}),
+    ...(input.config.host ? { host: input.config.host } : undefined),
     port: input.port,
     origin: runtimeOriginForConfig(input.config, input.port),
-    ...(input.config.devUrl ? { devUrl: input.config.devUrl.toString() } : {}),
+    ...(input.config.devUrl ? { devUrl: input.config.devUrl.toString() } : undefined),
     startedAt: DateTime.formatIso(now),
   }));
 

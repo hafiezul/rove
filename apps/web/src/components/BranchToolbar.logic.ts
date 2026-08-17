@@ -218,11 +218,7 @@ export function resolveBranchSelectionTarget(input: {
   activeProjectCwd: string;
   activeWorktreePath: string | null;
   refName: Pick<VcsRef, "isDefault" | "worktreePath">;
-}): {
-  checkoutCwd: string;
-  nextWorktreePath: string | null;
-  reuseExistingWorktree: boolean;
-} {
+}) {
   const { activeProjectCwd, activeWorktreePath, refName } = input;
 
   if (refName.worktreePath) {

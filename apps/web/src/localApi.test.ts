@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   DEFAULT_CLIENT_SETTINGS,
   type ConfirmDialogOptions,
@@ -44,7 +45,8 @@ function createLocalStorageStub(): Storage {
 }
 
 function testWindow(): Window & typeof globalThis {
-  return globalThis.window ?? (globalThis as unknown as Window & typeof globalThis);
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  return globalThis.window ?? (globalThis as Window & typeof globalThis);
 }
 
 beforeEach(() => {
@@ -108,12 +110,12 @@ describe("LocalApi", () => {
     const pickFolder = vi.fn().mockResolvedValue("/tmp/project");
     const getClientSettings = vi.fn().mockResolvedValue(DEFAULT_CLIENT_SETTINGS);
     const setClientSettings = vi.fn().mockResolvedValue(undefined);
-    testWindow().desktopBridge = {
+    testWindow().desktopBridge = testDouble<DesktopBridge>({
       showContextMenu,
       pickFolder,
       getClientSettings,
       setClientSettings,
-    } as unknown as DesktopBridge;
+    });
 
     const { createLocalApi } = await import("./localApi");
     const api = createLocalApi();

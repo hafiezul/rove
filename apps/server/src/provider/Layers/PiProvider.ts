@@ -35,6 +35,16 @@ const PI_PRESENTATION = {
   requiresNewThreadForModelChange: false,
 } as const;
 
+interface PiDiscoveryResult {
+  readonly skills: ReadonlyArray<ServerProviderSkill>;
+  readonly slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
+}
+
+const EMPTY_PI_DISCOVERY: PiDiscoveryResult = {
+  skills: [],
+  slashCommands: [],
+};
+
 /**
  * Option descriptor id the composer dispatches for Pi's per-thread thinking
  * level. The adapter reads it back out of `modelSelection.options` under the
@@ -42,7 +52,7 @@ const PI_PRESENTATION = {
  */
 export const PI_THINKING_DESCRIPTOR_ID = "thinkingLevel";
 
-const THINKING_LEVEL_LABELS: Record<(typeof PI_THINKING_LEVELS)[number], string> = {
+const THINKING_LEVEL_LABELS = {
   off: "Off",
   minimal: "Minimal",
   low: "Low",
@@ -50,7 +60,7 @@ const THINKING_LEVEL_LABELS: Record<(typeof PI_THINKING_LEVELS)[number], string>
   high: "High",
   xhigh: "Extra High",
   max: "Max",
-};
+} satisfies Record<(typeof PI_THINKING_LEVELS)[number], string>;
 
 /**
  * Pi thinking levels are clamped to model capabilities by the SDK at apply
@@ -66,7 +76,7 @@ const piModelCapabilities = (piSettings: Pick<PiSettings, "thinkingLevel">): Mod
         options: PI_THINKING_LEVELS.map((level) => ({
           value: level,
           label: THINKING_LEVEL_LABELS[level],
-          ...(piSettings.thinkingLevel === level ? { isDefault: true } : {}),
+          ...(piSettings.thinkingLevel === level ? { isDefault: true } : undefined),
         })),
       }),
     ],
@@ -122,7 +132,7 @@ export function checkPiProviderStatus(
   piSettings: PiSettings,
   probeClient: PiProbeClient,
   discoveryClient?: PiDiscoveryClient,
-): Effect.Effect<ServerProviderDraft> {
+) {
   return Effect.gen(function* () {
     const checkedAt = DateTime.formatIso(yield* DateTime.now);
 
@@ -186,17 +196,7 @@ export function checkPiProviderStatus(
           ? discoveryClient.discover({ cwd: undefined })
           : Promise.resolve({ skills: [], slashCommands: [] }),
       catch: () => undefined,
-    }).pipe(
-      Effect.orElseSucceed(
-        (): {
-          skills: ReadonlyArray<ServerProviderSkill>;
-          slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
-        } => ({
-          skills: [],
-          slashCommands: [],
-        }),
-      ),
-    );
+    }).pipe(Effect.orElseSucceed(() => EMPTY_PI_DISCOVERY));
 
     return buildServerProvider({
       presentation: PI_PRESENTATION,
@@ -212,7 +212,7 @@ export function checkPiProviderStatus(
         auth: { status: probed.provider !== undefined ? "authenticated" : "unknown" },
         ...(models.length === 0
           ? { message: "Pi SDK loaded but no models are configured in your Pi catalog." }
-          : {}),
+          : undefined),
       },
     });
   });

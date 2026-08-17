@@ -509,8 +509,8 @@ const renderIcon = Effect.fn("iconExport.renderIcon")(function* (
       exitCode: result.exitCode,
       sourcePath,
       size,
-      ...(result.stdout.trim() ? { stdout: result.stdout.trim() } : {}),
-      ...(result.stderr.trim() ? { stderr: result.stderr.trim() } : {}),
+      ...(result.stdout.trim() ? { stdout: result.stdout.trim() } : undefined),
+      ...(result.stderr.trim() ? { stderr: result.stderr.trim() } : undefined),
     });
   }
 

@@ -46,7 +46,7 @@ export type DeleteProjectionThreadSessionInput = typeof DeleteProjectionThreadSe
 /**
  * ProjectionThreadSessionRepositoryShape - Service API for projected thread sessions.
  */
-export interface ProjectionThreadSessionRepositoryShape {
+export interface ProjectionThreadSessionRepositoryContract {
   /**
    * Insert or replace a projected thread-session row.
    *
@@ -74,5 +74,5 @@ export interface ProjectionThreadSessionRepositoryShape {
  */
 export class ProjectionThreadSessionRepository extends Context.Service<
   ProjectionThreadSessionRepository,
-  ProjectionThreadSessionRepositoryShape
+  ProjectionThreadSessionRepositoryContract
 >()("t3/persistence/Services/ProjectionThreadSessions/ProjectionThreadSessionRepository") {}

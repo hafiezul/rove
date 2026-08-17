@@ -13,6 +13,7 @@ import * as CodexProtocol from "./protocol.ts";
 import * as CodexRpc from "./rpc.ts";
 import * as CodexSchema from "./schema.ts";
 import { makeInMemoryStdio } from "./_internal/stdio.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 const encodeUnknownJsonString = Schema.encodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
 const encoder = new TextEncoder();
@@ -305,7 +306,7 @@ it.layer(NodeServices.layer)("effect-codex-app-server protocol", (it) => {
         "Codex App Server protocol operation 'encode-wire-message' failed for method 'x/test'.",
       );
 
-      const circular: Record<string, unknown> = {};
+      const circular: Record<string, SchemaJson> = {};
       circular.self = circular;
       const circularError = yield* transport.notify("x/test", circular).pipe(Effect.flip);
       assert.instanceOf(circularError, CodexError.CodexAppServerProtocolParseError);
@@ -386,7 +387,8 @@ it.layer(NodeServices.layer)("effect-codex-app-server protocol", (it) => {
       const event = events.find(({ stage }) => stage === "decode_failed");
       assert.exists(event);
       assert.equal(event.direction, "incoming");
-      const payload = event.payload as Record<string, unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        payload = event.payload as Record<string, SchemaJson>;
       assert.equal(payload.operation, "decode-wire-message");
       assert.isNumber(payload.issueCount);
       assert.isArray(payload.issueKinds);

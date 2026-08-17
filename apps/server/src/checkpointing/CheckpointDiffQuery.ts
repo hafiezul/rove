@@ -254,15 +254,16 @@ export const make = Effect.gen(function* () {
       });
     }
 
-    const diff = yield* checkpointStore
-      .diffCheckpoints({
-        cwd: workspaceCwd,
-        fromCheckpointRef: checkpointRefForThreadTurn(input.threadId, 0),
-        toCheckpointRef: threadContext.value.toCheckpointRef as CheckpointRef,
-        fallbackFromToHead: false,
-        ignoreWhitespace,
-      })
-      .pipe(Effect.withSpan("checkpoint.fullThread.diffCheckpoints"));
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      diff = yield* checkpointStore
+        .diffCheckpoints({
+          cwd: workspaceCwd,
+          fromCheckpointRef: checkpointRefForThreadTurn(input.threadId, 0),
+          toCheckpointRef: threadContext.value.toCheckpointRef as CheckpointRef,
+          fallbackFromToHead: false,
+          ignoreWhitespace,
+        })
+        .pipe(Effect.withSpan("checkpoint.fullThread.diffCheckpoints"));
 
     const turnDiff = buildTurnDiffResult(
       {

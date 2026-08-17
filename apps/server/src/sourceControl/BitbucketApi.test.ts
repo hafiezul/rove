@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { assert, it, vi } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -119,46 +120,47 @@ function makeLayer(input: {
       }),
   } satisfies Partial<VcsDriver.VcsDriver["Service"]>;
 
-  const layer = BitbucketApi.layer.pipe(
-    Layer.provide(
-      Layer.succeed(
-        HttpClient.HttpClient,
-        HttpClient.make((request) => execute(request)),
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    layer = BitbucketApi.layer.pipe(
+      Layer.provide(
+        Layer.succeed(
+          HttpClient.HttpClient,
+          HttpClient.make((request) => execute(request)),
+        ),
       ),
-    ),
-    Layer.provide(
-      Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
-        resolve: () =>
-          Effect.succeed({
-            kind: "git",
-            repository: {
+      Layer.provide(
+        Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
+          resolve: () =>
+            Effect.succeed({
               kind: "git",
-              rootPath: "/repo",
-              metadataPath: null,
-              freshness: {
-                source: "live-local" as const,
-                observedAt: DateTime.makeUnsafe("1970-01-01T00:00:00.000Z"),
-                expiresAt: Option.none(),
+              repository: {
+                kind: "git",
+                rootPath: "/repo",
+                metadataPath: null,
+                freshness: {
+                  source: "live-local" as const,
+                  observedAt: DateTime.makeUnsafe("1970-01-01T00:00:00.000Z"),
+                  expiresAt: Option.none(),
+                },
               },
-            },
-            driver: driver as unknown as VcsDriver.VcsDriver["Service"],
-          }),
-      }),
-    ),
-    Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)(git)),
-    Layer.provide(
-      ConfigProvider.layer(
-        ConfigProvider.fromEnv({
-          env: {
-            T3CODE_BITBUCKET_API_BASE_URL: "https://api.test.local/2.0",
-            T3CODE_BITBUCKET_EMAIL: "user@example.com",
-            T3CODE_BITBUCKET_API_TOKEN: "token",
-          },
+              driver: testDouble<VcsDriver.VcsDriver["Service"]>(driver),
+            }),
         }),
       ),
-    ),
-    Layer.provideMerge(NodeServices.layer),
-  );
+      Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)(git)),
+      Layer.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromEnv({
+            env: {
+              T3CODE_BITBUCKET_API_BASE_URL: "https://api.test.local/2.0",
+              T3CODE_BITBUCKET_EMAIL: "user@example.com",
+              T3CODE_BITBUCKET_API_TOKEN: "token",
+            },
+          }),
+        ),
+      ),
+      Layer.provideMerge(NodeServices.layer),
+    );
 
   return { execute, git: gitMock, layer };
 }
@@ -437,7 +439,8 @@ it.effect("creates repositories through the Bitbucket REST API", () => {
     assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/pingdotgg/t3code");
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
-    const rawBody = (request.body as { readonly body?: Uint8Array }).body;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      rawBody = (request.body as { readonly body?: Uint8Array }).body;
     assert.ok(rawBody);
     // @effect-diagnostics-next-line preferSchemaOverJson:off
     assert.deepStrictEqual(JSON.parse(new TextDecoder().decode(rawBody)), {
@@ -473,7 +476,8 @@ it.effect("creates pull requests using the official REST payload shape", () => {
     );
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
-    const rawBody = (request.body as { readonly body?: Uint8Array }).body;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      rawBody = (request.body as { readonly body?: Uint8Array }).body;
     assert.ok(rawBody);
     // @effect-diagnostics-next-line preferSchemaOverJson:off
     assert.deepStrictEqual(JSON.parse(new TextDecoder().decode(rawBody)), {

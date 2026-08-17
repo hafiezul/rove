@@ -778,11 +778,12 @@ describe("makeAggregateState", () => {
   });
 
   it("gives active agents the display slots before finished ones", () => {
-    const mkActive = (id: string): RelayAgentActivityState => ({
-      ...state,
-      threadId: id as RelayAgentActivityState["threadId"],
-      updatedAt: "1970-01-01T00:58:00.000Z",
-    });
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      mkActive = (id: string): RelayAgentActivityState => ({
+        ...state,
+        threadId: id as RelayAgentActivityState["threadId"],
+        updatedAt: "1970-01-01T00:58:00.000Z",
+      });
     const justCompleted: RelayAgentActivityState = {
       ...state,
       threadId: "thread-done" as RelayAgentActivityState["threadId"],

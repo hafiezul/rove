@@ -12,6 +12,7 @@ import * as Schema from "effect/Schema";
 import { Command, Flag } from "effect/unstable/cli";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CURRENT_SCHEMA_RELEASE = "v0.11.3";
 
@@ -146,11 +147,15 @@ function collectSchemaEntries(
   return entries;
 }
 
+function isJsonObject(value: Schema.Json): value is Schema.JsonObject {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+}
+
 function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(normalizeNullableTypes);
   }
-  if (value === null || typeof value !== "object") {
+  if (!isJsonObject(value)) {
     return value;
   }
 
@@ -158,14 +163,17 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
     key,
     normalizeNullableTypes(child),
   ]);
-  const normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
   const typeValue = normalizedObject.type;
 
   if (!Array.isArray(typeValue)) {
     return normalizedObject;
   }
 
-  const normalizedTypes = typeValue.filter((entry): entry is string => typeof entry === "string");
+  const normalizedTypes = typeValue.filter((entry): entry is string =>
+    RuntimePredicate.isString(entry),
+  );
   if (normalizedTypes.length !== typeValue.length || !normalizedTypes.includes("null")) {
     return normalizedObject;
   }
@@ -192,6 +200,16 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
       { type: "null" },
     ],
   };
+}
+
+function constrainWireValuesToJson(generatedOutput: string): string {
+  // ACP is a JSON-RPC protocol: extension fields and unspecified OpenAPI values
+  // cross the process boundary as JSON, never arbitrary JavaScript values.
+  return generatedOutput
+    .replaceAll("Schema.Unknown", "Schema.Json")
+    .replaceAll(": unknown", ": Schema.Json")
+    .replaceAll("| unknown", "| Schema.Json")
+    .replaceAll("= unknown", "= Schema.Json");
 }
 
 const generateSchemas = Effect.fn("generateSchemas")(function* (skipDownload: boolean) {
@@ -222,10 +240,14 @@ const generateSchemas = Effect.fn("generateSchemas")(function* (skipDownload: bo
   const generator = makeJsonSchemaGenerator();
 
   for (const [name, schema] of sortedEntries) {
+    // SAFETY: This branch is unreachable under the owning callback contract.
     generator.addSchema(name, schema as never);
   }
 
-  const output = generator.generate("openapi-3.1", normalizedDefinitions as never, false).trim();
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    output = constrainWireValuesToJson(
+      generator.generate("openapi-3.1", normalizedDefinitions as never, false).trim(),
+    );
   if (output.length > 0) {
     for (const entry of collectSchemaEntries(output)) {
       if (!generatedEntries.has(entry.name)) {

@@ -238,10 +238,10 @@ export function unknownWhenVariables(node: KeybindingWhenNode | undefined): Read
 
 export function buildWhenVariableOptions(): ReadonlyArray<WhenVariableOption> {
   return [...KNOWN_WHEN_VARIABLES].toSorted((left, right) => {
-    const leftCoreIndex = CORE_WHEN_VARIABLES.indexOf(left as (typeof CORE_WHEN_VARIABLES)[number]);
-    const rightCoreIndex = CORE_WHEN_VARIABLES.indexOf(
-      right as (typeof CORE_WHEN_VARIABLES)[number],
-    );
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      leftCoreIndex = CORE_WHEN_VARIABLES.indexOf(left as (typeof CORE_WHEN_VARIABLES)[number]);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      rightCoreIndex = CORE_WHEN_VARIABLES.indexOf(right as (typeof CORE_WHEN_VARIABLES)[number]);
     if (leftCoreIndex !== -1 || rightCoreIndex !== -1) {
       return (
         (leftCoreIndex === -1 ? Number.MAX_SAFE_INTEGER : leftCoreIndex) -

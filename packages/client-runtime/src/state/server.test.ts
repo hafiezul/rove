@@ -28,6 +28,7 @@ import {
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as Persistence from "../platform/persistence.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { RpcSession } from "../rpc/session.ts";
 import {
   applyServerConfigProjection,
@@ -43,7 +44,7 @@ import {
   validateServerUpdateReadyEvent,
 } from "./server.ts";
 
-const CONFIG = {
+const CONFIG = testDouble<ServerConfig>({
   availableEditors: [],
   issues: [],
   keybindings: {},
@@ -51,7 +52,7 @@ const CONFIG = {
   observability: null,
   providers: [],
   settings: {},
-} as unknown as ServerConfig;
+});
 
 const snapshotEvent = (config: ServerConfig): ServerConfigStreamEvent => ({
   version: 1,
@@ -66,9 +67,9 @@ const TARGET = new PrimaryConnectionTarget({
   wsBaseUrl: "wss://environment.example.test",
 });
 
-function session(client: WsRpcProtocolClient): RpcSession {
+function session(client: unknown): RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.succeed(CONFIG),
     ready: Effect.void,
     probe: Effect.void,
@@ -250,7 +251,7 @@ describe("server state projection", () => {
               fromVersion: "0.0.30",
               targetVersion: "0.0.31",
               status,
-              ...(status === "rolled-back" ? { reason: "prepared-timeout" } : {}),
+              ...(status === "rolled-back" ? { reason: "prepared-timeout" } : undefined),
             },
           },
         }) as Parameters<typeof matchesServerUpdateReadyEvent>[1];
@@ -303,11 +304,11 @@ describe("server state projection", () => {
 
   it("prefers an active session config over cache until a live event arrives", () => {
     const config = (source: string, serverVersion: string) =>
-      ({
+      testDouble<ServerConfig>({
         ...CONFIG,
         environment: { serverVersion },
         settings: { source },
-      }) as unknown as ServerConfig;
+      });
     const cached = config("cache", "0.0.29");
     const staleLive = config("stale-live", "0.0.29");
     const initial = config("session", "0.0.30");
@@ -350,7 +351,7 @@ describe("server state projection", () => {
       const events = yield* Queue.unbounded<ServerConfigStreamEvent>();
       const client = {
         [WS_METHODS.subscribeServerConfig]: () => Stream.fromQueue(events),
-      } as unknown as WsRpcProtocolClient;
+      };
       const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
         target: TARGET,
         state: yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE),
@@ -411,7 +412,7 @@ describe("server state projection", () => {
     Effect.gen(function* () {
       const client = {
         [WS_METHODS.subscribeServerConfig]: () => Stream.empty,
-      } as unknown as WsRpcProtocolClient;
+      };
       const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
         target: TARGET,
         state: yield* SubscriptionRef.make(AVAILABLE_CONNECTION_STATE),

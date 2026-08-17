@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 export interface WslDistro {
   readonly name: string;
   readonly isDefault: boolean;
@@ -33,6 +34,7 @@ export function parseWslDistroList(stdout: Buffer): readonly WslDistro[] {
     const name = fields[0]!.trim();
     const versionNum = parseInt(fields[2]!, 10);
     if (!name || (versionNum !== 1 && versionNum !== 2)) continue;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     distros.push({ name, isDefault, version: versionNum as 1 | 2 });
   }
   return distros;
@@ -80,12 +82,13 @@ export function resolveWslPickFolderDefaultPath(
   userHome: string | null = null,
 ): string | null {
   const homePath = resolveWslHomeUncPath(config, distros);
-  if (typeof rawOptions !== "object" || rawOptions === null) {
+  if (!RuntimePredicate.isObjectOrArray(rawOptions)) {
     return homePath;
   }
 
-  const { initialPath } = rawOptions as { initialPath?: unknown };
-  if (typeof initialPath !== "string") {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    { initialPath } = rawOptions as { initialPath?: unknown };
+  if (!RuntimePredicate.isString(initialPath)) {
     return homePath;
   }
 

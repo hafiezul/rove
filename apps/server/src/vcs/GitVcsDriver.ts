@@ -431,19 +431,21 @@ const gitCommand = (
     args: ["-C", cwd, ...args],
     cwd,
     spawnCwd: globalThis.process.cwd(),
-    ...(options?.stdin !== undefined ? { stdin: options.stdin } : {}),
-    ...(options?.env !== undefined ? { env: options.env } : {}),
+    ...(options?.stdin !== undefined ? { stdin: options.stdin } : undefined),
+    ...(options?.env !== undefined ? { env: options.env } : undefined),
     ...(options?.allowNonZeroExit !== undefined
       ? { allowNonZeroExit: options.allowNonZeroExit }
-      : {}),
-    ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
-    ...(options?.maxOutputBytes !== undefined ? { maxOutputBytes: options.maxOutputBytes } : {}),
+      : undefined),
+    ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : undefined),
+    ...(options?.maxOutputBytes !== undefined
+      ? { maxOutputBytes: options.maxOutputBytes }
+      : undefined),
     ...(options?.appendTruncationMarker !== undefined
       ? { appendTruncationMarker: options.appendTruncationMarker }
-      : {}),
+      : undefined),
   });
 
-export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* () {
+export const makeVcsDriverContract = Effect.fn("makeGitVcsDriverShape")(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const vcsProcess = yield* VcsProcess.VcsProcess;
@@ -471,14 +473,18 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
 
   const execute: VcsDriver.VcsDriver["Service"]["execute"] = (input) =>
     gitCommand(vcsProcess, input.operation, input.cwd, input.args, {
-      ...(input.stdin !== undefined ? { stdin: input.stdin } : {}),
-      ...(input.env !== undefined ? { env: input.env } : {}),
-      ...(input.allowNonZeroExit !== undefined ? { allowNonZeroExit: input.allowNonZeroExit } : {}),
-      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
-      ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+      ...(input.stdin !== undefined ? { stdin: input.stdin } : undefined),
+      ...(input.env !== undefined ? { env: input.env } : undefined),
+      ...(input.allowNonZeroExit !== undefined
+        ? { allowNonZeroExit: input.allowNonZeroExit }
+        : undefined),
+      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined),
+      ...(input.maxOutputBytes !== undefined
+        ? { maxOutputBytes: input.maxOutputBytes }
+        : undefined),
       ...(input.appendTruncationMarker !== undefined
         ? { appendTruncationMarker: input.appendTruncationMarker }
-        : {}),
+        : undefined),
     });
 
   const detectRepository: VcsDriver.VcsDriver["Service"]["detectRepository"] = Effect.fn(
@@ -916,7 +922,7 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
 });
 
 export const makeVcsDriver = Effect.gen(function* () {
-  const driver = yield* makeVcsDriverShape();
+  const driver = yield* makeVcsDriverContract();
   return VcsDriver.VcsDriver.of(driver);
 });
 

@@ -23,6 +23,7 @@ import {
   resolveDirectPairingBaseUrl,
   resolveTailscaleLocalTarget,
 } from "./pair.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CliRuntimeLayer = Layer.mergeAll(NodeServices.layer, NetService.layer);
 
@@ -96,8 +97,8 @@ const captureStdout = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     Effect.gen(function* () {
       yield* effect;
       return (
-        (yield* TestConsole.logLines).findLast(
-          (line): line is string => typeof line === "string",
+        (yield* TestConsole.logLines).findLast((line): line is string =>
+          RuntimePredicate.isString(line),
         ) ?? ""
       );
     }),
@@ -127,7 +128,7 @@ const withDescriptorServer = <A, E, R>(run: (origin: string) => Effect.Effect<A,
     }),
     (server) => {
       const address = server.address();
-      if (address === null || typeof address === "string") {
+      if (address === null || RuntimePredicate.isString(address)) {
         return Effect.die(new Error("Expected a TCP address"));
       }
       return run(`http://127.0.0.1:${String(address.port)}`);
@@ -165,8 +166,9 @@ describe("t3 pair", () => {
         const listed = yield* captureStdout(
           runCli(["auth", "pairing", "list", "--base-dir", baseDir, "--json"]),
         );
-        // @effect-diagnostics-next-line preferSchemaOverJson:off - CLI JSON output is decoded as a presentation DTO.
-        const credentials = JSON.parse(listed) as ReadonlyArray<{ readonly label?: string }>;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+          credentials = JSON.parse(listed) as ReadonlyArray<{ readonly label?: string }>;
         assert.equal(credentials.length, 1);
         assert.equal(credentials[0]?.label, "t3 pair");
       }),
@@ -203,7 +205,7 @@ describe("t3 pair", () => {
       );
 
       const rendered = String(
-        typeof error === "object" && error !== null && "cause" in error ? error.cause : error,
+        RuntimePredicate.isObjectOrArray(error) && "cause" in error ? error.cause : error,
       );
       assert.include(rendered, "No running T3 Code server found.");
       assert.include(rendered, "npx t3 serve");
@@ -234,7 +236,7 @@ describe("t3 pair", () => {
         );
 
         const rendered = String(
-          typeof error === "object" && error !== null && "cause" in error ? error.cause : error,
+          RuntimePredicate.isObjectOrArray(error) && "cause" in error ? error.cause : error,
         );
         assert.include(rendered, "No running T3 Code server found.");
       }),
@@ -260,7 +262,7 @@ describe("t3 pair", () => {
       );
 
       const rendered = String(
-        typeof error === "object" && error !== null && "cause" in error ? error.cause : error,
+        RuntimePredicate.isObjectOrArray(error) && "cause" in error ? error.cause : error,
       );
       assert.include(rendered, "No running T3 Code server found.");
     }).pipe(Effect.provide(NodeServices.layer)),

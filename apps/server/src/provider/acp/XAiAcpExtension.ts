@@ -6,12 +6,13 @@ import * as Schema from "effect/Schema";
 import type * as EffectAcpSchema from "effect-acp/schema";
 
 import type * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const XAiPromptCompleteNotification = Schema.Struct({
   sessionId: Schema.String,
   promptId: Schema.optional(Schema.String),
   stopReason: Schema.optional(Schema.String),
-  agentResult: Schema.optional(Schema.NullOr(Schema.Unknown)),
+  agentResult: Schema.optional(Schema.NullOr(Schema.Json)),
 });
 
 type XAiPromptCompleteNotification = typeof XAiPromptCompleteNotification.Type;
@@ -113,20 +114,22 @@ interface NormalizedXAiAnswer {
   readonly annotation?: XAiAskUserQuestionAnnotation;
 }
 
-function answerValues(answer: unknown): ReadonlyArray<string> {
+type XAiAnswerValue = string | ReadonlyArray<string> | undefined;
+
+function answerValues(answer: XAiAnswerValue): ReadonlyArray<string> {
   if (Array.isArray(answer)) {
     return answer.flatMap((entry) => {
-      const text = typeof entry === "string" ? trimmed(entry) : undefined;
+      const text = RuntimePredicate.isString(entry) ? trimmed(entry) : undefined;
       return text ? [text] : [];
     });
   }
-  const text = typeof answer === "string" ? trimmed(answer) : undefined;
+  const text = RuntimePredicate.isString(answer) ? trimmed(answer) : undefined;
   return text ? [text] : [];
 }
 
 function normalizeAnswerForXAi(
   question: XAiAskUserQuestionRequestParams["questions"][number],
-  answer: unknown,
+  answer: XAiAnswerValue,
 ): NormalizedXAiAnswer | undefined {
   const values = answerValues(answer);
   if (values.length === 0) {
@@ -148,24 +151,32 @@ function normalizeAnswerForXAi(
   const annotation =
     preview || notes.length > 0
       ? {
-          ...(preview ? { preview } : {}),
-          ...(notes.length > 0 ? { notes: notes.join("\n") } : {}),
+          ...(preview ? { preview } : undefined),
+          ...(notes.length > 0 ? { notes: notes.join("\n") } : undefined),
         }
       : undefined;
 
   return {
     questionText: question.question,
     selectedLabels: selectedLabels.length > 0 ? selectedLabels : ["Other"],
-    ...(annotation ? { annotation } : {}),
+    ...(annotation ? { annotation } : undefined),
   };
 }
 
 function findQuestionAnswer(
   answers: ProviderUserInputAnswers,
   question: XAiAskUserQuestionRequestParams["questions"][number],
-): unknown {
-  const key = question.id ?? question.question;
-  return answers[key] ?? answers[question.question];
+): XAiAnswerValue {
+  const answer = answers[question.id ?? question.question] ?? answers[question.question];
+  if (RuntimePredicate.isString(answer)) {
+    return answer;
+  }
+  if (Array.isArray(answer)) {
+    return answer.flatMap(
+      (entry): ReadonlyArray<string> => (RuntimePredicate.isString(entry) ? [entry] : []),
+    );
+  }
+  return undefined;
 }
 
 export function makeXAiAskUserQuestionResponse(
@@ -188,7 +199,7 @@ export function makeXAiAskUserQuestionResponse(
     answers: Object.fromEntries(
       normalized.map((entry) => [entry.questionText, entry.selectedLabels]),
     ),
-    ...(Object.keys(annotations).length > 0 ? { annotations } : {}),
+    ...(Object.keys(annotations).length > 0 ? { annotations } : undefined),
   };
 }
 
@@ -381,37 +392,37 @@ const rememberCompletedXAiPromptId = (
 
 function promptIdFromResponse(response: EffectAcpSchema.PromptResponse): string | undefined {
   const meta = response._meta;
-  if (meta === null || typeof meta !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(meta)) {
     return undefined;
   }
   const promptId = meta.promptId ?? meta.requestId;
-  return typeof promptId === "string" && promptId.length > 0 ? promptId : undefined;
+  return RuntimePredicate.isString(promptId) && promptId.length > 0 ? promptId : undefined;
 }
 
 export function promptResponseHasMissingXAiStopReason(
   response: EffectAcpSchema.PromptResponse,
 ): boolean {
   const meta = response._meta;
-  return meta !== null && typeof meta === "object" && meta[xAiStopReasonMissingMetaKey] === true;
+  return RuntimePredicate.isObjectOrArray(meta) && meta[xAiStopReasonMissingMetaKey] === true;
 }
 
 function promptResponseFromXAi(
   notification: XAiPromptCompleteNotification,
 ): EffectAcpSchema.PromptResponse {
   const stopReason = normalizeXAiStopReason(notification.stopReason);
-  const meta: Record<string, unknown> = {
-    sessionId: notification.sessionId,
-  };
+  const metaEntries: Array<readonly [string, Schema.Json]> = [
+    ["sessionId", notification.sessionId],
+  ];
   if (notification.stopReason === undefined) {
-    meta[xAiStopReasonMissingMetaKey] = true;
+    metaEntries.push([xAiStopReasonMissingMetaKey, true]);
   }
   if (notification.promptId !== undefined) {
-    meta.promptId = notification.promptId;
-    meta.requestId = notification.promptId;
+    metaEntries.push(["promptId", notification.promptId], ["requestId", notification.promptId]);
   }
   if (notification.agentResult !== undefined) {
-    meta.agentResult = notification.agentResult;
+    metaEntries.push(["agentResult", notification.agentResult]);
   }
+  const meta = Object.fromEntries(metaEntries);
   return {
     stopReason,
     _meta: meta,

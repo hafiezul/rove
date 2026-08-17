@@ -60,6 +60,7 @@ import {
 import * as ProcessRunner from "../processRunner.ts";
 import * as PortScanner from "../preview/PortScanner.ts";
 import * as PtyAdapter from "./PtyAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export {
   TerminalCwdError,
@@ -393,7 +394,8 @@ function isDuplicateAttachSnapshotEvent(
   event: TerminalEvent,
   initialSnapshot: TerminalSessionSnapshot,
 ) {
-  return typeof event.sequence === "number" && typeof initialSnapshot.sequence === "number"
+  return RuntimePredicate.isNumber(event.sequence) &&
+    RuntimePredicate.isNumber(initialSnapshot.sequence)
     ? event.sequence <= initialSnapshot.sequence
     : event.type === "started" &&
         event.snapshot.threadId === initialSnapshot.threadId &&
@@ -401,10 +403,7 @@ function isDuplicateAttachSnapshotEvent(
         event.snapshot.updatedAt <= initialSnapshot.updatedAt;
 }
 
-function advanceEventSequence(session: TerminalSessionState): {
-  readonly updatedAt: string;
-  readonly sequence: number;
-} {
+function advanceEventSequence(session: TerminalSessionState) {
   const updatedAt = DateTime.formatIso(DateTime.nowUnsafe());
   session.eventSequence += 1;
   session.updatedAt = updatedAt;
@@ -576,7 +575,7 @@ function isRetryableShellSpawnError(error: PtyAdapter.PtySpawnError): boolean {
     }
     seen.add(current);
 
-    if (typeof current === "string") {
+    if (RuntimePredicate.isString(current)) {
       messages.push(current);
       continue;
     }
@@ -589,9 +588,10 @@ function isRetryableShellSpawnError(error: PtyAdapter.PtySpawnError): boolean {
       continue;
     }
 
-    if (typeof current === "object") {
-      const value = current as { message?: unknown; cause?: unknown };
-      if (typeof value.message === "string") {
+    if (RuntimePredicate.isObjectOrArray(current) || current === null) {
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        value = current as { message?: unknown; cause?: unknown };
+      if (RuntimePredicate.isString(value.message)) {
         messages.push(value.message);
       }
       if (value.cause) {
@@ -950,10 +950,7 @@ function findEscapeSequenceEndIndex(input: string, start: number): number | null
   return isEscapeFinalByte(input.charCodeAt(cursor)) ? cursor + 1 : start + 1;
 }
 
-function sanitizeTerminalHistoryChunk(
-  pendingControlSequence: string,
-  data: string,
-): { visibleText: string; pendingControlSequence: string } {
+function sanitizeTerminalHistoryChunk(pendingControlSequence: string, data: string) {
   const input = `${pendingControlSequence}${data}`;
   let visibleText = "";
   let index = 0;
@@ -1841,7 +1838,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
       return yield* new PtyAdapter.PtySpawnError({
         adapter: "terminal-manager",
         attemptedShells: shellCandidates.map((candidate) => formatShellCandidate(candidate)),
-        ...(lastError ? { cause: lastError } : {}),
+        ...(lastError ? { cause: lastError } : undefined),
       });
     }
 
@@ -1859,7 +1856,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     const attempt = yield* Effect.result(
       options.ptyAdapter.spawn({
         shell: candidate.shell,
-        ...(candidate.args ? { args: candidate.args } : {}),
+        ...(candidate.args ? { args: candidate.args } : undefined),
         cwd: session.cwd,
         cols: session.cols,
         rows: session.rows,
@@ -2008,7 +2005,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         threadId: session.threadId,
         terminalId: session.terminalId,
         cause: error,
-        ...(startedShell ? { shell: startedShell } : {}),
+        ...(startedShell ? { shell: startedShell } : undefined),
       });
     }
   });
@@ -2231,10 +2228,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           threadId: input.threadId,
           terminalId,
           cwd: input.cwd,
-          ...(input.worktreePath !== undefined ? { worktreePath: input.worktreePath } : {}),
+          ...(input.worktreePath !== undefined ? { worktreePath: input.worktreePath } : undefined),
           cols,
           rows,
-          ...(input.env ? { env: input.env } : {}),
+          ...(input.env ? { env: input.env } : undefined),
         },
         "started",
       );
@@ -2286,7 +2283,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           worktreePath: liveSession.worktreePath,
           cols: targetCols,
           rows: targetRows,
-          ...(input.env ? { env: input.env } : {}),
+          ...(input.env ? { env: input.env } : undefined),
         },
         "started",
       );
@@ -2658,10 +2655,12 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
             threadId: input.threadId,
             terminalId,
             cwd: input.cwd,
-            ...(input.worktreePath !== undefined ? { worktreePath: input.worktreePath } : {}),
+            ...(input.worktreePath !== undefined
+              ? { worktreePath: input.worktreePath }
+              : undefined),
             cols,
             rows,
-            ...(input.env ? { env: input.env } : {}),
+            ...(input.env ? { env: input.env } : undefined),
           },
           "restarted",
         );

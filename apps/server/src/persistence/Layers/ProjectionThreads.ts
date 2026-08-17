@@ -12,7 +12,7 @@ import {
   ListProjectionThreadsByProjectInput,
   ProjectionThread,
   ProjectionThreadRepository,
-  type ProjectionThreadRepositoryShape,
+  type ProjectionThreadRepositoryContract,
 } from "../Services/ProjectionThreads.ts";
 import { ModelSelection } from "@t3tools/contracts";
 
@@ -195,22 +195,22 @@ const makeProjectionThreadRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionThreadRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadRepository.upsert:query")),
     );
 
-  const getById: ProjectionThreadRepositoryShape["getById"] = (input) =>
+  const getById: ProjectionThreadRepositoryContract["getById"] = (input) =>
     getProjectionThreadRow(input).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadRepository.getById:query")),
     );
 
-  const listByProjectId: ProjectionThreadRepositoryShape["listByProjectId"] = (input) =>
+  const listByProjectId: ProjectionThreadRepositoryContract["listByProjectId"] = (input) =>
     listProjectionThreadRows(input).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadRepository.listByProjectId:query")),
     );
 
-  const deleteById: ProjectionThreadRepositoryShape["deleteById"] = (input) =>
+  const deleteById: ProjectionThreadRepositoryContract["deleteById"] = (input) =>
     deleteProjectionThreadRow(input).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadRepository.deleteById:query")),
     );
@@ -220,7 +220,7 @@ const makeProjectionThreadRepository = Effect.gen(function* () {
     getById,
     listByProjectId,
     deleteById,
-  } satisfies ProjectionThreadRepositoryShape;
+  } satisfies ProjectionThreadRepositoryContract;
 });
 
 export const ProjectionThreadRepositoryLive = Layer.effect(

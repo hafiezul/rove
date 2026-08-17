@@ -61,6 +61,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           value={props.runtimeMode}
           onValueChange={(value) => {
             if (!value || value === props.runtimeMode) return;
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             props.onRuntimeModeChange(value as RuntimeMode);
           }}
         >

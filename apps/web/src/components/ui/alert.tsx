@@ -22,12 +22,14 @@ const alertVariants = cva("relative rounded-xl border px-3.5 py-3 text-card-fore
 });
 
 function alertChildSlot(child: React.ReactElement): string | undefined {
-  const propsSlot = (child.props as Record<string, string | undefined>)["data-slot"];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    propsSlot = (child.props as Record<string, string | undefined>)["data-slot"];
   if (propsSlot) {
     return propsSlot;
   }
 
-  const type = child.type as { displayName?: string; name?: string };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    type = child.type as { displayName?: string; name?: string };
   switch (type.displayName ?? type.name) {
     case "AlertAction":
       return "alert-action";

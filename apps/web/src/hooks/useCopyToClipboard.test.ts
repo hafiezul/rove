@@ -24,6 +24,7 @@ describe("writeTextToClipboard", () => {
     expect(error).toMatchObject({
       target: "plan",
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as Error).message).not.toContain("plan contents");
   });
 
@@ -44,6 +45,7 @@ describe("writeTextToClipboard", () => {
       target: "error-message",
       cause,
     });
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     expect((error as Error).message).not.toContain("secret clipboard contents");
   });
 

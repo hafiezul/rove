@@ -132,10 +132,11 @@ function devCompressionPlugin(): Plugin {
     configureServer(server) {
       // compression() is typed against Express's req/res, which extend the
       // node http objects Connect actually passes — safe to narrow.
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       server.middlewares.use(
         compression({
           brotli: { params: { [NodeZlib.constants.BROTLI_PARAM_QUALITY]: 5 } },
-        }) as unknown as Connect.NextHandleFunction,
+        }) as Connect.NextHandleFunction,
       );
     },
   };
@@ -235,12 +236,12 @@ export default defineConfig(() => {
                 {
                   target: devProxyTarget,
                   changeOrigin: true,
-                  ...(prefix === "/ws" ? { ws: true } : {}),
+                  ...(prefix === "/ws" ? { ws: true } : undefined),
                 },
               ]),
             ),
           }
-        : {}),
+        : undefined),
       // Electron's BrowserWindow needs the HMR socket pinned to an explicit
       // host to connect reliably; dev:desktop is the only mode that sets HOST.
       // Everywhere else, leaving this unset lets the client derive it from the
@@ -255,7 +256,7 @@ export default defineConfig(() => {
               clientPort: port,
             },
           }
-        : {}),
+        : undefined),
     },
     build: {
       outDir: "dist",

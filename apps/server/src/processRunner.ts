@@ -305,13 +305,13 @@ const runProcessCore = Effect.fn("processRunner.runProcessCore")(function* (
   const child = yield* spawner
     .spawn(
       ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-        ...((input.spawnCwd ?? input.cwd) ? { cwd: input.spawnCwd ?? input.cwd } : {}),
+        ...((input.spawnCwd ?? input.cwd) ? { cwd: input.spawnCwd ?? input.cwd } : undefined),
         ...(input.env !== undefined
           ? {
               env: input.env,
               extendEnv,
             }
-          : {}),
+          : undefined),
         shell: spawnCommand.shell,
       }),
     )

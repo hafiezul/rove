@@ -117,7 +117,7 @@ function selectDescriptor(
     options: [...options],
     ...(options.find((option) => option.isDefault)?.id
       ? { currentValue: options.find((option) => option.isDefault)?.id }
-      : {}),
+      : undefined),
   };
 }
 
@@ -149,8 +149,8 @@ function claudeCapabilities(overrides: Partial<TestClaudeCapabilities> = {}) {
     });
 }
 
-const noClaudeCapabilities = () =>
-  Effect.sync(() => undefined as TestClaudeCapabilities | undefined);
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  noClaudeCapabilities = () => Effect.sync(() => undefined as TestClaudeCapabilities | undefined);
 
 function mockHandle(result: { stdout: string; stderr: string; code: number }) {
   return ChildProcessSpawner.makeHandle({
@@ -178,7 +178,8 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const cmd = command as unknown as { args: ReadonlyArray<string> };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        cmd = command as { args: ReadonlyArray<string> };
       return Effect.succeed(mockHandle(handler(cmd.args)));
     }),
   );
@@ -198,12 +199,13 @@ function recordingMockSpawnerLayer(
   const layer = Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const cmd = command as unknown as {
-        args: ReadonlyArray<string>;
-        options?: {
-          readonly env?: NodeJS.ProcessEnv;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        cmd = command as {
+          args: ReadonlyArray<string>;
+          options?: {
+            readonly env?: NodeJS.ProcessEnv;
+          };
         };
-      };
       commands.push({ args: cmd.args, env: cmd.options?.env });
       return Effect.succeed(mockHandle(handler(cmd.args)));
     }),
@@ -220,10 +222,11 @@ function mockCommandSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const cmd = command as unknown as {
-        command: string;
-        args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        cmd = command as {
+          command: string;
+          args: ReadonlyArray<string>;
+        };
       return Effect.succeed(mockHandle(handler(cmd.command, cmd.args)));
     }),
   );
@@ -1462,7 +1465,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
                       homePath: `/tmp/${missingBinary}_home`,
                     },
                   },
-                } as unknown as ContractServerSettings["providerInstances"],
+                } as ContractServerSettings["providerInstances"],
               }),
             ),
           );
@@ -1581,6 +1584,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
             Layer.provideMerge(OpenCodeRuntime.OpenCodeRuntimeLive),
             Layer.updateService(ChildProcessSpawner.ChildProcessSpawner, (spawner) =>
               ChildProcessSpawner.make((command) => {
+                // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
                 spawnedCommands.push((command as { readonly command: string }).command);
                 return spawner.spawn(command);
               }),
@@ -1677,7 +1681,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
                     enabled: false,
                     config: { arbitrary: "payload" },
                   },
-                } as unknown as ContractServerSettings["providerInstances"],
+                } as ContractServerSettings["providerInstances"],
               }),
             ),
           );

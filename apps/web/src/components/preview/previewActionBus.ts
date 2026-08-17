@@ -1,5 +1,7 @@
 "use client";
 
+import * as RuntimePredicate from "effect/Predicate";
+
 /**
  * Typed window-event bus for preview-panel actions. Lets the global
  * keybinding handler in `routes/_chat.tsx` reach `ChatView`'s URL-aware
@@ -23,8 +25,9 @@ export function dispatchPreviewAction(action: PreviewAction): void {
 export function subscribePreviewAction(listener: (action: PreviewAction) => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = (event: Event) => {
-    const detail = (event as CustomEvent<PreviewAction>).detail;
-    if (typeof detail === "string") listener(detail);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      detail = (event as CustomEvent<PreviewAction>).detail;
+    if (RuntimePredicate.isString(detail)) listener(detail);
   };
   window.addEventListener(EVENT_NAME, handler);
   return () => window.removeEventListener(EVENT_NAME, handler);

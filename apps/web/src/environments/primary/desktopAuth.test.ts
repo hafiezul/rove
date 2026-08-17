@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import type { DesktopBridge } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "@effect/vitest";
 
@@ -18,9 +19,9 @@ describe("desktop primary auth", () => {
 
   it("reuses the main-process bearer token across renderer requests", async () => {
     const getLocalEnvironmentBearerToken = vi.fn().mockResolvedValue("desktop-bearer-token");
-    window.desktopBridge = {
+    window.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBearerToken,
-    } as unknown as DesktopBridge;
+    });
 
     await expect(readDesktopPrimaryBearerToken()).resolves.toBe("desktop-bearer-token");
     await expect(readDesktopPrimaryBearerToken()).resolves.toBe("desktop-bearer-token");

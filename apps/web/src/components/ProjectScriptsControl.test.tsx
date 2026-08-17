@@ -14,6 +14,7 @@ const PRIMARY_SCRIPT: ProjectScript = {
 };
 
 function renderControl(scripts: ReadonlyArray<ProjectScript>) {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return renderToStaticMarkup(
     <ProjectScriptsControl
       scripts={scripts}

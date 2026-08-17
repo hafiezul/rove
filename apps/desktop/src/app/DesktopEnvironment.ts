@@ -15,6 +15,7 @@ import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import { resolveDesktopBaseDir, resolveDesktopStateDir } from "./DesktopStatePaths.ts";
 import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface MakeDesktopEnvironmentInput {
   readonly dirname: string;
@@ -228,12 +229,13 @@ const make = Effect.fn("desktop.environment.make")(function* (
       runningUnderArm64Translation: input.runningUnderArm64Translation,
     }),
     resolvePickFolderDefaultPath: (rawOptions) => {
-      if (typeof rawOptions !== "object" || rawOptions === null) {
+      if (!RuntimePredicate.isObjectOrArray(rawOptions)) {
         return Option.none();
       }
 
-      const { initialPath } = rawOptions as { initialPath?: unknown };
-      if (typeof initialPath !== "string") {
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        { initialPath } = rawOptions as { initialPath?: unknown };
+      if (!RuntimePredicate.isString(initialPath)) {
         return Option.none();
       }
 

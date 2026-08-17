@@ -28,6 +28,7 @@ import type {
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Enum-ish GitHub CLI fields are decoded as plain strings and normalized here: a `gh`
@@ -238,8 +239,12 @@ const REACTION_GROUPS_FIELDS = `reactionGroups {
   }
 }`;
 
+interface GitHubReactionContentByName {
+  readonly [githubReactionName: string]: PullRequestReactionContent | undefined;
+}
+
 /** GitHub's reaction names, which are the same eight the contract carries under other spellings. */
-const REACTION_CONTENT_BY_GITHUB: Readonly<Record<string, PullRequestReactionContent>> = {
+const REACTION_CONTENT_BY_GITHUB: GitHubReactionContentByName = {
   THUMBS_UP: "thumbs-up",
   THUMBS_DOWN: "thumbs-down",
   LAUGH: "laugh",
@@ -250,7 +255,18 @@ const REACTION_CONTENT_BY_GITHUB: Readonly<Record<string, PullRequestReactionCon
   EYES: "eyes",
 };
 
-const GITHUB_REACTION_BY_CONTENT: Readonly<Record<PullRequestReactionContent, string>> = {
+interface GitHubReactionNameByContent {
+  readonly "thumbs-up": string;
+  readonly "thumbs-down": string;
+  readonly laugh: string;
+  readonly hooray: string;
+  readonly confused: string;
+  readonly heart: string;
+  readonly rocket: string;
+  readonly eyes: string;
+}
+
+const GITHUB_REACTION_BY_CONTENT: GitHubReactionNameByContent = {
   "thumbs-up": "THUMBS_UP",
   "thumbs-down": "THUMBS_DOWN",
   laugh: "LAUGH",
@@ -912,11 +928,11 @@ const ReviewSubmissionSchema = Schema.Struct({
 
 const encodeReviewSubmission = Schema.encodeSync(Schema.fromJsonString(ReviewSubmissionSchema));
 
-const REVIEW_EVENTS: Record<PullRequestReviewVerdict, "COMMENT" | "APPROVE" | "REQUEST_CHANGES"> = {
+const REVIEW_EVENTS = {
   comment: "COMMENT",
   approve: "APPROVE",
   "request-changes": "REQUEST_CHANGES",
-};
+} satisfies Record<PullRequestReviewVerdict, "COMMENT" | "APPROVE" | "REQUEST_CHANGES">;
 
 /**
  * The dismissal events past the page the thread read carries. A pull request rarely has any:
@@ -1029,7 +1045,7 @@ function nextCursorOf(
  */
 function toPullRequestViewerFields(
   raw: Schema.Schema.Type<typeof RawViewerFieldsSchema> | null | undefined,
-): { readonly canUpdate: boolean; readonly didAuthor: boolean } {
+) {
   return { canUpdate: raw?.viewerCanUpdate !== false, didAuthor: raw?.viewerDidAuthor === true };
 }
 
@@ -1342,7 +1358,7 @@ function toDetail(raw: Schema.Schema.Type<typeof RawDetailSchema>): GitHubPullRe
     // A JSON null is GitHub saying "nobody armed this"; a missing key is GitHub not saying, and
     // the difference survives here rather than being flattened into false.
     ...(raw.autoMergeRequest === undefined
-      ? {}
+      ? undefined
       : { autoMergeEnabled: raw.autoMergeRequest !== null }),
   };
 }
@@ -1947,7 +1963,7 @@ export function decodeBaseComparisonJson(
   const pullRequest = decoded.success.data.repository?.pullRequest;
   const behindBy = pullRequest?.baseRef?.compare?.behindBy;
   return Result.succeed({
-    behindBy: typeof behindBy === "number" && behindBy >= 0 ? behindBy : null,
+    behindBy: RuntimePredicate.isNumber(behindBy) && behindBy >= 0 ? behindBy : null,
     viewerCanUpdate: pullRequest?.viewerCanUpdateBranch === true,
   });
 }

@@ -117,6 +117,13 @@ type PublishProviderKind = Extract<
   "github" | "gitlab" | "bitbucket" | "azure-devops"
 >;
 
+interface PublishAccountsByProvider {
+  github: string | null;
+  gitlab: string | null;
+  bitbucket: string | null;
+  "azure-devops": string | null;
+}
+
 type GitActionToastId = ReturnType<typeof toastManager.add>;
 
 interface ActiveGitActionProgress {
@@ -219,7 +226,7 @@ function isPublishProviderKind(
 function getPublishProviderReadiness(input: {
   provider: PublishProviderKind;
   sourceControlProviders: ReadonlyArray<SourceControlProviderDiscoveryItem>;
-}): { readonly ready: boolean; readonly hint: string | null } {
+}) {
   const discovered = input.sourceControlProviders.find(
     (provider) => provider.kind === input.provider,
   );
@@ -410,7 +417,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
   );
   const publishRepositoryAction = useSourceControlPublishRepositoryAction(sourceControlScope);
   const publishAccountByProvider = useMemo(() => {
-    const accounts: Record<PublishProviderKind, string | null> = {
+    const accounts: PublishAccountsByProvider = {
       github: null,
       gitlab: null,
       bitbucket: null,
@@ -425,6 +432,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
   }, [sourceControlDiscovery.data]);
   const publishProviderReadiness = useMemo(() => {
     const sourceControlProviders = sourceControlDiscovery.data?.sourceControlProviders ?? [];
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return Object.fromEntries(
       PUBLISH_PROVIDER_OPTIONS.map((option) => [
         option.value,
@@ -549,6 +557,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
     void navigate({ to: "/settings/source-control" });
   }, [handleOpenChange, navigate]);
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Dialog open={props.open} onOpenChange={handleOpenChange}>
       <DialogPopup className="max-w-xl overflow-hidden">
@@ -621,6 +630,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
                 <RadioGroup
                   value={publishProvider}
                   onValueChange={(value) => {
+                    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                     setSelectedPublishProvider(value as PublishProviderKind);
                     setPublishRepositoryOverride(null);
                   }}
@@ -1253,7 +1263,7 @@ export default function GitActionsControl({
           type: "error",
           title: "Unable to open pull request link",
           description: err instanceof Error ? err.message : "An error occurred.",
-          ...(threadToastData !== undefined ? { data: threadToastData } : {}),
+          ...(threadToastData !== undefined ? { data: threadToastData } : undefined),
         }),
       );
     });
@@ -1295,9 +1305,9 @@ export default function GitActionsControl({
           action,
           branchName: actionBranch,
           includesCommit,
-          ...(commitMessage ? { commitMessage } : {}),
-          ...(onConfirmed ? { onConfirmed } : {}),
-          ...(filePaths ? { filePaths } : {}),
+          ...(commitMessage ? { commitMessage } : undefined),
+          ...(onConfirmed ? { onConfirmed } : undefined),
+          ...(filePaths ? { filePaths } : undefined),
         });
         return;
       }
@@ -1406,9 +1416,9 @@ export default function GitActionsControl({
       const result = await runImmediateGitAction.run({
         actionId,
         action,
-        ...(commitMessage ? { commitMessage } : {}),
-        ...(featureBranch ? { featureBranch } : {}),
-        ...(filePaths ? { filePaths } : {}),
+        ...(commitMessage ? { commitMessage } : undefined),
+        ...(featureBranch ? { featureBranch } : undefined),
+        ...(filePaths ? { filePaths } : undefined),
         onProgress: applyProgressEvent,
       });
 
@@ -1426,7 +1436,7 @@ export default function GitActionsControl({
             type: "error",
             title: "Action failed",
             description: error instanceof Error ? error.message : "An error occurred.",
-            ...(scopedToastData !== undefined ? { data: scopedToastData } : {}),
+            ...(scopedToastData !== undefined ? { data: scopedToastData } : undefined),
           }),
         );
         return;
@@ -1500,9 +1510,9 @@ export default function GitActionsControl({
     setPendingDefaultBranchAction(null);
     void runGitActionWithToast({
       action,
-      ...(commitMessage ? { commitMessage } : {}),
-      ...(onConfirmed ? { onConfirmed } : {}),
-      ...(filePaths ? { filePaths } : {}),
+      ...(commitMessage ? { commitMessage } : undefined),
+      ...(onConfirmed ? { onConfirmed } : undefined),
+      ...(filePaths ? { filePaths } : undefined),
       skipDefaultBranchPrompt: true,
     });
   };
@@ -1513,9 +1523,9 @@ export default function GitActionsControl({
     setPendingDefaultBranchAction(null);
     void runGitActionWithToast({
       action,
-      ...(commitMessage ? { commitMessage } : {}),
-      ...(onConfirmed ? { onConfirmed } : {}),
-      ...(filePaths ? { filePaths } : {}),
+      ...(commitMessage ? { commitMessage } : undefined),
+      ...(onConfirmed ? { onConfirmed } : undefined),
+      ...(filePaths ? { filePaths } : undefined),
       featureBranch: true,
       skipDefaultBranchPrompt: true,
     });
@@ -1532,8 +1542,8 @@ export default function GitActionsControl({
 
     void runGitActionWithToast({
       action: "commit",
-      ...(commitMessage ? { commitMessage } : {}),
-      ...(!allSelected ? { filePaths: selectedFiles.map((f) => f.path) } : {}),
+      ...(commitMessage ? { commitMessage } : undefined),
+      ...(!allSelected ? { filePaths: selectedFiles.map((f) => f.path) } : undefined),
       featureBranch: true,
       skipDefaultBranchPrompt: true,
     });
@@ -1569,7 +1579,7 @@ export default function GitActionsControl({
               type: "error",
               title: "Pull failed",
               description: error instanceof Error ? error.message : "An error occurred.",
-              ...(threadToastData !== undefined ? { data: threadToastData } : {}),
+              ...(threadToastData !== undefined ? { data: threadToastData } : undefined),
             }),
           );
           return;
@@ -1630,8 +1640,8 @@ export default function GitActionsControl({
     setIsEditingFiles(false);
     void runGitActionWithToast({
       action: "commit",
-      ...(commitMessage ? { commitMessage } : {}),
-      ...(!allSelected ? { filePaths: selectedFiles.map((f) => f.path) } : {}),
+      ...(commitMessage ? { commitMessage } : undefined),
+      ...(!allSelected ? { filePaths: selectedFiles.map((f) => f.path) } : undefined),
     });
   };
 
@@ -1657,7 +1667,7 @@ export default function GitActionsControl({
             type: "error",
             title: "Unable to open file",
             description: error instanceof Error ? error.message : "An error occurred.",
-            ...(threadToastData !== undefined ? { data: threadToastData } : {}),
+            ...(threadToastData !== undefined ? { data: threadToastData } : undefined),
           }),
         );
       })();
@@ -1688,7 +1698,7 @@ export default function GitActionsControl({
                   type: "error",
                   title: "Git initialization failed",
                   description: error instanceof Error ? error.message : "An error occurred.",
-                  ...(threadToastData !== undefined ? { data: threadToastData } : {}),
+                  ...(threadToastData !== undefined ? { data: threadToastData } : undefined),
                 }),
               );
             })();

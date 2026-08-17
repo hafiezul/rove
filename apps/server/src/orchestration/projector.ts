@@ -241,20 +241,20 @@ export function projectEvent(
             project.id === payload.projectId
               ? {
                   ...project,
-                  ...(payload.title !== undefined ? { title: payload.title } : {}),
+                  ...(payload.title !== undefined ? { title: payload.title } : undefined),
                   ...(payload.workspaceRoot !== undefined
                     ? { workspaceRoot: payload.workspaceRoot }
-                    : {}),
+                    : undefined),
                   ...(payload.defaultModelSelection !== undefined
                     ? { defaultModelSelection: payload.defaultModelSelection }
-                    : {}),
+                    : undefined),
                   ...(payload.defaultThreadEnvMode !== undefined
                     ? { defaultThreadEnvMode: payload.defaultThreadEnvMode }
-                    : {}),
+                    : undefined),
                   ...(payload.faviconPath !== undefined
                     ? { faviconPath: payload.faviconPath }
-                    : {}),
-                  ...(payload.scripts !== undefined ? { scripts: payload.scripts } : {}),
+                    : undefined),
+                  ...(payload.scripts !== undefined ? { scripts: payload.scripts } : undefined),
                   updatedAt: payload.updatedAt,
                 }
               : project,
@@ -411,7 +411,9 @@ export function projectEvent(
           ...nextBase,
           threads: updateThread(nextBase.threads, payload.threadId, {
             pinnedAt: payload.pinnedAt,
-            ...(payload.pinOrderKey !== undefined ? { pinOrderKey: payload.pinOrderKey } : {}),
+            ...(payload.pinOrderKey !== undefined
+              ? { pinOrderKey: payload.pinOrderKey }
+              : undefined),
             updatedAt: payload.updatedAt,
           }),
         })),
@@ -447,15 +449,17 @@ export function projectEvent(
         Effect.map((payload) => ({
           ...nextBase,
           threads: updateThread(nextBase.threads, payload.threadId, {
-            ...(payload.title !== undefined ? { title: payload.title } : {}),
+            ...(payload.title !== undefined ? { title: payload.title } : undefined),
             ...(payload.titleRegeneration !== undefined
               ? { titleRegeneration: payload.titleRegeneration }
-              : {}),
+              : undefined),
             ...(payload.modelSelection !== undefined
               ? { modelSelection: payload.modelSelection }
-              : {}),
-            ...(payload.branch !== undefined ? { branch: payload.branch } : {}),
-            ...(payload.worktreePath !== undefined ? { worktreePath: payload.worktreePath } : {}),
+              : undefined),
+            ...(payload.branch !== undefined ? { branch: payload.branch } : undefined),
+            ...(payload.worktreePath !== undefined
+              ? { worktreePath: payload.worktreePath }
+              : undefined),
             updatedAt: payload.updatedAt,
           }),
         })),
@@ -507,7 +511,9 @@ export function projectEvent(
             id: payload.messageId,
             role: payload.role,
             text: payload.text,
-            ...(payload.attachments !== undefined ? { attachments: payload.attachments } : {}),
+            ...(payload.attachments !== undefined
+              ? { attachments: payload.attachments }
+              : undefined),
             turnId: payload.turnId,
             streaming: payload.streaming,
             createdAt: payload.createdAt,
@@ -533,7 +539,7 @@ export function projectEvent(
                     turnId: message.turnId,
                     ...(message.attachments !== undefined
                       ? { attachments: message.attachments }
-                      : {}),
+                      : undefined),
                   }
                 : entry,
             )

@@ -561,7 +561,7 @@ export function useThreadActions() {
         environmentId: target.environmentId,
         input: {
           threadId: target.threadId,
-          ...(orderKey !== undefined ? { orderKey } : {}),
+          ...(orderKey !== undefined ? { orderKey } : undefined),
         },
       });
     },

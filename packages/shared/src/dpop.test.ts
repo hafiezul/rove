@@ -31,7 +31,7 @@ function signDpopProof(input: {
       htu: input.url,
       jti: "proof-1",
       iat: input.iat,
-      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : {}),
+      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : undefined),
     }),
   ).toString("base64url");
   const signature = NodeCrypto.sign("sha256", Buffer.from(`${header}.${payload}`), {
@@ -45,7 +45,8 @@ describe("verifyDpopProof", () => {
   const { privateKey, publicKey } = NodeCrypto.generateKeyPairSync("ec", {
     namedCurve: "P-256",
   });
-  const publicJwk = publicKey.export({ format: "jwk" }) as DpopPublicJwk;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    publicJwk = publicKey.export({ format: "jwk" }) as DpopPublicJwk;
   const proof = signDpopProof({
     method: "POST",
     url: "https://example.com/oauth/token",
@@ -224,9 +225,10 @@ describe("verifyDpopProof", () => {
 
   it("rejects DPoP public JWK headers that expose private key material", () => {
     const thumbprint = computeDpopJwkThumbprint(publicJwk);
-    const privateJwk = privateKey.export({ format: "jwk" }) as DpopPublicJwk & {
-      readonly d: string;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      privateJwk = privateKey.export({ format: "jwk" }) as DpopPublicJwk & {
+        readonly d: string;
+      };
     const proofWithPrivateJwk = signDpopProof({
       method: "POST",
       url: "https://example.com/oauth/token",

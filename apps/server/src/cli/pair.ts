@@ -408,7 +408,7 @@ const resolveTailscalePairingBase = Effect.fn("pair.resolveTailscalePairingBase"
     yield* ensureTailscaleServe({
       localPort: localTarget.localPort,
       servePort: input.servePort,
-      ...(localTarget.localHost !== undefined ? { localHost: localTarget.localHost } : {}),
+      ...(localTarget.localHost !== undefined ? { localHost: localTarget.localHost } : undefined),
     }).pipe(
       Effect.mapError(
         (cause) => new TailscaleServeFailedError({ servePort: input.servePort, cause }),
@@ -443,7 +443,7 @@ const mintPairingLink = Effect.fn("pair.mintPairingLink")(function* (input: {
       scopes: AuthStandardClientScopes,
       subject: "one-time-token",
       label: Option.getOrElse(input.label, () => "t3 pair"),
-      ...(Option.isSome(input.ttl) ? { ttl: input.ttl.value } : {}),
+      ...(Option.isSome(input.ttl) ? { ttl: input.ttl.value } : undefined),
     });
   }).pipe(
     Effect.provide(

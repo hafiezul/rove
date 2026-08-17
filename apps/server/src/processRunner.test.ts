@@ -13,6 +13,7 @@ import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hos
 import { SpawnExecutableResolution } from "@t3tools/shared/shell";
 
 import * as ProcessRunner from "./processRunner.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 type ChildProcessCommand = {
   readonly command: string;
@@ -24,6 +25,7 @@ type ChildProcessCommand = {
 
 // Accesses private properties of ChildProcessCommand for testing purposes
 function asChildProcessCommand(command: unknown): ChildProcessCommand {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return command as ChildProcessCommand;
 }
 
@@ -41,14 +43,12 @@ function makeHandle(input: {
     kill: () => Effect.void,
     unref: Effect.succeed(Effect.void),
     stdin: input.stdin ?? Sink.drain,
-    stdout:
-      typeof input.stdout === "string"
-        ? Stream.encodeText(Stream.make(input.stdout))
-        : (input.stdout ?? Stream.empty),
-    stderr:
-      typeof input.stderr === "string"
-        ? Stream.encodeText(Stream.make(input.stderr))
-        : (input.stderr ?? Stream.empty),
+    stdout: RuntimePredicate.isString(input.stdout)
+      ? Stream.encodeText(Stream.make(input.stdout))
+      : (input.stdout ?? Stream.empty),
+    stderr: RuntimePredicate.isString(input.stderr)
+      ? Stream.encodeText(Stream.make(input.stderr))
+      : (input.stderr ?? Stream.empty),
     all: Stream.empty,
     getInputFd: () => Sink.drain,
     getOutputFd: () => Stream.empty,

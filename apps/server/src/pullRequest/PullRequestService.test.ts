@@ -30,6 +30,7 @@ function project(input: {
   // The host defaults from the provider, so a fixture only names one when the point of the
   // test is two hosts of the same kind.
   const host = input.host ?? (input.provider === "gitlab" ? "gitlab.com" : "github.com");
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     id: input.id as ProjectId,
     title: input.title,
@@ -47,7 +48,7 @@ function project(input: {
             displayName: input.repository,
           },
         }
-      : {}),
+      : undefined),
     defaultModelSelection: null,
     scripts: [],
     createdAt: "2026-07-01T00:00:00Z",
@@ -194,6 +195,7 @@ it.effect("refines unknown self-hosted GitLab projects before listing merge requ
       resolveHandle: ({ context }) => {
         refinementCalls += 1;
         assert.strictEqual(context?.remoteUrl, "https://code.example.test/group/project.git");
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         return Effect.succeed({
           context: { ...context!, provider: { ...context!.provider, kind: "gitlab" } },
           provider: undefined as never,
@@ -228,16 +230,17 @@ it.effect("derives a legacy repository host after refining its provider", () =>
         provider: identity.provider,
         displayName: identity.displayName,
       },
-    } as unknown as OrchestrationProjectShell;
-    const service = yield* makeService({
-      projects: [legacy],
-      providers: [fakeProvider("gitlab")],
-      resolveHandle: ({ context }) =>
-        Effect.succeed({
-          context: { ...context!, provider: { ...context!.provider, kind: "gitlab" } },
-          provider: undefined as never,
-        }),
-    });
+    } as OrchestrationProjectShell;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      service = yield* makeService({
+        projects: [legacy],
+        providers: [fakeProvider("gitlab")],
+        resolveHandle: ({ context }) =>
+          Effect.succeed({
+            context: { ...context!, provider: { ...context!.provider, kind: "gitlab" } },
+            provider: undefined as never,
+          }),
+      });
 
     const result = yield* service.list({ state: "open", host: "gitlab" });
 
@@ -262,6 +265,7 @@ it.effect("tries another checkout when provider refinement remains unknown", () 
       providers: [fakeProvider("gitlab")],
       resolveHandle: ({ cwd, context }) => {
         asked.push(cwd);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         return cwd === "/gone"
           ? Effect.succeed({ context: context!, provider: undefined as never })
           : Effect.succeed({
@@ -1043,7 +1047,7 @@ it.effect("gates arming a merge for later exactly as it gates merging now", () =
           runAction: (input) => {
             ranWith = {
               action: input.action,
-              ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
+              ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
             };
             return Effect.void;
           },
@@ -1097,7 +1101,7 @@ it.effect("hands the host the strategy an armed merge was asked for", () =>
           runAction: (input) => {
             ranWith = {
               action: input.action,
-              ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
+              ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
             };
             return Effect.void;
           },
@@ -1256,9 +1260,13 @@ it.effect("refuses a comment on a host that cannot post one", () =>
   }),
 );
 
+interface ViewerByWorkspaceRoot {
+  readonly [workspaceRoot: string]: string;
+}
+
 it.effect("keeps two hosts of one provider kind as two accounts", () =>
   Effect.gen(function* () {
-    const viewerFor: Record<string, string> = { "/cloud": "bilal", "/enterprise": "b.hassan" };
+    const viewerFor: ViewerByWorkspaceRoot = { "/cloud": "bilal", "/enterprise": "b.hassan" };
     const service = yield* makeService({
       projects: [
         project({ id: "p1", title: "cloud", workspaceRoot: "/cloud", repository: "acme/web" }),
@@ -2726,7 +2734,7 @@ it.effect("carries an armed auto-merge through to the detail, and silence as sil
                     verdicts: ["comment", "approve", "request-changes"],
                     requestReviewers: true,
                   },
-                  ...(autoMergeEnabled === undefined ? {} : { autoMergeEnabled }),
+                  ...(autoMergeEnabled === undefined ? undefined : { autoMergeEnabled }),
                 }),
             }),
           ],

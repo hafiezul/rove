@@ -36,6 +36,7 @@ import type {
   TurnProcessingQuiescedReceipt,
 } from "../src/orchestration/Services/RuntimeReceiptBus.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as RuntimePredicate from "effect/Predicate";
 
 const asMessageId = (value: string): MessageId => MessageId.make(value);
 const asProjectId = (value: string): ProjectId => ProjectId.make(value);
@@ -176,7 +177,7 @@ const startTurn = (input: {
       ? {
           modelSelection: input.modelSelection,
         }
-      : {}),
+      : undefined),
     interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
     runtimeMode: "approval-required",
     createdAt: input.createdAt ?? nowIso(),
@@ -906,7 +907,7 @@ it.live(
           entry.activities.some(
             (activity) =>
               activity.kind === "checkpoint.revert.failed" &&
-              typeof activity.payload === "object" &&
+              (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
               activity.payload !== null,
           ),
         );
@@ -914,6 +915,7 @@ it.live(
           (activity) => activity.kind === "checkpoint.revert.failed",
         );
         assert.equal(failureActivity !== undefined, true);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.equal(
           String(
             (failureActivity?.payload as { readonly detail?: string } | undefined)?.detail,

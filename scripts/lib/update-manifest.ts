@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 export interface UpdateManifestFile {
   readonly url: string;
   readonly sha512: string;
@@ -36,9 +37,9 @@ function parseFileRecord(
     return null;
   }
   if (
-    typeof currentFile.url !== "string" ||
-    typeof currentFile.sha512 !== "string" ||
-    typeof currentFile.size !== "number"
+    !RuntimePredicate.isString(currentFile.url) ||
+    !RuntimePredicate.isString(currentFile.sha512) ||
+    !RuntimePredicate.isNumber(currentFile.size)
   ) {
     throw new Error(
       `Invalid ${platformLabel} update manifest at ${sourcePath}:${lineNumber}: incomplete file entry.`,
@@ -136,7 +137,7 @@ export function parseUpdateManifest(
     const value = parseScalarValue(rawValue);
 
     if (key === "version") {
-      if (typeof value !== "string") {
+      if (!RuntimePredicate.isString(value)) {
         throw new Error(
           `Invalid ${platformLabel} update manifest at ${sourcePath}:${lineNumber}: version must be a string.`,
         );
@@ -146,7 +147,7 @@ export function parseUpdateManifest(
     }
 
     if (key === "releaseDate") {
-      if (typeof value !== "string") {
+      if (!RuntimePredicate.isString(value)) {
         throw new Error(
           `Invalid ${platformLabel} update manifest at ${sourcePath}:${lineNumber}: releaseDate must be a string.`,
         );
@@ -189,8 +190,8 @@ function mergeExtras(
   primary: Readonly<Record<string, UpdateManifestScalar>>,
   secondary: Readonly<Record<string, UpdateManifestScalar>>,
   platformLabel: string,
-): Record<string, UpdateManifestScalar> {
-  const merged: Record<string, UpdateManifestScalar> = { ...primary };
+) {
+  const merged = { ...primary } satisfies Record<string, UpdateManifestScalar>;
 
   for (const [key, value] of Object.entries(secondary)) {
     const existing = merged[key];
@@ -241,7 +242,7 @@ function quoteYamlString(value: string): string {
 }
 
 function serializeScalarValue(value: UpdateManifestScalar): string {
-  if (typeof value === "string") {
+  if (RuntimePredicate.isString(value)) {
     return quoteYamlString(value);
   }
   return String(value);

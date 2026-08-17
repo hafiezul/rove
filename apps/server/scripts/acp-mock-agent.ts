@@ -10,6 +10,7 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as EffectAcpAgent from "effect-acp/agent";
 import * as AcpError from "effect-acp/errors";
 import type * as AcpSchema from "effect-acp/schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 const requestLogPath = process.env.T3_ACP_REQUEST_LOG_PATH;
 const exitLogPath = process.env.T3_ACP_EXIT_LOG_PATH;
@@ -61,11 +62,11 @@ function promptIdFromRequestMeta(
   request: Pick<AcpSchema.PromptRequest, "_meta">,
 ): string | undefined {
   const meta = request._meta;
-  if (meta === null || typeof meta !== "object") {
+  if (!RuntimePredicate.isObjectOrArray(meta)) {
     return undefined;
   }
   const promptId = meta.promptId ?? meta.requestId;
-  return typeof promptId === "string" && promptId.length > 0 ? promptId : undefined;
+  return RuntimePredicate.isString(promptId) && promptId.length > 0 ? promptId : undefined;
 }
 
 function logExit(reason: string): void {
@@ -105,7 +106,7 @@ function configOptions(): ReadonlyArray<AcpSchema.SessionConfigOption> {
         options: availableModes.map((mode) => ({
           value: mode.id,
           name: mode.name,
-          ...(mode.description ? { description: mode.description } : {}),
+          ...(mode.description ? { description: mode.description } : undefined),
         })),
       },
       {
@@ -412,16 +413,16 @@ const program = Effect.gen(function* () {
           },
         );
       }
-      if (request.configId === "mode" && typeof request.value === "string") {
+      if (request.configId === "mode" && RuntimePredicate.isString(request.value)) {
         currentModeId = request.value;
       }
-      if (request.configId === "model" && typeof request.value === "string") {
+      if (request.configId === "model" && RuntimePredicate.isString(request.value)) {
         currentModelId = request.value;
       }
-      if (request.configId === "reasoning" && typeof request.value === "string") {
+      if (request.configId === "reasoning" && RuntimePredicate.isString(request.value)) {
         currentReasoning = request.value;
       }
-      if (request.configId === "context" && typeof request.value === "string") {
+      if (request.configId === "context" && RuntimePredicate.isString(request.value)) {
         currentContext = request.value;
       }
       if (request.configId === "fast") {
@@ -544,7 +545,7 @@ const program = Effect.gen(function* () {
         writeJsonRpcNotification("_x.ai/session/prompt_complete", {
           sessionId: requestedSessionId,
           promptId: promptIdFromRequestMeta(request) ?? "mock-xai-prompt-1",
-          ...(omitXAiPromptCompleteStopReason ? {} : { stopReason: "end_turn" }),
+          ...(omitXAiPromptCompleteStopReason ? undefined : { stopReason: "end_turn" }),
           agentResult: null,
         });
 
@@ -792,7 +793,7 @@ const program = Effect.gen(function* () {
             mode: "default",
           },
         });
-        if (typeof result !== "object" || result === null || !("outcome" in result)) {
+        if (!RuntimePredicate.isObjectOrArray(result) || !("outcome" in result)) {
           throw new Error("Expected _x.ai/ask_user_question response outcome.");
         }
         if (result.outcome === "cancelled") {
@@ -801,7 +802,7 @@ const program = Effect.gen(function* () {
         if (
           result.outcome !== "accepted" ||
           !("answers" in result) ||
-          typeof result.answers !== "object" ||
+          !(RuntimePredicate.isObjectOrArray(result.answers) || result.answers === null) ||
           result.answers === null
         ) {
           throw new Error("Expected accepted _x.ai/ask_user_question response answers.");
@@ -889,26 +890,23 @@ const program = Effect.gen(function* () {
     }
 
     const nextModeId =
-      typeof params === "object" &&
-      params !== null &&
+      RuntimePredicate.isObjectOrArray(params) &&
       "modeId" in params &&
-      typeof params.modeId === "string"
+      RuntimePredicate.isString(params.modeId)
         ? params.modeId
-        : typeof params === "object" &&
-            params !== null &&
+        : RuntimePredicate.isObjectOrArray(params) &&
             "mode" in params &&
-            typeof params.mode === "string"
+            RuntimePredicate.isString(params.mode)
           ? params.mode
           : undefined;
     const requestedSessionId =
-      typeof params === "object" &&
-      params !== null &&
+      RuntimePredicate.isObjectOrArray(params) &&
       "sessionId" in params &&
-      typeof params.sessionId === "string"
+      RuntimePredicate.isString(params.sessionId)
         ? params.sessionId
         : sessionId;
 
-    if (typeof nextModeId === "string" && nextModeId.trim()) {
+    if (RuntimePredicate.isString(nextModeId) && nextModeId.trim()) {
       currentModeId = nextModeId.trim();
       return agent.client
         .sessionUpdate({
@@ -935,7 +933,7 @@ const program = Effect.gen(function* () {
               if (event.direction !== "incoming" || event.stage !== "raw") {
                 return Effect.void;
               }
-              if (typeof event.payload !== "string") {
+              if (!RuntimePredicate.isString(event.payload)) {
                 return Effect.void;
               }
               const payload = event.payload;

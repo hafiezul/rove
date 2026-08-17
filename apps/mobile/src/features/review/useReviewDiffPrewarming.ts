@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { getCachedNativeReviewDiffData } from "./nativeReviewDiffAdapter";
 import type { ReviewSectionItem } from "./reviewModel";
 import { getCachedReviewParsedDiff } from "./reviewState";
+import * as RuntimePredicate from "effect/Predicate";
 
 interface IdleDeadlineLike {
   readonly didTimeout: boolean;
@@ -10,24 +11,30 @@ interface IdleDeadlineLike {
 }
 
 type IdleCallback = (deadline: IdleDeadlineLike) => void;
+type IdleHandle =
+  | { readonly kind: "idle-callback"; readonly value: number }
+  | { readonly kind: "timeout"; readonly value: ReturnType<typeof setTimeout> };
 
-function scheduleIdle(callback: IdleCallback): number {
-  if (typeof globalThis.requestIdleCallback === "function") {
-    return globalThis.requestIdleCallback(callback, { timeout: 2_000 });
+function scheduleIdle(callback: IdleCallback): IdleHandle {
+  if (RuntimePredicate.isFunction(globalThis.requestIdleCallback)) {
+    return {
+      kind: "idle-callback",
+      value: globalThis.requestIdleCallback(callback, { timeout: 2_000 }),
+    };
   }
 
-  return setTimeout(
-    () => callback({ didTimeout: true, timeRemaining: () => 0 }),
-    100,
-  ) as unknown as number;
+  return {
+    kind: "timeout",
+    value: setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 100),
+  };
 }
 
-function cancelIdle(handle: number): void {
-  if (typeof globalThis.cancelIdleCallback === "function") {
-    globalThis.cancelIdleCallback(handle);
+function cancelIdle(handle: IdleHandle): void {
+  if (handle.kind === "idle-callback") {
+    globalThis.cancelIdleCallback?.(handle.value);
     return;
   }
-  clearTimeout(handle);
+  clearTimeout(handle.value);
 }
 
 export function prewarmReviewDiffSection(input: {
@@ -68,7 +75,7 @@ export function useReviewDiffPrewarming(input: {
     }
 
     let cancelled = false;
-    let idleHandle: number | null = null;
+    let idleHandle: IdleHandle | null = null;
     let nextSectionIndex = 0;
 
     const scheduleNext = () => {

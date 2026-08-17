@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 export type TimelineScrollMode = "following-end" | "anchoring-new-turn" | "free-scrolling";
 
 export interface TimelineListMeasurementState {
@@ -23,8 +24,8 @@ export function getRowBottom(state: TimelineListMeasurementState, index: number)
   const top = state.positionAtIndex(index);
   const height = state.sizeAtIndex(index);
   if (
-    typeof top !== "number" ||
-    typeof height !== "number" ||
+    !RuntimePredicate.isNumber(top) ||
+    !RuntimePredicate.isNumber(height) ||
     !Number.isFinite(top) ||
     !Number.isFinite(height)
   ) {
@@ -52,7 +53,7 @@ export function getAnchoredTurnMetrics({
   const boundedAnchorIndex = Math.max(0, Math.min(anchorIndex, state.data.length - 1));
   const anchorTop = state.positionAtIndex(boundedAnchorIndex);
   const lastBottom = getRowBottom(state, state.data.length - 1);
-  if (typeof anchorTop !== "number" || !Number.isFinite(anchorTop) || lastBottom === null) {
+  if (!RuntimePredicate.isNumber(anchorTop) || !Number.isFinite(anchorTop) || lastBottom === null) {
     return null;
   }
 

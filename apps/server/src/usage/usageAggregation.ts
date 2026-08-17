@@ -181,9 +181,10 @@ export class UsageAggregator {
     const buckets: UsageBucket[] = [];
     for (const [key, bucket] of this.#buckets) {
       const [day = "", hourStart = "", provider = "", model = ""] = key.split("\u0000");
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       buckets.push({
         day: day as UsageDay,
-        ...(hourStart === "" ? {} : { hourStart }),
+        ...(hourStart === "" ? undefined : { hourStart }),
         provider: provider as UsageBucket["provider"],
         model,
         totals: bucket.totals,

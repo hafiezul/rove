@@ -70,7 +70,7 @@ it.effect("GitVcsDriver forwards execute env to the VCS process", () => {
   let observedAppendTruncationMarker: boolean | undefined;
 
   return Effect.gen(function* () {
-    const driver = yield* GitVcsDriver.makeVcsDriverShape();
+    const driver = yield* GitVcsDriver.makeVcsDriverContract();
 
     yield* driver.execute({
       operation: "GitVcsDriver.test.env",

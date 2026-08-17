@@ -12,7 +12,12 @@ import {
   getProviderOptionCurrentValue,
   getProviderOptionDescriptors,
 } from "@t3tools/shared/model";
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  type ParamListBase,
+  type RouteProp,
+} from "@react-navigation/native";
 import {
   createNativeStackNavigator,
   type NativeStackNavigationProp,
@@ -1138,6 +1143,7 @@ function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) 
     [props.onClose],
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <ThreadSettingsPickerPresentationContext.Provider value={presentation}>
       <ThreadSettingsPickerStack.Navigator
@@ -1154,7 +1160,7 @@ function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) 
           headerStyle: {
             backgroundColor: (NATIVE_LIQUID_GLASS_SUPPORTED
               ? "transparent"
-              : nativeSheetBackground) as unknown as string,
+              : nativeSheetBackground) as string,
           },
           headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
           headerTintColor: foreground,
@@ -1181,7 +1187,7 @@ function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) 
 
 /** Existing-thread model picker hosted by the root RNS form-sheet route. */
 export function ExistingThreadSettingsRouteScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const presentation = useExistingThreadSettingsRoutePresentation();
   const session = presentation.session;
 
@@ -1213,7 +1219,7 @@ export function ExistingThreadSettingsRouteScreen() {
  */
 export function NewTaskThreadSettingsRouteScreen() {
   const flow = useNewTaskFlow();
-  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const optionDescriptors = useMemo(
     () =>
       resolveProviderOptionDescriptors({

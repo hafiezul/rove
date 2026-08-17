@@ -201,14 +201,16 @@ const multiTerminalHistoryLogPath = (
     }),
   );
 
+interface TerminalSubprocessInspection {
+  readonly hasRunningSubprocess: boolean;
+  readonly childCommand: string | null;
+  readonly processIds: ReadonlyArray<number>;
+}
+
 interface CreateManagerOptions {
   shellResolver?: () => string;
   env?: NodeJS.ProcessEnv;
-  subprocessInspector?: (terminalPid: number) => Effect.Effect<{
-    readonly hasRunningSubprocess: boolean;
-    readonly childCommand: string | null;
-    readonly processIds: ReadonlyArray<number>;
-  }>;
+  subprocessInspector?: (terminalPid: number) => Effect.Effect<TerminalSubprocessInspection>;
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
   maxRetainedInactiveSessions?: number;
@@ -242,18 +244,20 @@ const createManager = (
         logsDir,
         historyLineLimit,
         ptyAdapter,
-        ...(options.shellResolver !== undefined ? { shellResolver: options.shellResolver } : {}),
-        ...(options.env !== undefined ? { env: options.env } : {}),
+        ...(options.shellResolver !== undefined
+          ? { shellResolver: options.shellResolver }
+          : undefined),
+        ...(options.env !== undefined ? { env: options.env } : undefined),
         ...(options.subprocessInspector !== undefined
           ? { subprocessInspector: options.subprocessInspector }
-          : {}),
+          : undefined),
         ...(options.subprocessPollIntervalMs !== undefined
           ? { subprocessPollIntervalMs: options.subprocessPollIntervalMs }
-          : {}),
+          : undefined),
         processKillGraceMs: options.processKillGraceMs ?? 1,
         ...(options.maxRetainedInactiveSessions !== undefined
           ? { maxRetainedInactiveSessions: options.maxRetainedInactiveSessions }
-          : {}),
+          : undefined),
       });
       const eventsRef = yield* Ref.make<ReadonlyArray<TerminalEvent>>([]);
       const unsubscribe = yield* manager.subscribe((event) =>
@@ -886,11 +890,11 @@ it.layer(
 
   it.effect("emits subprocess activity events when child-process state changes", () =>
     Effect.gen(function* () {
-      let inspect: {
-        readonly hasRunningSubprocess: boolean;
-        readonly childCommand: string | null;
-        readonly processIds: ReadonlyArray<number>;
-      } = { hasRunningSubprocess: false, childCommand: null, processIds: [] };
+      let inspect: TerminalSubprocessInspection = {
+        hasRunningSubprocess: false,
+        childCommand: null,
+        processIds: [],
+      };
       const { manager, getEvents } = yield* createManager(5, {
         subprocessInspector: () => Effect.succeed(inspect),
         subprocessPollIntervalMs: 20,

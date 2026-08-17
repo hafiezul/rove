@@ -63,7 +63,7 @@ function makePoolLayer(
               persistFailureSnapshot: () => Effect.void,
               persistFailure: () => Effect.void,
               discardSession: Effect.void,
-            } satisfies DesktopObservability.DesktopBackendOutputLogShape),
+            } satisfies DesktopObservability.DesktopBackendOutputLogContract),
         } satisfies DesktopObservability.DesktopBackendOutputLogFactory["Service"]),
         Layer.succeed(DesktopTelemetryPublisher.DesktopTelemetryPublisher, {
           latest: Effect.succeed(Option.none()),

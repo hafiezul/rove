@@ -41,10 +41,11 @@ export function SettingsSearchTargetProvider({
 
 function scrollAndFocusSettingsTarget(target: HTMLElement): void {
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const scrollTarget =
-    target.tagName === "SECTION" && target.firstElementChild
-      ? (target.firstElementChild as HTMLElement)
-      : target;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    scrollTarget =
+      target.tagName === "SECTION" && target.firstElementChild
+        ? (target.firstElementChild as HTMLElement)
+        : target;
 
   scrollTarget.scrollIntoView({
     behavior: prefersReducedMotion ? "auto" : "smooth",

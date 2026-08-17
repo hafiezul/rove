@@ -3,7 +3,11 @@ import { EnvironmentId } from "@t3tools/contracts";
 import type { RelayEnvironmentView } from "../connection/useConnectionController";
 import type { ConnectedEnvironmentSummary } from "../../state/remote-runtime-types";
 
-const SHOWCASE_LOCAL_ENVIRONMENT_DISPLAY_URLS: Readonly<Record<string, string>> = {
+interface ShowcaseEnvironmentDisplayUrls {
+  readonly [environmentLabel: string]: string | undefined;
+}
+
+const SHOWCASE_LOCAL_ENVIRONMENT_DISPLAY_URLS: ShowcaseEnvironmentDisplayUrls = {
   "Moonbase Terminal": "https://moonbase.tail9f3a.ts.net/",
   "Suspense Station": "https://suspense-vps.hel1.t3.sh/",
   "Kernel Cabin": "http://100.82.16.5:3773/",

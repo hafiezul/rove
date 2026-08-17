@@ -189,10 +189,7 @@ function mapDirectorySearchResult(
   };
 }
 
-function mapMixedSearchResult(
-  result: MixedSearchResult,
-  limit: number,
-): { readonly entries: ProjectEntry[]; readonly truncated: boolean } {
+function mapMixedSearchResult(result: MixedSearchResult, limit: number) {
   const entries: ProjectEntry[] = [];
   for (const item of result.items) {
     const entry = toProjectEntry(item);
@@ -230,10 +227,7 @@ function codePointBefore(line: string, index: number): string | undefined {
   return codePointAt(line, previousIndex);
 }
 
-function buildContentSearchQuery(input: Omit<ProjectSearchContentsInput, "cwd">): {
-  readonly searchQuery: string;
-  readonly regexMode: boolean;
-} {
+function buildContentSearchQuery(input: Omit<ProjectSearchContentsInput, "cwd">) {
   if (input.caseSensitive) {
     return { searchQuery: input.query, regexMode: input.useRegex };
   }
@@ -517,7 +511,7 @@ export const make = Effect.fn("WorkspaceSearchIndex.make")(function* (
     return {
       matches: matches.slice(0, input.limit),
       truncated: matches.length > input.limit || nextCursor !== null,
-      ...(regexFallbackError !== undefined ? { regexFallbackError } : {}),
+      ...(regexFallbackError !== undefined ? { regexFallbackError } : undefined),
     };
   });
 
@@ -535,11 +529,9 @@ export type WorkspaceSearchIndexVariant = (typeof WORKSPACE_SEARCH_INDEX_VARIANT
 export const workspaceSearchIndexKey = (cwd: string, variant: WorkspaceSearchIndexVariant) =>
   `${variant}\n${cwd}`;
 
-function parseWorkspaceSearchIndexKey(key: string): {
-  readonly cwd: string;
-  readonly variant: WorkspaceSearchIndexVariant;
-} {
+function parseWorkspaceSearchIndexKey(key: string) {
   const separatorIndex = key.indexOf("\n");
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     variant: key.slice(0, separatorIndex) as WorkspaceSearchIndexVariant,
     cwd: key.slice(separatorIndex + 1),

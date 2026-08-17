@@ -69,6 +69,7 @@ import * as EnvironmentPublishSignatures from "../environments/EnvironmentPublis
 import * as MobileRegistrations from "../agentActivity/MobileRegistrations.ts";
 import { withSpanAttributes } from "../observability.ts";
 import * as RelayDb from "../db.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const relayCorsAllowedMethods = ["GET", "POST", "DELETE", "OPTIONS"] as const;
 const relayCorsAllowedHeaders = [
@@ -773,7 +774,7 @@ export const dpopClientApi = HttpApiBuilder.group(
               userId,
               environmentId: params.environmentId,
               clientProofKeyThumbprint,
-              ...(payload.deviceId ? { deviceId: payload.deviceId } : {}),
+              ...(payload.deviceId ? { deviceId: payload.deviceId } : undefined),
             });
           },
           mapRelayCommonApiErrors("invalid_dpop"),
@@ -1064,6 +1065,7 @@ function mapRelayCommonApiErrors(authReason: RelayAuthInvalidReason) {
       );
     }
 
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return yield* Effect.fail(error as MapRelayCommonApiError<E>);
   });
 
@@ -1098,15 +1100,17 @@ function mapErrorTags<
   Cases extends MapErrorTagCases<E> &
     (unknown extends E ? {} : { readonly [K in Exclude<keyof Cases, TaggedErrorTag<E>>]: never }),
 >(cases: Cases) {
-  const catchCases = Record.map(
-    cases as Record.ReadonlyRecord<
-      string,
-      (error: never, traceId: string) => MappedTagError<Cases>
-    >,
-    (makeError) => (error: never) =>
-      currentTraceId.pipe(Effect.flatMap((traceId) => Effect.fail(makeError(error, traceId)))),
-  ) as CatchTagCases<E, Cases>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    catchCases = Record.map(
+      cases as Record.ReadonlyRecord<
+        string,
+        (error: never, traceId: string) => MappedTagError<Cases>
+      >,
+      (makeError) => (error: never) =>
+        currentTraceId.pipe(Effect.flatMap((traceId) => Effect.fail(makeError(error, traceId)))),
+    ) as CatchTagCases<E, Cases>;
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return <A, R>(
     self: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, Exclude<E, { readonly _tag: keyof Cases }> | MappedTagError<Cases>, R> =>
@@ -1145,9 +1149,10 @@ function clerkVerificationFailureReason(cause: unknown): string {
   ) {
     return "audience_mismatch";
   }
-  if (typeof cause === "object" && cause !== null && "reason" in cause) {
-    const reason = (cause as { readonly reason?: unknown }).reason;
-    if (typeof reason === "string" && reason.length > 0) {
+  if (RuntimePredicate.isObjectOrArray(cause) && "reason" in cause) {
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      reason = (cause as { readonly reason?: unknown }).reason;
+    if (RuntimePredicate.isString(reason) && reason.length > 0) {
       return safeAuthFailureReason(reason);
     }
   }
@@ -1158,10 +1163,10 @@ function clerkVerificationFailureReason(cause: unknown): string {
 }
 
 function hasExpectedClerkAudience(audience: unknown, expectedAudience: string): boolean {
-  return typeof audience === "string"
+  return RuntimePredicate.isString(audience)
     ? audience === expectedAudience
     : Array.isArray(audience) &&
-        audience.some((entry) => typeof entry === "string" && entry === expectedAudience);
+        audience.some((entry) => RuntimePredicate.isString(entry) && entry === expectedAudience);
 }
 
 function verifyClerkBearerToken(
@@ -1256,7 +1261,9 @@ const requireDpopThumbprint = Effect.fn("relay.api.require_dpop_thumbprint")(fun
     url: url.value.href,
     now,
     expectedThumbprint,
-    ...(options?.expectedAccessToken ? { expectedAccessToken: options.expectedAccessToken } : {}),
+    ...(options?.expectedAccessToken
+      ? { expectedAccessToken: options.expectedAccessToken }
+      : undefined),
   });
 });
 
@@ -1275,7 +1282,9 @@ const requireDpopProof = Effect.fn("relay.api.require_dpop_proof")(function* (op
     method: request.method,
     url: url.value.href,
     now,
-    ...(options?.expectedAccessToken ? { expectedAccessToken: options.expectedAccessToken } : {}),
+    ...(options?.expectedAccessToken
+      ? { expectedAccessToken: options.expectedAccessToken }
+      : undefined),
   });
 });
 

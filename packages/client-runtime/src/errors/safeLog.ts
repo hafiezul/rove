@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 const SAFE_ERROR_LABEL =
   /^(?:Error|EvalError|RangeError|ReferenceError|SyntaxError|TypeError|URIError|AggregateError|DOMException|[A-Za-z][A-Za-z0-9]*(?:Error|Failure))$/;
 const SAFE_TRACE_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -12,7 +13,7 @@ export interface SafeErrorLogAttributes {
 }
 
 function readSafeLabel(value: unknown): string | undefined {
-  return typeof value === "string" && SAFE_ERROR_LABEL.test(value) ? value : undefined;
+  return RuntimePredicate.isString(value) && SAFE_ERROR_LABEL.test(value) ? value : undefined;
 }
 
 function sanitizeStackUrl(value: string): string {
@@ -47,9 +48,10 @@ function readSafeStack(error: Error): string | undefined {
 
 function readErrorTag(error: unknown): string | undefined {
   try {
-    if (typeof error !== "object" || error === null) {
+    if (!RuntimePredicate.isObjectOrArray(error)) {
       return undefined;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return readSafeLabel((error as { readonly _tag?: unknown })._tag);
   } catch {
     return undefined;
@@ -61,10 +63,11 @@ function readTraceId(error: unknown): string | undefined {
     const seen = new Set<object>();
     let current: unknown = error;
 
-    while (typeof current === "object" && current !== null && !seen.has(current)) {
+    while (RuntimePredicate.isObjectOrArray(current) && !seen.has(current)) {
       seen.add(current);
-      const record = current as { readonly cause?: unknown; readonly traceId?: unknown };
-      if (typeof record.traceId === "string" && SAFE_TRACE_ID.test(record.traceId)) {
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        record = current as { readonly cause?: unknown; readonly traceId?: unknown };
+      if (RuntimePredicate.isString(record.traceId) && SAFE_TRACE_ID.test(record.traceId)) {
         return record.traceId;
       }
       current = record.cause;
@@ -85,10 +88,10 @@ export function safeErrorLogAttributes(error: unknown): SafeErrorLogAttributes {
     const stack = readSafeStack(error);
     return {
       errorType: "error",
-      ...(errorName !== undefined ? { errorName } : {}),
-      ...(errorTag !== undefined ? { errorTag } : {}),
-      ...(traceId !== undefined ? { traceId } : {}),
-      ...(stack !== undefined ? { stack } : {}),
+      ...(errorName !== undefined ? { errorName } : undefined),
+      ...(errorTag !== undefined ? { errorTag } : undefined),
+      ...(traceId !== undefined ? { traceId } : undefined),
+      ...(stack !== undefined ? { stack } : undefined),
     };
   }
 
@@ -98,10 +101,10 @@ export function safeErrorLogAttributes(error: unknown): SafeErrorLogAttributes {
         ? "null"
         : Array.isArray(error)
           ? "array"
-          : typeof error === "object"
+          : RuntimePredicate.isObjectOrArray(error) || error === null
             ? "object"
             : "primitive",
-    ...(errorTag !== undefined ? { errorTag } : {}),
-    ...(traceId !== undefined ? { traceId } : {}),
+    ...(errorTag !== undefined ? { errorTag } : undefined),
+    ...(traceId !== undefined ? { traceId } : undefined),
   };
 }

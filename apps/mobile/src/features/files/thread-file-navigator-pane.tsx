@@ -39,7 +39,8 @@ export function ThreadFileNavigatorPane(props: {
       input: { cwd: props.cwd },
     }),
   );
-  const entriesData = entriesQuery.data as ProjectListEntriesResult | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    entriesData = entriesQuery.data as ProjectListEntriesResult | null;
   const handlePreviewFile = useCallback(
     (relativePath: string) => {
       preloadWorkspaceFileContents({

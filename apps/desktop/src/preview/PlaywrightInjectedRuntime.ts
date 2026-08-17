@@ -4,8 +4,11 @@ import * as NodeModule from "node:module";
 import * as NodePath from "node:path";
 import * as NodeVM from "node:vm";
 
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 const require = NodeModule.createRequire(import.meta.url);
 const encodeUnknownJson = Schema.encodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
@@ -151,11 +154,11 @@ export const extractPlaywrightInjectedRuntimeSource = Effect.fn(
         cause,
       }),
   });
-  if (typeof source !== "string" || source.length < PLAYWRIGHT_SOURCE_MINIMUM_LENGTH) {
+  if (!RuntimePredicate.isString(source) || source.length < PLAYWRIGHT_SOURCE_MINIMUM_LENGTH) {
     return yield* new PlaywrightSourceValidationError({
       bundlePath,
-      actualType: typeof source,
-      actualLength: typeof source === "string" ? source.length : null,
+      actualType: runtimeValueKind(source),
+      actualLength: RuntimePredicate.isString(source) ? source.length : null,
       minimumLength: PLAYWRIGHT_SOURCE_MINIMUM_LENGTH,
     });
   }

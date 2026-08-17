@@ -77,7 +77,7 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
       const path = yield* Path.Path;
       const command = ChildProcess.make(process.execPath, mockPeerArgs(yield* mockPeerPath), {
         cwd: path.join(import.meta.dirname, ".."),
-        ...(env ? { env: { ...process.env, ...env } } : {}),
+        ...(env ? { env: { ...process.env, ...env } } : undefined),
       });
       return yield* spawner.spawn(command);
     });

@@ -11,6 +11,7 @@ import {
   emptyAgentPanelModel,
   formatSubagentTokenCount,
 } from "@t3tools/client-runtime/state/subagentRuntime";
+import * as RuntimePredicate from "effect/Predicate";
 
 const EMPTY_AGENT_PANEL_MODEL = emptyAgentPanelModel();
 const NOOP_OPEN_AGENTS = () => {};
@@ -698,12 +699,12 @@ function compactMinimapPreview(text: string | null | undefined) {
 
 function resolveTimelineRowTop(state: TimelinePositionState, rowIndex: number) {
   const top = state.positionAtIndex?.(rowIndex);
-  return typeof top === "number" && Number.isFinite(top) ? top : null;
+  return RuntimePredicate.isNumber(top) && Number.isFinite(top) ? top : null;
 }
 
 function resolveTimelineRowHeight(state: TimelinePositionState, rowIndex: number) {
   const height = state.sizeAtIndex?.(rowIndex);
-  return typeof height === "number" && Number.isFinite(height) ? height : null;
+  return RuntimePredicate.isNumber(height) && Number.isFinite(height) ? height : null;
 }
 
 function timelineMinimapEventTargetsPreview(target: EventTarget): boolean {
@@ -972,7 +973,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
   ];
   const previewImages = userImages.filter((image) => image.name.startsWith("preview-annotation-"));
   const regularImages = userImages.filter((image) => !image.name.startsWith("preview-annotation-"));
-  const canRevertAgentWork = typeof row.revertTurnCount === "number";
+  const canRevertAgentWork = RuntimePredicate.isNumber(row.revertTurnCount);
 
   return (
     <div className="group flex flex-col items-end gap-1">
@@ -1981,32 +1982,34 @@ function WorkEntryIconSvg({ name, className }: { name: WorkEntryIconName; classN
   }
 }
 
-function workToneIcon(tone: TimelineWorkEntry["tone"]): {
-  iconName: WorkEntryIconName;
-  className: string;
-} {
+type WorkToneIcon = {
+  readonly iconName: WorkEntryIconName;
+  readonly className: string;
+};
+
+function workToneIcon(tone: TimelineWorkEntry["tone"]) {
   if (tone === "error") {
     return {
       iconName: "circle-alert",
       className: "text-foreground",
-    };
+    } satisfies WorkToneIcon;
   }
   if (tone === "thinking") {
     return {
       iconName: "bot",
       className: "text-foreground",
-    };
+    } satisfies WorkToneIcon;
   }
   if (tone === "info") {
     return {
       iconName: "check",
       className: "text-icon-muted",
-    };
+    } satisfies WorkToneIcon;
   }
   return {
     iconName: "zap",
     className: "text-foreground",
-  };
+  } satisfies WorkToneIcon;
 }
 
 function workEntryPreview(

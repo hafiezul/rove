@@ -14,11 +14,11 @@ export interface ThreadPrPresentation {
   readonly textClassName: string;
 }
 
-const PR_STATE_TEXT_CLASS: Record<ThreadPr["state"], string> = {
+const PR_STATE_TEXT_CLASS = {
   open: "text-emerald-600 dark:text-emerald-400",
   merged: "text-violet-600 dark:text-violet-400",
   closed: "text-zinc-500 dark:text-zinc-400",
-};
+} satisfies Record<ThreadPr["state"], string>;
 
 export function presentThreadPr(
   pr: ThreadPr,

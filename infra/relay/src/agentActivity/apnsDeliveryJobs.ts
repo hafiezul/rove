@@ -265,14 +265,14 @@ export function makeApnsDeliveryJobPayload(input: {
       userId: input.userId,
       deviceId: input.deviceId,
       token: input.token,
-      ...(input.bundleId ? { bundleId: input.bundleId } : {}),
-      ...(input.apsEnvironment ? { apsEnvironment: input.apsEnvironment } : {}),
+      ...(input.bundleId ? { bundleId: input.bundleId } : undefined),
+      ...(input.apsEnvironment ? { apsEnvironment: input.apsEnvironment } : undefined),
     },
     aggregate: input.aggregate,
     notification: input.notification ?? null,
     // Omitted (not null) when absent so signatures stay identical to jobs from
     // relay builds that predate the field.
-    ...(input.alert ? { alert: input.alert } : {}),
+    ...(input.alert ? { alert: input.alert } : undefined),
     createdAt: input.createdAt,
     expiresAt: input.expiresAt,
   };
@@ -282,7 +282,7 @@ export function expiresAtForJob(createdAtMs: number): string {
   return DateTime.formatIso(Option.getOrThrow(DateTime.make(createdAtMs + MAX_JOB_AGE_MS)));
 }
 
-function validatePayloadShape(payload: ApnsDeliveryJobPayload): ApnsDeliveryJobInvalid | null {
+function validatePayloadContract(payload: ApnsDeliveryJobPayload): ApnsDeliveryJobInvalid | null {
   switch (payload.kind) {
     case "live_activity_start":
     case "live_activity_update":
@@ -367,7 +367,7 @@ export function verifySignedApnsDeliveryJob(input: {
   readonly nowMs: number;
 }): ApnsDeliveryJobPayload | ApnsDeliveryJobVerificationError {
   const payload = input.job.payload;
-  const invalidPayload = validatePayloadShape(payload);
+  const invalidPayload = validatePayloadContract(payload);
   if (invalidPayload !== null) {
     return invalidPayload;
   }

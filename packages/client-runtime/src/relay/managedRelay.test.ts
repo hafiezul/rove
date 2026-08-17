@@ -28,7 +28,7 @@ function managedRelayTestLayer(
   return ManagedRelay.layer({
     relayUrl,
     clientId: "t3-mobile",
-    ...(accessTokenStore ? { accessTokenStore } : {}),
+    ...(accessTokenStore ? { accessTokenStore } : undefined),
   }).pipe(Layer.provide(signerLayer), Layer.provide(httpClientLayer));
 }
 

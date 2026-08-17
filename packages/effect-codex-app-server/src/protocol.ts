@@ -10,6 +10,7 @@ import * as Stream from "effect/Stream";
 
 import * as CodexError from "./errors.ts";
 import { JsonRpcId, JsonRpcResponseEnvelope } from "./_internal/shared.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isJsonRpcId = Schema.is(JsonRpcId);
 const isJsonRpcResponseEnvelope = Schema.is(JsonRpcResponseEnvelope);
 const isCodexAppServerError = Schema.is(CodexError.CodexAppServerError);
@@ -72,19 +73,26 @@ interface CodexAppServerPendingRequest {
   readonly method: string;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+interface JsonRpcMessageCandidate {
+  readonly id?: unknown;
+  readonly method?: unknown;
+}
+
+function isJsonRpcMessageCandidate(value: unknown): value is JsonRpcMessageCandidate {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
 function isIncomingRequest(value: unknown): value is CodexAppServerIncomingRequest {
-  if (!isObject(value) || typeof value.method !== "string") {
+  if (!isJsonRpcMessageCandidate(value) || !RuntimePredicate.isString(value.method)) {
     return false;
   }
   return isJsonRpcId(value.id);
 }
 
 function isIncomingNotification(value: unknown): value is CodexAppServerIncomingNotification {
-  return isObject(value) && typeof value.method === "string" && !("id" in value);
+  return (
+    isJsonRpcMessageCandidate(value) && RuntimePredicate.isString(value.method) && !("id" in value)
+  );
 }
 
 function isIncomingResponse(value: unknown): value is typeof JsonRpcResponseEnvelope.Type {
@@ -95,22 +103,22 @@ const encodeJsonString = Schema.encodeUnknownEffect(Schema.fromJsonString(Schema
 const decodeJsonString = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
 
 const encodeWireMessage = (
-  message: Record<string, unknown>,
+  message: CodexAppServerOutgoingMessage,
 ): Effect.Effect<string, CodexError.CodexAppServerProtocolParseError> =>
   encodeJsonString(message).pipe(
     Effect.map((encoded) => `${encoded}\n`),
     Effect.mapError((cause) => {
-      const method = typeof message.method === "string" ? message.method : undefined;
+      const method = RuntimePredicate.isString(message.method) ? message.method : undefined;
       const requestId =
-        typeof message.id === "string" || typeof message.id === "number"
+        RuntimePredicate.isString(message.id) || RuntimePredicate.isNumber(message.id)
           ? String(message.id)
           : undefined;
       return CodexError.CodexAppServerProtocolParseError.fromSchemaError(
         "encode-wire-message",
         cause,
         {
-          ...(method === undefined ? {} : { method }),
-          ...(requestId === undefined ? {} : { requestId }),
+          ...(method === undefined ? undefined : { method }),
+          ...(requestId === undefined ? undefined : { requestId }),
         },
       );
     }),
@@ -136,16 +144,24 @@ const normalizeIncomingError = (
         cause: error,
       });
 
+interface CodexAppServerOutgoingMessage {
+  readonly error?: CodexError.CodexAppServerProtocolErrorContract;
+  readonly id?: string | number;
+  readonly method?: string;
+  readonly params?: unknown;
+  readonly result?: unknown;
+}
+
 const toProtocolMessage = (
   requestId: string | number,
   fields: {
     readonly result?: unknown;
-    readonly error?: CodexError.CodexAppServerProtocolErrorShape;
+    readonly error?: CodexError.CodexAppServerProtocolErrorContract;
   },
-): { readonly [key: string]: unknown } => ({
+): CodexAppServerOutgoingMessage => ({
   id: requestId,
-  ...(fields.result !== undefined ? { result: fields.result } : {}),
-  ...(fields.error !== undefined ? { error: fields.error } : {}),
+  ...(fields.result !== undefined ? { result: fields.result } : undefined),
+  ...(fields.error !== undefined ? { error: fields.error } : undefined),
 });
 
 export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPatchedProtocol")(
@@ -201,7 +217,7 @@ export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPa
         ] as const;
       }).pipe(Effect.flatten);
 
-    const offerOutgoing = (message: Record<string, unknown>) =>
+    const offerOutgoing = (message: CodexAppServerOutgoingMessage) =>
       Effect.gen(function* () {
         yield* logProtocol({
           direction: "outgoing",
@@ -337,12 +353,12 @@ export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPa
             stage: "decode_failed",
             payload: {
               operation: error.operation,
-              ...(error.method === undefined ? {} : { method: error.method }),
-              ...(error.requestId === undefined ? {} : { requestId: error.requestId }),
-              ...(error.issueCount === undefined ? {} : { issueCount: error.issueCount }),
-              ...(error.issueKinds === undefined ? {} : { issueKinds: error.issueKinds }),
+              ...(error.method === undefined ? undefined : { method: error.method }),
+              ...(error.requestId === undefined ? undefined : { requestId: error.requestId }),
+              ...(error.issueCount === undefined ? undefined : { issueCount: error.issueCount }),
+              ...(error.issueKinds === undefined ? undefined : { issueKinds: error.issueKinds }),
               ...(error.maximumPathDepth === undefined
-                ? {}
+                ? undefined
                 : { maximumPathDepth: error.maximumPathDepth }),
             },
           }),
@@ -398,7 +414,7 @@ export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPa
         yield* offerOutgoing({
           id: requestId,
           method,
-          ...(payload !== undefined ? { params: payload } : {}),
+          ...(payload !== undefined ? { params: payload } : undefined),
         }).pipe(Effect.tapError(() => removePending(String(requestId))));
         return yield* Deferred.await(deferred).pipe(
           Effect.onInterrupt(() => removePending(String(requestId))),
@@ -408,7 +424,7 @@ export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPa
     const notify = (method: string, payload?: unknown) =>
       offerOutgoing({
         method,
-        ...(payload !== undefined ? { params: payload } : {}),
+        ...(payload !== undefined ? { params: payload } : undefined),
       });
 
     return {

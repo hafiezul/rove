@@ -1,9 +1,19 @@
 import type { ContextMenuItem } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Inline Lucide-style icon paths (stroke-based, viewBox 0 0 24 24, strokeWidth 2).
-const ICON_PATHS: Record<string, ReadonlyArray<{ tag: string; attrs: Record<string, string> }>> = {
+interface ContextMenuIconPath {
+  readonly tag: string;
+  readonly attrs: Record<string, string>;
+}
+
+interface ContextMenuIconPaths {
+  readonly [name: string]: ReadonlyArray<ContextMenuIconPath> | undefined;
+}
+
+const ICON_PATHS: ContextMenuIconPaths = {
   pencil: [
     {
       tag: "path",
@@ -83,19 +93,21 @@ function clampMenuPosition(menu: HTMLDivElement, preferredLeft: number, preferre
   menu.style.top = `${top}px`;
 }
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 function isNodeWithinMenuStack(target: EventTarget | null, menuStack: readonly HTMLDivElement[]) {
   if (typeof Node !== "undefined" && target instanceof Node) {
     return menuStack.some((menu) => menu.contains(target));
   }
-  if (!target || typeof target !== "object") {
+  if (!target || !(RuntimePredicate.isObjectOrArray(target) || target === null)) {
     return false;
   }
 
   let current: unknown = target;
-  while (current && typeof current === "object") {
-    if (menuStack.includes(current as HTMLDivElement)) {
+  while (current && (RuntimePredicate.isObjectOrArray(current) || current === null)) {
+    if (menuStack.some((menu) => menu === current)) {
       return true;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     current = (current as { parent?: unknown }).parent;
   }
   return false;
@@ -214,7 +226,7 @@ export function showContextMenuFallback<T extends string>(
           button.style.pointerEvents = "none";
         }
 
-        if (typeof item.icon === "string") {
+        if (RuntimePredicate.isString(item.icon)) {
           const icon = createIconElement(item.icon, isLeafDestructive ? "destructive" : "neutral");
           if (icon) {
             button.appendChild(icon);

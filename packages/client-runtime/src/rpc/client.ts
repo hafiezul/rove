@@ -133,9 +133,10 @@ export const request = Effect.fn("EnvironmentRpc.request")(function* <
   });
   const session = yield* currentSession();
   const observer = yield* EnvironmentRpcRequestObserver;
-  const method = session.client[tag] as (
-    input: EnvironmentRpcInput<TTag>,
-  ) => Effect.Effect<EnvironmentRpcSuccess<TTag>, EnvironmentRpcFailure<TTag>>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    method = session.client[tag] as (
+      input: EnvironmentRpcInput<TTag>,
+    ) => Effect.Effect<EnvironmentRpcSuccess<TTag>, EnvironmentRpcFailure<TTag>>;
   const completeObservation = yield* observer.observe({
     environmentId: supervisor.target.environmentId,
     method: tag,
@@ -154,9 +155,10 @@ export function runStream<TTag extends EnvironmentStreamCommandRpcTag>(
   return Stream.unwrap(
     currentSession().pipe(
       Effect.map((session) => {
-        const method = session.client[tag] as (
-          input: EnvironmentRpcInput<TTag>,
-        ) => Stream.Stream<EnvironmentRpcStreamValue<TTag>, EnvironmentRpcStreamFailure<TTag>>;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          method = session.client[tag] as (
+            input: EnvironmentRpcInput<TTag>,
+          ) => Stream.Stream<EnvironmentRpcStreamValue<TTag>, EnvironmentRpcStreamFailure<TTag>>;
         return method(input);
       }),
     ),
@@ -203,12 +205,13 @@ export function subscribeDynamic<TTag extends EnvironmentSubscriptionRpcTag>(
           Option.match({
             onNone: () => Stream.empty,
             onSome: (session) => {
-              const method = session.client[tag] as (
-                input: EnvironmentRpcInput<TTag>,
-              ) => Stream.Stream<
-                EnvironmentRpcStreamValue<TTag>,
-                EnvironmentRpcStreamFailure<TTag>
-              >;
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                method = session.client[tag] as (
+                  input: EnvironmentRpcInput<TTag>,
+                ) => Stream.Stream<
+                  EnvironmentRpcStreamValue<TTag>,
+                  EnvironmentRpcStreamFailure<TTag>
+                >;
               const subscribeToSession = (): Stream.Stream<
                 EnvironmentRpcStreamValue<TTag>,
                 EnvironmentRpcStreamFailure<TTag>

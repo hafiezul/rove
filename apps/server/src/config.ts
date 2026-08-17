@@ -13,6 +13,7 @@ import * as Layer from "effect/Layer";
 import * as LogLevel from "effect/LogLevel";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_PORT = 3773;
 
@@ -160,10 +161,9 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
 ) {
   const devUrl = undefined;
   const fs = yield* FileSystem.FileSystem;
-  const baseDir =
-    typeof baseDirOrPrefix === "string"
-      ? baseDirOrPrefix
-      : yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix });
+  const baseDir = RuntimePredicate.isString(baseDirOrPrefix)
+    ? baseDirOrPrefix
+    : yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix });
   const derivedPaths = yield* deriveServerPaths(baseDir, devUrl);
   yield* ensureServerDirectories(derivedPaths);
 

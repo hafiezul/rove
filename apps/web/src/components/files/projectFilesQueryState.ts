@@ -158,7 +158,7 @@ export function useProjectFilePickerQuery(
       cwd,
       query,
       kind: "file",
-      ...(options?.imageOnly ? { imageOnly: true } : {}),
+      ...(options?.imageOnly ? { imageOnly: true } : undefined),
     },
     limit,
     { allowEmptyQuery: true },

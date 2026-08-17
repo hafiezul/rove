@@ -30,12 +30,12 @@ import type { ChildProcessSpawner } from "effect/unstable/process";
  * than the CLI's: tailscale prints auth keys and node names into stderr, and
  * this string is logged.
  */
-const DIAGNOSTIC_EXPLANATIONS: Record<TailscaleStderrDiagnostic, string | undefined> = {
+const DIAGNOSTIC_EXPLANATIONS = {
   "no-existing-handler": "no mapping existed for that port",
   "not-logged-in": "this machine is not logged into a tailnet — run `tailscale up`",
   "permission-denied": "permission denied — `tailscale serve` may need elevated privileges",
   unknown: undefined,
-};
+} satisfies Record<TailscaleStderrDiagnostic, string | undefined>;
 
 /**
  * Our own wording for why a tailscale command failed, derived from the
@@ -150,7 +150,7 @@ export const unshareDevServer = (
               cleared: false,
               ...(explainCommandFailure(error) !== undefined
                 ? { explanation: explainCommandFailure(error) }
-                : {}),
+                : undefined),
               cause: error,
             } as const),
       ),
@@ -190,8 +190,8 @@ export const shareDevServer = Effect.fn("devShare.shareDevServer")(function* (in
     return yield* new DevServeFailedError({
       stage: "clear-existing",
       webPort: input.webPort,
-      ...(cleared.explanation !== undefined ? { explanation: cleared.explanation } : {}),
-      ...(cleared.cause !== undefined ? { cause: cleared.cause } : {}),
+      ...(cleared.explanation !== undefined ? { explanation: cleared.explanation } : undefined),
+      ...(cleared.cause !== undefined ? { cause: cleared.cause } : undefined),
     });
   }
 
@@ -201,7 +201,7 @@ export const shareDevServer = Effect.fn("devShare.shareDevServer")(function* (in
       return new DevServeFailedError({
         stage: "serve",
         webPort: input.webPort,
-        ...(explanation !== undefined ? { explanation } : {}),
+        ...(explanation !== undefined ? { explanation } : undefined),
         cause: error,
       });
     }),

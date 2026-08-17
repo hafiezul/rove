@@ -15,6 +15,7 @@ import {
 } from "./renderer";
 import symbolsFontUrl from "./fonts/SymbolsNerdFontMono-Regular.woff2?url";
 import { isMonospaceFamily } from "../../appearanceFonts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_TERMINAL_FONT_SIZE = 12;
 const MIN_TERMINAL_FONT_SIZE = 6;
@@ -370,7 +371,7 @@ export function terminalWheelDeltaRows(
   cellHeight: number,
   viewportRows: number,
   remainder: number,
-): { readonly rows: number; readonly remainder: number } {
+) {
   // deltaMode: 0 pixels, 1 lines, 2 pages.
   const pixels =
     event.deltaMode === 1
@@ -909,7 +910,7 @@ export class GhosttyTerminalSurface {
     if (isTerminalPasteShortcut(event)) {
       this.suppressedKeyCodes.add(event.code);
       const clipboard = navigator.clipboard;
-      if (typeof clipboard?.readText === "function") {
+      if (RuntimePredicate.isFunction(clipboard?.readText)) {
         // Race the async clipboard read against the browser's own paste event:
         // the native event (dispatched synchronously with the default action)
         // always claims the token first when it fires, and the read covers
@@ -1020,7 +1021,8 @@ export class GhosttyTerminalSurface {
   };
 
   private readonly onInput = (event: Event) => {
-    const inputEvent = event as InputEvent;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      inputEvent = event as InputEvent;
     if (this.composing || inputEvent.isComposing) return;
     const data = this.input.value || inputEvent.data || "";
     if (data === this.compositionInputToSuppress && isTerminalCompositionCommitInput(inputEvent)) {
@@ -1531,7 +1533,7 @@ export class GhosttyTerminalSurface {
       hoveredLinkRange: this.hoveredLink?.range ?? null,
       ...(this.theme.selectionBackground !== undefined
         ? { selectionBackground: this.theme.selectionBackground }
-        : {}),
+        : undefined),
     });
     this.positionInput();
     this.renderedCursorY =
@@ -1585,7 +1587,7 @@ export class GhosttyTerminalSurface {
     this.input.style.height = `${this.metrics.height}px`;
   }
 
-  private cellAt(clientX: number, clientY: number): { x: number; y: number } {
+  private cellAt(clientX: number, clientY: number) {
     const bounds = this.canvas.getBoundingClientRect();
     return {
       x: Math.max(

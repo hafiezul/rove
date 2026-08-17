@@ -1,4 +1,5 @@
 import type { PreviewAutomationPressInput } from "@t3tools/contracts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface KeyDefinition {
   readonly code: string;
@@ -10,7 +11,7 @@ interface KeyDefinition {
 }
 
 export interface PreviewAutomationKeyEvent {
-  readonly [key: string]: unknown;
+  readonly [key: string]: SchemaJson;
   readonly type: "keyDown" | "rawKeyDown" | "keyUp";
   readonly key: string;
   readonly code: string;
@@ -33,7 +34,15 @@ export interface PreviewAutomationKeySequence {
   };
 }
 
-const NAMED_KEYS: Readonly<Record<string, KeyDefinition>> = {
+interface NamedKeyDefinitions {
+  readonly [key: string]: KeyDefinition | undefined;
+}
+
+interface MacEditingCommands {
+  readonly [shortcut: string]: string | undefined;
+}
+
+const NAMED_KEYS: NamedKeyDefinitions = {
   Escape: { code: "Escape", key: "Escape", keyCode: 27 },
   Backspace: { code: "Backspace", key: "Backspace", keyCode: 8 },
   Tab: { code: "Tab", key: "Tab", keyCode: 9 },
@@ -85,7 +94,7 @@ const PRINTABLE_KEYS: ReadonlyArray<KeyDefinition> = [
  * Keep the common browser editing/navigation shortcuts explicit so dispatched
  * key events behave like their physical-key equivalents.
  */
-const MAC_EDITING_COMMANDS: Readonly<Record<string, string>> = {
+const MAC_EDITING_COMMANDS: MacEditingCommands = {
   "Meta+Backspace": "deleteToBeginningOfLine",
   "Meta+ArrowUp": "moveToBeginningOfDocument",
   "Meta+ArrowDown": "moveToEndOfDocument",
@@ -163,7 +172,7 @@ function resolveKeyDefinition(input: PreviewAutomationPressInput): KeyDefinition
     code: input.key.length > 1 ? input.key : "",
     key: input.key,
     keyCode: 0,
-    ...(input.key.length === 1 ? { text: input.key } : {}),
+    ...(input.key.length === 1 ? { text: input.key } : undefined),
   };
 }
 
@@ -194,8 +203,8 @@ export function makePreviewAutomationKeySequence(
     keyDown: {
       type: text ? "keyDown" : "rawKeyDown",
       ...shared,
-      ...(text ? { text, unmodifiedText: text } : {}),
-      ...(commands.length > 0 ? { commands } : {}),
+      ...(text ? { text, unmodifiedText: text } : undefined),
+      ...(commands.length > 0 ? { commands } : undefined),
     },
     keyUp: { type: "keyUp", ...shared },
     signal: { kind: "key", key: definition.key, code: definition.code },

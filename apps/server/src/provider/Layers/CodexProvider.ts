@@ -50,7 +50,11 @@ export interface CodexAppServerProviderSnapshot {
   readonly skills: ReadonlyArray<ServerProviderSkill>;
 }
 
-const REASONING_EFFORT_LABELS: Readonly<Record<string, string>> = {
+interface CodexReasoningEffortLabels {
+  readonly [reasoningEffort: string]: string | undefined;
+}
+
+const REASONING_EFFORT_LABELS: CodexReasoningEffortLabels = {
   none: "None",
   minimal: "Minimal",
   low: "Low",
@@ -150,7 +154,7 @@ export function mapCodexModelCapabilities(
       label: "Reasoning",
       type: "select",
       options: reasoningOptions,
-      ...(defaultReasoning ? { currentValue: defaultReasoning } : {}),
+      ...(defaultReasoning ? { currentValue: defaultReasoning } : undefined),
     });
   }
   if (serviceTiers.length > 0) {
@@ -162,13 +166,13 @@ export function mapCodexModelCapabilities(
         {
           id: DEFAULT_SERVICE_TIER_ID,
           label: "Standard",
-          ...(defaultServiceTier === DEFAULT_SERVICE_TIER_ID ? { isDefault: true } : {}),
+          ...(defaultServiceTier === DEFAULT_SERVICE_TIER_ID ? { isDefault: true } : undefined),
         },
         ...serviceTiers.map((tier) => ({
           id: tier.id,
           label: tier.name,
-          ...(tier.description ? { description: tier.description } : {}),
-          ...(defaultServiceTier === tier.id ? { isDefault: true } : {}),
+          ...(tier.description ? { description: tier.description } : undefined),
+          ...(defaultServiceTier === tier.id ? { isDefault: true } : undefined),
         })),
       ],
       currentValue: defaultServiceTier,
@@ -194,8 +198,8 @@ function parseCodexModelListResponse(
     slug: model.model,
     name: toDisplayName(model),
     isCustom: false,
-    ...(model.isDefault ? { isDefault: true } : {}),
-    ...(isLegacyCodexModel(model.model) ? { isLegacy: true } : {}),
+    ...(model.isDefault ? { isDefault: true } : undefined),
+    ...(isLegacyCodexModel(model.model) ? { isLegacy: true } : undefined),
     capabilities: mapCodexModelCapabilities(model),
   }));
 }
@@ -335,7 +339,7 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const environment = {
     ...input.environment,
-    ...(resolvedHomePath ? { CODEX_HOME: resolvedHomePath } : {}),
+    ...(resolvedHomePath ? { CODEX_HOME: resolvedHomePath } : undefined),
   };
   const spawnCommand = yield* resolveSpawnCommand(
     input.binaryPath,
@@ -471,18 +475,22 @@ const makePendingCodexProvider = (
     });
   });
 
-function accountProbeStatus(account: CodexAppServerProviderSnapshot["account"]): {
+interface CodexAccountProbeStatus {
   readonly status: Exclude<ServerProviderState, "disabled">;
   readonly auth: ServerProvider["auth"];
   readonly message?: string;
-} {
+}
+
+function accountProbeStatus(
+  account: CodexAppServerProviderSnapshot["account"],
+): CodexAccountProbeStatus {
   const authLabel = codexAccountAuthLabel(account.account);
   const authEmail = codexAccountEmail(account.account);
   const auth = {
     status: account.account ? ("authenticated" as const) : ("unknown" as const),
-    ...(account.account?.type ? { type: account.account?.type } : {}),
-    ...(authLabel ? { label: authLabel } : {}),
-    ...(authEmail ? { email: authEmail } : {}),
+    ...(account.account?.type ? { type: account.account?.type } : undefined),
+    ...(authLabel ? { label: authLabel } : undefined),
+    ...(authEmail ? { email: authEmail } : undefined),
   } satisfies ServerProvider["auth"];
 
   if (account.account) {
@@ -606,7 +614,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
       version: snapshot.version ?? null,
       status: accountStatus.status,
       auth: accountStatus.auth,
-      ...(accountStatus.message ? { message: accountStatus.message } : {}),
+      ...(accountStatus.message ? { message: accountStatus.message } : undefined),
     },
   });
 });

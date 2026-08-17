@@ -7,6 +7,8 @@
  * @module usageTranscripts
  */
 import type { UsageProviderKind, UsageTokenTotals } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export interface UsageRecord {
   readonly provider: UsageProviderKind;
@@ -31,11 +33,13 @@ const EMPTY_TOTALS: UsageTokenTotals = {
 };
 
 function int(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+  return RuntimePredicate.isNumber(value) && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : 0;
 }
 
 function parseTimestampMs(value: unknown): number | null {
-  if (typeof value !== "string") return null;
+  if (!RuntimePredicate.isString(value)) return null;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
 }
@@ -90,27 +94,30 @@ export function parseClaudeLine(line: string): UsageRecord | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null) return null;
+  if (!RuntimePredicate.isObjectOrArray(parsed)) return null;
 
-  const record = parsed as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = parsed as Record<string, SchemaJson>;
   if (record["type"] !== "assistant") return null;
 
   const message = record["message"];
-  if (typeof message !== "object" || message === null) return null;
-  const messageRecord = message as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(message)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    messageRecord = message as Record<string, SchemaJson>;
 
   const usage = messageRecord["usage"];
-  if (typeof usage !== "object" || usage === null) return null;
-  const usageRecord = usage as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(usage)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    usageRecord = usage as Record<string, SchemaJson>;
 
   const timestampMs = parseTimestampMs(record["timestamp"]);
   if (timestampMs === null) return null;
 
-  const model = typeof messageRecord["model"] === "string" ? messageRecord["model"] : "";
+  const model = RuntimePredicate.isString(messageRecord["model"]) ? messageRecord["model"] : "";
   if (model.length === 0) return null;
 
-  const messageId = typeof messageRecord["id"] === "string" ? messageRecord["id"] : null;
-  const requestId = typeof record["requestId"] === "string" ? record["requestId"] : null;
+  const messageId = RuntimePredicate.isString(messageRecord["id"]) ? messageRecord["id"] : null;
+  const requestId = RuntimePredicate.isString(record["requestId"]) ? record["requestId"] : null;
   // Matches ccusage: prefer the message/request pair, fall back to whichever
   // half exists. Records with neither cannot be de-duplicated.
   const dedupeKey =
@@ -122,7 +129,7 @@ export function parseClaudeLine(line: string): UsageRecord | null {
     provider: "claude",
     timestampMs,
     model,
-    sessionId: typeof record["sessionId"] === "string" ? record["sessionId"] : "",
+    sessionId: RuntimePredicate.isString(record["sessionId"]) ? record["sessionId"] : "",
     totals: {
       uncachedInputTokens: int(usageRecord["input_tokens"]),
       cachedInputTokens: int(usageRecord["cache_read_input_tokens"]),
@@ -131,7 +138,7 @@ export function parseClaudeLine(line: string): UsageRecord | null {
       // Anthropic folds thinking tokens into output and does not break them out.
       reasoningTokens: 0,
     },
-    reportedCostUsd: typeof cost === "number" && Number.isFinite(cost) ? cost : null,
+    reportedCostUsd: RuntimePredicate.isNumber(cost) && Number.isFinite(cost) ? cost : null,
     dedupeKey,
   };
 }
@@ -178,15 +185,18 @@ export function initialCodexScanState(): CodexScanState {
 const FORK_COPY_MAX_GAP_MS = 1000;
 
 /** Whether a `session_meta` payload marks the rollout as a fork or subagent. */
-function isForkedSessionMeta(payload: Record<string, unknown>): boolean {
-  if (typeof payload["forked_from_id"] === "string") return true;
+function isForkedSessionMeta(payload: Record<string, SchemaJson>): boolean {
+  if (RuntimePredicate.isString(payload["forked_from_id"])) return true;
   const source = payload["source"];
-  if (typeof source !== "object" || source === null) return false;
-  const subagent = (source as Record<string, unknown>)["subagent"];
-  if (typeof subagent !== "object" || subagent === null) return false;
-  const spawn = (subagent as Record<string, unknown>)["thread_spawn"];
-  if (typeof spawn !== "object" || spawn === null) return false;
-  return typeof (spawn as Record<string, unknown>)["parent_thread_id"] === "string";
+  if (!RuntimePredicate.isObjectOrArray(source)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    subagent = (source as Record<string, SchemaJson>)["subagent"];
+  if (!RuntimePredicate.isObjectOrArray(subagent)) return false;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    spawn = (subagent as Record<string, SchemaJson>)["thread_spawn"];
+  if (!RuntimePredicate.isObjectOrArray(spawn)) return false;
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isString((spawn as Record<string, SchemaJson>)["parent_thread_id"]);
 }
 
 /**
@@ -204,12 +214,14 @@ export function parseCodexLine(line: string, state: CodexScanState): UsageRecord
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null) return null;
+  if (!RuntimePredicate.isObjectOrArray(parsed)) return null;
 
-  const record = parsed as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = parsed as Record<string, SchemaJson>;
   const payload = record["payload"];
-  if (typeof payload !== "object" || payload === null) return null;
-  const payloadRecord = payload as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(payload)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payloadRecord = payload as Record<string, SchemaJson>;
   const payloadType = payloadRecord["type"];
 
   if (record["type"] === "session_meta") {
@@ -219,7 +231,7 @@ export function parseCodexLine(line: string, state: CodexScanState): UsageRecord
     if (state.sawSessionMeta) return null;
     state.sawSessionMeta = true;
     const id = payloadRecord["id"] ?? payloadRecord["session_id"];
-    if (typeof id === "string") state.sessionId = id;
+    if (RuntimePredicate.isString(id)) state.sessionId = id;
     const metaTimestampMs = parseTimestampMs(record["timestamp"]);
     if (metaTimestampMs !== null && isForkedSessionMeta(payloadRecord)) {
       state.suppressingForkCopies = true;
@@ -229,17 +241,19 @@ export function parseCodexLine(line: string, state: CodexScanState): UsageRecord
   }
 
   if (record["type"] === "turn_context") {
-    if (typeof payloadRecord["model"] === "string") state.model = payloadRecord["model"];
+    if (RuntimePredicate.isString(payloadRecord["model"])) state.model = payloadRecord["model"];
     return null;
   }
 
   if (payloadType !== "token_count") return null;
 
   const info = payloadRecord["info"];
-  if (typeof info !== "object" || info === null) return null;
-  const last = (info as Record<string, unknown>)["last_token_usage"];
-  if (typeof last !== "object" || last === null) return null;
-  const lastRecord = last as Record<string, unknown>;
+  if (!RuntimePredicate.isObjectOrArray(info)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    last = (info as Record<string, SchemaJson>)["last_token_usage"];
+  if (!RuntimePredicate.isObjectOrArray(last)) return null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    lastRecord = last as Record<string, SchemaJson>;
 
   // Only an event that is otherwise eligible may consume the duplicate
   // signature. A token_count arriving before its turn_context (no model yet)

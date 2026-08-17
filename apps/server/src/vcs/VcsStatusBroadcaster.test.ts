@@ -487,6 +487,7 @@ describe("VcsStatusBroadcaster", () => {
     const nestedCause = new Error("private nested VCS failure");
     const messages: Array<ReadonlyArray<unknown>> = [];
     const logger = Logger.make<unknown, void>(({ message }) => {
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       messages.push(message as ReadonlyArray<unknown>);
     });
     let firstRemoteAttemptDeferred: Deferred.Deferred<void> | null = null;
@@ -743,43 +744,44 @@ describe("VcsStatusBroadcaster", () => {
     };
     let remoteInterruptedDeferred: Deferred.Deferred<void, never> | null = null;
     let remoteStartedDeferred: Deferred.Deferred<void, never> | null = null;
-    const testLayer = VcsStatusBroadcaster.layer.pipe(
-      Layer.provideMerge(NodeServices.layer),
-      Layer.provide(makeBackgroundPolicyLayer(() => true)),
-      Layer.provide(
-        Layer.mock(GitWorkflowService.GitWorkflowService)({
-          localStatus: () =>
-            Effect.sync(() => {
-              state.localStatusCalls += 1;
-              return state.currentLocalStatus;
-            }),
-          remoteStatus: () =>
-            Effect.sync(() => {
-              state.remoteStatusCalls += 1;
-            }).pipe(
-              Effect.andThen(
-                remoteStartedDeferred
-                  ? Deferred.succeed(remoteStartedDeferred, undefined).pipe(Effect.ignore)
-                  : Effect.void,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      testLayer = VcsStatusBroadcaster.layer.pipe(
+        Layer.provideMerge(NodeServices.layer),
+        Layer.provide(makeBackgroundPolicyLayer(() => true)),
+        Layer.provide(
+          Layer.mock(GitWorkflowService.GitWorkflowService)({
+            localStatus: () =>
+              Effect.sync(() => {
+                state.localStatusCalls += 1;
+                return state.currentLocalStatus;
+              }),
+            remoteStatus: () =>
+              Effect.sync(() => {
+                state.remoteStatusCalls += 1;
+              }).pipe(
+                Effect.andThen(
+                  remoteStartedDeferred
+                    ? Deferred.succeed(remoteStartedDeferred, undefined).pipe(Effect.ignore)
+                    : Effect.void,
+                ),
+                Effect.andThen(Effect.never as Effect.Effect<VcsStatusRemoteResult | null, never>),
+                Effect.onInterrupt(() =>
+                  remoteInterruptedDeferred
+                    ? Deferred.succeed(remoteInterruptedDeferred, undefined).pipe(Effect.ignore)
+                    : Effect.void,
+                ),
               ),
-              Effect.andThen(Effect.never as Effect.Effect<VcsStatusRemoteResult | null, never>),
-              Effect.onInterrupt(() =>
-                remoteInterruptedDeferred
-                  ? Deferred.succeed(remoteInterruptedDeferred, undefined).pipe(Effect.ignore)
-                  : Effect.void,
-              ),
-            ),
-          invalidateLocalStatus: () =>
-            Effect.sync(() => {
-              state.localInvalidationCalls += 1;
-            }),
-          invalidateRemoteStatus: () =>
-            Effect.sync(() => {
-              state.remoteInvalidationCalls += 1;
-            }),
-        } satisfies Partial<GitWorkflowService.GitWorkflowService["Service"]>),
-      ),
-    );
+            invalidateLocalStatus: () =>
+              Effect.sync(() => {
+                state.localInvalidationCalls += 1;
+              }),
+            invalidateRemoteStatus: () =>
+              Effect.sync(() => {
+                state.remoteInvalidationCalls += 1;
+              }),
+          } satisfies Partial<GitWorkflowService.GitWorkflowService["Service"]>),
+        ),
+      );
 
     return Effect.gen(function* () {
       const remoteInterrupted = yield* Deferred.make<void>();

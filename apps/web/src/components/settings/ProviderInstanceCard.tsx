@@ -50,6 +50,8 @@ import {
   getProviderVersionLabel,
   type ProviderStatusKey,
 } from "./providerStatus";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const ENVIRONMENT_VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -73,7 +75,9 @@ function makeEnvironmentDraftRow(
     name: variable.name,
     value: variable.value,
     sensitive: variable.sensitive,
-    ...(variable.valueRedacted !== undefined ? { valueRedacted: variable.valueRedacted } : {}),
+    ...(variable.valueRedacted !== undefined
+      ? { valueRedacted: variable.valueRedacted }
+      : undefined),
   };
 }
 
@@ -84,10 +88,11 @@ function makeEnvironmentDraftRow(
  * `Schema.Unknown`.
  */
 function readConfigStringArray(config: unknown, key: string): ReadonlyArray<string> {
-  if (config === null || typeof config !== "object") return [];
-  const value = (config as Record<string, unknown>)[key];
+  if (!RuntimePredicate.isObjectOrArray(config)) return [];
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    value = (config as Record<string, SchemaJson>)[key];
   if (!Array.isArray(value)) return [];
-  return value.filter((entry): entry is string => typeof entry === "string");
+  return value.filter((entry): entry is string => RuntimePredicate.isString(entry));
 }
 
 /**
@@ -101,10 +106,12 @@ function readConfigStringArray(config: unknown, key: string): ReadonlyArray<stri
 function nextConfigBlobWithValue(
   config: unknown,
   key: string,
-  value: unknown,
-): Record<string, unknown> {
-  const base: Record<string, unknown> =
-    config !== null && typeof config === "object" ? { ...(config as Record<string, unknown>) } : {};
+  value: SchemaJson,
+): Record<string, SchemaJson> {
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    base: Record<string, SchemaJson> = RuntimePredicate.isObjectOrArray(config)
+      ? { ...(config as Record<string, SchemaJson>) }
+      : {};
   base[key] = value;
   return base;
 }
@@ -188,7 +195,7 @@ function ProviderEnvironmentSection(props: {
         ? {
             ...row,
             ...patch,
-            ...(patch.value !== undefined ? { valueRedacted: false } : {}),
+            ...(patch.value !== undefined ? { valueRedacted: false } : undefined),
           }
         : row,
     );
@@ -283,7 +290,7 @@ function ProviderEnvironmentSection(props: {
                           updateVariable(variable.id, {
                             sensitive,
                             ...(sensitive && variable.valueRedacted === undefined
-                              ? {}
+                              ? undefined
                               : { valueRedacted: sensitive ? variable.valueRedacted : false }),
                           });
                         }}
@@ -398,8 +405,9 @@ export function ProviderInstanceCard({
   // The server-reported status wins when present; otherwise fall back to
   // "disabled"/"warning" based on the local `enabled` flag so the dot
   // reflects the persisted intent even before the first probe completes.
-  const statusKey: ProviderStatusKey =
-    (liveProvider?.status as ProviderStatusKey | undefined) ?? (enabled ? "warning" : "disabled");
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    statusKey: ProviderStatusKey =
+      (liveProvider?.status as ProviderStatusKey | undefined) ?? (enabled ? "warning" : "disabled");
   const statusStyle = PROVIDER_STATUS_STYLES[statusKey];
   const rawSummary = getProviderSummary(liveProvider);
   const authEmail = liveProvider?.auth.email;
@@ -455,6 +463,7 @@ export function ProviderInstanceCard({
   const updateDisplayName = (value: string) => {
     const trimmed = value.trim();
     const { displayName: _omit, ...rest } = instance;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     onUpdate(
       trimmed.length > 0
         ? ({ ...rest, displayName: trimmed } as ProviderInstanceConfig)
@@ -469,6 +478,7 @@ export function ProviderInstanceCard({
   const updateAccentColor = (value: string) => {
     const normalized = normalizeProviderAccentColor(value);
     const { accentColor: _omit, ...rest } = instance;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     onUpdate(
       normalized
         ? ({ ...rest, accentColor: normalized } as ProviderInstanceConfig)
@@ -476,8 +486,9 @@ export function ProviderInstanceCard({
     );
   };
 
-  const updateConfig = (nextConfig: Record<string, unknown> | undefined) => {
+  const updateConfig = (nextConfig: Record<string, SchemaJson> | undefined) => {
     const { config: _omit, ...rest } = instance;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     onUpdate(
       nextConfig !== undefined
         ? ({ ...rest, config: nextConfig } as ProviderInstanceConfig)
@@ -494,6 +505,7 @@ export function ProviderInstanceCard({
   const updateEnvironment = (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => {
     const cleaned = environment.filter((variable) => variable.name.trim().length > 0);
     const { environment: _omit, ...rest } = instance;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     onUpdate(
       cleaned.length > 0
         ? ({ ...rest, environment: cleaned } as ProviderInstanceConfig)

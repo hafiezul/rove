@@ -15,7 +15,7 @@ import type { ProjectionRepositoryError } from "../../persistence/Errors.ts";
 /**
  * OrchestrationProjectionPipelineShape - Service API for projection execution.
  */
-export interface OrchestrationProjectionPipelineShape {
+export interface OrchestrationProjectionPipelineContract {
   /**
    * Bootstrap projections by replaying persisted events.
    *
@@ -38,5 +38,5 @@ export interface OrchestrationProjectionPipelineShape {
  */
 export class OrchestrationProjectionPipeline extends Context.Service<
   OrchestrationProjectionPipeline,
-  OrchestrationProjectionPipelineShape
+  OrchestrationProjectionPipelineContract
 >()("t3/orchestration/Services/ProjectionPipeline/OrchestrationProjectionPipeline") {}

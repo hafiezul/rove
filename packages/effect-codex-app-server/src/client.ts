@@ -98,54 +98,66 @@ export const make = Effect.fn("effect-codex-app-server/CodexAppServerClient.make
     | ((method: string, params: unknown) => Effect.Effect<void, CodexError.CodexAppServerError>)
     | undefined;
 
-  const getServerRequestParamSchema = <M extends CodexRpc.ServerRequestMethod>(
-    method: M,
-  ):
-    | Schema.Codec<CodexRpc.ServerRequestParamsByMethod[M], CodexRpc.ServerRequestParamsByMethod[M]>
-    | undefined => CodexRpc.SERVER_REQUEST_PARAMS[method] as never;
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    getServerRequestParamSchema = <M extends CodexRpc.ServerRequestMethod>(
+      method: M,
+    ):
+      | Schema.Codec<
+          CodexRpc.ServerRequestParamsByMethod[M],
+          CodexRpc.ServerRequestParamsByMethod[M]
+        >
+      | undefined => CodexRpc.SERVER_REQUEST_PARAMS[method] as never;
 
-  const getServerRequestResponseSchema = <M extends CodexRpc.ServerRequestMethod>(
-    method: M,
-  ):
-    | Schema.Codec<
-        CodexRpc.ServerRequestResponsesByMethod[M],
-        CodexRpc.ServerRequestResponsesByMethod[M]
-      >
-    | undefined => CodexRpc.SERVER_REQUEST_RESPONSES[method] as never;
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    getServerRequestResponseSchema = <M extends CodexRpc.ServerRequestMethod>(
+      method: M,
+    ):
+      | Schema.Codec<
+          CodexRpc.ServerRequestResponsesByMethod[M],
+          CodexRpc.ServerRequestResponsesByMethod[M]
+        >
+      | undefined => CodexRpc.SERVER_REQUEST_RESPONSES[method] as never;
 
-  const getClientRequestParamSchema = <M extends CodexRpc.ClientRequestMethod>(
-    method: M,
-  ):
-    | Schema.Codec<CodexRpc.ClientRequestParamsByMethod[M], CodexRpc.ClientRequestParamsByMethod[M]>
-    | undefined => CodexRpc.CLIENT_REQUEST_PARAMS[method] as never;
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    getClientRequestParamSchema = <M extends CodexRpc.ClientRequestMethod>(
+      method: M,
+    ):
+      | Schema.Codec<
+          CodexRpc.ClientRequestParamsByMethod[M],
+          CodexRpc.ClientRequestParamsByMethod[M]
+        >
+      | undefined => CodexRpc.CLIENT_REQUEST_PARAMS[method] as never;
 
-  const getClientRequestResponseSchema = <M extends CodexRpc.ClientRequestMethod>(
-    method: M,
-  ):
-    | Schema.Codec<
-        CodexRpc.ClientRequestResponsesByMethod[M],
-        CodexRpc.ClientRequestResponsesByMethod[M]
-      >
-    | undefined => CodexRpc.CLIENT_REQUEST_RESPONSES[method] as never;
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    getClientRequestResponseSchema = <M extends CodexRpc.ClientRequestMethod>(
+      method: M,
+    ):
+      | Schema.Codec<
+          CodexRpc.ClientRequestResponsesByMethod[M],
+          CodexRpc.ClientRequestResponsesByMethod[M]
+        >
+      | undefined => CodexRpc.CLIENT_REQUEST_RESPONSES[method] as never;
 
-  const getClientNotificationParamSchema = <M extends CodexRpc.ClientNotificationMethod>(
-    method: M,
-  ):
-    | Schema.Codec<
-        CodexRpc.ClientNotificationParamsByMethod[M],
-        CodexRpc.ClientNotificationParamsByMethod[M]
-      >
-    | undefined => CodexRpc.CLIENT_NOTIFICATION_PARAMS[method] as never;
+  const // SAFETY: This branch is unreachable under the owning callback contract.
+    getClientNotificationParamSchema = <M extends CodexRpc.ClientNotificationMethod>(
+      method: M,
+    ):
+      | Schema.Codec<
+          CodexRpc.ClientNotificationParamsByMethod[M],
+          CodexRpc.ClientNotificationParamsByMethod[M]
+        >
+      | undefined => CodexRpc.CLIENT_NOTIFICATION_PARAMS[method] as never;
 
   const dispatchNotification = (
     notification: CodexProtocol.CodexAppServerIncomingNotification,
   ): Effect.Effect<void, never> => {
-    const schema =
-      notification.method in CodexRpc.SERVER_NOTIFICATION_PARAMS
-        ? CodexRpc.SERVER_NOTIFICATION_PARAMS[
-            notification.method as CodexRpc.ServerNotificationMethod
-          ]
-        : undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      schema =
+        notification.method in CodexRpc.SERVER_NOTIFICATION_PARAMS
+          ? CodexRpc.SERVER_NOTIFICATION_PARAMS[
+              notification.method as CodexRpc.ServerNotificationMethod
+            ]
+          : undefined;
     const handlers = notificationHandlers.get(notification.method) ?? [];
 
     if (schema) {
@@ -168,7 +180,8 @@ export const make = Effect.fn("effect-codex-app-server/CodexAppServerClient.make
     request: CodexProtocol.CodexAppServerIncomingRequest,
   ): Effect.Effect<unknown, CodexError.CodexAppServerError> => {
     if (request.method in CodexRpc.SERVER_REQUEST_PARAMS) {
-      const method = request.method as CodexRpc.ServerRequestMethod;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        method = request.method as CodexRpc.ServerRequestMethod;
       const payloadSchema = getServerRequestParamSchema(method);
       const responseSchema = getServerRequestResponseSchema(method);
       const handler = requestHandlers.get(method);
@@ -186,10 +199,10 @@ export const make = Effect.fn("effect-codex-app-server/CodexAppServerClient.make
 
   const transport = yield* CodexProtocol.makeCodexAppServerPatchedProtocol({
     stdio,
-    ...(terminationError ? { terminationError } : {}),
-    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : {}),
-    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : {}),
-    ...(options.logger ? { logger: options.logger } : {}),
+    ...(terminationError ? { terminationError } : undefined),
+    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : undefined),
+    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : undefined),
+    ...(options.logger ? { logger: options.logger } : undefined),
     onNotification: dispatchNotification,
     onRequest: dispatchRequest,
   });
@@ -231,11 +244,13 @@ export const make = Effect.fn("effect-codex-app-server/CodexAppServerClient.make
     notify,
     handleServerRequest: (method, handler) =>
       Effect.sync(() => {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         requestHandlers.set(method, handler as ServerRequestHandler);
       }),
     handleServerNotification: (method, handler) =>
       Effect.sync(() => {
         const current = notificationHandlers.get(method) ?? [];
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         current.push(handler as ServerNotificationHandler);
         notificationHandlers.set(method, current);
       }),

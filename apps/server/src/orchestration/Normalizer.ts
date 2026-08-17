@@ -101,6 +101,7 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
     }
 
     if (canonicalCommand.type !== "thread.turn.start") {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return canonicalCommand as OrchestrationCommand;
     }
 

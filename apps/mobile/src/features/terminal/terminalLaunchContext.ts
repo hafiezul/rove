@@ -67,10 +67,7 @@ export function resolveTerminalOpenLocation(input: {
   readonly workspaceRoot: string;
   readonly threadShellWorktreePath: string | null;
   readonly threadDetailWorktreePath: string | null;
-}): {
-  readonly cwd: string;
-  readonly worktreePath: string | null;
-} {
+}) {
   const preferredThreadWorktreePath = resolvePreferredThreadWorktreePath({
     threadShellWorktreePath: input.threadShellWorktreePath,
     threadDetailWorktreePath: input.threadDetailWorktreePath,

@@ -77,7 +77,9 @@ export function gitHubViewerPermissions(access: GitHubViewerAccess): PullRequest
     // leaves them commenting, which is what an author has to say about their own change anyway.
     verdicts: access.didAuthor ? (["comment"] as const) : CAPABILITIES.review.verdicts,
     requestReviewers: access.canWrite,
-    ...(access.canUpdateBranch === true ? { updateMethods: CAPABILITIES.updateMethods } : {}),
+    ...(access.canUpdateBranch === true
+      ? { updateMethods: CAPABILITIES.updateMethods }
+      : undefined),
   };
 }
 
@@ -271,7 +273,7 @@ export const make = Effect.gen(function* () {
                   ? "behind"
                   : "up-to-date",
             ...(detail.comparison?.behindBy == null
-              ? {}
+              ? undefined
               : { behindBy: detail.comparison.behindBy }),
           }),
         ),
@@ -413,8 +415,8 @@ export const make = Effect.gen(function* () {
           host: input.host,
           number: input.number,
           action: input.action,
-          ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
-          ...(input.updateMethod === undefined ? {} : { updateMethod: input.updateMethod }),
+          ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
+          ...(input.updateMethod === undefined ? undefined : { updateMethod: input.updateMethod }),
         })
         .pipe(Effect.mapError(fail("runAction"))),
 
@@ -425,8 +427,8 @@ export const make = Effect.gen(function* () {
           repository: input.repository,
           host: input.host,
           number: input.number,
-          ...(input.title === undefined ? {} : { title: input.title }),
-          ...(input.body === undefined ? {} : { body: input.body }),
+          ...(input.title === undefined ? undefined : { title: input.title }),
+          ...(input.body === undefined ? undefined : { body: input.body }),
         })
         .pipe(Effect.mapError(fail("updateChangeRequest"))),
 
@@ -465,7 +467,7 @@ export const make = Effect.gen(function* () {
           repository: input.repository,
           host: input.host,
           number: input.number,
-          ...(input.subjectId === undefined ? {} : { subjectId: input.subjectId }),
+          ...(input.subjectId === undefined ? undefined : { subjectId: input.subjectId }),
           content: input.content,
           reacted: input.reacted,
         })

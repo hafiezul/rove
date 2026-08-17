@@ -27,7 +27,7 @@ import type * as Scope from "effect/Scope";
 import type * as Stream from "effect/Stream";
 
 import type { ProviderAdapterError, ProviderUnsupportedError } from "../Errors.ts";
-import type { ProviderAdapterShape } from "./ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 import type { ProviderContinuationIdentity } from "../ProviderDriver.ts";
 
 export interface ProviderInstanceRoutingInfo {
@@ -42,7 +42,7 @@ export interface ProviderInstanceRoutingInfo {
 /**
  * ProviderAdapterRegistryShape - Service API for adapter lookup.
  */
-export interface ProviderAdapterRegistryShape {
+export interface ProviderAdapterRegistryContract {
   /**
    * Resolve the adapter for a specific instance id. Returns
    * `ProviderUnsupportedError` if no such instance is currently registered
@@ -52,7 +52,7 @@ export interface ProviderAdapterRegistryShape {
    */
   readonly getByInstance: (
     instanceId: ProviderInstanceId,
-  ) => Effect.Effect<ProviderAdapterShape<ProviderAdapterError>, ProviderUnsupportedError>;
+  ) => Effect.Effect<ProviderAdapterContract<ProviderAdapterError>, ProviderUnsupportedError>;
 
   readonly getInstanceInfo: (
     instanceId: ProviderInstanceId,
@@ -96,5 +96,5 @@ export interface ProviderAdapterRegistryShape {
  */
 export class ProviderAdapterRegistry extends Context.Service<
   ProviderAdapterRegistry,
-  ProviderAdapterRegistryShape
+  ProviderAdapterRegistryContract
 >()("t3/provider/Services/ProviderAdapterRegistry") {}

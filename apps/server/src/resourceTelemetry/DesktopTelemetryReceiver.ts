@@ -27,6 +27,7 @@ import * as Ndjson from "effect/unstable/encoding/Ndjson";
 import { ServerConfig } from "../config.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { subscribeBeforeSnapshotWithoutMutex } from "../utils/subscribeBeforeSnapshot.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const INITIAL_SAMPLE_DEADLINE_MS = 90_000;
 const MIN_SNAPSHOT_STALE_AFTER_MS = 90_000;
@@ -239,9 +240,9 @@ function normalizeReceiverError(error: unknown): DesktopTelemetryReceiverError {
 }
 
 function messageVersion(value: unknown): number | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const version = Reflect.get(value, "version");
-  return typeof version === "number" ? version : undefined;
+  if (!RuntimePredicate.isObjectOrArray(value)) return undefined;
+  const version = Object.getOwnPropertyDescriptor(value, "version")?.value;
+  return RuntimePredicate.isNumber(version) ? version : undefined;
 }
 
 export const writeAllToFileDescriptor = Effect.fn(

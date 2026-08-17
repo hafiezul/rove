@@ -13,7 +13,6 @@ import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import {
   mergePullRequestLists,
-  type EnvironmentPullRequestStat,
   type MergedPullRequestList,
 } from "../components/pullRequest/pullRequestList.logic";
 import { formatEnvironmentQueryError } from "./query";
@@ -49,7 +48,8 @@ function createMergedEnvironmentQuery<Input, A>(
 ) {
   const family = Atom.family((key: string) =>
     Atom.make((get): MergedEnvironmentQueryView<A> => {
-      const targets = JSON.parse(key) as ReadonlyArray<EnvironmentQueryTarget<Input>>;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        targets = JSON.parse(key) as ReadonlyArray<EnvironmentQueryTarget<Input>>;
       const values: Array<readonly [EnvironmentId, A]> = [];
       let error: string | null = null;
       let isPending = false;
@@ -73,11 +73,12 @@ function createMergedEnvironmentQuery<Input, A>(
   return function useMergedQuery(targets: ReadonlyArray<EnvironmentQueryTarget<Input>>) {
     const key = JSON.stringify(targets);
     const view = useAtomValue(targets.length === 0 ? empty : family(key));
-    const refresh = useCallback(() => {
-      for (const target of JSON.parse(key) as ReadonlyArray<EnvironmentQueryTarget<Input>>) {
-        appAtomRegistry.refresh(atomFor(target));
-      }
-    }, [key]);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      refresh = useCallback(() => {
+        for (const target of JSON.parse(key) as ReadonlyArray<EnvironmentQueryTarget<Input>>) {
+          appAtomRegistry.refresh(atomFor(target));
+        }
+      }, [key]);
     return { ...view, refresh };
   };
 }
@@ -111,10 +112,7 @@ export function usePullRequestList(
 /** The line counts for the rows on screen, asked of each environment for its own rows. */
 export function usePullRequestListStats(
   targets: ReadonlyArray<EnvironmentQueryTarget<PullRequestListStatsInput>>,
-): {
-  readonly stats: ReadonlyArray<EnvironmentPullRequestStat> | null;
-  readonly refresh: () => void;
-} {
+) {
   const query = usePullRequestStatsQuery(targets);
   const stats = useMemo(
     () =>

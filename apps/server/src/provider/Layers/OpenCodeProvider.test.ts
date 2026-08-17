@@ -12,7 +12,7 @@ import { ServerConfig } from "../../config.ts";
 import {
   OpenCodeRuntime,
   OpenCodeRuntimeError,
-  type OpenCodeRuntimeShape,
+  type OpenCodeRuntimeContract,
 } from "../opencodeRuntime.ts";
 import { checkOpenCodeProviderStatus } from "./OpenCodeProvider.ts";
 import type { OpenCodeInventory } from "../opencodeRuntime.ts";
@@ -29,7 +29,20 @@ const DEFAULT_VERSION_STDOUT = "opencode 1.14.19\n";
  * invoke the check, assert on the returned snapshot.
  */
 
-const runtimeMock = {
+interface OpenCodeRuntimeMockState {
+  runVersionError: Error | null;
+  versionStdout: string;
+  inventoryError: Error | null;
+  closeCalls: number;
+  inventory: unknown;
+}
+
+interface OpenCodeRuntimeMock {
+  state: OpenCodeRuntimeMockState;
+  reset: () => void;
+}
+
+const runtimeMock: OpenCodeRuntimeMock = {
   state: {
     runVersionError: null as Error | null,
     versionStdout: DEFAULT_VERSION_STDOUT,
@@ -38,7 +51,7 @@ const runtimeMock = {
     inventory: {
       providerList: { connected: [] as string[], all: [] as unknown[], default: {} },
       agents: [] as unknown[],
-    } as unknown,
+    },
   },
   reset() {
     this.state.runVersionError = null;
@@ -52,60 +65,61 @@ const runtimeMock = {
   },
 };
 
-const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
-  startOpenCodeServerProcess: () =>
-    Effect.succeed({
-      url: "http://127.0.0.1:4301",
-      exitCode: Effect.never,
-    }),
-  connectToOpenCodeServer: ({ serverUrl }) =>
-    Effect.gen(function* () {
-      if (!serverUrl) {
-        yield* Effect.addFinalizer(() =>
-          Effect.sync(() => {
-            runtimeMock.state.closeCalls += 1;
-          }),
-        );
-      }
-      return {
-        url: serverUrl ?? "http://127.0.0.1:4301",
-        exitCode: null,
-        external: Boolean(serverUrl),
-      };
-    }),
-  runOpenCodeCommand: () =>
-    runtimeMock.state.runVersionError
-      ? Effect.fail(
-          new OpenCodeRuntimeError({
-            operation: "runOpenCodeCommand",
-            detail: runtimeMock.state.runVersionError.message,
-            cause: runtimeMock.state.runVersionError,
-          }),
-        )
-      : Effect.succeed({ stdout: runtimeMock.state.versionStdout, stderr: "", code: 0 }),
-  createOpenCodeSdkClient: () =>
-    ({}) as unknown as ReturnType<OpenCodeRuntimeShape["createOpenCodeSdkClient"]>,
-  loadOpenCodeInventory: () =>
-    runtimeMock.state.inventoryError
-      ? Effect.fail(
-          new OpenCodeRuntimeError({
-            operation: "loadOpenCodeInventory",
-            detail: runtimeMock.state.inventoryError.message,
-            cause: runtimeMock.state.inventoryError,
-          }),
-        )
-      : Effect.succeed(runtimeMock.state.inventory as OpenCodeInventory),
-  loadInventoryFromCli: () =>
-    runtimeMock.state.inventoryError
-      ? Effect.fail(
-          new OpenCodeRuntimeError({
-            operation: "loadInventoryFromCli",
-            detail: runtimeMock.state.inventoryError.message,
-            cause: runtimeMock.state.inventoryError,
-          }),
-        )
-      : Effect.succeed(runtimeMock.state.inventory as OpenCodeInventory),
-};
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
+    startOpenCodeServerProcess: () =>
+      Effect.succeed({
+        url: "http://127.0.0.1:4301",
+        exitCode: Effect.never,
+      }),
+    connectToOpenCodeServer: ({ serverUrl }) =>
+      Effect.gen(function* () {
+        if (!serverUrl) {
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              runtimeMock.state.closeCalls += 1;
+            }),
+          );
+        }
+        return {
+          url: serverUrl ?? "http://127.0.0.1:4301",
+          exitCode: null,
+          external: Boolean(serverUrl),
+        };
+      }),
+    runOpenCodeCommand: () =>
+      runtimeMock.state.runVersionError
+        ? Effect.fail(
+            new OpenCodeRuntimeError({
+              operation: "runOpenCodeCommand",
+              detail: runtimeMock.state.runVersionError.message,
+              cause: runtimeMock.state.runVersionError,
+            }),
+          )
+        : Effect.succeed({ stdout: runtimeMock.state.versionStdout, stderr: "", code: 0 }),
+    createOpenCodeSdkClient: () =>
+      ({}) as ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>,
+    loadOpenCodeInventory: () =>
+      runtimeMock.state.inventoryError
+        ? Effect.fail(
+            new OpenCodeRuntimeError({
+              operation: "loadOpenCodeInventory",
+              detail: runtimeMock.state.inventoryError.message,
+              cause: runtimeMock.state.inventoryError,
+            }),
+          )
+        : Effect.succeed(runtimeMock.state.inventory as OpenCodeInventory),
+    loadInventoryFromCli: () =>
+      runtimeMock.state.inventoryError
+        ? Effect.fail(
+            new OpenCodeRuntimeError({
+              operation: "loadInventoryFromCli",
+              detail: runtimeMock.state.inventoryError.message,
+              cause: runtimeMock.state.inventoryError,
+            }),
+          )
+        : Effect.succeed(runtimeMock.state.inventory as OpenCodeInventory),
+  };
 
 beforeEach(() => {
   runtimeMock.reset();

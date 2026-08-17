@@ -6,6 +6,7 @@ import * as Option from "effect/Option";
 import { PrimaryConnectionTarget, type PreparedConnection } from "../connection/model.ts";
 import { remoteHttpClientLayer } from "../rpc/http.ts";
 import { fetchEnvironmentPullRequestDiff } from "./pullRequestDiffHttp.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const TARGET = new PrimaryConnectionTarget({
   environmentId: EnvironmentId.make("environment-1"),
@@ -60,12 +61,11 @@ describe("fetchEnvironmentPullRequestDiff", () => {
       expect(init.method).toBe("POST");
       expect(init.credentials).toBe("include");
 
-      const body =
-        typeof init.body === "string"
-          ? init.body
-          : init.body instanceof Uint8Array
-            ? new TextDecoder().decode(init.body)
-            : "";
+      const body = RuntimePredicate.isString(init.body)
+        ? init.body
+        : init.body instanceof Uint8Array
+          ? new TextDecoder().decode(init.body)
+          : "";
       // The assertion deliberately inspects the serialized wire body rather than decoding a
       // domain value for use in application code.
       // @effect-diagnostics-next-line preferSchemaOverJson:off

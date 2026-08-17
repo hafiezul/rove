@@ -31,10 +31,7 @@ export type ThemeCardDefinition = {
 export type ThemeMode = ThemeAppearance | "system";
 export type ThemeCardPreviewColors = ThemeCardPreview["colors"];
 
-const STANDARD_THEME_PREVIEW_COLORS: Record<
-  ThemeAppearance,
-  Readonly<Record<ThemePreviewRole, string>>
-> = {
+const STANDARD_THEME_PREVIEW_COLORS = {
   light: {
     sidebar: "#fafafa",
     canvas: "#fcfcfc",
@@ -53,7 +50,7 @@ const STANDARD_THEME_PREVIEW_COLORS: Record<
     messageSurface: "#27272a",
     messageAction: "#8b9cff",
   },
-};
+} satisfies Record<ThemeAppearance, Readonly<Record<ThemePreviewRole, string>>>;
 
 export const STANDARD_THEME_CARDS: ReadonlyArray<ThemeCardDefinition> = [
   {

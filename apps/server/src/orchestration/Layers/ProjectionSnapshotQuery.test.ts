@@ -2141,6 +2141,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery windowed thread detail", (it) =
       `;
       yield* sql`DELETE FROM projection_turns WHERE thread_id = 'thread-w'`;
       for (const row of turnRows) {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         yield* sql`
           INSERT INTO projection_turns (
             thread_id, turn_id, pending_message_id, state, requested_at, started_at,
@@ -2264,7 +2265,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery windowed thread detail", (it) =
       for (let page = 0; page < 10; page += 1) {
         const snapshot = yield* snapshotQuery.getThreadDetailSnapshot(threadW, {
           turnLimit: 1,
-          ...(cursor !== undefined ? { beforeCursor: cursor } : {}),
+          ...(cursor !== undefined ? { beforeCursor: cursor } : undefined),
         });
         assert.equal(snapshot._tag, "Some");
         if (snapshot._tag !== "Some") return;

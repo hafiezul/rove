@@ -47,7 +47,7 @@ export type DeleteProjectionThreadActivitiesInput =
 /**
  * ProjectionThreadActivityRepositoryShape - Service API for projected thread activity.
  */
-export interface ProjectionThreadActivityRepositoryShape {
+export interface ProjectionThreadActivityRepositoryContract {
   /**
    * Insert or replace a projected thread activity row.
    *
@@ -80,5 +80,5 @@ export interface ProjectionThreadActivityRepositoryShape {
  */
 export class ProjectionThreadActivityRepository extends Context.Service<
   ProjectionThreadActivityRepository,
-  ProjectionThreadActivityRepositoryShape
+  ProjectionThreadActivityRepositoryContract
 >()("t3/persistence/Services/ProjectionThreadActivities/ProjectionThreadActivityRepository") {}

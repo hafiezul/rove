@@ -19,6 +19,7 @@ import { CursorSettings, ProviderInstanceId } from "@t3tools/contracts";
 import * as ServerConfig from "../config.ts";
 import * as TextGeneration from "./TextGeneration.ts";
 import { makeCursorTextGeneration } from "./CursorTextGeneration.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeCursorSettings = Schema.decodeSync(CursorSettings);
 
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
@@ -125,13 +126,15 @@ it.layer(CursorTextGenerationTestLayer)("CursorTextGeneration", (it) => {
           expect(generated.subject).toBe("Add generated commit message");
           expect(generated.body).toBe("- verify cursor acp model config path");
 
-          const requests = NodeFS.readFileSync(requestLogPath, "utf8")
-            .trim()
-            .split("\n")
-            .filter((line) => line.length > 0)
-            .map(
-              (line) => JSON.parse(line) as { method?: string; params?: Record<string, unknown> },
-            );
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            requests = NodeFS.readFileSync(requestLogPath, "utf8")
+              .trim()
+              .split("\n")
+              .filter((line) => line.length > 0)
+              .map(
+                (line) =>
+                  JSON.parse(line) as { method?: string; params?: Record<string, SchemaJson> },
+              );
 
           expect(
             requests.find((request) => request.method === "initialize")?.params?.clientCapabilities,

@@ -50,7 +50,7 @@ export type DeleteProjectionPendingApprovalInput = typeof DeleteProjectionPendin
 /**
  * ProjectionPendingApprovalRepositoryShape - Service API for pending approvals.
  */
-export interface ProjectionPendingApprovalRepositoryShape {
+export interface ProjectionPendingApprovalRepositoryContract {
   /**
    * Insert or replace a projected pending approval row.
    *
@@ -89,5 +89,5 @@ export interface ProjectionPendingApprovalRepositoryShape {
  */
 export class ProjectionPendingApprovalRepository extends Context.Service<
   ProjectionPendingApprovalRepository,
-  ProjectionPendingApprovalRepositoryShape
+  ProjectionPendingApprovalRepositoryContract
 >()("t3/persistence/Services/ProjectionPendingApprovals/ProjectionPendingApprovalRepository") {}

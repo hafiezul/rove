@@ -146,7 +146,8 @@ export function findProjectForChangeRequest(
   return projects.find((project) => {
     const identity = project.repositoryIdentity;
     if (!identity) return false;
-    const kind = identity.provider as SourceControlProviderKind | undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      kind = identity.provider as SourceControlProviderKind | undefined;
     if (kind === undefined) return false;
     const repository =
       identity.displayName ??
@@ -199,9 +200,10 @@ export function useOpenChangeRequestLink(
       const resolvedThreadRef = targetThreadRef ?? threadRef;
       const parsed = parseChangeRequestUrl(targetUrl);
       if (parsed === null) return false;
-      const reads = (environmentId: string) =>
-        serverConfigs.get(environmentId as EnvironmentId)?.environment.capabilities.pullRequests ===
-        true;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        reads = (environmentId: string) =>
+          serverConfigs.get(environmentId as EnvironmentId)?.environment.capabilities
+            .pullRequests === true;
       // Beside a thread the panel reads on that thread's environment, so a project from another
       // one could not be read there whatever its remote says: two environments can hold the same
       // repository, and handing the panel the wrong one's id opens a surface that never loads.

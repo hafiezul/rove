@@ -48,10 +48,11 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childProcess = command as {
+          readonly command: string;
+          readonly args: ReadonlyArray<string>;
+        };
       commands.push({
         command: childProcess.command,
         args: childProcess.args,
@@ -110,6 +111,7 @@ it.layer(NodeServices.layer)("sync-reference-repos", (it) => {
       assert.equal(error.repoId, effectSmol.id);
       assert.equal(error.sourcePath, sourcePath);
       assert.ok(error.cause !== undefined);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.ok(!error.message.includes(String((error.cause as Error).message)));
     }),
   );
@@ -134,6 +136,7 @@ it.layer(NodeServices.layer)("sync-reference-repos", (it) => {
       assert.equal(error.repoId, alchemyEffect.id);
       assert.equal(error.sourcePath, sourcePath);
       assert.ok(error.cause !== undefined);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.ok(!error.message.includes(String((error.cause as Error).message)));
     }),
   );

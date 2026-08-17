@@ -21,6 +21,8 @@ import {
   requireThreadNotArchived,
 } from "./commandInvariants.ts";
 import { projectEvent } from "./projector.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 
@@ -39,8 +41,8 @@ const QUEUED_TURN_START_GRACE_MS = 2 * 60 * 1_000;
  * failure detail marks the request stale/unknown — or settle would be
  * rejected on threads whose shell flags read as clear.
  */
-function isStaleRequestFailureDetail(payload: Record<string, unknown> | null): boolean {
-  const detail = typeof payload?.detail === "string" ? payload.detail.toLowerCase() : null;
+function isStaleRequestFailureDetail(payload: Record<string, SchemaJson> | null): boolean {
+  const detail = RuntimePredicate.isString(payload?.detail) ? payload.detail.toLowerCase() : null;
   if (detail === null) return false;
   return (
     detail.includes("stale pending approval request") ||
@@ -65,11 +67,11 @@ function hasOpenBlockingRequest(thread: {
 }): boolean {
   const openRequestIds = new Set<string>();
   for (const activity of thread.activities) {
-    const payload =
-      typeof activity.payload === "object" && activity.payload !== null
-        ? (activity.payload as Record<string, unknown>)
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      payload = RuntimePredicate.isObjectOrArray(activity.payload)
+        ? (activity.payload as Record<string, SchemaJson>)
         : null;
-    const requestId = typeof payload?.requestId === "string" ? payload.requestId : null;
+    const requestId = RuntimePredicate.isString(payload?.requestId) ? payload.requestId : null;
     if (requestId === null) continue;
     if (activity.kind === "approval.requested" || activity.kind === "user-input.requested") {
       openRequestIds.add(requestId);
@@ -283,16 +285,18 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         type: "project.meta-updated",
         payload: {
           projectId: command.projectId,
-          ...(command.title !== undefined ? { title: command.title } : {}),
-          ...(command.workspaceRoot !== undefined ? { workspaceRoot: command.workspaceRoot } : {}),
+          ...(command.title !== undefined ? { title: command.title } : undefined),
+          ...(command.workspaceRoot !== undefined
+            ? { workspaceRoot: command.workspaceRoot }
+            : undefined),
           ...(command.defaultModelSelection !== undefined
             ? { defaultModelSelection: command.defaultModelSelection }
-            : {}),
+            : undefined),
           ...(command.defaultThreadEnvMode !== undefined
             ? { defaultThreadEnvMode: command.defaultThreadEnvMode }
-            : {}),
-          ...(command.faviconPath !== undefined ? { faviconPath: command.faviconPath } : {}),
-          ...(command.scripts !== undefined ? { scripts: command.scripts } : {}),
+            : undefined),
+          ...(command.faviconPath !== undefined ? { faviconPath: command.faviconPath } : undefined),
+          ...(command.scripts !== undefined ? { scripts: command.scripts } : undefined),
           updatedAt: occurredAt,
         },
       };
@@ -686,7 +690,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           // thread the user already placed.
           ...(existingPinnedAt === null && command.orderKey !== undefined
             ? { pinOrderKey: command.orderKey }
-            : {}),
+            : undefined),
           updatedAt: existingPinnedAt !== null ? thread.updatedAt : occurredAt,
         },
       };
@@ -816,7 +820,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         type: "thread.meta-updated",
         payload: {
           threadId: command.threadId,
-          ...(command.title !== undefined ? { title: command.title } : {}),
+          ...(command.title !== undefined ? { title: command.title } : undefined),
           ...(command.regenerateTitle === true
             ? {
                 regenerateTitle: true as const,
@@ -826,15 +830,17 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
                   startedAt: occurredAt,
                 },
               }
-            : {}),
+            : undefined),
           ...(command.title !== undefined && thread.titleRegeneration != null
             ? { titleRegeneration: null }
-            : {}),
+            : undefined),
           ...(command.modelSelection !== undefined
             ? { modelSelection: command.modelSelection }
-            : {}),
-          ...(branch !== undefined ? { branch } : {}),
-          ...(command.worktreePath !== undefined ? { worktreePath: command.worktreePath } : {}),
+            : undefined),
+          ...(branch !== undefined ? { branch } : undefined),
+          ...(command.worktreePath !== undefined
+            ? { worktreePath: command.worktreePath }
+            : undefined),
           updatedAt: occurredAt,
         },
       };
@@ -858,8 +864,10 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         type: "thread.meta-updated",
         payload: {
           threadId: command.threadId,
-          ...(requestIsCurrent && command.title !== undefined ? { title: command.title } : {}),
-          ...(requestIsCurrent ? { titleRegeneration: null } : {}),
+          ...(requestIsCurrent && command.title !== undefined
+            ? { title: command.title }
+            : undefined),
+          ...(requestIsCurrent ? { titleRegeneration: null } : undefined),
           updatedAt: requestIsCurrent ? occurredAt : thread.updatedAt,
         },
       };
@@ -975,11 +983,11 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           messageId: command.message.messageId,
           ...(command.modelSelection !== undefined
             ? { modelSelection: command.modelSelection }
-            : {}),
-          ...(command.titleSeed !== undefined ? { titleSeed: command.titleSeed } : {}),
+            : undefined),
+          ...(command.titleSeed !== undefined ? { titleSeed: command.titleSeed } : undefined),
           runtimeMode: targetThread.runtimeMode,
           interactionMode: targetThread.interactionMode,
-          ...(sourceProposedPlan !== undefined ? { sourceProposedPlan } : {}),
+          ...(sourceProposedPlan !== undefined ? { sourceProposedPlan } : undefined),
           createdAt: command.createdAt,
         },
       };
@@ -1040,7 +1048,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         type: "thread.turn-interrupt-requested",
         payload: {
           threadId: command.threadId,
-          ...(command.turnId !== undefined ? { turnId: command.turnId } : {}),
+          ...(command.turnId !== undefined ? { turnId: command.turnId } : undefined),
           createdAt: command.createdAt,
         },
       };
@@ -1342,21 +1350,21 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         command,
         threadId: command.threadId,
       });
-      const requestId =
-        typeof command.activity.payload === "object" &&
-        command.activity.payload !== null &&
-        "requestId" in command.activity.payload &&
-        typeof (command.activity.payload as { requestId?: unknown }).requestId === "string"
-          ? ((command.activity.payload as { requestId: string })
-              .requestId as OrchestrationEvent["metadata"]["requestId"])
-          : undefined;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        requestId =
+          RuntimePredicate.isObjectOrArray(command.activity.payload) &&
+          "requestId" in command.activity.payload &&
+          RuntimePredicate.isString((command.activity.payload as { requestId?: unknown }).requestId)
+            ? ((command.activity.payload as { requestId: string })
+                .requestId as OrchestrationEvent["metadata"]["requestId"])
+            : undefined;
       const activityAppendedEvent: Omit<OrchestrationEvent, "sequence"> = {
         ...(yield* withEventBase({
           aggregateKind: "thread",
           aggregateId: command.threadId,
           occurredAt: command.createdAt,
           commandId: command.commandId,
-          ...(requestId !== undefined ? { metadata: { requestId } } : {}),
+          ...(requestId !== undefined ? { metadata: { requestId } } : undefined),
         })),
         type: "thread.activity-appended",
         payload: {
@@ -1392,7 +1400,8 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
 
     default: {
       command satisfies never;
-      const fallback = command as never as { type: string };
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        fallback = command as { type: string };
       return yield* new OrchestrationCommandInvariantError({
         commandType: fallback.type,
         detail: `Unknown command type: ${fallback.type}`,

@@ -75,7 +75,8 @@ function serializeTableCell(cell: Element): string {
 
 function tableSeparatorFor(headerCells: Element[]): string {
   const markers = headerCells.map((cell) => {
-    const align = (cell as HTMLElement).style?.textAlign ?? cell.getAttribute("align") ?? "";
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      align = (cell as HTMLElement).style?.textAlign ?? cell.getAttribute("align") ?? "";
     if (align === "center") return ":---:";
     if (align === "right") return "---:";
     return "---";
@@ -104,7 +105,8 @@ function serializeTable(table: Element): string {
 
 function serializeListItem(item: Element, ordered: boolean, index: number): string {
   const checkbox = item.querySelector('input[type="checkbox"]');
-  const task = checkbox ? `[${(checkbox as HTMLInputElement).checked ? "x" : " "}] ` : "";
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    task = checkbox ? `[${(checkbox as HTMLInputElement).checked ? "x" : " "}] ` : "";
   const marker = ordered ? `${index}. ${task}` : `- ${task}`;
   let content = serializeChildren(item)
     .replace(/\n{3,}/g, "\n\n")
@@ -179,7 +181,8 @@ function serializeNode(node: Node): string {
     return text;
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
-  const element = node as Element;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    element = node as Element;
   if (element.hasAttribute("data-markdown-details")) {
     return serializeDetails(element);
   }

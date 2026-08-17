@@ -2,6 +2,7 @@ import Constants from "expo-constants";
 import { makeRelayClientTracingLayer } from "@t3tools/shared/relayTracing";
 
 import { hasTracingPublicConfig, resolveCloudPublicConfig } from "../cloud/publicConfig";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface TracingConfig {
   readonly tracesUrl: string;
@@ -34,8 +35,7 @@ export function makeTracingLayer(config: TracingConfig | null, resource: Tracing
 
 export const tracingLayer = makeTracingLayer(resolveTracingConfig(), {
   serviceVersion: Constants.expoConfig?.version,
-  appVariant:
-    typeof Constants.expoConfig?.extra?.appVariant === "string"
-      ? Constants.expoConfig.extra.appVariant
-      : "unknown",
+  appVariant: RuntimePredicate.isString(Constants.expoConfig?.extra?.appVariant)
+    ? Constants.expoConfig.extra.appVariant
+    : "unknown",
 });

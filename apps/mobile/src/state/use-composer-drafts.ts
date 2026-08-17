@@ -160,6 +160,7 @@ async function loadPersistedComposerDrafts(): Promise<Record<string, ComposerDra
     operation = "read";
     const raw = await file.text();
     operation = "decode";
+    // SAFETY: This boundary intentionally widens the value before handing it to its owner.
     return decodePersistedComposerDrafts(JSON.parse(raw) as unknown);
   } catch (cause) {
     console.warn(
@@ -395,7 +396,7 @@ export function clearComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   options?: { readonly clearWorkspaceSelection?: boolean },
-): Record<string, ComposerDraft> {
+) {
   const existing = current[draftKey];
   if (!existing) {
     return current;
@@ -404,7 +405,7 @@ export function clearComposerDraftContentState(
   const draft = {
     ...retained,
     ...(options?.clearWorkspaceSelection || workspaceSelection === undefined
-      ? {}
+      ? undefined
       : { workspaceSelection }),
     text: "",
     attachments: [],
@@ -424,7 +425,7 @@ export function restoreComposerDraftSnapshotState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   snapshot: ComposerDraft,
-): Record<string, ComposerDraft> {
+) {
   const next = { ...current };
   if (isEmptyDraft(snapshot)) {
     delete next[draftKey];
@@ -438,7 +439,7 @@ export function copyComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   sourceDraftKey: string,
   targetDraftKey: string,
-): Record<string, ComposerDraft> {
+) {
   if (sourceDraftKey === targetDraftKey) {
     return current;
   }
@@ -461,7 +462,7 @@ export function copyComposerDraftContentState(
       ...target,
       text: source.text,
       attachments: source.attachments,
-      ...(source.importedShareIds ? { importedShareIds: source.importedShareIds } : {}),
+      ...(source.importedShareIds ? { importedShareIds: source.importedShareIds } : undefined),
     },
   };
 }
@@ -498,7 +499,7 @@ export function mergeComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   content: ComposerDraftContent,
-): Record<string, ComposerDraft> {
+) {
   const existing = normalizeDraft(current[draftKey]);
   if (content.sourceShareId && existing.importedShareIds?.includes(content.sourceShareId)) {
     return current;
@@ -532,7 +533,7 @@ export function mergeComposerDraftContentState(
       ...existing,
       text,
       attachments,
-      ...(importedShareIds ? { importedShareIds } : {}),
+      ...(importedShareIds ? { importedShareIds } : undefined),
     },
   };
 }

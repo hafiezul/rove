@@ -6,6 +6,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 export const TAILSCALE_STATUS_TIMEOUT = Duration.millis(1_500);
@@ -160,7 +161,7 @@ const decodeTailscaleStatusJson = Schema.decodeEffect(Schema.fromJsonString(Tail
 
 function normalizeMagicDnsName(status: TailscaleStatusJson): string | null {
   const dnsName = status.Self?.DNSName;
-  if (typeof dnsName !== "string") {
+  if (!RuntimePredicate.isString(dnsName)) {
     return null;
   }
 
@@ -204,7 +205,7 @@ export const parseTailscaleStatus = (
       const tailnetIpv4Addresses: Array<string> = [];
       if (Array.isArray(rawIps)) {
         for (const address of rawIps) {
-          if (typeof address === "string" && isTailscaleIpv4Address(address)) {
+          if (RuntimePredicate.isString(address) && isTailscaleIpv4Address(address)) {
             tailnetIpv4Addresses.push(address);
           }
         }
@@ -251,7 +252,7 @@ export const readTailscaleStatus = Effect.gen(function* () {
         stderrLength: stderr.length,
         ...(stderrDiagnosticOf(stderr) !== undefined
           ? { stderrDiagnostic: stderrDiagnosticOf(stderr) }
-          : {}),
+          : undefined),
       });
     }
     return yield* parseTailscaleStatus(stdout);
@@ -317,7 +318,7 @@ const runTailscaleCommand = (
           stderrLength: stderr.length,
           ...(stderrDiagnosticOf(stderr) !== undefined
             ? { stderrDiagnostic: stderrDiagnosticOf(stderr) }
-            : {}),
+            : undefined),
         });
       }
     }).pipe(
@@ -392,7 +393,7 @@ export const resolveTailscaleHttpsBaseUrl = (
       status.magicDnsName
         ? buildTailscaleHttpsBaseUrl({
             magicDnsName: status.magicDnsName,
-            ...(input.servePort === undefined ? {} : { servePort: input.servePort }),
+            ...(input.servePort === undefined ? undefined : { servePort: input.servePort }),
           })
         : null,
     ),

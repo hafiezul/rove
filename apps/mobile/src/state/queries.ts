@@ -78,13 +78,7 @@ export function useDebouncedValue<A>(value: A, delayMs: number): A {
   return debounced;
 }
 
-export function useThreadSearch(
-  environmentIds: ReadonlyArray<EnvironmentId>,
-  query: string,
-): {
-  readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
-  readonly isPending: boolean;
-} {
+export function useThreadSearch(environmentIds: ReadonlyArray<EnvironmentId>, query: string) {
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, THREAD_SEARCH_DEBOUNCE_MS);
   const canSearch = environmentIds.length > 0 && normalizedQuery.length >= 2;
@@ -128,7 +122,7 @@ export function useBranches(input: {
           environmentId: input.environmentId,
           input: {
             cwd: input.cwd,
-            ...(query.length > 0 ? { query } : {}),
+            ...(query.length > 0 ? { query } : undefined),
             limit: VCS_REF_LIST_LIMIT,
           },
         })
@@ -158,8 +152,8 @@ export function usePaginatedBranches(target: VcsRefTarget) {
               environmentId: target.environmentId!,
               input: {
                 cwd: target.cwd!,
-                ...(query.length > 0 ? { query } : {}),
-                ...(cursor === undefined ? {} : { cursor }),
+                ...(query.length > 0 ? { query } : undefined),
+                ...(cursor === undefined ? undefined : { cursor }),
                 limit: VCS_REF_LIST_LIMIT,
               },
             }),

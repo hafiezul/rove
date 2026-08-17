@@ -32,8 +32,8 @@ import type * as Scope from "effect/Scope";
 
 import type * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import type { ProviderAdapterError, ProviderDriverError } from "./Errors.ts";
-import type { ProviderAdapterShape } from "./Services/ProviderAdapter.ts";
-import type { ServerProviderShape } from "./Services/ServerProvider.ts";
+import type { ProviderAdapterContract } from "./Services/ProviderAdapter.ts";
+import type { ServerProviderContract } from "./Services/ServerProvider.ts";
 
 /**
  * Static metadata advertised by a driver. Used for default presentation
@@ -68,8 +68,8 @@ export interface ProviderInstance {
   readonly displayName: string | undefined;
   readonly accentColor?: string | undefined;
   readonly enabled: boolean;
-  readonly snapshot: ServerProviderShape;
-  readonly adapter: ProviderAdapterShape<ProviderAdapterError>;
+  readonly snapshot: ServerProviderContract;
+  readonly adapter: ProviderAdapterContract<ProviderAdapterError>;
   readonly textGeneration: TextGeneration.TextGeneration["Service"];
 }
 

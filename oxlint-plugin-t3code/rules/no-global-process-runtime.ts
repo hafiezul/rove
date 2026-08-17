@@ -2,6 +2,7 @@ import { defineRule } from "@oxlint/plugins";
 import * as Option from "effect/Option";
 
 import { getPropertyName, isIdentifier, unwrapExpression } from "../utils.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const RUNTIME_PROPERTIES = new Set(["platform", "arch"]);
 const HOST_PROCESS_REFERENCE_FILE = "packages/shared/src/hostProcess.ts";
@@ -37,9 +38,9 @@ const message = (property: string) =>
   `Use HostProcess${property === "arch" ? "Architecture" : "Platform"} instead of process.${property}; inject the runtime reference in Effect code and provide it explicitly in tests.`;
 
 const getLiteralStringValue = (node: unknown): Option.Option<string> => {
-  if (typeof node !== "object" || node === null) return Option.none();
+  if (!RuntimePredicate.isObjectOrArray(node)) return Option.none();
   if (!("type" in node) || node.type !== "Literal") return Option.none();
-  if (!("value" in node) || typeof node.value !== "string") return Option.none();
+  if (!("value" in node) || !RuntimePredicate.isString(node.value)) return Option.none();
   return Option.some(node.value);
 };
 
@@ -61,7 +62,7 @@ export default defineRule({
     };
 
     const trackImportDeclaration = (node: unknown) => {
-      if (typeof node !== "object" || node === null) return;
+      if (!RuntimePredicate.isObjectOrArray(node)) return;
       if (!("source" in node)) return;
 
       const source = getLiteralStringValue(node.source);
@@ -69,7 +70,7 @@ export default defineRule({
       if (!("specifiers" in node) || !Array.isArray(node.specifiers)) return;
 
       for (const specifier of node.specifiers) {
-        if (typeof specifier !== "object" || specifier === null) continue;
+        if (!RuntimePredicate.isObjectOrArray(specifier)) continue;
         if (!("local" in specifier)) continue;
 
         const local = unwrapExpression(specifier.local);

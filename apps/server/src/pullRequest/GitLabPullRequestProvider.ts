@@ -85,7 +85,7 @@ export function gitLabViewerPermissions(input: {
     resolve: true,
     verdicts: CAPABILITIES.review.verdicts,
     requestReviewers: true,
-    ...(input.viewerCanMerge ? { updateMethods: CAPABILITIES.updateMethods } : {}),
+    ...(input.viewerCanMerge ? { updateMethods: CAPABILITIES.updateMethods } : undefined),
   };
 }
 
@@ -159,7 +159,7 @@ export const make = Effect.gen(function* () {
                   ? "behind"
                   : "up-to-date",
             ...(mergeRequest.divergedCommits === undefined
-              ? {}
+              ? undefined
               : { behindBy: mergeRequest.divergedCommits }),
           }),
         ),
@@ -249,7 +249,7 @@ export const make = Effect.gen(function* () {
           repository: input.repository,
           number: input.number,
           action: input.action,
-          ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
+          ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
         })
         .pipe(Effect.mapError(fail("runAction"))),
 
@@ -259,8 +259,8 @@ export const make = Effect.gen(function* () {
           cwd: input.cwd,
           repository: input.repository,
           number: input.number,
-          ...(input.title === undefined ? {} : { title: input.title }),
-          ...(input.body === undefined ? {} : { description: input.body }),
+          ...(input.title === undefined ? undefined : { title: input.title }),
+          ...(input.body === undefined ? undefined : { description: input.body }),
         })
         .pipe(Effect.mapError(fail("updateChangeRequest"))),
 
@@ -298,7 +298,7 @@ export const make = Effect.gen(function* () {
           cwd: input.cwd,
           repository: input.repository,
           number: input.number,
-          ...(input.subjectId === undefined ? {} : { noteId: input.subjectId }),
+          ...(input.subjectId === undefined ? undefined : { noteId: input.subjectId }),
           content: input.content,
           reacted: input.reacted,
         })

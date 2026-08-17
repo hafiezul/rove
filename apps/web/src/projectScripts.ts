@@ -24,7 +24,7 @@ export function buildProjectScript(id: string, input: ProjectScriptInput): Proje
     icon: input.icon,
     runOnWorktreeCreate: input.runOnWorktreeCreate,
     ...(input.previewUrl === null
-      ? {}
+      ? undefined
       : {
           previewUrl: input.previewUrl,
           autoOpenPreview: input.autoOpenPreview,

@@ -42,6 +42,7 @@ export async function loadIncomingShareDrafts(): Promise<ReadonlyArray<IncomingS
         continue;
       }
       try {
+        // SAFETY: This boundary intentionally widens the value before handing it to its owner.
         drafts.push(decodeIncomingShareDraft(JSON.parse(await entry.text()) as unknown));
       } catch (cause) {
         console.warn(

@@ -12,6 +12,7 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
 import { ServerConfig } from "../config.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class ResourceMonitorBinaryUnsupported extends Schema.TaggedErrorClass<ResourceMonitorBinaryUnsupported>()(
   "ResourceMonitorBinaryUnsupported",
@@ -70,14 +71,15 @@ export type ResourceMonitorLinuxLibc = "gnu" | "musl";
 
 function detectResourceMonitorLinuxLibc(): ResourceMonitorLinuxLibc {
   try {
-    const report = process.report?.getReport() as
-      | {
-          readonly header?: {
-            readonly glibcVersionRuntime?: unknown;
-          };
-        }
-      | undefined;
-    return typeof report?.header?.glibcVersionRuntime === "string" ? "gnu" : "musl";
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      report = process.report?.getReport() as
+        | {
+            readonly header?: {
+              readonly glibcVersionRuntime?: unknown;
+            };
+          }
+        | undefined;
+    return RuntimePredicate.isString(report?.header?.glibcVersionRuntime) ? "gnu" : "musl";
   } catch {
     return "musl";
   }

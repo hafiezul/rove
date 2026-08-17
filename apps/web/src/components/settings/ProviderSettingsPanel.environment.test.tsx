@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { visitElements } from "../../test/reactElementTree";
 import { reactHookHarness as hooks } from "../../test/reactHookHarness";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const atoms = vi.hoisted(() => ({
   providers: null as ReadonlyArray<ServerProvider> | null,
@@ -118,13 +120,14 @@ function provider(): ServerProvider {
 
 function renderPanel(options?: {
   readonly readOnly?: boolean;
-}): ReactElement<Record<string, unknown>> {
+}): ReactElement<Record<string, SchemaJson>> {
   hooks.beginRender();
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return EnvironmentProviderSettings({
     environmentId,
     environmentLabel: "Remote device",
-    ...(options?.readOnly === undefined ? {} : { readOnly: options.readOnly }),
-  }) as ReactElement<Record<string, unknown>>;
+    ...(options?.readOnly === undefined ? undefined : { readOnly: options.readOnly }),
+  }) as ReactElement<Record<string, SchemaJson>>;
 }
 
 async function flushPromises(): Promise<void> {
@@ -158,6 +161,7 @@ describe("EnvironmentProviderSettings routing", () => {
       (element) => element.props["aria-label"] === "Refresh provider status",
     );
     expect(refreshButton).not.toBeNull();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     (refreshButton?.props.onClick as (() => void) | undefined)?.();
     await flushPromises();
 
@@ -166,9 +170,11 @@ describe("EnvironmentProviderSettings routing", () => {
     const providerCard = visitElements(
       panel,
       (element) =>
-        element.props.instanceId === codexId && typeof element.props.onRunUpdate === "function",
+        element.props.instanceId === codexId &&
+        RuntimePredicate.isFunction(element.props.onRunUpdate),
     );
     expect(providerCard).not.toBeNull();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     (providerCard?.props.onRunUpdate as (() => void) | undefined)?.();
     await flushPromises();
 
@@ -228,6 +234,7 @@ describe("EnvironmentProviderSettings routing", () => {
     const panel = renderPanel();
     const customCard = visitElements(panel, (element) => element.props.instanceId === customId);
     expect(customCard).not.toBeNull();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     (customCard?.props.onDelete as (() => void) | undefined)?.();
 
     expect(settingsState.updateSettings).toHaveBeenLastCalledWith({
@@ -239,16 +246,17 @@ describe("EnvironmentProviderSettings routing", () => {
     settingsState.updateSettings.mockClear();
     const defaultCard = visitElements(panel, (element) => element.props.instanceId === codexId);
     const resetAction = defaultCard?.props.headerAction;
-    const resetButton = visitElements(
-      resetAction,
-      (element) => typeof element.props.onClick === "function",
+    const resetButton = visitElements(resetAction, (element) =>
+      RuntimePredicate.isFunction(element.props.onClick),
     );
     expect(resetButton).not.toBeNull();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     (resetButton?.props.onClick as (() => void) | undefined)?.();
 
-    const resetPatch = settingsState.updateSettings.mock.lastCall?.[0] as
-      | Record<string, unknown>
-      | undefined;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      resetPatch = settingsState.updateSettings.mock.lastCall?.[0] as
+        | Record<string, SchemaJson>
+        | undefined;
     expect(Object.keys(resetPatch ?? {}).sort()).toEqual(["providerInstances", "providers"]);
     expect(resetPatch).not.toHaveProperty("favorites");
     expect(resetPatch).not.toHaveProperty("providerModelPreferences");

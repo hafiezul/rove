@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import * as RuntimePredicate from "effect/Predicate";
 
 const BREAKPOINTS = {
   "2xl": 1536,
@@ -15,17 +16,17 @@ type Breakpoint = keyof typeof BREAKPOINTS;
 type BreakpointQuery = Breakpoint | `max-${Breakpoint}` | `${Breakpoint}:max-${Breakpoint}`;
 
 function resolveMin(value: Breakpoint | number): string {
-  const px = typeof value === "number" ? value : BREAKPOINTS[value];
+  const px = RuntimePredicate.isNumber(value) ? value : BREAKPOINTS[value];
   return `(min-width: ${px}px)`;
 }
 
 function resolveMax(value: Breakpoint | number): string {
-  const px = typeof value === "number" ? value : BREAKPOINTS[value];
+  const px = RuntimePredicate.isNumber(value) ? value : BREAKPOINTS[value];
   return `(max-width: ${px - 1}px)`;
 }
 
 function parseQuery(query: BreakpointQuery | MediaQueryInput | (string & {})): string {
-  if (typeof query !== "string") {
+  if (!RuntimePredicate.isString(query)) {
     const parts: string[] = [];
     if (query.min != null) parts.push(resolveMin(query.min));
     if (query.max != null) parts.push(resolveMax(query.max));
@@ -41,8 +42,11 @@ function parseQuery(query: BreakpointQuery | MediaQueryInput | (string & {})): s
   for (const segment of query.split(":")) {
     if (segment.startsWith("max-")) {
       const bp = segment.slice(4);
-      if (bp in BREAKPOINTS) parts.push(resolveMax(bp as Breakpoint));
+      if (bp in BREAKPOINTS)
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        parts.push(resolveMax(bp as Breakpoint));
     } else if (segment in BREAKPOINTS) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       parts.push(resolveMin(segment as Breakpoint));
     }
   }

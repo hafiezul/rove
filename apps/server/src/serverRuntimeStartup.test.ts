@@ -15,6 +15,7 @@ import * as OrchestrationEngine from "./orchestration/Services/OrchestrationEngi
 import * as ProjectionSnapshotQuery from "./orchestration/Services/ProjectionSnapshotQuery.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 it("uses the canonical Codex default for auto-bootstrapped model selection", () => {
   assert.deepStrictEqual(ServerRuntimeStartup.getAutoBootstrapDefaultModelSelection(), {
@@ -220,8 +221,8 @@ it.effect("resolveAutoBootstrapWelcomeTargets creates a project and thread when 
       Effect.provide(NodeServices.layer),
     );
 
-    assert.equal(typeof targets.bootstrapProjectId, "string");
-    assert.equal(typeof targets.bootstrapThreadId, "string");
+    assert.equal(RuntimePredicate.isString(targets.bootstrapProjectId), true);
+    assert.equal(RuntimePredicate.isString(targets.bootstrapThreadId), true);
     assert.deepStrictEqual(yield* Ref.get(dispatchCalls), ["project.create", "thread.create"]);
   }),
 );

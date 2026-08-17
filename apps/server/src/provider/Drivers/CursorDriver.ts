@@ -86,8 +86,8 @@ const withInstanceIdentity =
     ...snapshot,
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
-    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
+    ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
     continuation: { groupKey: input.continuationGroupKey },
   });
 
@@ -127,7 +127,7 @@ export const CursorDriver: ProviderDriver<CursorSettings, CursorDriverEnv> = {
 
       const adapter = yield* makeCursorAdapter(effectiveConfig, {
         environment: processEnv,
-        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : {}),
+        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : undefined),
         instanceId,
       });
       const textGeneration = yield* makeCursorTextGeneration(effectiveConfig, processEnv);

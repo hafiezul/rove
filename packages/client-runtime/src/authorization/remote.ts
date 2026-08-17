@@ -27,9 +27,9 @@ const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 10_000;
 const clientMetadataTokenExchangeFields = (
   clientMetadata: AuthClientPresentationMetadata | undefined,
 ) => ({
-  ...(clientMetadata?.label ? { client_label: clientMetadata.label } : {}),
-  ...(clientMetadata?.deviceType ? { client_device_type: clientMetadata.deviceType } : {}),
-  ...(clientMetadata?.os ? { client_os: clientMetadata.os } : {}),
+  ...(clientMetadata?.label ? { client_label: clientMetadata.label } : undefined),
+  ...(clientMetadata?.deviceType ? { client_device_type: clientMetadata.deviceType } : undefined),
+  ...(clientMetadata?.os ? { client_os: clientMetadata.os } : undefined),
 });
 
 export const exchangeRemoteDpopAccessToken = Effect.fn(
@@ -53,7 +53,7 @@ export const exchangeRemoteDpopAccessToken = Effect.fn(
         subject_token: input.credential,
         subject_token_type: AuthEnvironmentBootstrapTokenType,
         requested_token_type: AuthAccessTokenType,
-        ...(input.scopes ? { scope: encodeOAuthScope(input.scopes) } : {}),
+        ...(input.scopes ? { scope: encodeOAuthScope(input.scopes) } : undefined),
         ...clientMetadataTokenExchangeFields(input.clientMetadata),
       },
     }),
@@ -81,7 +81,7 @@ export const bootstrapRemoteBearerSession = Effect.fn(
         subject_token: input.credential,
         subject_token_type: AuthEnvironmentBootstrapTokenType,
         requested_token_type: AuthAccessTokenType,
-        ...(input.scopes ? { scope: encodeOAuthScope(input.scopes) } : {}),
+        ...(input.scopes ? { scope: encodeOAuthScope(input.scopes) } : undefined),
         ...clientMetadataTokenExchangeFields(input.clientMetadata),
       },
     }),
@@ -179,7 +179,7 @@ export const resolveRemoteWebSocketConnectionUrl = Effect.fn(
   const issued = yield* issueRemoteWebSocketTicket({
     httpBaseUrl: input.httpBaseUrl,
     bearerToken: input.bearerToken,
-    ...(input.timeoutMs ? { timeoutMs: input.timeoutMs } : {}),
+    ...(input.timeoutMs ? { timeoutMs: input.timeoutMs } : undefined),
   });
 
   const url = new URL(input.wsBaseUrl);
@@ -203,7 +203,7 @@ export const resolveRemoteDpopWebSocketConnectionUrl = Effect.fn(
     httpBaseUrl: input.httpBaseUrl,
     accessToken: input.accessToken,
     dpopProof: input.dpopProof,
-    ...(input.timeoutMs ? { timeoutMs: input.timeoutMs } : {}),
+    ...(input.timeoutMs ? { timeoutMs: input.timeoutMs } : undefined),
   });
   const url = new URL(input.wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {

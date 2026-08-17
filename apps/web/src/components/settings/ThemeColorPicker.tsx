@@ -4,8 +4,12 @@ import { isThemeColor, themeColorToHex, type ThemeColorRole } from "../../themeP
 import { cn } from "../../lib/utils";
 import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
+interface ThemeColorLabels {
+  readonly [role: string]: string | undefined;
+}
+
 export function getThemeRoleLabel(role: ThemeColorRole): string {
-  const labels: Partial<Record<ThemeColorRole, string>> = {
+  const labels: ThemeColorLabels = {
     canvas: "Background",
     toolbar: "Toolbar background",
     toolbarForeground: "Toolbar text",

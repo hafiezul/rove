@@ -73,7 +73,7 @@ export function createPreviewAutomationRequestConsumerAtom<E>(options: {
               connectionId: event.connectionId,
               requestId: request.requestId,
               ok: true,
-              ...(value === undefined ? {} : { result: value }),
+              ...(value === undefined ? undefined : { result: value }),
             }),
           (error) =>
             options.respond({

@@ -2,11 +2,14 @@ import type { AuthClientMetadata, AuthClientSession, AuthPairingLink } from "@t3
 import * as DateTime from "effect/DateTime";
 
 import type { IssuedBearerSession, IssuedPairingLink } from "./auth/EnvironmentAuth.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const newline = "\n";
 
 function serializeOptionalFields(values: ReadonlyArray<string | null | undefined>) {
-  return values.filter((value): value is string => typeof value === "string" && value.length > 0);
+  return values.filter(
+    (value): value is string => RuntimePredicate.isString(value) && value.length > 0,
+  );
 }
 
 function formatClientMetadata(metadata: AuthClientMetadata): string {
@@ -46,10 +49,10 @@ export function formatIssuedPairingCredential(
       {
         id: credential.id,
         credential: credential.credential,
-        ...(credential.label ? { label: credential.label } : {}),
+        ...(credential.label ? { label: credential.label } : undefined),
         scopes: credential.scopes,
         expiresAt: toIsoString(credential.expiresAt),
-        ...(pairUrl ? { pairUrl } : {}),
+        ...(pairUrl ? { pairUrl } : undefined),
       },
       null,
       2,
@@ -76,7 +79,7 @@ export function formatPairingCredentialList(
     return `${JSON.stringify(
       credentials.map((credential) => ({
         id: credential.id,
-        ...(credential.label ? { label: credential.label } : {}),
+        ...(credential.label ? { label: credential.label } : undefined),
         scopes: credential.scopes,
         createdAt: toIsoString(credential.createdAt),
         expiresAt: toIsoString(credential.expiresAt),

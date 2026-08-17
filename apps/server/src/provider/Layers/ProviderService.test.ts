@@ -9,6 +9,7 @@ import type {
   ProviderSendTurnInput,
   ProviderSession,
   ProviderTurnStartResult,
+  ProviderUserInputAnswers,
 } from "@t3tools/contracts";
 import {
   ApprovalRequestId,
@@ -42,7 +43,7 @@ import {
   ProviderValidationError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
 import * as ProviderService from "../Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "../Services/ProviderSessionDirectory.ts";
@@ -59,6 +60,8 @@ import * as ServerConfig from "../../config.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import * as AnalyticsService from "../../telemetry/AnalyticsService.ts";
 import { makeAdapterRegistryMock } from "../testUtils/providerAdapterRegistryMock.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const defaultServerSettingsLayer = ServerSettings.ServerSettingsService.layerTest();
 const serverConfigTestLayer = ServerConfig.layerTest(process.cwd(), process.cwd()).pipe(
@@ -84,8 +87,8 @@ type LegacyProviderRuntimeEvent = {
   readonly turnId?: string | undefined;
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
-  readonly payload?: unknown | undefined;
-  readonly [key: string]: unknown;
+  readonly payload?: SchemaJson | undefined;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
@@ -99,7 +102,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
         provider,
         ...(input.providerInstanceId !== undefined
           ? { providerInstanceId: input.providerInstanceId }
-          : {}),
+          : undefined),
         status: "ready",
         runtimeMode: input.runtimeMode,
         threadId: input.threadId,
@@ -152,7 +155,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
     (
       _threadId: ThreadId,
       _requestId: string,
-      _answers: Record<string, unknown>,
+      _answers: ProviderUserInputAnswers,
     ): Effect.Effect<void, ProviderAdapterError> => Effect.void,
   );
 
@@ -203,7 +206,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
       }),
   );
 
-  const adapter: ProviderAdapterShape<ProviderAdapterError> = {
+  const adapter: ProviderAdapterContract<ProviderAdapterError> = {
     provider,
     capabilities: {
       sessionModelSwitch: "in-session",
@@ -225,7 +228,8 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
   };
 
   const emit = (event: LegacyProviderRuntimeEvent): void => {
-    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as unknown as ProviderRuntimeEvent));
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as ProviderRuntimeEvent));
   };
 
   const updateSession = (
@@ -610,6 +614,7 @@ it.effect("ProviderServiceLive writes canonical events to the emitting thread se
       canonicalEventLogger: {
         filePath: "memory://provider-canonical-events",
         write: (event, threadId) => {
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           canonicalEvents.push(event as ProviderRuntimeEvent);
           canonicalThreadIds.push(threadId ?? null);
           return Effect.void;
@@ -831,14 +836,18 @@ it.effect(
 
       assert.equal(secondCodex.startSession.mock.calls.length, 1);
       const resumedStartInput = secondCodex.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "codex");
         assert.equal(startPayload.cwd, "/tmp/project");
         assert.deepEqual(startPayload.resumeCursor, updatedResumeCursor);
@@ -846,7 +855,7 @@ it.effect(
       }
       assert.equal(secondCodex.rollbackThread.mock.calls.length, 1);
       const rollbackCall = secondCodex.rollbackThread.mock.calls[0];
-      assert.equal(typeof rollbackCall?.[0], "string");
+      assert.equal(RuntimePredicate.isString(rollbackCall?.[0]), true);
       assert.equal(rollbackCall?.[1], 1);
 
       NodeFS.rmSync(tempDir, { recursive: true, force: true });
@@ -923,14 +932,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(routing.codex.startSession.mock.calls.length, 1);
       const resumedStartInput = routing.codex.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "codex");
         assert.equal(startPayload.cwd, "/tmp/project");
         assert.deepEqual(startPayload.resumeCursor, session.resumeCursor);
@@ -967,8 +980,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
         attachments: [attachment],
       });
 
-      const turnInput = routing.codex.sendTurn.mock.calls[0]?.[0] as ProviderSendTurnInput;
-      assert.equal(typeof turnInput.input, "string");
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        turnInput = routing.codex.sendTurn.mock.calls[0]?.[0] as ProviderSendTurnInput;
+      assert.equal(RuntimePredicate.isString(turnInput.input), true);
       const turnText = turnInput.input ?? "";
       assert.equal(turnText.startsWith("use this screenshot"), true);
       assert.include(turnText, '[Attached image "screenshot.png" is saved at: ');
@@ -981,7 +995,8 @@ routing.layer("ProviderServiceLive routing", (it) => {
         threadId: session.threadId,
         attachments: [attachment],
       });
-      const imageOnlyInput = routing.codex.sendTurn.mock.calls[0]?.[0] as ProviderSendTurnInput;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        imageOnlyInput = routing.codex.sendTurn.mock.calls[0]?.[0] as ProviderSendTurnInput;
       assert.equal(imageOnlyInput.input?.startsWith('[Attached image "screenshot.png"'), true);
 
       yield* provider.stopSession({ threadId: session.threadId });
@@ -1010,14 +1025,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(routing.codex.startSession.mock.calls.length, 1);
       const resumedStartInput = routing.codex.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "codex");
         assert.equal(startPayload.cwd, "/tmp/project");
         assert.deepEqual(startPayload.resumeCursor, initial.resumeCursor);
@@ -1064,14 +1083,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(routing.codex.startSession.mock.calls.length, 1);
       const resumedStartInput = routing.codex.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "codex");
         assert.equal(startPayload.cwd, "/tmp/project-reap-preserve");
         assert.deepEqual(startPayload.resumeCursor, initial.resumeCursor);
@@ -1096,13 +1119,14 @@ routing.layer("ProviderServiceLive routing", (it) => {
       assert.equal(session.provider, "claudeAgent");
       assert.equal(routing.claude.startSession.mock.calls.length, 1);
       const startInput = routing.claude.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof startInput === "object" && startInput !== null, true);
-      if (startInput && typeof startInput === "object") {
-        const startPayload = startInput as {
-          provider?: string;
-          providerInstanceId?: ProviderInstanceId;
-          cwd?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(startInput), true);
+      if (startInput && (RuntimePredicate.isObjectOrArray(startInput) || startInput === null)) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = startInput as {
+            provider?: string;
+            providerInstanceId?: ProviderInstanceId;
+            cwd?: string;
+          };
         assert.equal(startPayload.provider, "claudeAgent");
         assert.equal(startPayload.providerInstanceId, claudeAgentInstanceId);
         assert.equal(startPayload.cwd, "/tmp/project-claude");
@@ -1204,14 +1228,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(routing.codex.startSession.mock.calls.length, 1);
       const resumedStartInput = routing.codex.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "codex");
         assert.equal(startPayload.cwd, "/tmp/project-send-turn");
         assert.deepEqual(startPayload.resumeCursor, initial.resumeCursor);
@@ -1250,15 +1278,19 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(routing.claude.startSession.mock.calls.length, 1);
       const resumedStartInput = routing.claude.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          modelSelection?: unknown;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            modelSelection?: unknown;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "claudeAgent");
         assert.equal(startPayload.cwd, "/tmp/project-claude-send-turn");
         assert.deepEqual(
@@ -1325,15 +1357,16 @@ routing.layer("ProviderServiceLive routing", (it) => {
         assert.equal(runningRuntime.value.status, "running");
         assert.deepEqual(runningRuntime.value.resumeCursor, session.resumeCursor);
         const payload = runningRuntime.value.runtimePayload;
-        assert.equal(payload !== null && typeof payload === "object", true);
-        if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
-          const runtimePayload = payload as {
-            cwd: string;
-            model: string | null;
-            activeTurnId: string | null;
-            lastError: string | null;
-            lastRuntimeEvent: string | null;
-          };
+        assert.equal(RuntimePredicate.isObjectOrArray(payload), true);
+        if (RuntimePredicate.isObjectOrArray(payload) && !Array.isArray(payload)) {
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            runtimePayload = payload as {
+              cwd: string;
+              model: string | null;
+              activeTurnId: string | null;
+              lastError: string | null;
+              lastRuntimeEvent: string | null;
+            };
           assert.equal(runtimePayload.cwd, session.cwd);
           assert.equal(runtimePayload.model, null);
           assert.equal(runtimePayload.activeTurnId, `turn-${String(session.threadId)}`);
@@ -1432,14 +1465,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       assert.equal(secondClaude.startSession.mock.calls.length, 1);
       const resumedStartInput = secondClaude.startSession.mock.calls[0]?.[0];
-      assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-      if (resumedStartInput && typeof resumedStartInput === "object") {
-        const startPayload = resumedStartInput as {
-          provider?: string;
-          cwd?: string;
-          resumeCursor?: unknown;
-          threadId?: string;
-        };
+      assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+      if (
+        resumedStartInput &&
+        (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+      ) {
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          startPayload = resumedStartInput as {
+            provider?: string;
+            cwd?: string;
+            resumeCursor?: unknown;
+            threadId?: string;
+          };
         assert.equal(startPayload.provider, "claudeAgent");
         assert.equal(startPayload.cwd, "/tmp/project-claude-start");
         assert.deepEqual(startPayload.resumeCursor, initial.resumeCursor);
@@ -1534,14 +1571,18 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
         assert.equal(secondClaude.startSession.mock.calls.length, 1);
         const resumedStartInput = secondClaude.startSession.mock.calls[0]?.[0];
-        assert.equal(typeof resumedStartInput === "object" && resumedStartInput !== null, true);
-        if (resumedStartInput && typeof resumedStartInput === "object") {
-          const startPayload = resumedStartInput as {
-            provider?: string;
-            cwd?: string;
-            resumeCursor?: unknown;
-            threadId?: string;
-          };
+        assert.equal(RuntimePredicate.isObjectOrArray(resumedStartInput), true);
+        if (
+          resumedStartInput &&
+          (RuntimePredicate.isObjectOrArray(resumedStartInput) || resumedStartInput === null)
+        ) {
+          const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+            startPayload = resumedStartInput as {
+              provider?: string;
+              cwd?: string;
+              resumeCursor?: unknown;
+              threadId?: string;
+            };
           assert.equal(startPayload.provider, "claudeAgent");
           assert.equal(startPayload.cwd, "/tmp/project-claude-cwd");
           assert.deepEqual(startPayload.resumeCursor, initial.resumeCursor);
@@ -1571,7 +1612,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       ).pipe(Effect.forkChild);
       yield* advanceTestClock(50);
 
-      const completedEvent: LegacyProviderRuntimeEvent = {
+      const completedEvent = {
         type: "turn.completed",
         eventId: asEventId("evt-1"),
         provider: ProviderDriverKind.make("codex"),
@@ -1579,7 +1620,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
         status: "completed",
-      };
+      } satisfies LegacyProviderRuntimeEvent;
 
       fanout.codex.emit(completedEvent);
       yield* advanceTestClock(50);

@@ -20,6 +20,7 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 import * as TestClock from "effect/testing/TestClock";
 
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import {
   AVAILABLE_CONNECTION_STATE,
   PrimaryConnectionTarget,
@@ -102,11 +103,11 @@ const ACTIVE_THREAD: OrchestrationThread = {
 type TestThreadInput = OrchestrationThreadStreamItem | Error;
 
 function testSession(
-  client: WsRpcProtocolClient,
+  client: unknown,
   options?: { readonly completionMarker?: boolean },
 ): RpcSession.RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.succeed(
       options?.completionMarker === true
         ? ({ threadResumeCompletionMarker: true } as never)
@@ -166,7 +167,7 @@ const makeHarness = Effect.fn("TestEnvironmentThreads.makeHarness")(function* (o
           Effect.as(streamFrom(inputs)),
         ),
       ),
-  } as unknown as WsRpcProtocolClient;
+  };
   const supervisorSession = yield* SubscriptionRef.make<Option.Option<RpcSession.RpcSession>>(
     Option.some(
       testSession(

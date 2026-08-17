@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { OrchestrationThreadActivity } from "@t3tools/contracts";
 import { projectActivityPayload } from "./ActivityPayloadProjection.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function activity(payload: Record<string, unknown>): OrchestrationThreadActivity {
+function activity(payload: Record<string, SchemaJson>): OrchestrationThreadActivity {
   return {
     id: "activity-1",
     tone: "tool",
@@ -11,7 +12,7 @@ function activity(payload: Record<string, unknown>): OrchestrationThreadActivity
     payload,
     turnId: null,
     createdAt: "2026-08-01T10:00:00.000Z",
-  } as unknown as OrchestrationThreadActivity;
+  } as OrchestrationThreadActivity;
 }
 
 /**
@@ -36,11 +37,13 @@ describe("projectActivityPayload agent-field survival", () => {
         },
       }),
     );
-    const payload = projected.payload as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      payload = projected.payload as Record<string, SchemaJson>;
     expect(payload.agentId).toBe("task-123");
     expect(payload.parentToolUseId).toBe("toolu_abc");
     // Slimming itself still applies to data.
-    const data = payload.data as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      data = payload.data as Record<string, SchemaJson>;
     expect(data.somethingClientNeverReads).toBeUndefined();
   });
 
@@ -66,8 +69,10 @@ describe("projectActivityPayload agent-field survival", () => {
         },
       }),
     );
-    const data = (projected.payload as Record<string, unknown>).data as Record<string, unknown>;
-    const item = data.item as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      data = (projected.payload as Record<string, SchemaJson>).data as Record<string, SchemaJson>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      item = data.item as Record<string, SchemaJson>;
     expect(item.tool).toBe("fetch_pr");
     expect(item.server).toBe("github");
     expect(item.arguments).toEqual({ pr: 42 });
@@ -91,7 +96,8 @@ describe("projectActivityPayload agent-field survival", () => {
         },
       }),
     );
-    const data = (projected.payload as Record<string, unknown>).data as Record<string, unknown>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      data = (projected.payload as Record<string, SchemaJson>).data as Record<string, SchemaJson>;
     expect(data.toolName).toBe("mcp__github__fetch_pr");
     expect(data.input).toEqual({ pr: 42 });
     expect(data.result).toEqual({ content: "first line of output" });

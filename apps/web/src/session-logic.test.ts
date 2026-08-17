@@ -24,6 +24,8 @@ import {
   workEntryIndicatesToolSuccess,
   workLogEntryIsToolLike,
 } from "./session-logic";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 let nextActivityId = 0;
 
@@ -33,7 +35,7 @@ function makeActivity(overrides: {
   kind?: string;
   summary?: string;
   tone?: OrchestrationThreadActivity["tone"];
-  payload?: Record<string, unknown>;
+  payload?: Record<string, SchemaJson>;
   turnId?: string;
   sequence?: number;
 }): OrchestrationThreadActivity {
@@ -45,8 +47,10 @@ function makeActivity(overrides: {
       ? {
           ...rawPayload,
           agentKind: classifyTaskAgentKind({
-            taskType: typeof rawPayload.taskType === "string" ? rawPayload.taskType : undefined,
-            agentId: typeof rawPayload.agentId === "string" ? rawPayload.agentId : undefined,
+            taskType: RuntimePredicate.isString(rawPayload.taskType)
+              ? rawPayload.taskType
+              : undefined,
+            agentId: RuntimePredicate.isString(rawPayload.agentId) ? rawPayload.agentId : undefined,
           }),
         }
       : rawPayload;
@@ -58,7 +62,7 @@ function makeActivity(overrides: {
     tone: overrides.tone ?? "tool",
     payload,
     turnId: overrides.turnId ? TurnId.make(overrides.turnId) : null,
-    ...(overrides.sequence !== undefined ? { sequence: overrides.sequence } : {}),
+    ...(overrides.sequence !== undefined ? { sequence: overrides.sequence } : undefined),
   };
 }
 

@@ -42,7 +42,7 @@ export function buildPairingUrl(host: string, code: string): string {
   }
 }
 
-export function parsePairingUrl(url: string): { host: string; code: string } {
+export function parsePairingUrl(url: string) {
   const trimmed = url.trim();
   if (!trimmed) return { host: "", code: "" };
 

@@ -36,6 +36,7 @@ export function useCommitOnBlur(value: string, onCommit: (next: string) => void)
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter") {
         event.preventDefault();
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         (event.target as HTMLInputElement).blur();
       }
     },

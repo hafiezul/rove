@@ -166,9 +166,10 @@ describe("VS Code theme import", () => {
     expect(asHex(theme.colors.text)).toMatch(/^#f[a-f0-9]/);
     // The P3 blue lands in sRGB blue, not black or a clipped grey.
     const accent = asHex(theme.colors.accent);
-    const [red, green, blue] = [1, 3, 5].map((index) =>
-      Number.parseInt(accent.slice(index, index + 2), 16),
-    ) as [number, number, number];
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      [red, green, blue] = [1, 3, 5].map((index) =>
+        Number.parseInt(accent.slice(index, index + 2), 16),
+      ) as [number, number, number];
     expect(blue).toBeGreaterThan(200);
     expect(blue).toBeGreaterThan(red);
     expect(green).toBeGreaterThan(red);

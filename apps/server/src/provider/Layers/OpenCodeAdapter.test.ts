@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 import * as NodeAssert from "node:assert/strict";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
@@ -25,11 +26,11 @@ import { createModelSelection } from "@t3tools/shared/model";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderSessionDirectory } from "../Services/ProviderSessionDirectory.ts";
-import type { OpenCodeAdapterShape } from "../Services/OpenCodeAdapter.ts";
+import type { OpenCodeAdapterContract } from "../Services/OpenCodeAdapter.ts";
 import {
   OpenCodeRuntime,
   OpenCodeRuntimeError,
-  type OpenCodeRuntimeShape,
+  type OpenCodeRuntimeContract,
 } from "../opencodeRuntime.ts";
 import {
   appendOpenCodeAssistantTextDelta,
@@ -38,9 +39,11 @@ import {
   makeOpenCodeAdapter,
   mergeOpenCodeAssistantText,
 } from "./OpenCodeAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 // Test-local service tag so the rest of the file can keep using `yield* OpenCodeAdapter`.
-class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterShape>()(
+class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterContract>()(
   "t3/provider/Layers/OpenCodeAdapter.test/OpenCodeAdapter",
 ) {}
 
@@ -58,7 +61,7 @@ const runtimeMock = {
   state: {
     startCalls: [] as string[],
     sessionCreateUrls: [] as string[],
-    sessionCreateInputs: [] as Array<Record<string, unknown>>,
+    sessionCreateInputs: [] as Array<Record<string, SchemaJson>>,
     authHeaders: [] as Array<string | null>,
     abortCalls: [] as string[],
     closeCalls: [] as string[],
@@ -97,7 +100,7 @@ const runtimeMock = {
   },
 };
 
-const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
+const OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
   startOpenCodeServerProcess: ({ binaryPath }) =>
     Effect.gen(function* () {
       runtimeMock.state.startCalls.push(binaryPath);
@@ -136,9 +139,9 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
     }),
   runOpenCodeCommand: () => Effect.succeed({ stdout: "", stderr: "", code: 0 }),
   createOpenCodeSdkClient: ({ baseUrl, serverPassword }) =>
-    ({
+    testDouble<ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>>({
       session: {
-        create: async (input: Record<string, unknown>) => {
+        create: async (input: Record<string, SchemaJson>) => {
           runtimeMock.state.sessionCreateUrls.push(baseUrl);
           runtimeMock.state.sessionCreateInputs.push(input);
           runtimeMock.state.authHeaders.push(
@@ -159,7 +162,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
             });
           }
           const directory = runtimeMock.state.sessionDirectoryById.get(sessionID);
-          return { data: { id: sessionID, ...(directory ? { directory } : {}) } };
+          return { data: { id: sessionID, ...(directory ? { directory } : undefined) } };
         },
         update: async ({ sessionID, permission }: { sessionID: string; permission: unknown }) => {
           runtimeMock.state.sessionUpdateCalls.push({ sessionID, permission });
@@ -168,11 +171,14 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
         fork: async ({ sessionID, directory }: { sessionID: string; directory?: string }) => {
           // Fork clones history into a new session bound to the directory.
           const forkedId = `${sessionID}_fork`;
-          runtimeMock.state.forkCalls.push({ sessionID, ...(directory ? { directory } : {}) });
+          runtimeMock.state.forkCalls.push({
+            sessionID,
+            ...(directory ? { directory } : undefined),
+          });
           if (directory) {
             runtimeMock.state.sessionDirectoryById.set(forkedId, directory);
           }
-          return { data: { id: forkedId, ...(directory ? { directory } : {}) } };
+          return { data: { id: forkedId, ...(directory ? { directory } : undefined) } };
         },
         abort: async ({ sessionID }: { sessionID: string }) => {
           runtimeMock.state.abortCalls.push(sessionID);
@@ -187,7 +193,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
         revert: async ({ sessionID, messageID }: { sessionID: string; messageID?: string }) => {
           runtimeMock.state.revertCalls.push({
             sessionID,
-            ...(messageID ? { messageID } : {}),
+            ...(messageID ? { messageID } : undefined),
           });
           if (!messageID) {
             runtimeMock.state.messages = [];
@@ -212,7 +218,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
           })(),
         }),
       },
-    }) as unknown as ReturnType<OpenCodeRuntimeShape["createOpenCodeSdkClient"]>,
+    }),
   loadOpenCodeInventory: () =>
     Effect.fail(
       new OpenCodeRuntimeError({
@@ -375,6 +381,7 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
       });
 
       // The prompt targets the resumed id, and the turn re-surfaces the cursor.
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       NodeAssert.deepEqual(
         (runtimeMock.state.promptCalls[0] as { sessionID: string }).sessionID,
         "ses_persisted",
@@ -510,7 +517,10 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
         NodeAssert.deepEqual(runtimeMock.state.sessionCreateUrls, []);
         NodeAssert.equal(runtimeMock.state.forkCalls.length, 1);
         NodeAssert.equal(runtimeMock.state.forkCalls[0]?.sessionID, "ses_otherdir");
-        NodeAssert.equal(typeof runtimeMock.state.forkCalls[0]?.directory, "string");
+        NodeAssert.equal(
+          RuntimePredicate.isString(runtimeMock.state.forkCalls[0]?.directory),
+          true,
+        );
         // Permission ruleset re-asserted on the fork for the current runtimeMode.
         NodeAssert.equal(runtimeMock.state.sessionUpdateCalls.length, 1);
         NodeAssert.equal(runtimeMock.state.sessionUpdateCalls[0]?.sessionID, "ses_otherdir_fork");
@@ -1237,6 +1247,7 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
       const nativeEventLogger = {
         filePath: "memory://opencode-native-events",
         write: (event: unknown, threadId: ThreadId | null) => {
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           nativeEvents.push(event as (typeof nativeEvents)[number]);
           nativeThreadIds.push(threadId ?? null);
           return Effect.void;

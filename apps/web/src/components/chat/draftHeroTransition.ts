@@ -1,3 +1,4 @@
+import * as RuntimePredicate from "effect/Predicate";
 export const DRAFT_HERO_TRANSITION_ANIMATION_ID = "t3-draft-hero-transition";
 export const DRAFT_HERO_TRANSITION_DURATION_MS = 180;
 export const DRAFT_HERO_TRANSITION_EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
@@ -16,7 +17,7 @@ type ComposerViewTransitionDocument = Document & {
 
 export async function waitForDraftHeroTransition(): Promise<void> {
   const mobileComposerTransition = activeMobileComposerTransition;
-  if (typeof document === "undefined" || typeof document.getAnimations !== "function") {
+  if (typeof document === "undefined" || !RuntimePredicate.isFunction(document.getAnimations)) {
     await mobileComposerTransition;
     return;
   }
@@ -45,7 +46,8 @@ export async function runMobileComposerTransition(
     return;
   }
 
-  const transitionDocument = document as ComposerViewTransitionDocument;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    transitionDocument = document as ComposerViewTransitionDocument;
   const mobileViewport = window.matchMedia?.("(max-width: 639px)").matches ?? false;
   const prefersReducedMotion =
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;

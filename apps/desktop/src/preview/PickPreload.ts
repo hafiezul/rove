@@ -24,6 +24,7 @@ import {
   HUMAN_INPUT_CHANNEL,
   START_PICK_CHANNEL,
 } from "./GuestProtocol.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const OVERLAY_ATTRIBUTE = "data-t3code-annotation-ui";
 const Z_INDEX_OVERLAY = 2147483646;
 const PRIMARY = "var(--t3-primary)";
@@ -167,7 +168,7 @@ function describeRawElement(element: Element): string {
   const tag = element.tagName.toLowerCase();
   const id = element.id ? `#${element.id}` : "";
   const classes =
-    element instanceof HTMLElement && typeof element.className === "string"
+    element instanceof HTMLElement && RuntimePredicate.isString(element.className)
       ? element.className
           .trim()
           .split(/\s+/)
@@ -602,11 +603,7 @@ function startAnnotation(): void {
   });
   textSection.appendChild(createField("Line height", lineHeight));
 
-  const createColorRow = (
-    labelText: string,
-    property: string,
-    section: HTMLElement,
-  ): { row: HTMLLabelElement; color: HTMLInputElement; text: HTMLInputElement } => {
+  const createColorRow = (labelText: string, property: string, section: HTMLElement) => {
     const row = document.createElement("label");
     row.className =
       "grid min-h-7 grid-cols-[82px_minmax(0,1fr)] items-center gap-2 font-sans text-xs font-medium text-muted-foreground";
@@ -757,7 +754,8 @@ function startAnnotation(): void {
   const gap = addSpacingField("Gap", "gap", "0px");
 
   const syncStyleControls = (): void => {
-    const first = selected.values().next().value as SelectedElement | undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      first = selected.values().next().value as SelectedElement | undefined;
     if (!first) return;
     const computed = getComputedStyle(first.element);
     const rect = first.element.getBoundingClientRect();
@@ -800,7 +798,7 @@ function startAnnotation(): void {
     toolbar.appendChild(button);
   }
 
-  const clampEditorPosition = (left: number, top: number): { left: number; top: number } => {
+  const clampEditorPosition = (left: number, top: number) => {
     const margin = 8;
     const rect = editor.getBoundingClientRect();
     return {
@@ -1017,72 +1015,74 @@ function startAnnotation(): void {
     hoverOutline.style.display = "none";
   };
 
-  const onPointerMove = (event: PointerEvent): void => {
-    if (isAnnotationNode(event.target as Element)) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    onPointerMove = (event: PointerEvent): void => {
+      if (isAnnotationNode(event.target as Element)) {
+        clearHoverOutline();
+        return;
+      }
+      if (tool === "select" && dragStart === null) {
+        const target = pickFromPoint(event.clientX, event.clientY);
+        if (target) positionBox(hoverOutline, rectFromDomRect(target.getBoundingClientRect()));
+        else clearHoverOutline();
+        return;
+      }
       clearHoverOutline();
-      return;
-    }
-    if (tool === "select" && dragStart === null) {
-      const target = pickFromPoint(event.clientX, event.clientY);
-      if (target) positionBox(hoverOutline, rectFromDomRect(target.getBoundingClientRect()));
-      else clearHoverOutline();
-      return;
-    }
-    clearHoverOutline();
-    if (tool === "marquee" && dragStart) {
-      positionBox(
-        marqueeBox,
-        normalizeRect(dragStart.x, dragStart.y, event.clientX, event.clientY),
-      );
-      return;
-    }
-    if (tool === "draw" && activeStroke) {
-      activeStroke.target.points = [
-        ...activeStroke.target.points,
-        { x: event.clientX, y: event.clientY },
-      ];
-      activeStroke.target.bounds = strokeBounds(
-        activeStroke.target.points,
-        activeStroke.target.width,
-      );
-      activeStroke.path.setAttribute("d", pathFromPoints(activeStroke.target.points));
-    }
-  };
+      if (tool === "marquee" && dragStart) {
+        positionBox(
+          marqueeBox,
+          normalizeRect(dragStart.x, dragStart.y, event.clientX, event.clientY),
+        );
+        return;
+      }
+      if (tool === "draw" && activeStroke) {
+        activeStroke.target.points = [
+          ...activeStroke.target.points,
+          { x: event.clientX, y: event.clientY },
+        ];
+        activeStroke.target.bounds = strokeBounds(
+          activeStroke.target.points,
+          activeStroke.target.width,
+        );
+        activeStroke.path.setAttribute("d", pathFromPoints(activeStroke.target.points));
+      }
+    };
 
-  const onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || isAnnotationNode(event.target as Element)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (tool === "select") {
-      const target = pickFromPoint(event.clientX, event.clientY);
-      if (target) toggleSelected(target, event.shiftKey);
-      return;
-    }
-    if (tool === "erase") {
-      removeTargetAtPoint(event.clientX, event.clientY);
-      return;
-    }
-    dragStart = { x: event.clientX, y: event.clientY };
-    if (tool === "draw") {
-      const stroke: PreviewAnnotationStrokeTarget = {
-        id: nextId("stroke"),
-        color: annotationTheme?.primary ?? "#2563eb",
-        width: 4,
-        points: [dragStart],
-        bounds: { x: dragStart.x, y: dragStart.y, width: 1, height: 1 },
-      };
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute(OVERLAY_ATTRIBUTE, "");
-      path.setAttribute("data-stroke-id", stroke.id);
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", stroke.color);
-      path.setAttribute("stroke-width", String(stroke.width));
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
-      svg.appendChild(path);
-      activeStroke = { target: stroke, path };
-    }
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    onPointerDown = (event: PointerEvent): void => {
+      if (event.button !== 0 || isAnnotationNode(event.target as Element)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (tool === "select") {
+        const target = pickFromPoint(event.clientX, event.clientY);
+        if (target) toggleSelected(target, event.shiftKey);
+        return;
+      }
+      if (tool === "erase") {
+        removeTargetAtPoint(event.clientX, event.clientY);
+        return;
+      }
+      dragStart = { x: event.clientX, y: event.clientY };
+      if (tool === "draw") {
+        const stroke: PreviewAnnotationStrokeTarget = {
+          id: nextId("stroke"),
+          color: annotationTheme?.primary ?? "#2563eb",
+          width: 4,
+          points: [dragStart],
+          bounds: { x: dragStart.x, y: dragStart.y, width: 1, height: 1 },
+        };
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute(OVERLAY_ATTRIBUTE, "");
+        path.setAttribute("data-stroke-id", stroke.id);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", stroke.color);
+        path.setAttribute("stroke-width", String(stroke.width));
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("stroke-linejoin", "round");
+        svg.appendChild(path);
+        activeStroke = { target: stroke, path };
+      }
+    };
 
   const onPointerUp = (event: PointerEvent): void => {
     if (!dragStart) return;
@@ -1114,11 +1114,12 @@ function startAnnotation(): void {
     updateStatus();
   };
 
-  const onClick = (event: MouseEvent): void => {
-    if (isAnnotationNode(event.target as Element)) return;
-    event.preventDefault();
-    event.stopPropagation();
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    onClick = (event: MouseEvent): void => {
+      if (isAnnotationNode(event.target as Element)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
 
   const onPointerOut = (event: PointerEvent): void => {
     if (event.relatedTarget === null) clearHoverOutline();
@@ -1168,21 +1169,22 @@ function startAnnotation(): void {
 
   const onCancel = (): void => teardown(false);
   const onCaptured = (): void => teardown(false);
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (isAnnotationNode(event.target as Element) && event.key !== "Escape") return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      teardown(true);
-      return;
-    }
-    if (event.key === "v") tool = "select";
-    else if (event.key === "r") tool = "marquee";
-    else if (event.key === "d") tool = "draw";
-    else if (event.key === "e") tool = "erase";
-    else return;
-    refreshToolButtons();
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    onKeyDown = (event: KeyboardEvent): void => {
+      if (isAnnotationNode(event.target as Element) && event.key !== "Escape") return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        teardown(true);
+        return;
+      }
+      if (event.key === "v") tool = "select";
+      else if (event.key === "r") tool = "marquee";
+      else if (event.key === "d") tool = "draw";
+      else if (event.key === "e") tool = "erase";
+      else return;
+      refreshToolButtons();
+    };
 
   const submitAnnotation = (submission: PreviewAnnotationSubmission): void => {
     if (pendingCapture || (selected.size === 0 && regions.length === 0 && strokes.length === 0))

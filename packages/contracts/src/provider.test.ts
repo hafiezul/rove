@@ -16,7 +16,7 @@ const decodeProviderEvent = Schema.decodeUnknownSync(ProviderEvent);
 function getOptionValue(
   options: ReadonlyArray<{ id: string; value: unknown }> | undefined,
   id: string,
-): unknown {
+) {
   return options?.find((option) => option.id === id)?.value;
 }
 

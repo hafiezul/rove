@@ -3,12 +3,17 @@ import type { NativeSyntheticEvent, ViewProps } from "react-native";
 import { requireNativeView, requireOptionalNativeModule } from "expo";
 
 import { NativeViewResolutionError } from "../../native/nativeViewResolutionError";
+import * as RuntimePredicate from "effect/Predicate";
 
 const NATIVE_TERMINAL_MODULE_NAME = "T3TerminalSurface";
 
+interface ExpoViewConfig {
+  readonly __expoViewConfig?: never;
+}
+
 interface ExpoGlobalWithViewConfig {
   readonly expo?: {
-    getViewConfig?: (moduleName: string, viewName?: string) => unknown;
+    getViewConfig?: (moduleName: string, viewName?: string) => ExpoViewConfig | undefined;
   };
 }
 
@@ -40,6 +45,7 @@ let cachedNativeTerminalSurfaceView: ComponentType<NativeTerminalSurfaceProps> |
 let nativeTerminalSurfaceViewResolutionFailed = false;
 
 function getExpoViewConfig(moduleName: string) {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (globalThis as typeof globalThis & ExpoGlobalWithViewConfig).expo?.getViewConfig?.(
     moduleName,
   );
@@ -83,7 +89,7 @@ export function resolveNativeTerminalSurfaceView(): ComponentType<NativeTerminal
  */
 export function getNativeTerminalHardwareKeyRevision(): number | null {
   try {
-    if (typeof requireOptionalNativeModule !== "function") {
+    if (!RuntimePredicate.isFunction(requireOptionalNativeModule)) {
       return null;
     }
     const module = requireOptionalNativeModule<{ readonly hardwareKeyRevision?: number }>(

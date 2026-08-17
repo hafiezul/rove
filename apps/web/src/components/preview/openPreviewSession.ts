@@ -24,7 +24,7 @@ export async function openPreviewSession<E>(
     environmentId: input.threadRef.environmentId,
     input: {
       threadId: input.threadRef.threadId,
-      ...(input.url === undefined ? {} : { url: input.url }),
+      ...(input.url === undefined ? undefined : { url: input.url }),
     },
   });
   if (result._tag === "Failure") {

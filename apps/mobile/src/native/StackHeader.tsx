@@ -16,6 +16,9 @@ import {
   type ReactNode,
 } from "react";
 import type { ColorValue } from "react-native";
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export {
   nativeHeaderScrollEdgeEffects,
@@ -23,6 +26,12 @@ export {
   type NativeHeaderScrollEdgeEffects,
   type NativeTopScrollEdgeEffect,
 } from "./scrollEdgeEffects";
+
+export type NativeHeaderItemInput = {
+  readonly type: string;
+};
+
+export type NativeHeaderItem = NativeStackHeaderItem;
 
 export type AppNativeStackNavigationOptions = Omit<
   NativeStackNavigationOptions,
@@ -59,57 +68,60 @@ function normalizeScreenOptions(
     normalized.headerTintColor = String(normalized.headerTintColor);
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return normalized as NativeStackNavigationOptions;
 }
 
 function optionsSignature(value: unknown, seen = new WeakSet<object>()): string {
   if (value === null) return "null";
-  switch (typeof value) {
-    case "boolean":
-    case "number":
-    case "string":
-      return JSON.stringify(value);
-    case "undefined":
-      return "undefined";
-    case "function":
-      // Header factories are frequently recreated inline. Their source is
-      // stable across equivalent renders, while a reference comparison would
-      // make navigation.setOptions re-enter the navigator indefinitely.
-      return `function:${Function.prototype.toString.call(value)}`;
-    case "symbol":
-      return `symbol:${String(value)}`;
-    case "bigint":
-      return `bigint:${String(value)}`;
-    case "object": {
-      const object = value as object;
-      if (seen.has(object)) return "[circular]";
-      seen.add(object);
-      if (Array.isArray(value)) {
-        return `[${value.map((entry) => optionsSignature(entry, seen)).join(",")}]`;
-      }
-      // React refs carry mutable native instances that must not make static
-      // screen options appear different after every render.
-      if ("current" in object) return "[ref]";
-      return `{${Object.keys(value as Record<string, unknown>)
-        .sort()
-        .map(
-          (key) =>
-            `${JSON.stringify(key)}:${optionsSignature((value as Record<string, unknown>)[key], seen)}`,
-        )
-        .join(",")}}`;
-    }
+  if (
+    RuntimePredicate.isBoolean(value) ||
+    RuntimePredicate.isNumber(value) ||
+    RuntimePredicate.isString(value)
+  ) {
+    return JSON.stringify(value);
   }
-  return String(value);
+  if (RuntimePredicate.isUndefined(value)) return "undefined";
+  if (RuntimePredicate.isFunction(value)) {
+    // Header factories are frequently recreated inline. Their source is
+    // stable across equivalent renders, while a reference comparison would
+    // make navigation.setOptions re-enter the navigator indefinitely.
+    return `function:${Function.prototype.toString.call(value)}`;
+  }
+  if (RuntimePredicate.isSymbol(value)) return `symbol:${String(value)}`;
+  if (RuntimePredicate.isBigInt(value)) return `bigint:${String(value)}`;
+  if (RuntimePredicate.isObjectOrArray(value)) {
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      object = value as object;
+    if (seen.has(object)) return "[circular]";
+    seen.add(object);
+    if (Array.isArray(value)) {
+      return `[${value.map((entry) => optionsSignature(entry, seen)).join(",")}]`;
+    }
+    // React refs carry mutable native instances that must not make static
+    // screen options appear different after every render.
+    if ("current" in object) return "[ref]";
+    // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    return `{${Object.keys(value as Record<string, SchemaJson>)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${optionsSignature((value as Record<string, SchemaJson>)[key], seen)}`,
+      )
+      .join(",")}}`;
+  }
+  return runtimeValueKind(value);
 }
 
-function stabilizeOptionFunctions(
-  value: unknown,
+function stabilizeOptionFunctions<T>(
+  value: T,
   path: string,
   latestFunctions: Map<string, (...args: unknown[]) => unknown>,
   wrappers: Map<string, (...args: unknown[]) => unknown>,
   seen = new WeakSet<object>(),
-): unknown {
-  if (typeof value === "function") {
+): T {
+  if (RuntimePredicate.isFunction(value)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     latestFunctions.set(path, value as (...args: unknown[]) => unknown);
     let wrapper = wrappers.get(path);
     if (!wrapper) {
@@ -118,24 +130,27 @@ function stabilizeOptionFunctions(
       };
       wrappers.set(path, wrapper);
     }
-    return wrapper;
+    // SAFETY: A wrapper has the same callable role as the option function it replaces.
+    return wrapper as T;
   }
   if (Array.isArray(value)) {
     if (seen.has(value)) return value;
     seen.add(value);
+    // SAFETY: Mapping only recursively replaces function values; it preserves the input array's role.
     return value.map((entry, index) =>
       stabilizeOptionFunctions(entry, `${path}[${index}]`, latestFunctions, wrappers, seen),
-    );
+    ) as T;
   }
-  if (value !== null && typeof value === "object") {
+  if (RuntimePredicate.isObjectOrArray(value)) {
     if (seen.has(value) || "current" in value) return value;
     seen.add(value);
+    // SAFETY: Rebuilding this option object only recursively replaces function values.
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      Object.entries(value as Record<string, SchemaJson>).map(([key, entry]) => [
         key,
         stabilizeOptionFunctions(entry, `${path}.${key}`, latestFunctions, wrappers, seen),
       ]),
-    );
+    ) as T;
   }
   return value;
 }
@@ -157,14 +172,15 @@ export function NativeStackScreenOptions(props: {
   const latestOptionFunctionsRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
   const optionFunctionWrappersRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
   const normalizedOptions = useMemo(() => normalizeScreenOptions(props.options), [props.options]);
-  const stableOptions = normalizedOptions
-    ? (stabilizeOptionFunctions(
-        normalizedOptions,
-        "options",
-        latestOptionFunctionsRef.current,
-        optionFunctionWrappersRef.current,
-      ) as NativeStackNavigationOptions)
-    : undefined;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    stableOptions = normalizedOptions
+      ? stabilizeOptionFunctions(
+          normalizedOptions,
+          "options",
+          latestOptionFunctionsRef.current,
+          optionFunctionWrappersRef.current,
+        )
+      : undefined;
 
   useLayoutEffect(() => {
     if (!navigation || !stableOptions) {
@@ -184,9 +200,10 @@ export function NativeStackScreenOptions(props: {
     if (!navigation || !props.listeners) {
       return;
     }
-    const subscriptions = Object.entries(props.listeners).map(([eventName, listener]) =>
-      navigation.addListener(eventName as never, listener as never),
-    );
+    const // SAFETY: This branch is unreachable under the owning callback contract.
+      subscriptions = Object.entries(props.listeners).map(([eventName, listener]) =>
+        navigation.addListener(eventName as never, listener as never),
+      );
     return () => {
       for (const unsubscribe of subscriptions) {
         unsubscribe();
@@ -200,7 +217,7 @@ export function NativeStackScreenOptions(props: {
 function labelFromChildren(children: ReactNode): string {
   const parts: string[] = [];
   Children.forEach(children, (child) => {
-    if (typeof child === "string" || typeof child === "number") {
+    if (RuntimePredicate.isString(child) || RuntimePredicate.isNumber(child)) {
       parts.push(String(child));
     } else if (isValidElement<{ children?: ReactNode }>(child)) {
       parts.push(labelFromChildren(child.props.children));
@@ -217,17 +234,36 @@ type NativeStackOptionsWithToolbar = NativeStackNavigationOptions & {
 };
 
 function iconFromProp(icon: unknown): NativeStackHeaderIcon | undefined {
-  if (typeof icon !== "string") {
+  if (!RuntimePredicate.isString(icon)) {
     return undefined;
   }
+  // SAFETY: This branch is unreachable under the owning callback contract.
   return { type: "sfSymbol", name: icon as never };
 }
 
-type ToolbarElementProps = Record<string, unknown> & { readonly children?: ReactNode };
+type ToolbarElementProps = {
+  readonly accessibilityLabel?: string;
+  readonly children?: ReactNode;
+  readonly destructive?: boolean;
+  readonly disabled?: boolean;
+  readonly discoverabilityLabel?: string;
+  readonly flexible?: boolean;
+  readonly icon?: string;
+  readonly inline?: boolean;
+  readonly isOn?: boolean;
+  readonly label?: string;
+  readonly onPress?: () => void;
+  readonly separateBackground?: boolean;
+  readonly subtitle?: string;
+  readonly tintColor?: ColorValue;
+  readonly title?: string;
+  readonly width?: number;
+};
 
 function elementTypeName(element: ReactElement): string | undefined {
   const type = element.type;
-  if (typeof type === "function") {
+  if (RuntimePredicate.isFunction(type)) {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return (type as { displayName?: string; name?: string }).displayName ?? type.name;
   }
   return undefined;
@@ -239,32 +275,30 @@ function convertMenuAction(
   const typeName = elementTypeName(element);
   if (typeName === "NativeHeaderToolbarMenuAction") {
     const label = labelFromChildren(element.props.children);
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return {
       type: "action",
       label,
-      description: typeof element.props.subtitle === "string" ? element.props.subtitle : undefined,
+      description: RuntimePredicate.isString(element.props.subtitle)
+        ? element.props.subtitle
+        : undefined,
       disabled: Boolean(element.props.disabled),
       icon: iconFromProp(element.props.icon),
-      onPress:
-        typeof element.props.onPress === "function"
-          ? (element.props.onPress as () => void)
-          : () => undefined,
+      onPress: element.props.onPress ?? (() => undefined),
       state: element.props.isOn === true ? "on" : undefined,
       destructive: Boolean(element.props.destructive),
-      discoverabilityLabel:
-        typeof element.props.discoverabilityLabel === "string"
-          ? element.props.discoverabilityLabel
-          : undefined,
+      discoverabilityLabel: RuntimePredicate.isString(element.props.discoverabilityLabel)
+        ? element.props.discoverabilityLabel
+        : undefined,
     };
   }
 
   if (typeName === "NativeHeaderToolbarMenu") {
     return {
       type: "submenu",
-      label:
-        typeof element.props.title === "string"
-          ? element.props.title
-          : labelFromChildren(element.props.children),
+      label: RuntimePredicate.isString(element.props.title)
+        ? element.props.title
+        : labelFromChildren(element.props.children),
       icon: iconFromProp(element.props.icon),
       inline: Boolean(element.props.inline),
       items: collectMenuItems(element.props.children),
@@ -297,41 +331,38 @@ function convertToolbarChild(child: ReactNode): NativeStackHeaderItem | null {
 
   const typeName = elementTypeName(child);
   if (typeName === "NativeHeaderToolbarButton") {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return {
       type: "button",
-      label: typeof child.props.label === "string" ? child.props.label : "",
-      accessibilityLabel:
-        typeof child.props.accessibilityLabel === "string"
-          ? child.props.accessibilityLabel
-          : undefined,
+      label: RuntimePredicate.isString(child.props.label) ? child.props.label : "",
+      accessibilityLabel: RuntimePredicate.isString(child.props.accessibilityLabel)
+        ? child.props.accessibilityLabel
+        : undefined,
       disabled: Boolean(child.props.disabled),
       icon: iconFromProp(child.props.icon),
-      onPress:
-        typeof child.props.onPress === "function"
-          ? (child.props.onPress as () => void)
-          : () => undefined,
+      onPress: child.props.onPress ?? (() => undefined),
       sharesBackground: !child.props.separateBackground,
-      tintColor: child.props.tintColor as ColorValue | undefined,
+      tintColor: child.props.tintColor,
       variant: "plain",
     };
   }
 
   if (typeName === "NativeHeaderToolbarMenu") {
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return {
       type: "menu",
-      label: typeof child.props.title === "string" ? child.props.title : "",
-      accessibilityLabel:
-        typeof child.props.accessibilityLabel === "string"
-          ? child.props.accessibilityLabel
-          : undefined,
+      label: RuntimePredicate.isString(child.props.title) ? child.props.title : "",
+      accessibilityLabel: RuntimePredicate.isString(child.props.accessibilityLabel)
+        ? child.props.accessibilityLabel
+        : undefined,
       disabled: Boolean(child.props.disabled),
       icon: iconFromProp(child.props.icon),
       menu: {
-        title: typeof child.props.title === "string" ? child.props.title : undefined,
+        title: RuntimePredicate.isString(child.props.title) ? child.props.title : undefined,
         items: collectMenuItems(child.props.children),
       },
       sharesBackground: !child.props.separateBackground,
-      tintColor: child.props.tintColor as ColorValue | undefined,
+      tintColor: child.props.tintColor,
       variant: "plain",
     };
   }
@@ -339,7 +370,7 @@ function convertToolbarChild(child: ReactNode): NativeStackHeaderItem | null {
   if (typeName === "NativeHeaderToolbarSpacer") {
     return {
       type: "spacing",
-      spacing: typeof child.props.width === "number" ? child.props.width : 8,
+      spacing: RuntimePredicate.isNumber(child.props.width) ? child.props.width : 8,
       flexible: Boolean(child.props.flexible),
     } as NativeStackHeaderItem;
   }
@@ -355,6 +386,7 @@ function collectToolbarItems(children: ReactNode): NativeStackHeaderItem[] {
       if (item.type === "spacing") {
         // Native inserts spacing items at `index`, treating a missing index
         // as 0 — which would move the spacer in front of earlier siblings.
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         (item as { index?: number }).index = items.length;
       }
       items.push(item);

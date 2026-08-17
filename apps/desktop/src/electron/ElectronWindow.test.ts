@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { assert, describe, it } from "@effect/vitest";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as Cause from "effect/Cause";
@@ -32,10 +33,10 @@ const TestLayer = ElectronWindow.layer.pipe(
 );
 
 function makeBrowserWindow(input: { readonly id: number; readonly destroyed: boolean }) {
-  return {
+  return testDouble<Electron.BrowserWindow>({
     id: input.id,
     isDestroyed: vi.fn(() => input.destroyed),
-  } as unknown as Electron.BrowserWindow;
+  });
 }
 
 describe("ElectronWindow", () => {
@@ -155,14 +156,14 @@ describe("ElectronWindow", () => {
   it.effect("preserves reveal failures with the target window", () =>
     Effect.gen(function* () {
       const cause = new Error("window restore failed");
-      const window = {
+      const window = testDouble<Electron.BrowserWindow>({
         id: 41,
         isDestroyed: vi.fn(() => false),
         isMinimized: vi.fn(() => true),
         restore: vi.fn(() => {
           throw cause;
         }),
-      } as unknown as Electron.BrowserWindow;
+      });
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;
       const exit = yield* Effect.exit(electronWindow.reveal(window));
@@ -182,7 +183,7 @@ describe("ElectronWindow", () => {
   it.effect("preserves message delivery failures with window and channel context", () =>
     Effect.gen(function* () {
       const cause = new Error("renderer send failed");
-      const window = {
+      const window = testDouble<Electron.BrowserWindow>({
         id: 42,
         isDestroyed: vi.fn(() => false),
         webContents: {
@@ -190,7 +191,7 @@ describe("ElectronWindow", () => {
             throw cause;
           }),
         },
-      } as unknown as Electron.BrowserWindow;
+      });
       getAllWindowsMock.mockReturnValueOnce([window]);
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;
@@ -211,12 +212,12 @@ describe("ElectronWindow", () => {
   it.effect("preserves destroy failures with the target window", () =>
     Effect.gen(function* () {
       const cause = new Error("window destroy failed");
-      const window = {
+      const window = testDouble<Electron.BrowserWindow>({
         id: 43,
         destroy: vi.fn(() => {
           throw cause;
         }),
-      } as unknown as Electron.BrowserWindow;
+      });
       getAllWindowsMock.mockReturnValueOnce([window]);
 
       const electronWindow = yield* ElectronWindow.ElectronWindow;

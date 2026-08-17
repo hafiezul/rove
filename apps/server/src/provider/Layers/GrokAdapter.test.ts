@@ -27,6 +27,8 @@ import {
 
 import { ServerConfig } from "../../config.ts";
 import { grokPromptSettlementBelongsToContext, makeGrokAdapter } from "./GrokAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const decodeGrokSettings = Schema.decodeSync(GrokSettings);
 
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
@@ -75,11 +77,12 @@ function waitForFileContent(
 
 async function readJsonLines(filePath: string) {
   const raw = await NodeFSP.readFile(filePath, "utf8");
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return raw
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
+    .map((line) => JSON.parse(line) as Record<string, SchemaJson>);
 }
 
 const grokAdapterTestLayer = ServerConfig.layerTest(process.cwd(), {
@@ -1082,10 +1085,11 @@ it.layer(grokAdapterTestLayer)("GrokAdapterLive", (it) => {
         requests.some(
           (entry) =>
             !("method" in entry) &&
-            typeof entry.result === "object" &&
+            (RuntimePredicate.isObjectOrArray(entry.result) || entry.result === null) &&
             entry.result !== null &&
             "outcome" in entry.result &&
-            typeof entry.result.outcome === "object" &&
+            (RuntimePredicate.isObjectOrArray(entry.result.outcome) ||
+              entry.result.outcome === null) &&
             entry.result.outcome !== null &&
             "optionId" in entry.result.outcome &&
             entry.result.outcome.optionId === "agent-defined-approval-id",
@@ -1167,10 +1171,9 @@ it.layer(grokAdapterTestLayer)("GrokAdapterLive", (it) => {
         nativeEventLogger: {
           filePath: "memory://grok-native-events",
           write: (record: unknown) =>
-            typeof record === "object" &&
-            record !== null &&
+            RuntimePredicate.isObjectOrArray(record) &&
             "event" in record &&
-            typeof record.event === "object" &&
+            (RuntimePredicate.isObjectOrArray(record.event) || record.event === null) &&
             record.event !== null &&
             "kind" in record.event &&
             record.event.kind === "notification"

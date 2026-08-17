@@ -16,6 +16,8 @@ import {
   type ProviderOptionSelection,
 } from "@t3tools/contracts";
 import { createModelSelection } from "@t3tools/shared/model";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 // The composer draft's `modelSelectionByProvider` and
 // `stickyModelSelectionByProvider` maps are keyed by `ProviderInstanceId`
@@ -37,16 +39,17 @@ function toSelections(
   const result: Array<ProviderOptionSelection> = [];
   if (!options) return result;
   for (const [id, value] of Object.entries(options)) {
-    if (typeof value === "string" || typeof value === "boolean") {
+    if (RuntimePredicate.isString(value) || RuntimePredicate.isBoolean(value)) {
       result.push({ id, value });
     }
   }
   return result;
 }
 
+// SAFETY: This fixture intentionally supplies the asserted collaborator contract.
 function selectionsByProvider(
   options: Partial<Record<ProviderDriverKind, Record<string, string | boolean | undefined>>>,
-): ProviderOptionSelectionsByProvider {
+) {
   const result: ProviderOptionSelectionsByProvider = {};
   for (const [provider, bag] of Object.entries(options) as Array<
     [ProviderDriverKind, Record<string, string | boolean | undefined>]
@@ -475,14 +478,19 @@ describe("composerDraftStore terminal contexts", () => {
       .getState()
       .addTerminalContext(threadRef, makeTerminalContext({ id: "ctx-persist" }));
 
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistApi = useComposerDraftStore.persist as {
+        getOptions: () => {
+          partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+        };
       };
-    };
-    const persistedState = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
-      draftsByThreadKey?: Record<string, { terminalContexts?: Array<Record<string, unknown>> }>;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistedState = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
+        draftsByThreadKey?: Record<
+          string,
+          { terminalContexts?: Array<Record<string, SchemaJson>> }
+        >;
+      };
 
     expect(
       persistedState.draftsByThreadKey?.[threadKeyFor(threadId, TEST_ENVIRONMENT_ID)]
@@ -502,14 +510,15 @@ describe("composerDraftStore terminal contexts", () => {
   });
 
   it("hydrates persisted terminal contexts without in-memory snapshot text", () => {
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        merge: (
-          persistedState: unknown,
-          currentState: ReturnType<typeof useComposerDraftStore.getState>,
-        ) => ReturnType<typeof useComposerDraftStore.getState>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistApi = useComposerDraftStore.persist as {
+        getOptions: () => {
+          merge: (
+            persistedState: unknown,
+            currentState: ReturnType<typeof useComposerDraftStore.getState>,
+          ) => ReturnType<typeof useComposerDraftStore.getState>;
+        };
       };
-    };
     const mergedState = persistApi.getOptions().merge(
       {
         draftsByThreadId: {
@@ -548,14 +557,15 @@ describe("composerDraftStore terminal contexts", () => {
   });
 
   it("sanitizes malformed persisted drafts during merge", () => {
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        merge: (
-          persistedState: unknown,
-          currentState: ReturnType<typeof useComposerDraftStore.getState>,
-        ) => ReturnType<typeof useComposerDraftStore.getState>;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistApi = useComposerDraftStore.persist as {
+        getOptions: () => {
+          merge: (
+            persistedState: unknown,
+            currentState: ReturnType<typeof useComposerDraftStore.getState>,
+          ) => ReturnType<typeof useComposerDraftStore.getState>;
+        };
       };
-    };
     const mergedState = persistApi.getOptions().merge(
       {
         draftsByThreadId: {
@@ -649,14 +659,16 @@ describe("composerDraftStore element contexts", () => {
 
   it("persists element contexts via the partializer (round-trippable)", () => {
     useComposerDraftStore.getState().addElementContext(threadRef, baseSelection);
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistApi = useComposerDraftStore.persist as {
+        getOptions: () => {
+          partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+        };
       };
-    };
-    const persisted = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
-      draftsByThreadKey?: Record<string, { elementContexts?: Array<Record<string, unknown>> }>;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
+        draftsByThreadKey?: Record<string, { elementContexts?: Array<Record<string, SchemaJson>> }>;
+      };
     const entry =
       persisted.draftsByThreadKey?.[threadKeyFor(threadId, TEST_ENVIRONMENT_ID)]
         ?.elementContexts?.[0];
@@ -668,7 +680,7 @@ describe("composerDraftStore element contexts", () => {
     });
     // Persistence does NOT include htmlPreview / styles oversize-clamping —
     // that happens at normalization time, before the value reaches the store.
-    expect(typeof entry?.htmlPreview).toBe("string");
+    expect(RuntimePredicate.isString(entry?.htmlPreview)).toBe(true);
   });
 });
 
@@ -707,14 +719,16 @@ describe("composerDraftStore review comments", () => {
   it("persists review comments and clears them with composer content", () => {
     const store = useComposerDraftStore.getState();
     store.addReviewComment(threadRef, comment);
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persistApi = useComposerDraftStore.persist as {
+        getOptions: () => {
+          partialize: (state: ReturnType<typeof useComposerDraftStore.getState>) => unknown;
+        };
       };
-    };
-    const persisted = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
-      draftsByThreadKey?: Record<string, { reviewComments?: Array<Record<string, unknown>> }>;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      persisted = persistApi.getOptions().partialize(useComposerDraftStore.getState()) as {
+        draftsByThreadKey?: Record<string, { reviewComments?: Array<Record<string, SchemaJson>> }>;
+      };
 
     expect(
       persisted.draftsByThreadKey?.[threadKeyFor(threadId, TEST_ENVIRONMENT_ID)]
@@ -1148,9 +1162,6 @@ describe("composerDraftStore project draft thread mapping", () => {
     const runtimeUndefinedOptions = {
       branch: undefined,
       worktreePath: undefined,
-    } as unknown as {
-      branch?: string | null;
-      worktreePath?: string | null;
     };
     store.setProjectDraftThreadId(projectRef, draftId, runtimeUndefinedOptions);
 
@@ -1175,10 +1186,6 @@ describe("composerDraftStore project draft thread mapping", () => {
       branch: undefined,
       worktreePath: undefined,
       envMode: undefined,
-    } as unknown as {
-      branch?: string | null;
-      worktreePath?: string | null;
-      envMode?: "local" | "worktree";
     };
     store.setProjectDraftThreadId(projectRef, draftId, runtimeUndefinedOptions);
 

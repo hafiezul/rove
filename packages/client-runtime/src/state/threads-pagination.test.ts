@@ -21,6 +21,7 @@ import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import {
   AVAILABLE_CONNECTION_STATE,
   PrimaryConnectionTarget,
@@ -38,6 +39,7 @@ import {
   ThreadSnapshotLoader,
   type EnvironmentThreadState,
 } from "./threads.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const TARGET = new PrimaryConnectionTarget({
   environmentId: EnvironmentId.make("environment-1"),
@@ -56,6 +58,7 @@ const PREPARED: PreparedConnection = {
 };
 
 function message(id: string, turnId: string, createdAt: string): OrchestrationMessage {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     id: id as OrchestrationMessage["id"],
     role: "assistant",
@@ -139,7 +142,7 @@ const makeHarness = Effect.fn("TestThreadPagination.makeHarness")(function* (opt
   const inputs = yield* Queue.unbounded<OrchestrationThreadStreamItem>();
   const observed = yield* Queue.unbounded<EnvironmentThreadState>();
   const loaderWindows = yield* Ref.make<ReadonlyArray<ThreadSnapshotWindow | undefined>>([]);
-  const lastSubscribeInput = yield* Ref.make<Record<string, unknown> | undefined>(undefined);
+  const lastSubscribeInput = yield* Ref.make<Record<string, SchemaJson> | undefined>(undefined);
   const savedThreads = yield* Ref.make<ReadonlyArray<OrchestrationThreadDetailSnapshot>>([]);
   // Older-page responses resolve through deferreds so tests can interleave
   // live events with an in-flight page fetch.
@@ -148,11 +151,11 @@ const makeHarness = Effect.fn("TestThreadPagination.makeHarness")(function* (opt
     AVAILABLE_CONNECTION_STATE,
   );
   const client = {
-    [ORCHESTRATION_WS_METHODS.subscribeThread]: (input: Record<string, unknown>) =>
+    [ORCHESTRATION_WS_METHODS.subscribeThread]: (input: Record<string, SchemaJson>) =>
       Stream.unwrap(Ref.set(lastSubscribeInput, input).pipe(Effect.as(Stream.fromQueue(inputs)))),
-  } as unknown as WsRpcProtocolClient;
+  };
   const session: RpcSession.RpcSession = {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.succeed({
       threadSnapshotPagination: options?.paginationCapability !== false,
     } as never),

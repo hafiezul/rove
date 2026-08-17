@@ -52,10 +52,13 @@ function ChecksBody({ checks }: { checks: ReadonlyArray<PullRequestCheck> }) {
   }
   return (
     <ul className="flex flex-col gap-1">
-      {/* Keyed by position as well as by name: the host is the one that decides how many runs
-          share a name, and a repeated key is a rendering fault rather than a wrong list. */}
-      {checks.map((check, index) => (
-        <li key={`${index}:${check.name}`} className="flex items-center gap-2 text-xs">
+      {/* The host's check payload has no run id, so all observable fields form its stable key.
+          Truly identical rows are interchangeable to React. */}
+      {checks.map((check) => (
+        <li
+          key={`${check.name}:${check.status}:${check.url ?? ""}:${check.description ?? ""}`}
+          className="flex items-center gap-2 text-xs"
+        >
           <PullRequestCheckStatusIcon status={check.status} />
           <span className="min-w-0 flex-1 truncate" title={check.description ?? check.name}>
             {check.name}

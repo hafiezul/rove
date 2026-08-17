@@ -8,5 +8,6 @@ import { useCSSVariable } from "uniwind";
  * Usage: `const color = useThemeColor("--color-icon");`
  */
 export function useThemeColor(variable: `--color-${string}`): ColorValue {
-  return useCSSVariable(variable) as string as ColorValue;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  return useCSSVariable(variable) as ColorValue;
 }

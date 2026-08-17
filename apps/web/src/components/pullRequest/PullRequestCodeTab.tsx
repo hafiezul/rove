@@ -246,8 +246,8 @@ export function PullRequestCodeTab({
       environmentId,
       input: {
         ...reference,
-        ...(cursor === null ? {} : { cursor }),
-        ...(commit === null ? {} : { commit }),
+        ...(cursor === null ? undefined : { cursor }),
+        ...(commit === null ? undefined : { commit }),
       },
     }),
   );
@@ -298,7 +298,7 @@ export function PullRequestCodeTab({
   const refreshFirstDiffPage = useAtomRefresh(
     pullRequestEnvironment.diff({
       environmentId,
-      input: { ...reference, ...(commit === null ? {} : { commit }) },
+      input: { ...reference, ...(commit === null ? undefined : { commit }) },
     }),
   );
   const appliedRefreshToken = useRef(refreshToken);
@@ -864,7 +864,7 @@ export function PullRequestCodeTab({
               addComment(reviewKey, {
                 id: nextPendingReviewCommentId(),
                 path: draft.path,
-                ...(draft.oldPath === null ? {} : { oldPath: draft.oldPath }),
+                ...(draft.oldPath === null ? undefined : { oldPath: draft.oldPath }),
                 line: draft.line,
                 side: draft.side,
                 body,

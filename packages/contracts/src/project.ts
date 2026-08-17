@@ -98,11 +98,15 @@ type ProjectEntriesFailureContext = {
   readonly timeout?: string;
   readonly detail?: string;
   readonly cause?: unknown;
+  readonly message?: string;
 };
 
-function decodedProjectErrorMessage(props: object): string | undefined {
-  if (!("message" in props)) return undefined;
-  return typeof props.message === "string" ? props.message : undefined;
+type LegacyErrorMessage = {
+  readonly message?: string;
+};
+
+function decodedProjectErrorMessage(props: LegacyErrorMessage): string | undefined {
+  return props.message;
 }
 
 export class ProjectSearchEntriesError extends Schema.TaggedErrorClass<ProjectSearchEntriesError>()(
@@ -235,6 +239,7 @@ type ProjectFileFailureContext = {
   readonly operation?: ProjectFileOperation;
   readonly operationPath?: string;
   readonly cause?: unknown;
+  readonly message?: string;
 };
 
 export class ProjectReadFileError extends Schema.TaggedErrorClass<ProjectReadFileError>()(

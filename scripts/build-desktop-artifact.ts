@@ -41,6 +41,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
@@ -102,6 +103,35 @@ interface PlatformConfig {
   readonly archChoices: ReadonlyArray<typeof BuildArch.Type>;
 }
 
+interface PlatformConfigByPlatform {
+  readonly mac: PlatformConfig;
+  readonly linux: PlatformConfig;
+  readonly win: PlatformConfig;
+}
+
+interface DesktopBuildConfig {
+  readonly appId: string;
+  readonly productName: string;
+  readonly artifactName: string;
+  readonly electronLanguages: ReadonlyArray<string>;
+  readonly files: ReadonlyArray<string>;
+  readonly directories: { readonly buildResources: string };
+  readonly extraResources: ReadonlyArray<{ readonly from: string; readonly to: string }>;
+  readonly asarUnpack?: ReadonlyArray<string>;
+  publish?: unknown;
+  mac?: unknown;
+  linux?: unknown;
+  npmRebuild?: boolean;
+  win?: unknown;
+}
+
+interface WindowsDesktopBuildConfig {
+  readonly target: ReadonlyArray<string>;
+  readonly icon: string;
+  readonly signAndEditExecutable: boolean;
+  azureSignOptions?: unknown;
+}
+
 export function resolveResourceMonitorRustTargets(
   platform: typeof BuildPlatform.Type,
   arch: typeof BuildArch.Type,
@@ -122,7 +152,7 @@ export function resourceMonitorExecutableName(platform: typeof BuildPlatform.Typ
   return platform === "win" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
 }
 
-const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
+const PLATFORM_CONFIG: PlatformConfigByPlatform = {
   mac: {
     cliFlag: "--mac",
     defaultTarget: "dmg",
@@ -138,7 +168,7 @@ const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
     defaultTarget: "nsis",
     archChoices: ["x64", "arm64"],
   },
-};
+} satisfies Record<typeof BuildPlatform.Type, PlatformConfig>;
 
 interface BuildCliInput {
   readonly platform: Option.Option<typeof BuildPlatform.Type>;
@@ -672,8 +702,8 @@ interface StagePackageJson {
   readonly description: string;
   readonly author: string;
   readonly main: string;
-  readonly build: Record<string, unknown>;
-  readonly dependencies: Record<string, unknown>;
+  readonly build: DesktopBuildConfig;
+  readonly dependencies: Record<string, SchemaJson>;
   readonly devDependencies: {
     readonly electron: string;
   };
@@ -1047,17 +1077,17 @@ export function createStageWorkspaceConfig(input: {
 
   return {
     supportedArchitectures,
-    ...(allowBuilds && Object.keys(allowBuilds).length > 0 ? { allowBuilds } : {}),
+    ...(allowBuilds && Object.keys(allowBuilds).length > 0 ? { allowBuilds } : undefined),
     ...(patchedDependencies && Object.keys(patchedDependencies).length > 0
       ? { patchedDependencies }
-      : {}),
-    ...(overrides && Object.keys(overrides).length > 0 ? { overrides } : {}),
+      : undefined),
+    ...(overrides && Object.keys(overrides).length > 0 ? { overrides } : undefined),
   };
 }
 
 export function createStagePatchedDependencies(
   patchedDependencies: Record<string, string>,
-  dependencies: Record<string, unknown>,
+  dependencies: Record<string, SchemaJson>,
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(patchedDependencies).filter(([patchKey]) =>
@@ -1234,8 +1264,8 @@ const runCommand = Effect.fn("runCommand")(function* (
     return yield* new BuildCommandFailedError({
       command: options.label,
       exitCode,
-      ...(stdout.trim() ? { stdoutTail: stdout } : {}),
-      ...(stderr.trim() ? { stderrTail: stderr } : {}),
+      ...(stdout.trim() ? { stdoutTail: stdout } : undefined),
+      ...(stderr.trim() ? { stderrTail: stderr } : undefined),
     });
   }
 });
@@ -1804,7 +1834,7 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     owner,
     repo,
     releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : undefined),
   };
 });
 
@@ -1869,7 +1899,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       }
     | undefined,
 ) {
-  const buildConfig: Record<string, unknown> = {
+  const buildConfig: DesktopBuildConfig = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
     artifactName: "T3-Code-${version}-${arch}.${ext}",
@@ -1881,7 +1911,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // Only the Windows WSL backend needs files outside the asar (see
     // WINDOWS_ASAR_UNPACK); macOS and Linux stay packed — smart unpack
     // extracts native libraries, which fff-node finds in app.asar.unpacked.
-    ...(platform === "win" ? { asarUnpack: [...WINDOWS_ASAR_UNPACK] } : {}),
+    ...(platform === "win" ? { asarUnpack: [...WINDOWS_ASAR_UNPACK] } : undefined),
     extraResources: DESKTOP_EXTRA_RESOURCES,
   };
   const updateChannel = resolveDesktopUpdateChannel(version);
@@ -1913,7 +1943,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
             entitlements: macPasskeySigning.entitlementsPath,
             provisioningProfile: macPasskeySigning.provisioningProfilePath,
           }
-        : {}),
+        : undefined),
     };
   }
 
@@ -1942,7 +1972,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 
   if (platform === "win") {
     buildConfig.npmRebuild = false;
-    const winConfig: Record<string, unknown> = {
+    const winConfig: WindowsDesktopBuildConfig = {
       target: [target],
       icon: "icon.ico",
       // Resource editing applies the product metadata and icon independently
@@ -2301,7 +2331,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
           options.arch,
           serverPackageJson.dependencies["@ff-labs/fff-node"],
         )
-      : {}),
+      : undefined),
   };
   const stagePatchedDependencies = createStagePatchedDependencies(
     workspacePatchedDependencies,

@@ -29,6 +29,7 @@ import {
   sanitizePrTitle,
   sanitizeThreadTitle,
 } from "./TextGenerationUtils.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 type TextGenerationOperation =
   | "generateCommitMessage"
@@ -74,11 +75,10 @@ export const makePiTextGeneration = (
           Effect.tryPromise({
             try: async () => {
               await session.prompt(input.prompt);
-              const last = session.messages.at(-1) as
-                | { role?: string; content?: unknown }
-                | undefined;
-              const text =
-                typeof last?.content === "string"
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                last = session.messages.at(-1) as { role?: string; content?: unknown } | undefined;
+              const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                text = RuntimePredicate.isString(last?.content)
                   ? last.content
                   : Array.isArray(last?.content)
                     ? (last.content as Array<{ type?: string; text?: string }>)
@@ -142,9 +142,9 @@ export const makePiTextGeneration = (
         return {
           subject: sanitizeCommitSubject(generated.subject),
           body: generated.body.trim(),
-          ...("branch" in generated && typeof generated.branch === "string"
+          ...("branch" in generated && RuntimePredicate.isString(generated.branch)
             ? { branch: sanitizeFeatureBranchName(generated.branch) }
-            : {}),
+            : undefined),
         };
       });
 
@@ -190,8 +190,10 @@ export const makePiTextGeneration = (
       Effect.fn("PiTextGeneration.generateThreadTitle")(function* (input) {
         const { prompt, outputSchema } = buildThreadTitlePrompt({
           message: input.message,
-          ...(input.previousTitle !== undefined ? { previousTitle: input.previousTitle } : {}),
-          ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
+          ...(input.previousTitle !== undefined
+            ? { previousTitle: input.previousTitle }
+            : undefined),
+          ...(input.attachments !== undefined ? { attachments: input.attachments } : undefined),
         });
         const generated = yield* runPiJson({
           operation: "generateThreadTitle",

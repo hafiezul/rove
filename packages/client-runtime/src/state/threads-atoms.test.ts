@@ -10,10 +10,11 @@ import { createEnvironmentThreadStateAtoms, type ThreadSnapshotLoader } from "./
 
 describe("createEnvironmentThreadStateAtoms", () => {
   it("retains thread state across short subscriber gaps", () => {
-    const runtime = Atom.runtime(Layer.empty) as unknown as Atom.AtomRuntime<
-      EnvironmentRegistry | EnvironmentCacheStore | ThreadSnapshotLoader,
-      never
-    >;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      runtime = Atom.runtime(Layer.empty) as Atom.AtomRuntime<
+        EnvironmentRegistry | EnvironmentCacheStore | ThreadSnapshotLoader,
+        never
+      >;
     const threads = createEnvironmentThreadStateAtoms(runtime);
     const environmentId = EnvironmentId.make("environment-1");
     const threadId = ThreadId.make("thread-1");

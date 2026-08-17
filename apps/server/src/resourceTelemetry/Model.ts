@@ -530,8 +530,10 @@ export function mergeProcesses(input: MergeProcessesInput): MergeProcessesResult
       command: process.command,
       status: process.status,
       category,
-      ...(electronMetric ? { electronType: electronMetric.type } : {}),
-      ...(electronMetric?.serviceName ? { electronServiceName: electronMetric.serviceName } : {}),
+      ...(electronMetric ? { electronType: electronMetric.type } : undefined),
+      ...(electronMetric?.serviceName
+        ? { electronServiceName: electronMetric.serviceName }
+        : undefined),
       cpuPercent: finiteNonNegative(cpuPercent),
       cpuTimeMs: process.cpuTimeMs,
       residentBytes: process.residentBytes,
@@ -554,7 +556,9 @@ export function mergeProcesses(input: MergeProcessesInput): MergeProcessesResult
           ? finiteNonNegative((ioWriteDelta * 1_000) / elapsedMs)
           : 0,
       ioSemantics: process.ioSemantics,
-      ...(electronMetric ? { idleWakeupsPerSecond: electronMetric.idleWakeupsPerSecond } : {}),
+      ...(electronMetric
+        ? { idleWakeupsPerSecond: electronMetric.idleWakeupsPerSecond }
+        : undefined),
       runTimeMs: process.runTimeMs,
       firstSeenAt,
       lastSeenAt: DateTime.makeUnsafe(sampledAtMs),

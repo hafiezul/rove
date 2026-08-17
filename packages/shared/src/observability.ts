@@ -4,25 +4,29 @@ import type * as Exit from "effect/Exit";
 import * as ExitRuntime from "effect/Exit";
 import * as Option from "effect/Option";
 import * as Tracer from "effect/Tracer";
+import type { Json, JsonObject } from "effect/Schema";
 import { OtlpResource, OtlpTracer } from "effect/unstable/observability";
 
 import { RotatingFileSink } from "./logging.ts";
+import { runtimeValueKind } from "./runtimeValueKind.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const FLUSH_BUFFER_THRESHOLD = 256;
 const textEncoder = new TextEncoder();
 
-export type TraceAttributes = Readonly<Record<string, unknown>>;
+export type TraceAttributes = Readonly<Record<string, SchemaJson>>;
 
 export interface TraceRecordEvent {
   readonly name: string;
   readonly timeUnixNano: string;
-  readonly attributes: Readonly<Record<string, unknown>>;
+  readonly attributes: Readonly<Record<string, SchemaJson>>;
 }
 
 export interface TraceRecordLink {
   readonly traceId: string;
   readonly spanId: string;
-  readonly attributes: Readonly<Record<string, unknown>>;
+  readonly attributes: Readonly<Record<string, SchemaJson>>;
 }
 
 interface BaseTraceRecord {
@@ -35,7 +39,7 @@ interface BaseTraceRecord {
   readonly startTimeUnixNano: string;
   readonly endTimeUnixNano: string;
   readonly durationMs: number;
-  readonly attributes: Readonly<Record<string, unknown>>;
+  readonly attributes: Readonly<Record<string, SchemaJson>>;
   readonly events: ReadonlyArray<TraceRecordEvent>;
   readonly links: ReadonlyArray<TraceRecordLink>;
 }
@@ -58,11 +62,11 @@ export interface EffectTraceRecord extends BaseTraceRecord {
 
 export interface OtlpTraceRecord extends BaseTraceRecord {
   readonly type: "otlp-span";
-  readonly resourceAttributes: Readonly<Record<string, unknown>>;
+  readonly resourceAttributes: Readonly<Record<string, SchemaJson>>;
   readonly scope: Readonly<{
     readonly name?: string;
     readonly version?: string;
-    readonly attributes: Readonly<Record<string, unknown>>;
+    readonly attributes: Readonly<Record<string, SchemaJson>>;
   }>;
   readonly status?:
     | {
@@ -76,7 +80,7 @@ export type TraceRecord = EffectTraceRecord | OtlpTraceRecord;
 
 function isStructuralTag(value: unknown): value is string {
   return (
-    typeof value === "string" &&
+    RuntimePredicate.isString(value) &&
     value.length > 0 &&
     value.length <= 128 &&
     /^[A-Za-z][A-Za-z0-9._:/-]*$/.test(value)
@@ -85,7 +89,7 @@ function isStructuralTag(value: unknown): value is string {
 
 export function errorTag(error: unknown): string {
   try {
-    if (typeof error === "object" && error !== null && "_tag" in error) {
+    if (RuntimePredicate.isObjectOrArray(error) && "_tag" in error) {
       return isStructuralTag(error._tag) ? error._tag : "TaggedError";
     }
     if (error instanceof Error) {
@@ -94,7 +98,7 @@ export function errorTag(error: unknown): string {
   } catch {
     return "UnknownError";
   }
-  return typeof error;
+  return runtimeValueKind(error);
 }
 
 export function causeErrorTag(cause: Cause.Cause<unknown>): string {
@@ -135,6 +139,7 @@ type OtlpSpan = OtlpTracer.ScopeSpan["spans"][number];
 type OtlpSpanEvent = OtlpSpan["events"][number];
 type OtlpSpanLink = OtlpSpan["links"][number];
 type OtlpSpanStatus = OtlpSpan["status"];
+type SpanEventAttributes = NonNullable<Parameters<Tracer.Span["event"]>[2]>;
 
 interface SerializableSpan {
   readonly name: string;
@@ -147,15 +152,19 @@ interface SerializableSpan {
   readonly attributes: ReadonlyMap<string, unknown>;
   readonly links: ReadonlyArray<Tracer.SpanLink>;
   readonly events: ReadonlyArray<
-    readonly [name: string, startTime: bigint, attributes: Record<string, unknown>]
+    readonly [name: string, startTime: bigint, attributes: SpanEventAttributes]
   >;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isPlainObject(value: unknown): value is object {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
-function markSeen(value: object, seen: WeakSet<object>): boolean {
+function isJsonObject(value: SchemaJson): value is JsonObject {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+}
+
+function markSeen(value: WeakKey, seen: WeakSet<WeakKey>): boolean {
   if (seen.has(value)) {
     return true;
   }
@@ -163,17 +172,17 @@ function markSeen(value: object, seen: WeakSet<object>): boolean {
   return false;
 }
 
-function normalizeJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown {
+function normalizeJsonValue(value: unknown, seen: WeakSet<WeakKey> = new WeakSet()): Json {
   if (
     value === null ||
     value === undefined ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    RuntimePredicate.isString(value) ||
+    RuntimePredicate.isNumber(value) ||
+    RuntimePredicate.isBoolean(value)
   ) {
     return value ?? null;
   }
-  if (typeof value === "bigint") {
+  if (RuntimePredicate.isBigInt(value)) {
     return value.toString();
   }
   if (value instanceof Date) {
@@ -183,7 +192,7 @@ function normalizeJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet(
     return {
       name: value.name,
       message: value.message,
-      ...(value.stack ? { stack: value.stack } : {}),
+      ...(value.stack ? { stack: value.stack } : undefined),
     };
   }
   if (Array.isArray(value)) {
@@ -220,10 +229,8 @@ function normalizeJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet(
   );
 }
 
-export function compactTraceAttributes(
-  attributes: Readonly<Record<string, unknown>>,
-): TraceAttributes {
-  const entries: Array<[string, unknown]> = [];
+export function compactTraceAttributes<T extends object>(attributes: T): TraceAttributes {
+  const entries: Array<[string, SchemaJson]> = [];
   for (const [key, value] of Object.entries(attributes)) {
     if (value !== undefined) {
       entries.push([key, normalizeJsonValue(value)]);
@@ -256,8 +263,8 @@ const ALWAYS_TRUNCATED_TRACE_ATTRIBUTES: ReadonlySet<string> = new Set(["db.quer
 // Clamps strings nested inside already-normalized attribute values (arrays and
 // plain objects from normalizeJsonValue, e.g. an Error's `stack`). Returns the
 // input reference when nothing was clamped.
-function truncateNestedValue(value: unknown): unknown {
-  if (typeof value === "string") {
+function truncateNestedValue(value: SchemaJson): SchemaJson {
+  if (RuntimePredicate.isString(value)) {
     return value.length <= TRACE_ATTRIBUTE_MAX_LENGTH
       ? value
       : `${value.slice(0, TRACE_ATTRIBUTE_MAX_LENGTH)}${TRACE_ATTRIBUTE_TRUNCATION_SUFFIX}`;
@@ -266,8 +273,8 @@ function truncateNestedValue(value: unknown): unknown {
     const truncated = value.map(truncateNestedValue);
     return truncated.some((entry, index) => entry !== value[index]) ? truncated : value;
   }
-  if (isPlainObject(value)) {
-    let truncated: Record<string, unknown> | undefined;
+  if (isJsonObject(value)) {
+    let truncated: Record<string, SchemaJson> | undefined;
     for (const [key, entry] of Object.entries(value)) {
       const next = truncateNestedValue(entry);
       if (next === entry) continue;
@@ -286,9 +293,9 @@ function truncateNestedValue(value: unknown): unknown {
  * mutates the input (the live span's attributes are shared with other tracers).
  */
 export function truncateTraceAttributes(attributes: TraceAttributes): TraceAttributes {
-  let truncated: Record<string, unknown> | undefined;
+  let truncated: Record<string, SchemaJson> | undefined;
   for (const [key, value] of Object.entries(attributes)) {
-    if (typeof value === "string" && ALWAYS_TRUNCATED_TRACE_ATTRIBUTES.has(key)) {
+    if (RuntimePredicate.isString(value) && ALWAYS_TRUNCATED_TRACE_ATTRIBUTES.has(key)) {
       if (value.length <= TRACE_ATTRIBUTE_TRUNCATED_LENGTH) continue;
       truncated ??= { ...attributes };
       truncated[key] =
@@ -304,7 +311,8 @@ export function truncateTraceAttributes(attributes: TraceAttributes): TraceAttri
 }
 
 export function spanToTraceRecord(span: SerializableSpan): EffectTraceRecord {
-  const status = span.status as Extract<Tracer.SpanStatus, { _tag: "Ended" }>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    status = span.status as Extract<Tracer.SpanStatus, { _tag: "Ended" }>;
   const parentSpanId = Option.getOrUndefined(span.parent)?.spanId;
 
   return {
@@ -312,7 +320,7 @@ export function spanToTraceRecord(span: SerializableSpan): EffectTraceRecord {
     name: span.name,
     traceId: span.traceId,
     spanId: span.spanId,
-    ...(parentSpanId ? { parentSpanId } : {}),
+    ...(parentSpanId ? { parentSpanId } : undefined),
     sampled: span.sampled,
     kind: span.kind,
     startTimeUnixNano: String(status.startTime),
@@ -443,7 +451,7 @@ class LocalFileSpan implements Tracer.Span {
 
   status: Tracer.SpanStatus;
   attributes: Map<string, unknown>;
-  events: Array<[name: string, startTime: bigint, attributes: Record<string, unknown>]>;
+  events: Array<[name: string, startTime: bigint, attributes: SpanEventAttributes]>;
   private readonly delegate: Tracer.Span;
   private readonly push: (record: EffectTraceRecord) => void;
 
@@ -489,7 +497,7 @@ class LocalFileSpan implements Tracer.Span {
     this.delegate.attribute(key, value);
   }
 
-  event(name: string, startTime: bigint, attributes?: Record<string, unknown>): void {
+  event(name: string, startTime: bigint, attributes?: SpanEventAttributes): void {
     const nextAttributes = attributes ?? {};
     this.events.push([name, startTime, nextAttributes]);
     this.delegate.event(name, startTime, nextAttributes);
@@ -511,7 +519,7 @@ export const makeLocalFileTracer = Effect.fn("makeLocalFileTracer")(function* (
       maxBytes: options.maxBytes,
       maxFiles: options.maxFiles,
       batchWindowMs: options.batchWindowMs,
-      ...(options.onFlush ? { onFlush: options.onFlush } : {}),
+      ...(options.onFlush ? { onFlush: options.onFlush } : undefined),
     }));
 
   const delegate =
@@ -524,11 +532,15 @@ export const makeLocalFileTracer = Effect.fn("makeLocalFileTracer")(function* (
     span(spanOptions) {
       return new LocalFileSpan(spanOptions, delegate.span(spanOptions), sink.push);
     },
-    ...(delegate.context ? { context: delegate.context } : {}),
+    ...(delegate.context ? { context: delegate.context } : undefined),
   });
 });
 
-const SPAN_KIND_MAP: Record<number, OtlpTraceRecord["kind"]> = {
+interface SpanKindByCode {
+  readonly [code: number]: OtlpTraceRecord["kind"] | undefined;
+}
+
+const SPAN_KIND_MAP: SpanKindByCode = {
   1: "internal",
   2: "server",
   3: "client",
@@ -556,7 +568,7 @@ export function decodeOtlpTraceRecords(
             ),
             scopeName: scopeSpan.scope.name,
             scopeVersion:
-              "version" in scopeSpan.scope && typeof scopeSpan.scope.version === "string"
+              "version" in scopeSpan.scope && RuntimePredicate.isString(scopeSpan.scope.version)
                 ? scopeSpan.scope.version
                 : undefined,
             span,
@@ -570,8 +582,8 @@ export function decodeOtlpTraceRecords(
 }
 
 function otlpSpanToTraceRecord(input: {
-  readonly resourceAttributes: Readonly<Record<string, unknown>>;
-  readonly scopeAttributes: Readonly<Record<string, unknown>>;
+  readonly resourceAttributes: Readonly<Record<string, SchemaJson>>;
+  readonly scopeAttributes: Readonly<Record<string, SchemaJson>>;
   readonly scopeName: string | undefined;
   readonly scopeVersion: string | undefined;
   readonly span: OtlpSpan;
@@ -581,7 +593,7 @@ function otlpSpanToTraceRecord(input: {
     name: input.span.name,
     traceId: input.span.traceId,
     spanId: input.span.spanId,
-    ...(input.span.parentSpanId ? { parentSpanId: input.span.parentSpanId } : {}),
+    ...(input.span.parentSpanId ? { parentSpanId: input.span.parentSpanId } : undefined),
     sampled: true,
     kind: normalizeSpanKind(input.span.kind),
     startTimeUnixNano: input.span.startTimeUnixNano,
@@ -592,8 +604,8 @@ function otlpSpanToTraceRecord(input: {
     attributes: decodeAttributes(input.span.attributes),
     resourceAttributes: input.resourceAttributes,
     scope: {
-      ...(input.scopeName ? { name: input.scopeName } : {}),
-      ...(input.scopeVersion ? { version: input.scopeVersion } : {}),
+      ...(input.scopeName ? { name: input.scopeName } : undefined),
+      ...(input.scopeVersion ? { version: input.scopeVersion } : undefined),
       attributes: input.scopeAttributes,
     },
     events: decodeEvents(input.span.events),
@@ -608,7 +620,7 @@ function decodeStatus(input: OtlpSpanStatus): OtlpTraceRecord["status"] {
 
   return {
     code,
-    ...(message ? { message } : {}),
+    ...(message ? { message } : undefined),
   };
 }
 
@@ -632,19 +644,17 @@ function decodeLinks(input: ReadonlyArray<OtlpSpanLink>): ReadonlyArray<TraceRec
   });
 }
 
-function decodeAttributes(
-  input: ReadonlyArray<OtlpResource.KeyValue>,
-): Readonly<Record<string, unknown>> {
-  const entries: Record<string, unknown> = {};
+function decodeAttributes(input: ReadonlyArray<OtlpResource.KeyValue>): JsonObject {
+  const entries: Array<readonly [string, Json]> = [];
 
   for (const attribute of input) {
-    entries[attribute.key] = decodeValue(attribute.value);
+    entries.push([attribute.key, decodeValue(attribute.value)]);
   }
 
-  return compactTraceAttributes(entries);
+  return Object.fromEntries(entries);
 }
 
-function decodeValue(input: OtlpResource.AnyValue | null | undefined): unknown {
+function decodeValue(input: OtlpResource.AnyValue | null | undefined): Json {
   if (input == null) {
     return null;
   }
@@ -661,7 +671,7 @@ function decodeValue(input: OtlpResource.AnyValue | null | undefined): unknown {
     return input.doubleValue;
   }
   if ("bytesValue" in input) {
-    return input.bytesValue;
+    return input.bytesValue === undefined ? null : Array.from(input.bytesValue);
   }
   if (input.arrayValue) {
     return input.arrayValue.values.map((entry) => decodeValue(entry));

@@ -178,10 +178,10 @@ export function makeAcpToolCallEvent(input: {
     itemId: RuntimeItemId.make(input.toolCall.toolCallId),
     payload: {
       itemType: canonicalItemTypeFromAcpToolKind(input.toolCall.kind),
-      ...(runtimeStatus ? { status: runtimeStatus } : {}),
-      ...(input.toolCall.title ? { title: input.toolCall.title } : {}),
-      ...(input.toolCall.detail ? { detail: input.toolCall.detail } : {}),
-      ...(Object.keys(input.toolCall.data).length > 0 ? { data: input.toolCall.data } : {}),
+      ...(runtimeStatus ? { status: runtimeStatus } : undefined),
+      ...(input.toolCall.title ? { title: input.toolCall.title } : undefined),
+      ...(input.toolCall.detail ? { detail: input.toolCall.detail } : undefined),
+      ...(Object.keys(input.toolCall.data).length > 0 ? { data: input.toolCall.data } : undefined),
     },
     raw: {
       source: "acp.jsonrpc",
@@ -228,7 +228,7 @@ export function makeAcpContentDeltaEvent(input: {
     provider: input.provider,
     threadId: input.threadId,
     turnId: input.turnId,
-    ...(input.itemId ? { itemId: RuntimeItemId.make(input.itemId) } : {}),
+    ...(input.itemId ? { itemId: RuntimeItemId.make(input.itemId) } : undefined),
     payload: {
       streamKind: "assistant_text",
       delta: input.text,

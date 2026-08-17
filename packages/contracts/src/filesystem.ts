@@ -28,9 +28,10 @@ export const FilesystemBrowseFailure = Schema.Literals([
 ]);
 export type FilesystemBrowseFailure = typeof FilesystemBrowseFailure.Type;
 
-function decodedFilesystemBrowseErrorMessage(props: object): string | undefined {
-  if (!("message" in props)) return undefined;
-  return typeof props.message === "string" ? props.message : undefined;
+function decodedFilesystemBrowseErrorMessage(props: {
+  readonly message?: string;
+}): string | undefined {
+  return props.message;
 }
 
 export class FilesystemBrowseError extends Schema.TaggedErrorClass<FilesystemBrowseError>()(
@@ -55,6 +56,7 @@ export class FilesystemBrowseError extends Schema.TaggedErrorClass<FilesystemBro
     readonly parentPath?: string;
     readonly platform?: string;
     readonly cause?: unknown;
+    readonly message?: string;
   }) {
     const cwd = props.cwd === undefined ? "" : ` from '${props.cwd}'`;
     super({

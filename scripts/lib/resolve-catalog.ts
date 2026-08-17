@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class CatalogDependencyResolutionError extends Schema.TaggedErrorClass<CatalogDependencyResolutionError>()(
   "CatalogDependencyResolutionError",
@@ -27,7 +28,7 @@ export function resolveCatalogDependencies(
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(dependencies).map(([name, spec]) => {
-      if (typeof spec !== "string" || !spec.startsWith("catalog:")) {
+      if (!RuntimePredicate.isString(spec) || !spec.startsWith("catalog:")) {
         return [name, spec];
       }
 
@@ -35,7 +36,7 @@ export function resolveCatalogDependencies(
       const lookupKey = catalogKey.length > 0 ? catalogKey : name;
       const resolved = catalog[lookupKey];
 
-      if (typeof resolved !== "string" || resolved.length === 0) {
+      if (!RuntimePredicate.isString(resolved) || resolved.length === 0) {
         throw new CatalogDependencyResolutionError({
           workspacePackage,
           dependencyName: name,

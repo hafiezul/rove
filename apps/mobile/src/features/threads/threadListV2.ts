@@ -58,10 +58,7 @@ export function resolveThreadListV2SwipeActions(input: {
   readonly snoozable: boolean;
   /** Row is on the snoozed shelf. */
   readonly snoozed?: boolean;
-}): {
-  readonly primary: Exclude<ThreadListV2SwipeAction, "snooze">;
-  readonly secondary: "snooze" | null;
-} {
+}) {
   if (input.snoozed === true) {
     return { primary: "unsnooze", secondary: null };
   }

@@ -1,45 +1,55 @@
-import type {
-  DesktopBridge,
-  DesktopPreviewPointerEvent,
-  DesktopPreviewRecordingFrame,
-  DesktopPreviewTabState,
+import {
+  DesktopAppBrandingSchema,
+  DesktopPreviewPointerEventSchema,
+  DesktopPreviewRecordingFrameSchema,
+  DesktopPreviewTabStateSchema,
+  DesktopSshPasswordPromptRequestSchema,
+  DesktopUpdateStateSchema,
+  type DesktopBridge,
 } from "@t3tools/contracts";
 import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import * as Schema from "effect/Schema";
+
+const isDesktopAppBranding = Schema.is(DesktopAppBrandingSchema);
+const isDesktopSshPasswordPromptRequest = Schema.is(DesktopSshPasswordPromptRequestSchema);
+const isDesktopUpdateState = Schema.is(DesktopUpdateStateSchema);
+const isDesktopPreviewRecordingFrame = Schema.is(DesktopPreviewRecordingFrameSchema);
+const isDesktopPreviewTabState = Schema.is(DesktopPreviewTabStateSchema);
+const isDesktopPreviewPointerEvent = Schema.is(DesktopPreviewPointerEventSchema);
 
 exposeClerkBridge({ passkeys: true });
 
 function unwrapEnsureSshEnvironmentResult(result: unknown) {
   if (
-    typeof result === "object" &&
-    result !== null &&
+    RuntimePredicate.isObjectOrArray(result) &&
     "type" in result &&
     result.type === IpcChannels.SSH_PASSWORD_PROMPT_CANCELLED_RESULT
   ) {
     const message =
-      "message" in result && typeof result.message === "string"
+      "message" in result && RuntimePredicate.isString(result.message)
         ? result.message
         : "SSH authentication cancelled.";
     throw new Error(message);
   }
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
-    if (typeof result !== "object" || result === null) {
-      return null;
-    }
-    return result as ReturnType<DesktopBridge["getAppBranding"]>;
+    return isDesktopAppBranding(result) ? result : null;
   },
   getLocalEnvironmentBootstraps: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANNEL);
     if (!Array.isArray(result)) {
       return [];
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return result as ReturnType<DesktopBridge["getLocalEnvironmentBootstraps"]>;
   },
   getLocalEnvironmentBearerToken: () =>
@@ -56,7 +66,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     unwrapEnsureSshEnvironmentResult(
       await ipcRenderer.invoke(IpcChannels.ENSURE_SSH_ENVIRONMENT_CHANNEL, {
         target,
-        ...(options === undefined ? {} : { options }),
+        ...(options === undefined ? undefined : { options }),
       }),
     ),
   disconnectSshEnvironment: (target) =>
@@ -74,8 +84,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.ISSUE_SSH_WEBSOCKET_TOKEN_CHANNEL, { httpBaseUrl, bearerToken }),
   onSshPasswordPrompt: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, request: unknown) => {
-      if (typeof request !== "object" || request === null) return;
-      listener(request as Parameters<typeof listener>[0]);
+      if (!isDesktopSshPasswordPromptRequest(request)) return;
+      listener(request);
     };
 
     ipcRenderer.on(IpcChannels.SSH_PASSWORD_PROMPT_CHANNEL, wrappedListener);
@@ -102,12 +112,12 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   showContextMenu: (items, position) =>
     ipcRenderer.invoke(IpcChannels.CONTEXT_MENU_CHANNEL, {
       items,
-      ...(position === undefined ? {} : { position }),
+      ...(position === undefined ? undefined : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
-      if (typeof action !== "string") return;
+      if (!RuntimePredicate.isString(action)) return;
       listener(action);
     };
 
@@ -120,7 +130,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULLSCREEN_STATE_CHANNEL) === true,
   onWindowFullscreenStateChange: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, fullscreen: unknown) => {
-      if (typeof fullscreen !== "boolean") return;
+      if (!RuntimePredicate.isBoolean(fullscreen)) return;
       listener(fullscreen);
     };
 
@@ -137,8 +147,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   installUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_INSTALL_CHANNEL),
   onUpdateState: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
-      if (typeof state !== "object" || state === null) return;
-      listener(state as Parameters<typeof listener>[0]);
+      if (!isDesktopUpdateState(state)) return;
+      listener(state);
     };
 
     ipcRenderer.on(IpcChannels.UPDATE_STATE_CHANNEL, wrappedListener);
@@ -198,8 +208,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         }),
       onFrame: (listener) => {
         const wrappedListener = (_event: Electron.IpcRendererEvent, frame: unknown) => {
-          if (typeof frame !== "object" || frame === null) return;
-          listener(frame as DesktopPreviewRecordingFrame);
+          if (!isDesktopPreviewRecordingFrame(frame)) return;
+          listener(frame);
         };
         ipcRenderer.on(IpcChannels.PREVIEW_RECORDING_FRAME_CHANNEL, wrappedListener);
         return () =>
@@ -230,8 +240,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         tabId: unknown,
         state: unknown,
       ) => {
-        if (typeof tabId !== "string" || typeof state !== "object" || state === null) return;
-        listener(tabId, state as DesktopPreviewTabState);
+        if (!RuntimePredicate.isString(tabId) || !isDesktopPreviewTabState(state)) return;
+        listener(tabId, state);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_STATE_CHANGE_CHANNEL, wrappedListener);
       return () =>
@@ -239,8 +249,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     },
     onPointerEvent: (listener) => {
       const wrappedListener = (_event: Electron.IpcRendererEvent, pointerEvent: unknown) => {
-        if (typeof pointerEvent !== "object" || pointerEvent === null) return;
-        listener(pointerEvent as DesktopPreviewPointerEvent);
+        if (!isDesktopPreviewPointerEvent(pointerEvent)) return;
+        listener(pointerEvent);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_POINTER_EVENT_CHANNEL, wrappedListener);
       return () =>

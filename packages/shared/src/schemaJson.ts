@@ -7,6 +7,7 @@ import * as Schema from "effect/Schema";
 import * as SchemaGetter from "effect/SchemaGetter";
 import * as SchemaIssue from "effect/SchemaIssue";
 import * as SchemaTransformation from "effect/SchemaTransformation";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MAX_SCHEMA_DIAGNOSTIC_ISSUES = 8;
 const MAX_SCHEMA_DIAGNOSTIC_PATH_SEGMENTS = 16;
@@ -26,11 +27,11 @@ function truncateDiagnostic(value: string, maxLength: number): string {
 }
 
 function formatDiagnosticPathSegment(key: PropertyKey): string {
-  if (typeof key === "number") {
+  if (RuntimePredicate.isNumber(key)) {
     return `[${key}]`;
   }
   const value = truncateDiagnostic(
-    typeof key === "symbol" ? String(key) : key,
+    RuntimePredicate.isSymbol(key) ? String(key) : key,
     MAX_SCHEMA_DIAGNOSTIC_PATH_SEGMENT_LENGTH,
   );
   return `[${JSON.stringify(value)}]`;

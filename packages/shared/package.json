@@ -218,6 +218,10 @@
     "./usageFormat": {
       "types": "./src/usageFormat.ts",
       "import": "./src/usageFormat.ts"
+    },
+    "./runtimeValueKind": {
+      "types": "./src/runtimeValueKind.ts",
+      "import": "./src/runtimeValueKind.ts"
     }
   },
   "scripts": {

@@ -34,6 +34,7 @@ import * as ServerSecretStore from "./ServerSecretStore.ts";
 import * as SessionStore from "./SessionStore.ts";
 import { verifyRequestDpopProof } from "./dpop.ts";
 import { layerConfig as SqlitePersistenceLayer } from "../persistence/Layers/Sqlite.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_SESSION_SUBJECT = "cli-issued-session";
 export const INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT = "administrative-bootstrap";
@@ -538,7 +539,7 @@ const mapSessionVerificationErrors = <A, R>(
 
 function parseBearerToken(request: HttpServerRequest.HttpServerRequest): string | null {
   const header = request.headers["authorization"];
-  if (typeof header !== "string" || !header.startsWith(AUTHORIZATION_PREFIX)) {
+  if (!RuntimePredicate.isString(header) || !header.startsWith(AUTHORIZATION_PREFIX)) {
     return null;
   }
   const token = header.slice(AUTHORIZATION_PREFIX.length).trim();
@@ -547,7 +548,7 @@ function parseBearerToken(request: HttpServerRequest.HttpServerRequest): string 
 
 function parseDpopToken(request: HttpServerRequest.HttpServerRequest): string | null {
   const header = request.headers["authorization"];
-  if (typeof header !== "string" || !header.startsWith(DPOP_AUTHORIZATION_PREFIX)) {
+  if (!RuntimePredicate.isString(header) || !header.startsWith(DPOP_AUTHORIZATION_PREFIX)) {
     return null;
   }
   const token = header.slice(DPOP_AUTHORIZATION_PREFIX.length).trim();
@@ -583,8 +584,10 @@ export const make = Effect.gen(function* () {
         subject: session.subject,
         method: session.method,
         scopes: session.scopes,
-        ...(session.proofKeyThumbprint ? { proofKeyThumbprint: session.proofKeyThumbprint } : {}),
-        ...(session.expiresAt ? { expiresAt: session.expiresAt } : {}),
+        ...(session.proofKeyThumbprint
+          ? { proofKeyThumbprint: session.proofKeyThumbprint }
+          : undefined),
+        ...(session.expiresAt ? { expiresAt: session.expiresAt } : undefined),
       })),
       mapSessionVerificationErrors,
     );
@@ -640,7 +643,7 @@ export const make = Effect.gen(function* () {
             auth: descriptor,
             scopes: session.scopes,
             sessionMethod: session.method,
-            ...(session.expiresAt ? { expiresAt: DateTime.toUtc(session.expiresAt) } : {}),
+            ...(session.expiresAt ? { expiresAt: DateTime.toUtc(session.expiresAt) } : undefined),
           }) satisfies AuthSessionState,
       ),
       Effect.catchIf(isServerAuthCredentialError, () =>
@@ -666,7 +669,7 @@ export const make = Effect.gen(function* () {
             scopes: grant.scopes,
             client: {
               ...requestMetadata,
-              ...(grant.label ? { label: grant.label } : {}),
+              ...(grant.label ? { label: grant.label } : undefined),
             },
           })
           .pipe(
@@ -708,10 +711,10 @@ export const make = Effect.gen(function* () {
                       proofKeyThumbprint: input.proofKeyThumbprint,
                       ttl: Duration.hours(1),
                     }
-                  : {}),
+                  : undefined),
                 client: {
                   ...requestMetadata,
-                  ...(grant.label ? { label: grant.label } : {}),
+                  ...(grant.label ? { label: grant.label } : undefined),
                 },
               })
               .pipe(
@@ -752,15 +755,15 @@ export const make = Effect.gen(function* () {
     createPairingLink({
       scopes: input.scopes,
       subject: input.subject,
-      ...(input.label ? { label: input.label } : {}),
-      ...(input.purpose ? { purpose: input.purpose } : {}),
+      ...(input.label ? { label: input.label } : undefined),
+      ...(input.purpose ? { purpose: input.purpose } : undefined),
     }).pipe(
       Effect.map(
         (issued) =>
           ({
             id: issued.id,
             credential: issued.credential,
-            ...(issued.label ? { label: issued.label } : {}),
+            ...(issued.label ? { label: issued.label } : undefined),
             expiresAt: issued.expiresAt,
           }) satisfies AuthPairingCredentialResult,
       ),
@@ -774,17 +777,19 @@ export const make = Effect.gen(function* () {
       const issued = yield* bootstrapCredentials.issueOneTimeToken({
         scopes: input?.scopes ?? AuthStandardClientScopes,
         subject: input?.subject ?? "one-time-token",
-        ...(input?.ttl ? { ttl: input.ttl } : {}),
-        ...(input?.label ? { label: input.label } : {}),
-        ...(input?.proofKeyThumbprint ? { proofKeyThumbprint: input.proofKeyThumbprint } : {}),
-        ...(input?.purpose ? { purpose: input.purpose } : {}),
+        ...(input?.ttl ? { ttl: input.ttl } : undefined),
+        ...(input?.label ? { label: input.label } : undefined),
+        ...(input?.proofKeyThumbprint
+          ? { proofKeyThumbprint: input.proofKeyThumbprint }
+          : undefined),
+        ...(input?.purpose ? { purpose: input.purpose } : undefined),
       });
       return {
         id: issued.id,
         credential: issued.credential,
         scopes: input?.scopes ?? AuthStandardClientScopes,
         subject: input?.subject ?? "one-time-token",
-        ...(issued.label ? { label: issued.label } : {}),
+        ...(issued.label ? { label: issued.label } : undefined),
         createdAt: DateTime.toUtc(createdAt),
         expiresAt: DateTime.toUtc(issued.expiresAt),
       } satisfies IssuedPairingLink;
@@ -821,10 +826,10 @@ export const make = Effect.gen(function* () {
         method: "bearer-access-token",
         scopes: input?.scopes ?? AuthAdministrativeScopes,
         client: {
-          ...(input?.label ? { label: input.label } : {}),
+          ...(input?.label ? { label: input.label } : undefined),
           deviceType: "bot",
         },
-        ...(input?.ttl ? { ttl: input.ttl } : {}),
+        ...(input?.ttl ? { ttl: input.ttl } : undefined),
       })
       .pipe(
         Effect.map(
@@ -868,7 +873,7 @@ export const make = Effect.gen(function* () {
     issuePairingCredentialForSubject({
       scopes: input?.scopes ?? AuthStandardClientScopes,
       subject: "one-time-token",
-      ...(input?.label ? { label: input.label } : {}),
+      ...(input?.label ? { label: input.label } : undefined),
     }).pipe(Effect.withSpan("EnvironmentAuth.issuePairingCredential"));
 
   const issueStartupPairingCredential: EnvironmentAuth["Service"]["issueStartupPairingCredential"] =
@@ -950,7 +955,7 @@ export const make = Effect.gen(function* () {
               subject: session.subject,
               method: session.method,
               scopes: session.scopes,
-              ...(session.expiresAt ? { expiresAt: session.expiresAt } : {}),
+              ...(session.expiresAt ? { expiresAt: session.expiresAt } : undefined),
             })),
             mapSessionVerificationErrors,
           );

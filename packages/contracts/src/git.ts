@@ -199,7 +199,7 @@ const VcsStatusChangeRequest = Schema.Struct({
   state: VcsStatusChangeRequestState,
 });
 
-const VcsStatusLocalShape = {
+const VcsStatusLocalContract = {
   isRepo: Schema.Boolean,
   sourceControlProvider: Schema.optional(SourceControlProviderInfo),
   hasPrimaryRemote: Schema.Boolean,
@@ -219,7 +219,7 @@ const VcsStatusLocalShape = {
   }),
 };
 
-const VcsStatusRemoteShape = {
+const VcsStatusRemoteContract = {
   hasUpstream: Schema.Boolean,
   aheadCount: NonNegativeInt,
   behindCount: NonNegativeInt,
@@ -227,15 +227,15 @@ const VcsStatusRemoteShape = {
   pr: Schema.NullOr(VcsStatusChangeRequest),
 };
 
-export const VcsStatusLocalResult = Schema.Struct(VcsStatusLocalShape);
+export const VcsStatusLocalResult = Schema.Struct(VcsStatusLocalContract);
 export type VcsStatusLocalResult = typeof VcsStatusLocalResult.Type;
 
-export const VcsStatusRemoteResult = Schema.Struct(VcsStatusRemoteShape);
+export const VcsStatusRemoteResult = Schema.Struct(VcsStatusRemoteContract);
 export type VcsStatusRemoteResult = typeof VcsStatusRemoteResult.Type;
 
 export const VcsStatusResult = Schema.Struct({
-  ...VcsStatusLocalShape,
-  ...VcsStatusRemoteShape,
+  ...VcsStatusLocalContract,
+  ...VcsStatusRemoteContract,
 });
 export type VcsStatusResult = typeof VcsStatusResult.Type;
 

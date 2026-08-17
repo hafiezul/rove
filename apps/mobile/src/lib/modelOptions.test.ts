@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { ProviderInstanceId, type ServerConfig } from "@t3tools/contracts";
+import { testDouble } from "../testDouble";
 
 import {
   buildModelOptions,
@@ -11,7 +12,7 @@ import {
 
 describe("mobile model options", () => {
   it("groups models by provider and flags legacy entries", () => {
-    const config = {
+    const config = testDouble<ServerConfig>({
       providers: [
         {
           instanceId: "codex",
@@ -37,7 +38,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    });
 
     expect(groupByProvider(buildModelOptions(config, null))).toMatchObject([
       {
@@ -52,7 +53,7 @@ describe("mobile model options", () => {
   });
 
   it("normalizes a legacy fallback selection against current capabilities", () => {
-    const config = {
+    const config = testDouble<ServerConfig>({
       providers: [
         {
           instanceId: "codex",
@@ -84,7 +85,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    });
 
     const [option] = buildModelOptions(config, {
       instanceId: ProviderInstanceId.make("codex"),
@@ -97,7 +98,7 @@ describe("mobile model options", () => {
   });
 
   it("rejects stored selections whose provider is not usable", () => {
-    const config = {
+    const config = testDouble<ServerConfig>({
       providers: [
         {
           instanceId: "codex",
@@ -116,7 +117,7 @@ describe("mobile model options", () => {
           models: [],
         },
       ],
-    } as unknown as ServerConfig;
+    });
 
     const usable = {
       instanceId: ProviderInstanceId.make("codex"),
@@ -139,7 +140,7 @@ describe("mobile model options", () => {
   });
 
   it("keeps legacy models out of implicit defaults", () => {
-    const config = {
+    const config = testDouble<ServerConfig>({
       providers: [
         {
           instanceId: "codex",
@@ -160,7 +161,7 @@ describe("mobile model options", () => {
           ],
         },
       ],
-    } as unknown as ServerConfig;
+    });
 
     const current = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.6-sol" };
     const legacy = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" };

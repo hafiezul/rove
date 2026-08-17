@@ -20,6 +20,7 @@ import {
   normalizeRelayBaseUrl,
   refreshCloudEnvironmentConnection,
 } from "./linkEnvironment";
+import type { Json as SchemaJson } from "effect/Schema";
 
 vi.mock("expo-constants", () => ({
   default: {
@@ -795,11 +796,12 @@ describe("mobile cloud link environment client", () => {
   it.effect("uses an explicit Live Activity preference when persisted state is unavailable", () =>
     Effect.gen(function* () {
       loadPreferences.mockReturnValueOnce(Effect.die("persisted preferences must not be read"));
-      const bodies: Array<Record<string, unknown>> = [];
+      const bodies: Array<Record<string, SchemaJson>> = [];
       const fetchMock = vi.fn((url: string | URL, init?: RequestInit) => {
         if (init?.body) {
           // @effect-diagnostics-next-line preferSchemaOverJson:off
-          bodies.push(JSON.parse(requestBodyText(init.body)) as Record<string, unknown>);
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          bodies.push(JSON.parse(requestBodyText(init.body)) as Record<string, SchemaJson>);
         }
         if (String(url).endsWith("/v1/client/environment-link-challenges")) {
           return Promise.resolve(Response.json(validLinkChallengeResponse()));

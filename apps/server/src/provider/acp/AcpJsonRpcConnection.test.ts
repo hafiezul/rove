@@ -622,11 +622,12 @@ describe("AcpSessionRuntime", () => {
         expect(error.message).toContain("composer-2[fast=true]");
       }
 
-      const recordedRequests = NodeFS.readFileSync(requestLogPath, "utf8")
-        .trim()
-        .split("\n")
-        .filter((line) => line.length > 0)
-        .map((line) => JSON.parse(line) as { method?: string; params?: { value?: unknown } });
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        recordedRequests = NodeFS.readFileSync(requestLogPath, "utf8")
+          .trim()
+          .split("\n")
+          .filter((line) => line.length > 0)
+          .map((line) => JSON.parse(line) as { method?: string; params?: { value?: unknown } });
       expect(
         recordedRequests.some(
           (message) =>

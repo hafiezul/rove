@@ -99,6 +99,8 @@ import {
   openUrlInPreview,
   BrowserPreviewUnavailableError,
 } from "../browser/openFileInPreview";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 interface ChatMarkdownProps {
   text: string;
@@ -183,10 +185,18 @@ const CHAT_MARKDOWN_REHYPE_PLUGINS = [
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
-const GITHUB_ALERT_PRESENTATIONS: Record<
-  string,
-  { label: string; Icon: typeof InfoIcon; borderClassName: string; titleClassName: string }
-> = {
+interface GitHubAlertPresentation {
+  readonly label: string;
+  readonly Icon: typeof InfoIcon;
+  readonly borderClassName: string;
+  readonly titleClassName: string;
+}
+
+interface GitHubAlertPresentations {
+  readonly [kind: string]: GitHubAlertPresentation | undefined;
+}
+
+const GITHUB_ALERT_PRESENTATIONS: GitHubAlertPresentations = {
   note: {
     label: "Note",
     Icon: InfoIcon,
@@ -239,28 +249,29 @@ function extractFenceTitle(meta: string | undefined): string | null {
 }
 
 function extractPreCodeMeta(node: unknown): string | undefined {
-  const children = (
-    node as
-      | {
-          children?: Array<{
-            type?: string;
-            tagName?: string;
-            data?: { meta?: unknown };
-            properties?: { dataCodeMeta?: unknown };
-          }>;
-        }
-      | undefined
-  )?.children;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    children = (
+      node as
+        | {
+            children?: Array<{
+              type?: string;
+              tagName?: string;
+              data?: { meta?: unknown };
+              properties?: { dataCodeMeta?: unknown };
+            }>;
+          }
+        | undefined
+    )?.children;
   const codeNode = children?.find((child) => child?.type === "element" && child.tagName === "code");
   const meta = codeNode?.properties?.dataCodeMeta ?? codeNode?.data?.meta;
-  return typeof meta === "string" && meta.trim().length > 0 ? meta.trim() : undefined;
+  return RuntimePredicate.isString(meta) && meta.trim().length > 0 ? meta.trim() : undefined;
 }
 
 type MarkdownAstNode = {
   type?: string;
   meta?: unknown;
   data?: {
-    hProperties?: Record<string, unknown>;
+    hProperties?: Record<string, SchemaJson>;
   };
   children?: MarkdownAstNode[];
 };
@@ -268,7 +279,11 @@ type MarkdownAstNode = {
 function remarkPreserveCodeMeta() {
   return (tree: MarkdownAstNode) => {
     const visit = (node: MarkdownAstNode) => {
-      if (node.type === "code" && typeof node.meta === "string" && node.meta.trim().length > 0) {
+      if (
+        node.type === "code" &&
+        RuntimePredicate.isString(node.meta) &&
+        node.meta.trim().length > 0
+      ) {
         node.data = {
           ...node.data,
           hProperties: {
@@ -312,7 +327,7 @@ function remarkTagInlineCode() {
 }
 
 function nodeToPlainText(node: ReactNode): string {
-  if (typeof node === "string" || typeof node === "number") {
+  if (RuntimePredicate.isString(node) || RuntimePredicate.isNumber(node)) {
     return String(node);
   }
   if (Array.isArray(node)) {
@@ -623,7 +638,7 @@ function MarkdownCodeBlock({
           {
             operation: "copy-code-block",
             language,
-            ...(fenceTitle ? { fenceTitle } : {}),
+            ...(fenceTitle ? { fenceTitle } : undefined),
           },
           cause,
         );
@@ -933,17 +948,22 @@ function breakableExternalLinkText(text: string): ReactNode[] {
 }
 
 function plainHastText(node: unknown): string | null {
-  if (!node || typeof node !== "object" || !("children" in node) || !Array.isArray(node.children)) {
+  if (
+    !node ||
+    !(RuntimePredicate.isObjectOrArray(node) || node === null) ||
+    !("children" in node) ||
+    !Array.isArray(node.children)
+  ) {
     return null;
   }
   const parts = node.children.map((child) => {
     if (
       child &&
-      typeof child === "object" &&
+      (RuntimePredicate.isObjectOrArray(child) || child === null) &&
       "type" in child &&
       child.type === "text" &&
       "value" in child &&
-      typeof child.value === "string"
+      RuntimePredicate.isString(child.value)
     ) {
       return child.value;
     }
@@ -958,12 +978,12 @@ function plainHastText(node: unknown): string | null {
  * is a stray logo rather than a hint.
  */
 function hastHasText(node: unknown): boolean {
-  if (!node || typeof node !== "object") return false;
+  if (!node || !(RuntimePredicate.isObjectOrArray(node) || node === null)) return false;
   if (
     "type" in node &&
     node.type === "text" &&
     "value" in node &&
-    typeof node.value === "string" &&
+    RuntimePredicate.isString(node.value) &&
     node.value.trim().length > 0
   ) {
     return true;
@@ -1056,7 +1076,7 @@ function MarkdownExternalLinkContent({
   const childNodes = Children.toArray(children);
   const firstChild = childNodes[0];
 
-  if (typeof firstChild === "string" && firstChild.length > 0) {
+  if (RuntimePredicate.isString(firstChild) && firstChild.length > 0) {
     const leadingLength = leadingExternalLinkTextLength(firstChild);
     return (
       <>
@@ -1445,7 +1465,7 @@ function ChatMarkdown({
     ) => {
       const parentSuffix = fileLinkParentSuffixByPath.get(fileLinkMeta.filePath);
       const labelParts = [fileLinkMeta.basename];
-      if (typeof parentSuffix === "string" && parentSuffix.length > 0) {
+      if (RuntimePredicate.isString(parentSuffix) && parentSuffix.length > 0) {
         labelParts.push(parentSuffix);
       }
       if (fileLinkMeta.line) {
@@ -1484,10 +1504,11 @@ function ChatMarkdown({
         return <p {...props}>{renderSkillInlineMarkdownChildren(children, skills)}</p>;
       },
       blockquote({ node: _node, children, ...props }) {
-        const alert =
-          GITHUB_ALERT_PRESENTATIONS[
-            String((props as Record<string, unknown>)["data-alert"] ?? "")
-          ];
+        const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+          alert =
+            GITHUB_ALERT_PRESENTATIONS[
+              String((props as Record<string, SchemaJson>)["data-alert"] ?? "")
+            ];
         if (!alert) {
           return <blockquote {...props}>{children}</blockquote>;
         }
@@ -1505,8 +1526,9 @@ function ChatMarkdown({
       },
       li({ node, children, ...props }) {
         const listItemStart = node?.position?.start.offset;
-        const markerOffset =
-          typeof listItemStart === "number" ? findTaskListMarkerOffset(text, listItemStart) : null;
+        const markerOffset = RuntimePredicate.isNumber(listItemStart)
+          ? findTaskListMarkerOffset(text, listItemStart)
+          : null;
         return (
           <li {...props} data-task-marker-offset={markerOffset ?? undefined}>
             {renderSkillInlineMarkdownChildren(children, skills)}

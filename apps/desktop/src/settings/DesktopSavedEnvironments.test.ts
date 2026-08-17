@@ -295,8 +295,9 @@ describe("DesktopSavedEnvironments", () => {
         assert.equal(error.environmentId, savedRegistryRecord.environmentId);
         assert.equal(error.registryPath, environment.savedEnvironmentRegistryPath);
         assert.instanceOf(error.cause, ElectronSafeStorage.ElectronSafeStorageAvailabilityError);
-        const availabilityError =
-          error.cause as ElectronSafeStorage.ElectronSafeStorageAvailabilityError;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          availabilityError =
+            error.cause as ElectronSafeStorage.ElectronSafeStorageAvailabilityError;
         assert.strictEqual(availabilityError.cause, cause);
         assert.equal(
           error.message,

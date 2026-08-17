@@ -90,41 +90,43 @@ type AppScreenOptions = NativeStackNavigationOptions & {
 // GLASS: transparent header over the screen's primary scroll view on supported
 // iOS versions. Pre-glass iOS gets the same solid material as internal-scroll
 // surfaces so content is laid out below the bar instead of underlapping it.
-const GLASS_HEADER_OPTIONS: AppScreenOptions = {
-  headerBackButtonDisplayMode: "minimal",
-  headerBackTitle: "",
-  headerLargeTitle: false,
-  headerShadowVisible: false,
-  headerShown: true,
-  headerStyle: NATIVE_LIQUID_GLASS_SUPPORTED
-    ? { backgroundColor: "transparent" }
-    : NATIVE_SHEET_SURFACE_COLOR !== undefined
-      ? { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as unknown as string }
-      : undefined,
-  headerTitleStyle: { fontSize: 18, fontWeight: "800" },
-  headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
-  scrollEdgeEffects: NATIVE_LIQUID_GLASS_SUPPORTED ? HEADER_SCROLL_EDGE_EFFECTS : undefined,
-  unstable_navigationItemStyle: NATIVE_LIQUID_GLASS_SUPPORTED ? "editor" : undefined,
-};
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  GLASS_HEADER_OPTIONS: AppScreenOptions = {
+    headerBackButtonDisplayMode: "minimal",
+    headerBackTitle: "",
+    headerLargeTitle: false,
+    headerShadowVisible: false,
+    headerShown: true,
+    headerStyle: NATIVE_LIQUID_GLASS_SUPPORTED
+      ? { backgroundColor: "transparent" }
+      : NATIVE_SHEET_SURFACE_COLOR !== undefined
+        ? { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as string }
+        : undefined,
+    headerTitleStyle: { fontSize: 18, fontWeight: "800" },
+    headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
+    scrollEdgeEffects: NATIVE_LIQUID_GLASS_SUPPORTED ? HEADER_SCROLL_EDGE_EFFECTS : undefined,
+    unstable_navigationItemStyle: NATIVE_LIQUID_GLASS_SUPPORTED ? "editor" : undefined,
+  };
 
 // SOLID: opaque sheet-colored header for surfaces whose content scrolls internally
 // (file viewer, terminal, review) — there is nothing for glass to sample there.
-const SOLID_HEADER_OPTIONS: AppScreenOptions = {
-  headerBackButtonDisplayMode: "minimal",
-  headerBackTitle: "",
-  headerLargeTitle: false,
-  headerShadowVisible: false,
-  headerShown: true,
-  headerStyle:
-    NATIVE_SHEET_SURFACE_COLOR !== undefined
-      ? // native-stack types this as `string`, but the native side accepts any
-        // ColorValue including DynamicColorIOS.
-        { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as unknown as string }
-      : undefined,
-  headerTitleStyle: { fontSize: 18, fontWeight: "800" },
-  headerTransparent: false,
-  unstable_navigationItemStyle: Platform.OS === "ios" ? "editor" : undefined,
-};
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  SOLID_HEADER_OPTIONS: AppScreenOptions = {
+    headerBackButtonDisplayMode: "minimal",
+    headerBackTitle: "",
+    headerLargeTitle: false,
+    headerShadowVisible: false,
+    headerShown: true,
+    headerStyle:
+      NATIVE_SHEET_SURFACE_COLOR !== undefined
+        ? // native-stack types this as `string`, but the native side accepts any
+          // ColorValue including DynamicColorIOS.
+          { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as string }
+        : undefined,
+    headerTitleStyle: { fontSize: 18, fontWeight: "800" },
+    headerTransparent: false,
+    unstable_navigationItemStyle: Platform.OS === "ios" ? "editor" : undefined,
+  };
 
 // Solid header variant for screens inside sheets (centered title, no editor style).
 const SHEET_SOLID_HEADER_OPTIONS: AppScreenOptions = {

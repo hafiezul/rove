@@ -281,7 +281,7 @@ export function createDpopProof(input: {
       htu,
       jti,
       iat: Math.floor(nowMs / 1_000),
-      ...(ath ? { ath } : {}),
+      ...(ath ? { ath } : undefined),
     }).pipe(
       Effect.map(Encoding.encodeBase64Url),
       Effect.mapError(cloudDpopError("Could not encode DPoP proof payload.")),

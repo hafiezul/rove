@@ -99,8 +99,8 @@ const withInstanceIdentity =
     ...snapshot,
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
-    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
+    ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
     continuation: { groupKey: input.continuationGroupKey },
   });
 
@@ -139,7 +139,7 @@ export const OpenCodeDriver: ProviderDriver<OpenCodeSettings, OpenCodeDriverEnv>
       const adapter = yield* makeOpenCodeAdapter(effectiveConfig, {
         instanceId,
         environment: processEnv,
-        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : {}),
+        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : undefined),
       });
       const textGeneration = yield* makeOpenCodeTextGeneration(effectiveConfig, processEnv);
 

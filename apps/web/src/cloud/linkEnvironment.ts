@@ -38,6 +38,7 @@ import {
   reportRelayClientInstallProgress,
   requestRelayClientInstallConfirmation,
 } from "./relayClientInstallDialog";
+import * as RuntimePredicate from "effect/Predicate";
 
 export function normalizeRelayBaseUrl(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -181,7 +182,7 @@ function decodedRelayClientError(message: string) {
     return new CloudEnvironmentLinkError({
       message: detail ? `${message}: ${detail}` : message,
       cause,
-      ...(traceId ? { traceId } : {}),
+      ...(traceId ? { traceId } : undefined),
     });
   };
 }
@@ -190,7 +191,7 @@ function findEnvironmentCloudApiError(cause: unknown): { readonly message: strin
   if (isEnvironmentCloudApiError(cause)) {
     return cause;
   }
-  if (typeof cause !== "object" || cause === null) {
+  if (!RuntimePredicate.isObjectOrArray(cause)) {
     return null;
   }
   return "cause" in cause ? findEnvironmentCloudApiError(cause.cause) : null;

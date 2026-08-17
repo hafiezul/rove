@@ -162,24 +162,24 @@ function appendRun(
 
   const run: NativeMarkdownTextRun = {
     text,
-    ...(context.bold ? { bold: true } : {}),
-    ...(context.italic ? { italic: true } : {}),
-    ...(context.strikethrough ? { strikethrough: true } : {}),
-    ...(context.code ? { code: true } : {}),
-    ...(context.href ? { href: context.href } : {}),
-    ...(context.externalHost ? { externalHost: context.externalHost } : {}),
-    ...(context.fileIcon ? { fileIcon: context.fileIcon } : {}),
-    ...(context.role ? { role: context.role } : {}),
-    ...(context.headingLevel ? { headingLevel: context.headingLevel } : {}),
-    ...(context.depth ? { depth: context.depth } : {}),
-    ...(context.spacing ? { spacing: context.spacing } : {}),
+    ...(context.bold ? { bold: true } : undefined),
+    ...(context.italic ? { italic: true } : undefined),
+    ...(context.strikethrough ? { strikethrough: true } : undefined),
+    ...(context.code ? { code: true } : undefined),
+    ...(context.href ? { href: context.href } : undefined),
+    ...(context.externalHost ? { externalHost: context.externalHost } : undefined),
+    ...(context.fileIcon ? { fileIcon: context.fileIcon } : undefined),
+    ...(context.role ? { role: context.role } : undefined),
+    ...(context.headingLevel ? { headingLevel: context.headingLevel } : undefined),
+    ...(context.depth ? { depth: context.depth } : undefined),
+    ...(context.spacing ? { spacing: context.spacing } : undefined),
     ...(context.firstLineHeadIndent !== undefined
       ? { firstLineHeadIndent: context.firstLineHeadIndent }
-      : {}),
-    ...(context.headIndent !== undefined ? { headIndent: context.headIndent } : {}),
+      : undefined),
+    ...(context.headIndent !== undefined ? { headIndent: context.headIndent } : undefined),
     ...(context.paragraphSpacing !== undefined
       ? { paragraphSpacing: context.paragraphSpacing }
-      : {}),
+      : undefined),
   };
   const previous = runs.at(-1);
   if (previous && sameRunStyle(previous, run)) {
@@ -313,7 +313,7 @@ function appendNode(
       }
       return appendChildren(runs, node, {
         ...context,
-        ...(presentation.href ? { href: presentation.href } : {}),
+        ...(presentation.href ? { href: presentation.href } : undefined),
       });
     }
     case "image":
@@ -331,8 +331,8 @@ export function nativeMarkdownWithPreservedSoftBreaks(node: MarkdownNode): Markd
   const children = node.children?.map(nativeMarkdownWithPreservedSoftBreaks);
   return {
     ...node,
-    ...(node.type === "soft_break" ? { type: "line_break" as const } : {}),
-    ...(children ? { children } : {}),
+    ...(node.type === "soft_break" ? { type: "line_break" as const } : undefined),
+    ...(children ? { children } : undefined),
   };
 }
 

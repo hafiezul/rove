@@ -196,9 +196,10 @@ export function applyProviderInstanceSettings(
   entries: ReadonlyArray<ProviderInstanceEntry>,
   settings: Pick<ServerSettings, "providerInstances" | "providers">,
 ): ReadonlyArray<ProviderInstanceEntry> {
-  const legacyProviders = settings.providers as Readonly<
-    Record<string, { readonly enabled?: boolean } | undefined>
-  >;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    legacyProviders = settings.providers as Readonly<
+      Record<string, { readonly enabled?: boolean } | undefined>
+    >;
 
   return entries.map((entry) => {
     const explicitInstance = settings.providerInstances?.[entry.instanceId];

@@ -21,6 +21,7 @@ import {
   type ThemeHalves,
   type ThemePreferenceMode,
 } from "../themePalette";
+import * as RuntimePredicate from "effect/Predicate";
 
 type Theme = ThemePreference;
 type ThemeSnapshot = {
@@ -109,7 +110,7 @@ function emitChange() {
 function getSystemDark() {
   return (
     typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
+    RuntimePredicate.isFunction(window.matchMedia) &&
     window.matchMedia(MEDIA_QUERY).matches
   );
 }
@@ -348,7 +349,11 @@ export function syncDesktopTheme(
   const bridge = window.desktopBridge;
   const halves = readStoredThemeHalves();
   const desktopTheme = resolveDesktopTheme(theme, followSystem, appearanceMode, halves);
-  if (!bridge || typeof bridge.setTheme !== "function" || lastDesktopTheme === desktopTheme) {
+  if (
+    !bridge ||
+    !RuntimePredicate.isFunction(bridge.setTheme) ||
+    lastDesktopTheme === desktopTheme
+  ) {
     return;
   }
 
@@ -440,7 +445,9 @@ function subscribe(listener: () => void): () => void {
   // The system-preference and cross-tab listeners are shared by all
   // subscribers; each event applies the theme once and notifies everyone.
   if (!removeWindowListeners) {
-    const mq = typeof window.matchMedia === "function" ? window.matchMedia(MEDIA_QUERY) : null;
+    const mq = RuntimePredicate.isFunction(window.matchMedia)
+      ? window.matchMedia(MEDIA_QUERY)
+      : null;
     mq?.addEventListener("change", handleSystemAppearanceChange);
     window.addEventListener("storage", handleStorageChange);
     removeWindowListeners = () => {
@@ -559,7 +566,7 @@ export function useTheme() {
       if (typeof window === "undefined") return false;
       try {
         const current = readStoredThemeHalves() ?? {};
-        const next: { light?: string; dark?: string } = { ...current };
+        const next = { ...current } satisfies { light?: string; dark?: string };
         if (themeId === null) delete next[appearance];
         else next[appearance] = themeId;
         if (next.light === undefined && next.dark === undefined) {

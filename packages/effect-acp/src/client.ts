@@ -399,11 +399,11 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
 
   const transport = yield* AcpProtocol.makeAcpPatchedProtocol({
     stdio: stdio,
-    ...(terminationError ? { terminationError } : {}),
+    ...(terminationError ? { terminationError } : undefined),
     serverRequestMethods: new Set(AcpRpcs.ClientRpcs.requests.keys()),
-    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : {}),
-    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : {}),
-    ...(options.logger ? { logger: options.logger } : {}),
+    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : undefined),
+    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : undefined),
+    ...(options.logger ? { logger: options.logger } : undefined),
     onNotification: dispatchNotification,
     onExtRequest: dispatchExtRequest,
   });

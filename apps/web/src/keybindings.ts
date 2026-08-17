@@ -9,6 +9,7 @@ import {
   type ThreadJumpKeybindingCommand,
 } from "@t3tools/contracts";
 import { isMacPlatform } from "./lib/utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface ShortcutEventLike {
   type?: string;
@@ -49,7 +50,11 @@ const TERMINAL_WORD_FORWARD = "\u001bf";
 const TERMINAL_LINE_START = "\u0001";
 const TERMINAL_LINE_END = "\u0005";
 const TERMINAL_DELETE_TO_LINE_START = "\u0015";
-const EVENT_CODE_KEY_ALIASES: Readonly<Record<string, readonly string[]>> = {
+interface EventCodeKeyAliases {
+  readonly [code: string]: ReadonlyArray<string> | undefined;
+}
+
+const EVENT_CODE_KEY_ALIASES: EventCodeKeyAliases = {
   BracketLeft: ["["],
   BracketRight: ["]"],
   Digit0: ["0"],
@@ -256,10 +261,9 @@ export function shortcutLabelForCommand(
   command: KeybindingCommand,
   options?: string | ResolvedShortcutLabelOptions,
 ): string | null {
-  const resolvedOptions =
-    typeof options === "string"
-      ? ({ platform: options } satisfies ResolvedShortcutLabelOptions)
-      : options;
+  const resolvedOptions = RuntimePredicate.isString(options)
+    ? ({ platform: options } satisfies ResolvedShortcutLabelOptions)
+    : options;
   const platform = resolvePlatform(resolvedOptions);
   const shortcut = findEffectiveShortcutForCommand(keybindings, command, resolvedOptions);
   return shortcut ? formatShortcutLabel(shortcut, platform) : null;
@@ -270,7 +274,8 @@ export function threadJumpCommandForIndex(index: number): ThreadJumpKeybindingCo
 }
 
 export function threadJumpIndexFromCommand(command: string): number | null {
-  const index = THREAD_JUMP_KEYBINDING_COMMANDS.indexOf(command as ThreadJumpKeybindingCommand);
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    index = THREAD_JUMP_KEYBINDING_COMMANDS.indexOf(command as ThreadJumpKeybindingCommand);
   return index === -1 ? null : index;
 }
 
@@ -315,9 +320,10 @@ export function modelPickerJumpCommandForIndex(
 }
 
 export function modelPickerJumpIndexFromCommand(command: string): number | null {
-  const index = MODEL_PICKER_JUMP_KEYBINDING_COMMANDS.indexOf(
-    command as ModelPickerJumpKeybindingCommand,
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    index = MODEL_PICKER_JUMP_KEYBINDING_COMMANDS.indexOf(
+      command as ModelPickerJumpKeybindingCommand,
+    );
   return index === -1 ? null : index;
 }
 

@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import * as NodeCryptoLayer from "@effect/platform-node/NodeCrypto";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -6,21 +7,22 @@ import * as Layer from "effect/Layer";
 import * as RelayDb from "../db.ts";
 import { relayDeliveryAttempts } from "../persistence/schema.ts";
 import * as DeliveryAttempts from "./DeliveryAttempts.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 describe("DeliveryAttempts", () => {
   it.effect("records the signed queue source job id for APNs delivery auditability", () => {
-    const insertedValues: Array<Record<string, unknown>> = [];
-    const fakeDb = {
+    const insertedValues: Array<Record<string, SchemaJson>> = [];
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayDeliveryAttempts);
         return {
-          values: (values: Record<string, unknown>) => {
+          values: (values: Record<string, SchemaJson>) => {
             insertedValues.push(values);
             return Effect.void;
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -59,13 +61,13 @@ describe("DeliveryAttempts", () => {
   });
 
   it.effect("claims signed queue source jobs before APNs delivery", () => {
-    const insertedValues: Array<Record<string, unknown>> = [];
+    const insertedValues: Array<Record<string, SchemaJson>> = [];
     const conflictTargets: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayDeliveryAttempts);
         return {
-          values: (values: Record<string, unknown>) => {
+          values: (values: Record<string, SchemaJson>) => {
             insertedValues.push(values);
             return {
               onConflictDoNothing: (config: { readonly target: unknown }) => {
@@ -78,7 +80,7 @@ describe("DeliveryAttempts", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -111,7 +113,7 @@ describe("DeliveryAttempts", () => {
   });
 
   it.effect("reports completed source jobs when the durable claim already exists", () => {
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
         values: () => ({
           onConflictDoNothing: () => ({
@@ -135,7 +137,7 @@ describe("DeliveryAttempts", () => {
           }),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -161,7 +163,7 @@ describe("DeliveryAttempts", () => {
   });
 
   it.effect("reports in-flight source jobs while an active claim lease exists", () => {
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
         values: () => ({
           onConflictDoNothing: () => ({
@@ -185,7 +187,7 @@ describe("DeliveryAttempts", () => {
           }),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -211,8 +213,8 @@ describe("DeliveryAttempts", () => {
   });
 
   it.effect("reclaims source jobs after the claim lease expires", () => {
-    const updatedValues: Array<Record<string, unknown>> = [];
-    const fakeDb = {
+    const updatedValues: Array<Record<string, SchemaJson>> = [];
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
         values: () => ({
           onConflictDoNothing: () => ({
@@ -237,7 +239,7 @@ describe("DeliveryAttempts", () => {
         }),
       }),
       update: () => ({
-        set: (values: Record<string, unknown>) => {
+        set: (values: Record<string, SchemaJson>) => {
           updatedValues.push(values);
           return {
             where: () => ({
@@ -246,7 +248,7 @@ describe("DeliveryAttempts", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -273,13 +275,13 @@ describe("DeliveryAttempts", () => {
   });
 
   it.effect("completes a claimed source job with the APNs outcome", () => {
-    const updatedValues: Array<Record<string, unknown>> = [];
+    const updatedValues: Array<Record<string, SchemaJson>> = [];
     const whereClauses: Array<unknown> = [];
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: (table: unknown) => {
         expect(table).toBe(relayDeliveryAttempts);
         return {
-          set: (values: Record<string, unknown>) => {
+          set: (values: Record<string, SchemaJson>) => {
             updatedValues.push(values);
             return {
               where: (clause: unknown) => {
@@ -290,7 +292,7 @@ describe("DeliveryAttempts", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;
@@ -323,9 +325,9 @@ describe("DeliveryAttempts", () => {
 
   it.effect("preserves operation context and causes for persistence failures", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: () => ({
-        values: (values: Record<string, unknown>) =>
+        values: (values: Record<string, SchemaJson>) =>
           values.kind === "record"
             ? Effect.fail(cause)
             : {
@@ -339,7 +341,7 @@ describe("DeliveryAttempts", () => {
           where: () => Effect.fail(cause),
         }),
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const attempts = yield* DeliveryAttempts.DeliveryAttempts;

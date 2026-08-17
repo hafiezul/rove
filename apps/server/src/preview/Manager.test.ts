@@ -113,6 +113,7 @@ it.layer(PreviewManager.layer)("PreviewManager", (it) => {
       expect(error).toMatchObject({ inputLength: 3, reason: "empty" });
       expect(error).not.toHaveProperty("rawUrl");
       expect(error.cause).toBeInstanceOf(PreviewUrlNormalizationError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error.cause as PreviewUrlNormalizationError).reason).toBe("empty");
     }),
   );
@@ -131,8 +132,10 @@ it.layer(PreviewManager.layer)("PreviewManager", (it) => {
       });
       expect(error).not.toHaveProperty("rawUrl");
       expect(error.cause).toBeInstanceOf(PreviewUrlNormalizationError);
-      const normalizationError = error.cause as PreviewUrlNormalizationError;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        normalizationError = error.cause as PreviewUrlNormalizationError;
       expect(normalizationError.cause).toBeInstanceOf(Error);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(error.message).not.toContain((normalizationError.cause as Error).message);
       expect(error.message).not.toMatch(/user|password|access_token|secret|fragment/);
     }),

@@ -369,9 +369,8 @@ describe("getSidebarThreadIdsToPrewarm", () => {
 describe("shouldClearThreadSelectionOnMouseDown", () => {
   it("preserves selection for thread items", () => {
     const child = {
-      closest: (selector: string) =>
-        selector.includes("[data-thread-item]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
+      closest: (selector: string) => (selector.includes("[data-thread-item]") ? {} : null),
+    };
 
     expect(shouldClearThreadSelectionOnMouseDown(child)).toBe(false);
   });
@@ -379,8 +378,8 @@ describe("shouldClearThreadSelectionOnMouseDown", () => {
   it("preserves selection for thread list toggle controls", () => {
     const selectionSafe = {
       closest: (selector: string) =>
-        selector.includes("[data-thread-selection-safe]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
+        selector.includes("[data-thread-selection-safe]") ? {} : null,
+    };
 
     expect(shouldClearThreadSelectionOnMouseDown(selectionSafe)).toBe(false);
   });
@@ -388,7 +387,7 @@ describe("shouldClearThreadSelectionOnMouseDown", () => {
   it("clears selection for unrelated sidebar clicks", () => {
     const unrelated = {
       closest: () => null,
-    } as unknown as HTMLElement;
+    };
 
     expect(shouldClearThreadSelectionOnMouseDown(unrelated)).toBe(true);
   });
@@ -412,23 +411,45 @@ describe("isTrailingDoubleClick", () => {
   });
 });
 
+class TestSidebarNode extends EventTarget {
+  parentElement: TestSidebarElement | null = null;
+}
+
+class TestSidebarElement extends TestSidebarNode {
+  constructor(private readonly closestSelector: string | null = null) {
+    super();
+  }
+
+  closest(selector: string): TestSidebarElement | null {
+    return selector === this.closestSelector ? this : null;
+  }
+}
+
 describe("isSidebarNestedLinkClick", () => {
-  const linkTarget = {
-    closest: (selector: string) => (selector === "a[href]" ? ({} as Element) : null),
-  } as unknown as EventTarget;
+  beforeEach(() => {
+    vi.stubGlobal("Element", TestSidebarElement);
+    vi.stubGlobal("Node", TestSidebarNode);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it("ignores row clicks that originated on a nested link", () => {
+    const linkTarget = new TestSidebarElement("a[href]");
     expect(isSidebarNestedLinkClick(linkTarget)).toBe(true);
   });
 
   it("walks up from a text node to the enclosing link", () => {
-    expect(isSidebarNestedLinkClick({ parentElement: linkTarget } as unknown as EventTarget)).toBe(
-      true,
-    );
+    const linkTarget = new TestSidebarElement("a[href]");
+    const textTarget = new TestSidebarNode();
+    textTarget.parentElement = linkTarget;
+
+    expect(isSidebarNestedLinkClick(textTarget)).toBe(true);
   });
 
   it("leaves ordinary row clicks alone", () => {
-    expect(isSidebarNestedLinkClick({ closest: () => null } as unknown as EventTarget)).toBe(false);
+    expect(isSidebarNestedLinkClick(new TestSidebarElement())).toBe(false);
     expect(isSidebarNestedLinkClick(null)).toBe(false);
   });
 });

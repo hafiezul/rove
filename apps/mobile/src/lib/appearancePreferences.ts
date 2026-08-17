@@ -6,6 +6,7 @@ import {
   TERMINAL_FONT_SIZE_STEP,
   normalizeTerminalFontSize,
 } from "../features/terminal/terminalPreferences";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const DEFAULT_BASE_FONT_SIZE = MOBILE_TYPOGRAPHY.body.fontSize;
 export const MIN_BASE_FONT_SIZE = 11;
@@ -68,7 +69,7 @@ export interface NativeMarkdownTypography {
 }
 
 export function normalizeBaseFontSize(value: number | null | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (!RuntimePredicate.isNumber(value) || !Number.isFinite(value)) {
     return DEFAULT_BASE_FONT_SIZE;
   }
 
@@ -76,7 +77,7 @@ export function normalizeBaseFontSize(value: number | null | undefined): number 
 }
 
 export function normalizeCodeFontSize(value: number | null | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (!RuntimePredicate.isNumber(value) || !Number.isFinite(value)) {
     return DEFAULT_CODE_FONT_SIZE;
   }
 
@@ -114,11 +115,12 @@ export function resolveAppearancePreferences(
   return {
     baseFontSize: normalizeBaseFontSize(stored?.baseFontSize ?? stored?.markdownFontSize),
     terminalFontSize:
-      typeof stored?.terminalFontSize === "number" && Number.isFinite(stored.terminalFontSize)
+      RuntimePredicate.isNumber(stored?.terminalFontSize) &&
+      Number.isFinite(stored.terminalFontSize)
         ? normalizeTerminalFontSize(stored.terminalFontSize)
         : null,
     codeFontSize:
-      typeof stored?.codeFontSize === "number" && Number.isFinite(stored.codeFontSize)
+      RuntimePredicate.isNumber(stored?.codeFontSize) && Number.isFinite(stored.codeFontSize)
         ? normalizeCodeFontSize(stored.codeFontSize)
         : null,
     codeWordBreak: normalizeCodeWordBreak(stored?.codeWordBreak),
@@ -192,7 +194,7 @@ const TEXT_SCALE_VARIABLE_ROLES = {
  * pass to `Uniwind.updateCSSVariables`. All className-based text (`text-sm`,
  * `text-base`, ...) re-resolves live when these are injected.
  */
-export function resolveTextScaleVariables(baseFontSize: number): Record<string, number> {
+export function resolveTextScaleVariables(baseFontSize: number) {
   const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
   const variables: Record<string, number> = {};
 

@@ -68,7 +68,7 @@ export const PlanetscaleDatabase = Effect.gen(function* () {
 
   const runtimeRole = yield* Planetscale.PostgresRole("RelayPostgresRuntimeRole", {
     database,
-    ...(branch ? { branch } : {}),
+    ...(branch ? { branch } : undefined),
     inheritedRoles: ["pg_read_all_data", "pg_write_all_data"],
   });
 

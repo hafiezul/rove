@@ -216,7 +216,7 @@ export const make = Effect.gen(function* () {
           cwd: input.cwd,
           number: input.number,
           action: input.action,
-          ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
+          ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
         })
         .pipe(Effect.mapError(fail("runAction"))),
 

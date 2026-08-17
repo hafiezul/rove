@@ -21,7 +21,7 @@ export interface ResolvedBackgroundActivitySettings {
   readonly pauseWhenOnBattery: boolean;
 }
 
-const PRESET_SETTINGS: Record<BackgroundActivityProfile, ResolvedBackgroundActivitySettings> = {
+const PRESET_SETTINGS = {
   performance: {
     profile: "performance",
     automaticGitFetchInterval: Duration.seconds(15),
@@ -58,7 +58,7 @@ const PRESET_SETTINGS: Record<BackgroundActivityProfile, ResolvedBackgroundActiv
     pauseWhenClientLowPower: true,
     pauseWhenOnBattery: true,
   },
-};
+} satisfies Record<BackgroundActivityProfile, ResolvedBackgroundActivitySettings>;
 
 export function getBackgroundActivityPresetSettings(
   profile: BackgroundActivityProfile,
@@ -153,37 +153,37 @@ export function normalizeBackgroundActivitySettings(
   const overrides: BackgroundActivitySettings["overrides"] = {
     ...(!durationsEqual(resolved.automaticGitFetchInterval, preset.automaticGitFetchInterval)
       ? { automaticGitFetchInterval: resolved.automaticGitFetchInterval }
-      : {}),
+      : undefined),
     ...(!durationsEqual(
       resolved.providerHealthRefreshInterval,
       preset.providerHealthRefreshInterval,
     )
       ? { providerHealthRefreshInterval: resolved.providerHealthRefreshInterval }
-      : {}),
+      : undefined),
     ...(!durationsEqual(
       resolved.hostPowerMonitorActiveInterval,
       preset.hostPowerMonitorActiveInterval,
     )
       ? { hostPowerMonitorActiveInterval: resolved.hostPowerMonitorActiveInterval }
-      : {}),
+      : undefined),
     ...(!durationsEqual(resolved.hostPowerMonitorIdleInterval, preset.hostPowerMonitorIdleInterval)
       ? { hostPowerMonitorIdleInterval: resolved.hostPowerMonitorIdleInterval }
-      : {}),
+      : undefined),
     ...(!durationsEqual(resolved.idleClientTtl, preset.idleClientTtl)
       ? { idleClientTtl: resolved.idleClientTtl }
-      : {}),
+      : undefined),
     ...(resolved.pauseWhenHostLocked !== preset.pauseWhenHostLocked
       ? { pauseWhenHostLocked: resolved.pauseWhenHostLocked }
-      : {}),
+      : undefined),
     ...(resolved.pauseWhenHostLowPower !== preset.pauseWhenHostLowPower
       ? { pauseWhenHostLowPower: resolved.pauseWhenHostLowPower }
-      : {}),
+      : undefined),
     ...(resolved.pauseWhenClientLowPower !== preset.pauseWhenClientLowPower
       ? { pauseWhenClientLowPower: resolved.pauseWhenClientLowPower }
-      : {}),
+      : undefined),
     ...(resolved.pauseWhenOnBattery !== preset.pauseWhenOnBattery
       ? { pauseWhenOnBattery: resolved.pauseWhenOnBattery }
-      : {}),
+      : undefined),
   };
 
   return {
@@ -234,13 +234,13 @@ export function resolveServerBackgroundActivitySettings(
           getBackgroundActivityPresetSettings(legacyProfile).automaticGitFetchInterval,
         )
           ? { automaticGitFetchInterval: settings.automaticGitFetchInterval }
-          : {}),
+          : undefined),
         ...(Duration.toMillis(settings.providerHealthRefreshInterval) !==
         Duration.toMillis(
           getBackgroundActivityPresetSettings(legacyProfile).providerHealthRefreshInterval,
         )
           ? { providerHealthRefreshInterval: settings.providerHealthRefreshInterval }
-          : {}),
+          : undefined),
       },
     });
   }

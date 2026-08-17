@@ -76,9 +76,14 @@ import {
   type Icon,
 } from "@tabler/icons-react-native";
 import { Platform } from "react-native";
-import { SymbolView as ExpoSymbolView, type SFSymbol, type SymbolViewProps } from "expo-symbols";
+import { SymbolView as ExpoSymbolView, type SymbolViewProps } from "expo-symbols";
+import * as RuntimePredicate from "effect/Predicate";
 
-const ANDROID_ICON_BY_SF_SYMBOL: Partial<Record<SFSymbol, Icon>> = {
+interface AndroidIconsBySfSymbol {
+  readonly [symbol: string]: Icon | undefined;
+}
+
+const ANDROID_ICON_BY_SF_SYMBOL: AndroidIconsBySfSymbol = {
   "arrow.branch": IconGitBranch,
   "arrow.clockwise": IconRefresh,
   "arrow.down.circle": IconArrowDownCircle,
@@ -117,7 +122,7 @@ const ANDROID_ICON_BY_SF_SYMBOL: Partial<Record<SFSymbol, Icon>> = {
   folder: IconFolder,
   "folder.badge.plus": IconFolderPlus,
   "folder.fill": IconFolder,
-  gearshape: IconSettings,
+  ["gearshape"]: IconSettings,
   "info.circle": IconInfoCircle,
   link: IconLink,
   "line.3.horizontal.decrease.circle": IconFilter,
@@ -156,7 +161,11 @@ const ANDROID_ICON_BY_SF_SYMBOL: Partial<Record<SFSymbol, Icon>> = {
 // icon name (the raw expo-symbols contract). Resolve those here too so the
 // android key keeps working through this wrapper — it wins over the SF map
 // when both match (e.g. folder vs folder_open for expanded project groups).
-const ANDROID_ICON_BY_MATERIAL_NAME: Record<string, Icon> = {
+interface AndroidIconsByMaterialName {
+  readonly [name: string]: Icon | undefined;
+}
+
+const ANDROID_ICON_BY_MATERIAL_NAME: AndroidIconsByMaterialName = {
   auto_awesome: IconSparkles,
   bolt: IconBolt,
   build: IconTool,
@@ -187,8 +196,8 @@ export function SymbolView(props: SymbolViewProps) {
     return <ExpoSymbolView {...props} />;
   }
 
-  const materialName = typeof props.name === "string" ? undefined : props.name.android;
-  const sfSymbol = typeof props.name === "string" ? props.name : props.name.ios;
+  const materialName = RuntimePredicate.isString(props.name) ? undefined : props.name.android;
+  const sfSymbol = RuntimePredicate.isString(props.name) ? props.name : props.name.ios;
   const AndroidIcon =
     (materialName ? ANDROID_ICON_BY_MATERIAL_NAME[materialName] : undefined) ??
     (sfSymbol ? ANDROID_ICON_BY_SF_SYMBOL[sfSymbol] : undefined);

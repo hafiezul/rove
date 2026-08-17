@@ -1,4 +1,5 @@
 import type { ScopedThreadRef, ThreadId } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export function shouldHideCollapsedToastContent(
   visibleToastIndex: number,
@@ -28,10 +29,7 @@ type VisibleToastLayoutItem<TToast extends object> = {
 
 export function buildVisibleToastLayout<TToast extends object>(
   visibleToasts: readonly (TToast & ToastWithLayoutProps)[],
-): {
-  frontmostHeight: number;
-  items: VisibleToastLayoutItem<TToast & ToastWithLayoutProps>[];
-} {
+) {
   // Two parallel cursors:
   //   - `full*`  advances on every toast, so an ending toast keeps the slot it
   //     occupied before dismissal and its data-ending-style exit transform
@@ -86,7 +84,7 @@ export function buildVisibleToastLayout<TToast extends object>(
 }
 
 function normalizeToastHeight(height: number | null | undefined): number {
-  return typeof height === "number" && Number.isFinite(height) && height > 0 ? height : 0;
+  return RuntimePredicate.isNumber(height) && Number.isFinite(height) && height > 0 ? height : 0;
 }
 
 export function shouldRenderThreadScopedToast(

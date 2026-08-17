@@ -13,6 +13,7 @@ import { cn } from "../lib/cn";
 import { type AppSymbolName, SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { OverlayPortal } from "./OverlayPortal";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MENU_WIDTH = 250;
 const SCREEN_MARGIN = 12;
@@ -194,7 +195,7 @@ export function AndroidAnchoredMenu(props: AndroidAnchoredMenuProps) {
 
   return (
     <>
-      {typeof props.children === "function" ? (
+      {RuntimePredicate.isFunction(props.children) ? (
         <View ref={anchorRef} collapsable={false} className={props.className} style={props.style}>
           {props.children(open)}
         </View>
@@ -274,6 +275,7 @@ export function AndroidAnchoredMenu(props: AndroidAnchoredMenuProps) {
                     const destructive = action.attributes?.destructive ?? false;
                     const disabled = action.attributes?.disabled ?? false;
                     const hasSubmenu = (action.subactions?.length ?? 0) > 0;
+                    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                     return (
                       <Pressable
                         key={action.id ?? `${index}-${action.title}`}

@@ -18,11 +18,12 @@ import {
   projectActivityPayload,
   projectThreadDetailSnapshot,
 } from "../src/orchestration/ActivityPayloadProjection.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 function makeActivity(
   id: string,
   itemType: string,
-  data: Record<string, unknown>,
+  data: Record<string, SchemaJson>,
 ): OrchestrationThreadActivity {
   return {
     id: EventId.make(id),
@@ -277,9 +278,9 @@ describe("superseded tool.updated snapshot dedup", () => {
       payload: {
         itemType: "file_change",
         title,
-        ...(detail ? { detail } : {}),
+        ...(detail ? { detail } : undefined),
         data: {
-          ...(toolCallId ? { toolCallId } : {}),
+          ...(toolCallId ? { toolCallId } : undefined),
           toolName: "Edit",
           input: { file_path: "src/app.ts" },
         },

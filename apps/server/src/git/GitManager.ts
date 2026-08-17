@@ -40,6 +40,7 @@ import {
   sanitizeBranchFragment,
   sanitizeFeatureBranchName,
 } from "@t3tools/shared/git";
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
 import {
   getChangeRequestTerminologyForKind,
   type ChangeRequestTerminology,
@@ -61,9 +62,15 @@ import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import { detectPrTemplate } from "../sourceControl/PrTemplateDetection.ts";
 import type { ChangeRequest } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface GitActionProgressReporter {
   readonly publish: (event: GitActionProgressEvent) => Effect.Effect<void, never>;
+}
+
+interface StackedActionBranchStep {
+  readonly status: "created" | "skipped_not_requested";
+  readonly name?: string;
 }
 
 export interface GitRunStackedActionOptions {
@@ -386,13 +393,13 @@ function toPullRequestInfo(summary: ChangeRequest): PullRequestInfo {
     updatedAt: summary.updatedAt,
     ...(summary.isCrossRepository !== undefined
       ? { isCrossRepository: summary.isCrossRepository }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryNameWithOwner !== undefined
       ? { headRepositoryNameWithOwner: summary.headRepositoryNameWithOwner }
-      : {}),
+      : undefined),
     ...(summary.headRepositoryOwnerLogin !== undefined
       ? { headRepositoryOwnerLogin: summary.headRepositoryOwnerLogin }
-      : {}),
+      : undefined),
   };
 }
 
@@ -423,10 +430,7 @@ function withDescription(title: string, description: string | undefined) {
 function summarizeGitActionResult(
   result: Pick<GitRunStackedActionResult, "commit" | "push" | "pr">,
   terms: ChangeRequestTerminology,
-): {
-  title: string;
-  description?: string;
-} {
+) {
   if (result.pr.status === "created" || result.pr.status === "opened_existing") {
     const prNumber = result.pr.number ? ` #${result.pr.number}` : "";
     const title = `${result.pr.status === "created" ? "Created" : "Opened"} ${terms.shortLabel}${prNumber}`;
@@ -457,18 +461,14 @@ function sanitizeCommitMessage(generated: {
   subject: string;
   body: string;
   branch?: string | undefined;
-}): {
-  subject: string;
-  body: string;
-  branch?: string | undefined;
-} {
+}) {
   const rawSubject = generated.subject.trim().split(/\r?\n/g)[0]?.trim() ?? "";
   const subject = rawSubject.replace(/[.]+$/g, "").trim();
   const safeSubject = subject.length > 0 ? subject.slice(0, 72).trimEnd() : "Update project files";
   return {
     subject: safeSubject,
     body: generated.body.trim(),
-    ...(generated.branch !== undefined ? { branch: generated.branch } : {}),
+    ...(generated.branch !== undefined ? { branch: generated.branch } : undefined),
   };
 }
 
@@ -530,14 +530,7 @@ function appendUnique(values: string[], next: string | null | undefined): void {
   values.push(trimmed);
 }
 
-function toStatusPr(pr: PullRequestInfo): {
-  number: number;
-  title: string;
-  url: string;
-  baseRef: string;
-  headRef: string;
-  state: "open" | "closed" | "merged";
-} {
+function toStatusPr(pr: PullRequestInfo) {
   return {
     number: pr.number,
     title: pr.title,
@@ -584,13 +577,15 @@ function toPullRequestHeadRemoteInfo(pr: {
   headRepositoryOwnerLogin?: string | null | undefined;
 }): PullRequestHeadRemoteInfo {
   return {
-    ...(pr.isCrossRepository !== undefined ? { isCrossRepository: pr.isCrossRepository } : {}),
+    ...(pr.isCrossRepository !== undefined
+      ? { isCrossRepository: pr.isCrossRepository }
+      : undefined),
     ...(pr.headRepositoryNameWithOwner !== undefined
       ? { headRepositoryNameWithOwner: pr.headRepositoryNameWithOwner }
-      : {}),
+      : undefined),
     ...(pr.headRepositoryOwnerLogin !== undefined
       ? { headRepositoryOwnerLogin: pr.headRepositoryOwnerLogin }
-      : {}),
+      : undefined),
   };
 }
 
@@ -875,7 +870,7 @@ export const make = Effect.gen(function* () {
 
     return {
       isRepo: details.isRepo,
-      ...(hostingProvider ? { sourceControlProvider: hostingProvider } : {}),
+      ...(hostingProvider ? { sourceControlProvider: hostingProvider } : undefined),
       hasPrimaryRemote: details.hasOriginRemote,
       isDefaultRef: details.isDefaultBranch,
       refName: details.branch,
@@ -1048,9 +1043,9 @@ export const make = Effect.gen(function* () {
             operation: "lookupStatusPr",
             branch: details.branch,
             errorTag:
-              typeof error === "object" && error !== null && "_tag" in error
+              RuntimePredicate.isObjectOrArray(error) && "_tag" in error
                 ? String(error._tag)
-                : typeof error,
+                : runtimeValueKind(error),
             ...(isSourceControlProviderError(error)
               ? {
                   provider: error.provider,
@@ -1058,7 +1053,7 @@ export const make = Effect.gen(function* () {
                   providerCommand: error.command ?? "unknown",
                   errorDetail: error.detail,
                 }
-              : {}),
+              : undefined),
           }),
           Effect.andThen(resolveBranchHeadContext(cwd, details)),
           Effect.map((headContext) =>
@@ -1495,7 +1490,7 @@ export const make = Effect.gen(function* () {
           body: customCommit.body,
           ...(input.includeBranch
             ? { branch: sanitizeFeatureBranchName(customCommit.subject) }
-            : {}),
+            : undefined),
           commitMessage: formatCommitMessage(customCommit.subject, customCommit.body),
         };
       }
@@ -1508,8 +1503,8 @@ export const make = Effect.gen(function* () {
           branch: input.branch,
           stagedSummary: limitContext(context.stagedSummary, 8_000),
           stagedPatch: limitContext(context.stagedPatch, 50_000),
-          ...(input.includeBranch ? { includeBranch: true } : {}),
-          ...(policy ? { policy } : {}),
+          ...(input.includeBranch ? { includeBranch: true } : undefined),
+          ...(policy ? { policy } : undefined),
           modelSelection: input.settings.modelSelection,
         })
         .pipe(Effect.map((result) => sanitizeCommitMessage(result)));
@@ -1517,7 +1512,7 @@ export const make = Effect.gen(function* () {
       return {
         subject: generated.subject,
         body: generated.body,
-        ...(generated.branch !== undefined ? { branch: generated.branch } : {}),
+        ...(generated.branch !== undefined ? { branch: generated.branch } : undefined),
         commitMessage: formatCommitMessage(generated.subject, generated.body),
       };
     },
@@ -1557,8 +1552,8 @@ export const make = Effect.gen(function* () {
       suggestion = yield* resolveCommitAndBranchSuggestion({
         cwd,
         branch,
-        ...(commitMessage ? { commitMessage } : {}),
-        ...(filePaths ? { filePaths } : {}),
+        ...(commitMessage ? { commitMessage } : undefined),
+        ...(filePaths ? { filePaths } : undefined),
         settings,
       });
     }
@@ -1618,7 +1613,7 @@ export const make = Effect.gen(function* () {
         : null;
     const { commitSha } = yield* gitCore.commit(cwd, suggestion.subject, suggestion.body, {
       timeoutMs: COMMIT_TIMEOUT_MS,
-      ...(commitProgress ? { progress: commitProgress } : {}),
+      ...(commitProgress ? { progress: commitProgress } : undefined),
     });
     if (currentHookName !== null) {
       yield* emit({
@@ -1699,8 +1694,8 @@ export const make = Effect.gen(function* () {
       commitSummary: limitContext(rangeContext.commitSummary, 20_000),
       diffSummary: limitContext(rangeContext.diffSummary, 20_000),
       diffPatch: limitContext(rangeContext.diffPatch, 60_000),
-      ...(changeRequestTemplate ? { changeRequestTemplate } : {}),
-      ...(policy ? { policy } : {}),
+      ...(changeRequestTemplate ? { changeRequestTemplate } : undefined),
+      ...(policy ? { policy } : undefined),
       modelSelection: settings.modelSelection,
     });
 
@@ -2084,8 +2079,8 @@ export const make = Effect.gen(function* () {
     const suggestion = yield* resolveCommitAndBranchSuggestion({
       cwd,
       branch,
-      ...(commitMessage ? { commitMessage } : {}),
-      ...(filePaths ? { filePaths } : {}),
+      ...(commitMessage ? { commitMessage } : undefined),
+      ...(filePaths ? { filePaths } : undefined),
       includeBranch: true,
       settings,
     });
@@ -2172,7 +2167,7 @@ export const make = Effect.gen(function* () {
           });
         }
 
-        let branchStep: { status: "created" | "skipped_not_requested"; name?: string };
+        let branchStep: StackedActionBranchStep;
         let commitMessageForStep = input.commitMessage;
         let preResolvedCommitSuggestion: CommitAndBranchSuggestion | undefined = undefined;
 

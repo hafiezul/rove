@@ -1,4 +1,4 @@
-import { ProviderRegistry, type ProviderRegistryShape } from "../Services/ProviderRegistry.ts";
+import { ProviderRegistry, type ProviderRegistryContract } from "../Services/ProviderRegistry.ts";
 import type { ServerProvider } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -7,7 +7,7 @@ import { makeManualOnlyProviderMaintenanceCapabilities } from "../providerMainte
 
 export const makeProviderRegistryMock = (
   providers: ReadonlyArray<ServerProvider> = [],
-): ProviderRegistryShape => ({
+): ProviderRegistryContract => ({
   getProviders: Effect.succeed(providers),
   refresh: () => Effect.succeed(providers),
   refreshInstance: () => Effect.succeed(providers),

@@ -111,10 +111,10 @@ export const make = Effect.gen(function* () {
     record: Effect.fn("relay.delivery_attempts.record")(function* (input) {
       yield* Effect.annotateCurrentSpan({
         "relay.delivery.kind": input.kind,
-        ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : {}),
-        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : {}),
-        ...(input.environmentId ? { "relay.environment_id": input.environmentId } : {}),
-        ...(input.threadId ? { "relay.thread_id": input.threadId } : {}),
+        ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : undefined),
+        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : undefined),
+        ...(input.environmentId ? { "relay.environment_id": input.environmentId } : undefined),
+        ...(input.threadId ? { "relay.thread_id": input.threadId } : undefined),
       });
       yield* Effect.gen(function* () {
         const id = yield* crypto.randomUUIDv4;
@@ -140,9 +140,9 @@ export const make = Effect.gen(function* () {
       yield* Effect.annotateCurrentSpan({
         "relay.delivery.kind": input.kind,
         "relay.delivery.job_id": input.sourceJobId,
-        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : {}),
-        ...(input.environmentId ? { "relay.environment_id": input.environmentId } : {}),
-        ...(input.threadId ? { "relay.thread_id": input.threadId } : {}),
+        ...(input.deviceId ? { "relay.mobile.device_id": input.deviceId } : undefined),
+        ...(input.environmentId ? { "relay.environment_id": input.environmentId } : undefined),
+        ...(input.threadId ? { "relay.thread_id": input.threadId } : undefined),
       });
       return yield* Effect.gen(function* () {
         const id = yield* crypto.randomUUIDv4;

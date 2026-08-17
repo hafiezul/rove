@@ -246,8 +246,8 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
   }
 
   return {
-    ...(bootstrapProjectId ? { bootstrapProjectId } : {}),
-    ...(bootstrapThreadId ? { bootstrapThreadId } : {}),
+    ...(bootstrapProjectId ? { bootstrapProjectId } : undefined),
+    ...(bootstrapThreadId ? { bootstrapThreadId } : undefined),
   } as const;
 });
 
@@ -453,7 +453,7 @@ export const make = (options?: StartupOptions) =>
           payload: {
             at: DateTime.formatIso(yield* DateTime.now),
             environment,
-            ...(updateOutcome === undefined ? {} : { updateOutcome }),
+            ...(updateOutcome === undefined ? undefined : { updateOutcome }),
           },
         }),
       );

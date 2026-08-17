@@ -26,6 +26,7 @@ import { makeProviderMaintenanceCommandCoordinator } from "./providerMaintenance
 import { enrichProviderSnapshotWithVersionAdvisory } from "./providerMaintenance.ts";
 import type { ProviderMaintenanceCapabilities } from "./providerMaintenance.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isServerProviderUpdateError = Schema.is(ServerProviderUpdateError);
 
 const UPDATE_TIMEOUT_MS = 5 * 60_000;
@@ -40,7 +41,7 @@ export interface ProviderMaintenanceCommandResult {
   readonly stderrTruncated: boolean;
 }
 
-export interface ProviderMaintenanceRunnerShape {
+export interface ProviderMaintenanceRunnerContract {
   readonly updateProvider: (
     target:
       | ProviderDriverKind
@@ -53,7 +54,7 @@ export interface ProviderMaintenanceRunnerShape {
 
 export class ProviderMaintenanceRunner extends Context.Service<
   ProviderMaintenanceRunner,
-  ProviderMaintenanceRunnerShape
+  ProviderMaintenanceRunnerContract
 >()("t3/provider/providerMaintenanceRunner") {}
 
 class ProviderMaintenanceCommandError extends Data.TaggedError("ProviderMaintenanceCommandError")<{
@@ -284,14 +285,13 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
       }),
     );
 
-  const updateProvider: ProviderMaintenanceRunnerShape["updateProvider"] = Effect.fn(
+  const updateProvider: ProviderMaintenanceRunnerContract["updateProvider"] = Effect.fn(
     "ProviderMaintenanceRunner.updateProvider",
   )(function* (target) {
-    const provider = typeof target === "string" ? target : target.provider;
-    const instanceId =
-      typeof target === "string"
-        ? defaultInstanceIdForDriver(provider)
-        : (target.instanceId ?? defaultInstanceIdForDriver(provider));
+    const provider = RuntimePredicate.isString(target) ? target : target.provider;
+    const instanceId = RuntimePredicate.isString(target)
+      ? defaultInstanceIdForDriver(provider)
+      : (target.instanceId ?? defaultInstanceIdForDriver(provider));
     const targetKey = `instance:${instanceId}`;
     const capabilities = yield* providerRegistry.getProviderMaintenanceCapabilitiesForInstance(
       instanceId,

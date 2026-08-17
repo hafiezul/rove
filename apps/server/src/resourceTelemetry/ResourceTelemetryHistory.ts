@@ -23,7 +23,7 @@ const MAX_HISTORY_WINDOW_MS = 60 * 60_000;
 export function normalizeResourceTelemetryHistoryInput(input: {
   readonly windowMs: number;
   readonly bucketMs: number;
-}): { readonly windowMs: number; readonly bucketMs: number } {
+}) {
   const windowMs = Math.max(1_000, Math.min(MAX_HISTORY_WINDOW_MS, input.windowMs));
   return {
     windowMs,

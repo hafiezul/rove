@@ -84,7 +84,7 @@ export function terminalGridSize(
   height: number,
   metrics: GhosttyCellMetrics,
   padding: number,
-): { cols: number; rows: number } {
+) {
   return {
     cols: Math.max(1, Math.floor((width - padding * 2) / metrics.width)),
     rows: Math.max(1, Math.floor((height - padding * 2) / metrics.height)),

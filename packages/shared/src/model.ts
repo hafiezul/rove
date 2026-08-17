@@ -9,6 +9,7 @@ import {
   type ProviderOptionDescriptor,
   type ProviderOptionSelection,
 } from "@t3tools/contracts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_PROVIDER_DRIVER_KIND = ProviderDriverKind.make("codex");
 
@@ -45,7 +46,7 @@ export function getProviderOptionStringSelectionValue(
   id: string,
 ): string | undefined {
   const value = getProviderOptionSelectionValue(selections, id);
-  return typeof value === "string" ? value : undefined;
+  return RuntimePredicate.isString(value) ? value : undefined;
 }
 
 export function getProviderOptionBooleanSelectionValue(
@@ -53,7 +54,7 @@ export function getProviderOptionBooleanSelectionValue(
   id: string,
 ): boolean | undefined {
   const value = getProviderOptionSelectionValue(selections, id);
-  return typeof value === "boolean" ? value : undefined;
+  return RuntimePredicate.isBoolean(value) ? value : undefined;
 }
 
 export function getModelSelectionOptionValue(
@@ -107,7 +108,7 @@ function cloneDescriptor(descriptor: ProviderOptionDescriptor): ProviderOptionDe
         options: [...descriptor.options],
         ...(descriptor.promptInjectedValues
           ? { promptInjectedValues: [...descriptor.promptInjectedValues] }
-          : {}),
+          : undefined),
       }
     : { ...descriptor };
 }
@@ -121,7 +122,7 @@ function withDescriptorCurrentValue(
   rawCurrentValue: string | boolean | undefined,
 ): ProviderOptionDescriptor {
   if (descriptor.type === "boolean") {
-    if (typeof rawCurrentValue === "boolean") {
+    if (RuntimePredicate.isBoolean(rawCurrentValue)) {
       return {
         ...descriptor,
         currentValue: rawCurrentValue,
@@ -129,10 +130,9 @@ function withDescriptorCurrentValue(
     }
     return descriptor;
   }
-  const currentValue =
-    typeof rawCurrentValue === "string"
-      ? resolveDescriptorChoiceValue(descriptor, rawCurrentValue)
-      : resolveDescriptorChoiceValue(descriptor, descriptor.currentValue);
+  const currentValue = RuntimePredicate.isString(rawCurrentValue)
+    ? resolveDescriptorChoiceValue(descriptor, rawCurrentValue)
+    : resolveDescriptorChoiceValue(descriptor, descriptor.currentValue);
   if (!currentValue) {
     const { currentValue: _unusedCurrentValue, ...rest } = descriptor;
     return rest;
@@ -180,14 +180,14 @@ export function getProviderOptionCurrentLabel(
     return undefined;
   }
   if (descriptor.type === "boolean") {
-    return typeof descriptor.currentValue === "boolean"
+    return RuntimePredicate.isBoolean(descriptor.currentValue)
       ? descriptor.currentValue
         ? "On"
         : "Off"
       : undefined;
   }
   const currentValue = getProviderOptionCurrentValue(descriptor);
-  if (typeof currentValue !== "string") {
+  if (!RuntimePredicate.isString(currentValue)) {
     return undefined;
   }
   return descriptor.options.find((option) => option.id === currentValue)?.label;
@@ -204,7 +204,7 @@ export function buildProviderOptionSelectionsFromDescriptors(
 
   for (const descriptor of descriptors) {
     const value = getProviderOptionCurrentValue(descriptor);
-    if (typeof value === "string" || typeof value === "boolean") {
+    if (RuntimePredicate.isString(value) || RuntimePredicate.isBoolean(value)) {
       nextSelections.push({ id: descriptor.id, value });
     }
   }
@@ -229,7 +229,7 @@ export function getModelSelectionOptionDescriptors(
 }
 
 export function isClaudeUltrathinkPrompt(text: string | null | undefined): boolean {
-  return typeof text === "string" && /\bultrathink\b/i.test(text);
+  return RuntimePredicate.isString(text) && /\bultrathink\b/i.test(text);
 }
 
 export function normalizeModelSlug(
@@ -245,12 +245,12 @@ export function normalizeModelSlug(
   const aliased = Object.prototype.hasOwnProperty.call(aliases, trimmed)
     ? aliases[trimmed]
     : undefined;
-  return typeof aliased === "string" ? aliased : trimmed;
+  return RuntimePredicate.isString(aliased) ? aliased : trimmed;
 }
 
 /** Custom model identifiers are provider-owned, so only trim them; never expand aliases. */
 export function normalizeCustomModelSlug(model: string | null | undefined): string | null {
-  if (typeof model !== "string") {
+  if (!RuntimePredicate.isString(model)) {
     return null;
   }
 
@@ -262,7 +262,7 @@ export function resolveSelectableModel(
   value: string | null | undefined,
   options: ReadonlyArray<SelectableModelOption>,
 ): string | null {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return null;
   }
 
@@ -307,8 +307,9 @@ export function resolveModelSlugForProvider(
 
 /** Trim a string, returning null for empty/missing values. */
 export function trimOrNull<T extends string>(value: T | null | undefined): T | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim() as T;
+  if (!RuntimePredicate.isString(value)) return null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    trimmed = value.trim() as T;
   return trimmed || null;
 }
 

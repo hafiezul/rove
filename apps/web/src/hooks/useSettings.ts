@@ -15,10 +15,10 @@ import {
   DEFAULT_SERVER_SETTINGS,
   type EnvironmentId,
   ServerSettings,
-  type ServerSettingsPatch,
+  ServerSettingsPatch,
 } from "@t3tools/contracts";
 import {
-  type ClientSettingsPatch,
+  ClientSettingsPatch,
   type ClientSettings,
   DEFAULT_CLIENT_SETTINGS,
   type EnvironmentIdentificationMode,
@@ -34,6 +34,7 @@ import {
   themeAllowsSidebarArtwork,
 } from "~/themePalette";
 import * as Struct from "effect/Struct";
+import * as Schema from "effect/Schema";
 import { primaryServerSettingsAtom, serverEnvironment } from "~/state/server";
 import { usePrimaryEnvironment } from "~/state/environments";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -154,24 +155,20 @@ function persistClientSettings(settings: ClientSettings): void {
 // ── Key sets for routing patches ─────────────────────────────────────
 
 const SERVER_SETTINGS_KEYS = new Set<string>(Struct.keys(ServerSettings.fields));
+const isServerSettingsPatch = Schema.is(ServerSettingsPatch);
+const isClientSettingsPatch = Schema.is(ClientSettingsPatch);
 
-function splitPatch(patch: UnifiedSettingsPatch): {
-  serverPatch: ServerSettingsPatch;
-  clientPatch: ClientSettingsPatch;
-} {
-  const serverPatch: Record<string, unknown> = {};
-  const clientPatch: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(patch)) {
-    if (SERVER_SETTINGS_KEYS.has(key)) {
-      serverPatch[key] = value;
-    } else {
-      clientPatch[key] = value;
-    }
+function splitPatch(patch: UnifiedSettingsPatch) {
+  const serverPatch = Object.fromEntries(
+    Object.entries(patch).filter(([key]) => SERVER_SETTINGS_KEYS.has(key)),
+  );
+  const clientPatch = Object.fromEntries(
+    Object.entries(patch).filter(([key]) => !SERVER_SETTINGS_KEYS.has(key)),
+  );
+  if (!isServerSettingsPatch(serverPatch) || !isClientSettingsPatch(clientPatch)) {
+    throw new Error("Settings patch contains values outside its declared settings schema.");
   }
-  return {
-    serverPatch: serverPatch as ServerSettingsPatch,
-    clientPatch: clientPatch as ClientSettingsPatch,
-  };
+  return { serverPatch, clientPatch };
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────
@@ -219,6 +216,7 @@ function useMergedSettings<T>(
     [clientSettings, serverSettings],
   );
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return useMemo(() => (selector ? selector(merged) : (merged as T)), [merged, selector]);
 }
 
@@ -226,6 +224,7 @@ export function useClientSettings<T = ClientSettings>(
   selector?: (settings: ClientSettings) => T,
 ): T {
   const settings = useClientSettingsValue();
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return useMemo(() => (selector ? selector(settings) : (settings as T)), [selector, settings]);
 }
 

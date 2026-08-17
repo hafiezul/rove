@@ -7,6 +7,7 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 
 import * as TraceDiagnostics from "./TraceDiagnostics.ts";
 
@@ -210,7 +211,7 @@ describe("TraceDiagnostics", () => {
                 }),
               ),
       });
-      const logAnnotations: Array<Record<string, unknown>> = [];
+      const logAnnotations: Array<ReadonlyRecord<string, unknown>> = [];
       const logger = Logger.make<unknown, void>((options) => {
         logAnnotations.push({ ...options.fiber.getRef(References.CurrentLogAnnotations) });
       });

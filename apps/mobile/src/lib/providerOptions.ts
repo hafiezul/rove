@@ -8,6 +8,7 @@ import {
   getProviderOptionCurrentLabel,
   getProviderOptionDescriptors,
 } from "@t3tools/shared/model";
+import * as RuntimePredicate from "effect/Predicate";
 
 export function resolveProviderOptionDescriptors(input: {
   readonly capabilities: ModelCapabilities | null | undefined;
@@ -53,22 +54,23 @@ export function applyProviderOptionSelection(
     return null;
   }
   if (
-    (descriptor.type === "boolean" && typeof change.value !== "boolean") ||
+    (descriptor.type === "boolean" && !RuntimePredicate.isBoolean(change.value)) ||
     (descriptor.type === "select" &&
-      (typeof change.value !== "string" ||
+      (!RuntimePredicate.isString(change.value) ||
         !descriptor.options.some((option) => option.id === change.value)))
   ) {
     return null;
   }
 
-  const nextDescriptors = descriptors.map((candidate) =>
-    candidate.id === descriptor.id
-      ? {
-          ...candidate,
-          currentValue: change.value,
-        }
-      : candidate,
-  ) as ReadonlyArray<ProviderOptionDescriptor>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    nextDescriptors = descriptors.map((candidate) =>
+      candidate.id === descriptor.id
+        ? {
+            ...candidate,
+            currentValue: change.value,
+          }
+        : candidate,
+    ) as ReadonlyArray<ProviderOptionDescriptor>;
 
   return buildProviderOptionSelectionsFromDescriptors(nextDescriptors) ?? [];
 }

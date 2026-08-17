@@ -7,8 +7,9 @@ import {
   extractAgentNotificationDeepLink,
   routeAgentNotificationResponseOnce,
 } from "./notificationPayload";
+import type { Json as SchemaJson } from "effect/Schema";
 
-function responseWithData(data: Record<string, unknown>, identifier = "notification-1") {
+function responseWithData(data: Record<string, SchemaJson>, identifier = "notification-1") {
   return {
     notification: {
       request: {
@@ -47,7 +48,8 @@ describe("consumeLastAgentNotificationResponse", () => {
   it("routes a response before reporting a clear failure", async () => {
     const cause = new Error("notification clear unavailable");
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const response = responseWithData({}, "notification-clear") as NotificationResponse;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      response = responseWithData({}, "notification-clear") as NotificationResponse;
     const handleResponse = vi.fn();
 
     await consumeLastAgentNotificationResponse({
@@ -69,7 +71,8 @@ describe("consumeLastAgentNotificationResponse", () => {
   it("reports routing failures before clearing the response", async () => {
     const cause = new Error("notification routing unavailable");
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const response = responseWithData({}, "notification-route") as NotificationResponse;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      response = responseWithData({}, "notification-route") as NotificationResponse;
     const clearLastResponse = vi.fn(() => Promise.resolve());
 
     await consumeLastAgentNotificationResponse({

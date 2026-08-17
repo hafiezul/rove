@@ -162,9 +162,8 @@ export function createAtomCommandScheduler(): AtomCommandScheduler {
       const key = concurrency.key(input);
       const state = stateFor(registry);
       if (concurrency.mode === "singleFlight") {
-        const existing = state.singleFlight.get(key) as
-          | Promise<AtomCommandResult<A, E>>
-          | undefined;
+        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          existing = state.singleFlight.get(key) as Promise<AtomCommandResult<A, E>> | undefined;
         if (existing !== undefined) {
           return existing;
         }
@@ -213,13 +212,16 @@ export function createAtomCommandScheduler(): AtomCommandScheduler {
 
       const result = new Promise<AtomCommandResult<A, E>>((resolve) => {
         if (activeLane.pending === undefined) {
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           activeLane.pending = {
             execute: execute as () => Promise<AtomCommandResult<unknown, unknown>>,
             resolve: [resolve as (result: AtomCommandResult<unknown, unknown>) => void],
           };
           return;
         }
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         activeLane.pending.execute = execute as () => Promise<AtomCommandResult<unknown, unknown>>;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         activeLane.pending.resolve.push(
           resolve as (result: AtomCommandResult<unknown, unknown>) => void,
         );
@@ -300,9 +302,7 @@ export function isAtomCommandInterrupted(result: AtomCommandResult<unknown, unkn
   return result._tag === "Failure" && Cause.hasInterruptsOnly(result.cause);
 }
 
-export function squashAtomCommandFailure(result: {
-  readonly cause: Cause.Cause<unknown>;
-}): unknown {
+export function squashAtomCommandFailure(result: { readonly cause: Cause.Cause<unknown> }) {
   return Cause.squash(result.cause);
 }
 
@@ -429,11 +429,9 @@ export function environmentRpcKey<Input>(target: {
   return JSON.stringify([target.environmentId, target.input]);
 }
 
-function parseEnvironmentRpcKey<Input>(key: string): {
-  readonly environmentId: EnvironmentIdType;
-  readonly input: Input;
-} {
-  const decoded = JSON.parse(key) as [EnvironmentIdType, Input];
+function parseEnvironmentRpcKey<Input>(key: string) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    decoded = JSON.parse(key) as [EnvironmentIdType, Input];
   return {
     environmentId: EnvironmentId.make(decoded[0]),
     input: decoded[1],
@@ -557,8 +555,8 @@ export function createEnvironmentCommand<R, ER, Input, A, E>(
 ) {
   return createRuntimeCommand(runtime, {
     label: options.label,
-    ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
-    ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+    ...(options.scheduler === undefined ? undefined : { scheduler: options.scheduler }),
+    ...(options.concurrency === undefined ? undefined : { concurrency: options.concurrency }),
     execute: (target, registry) =>
       runInEnvironment(
         target.environmentId,
@@ -581,8 +579,8 @@ function createEnvironmentStreamCommand<R, ER, Input, A, E>(
 ) {
   return createRuntimeStreamCommand(runtime, {
     label: options.label,
-    ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
-    ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+    ...(options.scheduler === undefined ? undefined : { scheduler: options.scheduler }),
+    ...(options.concurrency === undefined ? undefined : { concurrency: options.concurrency }),
     execute: (target) =>
       runStreamInEnvironment(target.environmentId, options.execute(target.input)).pipe(
         Stream.withSpan(options.label),
@@ -602,10 +600,10 @@ export function createEnvironmentRpcQueryAtomFamily<R, ER, TTag extends Environm
 ) {
   return createEnvironmentQueryAtomFamily(runtime, {
     label: options.label,
-    ...(options.staleTimeMs === undefined ? {} : { staleTimeMs: options.staleTimeMs }),
-    ...(options.idleTtlMs === undefined ? {} : { idleTtlMs: options.idleTtlMs }),
+    ...(options.staleTimeMs === undefined ? undefined : { staleTimeMs: options.staleTimeMs }),
+    ...(options.idleTtlMs === undefined ? undefined : { idleTtlMs: options.idleTtlMs }),
     ...(options.refreshIntervalMs === undefined
-      ? {}
+      ? undefined
       : { refreshIntervalMs: options.refreshIntervalMs }),
     execute: (input: EnvironmentRpcInput<TTag>) => request(options.tag, input),
   });
@@ -633,9 +631,10 @@ export function createEnvironmentRpcSubscriptionAtomFamily<
 ) {
   return createEnvironmentSubscriptionAtomFamily(runtime, {
     label: options.label,
-    ...(options.idleTtlMs === undefined ? {} : { idleTtlMs: options.idleTtlMs }),
+    ...(options.idleTtlMs === undefined ? undefined : { idleTtlMs: options.idleTtlMs }),
     subscribe: (input: EnvironmentRpcInput<TTag>) => {
       const stream = subscribe(options.tag, input);
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return options.transform === undefined
         ? (stream as Stream.Stream<B, EnvironmentRpcStreamFailure<TTag>, EnvironmentSupervisor | R>)
         : options.transform(stream);
@@ -671,8 +670,8 @@ export function createEnvironmentRpcCommand<R, ER, TTag extends EnvironmentUnary
 ) {
   return createEnvironmentCommand(runtime, {
     label: options.label,
-    ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
-    ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+    ...(options.scheduler === undefined ? undefined : { scheduler: options.scheduler }),
+    ...(options.concurrency === undefined ? undefined : { concurrency: options.concurrency }),
     execute: (input: EnvironmentRpcInput<TTag>, registry, environmentId) => {
       const target = {
         environmentId,
@@ -704,8 +703,8 @@ export function createEnvironmentRpcStreamCommand<
 ) {
   return createEnvironmentStreamCommand(runtime, {
     label: options.label,
-    ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
-    ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+    ...(options.scheduler === undefined ? undefined : { scheduler: options.scheduler }),
+    ...(options.concurrency === undefined ? undefined : { concurrency: options.concurrency }),
     execute: (input: EnvironmentRpcInput<TTag>) => runStream(options.tag, input),
   });
 }

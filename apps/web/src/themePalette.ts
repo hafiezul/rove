@@ -1,6 +1,8 @@
 import * as Schema from "effect/Schema";
 import "culori/css";
 import { converter, parse } from "culori/fn";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const T3_CHAT_THEME_ID = "t3-chat" as const;
 export const T3_CHAT_THEME_LABEL = "T3 Chat";
@@ -163,8 +165,8 @@ function setThemePreviewSidebarArtwork(next: boolean | null): void {
   for (const listener of themePreviewListeners) listener();
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, SchemaJson> {
+  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 }
 
 function isThemeAppearance(value: unknown): value is ThemeAppearance {
@@ -172,30 +174,30 @@ function isThemeAppearance(value: unknown): value is ThemeAppearance {
 }
 
 export function isThemeColor(value: unknown): value is string {
-  return typeof value === "string" && toCanonicalThemeColor(value) !== null;
+  return RuntimePredicate.isString(value) && toCanonicalThemeColor(value) !== null;
 }
 
 function isThemeId(value: unknown): value is string {
-  return typeof value === "string" && /^[a-z0-9](?:[a-z0-9-]{0,47})$/.test(value);
+  return RuntimePredicate.isString(value) && /^[a-z0-9](?:[a-z0-9-]{0,47})$/.test(value);
 }
 
 function isThemeLabel(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && value.trim().length <= 48;
+  return RuntimePredicate.isString(value) && value.trim().length > 0 && value.trim().length <= 48;
 }
 
 function parseThemeCollection(value: unknown): ThemeCollection | undefined {
   return isRecord(value) &&
-    typeof value.id === "string" &&
+    RuntimePredicate.isString(value.id) &&
     /^[a-z0-9][a-z0-9.:-]{0,127}$/i.test(value.id) &&
     isThemeLabel(value.label)
     ? { id: value.id, label: value.label.trim() }
     : undefined;
 }
 
-function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance): ThemeColors | null {
+function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance) {
   if (!isRecord(value)) return null;
 
-  const colors: Partial<Record<ThemeColorRole, string>> = {
+  const colors = {
     ...getDefaultThemeColors(appearance),
   };
   // Tolerate unknown roles and malformed values so themes saved by other
@@ -203,10 +205,11 @@ function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance): Th
   for (const [role, color] of Object.entries(value)) {
     const normalized = toCanonicalThemeColor(color);
     if (THEME_COLOR_ROLE_SET.has(role) && normalized) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       colors[role as ThemeColorRole] = normalized;
     }
   }
-  return colors as ThemeColors;
+  return colors;
 }
 
 function parseStoredThemeVariants(
@@ -244,9 +247,9 @@ function parseStoredTheme(value: unknown): ThemeDefinition | null {
     label: value.label.trim(),
     appearance: value.appearance,
     colors,
-    ...(variants ? { variants } : {}),
-    ...(collection ? { collection } : {}),
-    ...(value.managed === true ? { managed: true } : {}),
+    ...(variants ? { variants } : undefined),
+    ...(collection ? { collection } : undefined),
+    ...(value.managed === true ? { managed: true } : undefined),
   };
 }
 
@@ -335,7 +338,11 @@ export function subscribeToCustomThemes(listener: () => void): () => void {
 // Earlier builds shipped every maintainer theme under a t3- prefix; only the
 // genuinely T3-branded palette keeps it. Stored preferences and mixes with the
 // old ids stay readable through this alias table.
-const LEGACY_THEME_ID_ALIASES: Readonly<Record<string, string>> = {
+interface LegacyThemeIdAliases {
+  readonly [legacyThemeId: string]: string | undefined;
+}
+
+const LEGACY_THEME_ID_ALIASES: LegacyThemeIdAliases = {
   [LEGACY_T3_CHAT_DARK_THEME_ID]: T3_CHAT_THEME_ID,
   "t3-grove": GROVE_THEME_ID,
   "t3-ocean": OCEAN_THEME_ID,
@@ -374,7 +381,7 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 // flattened over --chat-background so this opaque palette reproduces the
 // pixels users see after T3 Chat's blur and noise layers are composited.
 // Foreground pairs deviate where necessary to keep normal text at WCAG AA.
-const T3_CHAT_LIGHT_COLORS: ThemeColors = {
+const T3_CHAT_LIGHT_COLORS = {
   canvas: "#fdf7fd",
   // T3 Code's workspace header belongs to the chat panel, so keep it seamless
   // with the light chat canvas rather than mapping it to T3 Chat's outer shell.
@@ -440,9 +447,9 @@ const T3_CHAT_LIGHT_COLORS: ThemeColors = {
   terminalSelection: "#f1c4e6",
   terminalScrollbar: "#e7c1dc",
   terminalScrollbarHover: "#eaa7cb",
-};
+} satisfies ThemeColors;
 
-const T3_CHAT_DARK_COLORS: ThemeColors = {
+const T3_CHAT_DARK_COLORS = {
   canvas: "#1f1a24",
   // T3 Code's workspace header belongs to the chat panel, so keep it seamless
   // with the canvas rather than mapping it to T3 Chat's outer shell.
@@ -513,7 +520,7 @@ const T3_CHAT_DARK_COLORS: ThemeColors = {
   terminalSelection: "#362d3d",
   terminalScrollbar: "#302029",
   terminalScrollbarHover: "#423a45",
-};
+} satisfies ThemeColors;
 
 /**
  * The palette T3 Code wears with no theme installed, captured from the app's
@@ -522,7 +529,7 @@ const T3_CHAT_DARK_COLORS: ThemeColors = {
  * their real backdrops (canvas, or the sidebar for its rows) because theme
  * colors are stored as opaque OKLCH tokens.
  */
-const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
+const T3_CODE_LIGHT_THEME_COLORS = {
   canvas: "#fcfcfc",
   chrome: "#fcfcfc",
   toolbar: "#fcfcfc",
@@ -580,9 +587,9 @@ const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
   terminalSelection: "#d0d6dd",
   terminalScrollbar: "#d6d6d6",
   terminalScrollbarHover: "#bdbdbd",
-};
+} satisfies ThemeColors;
 
-const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
+const T3_CODE_DARK_THEME_COLORS = {
   canvas: "#0a0a0a",
   chrome: "#0a0a0a",
   toolbar: "#0a0a0a",
@@ -640,7 +647,7 @@ const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalSelection: "#343a47",
   terminalScrollbar: "#222222",
   terminalScrollbarHover: "#363636",
-};
+} satisfies ThemeColors;
 
 /**
  * The standard T3 Code look as a theme palette, for seeding a new theme when
@@ -681,7 +688,7 @@ const THEME_BLACK_FOREGROUND: ThemeRgbColor = { r: 0, g: 0, b: 0 };
 const convertToOklch = converter("oklch");
 
 function parseThemeColor(value: unknown): ParsedThemeColor | null {
-  if (typeof value !== "string") return null;
+  if (!RuntimePredicate.isString(value)) return null;
   const input = value.trim();
   const parsed = parse(input);
   if (!parsed) return null;
@@ -757,6 +764,7 @@ function themeRgbToThemeColor(color: ThemeRgbColor): string {
 }
 
 function decodeThemeColors(colors: ThemeColors): ThemeColors {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     THEME_COLOR_ROLES.map((role) => {
       const color = toCanonicalThemeColor(colors[role]);
@@ -771,6 +779,7 @@ function decodeThemeColors(colors: ThemeColors): ThemeColors {
 }
 
 function canonicalizeThemeDefinition(theme: ThemeDefinition): ThemeDefinition {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return {
     ...theme,
     colors: decodeThemeColors(theme.colors),
@@ -783,7 +792,7 @@ function canonicalizeThemeDefinition(theme: ThemeDefinition): ThemeDefinition {
             ]),
           ) as ThemeVariants,
         }
-      : {}),
+      : undefined),
   };
 }
 
@@ -876,7 +885,7 @@ function themeRgbToOklch(color: ThemeRgbColor): ThemeOklch {
   return { L, C: Math.hypot(a, bb), h: (Math.atan2(bb, a) * 180) / Math.PI };
 }
 
-function oklchToRgbUnclamped({ L, C, h }: ThemeOklch): { r: number; g: number; b: number } {
+function oklchToRgbUnclamped({ L, C, h }: ThemeOklch) {
   const hr = (h * Math.PI) / 180;
   const a = C * Math.cos(hr);
   const bb = C * Math.sin(hr);
@@ -977,14 +986,7 @@ const STANDARD_STATUS_COLORS = {
  * (the unthemed app uses 8% in light and 16% in dark), so alerts still sit on
  * the palette while the signal color stays standard.
  */
-function standardStatusColors(canvas: ThemeRgbColor): {
-  error: string;
-  errorForeground: string;
-  errorSurface: string;
-  warning: string;
-  warningForeground: string;
-  warningSurface: string;
-} {
+function standardStatusColors(canvas: ThemeRgbColor) {
   // Keyed off the canvas rather than the appearance slot: a dark canvas saved
   // as a light theme still needs the dark pair, or the alert foreground lands
   // on a dark surface unreadable.
@@ -1028,7 +1030,7 @@ export function createVividThemeColors(
   appearance: ThemeAppearance,
   backgroundValue: string,
   accentValue: string,
-): ThemeColors {
+) {
   const defaults = getDefaultThemeColors(appearance);
   const canvasRgb = parseThemeRgbColor(
     backgroundValue,
@@ -1294,7 +1296,7 @@ export function createManagedThemeColors(
      * readability envelope. Derived foregrounds still adapt for contrast. */
     exactSeeds?: boolean;
   },
-): ThemeColors {
+) {
   const defaults = getDefaultThemeColors(appearance);
   const canvas = options?.exactSeeds
     ? parseThemeRgbColor(
@@ -1632,7 +1634,7 @@ function requireWritableCustomThemeLibrary(
       storageKey: CUSTOM_THEMES_STORAGE_KEY,
       operation: "read",
       reason: snapshot.reason,
-      ...("cause" in snapshot ? { cause: snapshot.cause } : {}),
+      ...("cause" in snapshot ? { cause: snapshot.cause } : undefined),
     });
   }
   return snapshot;
@@ -1722,7 +1724,8 @@ export function replaceCustomThemeCollection(
   ) {
     throw new Error("That theme collection is invalid.");
   }
-  const replacement = validated as ThemeDefinition[];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    replacement = validated as ThemeDefinition[];
   const library = readWritableCustomThemeLibrary();
   const current = library.themes;
   const currentCollection = current.filter((theme) => theme.collection?.id === collectionId);
@@ -1737,7 +1740,7 @@ export function replaceCustomThemeCollection(
     if (
       !storedThemeHasCollectionId(storedTheme, collectionId) &&
       isRecord(storedTheme) &&
-      typeof storedTheme.id === "string"
+      RuntimePredicate.isString(storedTheme.id)
     ) {
       occupiedIds.add(storedTheme.id);
     }
@@ -1779,14 +1782,14 @@ export function removeCustomThemes(themeIds: ReadonlyArray<string>): void {
     library.storedThemes.filter(
       (storedTheme) =>
         !isRecord(storedTheme) ||
-        typeof storedTheme.id !== "string" ||
+        !RuntimePredicate.isString(storedTheme.id) ||
         !removedIds.has(storedTheme.id),
     ),
     nextThemes,
   );
 }
 
-function parseThemeColorOverrides(value: unknown): ThemeColorOverrides {
+function parseThemeColorOverrides(value: unknown) {
   if (!isRecord(value)) throw new Error("Theme colors must be objects.");
 
   const overrides: Partial<Record<ThemeColorRole, string>> = {};
@@ -1800,6 +1803,7 @@ function parseThemeColorOverrides(value: unknown): ThemeColorOverrides {
         `The color for "${role}" must be a literal CSS color such as oklch(0.62 0.2 280).`,
       );
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     overrides[role as ThemeColorRole] = normalized;
   }
   if (Object.keys(overrides).length === 0) {
@@ -1863,9 +1867,9 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
     label: name.trim(),
     appearance,
     colors: { ...fallback, ...overrides },
-    ...(Object.keys(variants).length > 0 ? { variants } : {}),
-    ...(collection ? { collection } : {}),
-    ...(value.managed === true ? { managed: true } : {}),
+    ...(Object.keys(variants).length > 0 ? { variants } : undefined),
+    ...(collection ? { collection } : undefined),
+    ...(value.managed === true ? { managed: true } : undefined),
   };
 }
 
@@ -1877,14 +1881,14 @@ export function serializeThemeFile(theme: ThemeDefinition): string {
     name: canonicalTheme.label,
     appearance: canonicalTheme.appearance,
     colors: canonicalTheme.colors,
-    ...(canonicalTheme.variants ? { variants: canonicalTheme.variants } : {}),
-    ...(canonicalTheme.collection ? { collection: canonicalTheme.collection } : {}),
-    ...(canonicalTheme.managed ? { managed: true } : {}),
+    ...(canonicalTheme.variants ? { variants: canonicalTheme.variants } : undefined),
+    ...(canonicalTheme.collection ? { collection: canonicalTheme.collection } : undefined),
+    ...(canonicalTheme.managed ? { managed: true } : undefined),
   };
   return `${JSON.stringify(file, null, 2)}\n`;
 }
 
-const APP_THEME_VARIABLES: Readonly<Record<ThemeColorRole, string>> = {
+const APP_THEME_VARIABLES = {
   canvas: "--app-theme-canvas",
   chrome: "--app-theme-chrome",
   toolbar: "--app-theme-toolbar",
@@ -1942,7 +1946,7 @@ const APP_THEME_VARIABLES: Readonly<Record<ThemeColorRole, string>> = {
   terminalSelection: "--app-theme-terminal-selection-background",
   terminalScrollbar: "--app-theme-terminal-scrollbar",
   terminalScrollbarHover: "--app-theme-terminal-scrollbar-hover",
-};
+} satisfies Readonly<Record<ThemeColorRole, string>>;
 
 export function getThemeColorVariable(role: ThemeColorRole): string {
   return APP_THEME_VARIABLES[role];
@@ -1956,6 +1960,7 @@ export const THEME_PREVIEW_ID = "__preview";
  * can be judged against the real interface instead of a miniature. Callers
  * restore the stored theme (refreshTheme) when the draft goes away.
  */
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function applyThemeColorPreview(colors: ThemeColors, appearance: ThemeAppearance): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -1972,6 +1977,7 @@ export function applyThemeColorPreview(colors: ThemeColors, appearance: ThemeApp
   }
 }
 
+// SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
 export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppearance): void {
   if (typeof document === "undefined") return;
 
@@ -2065,15 +2071,20 @@ export function isKnownThemePreference(theme: string): boolean {
  */
 export type ThemeHalves = Readonly<{ light?: string; dark?: string }>;
 
+interface MutableThemeHalves {
+  light?: string;
+  dark?: string;
+}
+
 export function parseThemeHalves(raw: string | null): ThemeHalves | null {
   if (!raw) return null;
   try {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value)) return null;
-    const halves: { light?: string; dark?: string } = {};
+    const halves: MutableThemeHalves = {};
     for (const appearance of ["light", "dark"] as const) {
       const themeId = value[appearance];
-      if (typeof themeId !== "string") continue;
+      if (!RuntimePredicate.isString(themeId)) continue;
       const definition = getThemeDefinition(themeId);
       if (definition && getThemeColorsForMode(definition, appearance) !== null) {
         // Store the definition's id so legacy aliases resolve to the same

@@ -64,7 +64,7 @@ export const ObservabilityLive = Layer.unwrap(
           maxFiles: config.traceMaxFiles,
           batchWindowMs: config.traceBatchWindowMs,
           sink,
-          ...(delegate ? { delegate } : {}),
+          ...(delegate ? { delegate } : undefined),
         });
 
         return Layer.mergeAll(

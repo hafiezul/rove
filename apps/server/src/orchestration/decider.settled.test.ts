@@ -14,6 +14,7 @@ import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 
 import { decideOrchestrationCommand } from "./decider.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const NOW = "2026-01-01T00:00:00.000Z";
 const SETTLED_AT = "2025-12-30T00:00:00.000Z";
@@ -196,7 +197,7 @@ it.layer(NodeServices.layer)("settled thread decider", (it) => {
       const activity = (
         kind: string,
         requestId: string,
-        payload: Record<string, unknown>,
+        payload: Record<string, SchemaJson>,
       ): OrchestrationThread["activities"][number] =>
         ({
           id: EventId.make(`activity-${requestId}-${kind}`),

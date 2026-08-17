@@ -93,8 +93,10 @@ const make = Effect.gen(function* () {
       method: input.method,
       url: input.url,
       nowEpochSeconds: Math.floor(input.now.epochMilliseconds / 1_000),
-      ...(input.expectedThumbprint ? { expectedThumbprint: input.expectedThumbprint } : {}),
-      ...(input.expectedAccessToken ? { expectedAccessToken: input.expectedAccessToken } : {}),
+      ...(input.expectedThumbprint ? { expectedThumbprint: input.expectedThumbprint } : undefined),
+      ...(input.expectedAccessToken
+        ? { expectedAccessToken: input.expectedAccessToken }
+        : undefined),
     });
     if (!result.ok) {
       yield* Effect.logWarning("relay dpop proof rejected", {

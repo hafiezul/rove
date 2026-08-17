@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   EnvironmentAuthInvalidError,
   type AuthBrowserSessionResult,
@@ -73,7 +74,7 @@ function installTestBrowser(url: string) {
 
 function installDesktopBootstrap() {
   const testWindow = installTestBrowser("http://localhost/");
-  testWindow.desktopBridge = {
+  testWindow.desktopBridge = testDouble<DesktopBridge>({
     getLocalEnvironmentBootstraps: () => [
       {
         id: "primary",
@@ -83,7 +84,7 @@ function installDesktopBootstrap() {
         bootstrapToken: "desktop-bootstrap-token",
       },
     ],
-  } as unknown as DesktopBridge;
+  });
 }
 
 function sequence<A>(...values: ReadonlyArray<A>) {
@@ -106,13 +107,13 @@ async function installAuthApi(input: {
   }>;
 }) {
   const testApi = await installEnvironmentHttpTest({
-    ...(input.session ? { session: () => Effect.succeed(input.session!()) } : {}),
+    ...(input.session ? { session: () => Effect.succeed(input.session!()) } : undefined),
     ...(input.browserSession
       ? { browserSession: (payload) => input.browserSession!(payload.credential) }
-      : {}),
+      : undefined),
     ...(input.pairingCredential
       ? { pairingCredential: (payload) => input.pairingCredential!(payload) }
-      : {}),
+      : undefined),
   });
   disposeHttpTest = testApi.dispose;
   return testApi;
@@ -147,7 +148,7 @@ describe("resolveInitialServerAuthGateState", () => {
     });
 
     const testWindow = installTestBrowser("http://localhost/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -157,7 +158,7 @@ describe("resolveInitialServerAuthGateState", () => {
           bootstrapToken: "desktop-bootstrap-token",
         },
       ],
-    } as unknown as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState } = await import("./environments/primary");
 
@@ -205,7 +206,7 @@ describe("resolveInitialServerAuthGateState", () => {
     vi.stubEnv("VITE_DEV_SERVER_URL", "http://127.0.0.1:5733");
 
     const testWindow = installTestBrowser("http://127.0.0.1:5733/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -214,7 +215,7 @@ describe("resolveInitialServerAuthGateState", () => {
           wsBaseUrl: "ws://127.0.0.1:3773",
         },
       ],
-    } as unknown as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState, resolvePrimaryEnvironmentHttpUrl } =
       await import("./environments/primary");
@@ -253,6 +254,7 @@ describe("resolveInitialServerAuthGateState", () => {
           reason: new HttpClientError.StatusCodeError({ request, response }),
         });
       }
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return unauthenticatedSession(LOOPBACK_AUTH) as A;
     };
     __setPrimaryHttpRunnerForTests(runner);
@@ -391,7 +393,7 @@ describe("resolveInitialServerAuthGateState", () => {
     });
 
     const testWindow = installTestBrowser("http://localhost/");
-    testWindow.desktopBridge = {
+    testWindow.desktopBridge = testDouble<DesktopBridge>({
       getLocalEnvironmentBootstraps: () => [
         {
           id: "primary",
@@ -401,7 +403,7 @@ describe("resolveInitialServerAuthGateState", () => {
           bootstrapToken: "desktop-bootstrap-token",
         },
       ],
-    } as unknown as DesktopBridge;
+    });
 
     const { resolveInitialServerAuthGateState } = await import("./environments/primary");
 
@@ -455,7 +457,7 @@ describe("resolveInitialServerAuthGateState", () => {
         Effect.succeed({
           id: "pairing-link-1",
           credential: "pairing-token",
-          ...(payload.label === undefined ? {} : { label: payload.label }),
+          ...(payload.label === undefined ? undefined : { label: payload.label }),
           expiresAt: SESSION_EXPIRES_AT,
         }),
     });

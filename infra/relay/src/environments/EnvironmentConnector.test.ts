@@ -80,7 +80,21 @@ const settings = RelayConfiguration.RelayConfiguration.of({
   managedEndpointNamespace: undefined,
 });
 
-function signTestJwt(payload: object, typ: string, privateKey: string): string {
+type JsonWebTokenValue =
+  | null
+  | boolean
+  | number
+  | string
+  | ReadonlyArray<JsonWebTokenValue>
+  | { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+type JsonWebTokenPayload = { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+function signTestJwt<TPayload extends JsonWebTokenPayload>(
+  payload: TPayload,
+  typ: string,
+  privateKey: string,
+): string {
   const header = Buffer.from(JSON.stringify({ alg: "EdDSA", typ })).toString("base64url");
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const input = `${header}.${encodedPayload}`;
@@ -90,6 +104,7 @@ function signTestJwt(payload: object, typ: string, privateKey: string): string {
 function decodeRequestProof<T>(proof: string): T {
   const payload = proof.split(".")[1];
   if (!payload) throw new Error("Missing JWT payload.");
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as T;
 }
 
@@ -790,10 +805,13 @@ describe("EnvironmentConnector", () => {
     const requestStarted = new Promise<void>((resolve) => {
       resolveRequestStarted = () => resolve();
     });
-    const execute = () =>
-      Effect.sync(() => {
-        resolveRequestStarted?.();
-      }).pipe(Effect.andThen(Effect.never as Effect.Effect<HttpClientResponse.HttpClientResponse>));
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      execute = () =>
+        Effect.sync(() => {
+          resolveRequestStarted?.();
+        }).pipe(
+          Effect.andThen(Effect.never as Effect.Effect<HttpClientResponse.HttpClientResponse>),
+        );
 
     return Effect.gen(function* () {
       const connector = yield* EnvironmentConnector.EnvironmentConnector;

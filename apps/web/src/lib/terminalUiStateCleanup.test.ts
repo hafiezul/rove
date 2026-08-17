@@ -5,8 +5,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { collectActiveTerminalUiThreadKeys } from "./terminalUiStateCleanup";
 
 const threadId = (id: string): ThreadId => ThreadId.make(id);
-const threadKey = (environmentId: string, id: string): string =>
-  scopedThreadKey(scopeThreadRef(environmentId as never, threadId(id)));
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  threadKey = (environmentId: string, id: string): string =>
+    scopedThreadKey(scopeThreadRef(environmentId as never, threadId(id)));
 
 describe("collectActiveTerminalUiThreadKeys", () => {
   it("retains non-deleted server threads", () => {

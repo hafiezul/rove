@@ -125,11 +125,7 @@ export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = CLI_EXTERNAL_PACKAGE_PREFIXES.f
  * WSL backend would then fail with ERR_MODULE_NOT_FOUND because those packages
  * are not in the unpack globs either.
  */
-export function findInlinedExternalPackages(source: string): {
-  readonly regionCount: number;
-  readonly inlined: ReadonlyArray<string>;
-  readonly inlinedPackages: ReadonlyArray<string>;
-} {
+export function findInlinedExternalPackages(source: string) {
   // Rolldown marks each inlined module with a `//#region <path>` comment.
   const regionPattern = /\/\/#region\s+(\S+)/g;
   const packagePattern = /node_modules\/((?:@[^/\s]+\/)?[^/\s]+)\//g;

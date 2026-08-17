@@ -21,6 +21,7 @@ import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import * as Persistence from "../platform/persistence.ts";
 import { EnvironmentRpcUnavailableError } from "../rpc/client.ts";
 import type { WsRpcProtocolClient } from "../rpc/protocol.ts";
+import { testDouble } from "../testDouble.ts";
 import type { RpcSession } from "../rpc/session.ts";
 import { createSourceControlEnvironmentAtoms } from "./sourceControl.ts";
 import { vcsRefsCacheStateAtom } from "./vcsRefInvalidation.ts";
@@ -46,9 +47,9 @@ const PUBLISH_RESULT: SourceControlPublishRepositoryResult = {
   status: "pushed",
 };
 
-function session(client: WsRpcProtocolClient): RpcSession {
+function session(client: unknown): RpcSession {
   return {
-    client,
+    client: testDouble<WsRpcProtocolClient>(client),
     initialConfig: Effect.never,
     ready: Effect.void,
     probe: Effect.void,
@@ -81,7 +82,7 @@ describe("source control environment atoms", () => {
                   }),
                 );
           },
-        } as unknown as WsRpcProtocolClient;
+        };
         const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
           target: TARGET,
           state: yield* SubscriptionRef.make(connectionState),
@@ -97,7 +98,7 @@ describe("source control environment atoms", () => {
         ) => Effect.provideService(effect, EnvironmentSupervisor.EnvironmentSupervisor, supervisor);
         const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
           run,
-        } as unknown as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+        } as EnvironmentRegistry.EnvironmentRegistry["Service"]);
         const removed = new Array<string>();
         const cache = Persistence.EnvironmentCacheStore.of({
           loadShell: () => Effect.succeed(Option.none()),

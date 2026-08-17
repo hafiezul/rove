@@ -17,6 +17,8 @@ import { normalizeCustomModelSlug } from "@t3tools/shared/model";
 import { isWindowsCommandNotFound } from "../processRunner.ts";
 import { createProviderVersionAdvisory } from "./providerMaintenance.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const DEFAULT_TIMEOUT_MS = 4_000;
 // Auth status checks involve disk/network lookups and can be slow on first run (especially Windows)
@@ -120,11 +122,12 @@ export function extractAuthBoolean(value: unknown): boolean | undefined {
     return undefined;
   }
 
-  if (!value || typeof value !== "object") return undefined;
+  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) return undefined;
 
-  const record = value as Record<string, unknown>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = value as Record<string, SchemaJson>;
   for (const key of ["authenticated", "isAuthenticated", "loggedIn", "isLoggedIn"] as const) {
-    if (typeof record[key] === "boolean") return record[key];
+    if (RuntimePredicate.isBoolean(record[key])) return record[key];
   }
   for (const key of ["auth", "status", "session", "account"] as const) {
     const nested = extractAuthBoolean(record[key]);
@@ -184,11 +187,11 @@ export function buildSelectOptionDescriptor(input: {
     label: input.label,
     type: "select" as const,
     options,
-    ...(currentValue ? { currentValue } : {}),
-    ...(input.description ? { description: input.description } : {}),
+    ...(currentValue ? { currentValue } : undefined),
+    ...(input.description ? { description: input.description } : undefined),
     ...(input.promptInjectedValues && input.promptInjectedValues.length > 0
       ? { promptInjectedValues: [...input.promptInjectedValues] }
-      : {}),
+      : undefined),
   };
 }
 
@@ -202,8 +205,10 @@ export function buildBooleanOptionDescriptor(input: {
     id: input.id,
     label: input.label,
     type: "boolean" as const,
-    ...(input.description ? { description: input.description } : {}),
-    ...(typeof input.currentValue === "boolean" ? { currentValue: input.currentValue } : {}),
+    ...(input.description ? { description: input.description } : undefined),
+    ...(RuntimePredicate.isBoolean(input.currentValue)
+      ? { currentValue: input.currentValue }
+      : undefined),
   };
 }
 
@@ -226,24 +231,24 @@ export function buildServerProvider(input: {
     : undefined;
   return {
     displayName: input.presentation.displayName,
-    ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : {}),
-    ...(typeof input.presentation.showInteractionModeToggle === "boolean"
+    ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : undefined),
+    ...(RuntimePredicate.isBoolean(input.presentation.showInteractionModeToggle)
       ? { showInteractionModeToggle: input.presentation.showInteractionModeToggle }
-      : {}),
-    ...(typeof input.presentation.requiresNewThreadForModelChange === "boolean"
+      : undefined),
+    ...(RuntimePredicate.isBoolean(input.presentation.requiresNewThreadForModelChange)
       ? { requiresNewThreadForModelChange: input.presentation.requiresNewThreadForModelChange }
-      : {}),
+      : undefined),
     enabled: input.enabled,
     installed: input.probe.installed,
     version: input.probe.version,
     status: input.enabled ? input.probe.status : "disabled",
     auth: input.probe.auth,
     checkedAt: input.checkedAt,
-    ...(input.probe.message ? { message: input.probe.message } : {}),
+    ...(input.probe.message ? { message: input.probe.message } : undefined),
     models: input.models,
     slashCommands: [...(input.slashCommands ?? [])],
     skills: [...(input.skills ?? [])],
-    ...(versionAdvisory ? { versionAdvisory } : {}),
+    ...(versionAdvisory ? { versionAdvisory } : undefined),
   };
 }
 

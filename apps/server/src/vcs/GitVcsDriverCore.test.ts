@@ -18,6 +18,7 @@ import { GitCommandError, type ReviewDiffFileContentsInput } from "@t3tools/cont
 import { ServerConfig } from "../config.ts";
 import { makeGitVcsDriverCore, splitNullSeparatedGitStdoutPaths } from "./GitVcsDriverCore.ts";
 import * as GitVcsDriver from "./GitVcsDriver.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const ServerConfigLayer = ServerConfig.layerTest(process.cwd(), {
   prefix: "t3-git-vcs-driver-test-",
@@ -103,7 +104,7 @@ const git = (
       operation: "GitVcsDriver.test.git",
       cwd,
       args,
-      ...(env ? { env } : {}),
+      ...(env ? { env } : undefined),
       timeoutMs: 10_000,
     });
     return result.stdout.trim();
@@ -137,7 +138,7 @@ it.effect("uses stable diagnostics for every parsed non-repository command", () 
       }
       commands.push({
         args: command.args,
-        ...(command.options.env?.LC_ALL ? { lcAll: command.options.env.LC_ALL } : {}),
+        ...(command.options.env?.LC_ALL ? { lcAll: command.options.env.LC_ALL } : undefined),
       });
       return makeNonRepositoryHandle();
     }),
@@ -1343,7 +1344,7 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
           (ref) => ref.name === "feature/newline-path",
         )?.worktreePath;
 
-        if (typeof listedPath !== "string") {
+        if (!RuntimePredicate.isString(listedPath)) {
           return assert.fail("expected the linked branch to include its worktree path");
         }
         assert.equal(

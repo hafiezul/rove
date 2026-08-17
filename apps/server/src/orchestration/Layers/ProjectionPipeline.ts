@@ -46,7 +46,7 @@ import { ProjectionThreadRepositoryLive } from "../../persistence/Layers/Project
 import { ServerConfig } from "../../config.ts";
 import {
   OrchestrationProjectionPipeline,
-  type OrchestrationProjectionPipelineShape,
+  type OrchestrationProjectionPipelineContract,
 } from "../Services/ProjectionPipeline.ts";
 import {
   attachmentRelativePath,
@@ -54,6 +54,8 @@ import {
   parseThreadSegmentFromAttachmentId,
   toSafeThreadAttachmentSegment,
 } from "../../attachmentStore.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export const ORCHESTRATION_PROJECTOR_NAMES = {
   projects: "projection.projects",
@@ -112,11 +114,12 @@ const materializeAttachmentsForProjection = Effect.fn("materializeAttachmentsFor
 );
 
 function extractActivityRequestId(payload: unknown): ApprovalRequestId | null {
-  if (typeof payload !== "object" || payload === null) {
+  if (!RuntimePredicate.isObjectOrArray(payload)) {
     return null;
   }
-  const requestId = (payload as Record<string, unknown>).requestId;
-  return typeof requestId === "string" ? ApprovalRequestId.make(requestId) : null;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    requestId = (payload as Record<string, SchemaJson>).requestId;
+  return RuntimePredicate.isString(requestId) ? ApprovalRequestId.make(requestId) : null;
 }
 
 function isStalePendingApprovalFailureDetail(detail: string | null): boolean {
@@ -145,11 +148,11 @@ function derivePendingUserInputCountFromActivities(
     if (requestId === null) {
       continue;
     }
-    const payload =
-      typeof activity.payload === "object" && activity.payload !== null
-        ? (activity.payload as Record<string, unknown>)
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      payload = RuntimePredicate.isObjectOrArray(activity.payload)
+        ? (activity.payload as Record<string, SchemaJson>)
         : null;
-    const detail = typeof payload?.detail === "string" ? payload.detail.toLowerCase() : null;
+    const detail = RuntimePredicate.isString(payload?.detail) ? payload.detail.toLowerCase() : null;
 
     if (activity.kind === "user-input.requested") {
       openRequestIds.add(requestId);
@@ -513,20 +516,22 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           }
           yield* projectionProjectRepository.upsert({
             ...existingRow.value,
-            ...(event.payload.title !== undefined ? { title: event.payload.title } : {}),
+            ...(event.payload.title !== undefined ? { title: event.payload.title } : undefined),
             ...(event.payload.workspaceRoot !== undefined
               ? { workspaceRoot: event.payload.workspaceRoot }
-              : {}),
+              : undefined),
             ...(event.payload.defaultModelSelection !== undefined
               ? { defaultModelSelection: event.payload.defaultModelSelection }
-              : {}),
+              : undefined),
             ...(event.payload.defaultThreadEnvMode !== undefined
               ? { defaultThreadEnvMode: event.payload.defaultThreadEnvMode }
-              : {}),
+              : undefined),
             ...(event.payload.faviconPath !== undefined
               ? { faviconPath: event.payload.faviconPath }
-              : {}),
-            ...(event.payload.scripts !== undefined ? { scripts: event.payload.scripts } : {}),
+              : undefined),
+            ...(event.payload.scripts !== undefined
+              ? { scripts: event.payload.scripts }
+              : undefined),
             updatedAt: event.payload.updatedAt,
           });
           return;
@@ -739,7 +744,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             pinnedAt: event.payload.pinnedAt,
             ...(event.payload.pinOrderKey !== undefined
               ? { pinOrderKey: event.payload.pinOrderKey }
-              : {}),
+              : undefined),
             updatedAt: event.payload.updatedAt,
           });
           return;
@@ -785,20 +790,20 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           }
           yield* projectionThreadRepository.upsert({
             ...existingRow.value,
-            ...(event.payload.title !== undefined ? { title: event.payload.title } : {}),
+            ...(event.payload.title !== undefined ? { title: event.payload.title } : undefined),
             ...(event.payload.titleRegeneration !== undefined
               ? {
                   titleRegenerationRequestId: event.payload.titleRegeneration?.requestId ?? null,
                   titleRegenerationStartedAt: event.payload.titleRegeneration?.startedAt ?? null,
                 }
-              : {}),
+              : undefined),
             ...(event.payload.modelSelection !== undefined
               ? { modelSelection: event.payload.modelSelection }
-              : {}),
-            ...(event.payload.branch !== undefined ? { branch: event.payload.branch } : {}),
+              : undefined),
+            ...(event.payload.branch !== undefined ? { branch: event.payload.branch } : undefined),
             ...(event.payload.worktreePath !== undefined
               ? { worktreePath: event.payload.worktreePath }
-              : {}),
+              : undefined),
             updatedAt: event.payload.updatedAt,
           });
           return;
@@ -978,7 +983,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             turnId: event.payload.turnId,
             role: event.payload.role,
             text: nextText,
-            ...(nextAttachments !== undefined ? { attachments: [...nextAttachments] } : {}),
+            ...(nextAttachments !== undefined ? { attachments: [...nextAttachments] } : undefined),
             isStreaming: event.payload.streaming,
             createdAt: previousMessage?.createdAt ?? event.payload.createdAt,
             updatedAt: event.payload.updatedAt,
@@ -1090,7 +1095,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             payload: event.payload.activity.payload,
             ...(event.payload.activity.sequence !== undefined
               ? { sequence: event.payload.activity.sequence }
-              : {}),
+              : undefined),
             createdAt: event.payload.activity.createdAt,
           });
           return;
@@ -1498,12 +1503,12 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             requestId,
           });
           if (event.payload.activity.kind === "approval.resolved") {
-            const resolvedDecisionRaw =
-              typeof event.payload.activity.payload === "object" &&
-              event.payload.activity.payload !== null &&
-              "decision" in event.payload.activity.payload
-                ? (event.payload.activity.payload as { decision?: unknown }).decision
-                : null;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              resolvedDecisionRaw =
+                RuntimePredicate.isObjectOrArray(event.payload.activity.payload) &&
+                "decision" in event.payload.activity.payload
+                  ? (event.payload.activity.payload as { decision?: unknown }).decision
+                  : null;
             const resolvedDecision =
               resolvedDecisionRaw === "accept" ||
               resolvedDecisionRaw === "acceptForSession" ||
@@ -1529,13 +1534,13 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             return;
           }
           if (event.payload.activity.kind === "provider.approval.respond.failed") {
-            const payload =
-              typeof event.payload.activity.payload === "object" &&
-              event.payload.activity.payload !== null
-                ? (event.payload.activity.payload as Record<string, unknown>)
+            const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+              payload = RuntimePredicate.isObjectOrArray(event.payload.activity.payload)
+                ? (event.payload.activity.payload as Record<string, SchemaJson>)
                 : null;
-            const detail =
-              typeof payload?.detail === "string" ? payload.detail.toLowerCase() : null;
+            const detail = RuntimePredicate.isString(payload?.detail)
+              ? payload.detail.toLowerCase()
+              : null;
             if (isStalePendingApprovalFailureDetail(detail)) {
               if (Option.isNone(existingRow)) {
                 return;
@@ -1694,7 +1699,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           ),
         );
 
-    const projectEvent: OrchestrationProjectionPipelineShape["projectEvent"] = (event) =>
+    const projectEvent: OrchestrationProjectionPipelineContract["projectEvent"] = (event) =>
       Effect.forEach(projectors, (projector) => runProjectorForEvent(projector, event), {
         concurrency: 1,
       }).pipe(
@@ -1707,7 +1712,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         ),
       );
 
-    const bootstrap: OrchestrationProjectionPipelineShape["bootstrap"] = Effect.forEach(
+    const bootstrap: OrchestrationProjectionPipelineContract["bootstrap"] = Effect.forEach(
       projectors,
       bootstrapProjector,
       { concurrency: 1 },
@@ -1729,7 +1734,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
     return {
       bootstrap,
       projectEvent,
-    } satisfies OrchestrationProjectionPipelineShape;
+    } satisfies OrchestrationProjectionPipelineContract;
   },
 );
 

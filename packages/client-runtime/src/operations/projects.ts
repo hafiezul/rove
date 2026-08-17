@@ -34,10 +34,18 @@ export function canCreateProjectInEnvironment(
   return connectionPhase === "connected";
 }
 
-export type AddProjectRemoteSourceReadiness = Record<
-  AddProjectRemoteSource,
-  { readonly ready: boolean; readonly hint: string | null }
->;
+interface AddProjectRemoteSourceStatus {
+  readonly ready: boolean;
+  readonly hint: string | null;
+}
+
+export interface AddProjectRemoteSourceReadiness {
+  url: AddProjectRemoteSourceStatus;
+  github: AddProjectRemoteSourceStatus;
+  gitlab: AddProjectRemoteSourceStatus;
+  bitbucket: AddProjectRemoteSourceStatus;
+  "azure-devops": AddProjectRemoteSourceStatus;
+}
 
 export type AddProjectCloneFlow =
   | {

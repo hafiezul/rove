@@ -219,7 +219,7 @@ export const make = Effect.gen(function* () {
         .getPullRequestDiff({
           repository: input.repository,
           number: input.number,
-          ...(input.commit === undefined ? {} : { commit: input.commit }),
+          ...(input.commit === undefined ? undefined : { commit: input.commit }),
         })
         .pipe(
           Effect.mapError(fail("getDiff")),
@@ -249,7 +249,7 @@ export const make = Effect.gen(function* () {
           repository: input.repository,
           number: input.number,
           action: input.action,
-          ...(input.mergeMethod === undefined ? {} : { mergeMethod: input.mergeMethod }),
+          ...(input.mergeMethod === undefined ? undefined : { mergeMethod: input.mergeMethod }),
         })
         .pipe(Effect.mapError(fail("runAction"))),
 

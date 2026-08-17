@@ -20,7 +20,7 @@ export interface McpIssuedCredential {
   readonly config: McpProviderSession.McpProviderSessionConfig;
 }
 
-export interface McpSessionRegistryShape {
+export interface McpSessionRegistryContract {
   readonly issue: (request: McpCredentialRequest) => Effect.Effect<McpIssuedCredential>;
   readonly resolve: (
     rawToken: string,
@@ -38,7 +38,7 @@ export interface McpSessionRegistryShape {
 
 export class McpSessionRegistry extends Context.Service<
   McpSessionRegistry,
-  McpSessionRegistryShape
+  McpSessionRegistryContract
 >()("t3/mcp/McpSessionRegistry") {}
 
 interface CredentialRecord {
@@ -117,7 +117,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
     return next.size === records.size ? records : next;
   };
 
-  const issue: McpSessionRegistryShape["issue"] = Effect.fn("McpSessionRegistry.issue")(
+  const issue: McpSessionRegistryContract["issue"] = Effect.fn("McpSessionRegistry.issue")(
     function* (request) {
       const issuedAt = yield* currentTimeMillis;
       const providerSessionId = yield* crypto.randomUUIDv4.pipe(Effect.orDie);
@@ -149,7 +149,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
     },
   );
 
-  const resolve: McpSessionRegistryShape["resolve"] = Effect.fn("McpSessionRegistry.resolve")(
+  const resolve: McpSessionRegistryContract["resolve"] = Effect.fn("McpSessionRegistry.resolve")(
     function* (rawToken) {
       if (rawToken.length === 0) return undefined;
       const tokenHash = yield* hashToken(rawToken);
@@ -165,7 +165,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
     },
   );
 
-  const touch: McpSessionRegistryShape["touch"] = Effect.fn("McpSessionRegistry.touch")(
+  const touch: McpSessionRegistryContract["touch"] = Effect.fn("McpSessionRegistry.touch")(
     function* (threadId) {
       const timestamp = yield* currentTimeMillis;
       yield* SynchronizedRef.update(state, ({ records }) => {
@@ -202,7 +202,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
   });
 });
 
-let activeMcpSessionRegistry: McpSessionRegistryShape | undefined;
+let activeMcpSessionRegistry: McpSessionRegistryContract | undefined;
 
 const make = Effect.acquireRelease(
   makeWithOptions().pipe(

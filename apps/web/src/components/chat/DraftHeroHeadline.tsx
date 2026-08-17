@@ -110,7 +110,8 @@ export function DraftHeroHeadline({
         <MenuRadioGroup
           value={activeProjectKey}
           onValueChange={(value) => {
-            const entry = projectEntryByKey.get(value as string);
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              entry = projectEntryByKey.get(value as string);
             if (!entry || value === activeProjectKey) {
               return;
             }

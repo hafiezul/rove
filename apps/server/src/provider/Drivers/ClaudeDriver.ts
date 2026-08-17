@@ -103,8 +103,8 @@ const withInstanceIdentity =
     ...snapshot,
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
-    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
+    ...(input.displayName ? { displayName: input.displayName } : undefined),
+    ...(input.accentColor ? { accentColor: input.accentColor } : undefined),
     continuation: { groupKey: input.continuationGroupKey },
   });
 
@@ -146,7 +146,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv> = {
       const adapterOptions = {
         instanceId,
         environment: processEnv,
-        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : {}),
+        ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : undefined),
       };
       const adapter = yield* makeClaudeAdapter(effectiveConfig, adapterOptions);
       const textGeneration = yield* makeClaudeTextGeneration(effectiveConfig, processEnv);

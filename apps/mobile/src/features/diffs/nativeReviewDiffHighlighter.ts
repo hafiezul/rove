@@ -12,6 +12,7 @@ import * as Schema from "effect/Schema";
 
 import type { NativeReviewDiffFile, NativeReviewDiffLanguage } from "./nativeReviewDiffTypes";
 import type { NativeReviewDiffRow, NativeReviewDiffToken } from "./nativeReviewDiffSurface";
+import * as RuntimePredicate from "effect/Predicate";
 
 export type NativeReviewDiffHighlightScheme = "light" | "dark";
 export type NativeReviewDiffHighlightEngine = "native" | "javascript";
@@ -310,14 +311,20 @@ export async function getNativeReviewDiffHighlighter(
 }
 
 function isHighlightableLineRow(row: NativeReviewDiffRow): row is NativeReviewDiffLineRow {
-  return row.kind === "line" && typeof row.fileId === "string" && typeof row.content === "string";
+  return (
+    row.kind === "line" &&
+    RuntimePredicate.isString(row.fileId) &&
+    RuntimePredicate.isString(row.content)
+  );
 }
 
 function hasConsecutiveLineNumbers(
   previous: number | null | undefined,
   next: number | null | undefined,
 ): boolean {
-  return typeof previous === "number" && typeof next === "number" && next === previous + 1;
+  return (
+    RuntimePredicate.isNumber(previous) && RuntimePredicate.isNumber(next) && next === previous + 1
+  );
 }
 
 function hasOnlyCommentRowsBetween(

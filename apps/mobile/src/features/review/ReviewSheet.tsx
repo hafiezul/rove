@@ -74,6 +74,7 @@ import { resolveSelectedReviewFileId } from "./reviewPaneSelection";
 import { buildReviewSectionMenu } from "./review-section-menu";
 import type { ReviewSectionItem } from "./reviewModel";
 import { markNativeShowcaseReady } from "../showcase/nativeShowcaseScene";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const REVIEW_HEADER_SPACING = 0;
 const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
@@ -447,7 +448,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
       ? `${reviewCache.threadKey}:${selectedSection.id}:${nativeBridge.tokensResetKey}`
       : null;
   const handleNativeDebug = useCallback(
-    (event: NativeSyntheticEvent<Record<string, unknown>>) => {
+    (event: NativeSyntheticEvent<Record<string, SchemaJson>>) => {
       nativeBridge.onDebug(event);
       if (
         showcaseReviewKey === null ||

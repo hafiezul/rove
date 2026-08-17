@@ -20,6 +20,7 @@ import * as Schema from "effect/Schema";
 import { DraftComposerImageAttachmentSchema } from "../lib/composer-image-schema";
 import type { DraftComposerImageAttachment } from "../lib/composerImages";
 import { scopedThreadKey } from "../lib/scopedEntities";
+import * as RuntimePredicate from "effect/Predicate";
 
 const THREAD_OUTBOX_SCHEMA_VERSION = 3;
 const THREAD_OUTBOX_MAX_RETRY_DELAY_MS = 16_000;
@@ -54,7 +55,7 @@ export const QueuedThreadMessageSchema = Schema.Struct({
 });
 
 const decodeStoredQueuedThreadMessage = Schema.decodeUnknownSync(QueuedThreadMessageSchema);
-const encodeStoredQueuedThreadMessage = Schema.encodeUnknownSync(QueuedThreadMessageSchema);
+const encodeStoredQueuedThreadMessage = Schema.encodeSync(QueuedThreadMessageSchema);
 
 export interface QueuedThreadCreation {
   readonly projectId: ProjectIdType;
@@ -105,7 +106,7 @@ export function modelSelectionsEqual(left: ModelSelectionType, right: ModelSelec
   );
 }
 
-export function encodeQueuedThreadMessage(message: QueuedThreadMessage): unknown {
+export function encodeQueuedThreadMessage(message: QueuedThreadMessage) {
   return encodeStoredQueuedThreadMessage({
     schemaVersion: THREAD_OUTBOX_SCHEMA_VERSION,
     ...message,
@@ -117,9 +118,7 @@ export function decodeQueuedThreadMessage(value: unknown): QueuedThreadMessage {
   return message;
 }
 
-export function groupQueuedThreadMessages(
-  messages: ReadonlyArray<QueuedThreadMessage>,
-): Record<string, ReadonlyArray<QueuedThreadMessage>> {
+export function groupQueuedThreadMessages(messages: ReadonlyArray<QueuedThreadMessage>) {
   const deduplicated = new Map<MessageId, QueuedThreadMessage>();
   for (const message of messages) {
     deduplicated.set(message.messageId, message);
@@ -190,16 +189,15 @@ function errorMessage(error: unknown): string | null {
   if (error instanceof Error) {
     return error.message;
   }
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return typeof error.message === "string" ? error.message : null;
+  if (RuntimePredicate.isObjectOrArray(error) && "message" in error) {
+    return RuntimePredicate.isString(error.message) ? error.message : null;
   }
-  return typeof error === "string" ? error : null;
+  return RuntimePredicate.isString(error) ? error : null;
 }
 
 export function shouldRetryThreadOutboxDelivery(error: unknown): boolean {
   if (
-    typeof error === "object" &&
-    error !== null &&
+    RuntimePredicate.isObjectOrArray(error) &&
     "_tag" in error &&
     error._tag === "ConnectionTransientError"
   ) {

@@ -1,5 +1,6 @@
 import * as Schema from "effect/Schema";
 import type * as SchemaIssue from "effect/SchemaIssue";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const CodexAppServerRequestOperation = Schema.Literals([
   "decode-payload",
@@ -79,7 +80,14 @@ export type CodexAppServerPayloadKind = typeof CodexAppServerPayloadKind.Type;
 const payloadKind = (payload: unknown): CodexAppServerPayloadKind => {
   if (payload === null) return "null";
   if (Array.isArray(payload)) return "array";
-  return typeof payload;
+  if (RuntimePredicate.isString(payload)) return "string";
+  if (RuntimePredicate.isNumber(payload)) return "number";
+  if (RuntimePredicate.isBoolean(payload)) return "boolean";
+  if (RuntimePredicate.isBigInt(payload)) return "bigint";
+  if (RuntimePredicate.isSymbol(payload)) return "symbol";
+  if (RuntimePredicate.isFunction(payload)) return "function";
+  if (RuntimePredicate.isUndefined(payload)) return "undefined";
+  return "object";
 };
 
 const protocolMessageFields = ["id", "method", "params", "result", "error"] as const;
@@ -122,7 +130,7 @@ export const CodexAppServerIdentifierPurpose = Schema.Literals([
 ]);
 export type CodexAppServerIdentifierPurpose = typeof CodexAppServerIdentifierPurpose.Type;
 
-export interface CodexAppServerProtocolErrorShape {
+export interface CodexAppServerProtocolErrorContract {
   readonly code: number;
   readonly message: string;
   readonly data?: unknown;
@@ -197,16 +205,18 @@ export class CodexAppServerProtocolParseError extends Schema.TaggedErrorClass<Co
     return new CodexAppServerProtocolParseError({
       operation,
       method,
-      ...(cause.issueCount === undefined ? {} : { issueCount: cause.issueCount }),
-      ...(cause.issueKinds === undefined ? {} : { issueKinds: cause.issueKinds }),
-      ...(cause.maximumPathDepth === undefined ? {} : { maximumPathDepth: cause.maximumPathDepth }),
+      ...(cause.issueCount === undefined ? undefined : { issueCount: cause.issueCount }),
+      ...(cause.issueKinds === undefined ? undefined : { issueKinds: cause.issueKinds }),
+      ...(cause.maximumPathDepth === undefined
+        ? undefined
+        : { maximumPathDepth: cause.maximumPathDepth }),
       cause,
     });
   }
 
   static fromUnroutableMessage(message: unknown) {
     const diagnostics = { payloadKind: payloadKind(message) };
-    if (typeof message !== "object" || message === null || Array.isArray(message)) {
+    if (!RuntimePredicate.isObjectOrArray(message) || Array.isArray(message)) {
       return new CodexAppServerProtocolParseError({
         operation: "route-wire-message",
         ...diagnostics,
@@ -215,17 +225,18 @@ export class CodexAppServerProtocolParseError extends Schema.TaggedErrorClass<Co
 
     const presentFields = protocolMessageFields.filter((field) => field in message);
     const method =
-      "method" in message && typeof message.method === "string" ? message.method : undefined;
+      "method" in message && RuntimePredicate.isString(message.method) ? message.method : undefined;
     const requestId =
-      "id" in message && (typeof message.id === "string" || typeof message.id === "number")
+      "id" in message &&
+      (RuntimePredicate.isString(message.id) || RuntimePredicate.isNumber(message.id))
         ? String(message.id)
         : undefined;
     return new CodexAppServerProtocolParseError({
       operation: "route-wire-message",
       ...diagnostics,
       presentFields,
-      ...(method === undefined ? {} : { method }),
-      ...(requestId === undefined ? {} : { requestId }),
+      ...(method === undefined ? undefined : { method }),
+      ...(requestId === undefined ? undefined : { requestId }),
     });
   }
 }
@@ -285,14 +296,14 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
   }
 
   static fromProtocolError(
-    error: CodexAppServerProtocolErrorShape,
+    error: CodexAppServerProtocolErrorContract,
     method: string,
     requestId: string,
   ) {
     return new CodexAppServerRequestError({
       code: error.code,
       errorMessage: error.message,
-      ...(error.data !== undefined ? { data: error.data } : {}),
+      ...(error.data !== undefined ? { data: error.data } : undefined),
       method,
       requestId,
       operation: "receive-response",
@@ -319,7 +330,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     return new CodexAppServerRequestError({
       code: -32700,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -327,7 +338,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     return new CodexAppServerRequestError({
       code: -32600,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
@@ -346,7 +357,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     return new CodexAppServerRequestError({
       code: -32602,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
       ...diagnostics,
     });
   }
@@ -392,7 +403,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     return new CodexAppServerRequestError({
       code: -32603,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
       ...diagnostics,
     });
   }
@@ -401,15 +412,15 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     return new CodexAppServerRequestError({
       code: -32001,
       errorMessage: message,
-      ...(data !== undefined ? { data } : {}),
+      ...(data !== undefined ? { data } : undefined),
     });
   }
 
-  toProtocolError(): CodexAppServerProtocolErrorShape {
+  toProtocolError(): CodexAppServerProtocolErrorContract {
     return {
       code: this.code,
       message: this.errorMessage,
-      ...(this.data !== undefined ? { data: this.data } : {}),
+      ...(this.data !== undefined ? { data: this.data } : undefined),
     };
   }
 }

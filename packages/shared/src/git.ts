@@ -237,7 +237,7 @@ function toRemoteStatusPart(status: VcsStatusResult): VcsStatusRemoteResult {
     aheadCount: status.aheadCount,
     behindCount: status.behindCount,
     ...(status.aheadOfDefaultCount === undefined
-      ? {}
+      ? undefined
       : { aheadOfDefaultCount: status.aheadOfDefaultCount }),
     pr: status.pr,
   };
@@ -248,7 +248,7 @@ function toLocalStatusPart(status: VcsStatusResult): VcsStatusLocalResult {
     isRepo: status.isRepo,
     ...(status.sourceControlProvider
       ? { sourceControlProvider: status.sourceControlProvider }
-      : {}),
+      : undefined),
     hasPrimaryRemote: status.hasPrimaryRemote,
     isDefaultRef: status.isDefaultRef,
     refName: status.refName,

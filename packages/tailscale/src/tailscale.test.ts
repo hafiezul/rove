@@ -23,6 +23,7 @@ import {
   TailscaleCommandTimeoutError,
   TailscaleStatusParseError,
 } from "./tailscale.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const encoder = new TextEncoder();
 
@@ -35,15 +36,15 @@ const encoder = new TextEncoder();
  * Walks values instead of serializing so it holds for fields added later, and
  * tracks visited objects so a cyclic cause chain terminates.
  */
-function assertCarriesNoSecret(error: object, secret: string): void {
+function assertCarriesNoSecret(error: Error, secret: string): void {
   const seen = new WeakSet<object>();
 
   const walk = (value: unknown, path: string): void => {
-    if (typeof value === "string") {
+    if (RuntimePredicate.isString(value)) {
       assert.notInclude(value, secret, `${path} leaked stderr`);
       return;
     }
-    if (typeof value !== "object" || value === null || seen.has(value)) {
+    if (!RuntimePredicate.isObjectOrArray(value) || seen.has(value)) {
       return;
     }
     seen.add(value);
@@ -54,7 +55,9 @@ function assertCarriesNoSecret(error: object, secret: string): void {
     }
     // `message` and `cause` are getters on Error subclasses, so they are not
     // own enumerable properties and Object.entries alone would skip them.
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     walk((value as { message?: unknown }).message, `${path}.message`);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     walk((value as { cause?: unknown }).cause, `${path}.cause`);
     for (const [key, nested] of Object.entries(value)) {
       walk(nested, `${path}.${key}`);
@@ -107,10 +110,11 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childProcess = command as {
+          readonly command: string;
+          readonly args: ReadonlyArray<string>;
+        };
       return Effect.succeed(mockHandle(handler(childProcess.command, childProcess.args)));
     }),
   );

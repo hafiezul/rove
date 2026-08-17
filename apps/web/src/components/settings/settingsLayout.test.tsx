@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -32,7 +33,7 @@ describe("settings search targets", () => {
     const remove = vi.fn();
     const add = vi.fn();
     const addEventListener = vi.fn();
-    const target = {
+    const target = testDouble<HTMLElement>({
       tagName: "SECTION",
       firstElementChild: { scrollIntoView: headerScrollIntoView },
       scrollIntoView: sectionScrollIntoView,
@@ -40,7 +41,7 @@ describe("settings search targets", () => {
       classList: { remove, add },
       addEventListener,
       offsetWidth: 100,
-    } as unknown as HTMLElement;
+    });
     vi.stubGlobal("document", {
       getElementById: vi.fn(() => target),
     });
@@ -65,14 +66,14 @@ describe("settings search targets", () => {
     const focus = vi.fn();
     const remove = vi.fn();
     const add = vi.fn();
-    const target = {
+    const target = testDouble<HTMLElement>({
       tagName: "DIV",
       firstElementChild: null,
       scrollIntoView,
       focus,
       classList: { remove, add },
       offsetWidth: 100,
-    } as unknown as HTMLElement;
+    });
     vi.stubGlobal("document", {
       getElementById: vi.fn(() => target),
     });

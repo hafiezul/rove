@@ -346,6 +346,8 @@ import {
   serverUpdateGuidance,
 } from "../versionSkew";
 import { useAssetUrls } from "../assets/assetUrls";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const IMAGE_ONLY_BOOTSTRAP_PROMPT =
   "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
@@ -391,7 +393,7 @@ function useDraftHeroLayoutTransition(isDraftHeroState: boolean) {
       transitionGroup &&
       previousComposerRect &&
       nextComposerRect &&
-      typeof transitionGroup.animate === "function"
+      RuntimePredicate.isFunction(transitionGroup.animate)
     ) {
       const translateX = previousComposerRect.left - nextComposerRect.left;
       const translateY = previousComposerRect.top - nextComposerRect.top;
@@ -841,7 +843,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
         threadId,
         terminalId,
         cwd,
-        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : {}),
+        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : undefined),
         env: runtimeEnv,
       },
     });
@@ -869,7 +871,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
         threadId,
         terminalId,
         cwd,
-        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : {}),
+        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : undefined),
         env: runtimeEnv,
       },
     });
@@ -898,7 +900,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
         threadId,
         terminalId,
         cwd,
-        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : {}),
+        ...(effectiveWorktreePath != null ? { worktreePath: effectiveWorktreePath } : undefined),
         env: runtimeEnv,
       },
     });
@@ -1152,7 +1154,9 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
         {
           id: surface.id,
           terminalIds: surface.terminalIds,
-          ...(surface.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+          ...(surface.splitDirection === "vertical"
+            ? { splitDirection: "vertical" as const }
+            : undefined),
         },
       ]}
       activeTerminalGroupId={surface.id}
@@ -2164,7 +2168,7 @@ function ChatViewContent(props: ChatViewProps) {
             />
           ),
         ...(updateInProgress || updateFailed || !versionMismatchDismissKey
-          ? {}
+          ? undefined
           : {
               dismissLabel: "Dismiss update notice",
               onDismiss: () => {
@@ -2471,6 +2475,7 @@ function ChatViewContent(props: ChatViewProps) {
           if (cancelled) {
             return;
           }
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           clearAttachmentPreviewHandoff(messageId as MessageId, handoffPreviewUrls);
         })
         .catch(() => {
@@ -2598,7 +2603,7 @@ function ChatViewContent(props: ChatViewProps) {
         }
         const turnCount =
           summary.checkpointTurnCount ?? inferredCheckpointTurnCountByTurnId[summary.turnId];
-        if (typeof turnCount !== "number") {
+        if (!RuntimePredicate.isNumber(turnCount)) {
           break;
         }
         byUserMessageId.set(entry.message.id, Math.max(0, turnCount - 1));
@@ -2827,7 +2832,9 @@ function ChatViewContent(props: ChatViewProps) {
           threadId: activeThreadId,
           terminalId,
           cwd: cwdForOpen,
-          ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
+          ...(activeThreadWorktreePath != null
+            ? { worktreePath: activeThreadWorktreePath }
+            : undefined),
           env: projectScriptRuntimeEnv({
             project: { cwd: activeProject.workspaceRoot },
             worktreePath: activeThreadWorktreePath,
@@ -2873,7 +2880,9 @@ function ChatViewContent(props: ChatViewProps) {
           threadId: activeThreadId,
           terminalId,
           cwd: cwdForOpen,
-          ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
+          ...(activeThreadWorktreePath != null
+            ? { worktreePath: activeThreadWorktreePath }
+            : undefined),
           env: projectScriptRuntimeEnv({
             project: { cwd: activeProject.workspaceRoot },
             worktreePath: activeThreadWorktreePath,
@@ -2912,7 +2921,9 @@ function ChatViewContent(props: ChatViewProps) {
         threadId: activeThreadId,
         terminalId,
         cwd: cwdForOpen,
-        ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
+        ...(activeThreadWorktreePath != null
+          ? { worktreePath: activeThreadWorktreePath }
+          : undefined),
         env: projectScriptRuntimeEnv({
           project: { cwd: activeProject.workspaceRoot },
           worktreePath: activeThreadWorktreePath,
@@ -3005,7 +3016,7 @@ function ChatViewContent(props: ChatViewProps) {
           cwd: activeProject.workspaceRoot,
         },
         worktreePath: targetWorktreePath,
-        ...(options?.env ? { extraEnv: options.env } : {}),
+        ...(options?.env ? { extraEnv: options.env } : undefined),
       });
       const targetTerminalId = shouldCreateNewTerminal
         ? nextTerminalId(allocatableActiveTerminalIds)
@@ -3015,7 +3026,7 @@ function ChatViewContent(props: ChatViewProps) {
             threadId: activeThreadId,
             terminalId: targetTerminalId,
             cwd: targetCwd,
-            ...(targetWorktreePath !== null ? { worktreePath: targetWorktreePath } : {}),
+            ...(targetWorktreePath !== null ? { worktreePath: targetWorktreePath } : undefined),
             env: runtimeEnv,
             cols: SCRIPT_TERMINAL_COLS,
             rows: SCRIPT_TERMINAL_ROWS,
@@ -3024,7 +3035,7 @@ function ChatViewContent(props: ChatViewProps) {
             threadId: activeThreadId,
             terminalId: targetTerminalId,
             cwd: targetCwd,
-            ...(targetWorktreePath !== null ? { worktreePath: targetWorktreePath } : {}),
+            ...(targetWorktreePath !== null ? { worktreePath: targetWorktreePath } : undefined),
             env: runtimeEnv,
           };
 
@@ -3340,7 +3351,9 @@ function ChatViewContent(props: ChatViewProps) {
         threadId: activeThreadId,
         terminalId,
         cwd,
-        ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
+        ...(activeThreadWorktreePath != null
+          ? { worktreePath: activeThreadWorktreePath }
+          : undefined),
         env: projectScriptRuntimeEnv({
           project: { cwd: activeProject.workspaceRoot },
           worktreePath: activeThreadWorktreePath,
@@ -3379,7 +3392,9 @@ function ChatViewContent(props: ChatViewProps) {
           threadId: activeThreadId,
           terminalId,
           cwd,
-          ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
+          ...(activeThreadWorktreePath != null
+            ? { worktreePath: activeThreadWorktreePath }
+            : undefined),
           env: projectScriptRuntimeEnv({
             project: { cwd: activeProject.workspaceRoot },
             worktreePath: activeThreadWorktreePath,
@@ -3597,9 +3612,9 @@ function ChatViewContent(props: ChatViewProps) {
       let result: AtomCommandResult<void, unknown> = AsyncResult.success(undefined);
       const metadataUpdate = resolveThreadMetadataUpdateForNextTurn({
         currentModelSelection: serverThread.modelSelection,
-        ...(input.modelSelection ? { nextModelSelection: input.modelSelection } : {}),
+        ...(input.modelSelection ? { nextModelSelection: input.modelSelection } : undefined),
         currentBranch: serverThread.branch,
-        ...(input.branch ? { nextBranch: input.branch } : {}),
+        ...(input.branch ? { nextBranch: input.branch } : undefined),
       });
       if (metadataUpdate) {
         result = mapAtomCommandResult(
@@ -3724,8 +3739,8 @@ function ChatViewContent(props: ChatViewProps) {
       const lastRowTop = state.positionAtIndex(lastRowIndex);
       const lastRowHeight = state.sizeAtIndex(lastRowIndex);
       if (
-        typeof lastRowTop !== "number" ||
-        typeof lastRowHeight !== "number" ||
+        !RuntimePredicate.isNumber(lastRowTop) ||
+        !RuntimePredicate.isNumber(lastRowHeight) ||
         !Number.isFinite(lastRowTop) ||
         !Number.isFinite(lastRowHeight)
       ) {
@@ -5131,7 +5146,7 @@ function ChatViewContent(props: ChatViewProps) {
         id: messageIdForSend,
         role: "user",
         text: outgoingMessageText,
-        ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : {}),
+        ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : undefined),
         turnId: null,
         createdAt: messageCreatedAt,
         updatedAt: messageCreatedAt,
@@ -5201,10 +5216,10 @@ function ChatViewContent(props: ChatViewProps) {
       const settingsResult = await persistThreadSettingsForNextTurn({
         threadId: threadIdForSend,
         createdAt: messageCreatedAt,
-        ...(ctxSelectedModel ? { modelSelection: ctxSelectedModelSelection } : {}),
+        ...(ctxSelectedModel ? { modelSelection: ctxSelectedModelSelection } : undefined),
         ...(localCheckoutBranchMismatch
           ? { branch: localCheckoutBranchMismatch.currentBranch }
-          : {}),
+          : undefined),
         runtimeMode,
         interactionMode,
       });
@@ -5236,18 +5251,18 @@ function ChatViewContent(props: ChatViewProps) {
                       createdAt: activeThread.createdAt,
                     },
                   }
-                : {}),
+                : undefined),
               ...(baseBranchForWorktree
                 ? {
                     prepareWorktree: {
                       projectCwd: activeProject.workspaceRoot,
                       baseBranch: baseBranchForWorktree,
                       branch: buildTemporaryWorktreeBranchName(randomHex),
-                      ...(startFromOrigin ? { startFromOrigin: true } : {}),
+                      ...(startFromOrigin ? { startFromOrigin: true } : undefined),
                     },
                     runSetupScript: true,
                   }
-                : {}),
+                : undefined),
             }
           : undefined;
       beginLocalDispatch({ preparingWorktree: false });
@@ -5265,7 +5280,7 @@ function ChatViewContent(props: ChatViewProps) {
           titleSeed: title,
           runtimeMode,
           interactionMode,
-          ...(bootstrap ? { bootstrap } : {}),
+          ...(bootstrap ? { bootstrap } : undefined),
           createdAt: messageCreatedAt,
         },
       });
@@ -5374,7 +5389,7 @@ function ChatViewContent(props: ChatViewProps) {
   );
 
   const onRespondToUserInput = useCallback(
-    async (requestId: ApprovalRequestId, answers: Record<string, unknown>) => {
+    async (requestId: ApprovalRequestId, answers: Record<string, SchemaJson>) => {
       if (!activeThreadId) return;
 
       setRespondingUserInputRequestIds((existing) =>
@@ -5590,7 +5605,7 @@ function ChatViewContent(props: ChatViewProps) {
         modelSelection: ctxSelectedModelSelection,
         ...(localCheckoutBranchMismatch
           ? { branch: localCheckoutBranchMismatch.currentBranch }
-          : {}),
+          : undefined),
         runtimeMode,
         interactionMode: nextInteractionMode,
       });
@@ -5626,7 +5641,7 @@ function ChatViewContent(props: ChatViewProps) {
                     planId: activeProposedPlan.id,
                   },
                 }
-              : {}),
+              : undefined),
             createdAt: messageCreatedAt,
           },
         });
@@ -5936,7 +5951,9 @@ function ChatViewContent(props: ChatViewProps) {
             envMode: mode,
             newWorktreesStartFromOrigin: primaryServerSettings.newWorktreesStartFromOrigin,
           }),
-          ...(mode === "worktree" && draftThread?.worktreePath ? { worktreePath: null } : {}),
+          ...(mode === "worktree" && draftThread?.worktreePath
+            ? { worktreePath: null }
+            : undefined),
         });
       }
       scheduleComposerFocus();
@@ -5989,7 +6006,7 @@ function ChatViewContent(props: ChatViewProps) {
   onRevertToTurnCountRef.current = onRevertToTurnCount;
   const onRevertUserMessage = useCallback((messageId: MessageId) => {
     const targetTurnCount = revertTurnCountRef.current.get(messageId);
-    if (typeof targetTurnCount !== "number") {
+    if (!RuntimePredicate.isNumber(targetTurnCount)) {
       return;
     }
     void onRevertToTurnCountRef.current(targetTurnCount);
@@ -6035,119 +6052,121 @@ function ChatViewContent(props: ChatViewProps) {
       {panelToggleControls}
     </div>
   );
-  const rightPanelContent = activeThreadRef ? (
-    activeRightPanelSurface?.kind === "preview" ? (
-      <Suspense fallback={null}>
-        <PreviewPanel
-          mode="embedded"
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    rightPanelContent = activeThreadRef ? (
+      activeRightPanelSurface?.kind === "preview" ? (
+        <Suspense fallback={null}>
+          <PreviewPanel
+            mode="embedded"
+            threadRef={activeThreadRef}
+            tabId={activeRightPanelSurface.resourceId}
+            configuredUrls={configuredPreviewUrls}
+            visible
+            onSendAnnotation={(annotation, image) => {
+              void onSend(undefined, { annotation, image });
+            }}
+          />
+        </Suspense>
+      ) : activeRightPanelSurface?.kind === "terminal" ? (
+        <PersistentThreadTerminalPanel
           threadRef={activeThreadRef}
-          tabId={activeRightPanelSurface.resourceId}
-          configuredUrls={configuredPreviewUrls}
-          visible
-          onSendAnnotation={(annotation, image) => {
-            void onSend(undefined, { annotation, image });
-          }}
-        />
-      </Suspense>
-    ) : activeRightPanelSurface?.kind === "terminal" ? (
-      <PersistentThreadTerminalPanel
-        threadRef={activeThreadRef}
-        surface={activeRightPanelSurface}
-        launchContext={activeTerminalLaunchContext ?? null}
-        focusRequestId={terminalFocusRequestId}
-        keybindings={keybindings}
-        onAddTerminalContext={addTerminalContextToDraft}
-        onSplitTerminal={splitPanelTerminal}
-        onSplitTerminalVertical={splitPanelTerminalVertical}
-        onNewTerminal={addTerminalSurface}
-        onActiveTerminalChange={activatePanelTerminal}
-        onCloseTerminal={closePanelTerminal}
-        splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
-        splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
-        newShortcutLabel={newTerminalShortcutLabel ?? undefined}
-        closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
-      />
-    ) : activeRightPanelSurface?.kind === "diff" ? (
-      <Suspense fallback={null}>
-        <DiffPanel
-          key={`${activeThreadKey}:${diffPanelGitStatusResolutionKey}`}
-          mode="embedded"
-          composerDraftTarget={composerDraftTarget}
-          initialGitScope={initialDiffPanelGitScope}
-        />
-      </Suspense>
-    ) : activeRightPanelSurface?.kind === "pull-request" && !pullRequestsCapabilityKnown ? (
-      <PullRequestDetailGhost />
-    ) : activeRightPanelSurface?.kind === "pull-request" && !supportsPullRequests ? (
-      <PullRequestsUnavailableState
-        title="Pull requests unavailable"
-        error="Update this environment's T3 Code server to browse pull requests."
-      />
-    ) : activeRightPanelSurface?.kind === "pull-request" ? (
-      // No onClose: the surface tab's own X owns closing here, and a second X in the header
-      // would be the same action twice. The thread context also drops the checkout button, so it
-      // is only right for the thread's own pull request, whose branch is already under the
-      // reader's feet. A link the agent wrote can open any other one here, and that one has to be
-      // checkable out like it is anywhere else.
-      <PullRequestDetailPanel
-        key={`${activeRightPanelSurface.repository}#${activeRightPanelSurface.number}`}
-        environmentId={activeThread.environmentId}
-        reference={{
-          projectId: activeRightPanelSurface.projectId as ProjectId,
-          repository: activeRightPanelSurface.repository,
-          number: activeRightPanelSurface.number,
-        }}
-        context={
-          isThreadOwnPullRequest(
-            {
-              projectId: activeProject?.id ?? null,
-              repository: threadRepository,
-              number: activeThreadPr?.number ?? null,
-            },
-            {
-              projectId: activeRightPanelSurface.projectId,
-              repository: activeRightPanelSurface.repository,
-              number: activeRightPanelSurface.number,
-            },
-          )
-            ? "thread"
-            : "page"
-        }
-        chromeVariant="collapse"
-        composerDraftTarget={composerDraftTarget}
-        onStateChange={handlePullRequestTabStatusChange}
-      />
-    ) : activeRightPanelSurface?.kind === "agents" ? (
-      <AgentsPanel
-        model={agentPanelModel}
-        environmentId={activeThreadRef?.environmentId ?? null}
-        threadId={activeThreadRef?.threadId ?? null}
-      />
-    ) : (activeRightPanelSurface?.kind === "files" || activeRightPanelSurface?.kind === "file") &&
-      activeProject &&
-      activeWorkspaceRoot ? (
-      <Suspense fallback={null}>
-        <FilePreviewPanel
-          key={`${activeProject.environmentId}:${activeWorkspaceRoot}`}
-          environmentId={activeProject.environmentId}
-          cwd={activeWorkspaceRoot}
-          projectName={activeProject.title}
-          threadRef={activeThreadRef}
-          composerDraftTarget={composerDraftTarget}
+          surface={activeRightPanelSurface}
+          launchContext={activeTerminalLaunchContext ?? null}
+          focusRequestId={terminalFocusRequestId}
           keybindings={keybindings}
-          availableEditors={availableEditors}
-          relativePath={
-            activeRightPanelSurface.kind === "file" ? activeRightPanelSurface.relativePath : null
-          }
-          revealLine={activeFileSurface?.revealLine ?? null}
-          revealRequestId={activeFileSurface?.revealRequestId ?? 0}
-          onOpenFile={openFileSurface}
-          onPendingChange={handleFilePendingChange}
+          onAddTerminalContext={addTerminalContextToDraft}
+          onSplitTerminal={splitPanelTerminal}
+          onSplitTerminalVertical={splitPanelTerminalVertical}
+          onNewTerminal={addTerminalSurface}
+          onActiveTerminalChange={activatePanelTerminal}
+          onCloseTerminal={closePanelTerminal}
+          splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
+          splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
+          newShortcutLabel={newTerminalShortcutLabel ?? undefined}
+          closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
         />
-      </Suspense>
-    ) : null
-  ) : null;
+      ) : activeRightPanelSurface?.kind === "diff" ? (
+        <Suspense fallback={null}>
+          <DiffPanel
+            key={`${activeThreadKey}:${diffPanelGitStatusResolutionKey}`}
+            mode="embedded"
+            composerDraftTarget={composerDraftTarget}
+            initialGitScope={initialDiffPanelGitScope}
+          />
+        </Suspense>
+      ) : activeRightPanelSurface?.kind === "pull-request" && !pullRequestsCapabilityKnown ? (
+        <PullRequestDetailGhost />
+      ) : activeRightPanelSurface?.kind === "pull-request" && !supportsPullRequests ? (
+        <PullRequestsUnavailableState
+          title="Pull requests unavailable"
+          error="Update this environment's T3 Code server to browse pull requests."
+        />
+      ) : activeRightPanelSurface?.kind === "pull-request" ? (
+        // No onClose: the surface tab's own X owns closing here, and a second X in the header
+        // would be the same action twice. The thread context also drops the checkout button, so it
+        // is only right for the thread's own pull request, whose branch is already under the
+        // reader's feet. A link the agent wrote can open any other one here, and that one has to be
+        // checkable out like it is anywhere else.
+        <PullRequestDetailPanel
+          key={`${activeRightPanelSurface.repository}#${activeRightPanelSurface.number}`}
+          environmentId={activeThread.environmentId}
+          reference={{
+            projectId: activeRightPanelSurface.projectId as ProjectId,
+            repository: activeRightPanelSurface.repository,
+            number: activeRightPanelSurface.number,
+          }}
+          context={
+            isThreadOwnPullRequest(
+              {
+                projectId: activeProject?.id ?? null,
+                repository: threadRepository,
+                number: activeThreadPr?.number ?? null,
+              },
+              {
+                projectId: activeRightPanelSurface.projectId,
+                repository: activeRightPanelSurface.repository,
+                number: activeRightPanelSurface.number,
+              },
+            )
+              ? "thread"
+              : "page"
+          }
+          chromeVariant="collapse"
+          composerDraftTarget={composerDraftTarget}
+          onStateChange={handlePullRequestTabStatusChange}
+        />
+      ) : activeRightPanelSurface?.kind === "agents" ? (
+        <AgentsPanel
+          model={agentPanelModel}
+          environmentId={activeThreadRef?.environmentId ?? null}
+          threadId={activeThreadRef?.threadId ?? null}
+        />
+      ) : (activeRightPanelSurface?.kind === "files" || activeRightPanelSurface?.kind === "file") &&
+        activeProject &&
+        activeWorkspaceRoot ? (
+        <Suspense fallback={null}>
+          <FilePreviewPanel
+            key={`${activeProject.environmentId}:${activeWorkspaceRoot}`}
+            environmentId={activeProject.environmentId}
+            cwd={activeWorkspaceRoot}
+            projectName={activeProject.title}
+            threadRef={activeThreadRef}
+            composerDraftTarget={composerDraftTarget}
+            keybindings={keybindings}
+            availableEditors={availableEditors}
+            relativePath={
+              activeRightPanelSurface.kind === "file" ? activeRightPanelSurface.relativePath : null
+            }
+            revealLine={activeFileSurface?.revealLine ?? null}
+            revealRequestId={activeFileSurface?.revealRequestId ?? 0}
+            onOpenFile={openFileSurface}
+            onPendingChange={handleFilePendingChange}
+          />
+        </Suspense>
+      ) : null
+    ) : null;
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
       {rightPanelOpen && !shouldUseRightPanelSheet ? panelLayoutControls : null}

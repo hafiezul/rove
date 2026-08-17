@@ -1,5 +1,6 @@
 import { EnvironmentId } from "@t3tools/contracts";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import * as RuntimePredicate from "effect/Predicate";
 
 const mocks = vi.hoisted(() => {
   const values = new Map<string, string>();
@@ -58,10 +59,10 @@ const mocks = vi.hoisted(() => {
         if (savePreferencesFails) {
           return Promise.reject(new Error("database unavailable"));
         }
-        if (typeof payload === "string") {
+        if (RuntimePredicate.isString(payload)) {
           preferencesJson = payload;
         }
-        if (typeof updatedAt === "number") {
+        if (RuntimePredicate.isNumber(updatedAt)) {
           preferencesUpdatedAt = updatedAt;
         }
         return Promise.resolve();
@@ -180,10 +181,11 @@ describe("mobile connection storage", () => {
   it("falls back to secure storage when SQLite cannot save preferences", async () => {
     mocks.setDatabaseFailures(true, true);
     await expect(savePreferencesPatch({ baseFontSize: 19 })).resolves.toEqual({ baseFontSize: 19 });
-    const fallback = JSON.parse(mocks.getStoredValue("t3code.preferences.fallback") ?? "") as {
-      readonly payload: string;
-      readonly updatedAt: number;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      fallback = JSON.parse(mocks.getStoredValue("t3code.preferences.fallback") ?? "") as {
+        readonly payload: string;
+        readonly updatedAt: number;
+      };
     expect(JSON.parse(fallback.payload)).toEqual({ baseFontSize: 19 });
     expect(fallback.updatedAt).toEqual(expect.any(Number));
   });

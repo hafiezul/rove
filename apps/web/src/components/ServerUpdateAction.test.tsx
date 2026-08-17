@@ -30,6 +30,7 @@ type ActionElement = ReactElement<{
 }>;
 
 function renderAction(): ActionElement {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return ServerUpdateAction({
     environmentId: "env-test" as EnvironmentId,
     serverLabel: "Test server",

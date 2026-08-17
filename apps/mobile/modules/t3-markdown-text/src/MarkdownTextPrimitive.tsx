@@ -3,6 +3,7 @@ import { Platform, StyleSheet, Text as RNText, type TextProps, type ViewStyle } 
 import T3MarkdownTextRunNativeComponent from "./T3MarkdownTextRunNativeComponent";
 import T3MarkdownTextNativeComponent from "./T3MarkdownTextNativeComponent";
 import { flattenStyles } from "./util";
+import * as RuntimePredicate from "effect/Predicate";
 
 const TextAncestorContext = React.createContext<[boolean, ViewStyle]>([
   false,
@@ -52,7 +53,7 @@ function MarkdownTextPrimitiveChild({ style, children, ...rest }: MarkdownTextPr
     if (React.isValidElement(child)) {
       return child;
     }
-    if (typeof child !== "string" && typeof child !== "number") {
+    if (!RuntimePredicate.isString(child) && !RuntimePredicate.isNumber(child)) {
       return null;
     }
 

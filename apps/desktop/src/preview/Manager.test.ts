@@ -20,6 +20,8 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as BrowserSession from "./BrowserSession.ts";
 import * as PreviewManager from "./Manager.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 describe("fitPictureInPictureContentSize", () => {
   it("preserves the PiP content area across aspect-ratio changes", () => {
@@ -58,6 +60,10 @@ describe("isPreviewRefreshShortcut", () => {
   });
 });
 
+interface NativeImageTestDouble {
+  readonly isEmpty: () => boolean;
+}
+
 const {
   browserWindowConstructor,
   createFromPath,
@@ -70,7 +76,7 @@ const {
   writeImage,
 } = vi.hoisted(() => ({
   browserWindowConstructor: vi.fn(),
-  createFromPath: vi.fn((): { readonly isEmpty: () => boolean } => ({ isEmpty: () => false })),
+  createFromPath: vi.fn((): NativeImageTestDouble => ({ isEmpty: () => false })),
   fromId: vi.fn((_id?: number) => null),
   getFocusedWebContents: vi.fn(() => null),
   mkdir: vi.fn((_path: string) => undefined),
@@ -255,6 +261,7 @@ const makeFaviconWebContents = (options?: {
       off: debuggerOff,
     },
   };
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     executeJavaScriptInIsolatedWorld,
     fetch,
@@ -383,7 +390,8 @@ describe("PreviewManager", () => {
     const loggedErrors: Array<unknown> = [];
     const logger = Logger.make(({ message }) => {
       for (const value of Array.isArray(message) ? message : [message]) {
-        if (typeof value === "object" && value !== null && "cause" in value) {
+        if (RuntimePredicate.isObjectOrArray(value) && "cause" in value) {
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           loggedErrors.push(Cause.squash(value.cause as Cause.Cause<never>));
         }
       }
@@ -1162,11 +1170,12 @@ describe("PreviewManager", () => {
         }));
         const firstWebContents = makeTestPreviewWebContents(capturePage, 42);
         const replacementWebContents = makeTestPreviewWebContents(capturePage, 43);
-        const replacementListenerSpies = replacementWebContents as unknown as {
-          readonly on: ReturnType<typeof vi.fn>;
-          readonly off: ReturnType<typeof vi.fn>;
-          readonly ipc: { readonly off: ReturnType<typeof vi.fn> };
-        };
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          replacementListenerSpies = replacementWebContents as {
+            readonly on: ReturnType<typeof vi.fn>;
+            readonly off: ReturnType<typeof vi.fn>;
+            readonly ipc: { readonly off: ReturnType<typeof vi.fn> };
+          };
         fromId.mockImplementation((id) => {
           if (id === 42) return firstWebContents;
           if (id === 43) return replacementWebContents;
@@ -1612,7 +1621,7 @@ describe("PreviewManager", () => {
     withManager((manager) =>
       Effect.gen(function* () {
         let debuggerMessage:
-          | ((event: unknown, method: string, params: Record<string, unknown>) => void)
+          | ((event: unknown, method: string, params: Record<string, SchemaJson>) => void)
           | undefined;
         const capturePage = vi.fn(async () => ({
           toJPEG: () => Buffer.from("scheduled-recording-frame"),
@@ -1644,7 +1653,11 @@ describe("PreviewManager", () => {
             on: vi.fn(
               (
                 event: string,
-                listener: (event: unknown, method: string, params: Record<string, unknown>) => void,
+                listener: (
+                  event: unknown,
+                  method: string,
+                  params: Record<string, SchemaJson>,
+                ) => void,
               ) => {
                 if (event === "message") debuggerMessage = listener;
               },
@@ -2196,7 +2209,7 @@ describe("PreviewManager", () => {
       Effect.gen(function* () {
         let humanInput: ((_event: unknown, signal: unknown) => void) | undefined;
         const activity: string[] = [];
-        const sendCommand = vi.fn(async (method: string, params?: Record<string, unknown>) => {
+        const sendCommand = vi.fn(async (method: string, params?: Record<string, SchemaJson>) => {
           if (method === "Runtime.evaluate") {
             return {
               result: {
@@ -2277,7 +2290,7 @@ describe("PreviewManager", () => {
       Effect.gen(function* () {
         let failKeyDown = false;
         let humanInput: ((_event: unknown, signal: unknown) => void) | undefined;
-        const sendCommand = vi.fn(async (method: string, params?: Record<string, unknown>) => {
+        const sendCommand = vi.fn(async (method: string, params?: Record<string, SchemaJson>) => {
           if (
             failKeyDown &&
             method === "Input.dispatchKeyEvent" &&
@@ -2365,20 +2378,20 @@ describe("PreviewManager", () => {
         const typeEvaluation = sendCommand.mock.calls.find(
           ([method, params]) =>
             method === "Runtime.evaluate" &&
-            typeof params === "object" &&
+            (RuntimePredicate.isObjectOrArray(params) || params === null) &&
             params !== null &&
             "expression" in params &&
-            typeof params.expression === "string" &&
+            RuntimePredicate.isString(params.expression) &&
             params.expression.includes('document.execCommand("insertText"'),
         );
         expect(typeEvaluation).toBeDefined();
         const clearOnlyEvaluation = sendCommand.mock.calls.find(
           ([method, params]) =>
             method === "Runtime.evaluate" &&
-            typeof params === "object" &&
+            (RuntimePredicate.isObjectOrArray(params) || params === null) &&
             params !== null &&
             "expression" in params &&
-            typeof params.expression === "string" &&
+            RuntimePredicate.isString(params.expression) &&
             params.expression.includes('const text = ""') &&
             params.expression.includes("Object.getOwnPropertyDescriptor"),
         );
@@ -2605,9 +2618,10 @@ describe("Preview automation diagnostics", () => {
     });
 
     const encoded = encodePreviewManagerError(error);
-    const { cause: encodedCause, ...encodedDiagnostics } = encoded as typeof encoded & {
-      readonly cause?: unknown;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      { cause: encodedCause, ...encodedDiagnostics } = encoded as typeof encoded & {
+        readonly cause?: unknown;
+      };
 
     expect(error.cause).toBe(cause);
     expect(encodedCause).toStrictEqual(cause);
@@ -2635,9 +2649,10 @@ describe("Preview automation diagnostics", () => {
     });
 
     const encoded = encodePreviewManagerError(error);
-    const { cause: encodedCause, ...encodedDiagnostics } = encoded as typeof encoded & {
-      readonly cause?: unknown;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      { cause: encodedCause, ...encodedDiagnostics } = encoded as typeof encoded & {
+        readonly cause?: unknown;
+      };
 
     expect(error.cause).toBe(cause);
     expect(encodedCause).toStrictEqual(cause);

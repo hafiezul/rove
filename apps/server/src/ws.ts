@@ -123,6 +123,8 @@ import * as PairingGrantStore from "./auth/PairingGrantStore.ts";
 import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
 import * as RelayClient from "@t3tools/shared/relayClient";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const isOrchestrationDispatchCommandError = Schema.is(OrchestrationDispatchCommandError);
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
@@ -143,22 +145,39 @@ function unexpectedCompatibilityError(error: never): never {
 /** Preserve the setup runner's broader pre-refactor message normalization. */
 function legacySetupFailureDescription(cause: unknown): string {
   if (
-    typeof cause === "object" &&
-    cause !== null &&
+    RuntimePredicate.isObjectOrArray(cause) &&
     "message" in cause &&
-    typeof cause.message === "string"
+    RuntimePredicate.isString(cause.message)
   ) {
     return cause.message;
   }
   return String(cause);
 }
 
-function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesError): {
+interface ProjectEntriesFailureContext {
   readonly failure: ProjectEntriesFailure;
   readonly normalizedCwd?: string;
   readonly timeout?: string;
   readonly detail?: string;
-} {
+}
+
+interface FilesystemBrowseFailureContext {
+  readonly failure: FilesystemBrowseFailure;
+  readonly parentPath?: string;
+  readonly platform?: string;
+}
+
+interface ProjectFileFailureContext {
+  readonly failure: ProjectFileFailure;
+  readonly resolvedPath?: string;
+  readonly resolvedWorkspaceRoot?: string;
+  readonly operation?: ProjectFileOperation;
+  readonly operationPath?: string;
+}
+
+function projectEntriesFailureContext(
+  error: WorkspaceEntries.WorkspaceEntriesError,
+): ProjectEntriesFailureContext {
   switch (error._tag) {
     case "WorkspaceRootNotExistsError":
       return {
@@ -204,11 +223,9 @@ function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesEr
   }
 }
 
-function filesystemBrowseFailureContext(error: WorkspaceEntries.WorkspaceEntriesBrowseError): {
-  readonly failure: FilesystemBrowseFailure;
-  readonly parentPath?: string;
-  readonly platform?: string;
-} {
+function filesystemBrowseFailureContext(
+  error: WorkspaceEntries.WorkspaceEntriesBrowseError,
+): FilesystemBrowseFailureContext {
   switch (error._tag) {
     case "WorkspaceEntriesWindowsPathUnsupportedError":
       return { failure: "windows_path_unsupported", platform: error.platform };
@@ -225,13 +242,7 @@ function projectFileFailureContext(
   error:
     | WorkspaceFileSystem.WorkspaceFileSystemError
     | WorkspacePaths.WorkspacePathOutsideRootError,
-): {
-  readonly failure: ProjectFileFailure;
-  readonly resolvedPath?: string;
-  readonly resolvedWorkspaceRoot?: string;
-  readonly operation?: ProjectFileOperation;
-  readonly operationPath?: string;
-} {
+): ProjectFileFailureContext {
   switch (error._tag) {
     case "WorkspacePathOutsideRootError":
       return { failure: "workspace_path_outside_root" };
@@ -439,7 +450,7 @@ const makeWsRpcLayer = (
       const observeRpcEffect = <A, E, R>(
         method: string,
         effect: Effect.Effect<A, E, R>,
-        traceAttributes?: Readonly<Record<string, unknown>>,
+        traceAttributes?: Readonly<Record<string, SchemaJson>>,
       ) =>
         instrumentRpcEffect(
           method,
@@ -449,7 +460,7 @@ const makeWsRpcLayer = (
       const observeRpcStream = <A, E, R>(
         method: string,
         stream: Stream.Stream<A, E, R>,
-        traceAttributes?: Readonly<Record<string, unknown>>,
+        traceAttributes?: Readonly<Record<string, SchemaJson>>,
       ) =>
         instrumentRpcStream(
           method,
@@ -463,7 +474,7 @@ const makeWsRpcLayer = (
           EffectError,
           EffectContext
         >,
-        traceAttributes?: Readonly<Record<string, unknown>>,
+        traceAttributes?: Readonly<Record<string, SchemaJson>>,
       ) =>
         instrumentRpcStreamEffect(
           method,
@@ -504,7 +515,7 @@ const makeWsRpcLayer = (
         readonly kind: "setup-script.requested" | "setup-script.started" | "setup-script.failed";
         readonly summary: string;
         readonly createdAt: string;
-        readonly payload: Record<string, unknown>;
+        readonly payload: Record<string, SchemaJson>;
         readonly tone: "info" | "error";
       }) =>
         Effect.all({
@@ -864,8 +875,8 @@ const makeWsRpcLayer = (
               yield* projectSetupScriptRunner
                 .runForThread({
                   threadId: command.threadId,
-                  ...(targetProjectId ? { projectId: targetProjectId } : {}),
-                  ...(targetProjectCwd ? { projectCwd: targetProjectCwd } : {}),
+                  ...(targetProjectId ? { projectId: targetProjectId } : undefined),
+                  ...(targetProjectCwd ? { projectCwd: targetProjectCwd } : undefined),
                   worktreePath,
                 })
                 .pipe(
@@ -1013,11 +1024,13 @@ const makeWsRpcLayer = (
           observability: {
             logsDirectoryPath: config.logsDir,
             localTracingEnabled: true,
-            ...(config.otlpTracesUrl !== undefined ? { otlpTracesUrl: config.otlpTracesUrl } : {}),
+            ...(config.otlpTracesUrl !== undefined
+              ? { otlpTracesUrl: config.otlpTracesUrl }
+              : undefined),
             otlpTracesEnabled: config.otlpTracesUrl !== undefined,
             ...(config.otlpMetricsUrl !== undefined
               ? { otlpMetricsUrl: config.otlpMetricsUrl }
-              : {}),
+              : undefined),
             otlpMetricsEnabled: config.otlpMetricsUrl !== undefined,
           },
           settings,
@@ -1087,7 +1100,7 @@ const makeWsRpcLayer = (
                       // killing the new session. Archive stops stay
                       // unconditional: turn starts on archived threads are
                       // rejected, so there is no new session to protect.
-                      ...(parkingKind === "settle" ? { onlyIfSettled: true } : {}),
+                      ...(parkingKind === "settle" ? { onlyIfSettled: true } : undefined),
                     });
 
                     yield* dispatchNormalizedCommand(stopCommand);
@@ -1867,7 +1880,7 @@ const makeWsRpcLayer = (
                   resource: input.resource,
                   ...(project.value.faviconPath
                     ? { projectFaviconPath: project.value.faviconPath }
-                    : {}),
+                    : undefined),
                 });
               }
               const thread = yield* projectionSnapshotQuery

@@ -2,7 +2,8 @@ import * as Schema from "effect/Schema";
 import { create } from "zustand";
 
 import { PersistedComposerImageAttachment } from "./composerDraftStore";
-import { createMemoryStorage, type StateStorage } from "./lib/storage";
+import { createMemoryStorage } from "./lib/storage";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const PROMPT_STASH_STORAGE_KEY = "t3code:prompt-stash:v2";
 /**
@@ -100,10 +101,7 @@ function clearOrphanedPendingImages(
  */
 export function partitionStashAttachments(
   attachments: ReadonlyArray<PersistedComposerImageAttachment>,
-): {
-  kept: PersistedComposerImageAttachment[];
-  droppedNames: string[];
-} {
+) {
   const kept: PersistedComposerImageAttachment[] = [];
   const droppedNames: string[] = [];
   let usedChars = 0;
@@ -128,7 +126,7 @@ export function partitionStashAttachments(
  * vanish on reload, and callers clear the composer on the strength of a
  * successful stash, so they must be told the difference.
  */
-function resolveBaseStorage(): { storage: StateStorage; durable: boolean } {
+function resolveBaseStorage() {
   try {
     if (typeof localStorage !== "undefined") {
       return { storage: localStorage, durable: true };
@@ -150,12 +148,7 @@ const { storage: baseStashStorage, durable: storageIsDurable } = resolveBaseStor
  * Returns whether the write will survive a reload: false on a quota rejection
  * or when only the in-memory fallback is available.
  */
-function persistEntries(entries: ReadonlyArray<PromptStashEntry>): {
-  /** The write succeeded (possibly only into the in-memory fallback). */
-  written: boolean;
-  /** The write will survive a reload. */
-  durable: boolean;
-} {
+function persistEntries(entries: ReadonlyArray<PromptStashEntry>) {
   try {
     baseStashStorage.setItem(
       PROMPT_STASH_STORAGE_KEY,
@@ -175,9 +168,10 @@ function persistEntries(entries: ReadonlyArray<PromptStashEntry>): {
 function readPersistedEntries(): ReadonlyArray<PromptStashEntry> | null {
   try {
     const raw = baseStashStorage.getItem(PROMPT_STASH_STORAGE_KEY);
-    if (typeof raw !== "string" || raw.length === 0) return null;
+    if (!RuntimePredicate.isString(raw) || raw.length === 0) return null;
     const parsed: unknown = JSON.parse(raw);
-    const state = (parsed as { state?: unknown } | null)?.state;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      state = (parsed as { state?: unknown } | null)?.state;
     if (!state) return null;
     return clearOrphanedPendingImages(decodePersistedPromptStashState(state).entries);
   } catch {

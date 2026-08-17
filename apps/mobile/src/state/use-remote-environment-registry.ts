@@ -64,7 +64,9 @@ function toSavedConnection(
       ? {
           authenticationMethod: "dpop" as const,
           relayManaged: true as const,
-          ...(authorization?._tag === "Dpop" ? { dpopAccessToken: authorization.accessToken } : {}),
+          ...(authorization?._tag === "Dpop"
+            ? { dpopAccessToken: authorization.accessToken }
+            : undefined),
         }
       : { authenticationMethod: "bearer" as const }),
   };
@@ -72,6 +74,7 @@ function toSavedConnection(
 
 const savedConnectionsByIdAtom = Atom.make((get) => {
   const presentationById = get(environmentPresentations.presentationsAtom);
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     [...presentationById.entries()].map(([environmentId, presentation]) => [
       environmentId,

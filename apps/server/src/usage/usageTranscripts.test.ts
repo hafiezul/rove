@@ -152,10 +152,10 @@ describe("parseCodexLine", () => {
           type: "session_meta",
           id: overrides.id,
           ...(overrides.forkedFromId === undefined
-            ? {}
+            ? undefined
             : { forked_from_id: overrides.forkedFromId }),
           ...(overrides.spawnParentId === undefined
-            ? {}
+            ? undefined
             : {
                 source: {
                   subagent: { thread_spawn: { parent_thread_id: overrides.spawnParentId } },
@@ -164,7 +164,8 @@ describe("parseCodexLine", () => {
         },
       });
     const stamped = (timestamp: string, line: string) => {
-      const parsed = JSON.parse(line) as { timestamp: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        parsed = JSON.parse(line) as { timestamp: string };
       parsed.timestamp = timestamp;
       return JSON.stringify(parsed);
     };

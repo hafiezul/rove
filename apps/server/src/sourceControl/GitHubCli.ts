@@ -334,8 +334,10 @@ export const make = Effect.gen(function* () {
         args: input.args,
         cwd: input.cwd,
         timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-        ...(input.stdin !== undefined ? { stdin: input.stdin } : {}),
-        ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+        ...(input.stdin !== undefined ? { stdin: input.stdin } : undefined),
+        ...(input.maxOutputBytes !== undefined
+          ? { maxOutputBytes: input.maxOutputBytes }
+          : undefined),
       })
       .pipe(Effect.mapError((error) => fromVcsError({ command: "gh", cwd: input.cwd }, error)));
 

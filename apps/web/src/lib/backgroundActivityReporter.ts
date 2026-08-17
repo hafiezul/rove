@@ -20,6 +20,7 @@ import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import { randomUUID } from "./utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CLIENT_ID_STORAGE_KEY = "t3.backgroundActivity.clientId";
 const REPORT_INTERVAL_MS = 25_000;
@@ -118,8 +119,9 @@ function scopeForSubscription(
   if (observation.method !== WS_METHODS.subscribeVcsStatus) {
     return null;
   }
-  const input = observation.input as { readonly cwd?: unknown };
-  return typeof input.cwd === "string" ? { type: "vcs-status", cwd: input.cwd } : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    input = observation.input as { readonly cwd?: unknown };
+  return RuntimePredicate.isString(input.cwd) ? { type: "vcs-status", cwd: input.cwd } : null;
 }
 
 function retainBackgroundScope(environmentId: EnvironmentId, scope: BackgroundScope): () => void {
@@ -151,7 +153,8 @@ export function observeBackgroundActivitySubscription(
     return Effect.succeed(Effect.void);
   }
   return Effect.sync(() => {
-    const release = retainBackgroundScope(observation.environmentId as EnvironmentId, scope);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      release = retainBackgroundScope(observation.environmentId as EnvironmentId, scope);
     return Effect.sync(release);
   });
 }

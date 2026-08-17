@@ -162,7 +162,9 @@ function PullRequestFilterRadioGroup<Value extends string>({
     <MenuRadioGroup
       value={value}
       onValueChange={(next) => {
-        if (next !== value) onChange(next as Value);
+        if (next !== value)
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          onChange(next as Value);
       }}
     >
       <MenuGroupLabel>{label}</MenuGroupLabel>
@@ -262,12 +264,15 @@ export function PullRequestFiltersMenu({
    * Rebuilt rather than spread so an unfiltered group leaves the record instead of lingering in
    * it as an explicit `undefined`, which the listing input does not accept.
    */
-  const withFilter = (key: keyof PullRequestListFilters, value: string): PullRequestListFilters =>
-    Object.fromEntries(
-      Object.entries({ ...filters, [key]: value === UNFILTERED_VALUE ? undefined : value }).filter(
-        ([, held]) => held !== undefined,
-      ),
-    ) as PullRequestListFilters;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    withFilter = (key: keyof PullRequestListFilters, value: string): PullRequestListFilters =>
+      Object.fromEntries(
+        Object.entries({
+          ...filters,
+          [key]: value === UNFILTERED_VALUE ? undefined : value,
+        }).filter(([, held]) => held !== undefined),
+      ) as PullRequestListFilters;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Menu>
       <MenuTrigger

@@ -71,9 +71,10 @@ it.effect("logs structured storage failures before falling back to an empty cach
         Array.isArray(candidate) && candidate[0] === "Managed relay token store operation failed.",
     );
     expect(message).toBeDefined();
-    const context = (message as ReadonlyArray<unknown>)[1] as {
-      readonly cause: ManagedRelayTokenStoreError;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      context = (message as ReadonlyArray<unknown>)[1] as {
+        readonly cause: ManagedRelayTokenStoreError;
+      };
     expect(context.cause).toBeInstanceOf(ManagedRelayTokenStoreError);
     expect(context.cause).toMatchObject({
       operation: "read",

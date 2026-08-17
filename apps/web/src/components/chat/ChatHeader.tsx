@@ -190,17 +190,18 @@ export const ChatHeader = memo(function ChatHeader({
     if (!rect) return;
     openMenu({ x: rect.left, y: rect.bottom + 4 });
   }, [openMenu]);
-  const handleHeaderContextMenu = useCallback(
-    (event: ReactMouseEvent) => {
-      if (!isServerThread || renamingTitle !== null) return;
-      // The right-side controls (git, scripts, open-in) keep their own
-      // behavior; only the breadcrumb area opens the thread menu.
-      if ((event.target as HTMLElement).closest("[data-chat-header-actions]")) return;
-      event.preventDefault();
-      openMenu({ x: event.clientX, y: event.clientY });
-    },
-    [isServerThread, openMenu, renamingTitle],
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    handleHeaderContextMenu = useCallback(
+      (event: ReactMouseEvent) => {
+        if (!isServerThread || renamingTitle !== null) return;
+        // The right-side controls (git, scripts, open-in) keep their own
+        // behavior; only the breadcrumb area opens the thread menu.
+        if ((event.target as HTMLElement).closest("[data-chat-header-actions]")) return;
+        event.preventDefault();
+        openMenu({ x: event.clientX, y: event.clientY });
+      },
+      [isServerThread, openMenu, renamingTitle],
+    );
   const handleRenameKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement>) => {
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;

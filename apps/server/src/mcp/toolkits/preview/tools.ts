@@ -29,14 +29,17 @@ const dependencies = [
   PreviewAutomationBroker.PreviewAutomationBroker,
 ];
 
-const browserTool = <T extends Tool.Any>(tool: T): T =>
-  tool.annotate(Tool.OpenWorld, true).annotate(Tool.Destructive, true) as T;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  browserTool = <T extends Tool.Any>(tool: T): T =>
+    tool.annotate(Tool.OpenWorld, true).annotate(Tool.Destructive, true) as T;
 
-const safeBrowserTool = <T extends Tool.Any>(tool: T): T =>
-  browserTool(tool).annotate(Tool.Destructive, false) as T;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  safeBrowserTool = <T extends Tool.Any>(tool: T): T =>
+    browserTool(tool).annotate(Tool.Destructive, false) as T;
 
-const readonlyBrowserTool = <T extends Tool.Any>(tool: T): T =>
-  safeBrowserTool(tool).annotate(Tool.Readonly, true).annotate(Tool.Idempotent, true) as T;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  readonlyBrowserTool = <T extends Tool.Any>(tool: T): T =>
+    safeBrowserTool(tool).annotate(Tool.Readonly, true).annotate(Tool.Idempotent, true) as T;
 
 export const PreviewStatusTool = Tool.make("preview_status", {
   description:

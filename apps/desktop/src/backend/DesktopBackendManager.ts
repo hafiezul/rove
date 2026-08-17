@@ -482,7 +482,7 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
     // wsl.exe drops additional file descriptors when forwarding to the Linux
     // side, so the WSL spawn path delivers the bootstrap envelope via stdin
     // (`--bootstrap-fd 0`) instead.
-    ...(options.bootstrapDelivery === "fd3" ? { additionalFds } : {}),
+    ...(options.bootstrapDelivery === "fd3" ? { additionalFds } : undefined),
   });
 
   const handle = yield* spawner.spawn(command).pipe(

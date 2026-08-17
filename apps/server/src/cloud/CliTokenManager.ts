@@ -38,6 +38,7 @@ import {
   type CloudCliOAuthConfig,
 } from "./publicConfig.ts";
 import { renderLoopbackAuthorizationCompleteHtml } from "./cliAuthHtml.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CLOUD_CLI_OAUTH_TOKEN_SECRET = "cloud-cli-oauth-token";
 const CLOUD_CLI_OAUTH_CALLBACK_TIMEOUT = Duration.minutes(10);
@@ -95,7 +96,7 @@ export const waitForLoopbackAuthorization = Effect.fn(
           ),
           readLoopbackAuthorizationAction(terminalInput),
         );
-        if (typeof result !== "string") {
+        if (!RuntimePredicate.isString(result)) {
           return result;
         }
         if (result === "headless") {
@@ -158,7 +159,7 @@ function idTokenIdentity(idToken: string | undefined): string | null {
   const claims = decodeOidcIdentityClaimsJson(decoded.success);
   if (Option.isNone(claims)) return null;
   for (const value of [claims.value.email, claims.value.preferred_username, claims.value.sub]) {
-    if (typeof value === "string" && value.length > 0) return value;
+    if (RuntimePredicate.isString(value) && value.length > 0) return value;
   }
   return null;
 }
@@ -257,7 +258,7 @@ const exchangeToken = Effect.fn("cloud.cli_token.exchange")(function* (
       accessToken: response.access_token,
       refreshToken: response.refresh_token ?? params.refresh_token ?? "",
       expiresAtEpochMs: now + response.expires_in * 1_000,
-      ...(identity === null ? {} : { identity }),
+      ...(identity === null ? undefined : { identity }),
     } satisfies PersistedToken,
     identity,
   };
@@ -297,7 +298,7 @@ export const outOfBandOAuthLogin = Effect.fn("cloud.cli_token.out_of_band_oauth_
     authorizeUrl: buildConnectAuthorizeRequestUrl({ hostedAppUrl, state, challenge }),
     validate: (value) => {
       const checked = checkConnectAuthCode(value, state);
-      return typeof checked === "string" ? Effect.fail(checked) : Effect.succeed(value);
+      return RuntimePredicate.isString(checked) ? Effect.fail(checked) : Effect.succeed(value);
     },
   }).pipe(
     // Clerk authorization codes expire on this horizon anyway; matching the
@@ -310,7 +311,7 @@ export const outOfBandOAuthLogin = Effect.fn("cloud.cli_token.out_of_band_oauth_
   // promptForCode is caller-supplied, so re-check the returned value rather
   // than trusting that the prompt ran validate.
   const authCode = checkConnectAuthCode(authorizationCode, state);
-  if (typeof authCode === "string") {
+  if (RuntimePredicate.isString(authCode)) {
     return yield* new CloudCliAuthorizationError({ cause: authCode });
   }
 

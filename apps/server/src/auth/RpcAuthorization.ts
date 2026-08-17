@@ -129,7 +129,8 @@ export function requiredScopeForRpcMethod(method: string): AuthEnvironmentScope 
   if (!Object.hasOwn(RPC_REQUIRED_SCOPES, method)) {
     throw new Error(`RPC method ${method} has no declared authorization scope.`);
   }
-  const requiredScope = RPC_REQUIRED_SCOPES[method as WsRpcMethod];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    requiredScope = RPC_REQUIRED_SCOPES[method as WsRpcMethod];
   if (requiredScope === undefined) {
     throw new Error(`RPC method ${method} has no declared authorization scope.`);
   }

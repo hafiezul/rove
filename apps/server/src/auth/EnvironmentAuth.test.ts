@@ -46,9 +46,7 @@ const makeCookieRequest = (
       [cookieName]: sessionToken,
     },
     headers: {},
-  }) as unknown as Parameters<
-    EnvironmentAuth.EnvironmentAuth["Service"]["authenticateHttpRequest"]
-  >[0];
+  }) as Parameters<EnvironmentAuth.EnvironmentAuth["Service"]["authenticateHttpRequest"]>[0];
 
 const requestMetadata = {
   deviceType: "desktop" as const,

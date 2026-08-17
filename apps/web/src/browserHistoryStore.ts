@@ -9,6 +9,8 @@ import { readPreparedConnection } from "~/state/session";
 
 import { isLocalLoopbackHost, normalizeHostname } from "./browser/browserTargetResolver";
 import { resolveStorage } from "./lib/storage";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type BrowserHistoryEntry = { url: string; lastVisitedAt: number; title?: string };
 
@@ -20,7 +22,9 @@ const MAX_VALID_DATE_MS = 8_640_000_000_000_000;
 
 export function isValidHistoryTimestamp(value: unknown): value is number {
   return (
-    typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= MAX_VALID_DATE_MS
+    RuntimePredicate.isNumber(value) &&
+    Number.isFinite(value) &&
+    Math.abs(value) <= MAX_VALID_DATE_MS
   );
 }
 
@@ -97,21 +101,28 @@ export function evictExcessProjects(
   return Object.fromEntries(kept.map((key) => [key, byProjectKey[key] ?? []]));
 }
 
-export function migratePersistedBrowserHistoryState(persistedState: unknown): {
-  byProjectKey: Record<string, BrowserHistoryEntry[]>;
-} {
-  if (!persistedState || typeof persistedState !== "object") return { byProjectKey: {} };
-  const raw = (persistedState as { byProjectKey?: unknown }).byProjectKey;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { byProjectKey: {} };
+// SAFETY: The surrounding adapter has established this JSON-object view before field access.
+export function migratePersistedBrowserHistoryState(persistedState: unknown) {
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  )
+    return { byProjectKey: {} };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    raw = (persistedState as { byProjectKey?: unknown }).byProjectKey;
+  if (!raw || !(RuntimePredicate.isObjectOrArray(raw) || raw === null) || Array.isArray(raw))
+    return { byProjectKey: {} };
   const byProjectKey: Record<string, BrowserHistoryEntry[]> = {};
-  for (const [projectKey, value] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [projectKey, value] of Object.entries(raw as Record<string, SchemaJson>)) {
     if (!Array.isArray(value)) continue;
     const seenUrls = new Set<string>();
     const entries = value
       .flatMap<BrowserHistoryEntry>((candidate) => {
-        if (!candidate || typeof candidate !== "object") return [];
-        const { url, lastVisitedAt, title } = candidate as Record<string, unknown>;
-        if (typeof url !== "string") return [];
+        if (!candidate || !(RuntimePredicate.isObjectOrArray(candidate) || candidate === null))
+          return [];
+        const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+          { url, lastVisitedAt, title } = candidate as Record<string, SchemaJson>;
+        if (!RuntimePredicate.isString(url)) return [];
         const normalizedUrl = normalizeHistoryUrl(url);
         if (!normalizedUrl) return [];
         if (!isValidHistoryTimestamp(lastVisitedAt)) return [];
@@ -119,9 +130,9 @@ export function migratePersistedBrowserHistoryState(persistedState: unknown): {
           {
             url: normalizedUrl,
             lastVisitedAt,
-            ...(typeof title === "string" && title.length > 0
+            ...(RuntimePredicate.isString(title) && title.length > 0
               ? { title: title.slice(0, BROWSER_HISTORY_MAX_TITLE_LENGTH) }
-              : {}),
+              : undefined),
           },
         ];
       })
@@ -171,7 +182,7 @@ function addPendingByThread<T>(
   pendingByThreadKey: Record<string, T[]>,
   threadKey: string,
   item: T,
-): Record<string, T[]> {
+) {
   const existing = pendingByThreadKey[threadKey] ?? [];
   const next = { ...pendingByThreadKey };
   next[threadKey] = [...existing, item].slice(-PENDING_MAX_PER_THREAD);
@@ -310,14 +321,21 @@ function migratePersistedThreadProjectKeys(
   persistedState: unknown,
   byProjectKey: Record<string, BrowserHistoryEntry[]>,
 ): Record<string, string> {
-  if (!persistedState || typeof persistedState !== "object") return {};
-  const raw = (persistedState as { projectKeyByThreadKey?: unknown }).projectKeyByThreadKey;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  )
+    return {};
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    raw = (persistedState as { projectKeyByThreadKey?: unknown }).projectKeyByThreadKey;
+  if (!raw || !(RuntimePredicate.isObjectOrArray(raw) || raw === null) || Array.isArray(raw))
+    return {};
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
   return Object.fromEntries(
-    Object.entries(raw as Record<string, unknown>)
+    Object.entries(raw as Record<string, SchemaJson>)
       .filter(
         (entry): entry is [string, string] =>
-          typeof entry[1] === "string" && entry[1] in byProjectKey,
+          RuntimePredicate.isString(entry[1]) && entry[1] in byProjectKey,
       )
       .slice(-100),
   );

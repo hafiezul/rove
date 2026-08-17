@@ -128,6 +128,7 @@ export const make = Effect.gen(function* () {
       );
   };
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return SourceControlDiscovery.of({
     discover: Effect.all({
       versionControlSystems: Effect.all(

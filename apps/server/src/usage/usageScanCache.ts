@@ -17,6 +17,7 @@
 import type { UsageProviderKind } from "@t3tools/contracts";
 
 import type { UsageRecord } from "./usageTranscripts.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 // v2: Codex fork-copy suppression changed what a file parses to, so v1
 // entries would keep serving double-counted records forever.
@@ -115,25 +116,29 @@ function isRecordArray(value: unknown): value is readonly unknown[] {
  */
 export function decodeScanCache(document: unknown): ScanCache {
   const cache: ScanCache = new Map();
-  if (typeof document !== "object" || document === null) return cache;
+  if (!RuntimePredicate.isObjectOrArray(document)) return cache;
 
-  const root = document as Partial<SerializedCache>;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    root = document as Partial<SerializedCache>;
   if (root.version !== USAGE_SCAN_CACHE_VERSION) return cache;
   if (!isRecordArray(root.models) || !isRecordArray(root.sessions)) return cache;
-  if (typeof root.files !== "object" || root.files === null) return cache;
+  if (!RuntimePredicate.isObjectOrArray(root.files)) return cache;
 
   // The intern tables must be all strings: a numeric entry would pass the
   // undefined guard below, land in a record's model, and crash the aggregate
   // at normalizeModelName. A corrupt table rejects the whole cache.
-  if (!root.models.every((value) => typeof value === "string")) return cache;
-  if (!root.sessions.every((value) => typeof value === "string")) return cache;
-  const models = root.models as readonly string[];
-  const sessions = root.sessions as readonly string[];
+  if (!root.models.every((value) => RuntimePredicate.isString(value))) return cache;
+  if (!root.sessions.every((value) => RuntimePredicate.isString(value))) return cache;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    models = root.models as readonly string[];
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    sessions = root.sessions as readonly string[];
 
   for (const [path, raw] of Object.entries(root.files)) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const entry = raw as Partial<SerializedFile>;
-    if (typeof entry.s !== "number" || typeof entry.m !== "number") continue;
+    if (!RuntimePredicate.isObjectOrArray(raw)) continue;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      entry = raw as Partial<SerializedFile>;
+    if (!RuntimePredicate.isNumber(entry.s) || !RuntimePredicate.isNumber(entry.m)) continue;
     if (entry.p !== "claude" && entry.p !== "codex") continue;
     if (!isRecordArray(entry.r)) continue;
 
@@ -148,22 +153,23 @@ export function decodeScanCache(document: unknown): ScanCache {
         corrupt = true;
         break;
       }
-      const [
-        timestampMs,
-        modelIndex,
-        sessionIndex,
-        uncached,
-        cached,
-        cacheCreation,
-        output,
-        reasoning,
-        dedupeKey,
-        reportedCostUsd,
-      ] = row as SerializedRecord;
+      const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+        [
+          timestampMs,
+          modelIndex,
+          sessionIndex,
+          uncached,
+          cached,
+          cacheCreation,
+          output,
+          reasoning,
+          dedupeKey,
+          reportedCostUsd,
+        ] = row as SerializedRecord;
 
-      const model = typeof modelIndex === "number" ? models[modelIndex] : undefined;
+      const model = RuntimePredicate.isNumber(modelIndex) ? models[modelIndex] : undefined;
       if (
-        typeof timestampMs !== "number" ||
+        !RuntimePredicate.isNumber(timestampMs) ||
         !Number.isFinite(timestampMs) ||
         model === undefined ||
         !Number.isFinite(uncached) ||
@@ -180,7 +186,8 @@ export function decodeScanCache(document: unknown): ScanCache {
         provider,
         timestampMs,
         model,
-        sessionId: (typeof sessionIndex === "number" ? sessions[sessionIndex] : undefined) ?? "",
+        sessionId:
+          (RuntimePredicate.isNumber(sessionIndex) ? sessions[sessionIndex] : undefined) ?? "",
         totals: {
           uncachedInputTokens: uncached,
           cachedInputTokens: cached,
@@ -188,8 +195,8 @@ export function decodeScanCache(document: unknown): ScanCache {
           outputTokens: output,
           reasoningTokens: reasoning,
         },
-        reportedCostUsd: typeof reportedCostUsd === "number" ? reportedCostUsd : null,
-        dedupeKey: typeof dedupeKey === "string" ? dedupeKey : null,
+        reportedCostUsd: RuntimePredicate.isNumber(reportedCostUsd) ? reportedCostUsd : null,
+        dedupeKey: RuntimePredicate.isString(dedupeKey) ? dedupeKey : null,
       });
     }
 

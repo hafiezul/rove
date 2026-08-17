@@ -779,7 +779,7 @@ export const make = Effect.gen(function* () {
     const cloneUrls = yield* getRepository({
       cwd: input.cwd,
       repository: input.sourceRepositoryName,
-      ...(input.context ? { context: input.context } : {}),
+      ...(input.context ? { context: input.context } : undefined),
     }).pipe(Effect.map(normalizeRepositoryCloneUrls));
     const originRemoteUrl = yield* readConfigValueNullable(input.cwd, "remote.origin.url");
     return yield* git.ensureRemote({
@@ -909,7 +909,7 @@ export const make = Effect.gen(function* () {
       resolveRepository(input).pipe(
         Effect.flatMap((repository) => {
           const states = toBitbucketStates(input.state);
-          const query: Record<string, string | ReadonlyArray<string>> = {
+          const query = {
             pagelen: String(Math.max(1, Math.min(input.limit ?? 20, 50))),
             sort: "-updated_on",
             q: bitbucketQueryString([
@@ -917,7 +917,7 @@ export const make = Effect.gen(function* () {
               bitbucketStateFilter(states),
             ]),
             state: states,
-          };
+          } satisfies Record<string, string | ReadonlyArray<string>>;
 
           return executeJson(
             "listPullRequests",
@@ -983,7 +983,7 @@ export const make = Effect.gen(function* () {
                     full_name: `${sourceOwner}/${input.source?.repository ?? repository.repoSlug}`,
                   },
                 }
-              : {}),
+              : undefined),
           },
           destination: {
             branch: {
@@ -1043,7 +1043,7 @@ export const make = Effect.gen(function* () {
           destinationRepository,
           sourceRepositoryName,
           isCrossRepository,
-          ...(input.context ? { context: input.context } : {}),
+          ...(input.context ? { context: input.context } : undefined),
         });
         const remoteBranch = pullRequest.source.branch.name;
         const localBranch = checkoutBranchName({

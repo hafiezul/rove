@@ -10,6 +10,7 @@ import { PersistenceDecodeError } from "../Errors.ts";
 import { OrchestrationEventStore } from "../Services/OrchestrationEventStore.ts";
 import { OrchestrationEventStoreLive } from "./OrchestrationEventStore.ts";
 import { SqlitePersistenceMemory } from "./Sqlite.ts";
+import * as RuntimePredicate from "effect/Predicate";
 const isPersistenceDecodeError = Schema.is(PersistenceDecodeError);
 
 const layer = it.layer(
@@ -57,8 +58,8 @@ layer("OrchestrationEventStore", (it) => {
         WHERE event_id = ${appended.eventId}
       `;
       assert.equal(storedRows.length, 1);
-      assert.equal(typeof storedRows[0]?.payloadJson, "string");
-      assert.equal(typeof storedRows[0]?.metadataJson, "string");
+      assert.equal(RuntimePredicate.isString(storedRows[0]?.payloadJson), true);
+      assert.equal(RuntimePredicate.isString(storedRows[0]?.metadataJson), true);
 
       const replayed = yield* Stream.runCollect(eventStore.readFromSequence(0, 10)).pipe(
         Effect.map((chunk) => Array.from(chunk)),

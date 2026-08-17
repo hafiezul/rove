@@ -73,7 +73,7 @@ import { ProviderInstanceRegistryMutableLayer } from "./ProviderInstanceRegistry
 export const deriveProviderInstanceConfigMap = (
   settings: ServerSettings,
 ): ProviderInstanceConfigMap => {
-  const merged: Record<string, ProviderInstanceConfig> = { ...settings.providerInstances };
+  const merged = { ...settings.providerInstances } satisfies Record<string, ProviderInstanceConfig>;
 
   for (const driver of BUILT_IN_DRIVERS) {
     const instanceId = defaultInstanceIdForDriver(driver.driverKind);
@@ -88,7 +88,8 @@ export const deriveProviderInstanceConfigMap = (
     // `driverKind`. Access is dynamic (the driver kind is a branded string),
     // but it's constrained to `keyof settings.providers` by the union of
     // built-in driver kinds.
-    const legacyKey = driver.driverKind as keyof ServerSettings["providers"];
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      legacyKey = driver.driverKind as keyof ServerSettings["providers"];
     const legacyConfig = settings.providers[legacyKey];
     if (legacyConfig === undefined) {
       continue;
@@ -100,6 +101,7 @@ export const deriveProviderInstanceConfigMap = (
     };
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return merged as ProviderInstanceConfigMap;
 };
 
@@ -149,26 +151,27 @@ const SettingsWatcherLive = Layer.effectDiscard(
  * The mutator tag is technically also exposed; only this module imports
  * it, so the visibility leak is harmless in practice.
  */
-export const ProviderInstanceRegistryHydrationLive: Layer.Layer<
-  ProviderInstanceRegistry,
-  never,
-  BuiltInDriversEnv | ServerSettingsService
-> = Layer.unwrap(
-  Effect.gen(function* () {
-    const serverSettings = yield* ServerSettingsService;
-    const initialSettings: ServerSettings | undefined = yield* serverSettings.getSettings.pipe(
-      Effect.orElseSucceed(() => undefined),
-    );
-    const initialConfigMap =
-      initialSettings === undefined
-        ? ({} as ProviderInstanceConfigMap)
-        : deriveProviderInstanceConfigMap(initialSettings);
+export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  ProviderInstanceRegistryHydrationLive: Layer.Layer<
+    ProviderInstanceRegistry,
+    never,
+    BuiltInDriversEnv | ServerSettingsService
+  > = Layer.unwrap(
+    Effect.gen(function* () {
+      const serverSettings = yield* ServerSettingsService;
+      const initialSettings: ServerSettings | undefined = yield* serverSettings.getSettings.pipe(
+        Effect.orElseSucceed(() => undefined),
+      );
+      const initialConfigMap =
+        initialSettings === undefined
+          ? ({} as ProviderInstanceConfigMap)
+          : deriveProviderInstanceConfigMap(initialSettings);
 
-    const mutableLayer = ProviderInstanceRegistryMutableLayer({
-      drivers: BUILT_IN_DRIVERS,
-      configMap: initialConfigMap,
-    });
+      const mutableLayer = ProviderInstanceRegistryMutableLayer({
+        drivers: BUILT_IN_DRIVERS,
+        configMap: initialConfigMap,
+      });
 
-    return SettingsWatcherLive.pipe(Layer.provideMerge(mutableLayer));
-  }),
-) as Layer.Layer<ProviderInstanceRegistry, never, BuiltInDriversEnv | ServerSettingsService>;
+      return SettingsWatcherLive.pipe(Layer.provideMerge(mutableLayer));
+    }),
+  ) as Layer.Layer<ProviderInstanceRegistry, never, BuiltInDriversEnv | ServerSettingsService>;

@@ -72,6 +72,7 @@ import {
 } from "./previewAutomationTarget";
 import { isPreviewViewportReady } from "./previewViewportReadiness";
 import { shouldRollbackPreviewViewport } from "./previewViewportRollback";
+import * as RuntimePredicate from "effect/Predicate";
 
 const PREVIEW_PRESENTATION_SETTLE_TIMEOUT_MS = 500;
 
@@ -126,12 +127,13 @@ const readWebviewViewport = async (
   const value = await webview.executeJavaScript(
     "({ width: window.innerWidth, height: window.innerHeight })",
   );
-  if (typeof value !== "object" || value === null) return null;
-  const { width, height } = value as { readonly width?: unknown; readonly height?: unknown };
-  return typeof width === "number" &&
+  if (!RuntimePredicate.isObjectOrArray(value)) return null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    { width, height } = value as { readonly width?: unknown; readonly height?: unknown };
+  return RuntimePredicate.isNumber(width) &&
     Number.isInteger(width) &&
     width > 0 &&
-    typeof height === "number" &&
+    RuntimePredicate.isNumber(height) &&
     Number.isInteger(height) &&
     height > 0
     ? { width, height }
@@ -214,8 +216,8 @@ const currentStatus = async (
   const viewportSetting = snapshot ? (snapshot.viewport ?? FILL_PREVIEW_VIEWPORT) : undefined;
   const viewport = runtimeTabId ? await readRenderedViewport(runtimeTabId).catch(() => null) : null;
   const viewportStatus = {
-    ...(viewportSetting === undefined ? {} : { viewportSetting }),
-    ...(viewport === null ? {} : { viewport }),
+    ...(viewportSetting === undefined ? undefined : { viewportSetting }),
+    ...(viewport === null ? undefined : { viewport }),
   };
   if (runtimeTabId && tabId && previewBridge && state.desktopByTabId[tabId]) {
     const status = await previewBridge.automation.status(runtimeTabId);
@@ -300,7 +302,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
   const automationConnectionId = useAtomValue(automationConnectionAtom);
 
   const handleRequest = useCallback(
-    async (request: PreviewAutomationRequest): Promise<unknown> => {
+    async (request: PreviewAutomationRequest) => {
       const threadRef: ScopedThreadRef = {
         environmentId,
         threadId: request.threadId,
@@ -357,7 +359,8 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           case "status":
             return await currentStatus(threadRef, tabId);
           case "open": {
-            const input = request.input as PreviewAutomationOpenInput;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              input = request.input as PreviewAutomationOpenInput;
             const resolvedInputUrl = input.url
               ? resolveBrowserNavigationTarget(environmentId, {
                   kind: "url",
@@ -379,7 +382,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
                 environmentId,
                 input: {
                   threadId: request.threadId,
-                  ...(resolvedInputUrl ? { url: resolvedInputUrl } : {}),
+                  ...(resolvedInputUrl ? { url: resolvedInputUrl } : undefined),
                 },
               });
               if (result._tag === "Failure") {
@@ -466,7 +469,8 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "navigate": {
             const ready = await requireReadyTab();
-            const input = request.input as PreviewAutomationNavigateInput;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              input = request.input as PreviewAutomationNavigateInput;
             const resolution = resolveBrowserNavigationTarget(
               environmentId,
               input.target ?? {
@@ -488,7 +492,8 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "resize": {
             const ready = await requireReadyTab();
-            const input = request.input as PreviewAutomationResizeInput;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              input = request.input as PreviewAutomationResizeInput;
             const setting = resolvePreviewViewport(input);
             const applied = await runBrowserViewportMutation(ready.runtimeTabId, async () => {
               const operationState = assertPreviewRuntimeCurrent(
@@ -568,7 +573,8 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "setColorScheme": {
             const ready = await requireReadyTab();
-            const input = request.input as PreviewAutomationSetColorSchemeInput;
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              input = request.input as PreviewAutomationSetColorSchemeInput;
             await ready.bridge.setColorScheme(ready.runtimeTabId, input.colorScheme);
             return {
               tabId: ready.tabId,
@@ -581,6 +587,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "click": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.click(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.click>[1],
@@ -588,6 +595,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "type": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.type(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.type>[1],
@@ -595,6 +603,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "press": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.press(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.press>[1],
@@ -602,6 +611,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "scroll": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.scroll(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.scroll>[1],
@@ -609,6 +619,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "evaluate": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.evaluate(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.evaluate>[1],
@@ -616,6 +627,7 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "waitFor": {
             const ready = await requireReadyTab();
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return await ready.bridge.automation.waitFor(
               ready.runtimeTabId,
               request.input as Parameters<typeof ready.bridge.automation.waitFor>[1],

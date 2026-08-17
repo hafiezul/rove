@@ -46,7 +46,7 @@ const encodeThreadCreatedPayload = Schema.encodeEffect(ThreadCreatedPayload);
 function getOptionValue(
   options: ReadonlyArray<{ id: string; value: unknown }> | undefined,
   id: string,
-): unknown {
+) {
   return options?.find((option) => option.id === id)?.value;
 }
 const decodeThreadCreatedPayload = Schema.decodeUnknownEffect(ThreadCreatedPayload);

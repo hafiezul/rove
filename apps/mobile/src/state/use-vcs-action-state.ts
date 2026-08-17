@@ -44,10 +44,7 @@ export function dismissGitActionResult(): void {
   broadcast(null);
 }
 
-export function useGitActionResultNotification(): {
-  readonly result: GitActionResultNotification | null;
-  readonly dismiss: () => void;
-} {
+export function useGitActionResultNotification() {
   const result = useAtomValue(gitActionResultAtom);
   return { result, dismiss: dismissGitActionResult };
 }

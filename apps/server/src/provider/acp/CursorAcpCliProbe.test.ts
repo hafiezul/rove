@@ -10,6 +10,7 @@ import { describe, expect } from "vite-plus/test";
 import type * as EffectAcpSchema from "effect-acp/schema";
 
 import * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", () => {
   it.effect("initialize and authenticate against real cursor-agent acp", () =>
@@ -48,7 +49,7 @@ describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", 
       // @effect-diagnostics-next-line preferSchemaOverJson:off
       yield* Console.log("session/new result:", JSON.stringify(result, null, 2));
 
-      expect(typeof started.sessionId).toBe("string");
+      expect(RuntimePredicate.isString(started.sessionId)).toBe(true);
 
       const configOptions = result.configOptions;
       // @effect-diagnostics-next-line preferSchemaOverJson:off
@@ -70,7 +71,7 @@ describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", 
           JSON.stringify(parameterizedOptions, null, 2),
         );
         expect(modelConfig).toBeDefined();
-        expect(typeof modelConfig?.id).toBe("string");
+        expect(RuntimePredicate.isString(modelConfig?.id)).toBe(true);
       }
     }).pipe(
       Effect.provide(
@@ -105,7 +106,7 @@ describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", 
       let modelConfigId = "model";
       if (Array.isArray(configOptions)) {
         const modelConfig = configOptions.find((opt) => opt.category === "model");
-        if (typeof modelConfig?.id === "string") {
+        if (RuntimePredicate.isString(modelConfig?.id)) {
           modelConfigId = modelConfig.id;
         }
       }

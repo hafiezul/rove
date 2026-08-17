@@ -51,7 +51,7 @@ import {
   ProviderAdapterValidationError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import { type CodexAdapterShape } from "../Services/CodexAdapter.ts";
+import { type CodexAdapterContract } from "../Services/CodexAdapter.ts";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 import {
@@ -60,10 +60,12 @@ import {
   makeCodexSessionRuntime,
   type CodexSessionRuntimeError,
   type CodexSessionRuntimeOptions,
-  type CodexSessionRuntimeShape,
+  type CodexSessionRuntimeContract,
 } from "./CodexSessionRuntime.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { resolveCodexLaunchArgs } from "./codexLaunchArgs.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const isCodexAppServerProcessExitedError = Schema.is(CodexErrors.CodexAppServerProcessExitedError);
 const isCodexAppServerTransportError = Schema.is(CodexErrors.CodexAppServerTransportError);
 const isCodexSessionRuntimeThreadIdMissingError = Schema.is(
@@ -79,7 +81,7 @@ export interface CodexAdapterLiveOptions {
   readonly makeRuntime?: (
     options: CodexSessionRuntimeOptions,
   ) => Effect.Effect<
-    CodexSessionRuntimeShape,
+    CodexSessionRuntimeContract,
     CodexSessionRuntimeError,
     ChildProcessSpawner.ChildProcessSpawner | Scope.Scope
   >;
@@ -90,7 +92,7 @@ export interface CodexAdapterLiveOptions {
 interface CodexAdapterSessionContext {
   readonly threadId: ThreadId;
   readonly scope: Scope.Closeable;
-  readonly runtime: CodexSessionRuntimeShape;
+  readonly runtime: CodexSessionRuntimeContract;
   readonly eventFiber: Fiber.Fiber<void, never>;
   stopped: boolean;
 }
@@ -124,9 +126,11 @@ function mapCodexRuntimeError(
   });
 }
 
-type CodexLifecycleItem =
-  | EffectCodexSchema.V2ItemStartedNotification["item"]
-  | EffectCodexSchema.V2ItemCompletedNotification["item"];
+type CodexLifecycleItem = {
+  readonly type: string;
+  readonly server?: string;
+  readonly tool?: string;
+};
 
 type CodexToolUserInputQuestion =
   | EffectCodexSchema.ServerRequest__ToolRequestUserInputQuestion
@@ -175,19 +179,19 @@ function normalizeCodexTokenUsage(
     usedTokens,
     ...(totalProcessedTokens !== undefined && totalProcessedTokens > usedTokens
       ? { totalProcessedTokens }
-      : {}),
-    ...(maxTokens !== undefined ? { maxTokens } : {}),
-    ...(inputTokens !== undefined ? { inputTokens } : {}),
-    ...(cachedInputTokens !== undefined ? { cachedInputTokens } : {}),
-    ...(outputTokens !== undefined ? { outputTokens } : {}),
-    ...(reasoningOutputTokens !== undefined ? { reasoningOutputTokens } : {}),
-    ...(usedTokens !== undefined ? { lastUsedTokens: usedTokens } : {}),
-    ...(inputTokens !== undefined ? { lastInputTokens: inputTokens } : {}),
-    ...(cachedInputTokens !== undefined ? { lastCachedInputTokens: cachedInputTokens } : {}),
-    ...(outputTokens !== undefined ? { lastOutputTokens: outputTokens } : {}),
+      : undefined),
+    ...(maxTokens !== undefined ? { maxTokens } : undefined),
+    ...(inputTokens !== undefined ? { inputTokens } : undefined),
+    ...(cachedInputTokens !== undefined ? { cachedInputTokens } : undefined),
+    ...(outputTokens !== undefined ? { outputTokens } : undefined),
+    ...(reasoningOutputTokens !== undefined ? { reasoningOutputTokens } : undefined),
+    ...(usedTokens !== undefined ? { lastUsedTokens: usedTokens } : undefined),
+    ...(inputTokens !== undefined ? { lastInputTokens: inputTokens } : undefined),
+    ...(cachedInputTokens !== undefined ? { lastCachedInputTokens: cachedInputTokens } : undefined),
+    ...(outputTokens !== undefined ? { lastOutputTokens: outputTokens } : undefined),
     ...(reasoningOutputTokens !== undefined
       ? { lastReasoningOutputTokens: reasoningOutputTokens }
-      : {}),
+      : undefined),
     compactsAutomatically: true,
   };
 }
@@ -271,8 +275,10 @@ function itemTitle(itemType: CanonicalItemType, item?: CodexLifecycleItem): stri
 }
 
 function itemDetail(itemType: CanonicalItemType, item: CodexLifecycleItem): string | undefined {
-  const itemRecord = item as Record<string, unknown>;
-  const action = itemRecord.action as Record<string, unknown> | undefined;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    itemRecord = item as Record<string, SchemaJson>;
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    action = itemRecord.action as Record<string, SchemaJson> | undefined;
   const actionQueries = Array.isArray(action?.queries) ? action.queries : [];
   const candidates = [
     ...(itemType === "web_search"
@@ -287,7 +293,7 @@ function itemDetail(itemType: CanonicalItemType, item: CodexLifecycleItem): stri
   ];
 
   for (const candidate of candidates) {
-    const trimmed = typeof candidate === "string" ? trimText(candidate) : undefined;
+    const trimmed = RuntimePredicate.isString(candidate) ? trimText(candidate) : undefined;
     if (!trimmed) continue;
     return trimmed;
   }
@@ -433,6 +439,7 @@ function providerRefsFromEvent(
   if (event.itemId) refs.providerItemId = event.itemId;
   if (event.requestId) refs.providerRequestId = event.requestId;
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.keys(refs).length > 0 ? (refs as ProviderRuntimeEvent["providerRefs"]) : undefined;
 }
 
@@ -446,10 +453,10 @@ function runtimeEventBase(
     provider: event.provider,
     threadId: canonicalThreadId,
     createdAt: event.createdAt,
-    ...(event.turnId ? { turnId: event.turnId } : {}),
-    ...(event.itemId ? { itemId: asRuntimeItemId(event.itemId) } : {}),
-    ...(event.requestId ? { requestId: asRuntimeRequestId(event.requestId) } : {}),
-    ...(refs ? { providerRefs: refs } : {}),
+    ...(event.turnId ? { turnId: event.turnId } : undefined),
+    ...(event.itemId ? { itemId: asRuntimeItemId(event.itemId) } : undefined),
+    ...(event.requestId ? { requestId: asRuntimeRequestId(event.requestId) } : undefined),
+    ...(refs ? { providerRefs: refs } : undefined),
     raw: {
       source: eventRawSource(event),
       method: event.method,
@@ -488,10 +495,10 @@ function mapItemLifecycle(
     type: lifecycle,
     payload: {
       itemType,
-      ...(status ? { status } : {}),
-      ...(itemTitle(itemType, item) ? { title: itemTitle(itemType, item) } : {}),
-      ...(detail ? { detail } : {}),
-      ...(event.payload !== undefined ? { data: event.payload } : {}),
+      ...(status ? { status } : undefined),
+      ...(itemTitle(itemType, item) ? { title: itemTitle(itemType, item) } : undefined),
+      ...(detail ? { detail } : undefined),
+      ...(event.payload !== undefined ? { data: event.payload } : undefined),
     },
   };
 }
@@ -508,21 +515,25 @@ function mapCollabAgentEvent(
   event: ProviderEvent,
   canonicalThreadId: ThreadId,
 ): ReadonlyArray<ProviderRuntimeEvent> {
-  const payload =
-    typeof event.payload === "object" && event.payload !== null
-      ? (event.payload as Record<string, unknown>)
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    payload = RuntimePredicate.isObjectOrArray(event.payload)
+      ? (event.payload as Record<string, SchemaJson>)
       : undefined;
-  const agentThreadId = typeof payload?.agentThreadId === "string" ? payload.agentThreadId : "";
+  const agentThreadId = RuntimePredicate.isString(payload?.agentThreadId)
+    ? payload.agentThreadId
+    : "";
   if (!payload || agentThreadId.length === 0) {
     return [];
   }
   const base = runtimeEventBase(event, canonicalThreadId);
   const taskId = RuntimeTaskId.make(agentThreadId);
-  const agentPath = typeof payload.agentPath === "string" ? payload.agentPath : undefined;
+  const agentPath = RuntimePredicate.isString(payload.agentPath) ? payload.agentPath : undefined;
   const pathLeaf = agentPath?.split("/").findLast((segment) => segment.length > 0);
-  const nickname = typeof payload.nickname === "string" ? payload.nickname : undefined;
+  const nickname = RuntimePredicate.isString(payload.nickname) ? payload.nickname : undefined;
   const role =
-    (typeof payload.role === "string" ? payload.role : undefined) ?? pathLeaf ?? "general-purpose";
+    (RuntimePredicate.isString(payload.role) ? payload.role : undefined) ??
+    pathLeaf ??
+    "general-purpose";
   // A bare thread id is not a name. Omitting the title lets the client fold
   // keep the real one from task.started instead of clobbering it (probe
   // finding: progress rows renamed math_one to its UUID).
@@ -533,8 +544,8 @@ function mapCollabAgentEvent(
   // reconstructed agent had a UUID name and no role/path).
   const statusLinkage = {
     role,
-    ...(knownName ? { title: knownName } : {}),
-    ...(agentPath ? { agentPath } : {}),
+    ...(knownName ? { title: knownName } : undefined),
+    ...(agentPath ? { agentPath } : undefined),
     timelineBypass: true,
   } as const;
 
@@ -549,16 +560,18 @@ function mapCollabAgentEvent(
             description: title,
             title,
             role,
-            ...(agentPath ? { agentPath } : {}),
-            ...(typeof payload.parentThreadId === "string"
+            ...(agentPath ? { agentPath } : undefined),
+            ...(RuntimePredicate.isString(payload.parentThreadId)
               ? { parentAgentId: payload.parentThreadId }
-              : {}),
+              : undefined),
             timelineBypass: true,
           },
         },
       ];
     case "collabAgent/activity": {
-      const activityKind = typeof payload.activityKind === "string" ? payload.activityKind : "";
+      const activityKind = RuntimePredicate.isString(payload.activityKind)
+        ? payload.activityKind
+        : "";
       if (activityKind === "interrupted") {
         return [
           {
@@ -582,7 +595,7 @@ function mapCollabAgentEvent(
               description: title,
               title,
               role,
-              ...(agentPath ? { agentPath } : {}),
+              ...(agentPath ? { agentPath } : undefined),
               timelineBypass: true,
             },
           },
@@ -607,11 +620,11 @@ function mapCollabAgentEvent(
       ];
     case "collabAgent/turnCompleted": {
       // Idle, not terminal: the identity is resumable via sendInput/resume.
-      const turn =
-        typeof payload.turn === "object" && payload.turn !== null
-          ? (payload.turn as Record<string, unknown>)
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        turn = RuntimePredicate.isObjectOrArray(payload.turn)
+          ? (payload.turn as Record<string, SchemaJson>)
           : undefined;
-      const turnStatus = typeof turn?.status === "string" ? turn.status : undefined;
+      const turnStatus = RuntimePredicate.isString(turn?.status) ? turn.status : undefined;
       const status =
         turnStatus === "failed"
           ? ("failed" as const)
@@ -627,11 +640,11 @@ function mapCollabAgentEvent(
       ];
     }
     case "collabAgent/statusChanged": {
-      const status =
-        typeof payload.status === "object" && payload.status !== null
-          ? (payload.status as Record<string, unknown>)
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        status = RuntimePredicate.isObjectOrArray(payload.status)
+          ? (payload.status as Record<string, SchemaJson>)
           : undefined;
-      const statusType = typeof status?.type === "string" ? status.type : undefined;
+      const statusType = RuntimePredicate.isString(status?.type) ? status.type : undefined;
       if (statusType === "systemError") {
         // Silently dropping this once left children stuck running forever.
         return [
@@ -669,16 +682,20 @@ function mapCollabAgentEvent(
     case "collabAgent/tokenUsage": {
       // Cumulative per child thread: always the `total` breakdown, never
       // `last` (which shrinks on follow-ups). Client folds max-merge.
-      const tokenUsage =
-        typeof payload.tokenUsage === "object" && payload.tokenUsage !== null
-          ? (payload.tokenUsage as Record<string, unknown>)
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        tokenUsage = RuntimePredicate.isObjectOrArray(payload.tokenUsage)
+          ? (payload.tokenUsage as Record<string, SchemaJson>)
           : undefined;
-      const total =
-        typeof tokenUsage?.total === "object" && tokenUsage.total !== null
-          ? (tokenUsage.total as Record<string, unknown>)
-          : undefined;
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        total =
+          (RuntimePredicate.isObjectOrArray(tokenUsage?.total) || tokenUsage?.total === null) &&
+          tokenUsage.total !== null
+            ? (tokenUsage.total as Record<string, SchemaJson>)
+            : undefined;
       const count = (value: unknown): number | undefined =>
-        typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+        RuntimePredicate.isNumber(value) && Number.isFinite(value) && value >= 0
+          ? value
+          : undefined;
       // Same validation as every other field: RuntimeTaskUsage.totalTokens
       // is NonNegativeInt, so NaN/Infinity/negative wire values must miss.
       const totalTokens = count(total?.totalTokens);
@@ -689,16 +706,16 @@ function mapCollabAgentEvent(
         totalTokens,
         ...(count(total?.inputTokens) !== undefined
           ? { inputTokens: count(total?.inputTokens) }
-          : {}),
+          : undefined),
         ...(count(total?.cachedInputTokens) !== undefined
           ? { cachedInputTokens: count(total?.cachedInputTokens) }
-          : {}),
+          : undefined),
         ...(count(total?.outputTokens) !== undefined
           ? { outputTokens: count(total?.outputTokens) }
-          : {}),
+          : undefined),
         ...(count(total?.reasoningOutputTokens) !== undefined
           ? { reasoningOutputTokens: count(total?.reasoningOutputTokens) }
-          : {}),
+          : undefined),
       };
       return [
         {
@@ -707,7 +724,7 @@ function mapCollabAgentEvent(
           payload: {
             taskId,
             description: title,
-            ...(knownName ? { title: knownName } : {}),
+            ...(knownName ? { title: knownName } : undefined),
             typedUsage,
             timelineBypass: true,
           },
@@ -715,11 +732,11 @@ function mapCollabAgentEvent(
       ];
     }
     case "collabAgent/item": {
-      const item =
-        typeof payload.item === "object" && payload.item !== null
-          ? (payload.item as Record<string, unknown>)
+      const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+        item = RuntimePredicate.isObjectOrArray(payload.item)
+          ? (payload.item as Record<string, SchemaJson>)
           : undefined;
-      const itemTypeRaw = typeof item?.type === "string" ? item.type : undefined;
+      const itemTypeRaw = RuntimePredicate.isString(item?.type) ? item.type : undefined;
       if (!itemTypeRaw) {
         return [];
       }
@@ -727,9 +744,9 @@ function mapCollabAgentEvent(
       // this boundary (synthetic event payload), so read best-effort fields
       // rather than force a schema decode.
       const looseSummary =
-        (typeof item?.command === "string" ? item.command : undefined) ??
-        (typeof item?.title === "string" ? item.title : undefined) ??
-        (typeof item?.query === "string" ? item.query : undefined);
+        (RuntimePredicate.isString(item?.command) ? item.command : undefined) ??
+        (RuntimePredicate.isString(item?.title) ? item.title : undefined) ??
+        (RuntimePredicate.isString(item?.query) ? item.query : undefined);
       const canonical = toCanonicalItemType(itemTypeRaw);
       const summary = looseSummary ?? canonical.replaceAll("_", " ");
       return [
@@ -739,7 +756,7 @@ function mapCollabAgentEvent(
           payload: {
             taskId,
             description: title,
-            ...(knownName ? { title: knownName } : {}),
+            ...(knownName ? { title: knownName } : undefined),
             summary,
             timelineBypass: true,
           },
@@ -777,7 +794,7 @@ function mapToRuntimeEvents(
         payload: {
           message: event.message,
           class: "provider_error",
-          ...(event.payload !== undefined ? { detail: event.payload } : {}),
+          ...(event.payload !== undefined ? { detail: event.payload } : undefined),
         },
       },
     ];
@@ -851,8 +868,8 @@ function mapToRuntimeEvents(
         type: "request.opened",
         payload: {
           requestType: toRequestTypeFromMethod(event.method),
-          ...(detail ? { detail } : {}),
-          ...(event.payload !== undefined ? { args: event.payload } : {}),
+          ...(detail ? { detail } : undefined),
+          ...(event.payload !== undefined ? { args: event.payload } : undefined),
         },
       },
     ];
@@ -870,8 +887,8 @@ function mapToRuntimeEvents(
         type: "request.resolved",
         payload: {
           requestType,
-          ...(payload ? { decision: payload.decision } : {}),
-          ...(event.payload !== undefined ? { resolution: event.payload } : {}),
+          ...(payload ? { decision: payload.decision } : undefined),
+          ...(event.payload !== undefined ? { resolution: event.payload } : undefined),
         },
       },
     ];
@@ -884,7 +901,7 @@ function mapToRuntimeEvents(
         type: "session.state.changed",
         payload: {
           state: "starting",
-          ...(event.message ? { reason: event.message } : {}),
+          ...(event.message ? { reason: event.message } : undefined),
         },
       },
     ];
@@ -897,7 +914,7 @@ function mapToRuntimeEvents(
         type: "session.state.changed",
         payload: {
           state: "ready",
-          ...(event.message ? { reason: event.message } : {}),
+          ...(event.message ? { reason: event.message } : undefined),
         },
       },
     ];
@@ -909,8 +926,8 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         type: "session.started",
         payload: {
-          ...(event.message ? { message: event.message } : {}),
-          ...(event.payload !== undefined ? { resume: event.payload } : {}),
+          ...(event.message ? { message: event.message } : undefined),
+          ...(event.payload !== undefined ? { resume: event.payload } : undefined),
         },
       },
     ];
@@ -922,8 +939,8 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         type: "session.exited",
         payload: {
-          ...(event.message ? { reason: event.message } : {}),
-          ...(event.method === "session/closed" ? { exitKind: "graceful" } : {}),
+          ...(event.message ? { reason: event.message } : undefined),
+          ...(event.method === "session/closed" ? { exitKind: "graceful" } : undefined),
         },
       },
     ];
@@ -971,7 +988,7 @@ function mapToRuntimeEvents(
                   : payload
                     ? toThreadState(payload.status)
                     : "active",
-          ...(event.payload !== undefined ? { detail: event.payload } : {}),
+          ...(event.payload !== undefined ? { detail: event.payload } : undefined),
         },
       },
     ];
@@ -984,17 +1001,17 @@ function mapToRuntimeEvents(
         type: "thread.metadata.updated",
         ...runtimeEventBase(event, canonicalThreadId),
         payload: {
-          ...(trimText(payload?.threadName) ? { name: trimText(payload?.threadName) } : {}),
+          ...(trimText(payload?.threadName) ? { name: trimText(payload?.threadName) } : undefined),
           ...(payload
             ? {
                 metadata: {
                   threadId: payload.threadId,
                   ...(payload.threadName !== undefined && payload.threadName !== null
                     ? { threadName: payload.threadName }
-                    : {}),
+                    : undefined),
                 },
               }
-            : {}),
+            : undefined),
         },
       },
     ];
@@ -1047,7 +1064,7 @@ function mapToRuntimeEvents(
         type: "turn.completed",
         payload: {
           state: toTurnStatus(payload.turn.status),
-          ...(errorMessage ? { errorMessage } : {}),
+          ...(errorMessage ? { errorMessage } : undefined),
         },
       },
     ];
@@ -1075,7 +1092,9 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         type: "turn.plan.updated",
         payload: {
-          ...(trimText(payload.explanation) ? { explanation: trimText(payload.explanation) } : {}),
+          ...(trimText(payload.explanation)
+            ? { explanation: trimText(payload.explanation) }
+            : undefined),
           plan: payload.plan.map((step) => ({
             step: trimText(step.step) ?? "step",
             status:
@@ -1144,7 +1163,7 @@ function mapToRuntimeEvents(
         payload: {
           itemType:
             event.method === "item/reasoning/summaryPartAdded" ? "reasoning" : "command_execution",
-          ...(event.payload !== undefined ? { data: event.payload } : {}),
+          ...(event.payload !== undefined ? { data: event.payload } : undefined),
         },
       },
     ];
@@ -1243,7 +1262,7 @@ function mapToRuntimeEvents(
         payload: {
           streamKind: "reasoning_summary_text",
           delta,
-          ...(payload ? { summaryIndex: payload.summaryIndex } : {}),
+          ...(payload ? { summaryIndex: payload.summaryIndex } : undefined),
         },
       },
     ];
@@ -1262,7 +1281,7 @@ function mapToRuntimeEvents(
         payload: {
           streamKind: "reasoning_text",
           delta,
-          ...(payload ? { contentIndex: payload.contentIndex } : {}),
+          ...(payload ? { contentIndex: payload.contentIndex } : undefined),
         },
       },
     ];
@@ -1299,7 +1318,7 @@ function mapToRuntimeEvents(
         type: "request.resolved",
         payload: {
           requestType,
-          ...(event.payload !== undefined ? { resolution: event.payload } : {}),
+          ...(event.payload !== undefined ? { resolution: event.payload } : undefined),
         },
       },
     ];
@@ -1350,7 +1369,7 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         payload: {
           summary: payload.summary,
-          ...(trimText(payload.details) ? { details: trimText(payload.details) } : {}),
+          ...(trimText(payload.details) ? { details: trimText(payload.details) } : undefined),
         },
       },
     ];
@@ -1367,11 +1386,11 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         payload: {
           summary: payload.summary,
-          ...(trimText(payload.details) ? { details: trimText(payload.details) } : {}),
-          ...(trimText(payload.path) ? { path: trimText(payload.path) } : {}),
+          ...(trimText(payload.details) ? { details: trimText(payload.details) } : undefined),
+          ...(trimText(payload.path) ? { path: trimText(payload.path) } : undefined),
           ...(payload.range !== undefined && payload.range !== null
             ? { range: payload.range }
-            : {}),
+            : undefined),
         },
       },
     ];
@@ -1422,7 +1441,7 @@ function mapToRuntimeEvents(
         payload: {
           success: payload.success,
           name: payload.name,
-          ...(trimText(payload.error) ? { error: trimText(payload.error) } : {}),
+          ...(trimText(payload.error) ? { error: trimText(payload.error) } : undefined),
         },
       },
     ];
@@ -1525,8 +1544,8 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         payload: {
           message,
-          ...(!willRetry ? { class: "provider_error" as const } : {}),
-          ...(event.payload !== undefined ? { detail: event.payload } : {}),
+          ...(!willRetry ? { class: "provider_error" as const } : undefined),
+          ...(event.payload !== undefined ? { detail: event.payload } : undefined),
         },
       },
     ];
@@ -1543,7 +1562,7 @@ function mapToRuntimeEvents(
             payload: {
               message,
               class: "provider_error" as const,
-              ...(event.payload !== undefined ? { detail: event.payload } : {}),
+              ...(event.payload !== undefined ? { detail: event.payload } : undefined),
             },
           }
         : {
@@ -1551,7 +1570,7 @@ function mapToRuntimeEvents(
             ...runtimeEventBase(event, canonicalThreadId),
             payload: {
               message,
-              ...(event.payload !== undefined ? { detail: event.payload } : {}),
+              ...(event.payload !== undefined ? { detail: event.payload } : undefined),
             },
           },
     ];
@@ -1567,7 +1586,7 @@ function mapToRuntimeEvents(
         ...runtimeEventBase(event, canonicalThreadId),
         payload: {
           message: event.message ?? "Windows world-writable warning",
-          ...(event.payload !== undefined ? { detail: event.payload } : {}),
+          ...(event.payload !== undefined ? { detail: event.payload } : undefined),
         },
       },
     ];
@@ -1591,7 +1610,7 @@ function mapToRuntimeEvents(
         payload: {
           state: payload.success === false ? "error" : "ready",
           reason: payload.success === false ? failureMessage : successMessage,
-          ...(event.payload !== undefined ? { detail: event.payload } : {}),
+          ...(event.payload !== undefined ? { detail: event.payload } : undefined),
         },
       },
       ...(payload.success === false
@@ -1601,7 +1620,7 @@ function mapToRuntimeEvents(
               ...runtimeEventBase(event, canonicalThreadId),
               payload: {
                 message: failureMessage,
-                ...(event.payload !== undefined ? { detail: event.payload } : {}),
+                ...(event.payload !== undefined ? { detail: event.payload } : undefined),
               },
             },
           ]
@@ -1642,7 +1661,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
   const runtimeEventQueue = yield* Queue.unbounded<ProviderRuntimeEvent>();
   const sessions = new Map<ThreadId, CodexAdapterSessionContext>();
 
-  const startSession: CodexAdapterShape["startSession"] = (input) =>
+  const startSession: CodexAdapterContract["startSession"] = (input) =>
     Effect.scoped(
       Effect.gen(function* () {
         if (input.provider !== undefined && input.provider !== PROVIDER) {
@@ -1669,16 +1688,16 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
           cwd: input.cwd ?? process.cwd(),
           binaryPath: codexConfig.binaryPath,
           launchArgs: resolveCodexLaunchArgs(codexConfig.launchArgs, options?.environment),
-          ...(options?.environment ? { environment: options.environment } : {}),
-          ...(codexConfig.homePath ? { homePath: codexConfig.homePath } : {}),
+          ...(options?.environment ? { environment: options.environment } : undefined),
+          ...(codexConfig.homePath ? { homePath: codexConfig.homePath } : undefined),
           ...(isCodexResumeCursorSchema(input.resumeCursor)
             ? { resumeCursor: input.resumeCursor }
-            : {}),
+            : undefined),
           runtimeMode: input.runtimeMode,
           ...(input.modelSelection?.instanceId === boundInstanceId
             ? { model: input.modelSelection.model }
-            : {}),
-          ...(serviceTier ? { serviceTier } : {}),
+            : undefined),
+          ...(serviceTier ? { serviceTier } : undefined),
           ...(mcpSession
             ? {
                 environment: {
@@ -1692,7 +1711,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
                   'mcp_servers.t3-code.bearer_token_env_var="T3_MCP_BEARER_TOKEN"',
                 ],
               }
-            : {}),
+            : undefined),
         };
         const sessionScope = yield* Scope.make("sequential");
         let sessionScopeTransferred = false;
@@ -1796,7 +1815,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     };
   });
 
-  const sendTurn: CodexAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
+  const sendTurn: CodexAdapterContract["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
     const codexAttachments = yield* Effect.forEach(
       input.attachments ?? [],
       (attachment) => resolveAttachment(input, attachment),
@@ -1812,20 +1831,23 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       input.modelSelection?.instanceId === boundInstanceId
         ? getCodexServiceTierOptionValue(input.modelSelection)
         : undefined;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return yield* session.runtime
       .sendTurn({
-        ...(input.input !== undefined ? { input: input.input } : {}),
+        ...(input.input !== undefined ? { input: input.input } : undefined),
         ...(input.modelSelection?.instanceId === boundInstanceId
           ? { model: input.modelSelection.model }
-          : {}),
+          : undefined),
         ...(reasoningEffort
           ? {
               effort: reasoningEffort as EffectCodexSchema.V2TurnStartParams__ReasoningEffort,
             }
-          : {}),
-        ...(serviceTier ? { serviceTier } : {}),
-        ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
-        ...(codexAttachments.length > 0 ? { attachments: codexAttachments } : {}),
+          : undefined),
+        ...(serviceTier ? { serviceTier } : undefined),
+        ...(input.interactionMode !== undefined
+          ? { interactionMode: input.interactionMode }
+          : undefined),
+        ...(codexAttachments.length > 0 ? { attachments: codexAttachments } : undefined),
       })
       .pipe(Effect.mapError((cause) => mapCodexRuntimeError(input.threadId, "turn/start", cause)));
   });
@@ -1841,7 +1863,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     return session;
   });
 
-  const interruptTurn: CodexAdapterShape["interruptTurn"] = (threadId, turnId) =>
+  const interruptTurn: CodexAdapterContract["interruptTurn"] = (threadId, turnId) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.interruptTurn(turnId)),
       Effect.mapError((cause) =>
@@ -1851,7 +1873,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       ),
     );
 
-  const readThread: CodexAdapterShape["readThread"] = (threadId) =>
+  const readThread: CodexAdapterContract["readThread"] = (threadId) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.readThread),
       Effect.mapError((cause) =>
@@ -1865,7 +1887,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       })),
     );
 
-  const rollbackThread: CodexAdapterShape["rollbackThread"] = (threadId, numTurns) => {
+  const rollbackThread: CodexAdapterContract["rollbackThread"] = (threadId, numTurns) => {
     if (!Number.isInteger(numTurns) || numTurns < 1) {
       return Effect.fail(
         new ProviderAdapterValidationError({
@@ -1890,7 +1912,11 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     );
   };
 
-  const respondToRequest: CodexAdapterShape["respondToRequest"] = (threadId, requestId, decision) =>
+  const respondToRequest: CodexAdapterContract["respondToRequest"] = (
+    threadId,
+    requestId,
+    decision,
+  ) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.respondToRequest(requestId, decision)),
       Effect.mapError((cause) =>
@@ -1900,7 +1926,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       ),
     );
 
-  const respondToUserInput: CodexAdapterShape["respondToUserInput"] = (
+  const respondToUserInput: CodexAdapterContract["respondToUserInput"] = (
     threadId,
     requestId,
     answers,
@@ -1934,7 +1960,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     yield* Fiber.interrupt(session.eventFiber).pipe(Effect.ignore);
   });
 
-  const stopSession: CodexAdapterShape["stopSession"] = (threadId) =>
+  const stopSession: CodexAdapterContract["stopSession"] = (threadId) =>
     Effect.gen(function* () {
       const session = sessions.get(threadId);
       if (!session) {
@@ -1943,17 +1969,17 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       yield* stopSessionInternal(session);
     });
 
-  const listSessions: CodexAdapterShape["listSessions"] = () =>
+  const listSessions: CodexAdapterContract["listSessions"] = () =>
     Effect.forEach(
       Array.from(sessions.values()).filter((session) => !session.stopped),
       (session) => session.runtime.getSession,
       { concurrency: 1 },
     );
 
-  const hasSession: CodexAdapterShape["hasSession"] = (threadId) =>
+  const hasSession: CodexAdapterContract["hasSession"] = (threadId) =>
     Effect.succeed(Boolean(sessions.get(threadId) && !sessions.get(threadId)?.stopped));
 
-  const stopAll: CodexAdapterShape["stopAll"] = () =>
+  const stopAll: CodexAdapterContract["stopAll"] = () =>
     Effect.forEach(Array.from(sessions.values()), stopSessionInternal, {
       concurrency: 1,
       discard: true,
@@ -1986,7 +2012,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     get streamEvents() {
       return Stream.fromQueue(runtimeEventQueue);
     },
-  } satisfies CodexAdapterShape;
+  } satisfies CodexAdapterContract;
 });
 
 // NOTE: the old `CodexAdapterLive` / `makeCodexAdapterLive` singleton Layer

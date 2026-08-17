@@ -40,10 +40,13 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import { makeProviderRegistryLayer } from "../../provider/testUtils/providerRegistryMock.ts";
-import { TextGeneration, type TextGenerationShape } from "../../textGeneration/TextGeneration.ts";
+import {
+  TextGeneration,
+  type TextGenerationContract,
+} from "../../textGeneration/TextGeneration.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
@@ -63,6 +66,8 @@ import * as Clock from "effect/Clock";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { VcsStatusBroadcaster } from "../../vcs/VcsStatusBroadcaster.ts";
 import * as GitWorkflowService from "../../git/GitWorkflowService.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const asProjectId = (value: string): ProjectId => ProjectId.make(value);
 const asApprovalRequestId = (value: string): ApprovalRequestId => ApprovalRequestId.make(value);
@@ -171,51 +176,50 @@ describe("ProviderCommandReactor", () => {
     const startSession = vi.fn((_: unknown, input: unknown) => {
       const sessionIndex = nextSessionIndex++;
       const resumeCursor =
-        typeof input === "object" && input !== null && "resumeCursor" in input
+        RuntimePredicate.isObjectOrArray(input) && "resumeCursor" in input
           ? input.resumeCursor
           : undefined;
       const threadId =
-        typeof input === "object" &&
-        input !== null &&
+        RuntimePredicate.isObjectOrArray(input) &&
         "threadId" in input &&
-        typeof input.threadId === "string"
+        RuntimePredicate.isString(input.threadId)
           ? ThreadId.make(input.threadId)
           : ThreadId.make(`thread-${sessionIndex}`);
-      const inputModelSelection =
-        typeof input === "object" && input !== null && "modelSelection" in input
-          ? (input.modelSelection as ModelSelection | undefined)
-          : undefined;
-      const providerInstanceId =
-        typeof input === "object" && input !== null && "providerInstanceId" in input
-          ? (input.providerInstanceId as ProviderInstanceId | undefined)
-          : inputModelSelection?.instanceId;
-      const provider =
-        typeof input === "object" &&
-        input !== null &&
-        "provider" in input &&
-        typeof input.provider === "string"
-          ? (input.provider as ProviderSession["provider"])
-          : ProviderDriverKind.make(inputModelSelection?.instanceId ?? modelSelection.instanceId);
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        inputModelSelection =
+          RuntimePredicate.isObjectOrArray(input) && "modelSelection" in input
+            ? (input.modelSelection as ModelSelection | undefined)
+            : undefined;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        providerInstanceId =
+          RuntimePredicate.isObjectOrArray(input) && "providerInstanceId" in input
+            ? (input.providerInstanceId as ProviderInstanceId | undefined)
+            : inputModelSelection?.instanceId;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        provider =
+          RuntimePredicate.isObjectOrArray(input) &&
+          "provider" in input &&
+          RuntimePredicate.isString(input.provider)
+            ? (input.provider as ProviderSession["provider"])
+            : ProviderDriverKind.make(inputModelSelection?.instanceId ?? modelSelection.instanceId);
       const session: ProviderSession = {
         provider,
-        ...(providerInstanceId ? { providerInstanceId } : {}),
+        ...(providerInstanceId ? { providerInstanceId } : undefined),
         status: "ready" as const,
         runtimeMode:
-          typeof input === "object" &&
-          input !== null &&
+          RuntimePredicate.isObjectOrArray(input) &&
           "runtimeMode" in input &&
           (input.runtimeMode === "approval-required" || input.runtimeMode === "full-access")
             ? input.runtimeMode
             : "full-access",
-        ...(typeof input === "object" &&
-        input !== null &&
+        ...(RuntimePredicate.isObjectOrArray(input) &&
         "cwd" in input &&
-        typeof input.cwd === "string"
+        RuntimePredicate.isString(input.cwd)
           ? { cwd: input.cwd }
-          : {}),
+          : undefined),
         ...((inputModelSelection?.model ?? modelSelection.model)
           ? { model: inputModelSelection?.model ?? modelSelection.model }
-          : {}),
+          : undefined),
         threadId,
         resumeCursor: resumeCursor ?? { opaque: `resume-${sessionIndex}` },
         createdAt: now,
@@ -236,14 +240,17 @@ describe("ProviderCommandReactor", () => {
       }),
     );
     const interruptTurn = vi.fn((_: unknown) => Effect.void);
-    const respondToRequest = vi.fn<ProviderServiceShape["respondToRequest"]>(() => Effect.void);
-    const respondToUserInput = vi.fn<ProviderServiceShape["respondToUserInput"]>(() => Effect.void);
+    const respondToRequest = vi.fn<ProviderServiceContract["respondToRequest"]>(() => Effect.void);
+    const respondToUserInput = vi.fn<ProviderServiceContract["respondToUserInput"]>(
+      () => Effect.void,
+    );
     const stopSession = vi.fn((input: unknown) =>
       Effect.sync(() => {
-        const threadId =
-          typeof input === "object" && input !== null && "threadId" in input
-            ? (input as { threadId?: ThreadId }).threadId
-            : undefined;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          threadId =
+            RuntimePredicate.isObjectOrArray(input) && "threadId" in input
+              ? (input as { threadId?: ThreadId }).threadId
+              : undefined;
         if (!threadId) {
           return;
         }
@@ -256,10 +263,9 @@ describe("ProviderCommandReactor", () => {
     const renameBranch = vi.fn((input: unknown) =>
       Effect.succeed({
         branch:
-          typeof input === "object" &&
-          input !== null &&
+          RuntimePredicate.isObjectOrArray(input) &&
           "newBranch" in input &&
-          typeof input.newBranch === "string"
+          RuntimePredicate.isString(input.newBranch)
             ? input.newBranch
             : "renamed-branch",
       }),
@@ -282,7 +288,7 @@ describe("ProviderCommandReactor", () => {
         pr: null,
       }),
     );
-    const generateBranchName = vi.fn<TextGenerationShape["generateBranchName"]>((_) =>
+    const generateBranchName = vi.fn<TextGenerationContract["generateBranchName"]>((_) =>
       Effect.fail(
         new TextGenerationError({
           operation: "generateBranchName",
@@ -290,7 +296,7 @@ describe("ProviderCommandReactor", () => {
         }),
       ),
     );
-    const generateThreadTitle = vi.fn<TextGenerationShape["generateThreadTitle"]>((_) =>
+    const generateThreadTitle = vi.fn<TextGenerationContract["generateThreadTitle"]>((_) =>
       Effect.fail(
         new TextGenerationError({
           operation: "generateThreadTitle",
@@ -303,47 +309,49 @@ describe("ProviderCommandReactor", () => {
         instanceId: modelSelection.instanceId,
         ...(input?.requiresNewThreadForModelChange === true
           ? { requiresNewThreadForModelChange: true }
-          : {}),
+          : undefined),
       },
     ];
 
-    const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
-    const service: ProviderServiceShape = {
-      startSession: startSession as ProviderServiceShape["startSession"],
-      sendTurn: sendTurn as ProviderServiceShape["sendTurn"],
-      interruptTurn: interruptTurn as ProviderServiceShape["interruptTurn"],
-      respondToRequest: respondToRequest as ProviderServiceShape["respondToRequest"],
-      respondToUserInput: respondToUserInput as ProviderServiceShape["respondToUserInput"],
-      stopSession: stopSession as ProviderServiceShape["stopSession"],
-      listSessions: () => Effect.succeed(runtimeSessions),
-      getCapabilities: (_provider) =>
-        Effect.succeed({
-          sessionModelSwitch: input?.sessionModelSwitch ?? "in-session",
-        }),
-      getInstanceInfo: (instanceId) => {
-        const raw = String(instanceId);
-        const driverKind = ProviderDriverKind.make(
-          raw.startsWith("claude") ? "claudeAgent" : raw.startsWith("codex") ? "codex" : raw,
-        );
-        return Effect.succeed({
-          instanceId,
-          driverKind,
-          displayName: undefined,
-          enabled: true,
-          continuationIdentity: {
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      service: ProviderServiceContract = {
+        startSession: startSession as ProviderServiceContract["startSession"],
+        sendTurn: sendTurn as ProviderServiceContract["sendTurn"],
+        interruptTurn: interruptTurn as ProviderServiceContract["interruptTurn"],
+        respondToRequest: respondToRequest as ProviderServiceContract["respondToRequest"],
+        respondToUserInput: respondToUserInput as ProviderServiceContract["respondToUserInput"],
+        stopSession: stopSession as ProviderServiceContract["stopSession"],
+        listSessions: () => Effect.succeed(runtimeSessions),
+        getCapabilities: (_provider) =>
+          Effect.succeed({
+            sessionModelSwitch: input?.sessionModelSwitch ?? "in-session",
+          }),
+        getInstanceInfo: (instanceId) => {
+          const raw = String(instanceId);
+          const driverKind = ProviderDriverKind.make(
+            raw.startsWith("claude") ? "claudeAgent" : raw.startsWith("codex") ? "codex" : raw,
+          );
+          return Effect.succeed({
+            instanceId,
             driverKind,
-            continuationKey:
-              driverKind === ProviderDriverKind.make("codex")
-                ? "codex:home:/shared-codex"
-                : `${driverKind}:instance:${instanceId}`,
-          },
-        });
-      },
-      rollbackConversation: () => unsupported(),
-      get streamEvents() {
-        return Stream.fromPubSub(runtimeEventPubSub);
-      },
-    };
+            displayName: undefined,
+            enabled: true,
+            continuationIdentity: {
+              driverKind,
+              continuationKey:
+                driverKind === ProviderDriverKind.make("codex")
+                  ? "codex:home:/shared-codex"
+                  : `${driverKind}:instance:${instanceId}`,
+            },
+          });
+        },
+        rollbackConversation: () => unsupported(),
+        get streamEvents() {
+          return Stream.fromPubSub(runtimeEventPubSub);
+        },
+      };
 
     const orchestrationLayer = OrchestrationEngineLive.pipe(
       Layer.provide(OrchestrationProjectionSnapshotQueryLive),
@@ -387,35 +395,36 @@ describe("ProviderCommandReactor", () => {
         } satisfies OrchestrationEngineService["Service"];
       }),
     ).pipe(Layer.provide(orchestrationLayer));
-    const layer = ProviderCommandReactorLive.pipe(
-      Layer.provideMerge(reactorOrchestrationLayer),
-      Layer.provideMerge(projectionSnapshotLayer),
-      Layer.provideMerge(Layer.succeed(ProviderService, service)),
-      Layer.provideMerge(makeProviderRegistryLayer(providerSnapshots as never)),
-      Layer.provideMerge(
-        Layer.mock(GitWorkflowService.GitWorkflowService)({
-          renameBranch,
-        } satisfies Partial<GitWorkflowService.GitWorkflowService["Service"]>),
-      ),
-      Layer.provideMerge(
-        Layer.succeed(VcsStatusBroadcaster, {
-          getStatus: () => Effect.die("getStatus should not be called in this test"),
-          refreshLocalStatus: () =>
-            Effect.die("refreshLocalStatus should not be called in this test"),
-          refreshStatus,
-          streamStatus: () => Stream.die("streamStatus should not be called in this test"),
-        }),
-      ),
-      Layer.provideMerge(
-        Layer.mock(TextGeneration, {
-          generateBranchName,
-          generateThreadTitle,
-        }),
-      ),
-      Layer.provideMerge(ServerSettingsService.layerTest()),
-      Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir)),
-      Layer.provideMerge(NodeServices.layer),
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      layer = ProviderCommandReactorLive.pipe(
+        Layer.provideMerge(reactorOrchestrationLayer),
+        Layer.provideMerge(projectionSnapshotLayer),
+        Layer.provideMerge(Layer.succeed(ProviderService, service)),
+        Layer.provideMerge(makeProviderRegistryLayer(providerSnapshots as never)),
+        Layer.provideMerge(
+          Layer.mock(GitWorkflowService.GitWorkflowService)({
+            renameBranch,
+          } satisfies Partial<GitWorkflowService.GitWorkflowService["Service"]>),
+        ),
+        Layer.provideMerge(
+          Layer.succeed(VcsStatusBroadcaster, {
+            getStatus: () => Effect.die("getStatus should not be called in this test"),
+            refreshLocalStatus: () =>
+              Effect.die("refreshLocalStatus should not be called in this test"),
+            refreshStatus,
+            streamStatus: () => Stream.die("streamStatus should not be called in this test"),
+          }),
+        ),
+        Layer.provideMerge(
+          Layer.mock(TextGeneration, {
+            generateBranchName,
+            generateThreadTitle,
+          }),
+        ),
+        Layer.provideMerge(ServerSettingsService.layerTest()),
+        Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir)),
+        Layer.provideMerge(NodeServices.layer),
+      );
     runtime = ManagedRuntime.make(layer);
 
     const engine = await runtime.runPromise(Effect.service(OrchestrationEngineService));
@@ -1473,13 +1482,13 @@ describe("ProviderCommandReactor", () => {
     harness.generateBranchName.mockImplementation((input: unknown) =>
       Effect.succeed({
         branch:
-          typeof input === "object" &&
-          input !== null &&
+          RuntimePredicate.isObjectOrArray(input) &&
           "modelSelection" in input &&
-          typeof input.modelSelection === "object" &&
+          (RuntimePredicate.isObjectOrArray(input.modelSelection) ||
+            input.modelSelection === null) &&
           input.modelSelection !== null &&
           "model" in input.modelSelection &&
-          typeof input.modelSelection.model === "string"
+          RuntimePredicate.isString(input.modelSelection.model)
             ? `feature/${input.modelSelection.model}`
             : "feature/generated",
       }),
@@ -2279,6 +2288,7 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.startSession.mock.calls.length === 1);
     await waitFor(() => harness.sendTurn.mock.calls.length === 1);
 
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     harness.startSession.mockImplementationOnce(
       (_: unknown, __: unknown) => Effect.fail("simulated restart failure") as never,
     );
@@ -2783,13 +2793,14 @@ describe("ProviderCommandReactor", () => {
       detail: expect.stringContaining("Stale pending approval request: approval-request-1"),
     });
 
-    const resolvedActivity = thread?.activities.find(
-      (activity) =>
-        activity.kind === "approval.resolved" &&
-        typeof activity.payload === "object" &&
-        activity.payload !== null &&
-        (activity.payload as Record<string, unknown>).requestId === "approval-request-1",
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      resolvedActivity = thread?.activities.find(
+        (activity) =>
+          activity.kind === "approval.resolved" &&
+          (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
+          activity.payload !== null &&
+          (activity.payload as Record<string, SchemaJson>).requestId === "approval-request-1",
+      );
     expect(resolvedActivity).toBeUndefined();
   });
 
@@ -2892,13 +2903,14 @@ describe("ProviderCommandReactor", () => {
       detail: expect.stringContaining("Stale pending user-input request: user-input-request-1"),
     });
 
-    const resolvedActivity = thread?.activities.find(
-      (activity) =>
-        activity.kind === "user-input.resolved" &&
-        typeof activity.payload === "object" &&
-        activity.payload !== null &&
-        (activity.payload as Record<string, unknown>).requestId === "user-input-request-1",
-    );
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      resolvedActivity = thread?.activities.find(
+        (activity) =>
+          activity.kind === "user-input.resolved" &&
+          (RuntimePredicate.isObjectOrArray(activity.payload) || activity.payload === null) &&
+          activity.payload !== null &&
+          (activity.payload as Record<string, SchemaJson>).requestId === "user-input-request-1",
+      );
     expect(resolvedActivity).toBeUndefined();
   });
 

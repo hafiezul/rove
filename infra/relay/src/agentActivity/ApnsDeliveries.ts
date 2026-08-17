@@ -9,6 +9,7 @@ import {
   RelayAgentAwarenessPreferences as RelayAgentAwarenessPreferencesSchema,
   RelayDeliveryKind as RelayDeliveryKindSchema,
 } from "@t3tools/contracts/relay";
+import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -528,10 +529,12 @@ function staleJobResult(input: {
 
 function deliveryAttemptOutcome(result: Apns.ApnsDeliveryResult) {
   return {
-    ...(result.status === 0 ? {} : { apnsStatus: result.status }),
-    ...(result.reason === undefined ? {} : { apnsReason: result.reason }),
+    ...(result.status === 0 ? undefined : { apnsStatus: result.status }),
+    ...(result.reason === undefined ? undefined : { apnsReason: result.reason }),
     apnsId: result.apnsId,
-    ...(result.status === 0 ? { transportError: result.reason ?? "APNs request failed." } : {}),
+    ...(result.status === 0
+      ? { transportError: result.reason ?? "APNs request failed." }
+      : undefined),
   };
 }
 
@@ -556,11 +559,11 @@ const recoverApnsDeliveryTransportError = (
       error: Redacted.make(error, { label: error._tag }),
       "error.type": error._tag,
       "error.apns_error_tag": error.apnsErrorTag,
-      ...(error.requestStage === null ? {} : { "error.request_stage": error.requestStage }),
-      ...(error.stack === undefined ? {} : { "error.stack": error.stack }),
+      ...(error.requestStage === null ? undefined : { "error.request_stage": error.requestStage }),
+      ...(error.stack === undefined ? undefined : { "error.stack": error.stack }),
       "relay.mobile.device_id": error.deviceId,
       "relay.delivery.kind": error.kind,
-      ...(error.sourceJobId === null ? {} : { "relay.delivery.job_id": error.sourceJobId }),
+      ...(error.sourceJobId === null ? undefined : { "relay.delivery.job_id": error.sourceJobId }),
     }),
     Effect.as({
       ok: false,
@@ -589,8 +592,8 @@ function credentialsForTarget(
 ): RelayConfiguration.RelayConfiguration["Service"]["apns"] {
   return {
     ...credentials,
-    ...(target.bundle_id ? { bundleId: target.bundle_id } : {}),
-    ...(target.aps_environment ? { environment: target.aps_environment } : {}),
+    ...(target.bundle_id ? { bundleId: target.bundle_id } : undefined),
+    ...(target.aps_environment ? { environment: target.aps_environment } : undefined),
   };
 }
 
@@ -827,7 +830,7 @@ export const make = Effect.gen(function* () {
     yield* Effect.annotateCurrentSpan({
       "relay.mobile.device_id": input.target.device_id,
       "relay.delivery.kind": input.kind,
-      ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : {}),
+      ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : undefined),
     });
     const now = yield* DateTime.now;
     const aggregate =
@@ -971,7 +974,7 @@ export const make = Effect.gen(function* () {
     yield* Effect.annotateCurrentSpan({
       "relay.mobile.device_id": input.target.device_id,
       "relay.delivery.kind": "push_notification",
-      ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : {}),
+      ...(input.sourceJobId ? { "relay.delivery.job_id": input.sourceJobId } : undefined),
     });
     const now = yield* DateTime.now;
     const epochSeconds = Math.floor(now.epochMilliseconds / 1_000);
@@ -1097,7 +1100,11 @@ export const make = Effect.gen(function* () {
       Effect.mapError(
         (cause) =>
           new ApnsDeliveryJobQueuePayloadInvalid({
-            receivedType: Array.isArray(body) ? "array" : body === null ? "null" : typeof body,
+            receivedType: Array.isArray(body)
+              ? "array"
+              : body === null
+                ? "null"
+                : runtimeValueKind(body),
             cause,
           }),
       ),

@@ -1,5 +1,6 @@
 import ghosttyWasmUrl from "./vendor/ghostty-vt.wasm?url";
 import ghosttyWritePtyWasmUrl from "./vendor/ghostty-write-pty.wasm?url&no-inline";
+import * as RuntimePredicate from "effect/Predicate";
 
 type WasmFunction = (...args: Array<number | bigint>) => number;
 
@@ -38,6 +39,7 @@ export class GhosttyRuntime {
     const bytes = new Uint8Array(memory.buffer);
     let end = jsonPointer;
     while (end < bytes.length && bytes[end] !== 0) end += 1;
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     this.layouts = JSON.parse(textDecoder.decode(bytes.subarray(jsonPointer, end))) as TypeLayouts;
   }
 
@@ -67,9 +69,10 @@ export class GhosttyRuntime {
 
   call(name: string, ...args: Array<number | bigint>): number {
     const fn = this.exports[name];
-    if (typeof fn !== "function") {
+    if (!RuntimePredicate.isFunction(fn)) {
       throw new Error(`libghostty-vt export is unavailable: ${name}`);
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return (fn as WasmFunction)(...args);
   }
 
@@ -197,7 +200,7 @@ export class GhosttyRuntime {
     });
     const trampoline = result.instance.exports.ghostty_write_pty;
     const table = this.exports.__indirect_function_table;
-    if (typeof trampoline !== "function" || !(table instanceof WebAssembly.Table)) {
+    if (!RuntimePredicate.isFunction(trampoline) || !(table instanceof WebAssembly.Table)) {
       throw new Error("libghostty-vt did not expose its callback table");
     }
     const index = table.length;

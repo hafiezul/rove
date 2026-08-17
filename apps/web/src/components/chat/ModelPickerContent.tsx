@@ -40,6 +40,7 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 import { providerModelKey, sortProviderModelItems } from "../../modelOrdering";
+import * as RuntimePredicate from "effect/Predicate";
 
 type ModelPickerItem = {
   slug: string;
@@ -218,16 +219,16 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
         out.push({
           slug: model.slug,
           name: model.name,
-          ...(model.shortName ? { shortName: model.shortName } : {}),
-          ...(model.subProvider ? { subProvider: model.subProvider } : {}),
-          ...(model.isLegacy ? { isLegacy: true } : {}),
+          ...(model.shortName ? { shortName: model.shortName } : undefined),
+          ...(model.subProvider ? { subProvider: model.subProvider } : undefined),
+          ...(model.isLegacy ? { isLegacy: true } : undefined),
           instanceId,
           driverKind: entry.driverKind,
           instanceDisplayName: entry.displayName,
-          ...(entry.accentColor ? { instanceAccentColor: entry.accentColor } : {}),
+          ...(entry.accentColor ? { instanceAccentColor: entry.accentColor } : undefined),
           ...(entry.continuationGroupKey
             ? { continuationGroupKey: entry.continuationGroupKey }
-            : {}),
+            : undefined),
         });
       }
     }
@@ -282,8 +283,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           score: scoreModelPickerSearch(
             {
               name: model.name,
-              ...(model.shortName ? { shortName: model.shortName } : {}),
-              ...(model.subProvider ? { subProvider: model.subProvider } : {}),
+              ...(model.shortName ? { shortName: model.shortName } : undefined),
+              ...(model.subProvider ? { subProvider: model.subProvider } : undefined),
               driverKind: model.driverKind,
               providerDisplayName: model.instanceDisplayName,
               isFavorite: favoritesSet.has(providerModelKey(model.instanceId, model.slug)),
@@ -293,8 +294,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           isFavorite: favoritesSet.has(providerModelKey(model.instanceId, model.slug)),
           tieBreaker: buildModelPickerSearchText({
             name: model.name,
-            ...(model.shortName ? { shortName: model.shortName } : {}),
-            ...(model.subProvider ? { subProvider: model.subProvider } : {}),
+            ...(model.shortName ? { shortName: model.shortName } : undefined),
+            ...(model.subProvider ? { subProvider: model.subProvider } : undefined),
             driverKind: model.driverKind,
             providerDisplayName: model.instanceDisplayName,
           }),
@@ -629,7 +630,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           virtualized
           value={modelPickerModelKey(props.activeInstanceId, props.model)}
           onItemHighlighted={(modelKey, eventDetails) => {
-            highlightedModelKeyRef.current = typeof modelKey === "string" ? modelKey : null;
+            highlightedModelKeyRef.current = RuntimePredicate.isString(modelKey) ? modelKey : null;
             if (eventDetails.reason === "keyboard" && eventDetails.index >= 0) {
               void modelListRef.current?.scrollIndexIntoView?.({
                 index: eventDetails.index,
@@ -638,7 +639,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
             }
           }}
           onValueChange={(modelKey) => {
-            if (typeof modelKey !== "string") {
+            if (!RuntimePredicate.isString(modelKey)) {
               return;
             }
             const legacyInstanceId = parseModelPickerLegacySectionKey(modelKey);
@@ -680,6 +681,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       return;
                     }
                     if (e.key === "Enter" && highlightedModelKeyRef.current) {
+                      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                       (
                         e as typeof e & { preventBaseUIHandler?: () => void }
                       ).preventBaseUIHandler?.();

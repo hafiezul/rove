@@ -19,6 +19,8 @@ import * as Path from "effect/Path";
 import { parse as parseYamlDocument } from "yaml";
 
 import { expandHomePath } from "../../pathExpansion.ts";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 type ClaudeSkillScope = "user" | "project";
 
@@ -41,17 +43,20 @@ function parseSkillFrontmatter(contents: string): SkillFrontmatter {
   } catch {
     return { kind: "malformed" };
   }
-  if (typeof parsed !== "object" || parsed === null) {
+  if (!RuntimePredicate.isObjectOrArray(parsed)) {
     return { kind: "malformed" };
   }
 
-  const record = parsed as Record<string, unknown>;
-  const name = typeof record.name === "string" ? record.name.trim() : "";
-  const description = typeof record.description === "string" ? record.description.trim() : "";
+  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+    record = parsed as Record<string, SchemaJson>;
+  const name = RuntimePredicate.isString(record.name) ? record.name.trim() : "";
+  const description = RuntimePredicate.isString(record.description)
+    ? record.description.trim()
+    : "";
   return {
     kind: "parsed",
-    ...(name ? { name } : {}),
-    ...(description ? { description } : {}),
+    ...(name ? { name } : undefined),
+    ...(description ? { description } : undefined),
   };
 }
 
@@ -139,7 +144,7 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
         scope: root.scope,
         ...(frontmatter.kind === "parsed" && frontmatter.description
           ? { description: frontmatter.description }
-          : {}),
+          : undefined),
       });
     }
   }

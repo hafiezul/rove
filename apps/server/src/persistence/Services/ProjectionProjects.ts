@@ -47,7 +47,7 @@ export type DeleteProjectionProjectInput = typeof DeleteProjectionProjectInput.T
 /**
  * ProjectionProjectRepositoryShape - Service API for projected project records.
  */
-export interface ProjectionProjectRepositoryShape {
+export interface ProjectionProjectRepositoryContract {
   /**
    * Insert or replace a projected project row.
    *
@@ -85,5 +85,5 @@ export interface ProjectionProjectRepositoryShape {
  */
 export class ProjectionProjectRepository extends Context.Service<
   ProjectionProjectRepository,
-  ProjectionProjectRepositoryShape
+  ProjectionProjectRepositoryContract
 >()("t3/persistence/Services/ProjectionProjects/ProjectionProjectRepository") {}

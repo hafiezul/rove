@@ -12,6 +12,7 @@ import {
   toStableSavedRemoteConnection,
 } from "../lib/connection";
 import * as MobileSecureStorage from "./mobile-secure-storage";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CONNECTIONS_KEY = "t3code.connections";
 const AGENT_AWARENESS_DEVICE_ID_KEY = "t3code.agent-awareness.device-id";
@@ -123,6 +124,7 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
   const parseJson = <A>(key: string, raw: string): A | null => {
     if (!raw.trim()) return null;
     try {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return JSON.parse(raw) as A;
     } catch (cause) {
       console.warn(
@@ -209,18 +211,18 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
     Effect.map((parsed) => {
       if (
         !parsed ||
-        typeof parsed !== "object" ||
-        typeof parsed.identity !== "string" ||
-        typeof parsed.signature !== "string"
+        !(RuntimePredicate.isObjectOrArray(parsed) || parsed === null) ||
+        !RuntimePredicate.isString(parsed.identity) ||
+        !RuntimePredicate.isString(parsed.signature)
       ) {
         return null;
       }
       return {
         identity: parsed.identity,
         signature: parsed.signature,
-        ...(typeof parsed.pushToStartToken === "string" && parsed.pushToStartToken
+        ...(RuntimePredicate.isString(parsed.pushToStartToken) && parsed.pushToStartToken
           ? { pushToStartToken: parsed.pushToStartToken }
-          : {}),
+          : undefined),
       };
     }),
   );
@@ -235,11 +237,11 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
         parsed?.threads ?? [],
         Arr.filter(
           (thread) =>
-            typeof thread?.environmentId === "string" &&
+            RuntimePredicate.isString(thread?.environmentId) &&
             thread.environmentId.length > 0 &&
-            typeof thread.threadId === "string" &&
+            RuntimePredicate.isString(thread.threadId) &&
             thread.threadId.length > 0 &&
-            typeof thread.title === "string",
+            RuntimePredicate.isString(thread.title),
         ),
       ),
     ),

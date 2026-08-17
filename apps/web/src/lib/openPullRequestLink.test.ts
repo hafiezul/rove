@@ -7,6 +7,7 @@ import {
   PullRequestLinkOpenError,
   shouldOpenPullRequestExternally,
 } from "./openPullRequestLink";
+import type { Json as SchemaJson } from "effect/Schema";
 
 describe("openPullRequestLink", () => {
   it("opens the requested pull request URL", async () => {
@@ -149,7 +150,7 @@ describe("parseChangeRequestUrl", () => {
 });
 
 describe("findProjectForChangeRequest", () => {
-  const project = (identity: Record<string, unknown>) =>
+  const project = (identity: Record<string, SchemaJson>) =>
     ({ id: "p1", repositoryIdentity: identity }) as never;
 
   it("matches a nested GitLab group by the whole path below the host", () => {

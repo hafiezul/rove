@@ -19,6 +19,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import { MENU_ACTION_CHANNEL, WINDOW_FULLSCREEN_STATE_CHANNEL } from "../ipc/channels.ts";
 import * as PreviewManager from "../preview/Manager.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const TITLEBAR_HEIGHT = 40;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
@@ -44,8 +45,13 @@ const DEVELOPMENT_RETRYABLE_LOAD_ERROR_CODES = new Set([
 
 type WindowTitleBarOptions = Pick<
   Electron.BrowserWindowConstructorOptions,
-  "titleBarOverlay" | "titleBarStyle" | "trafficLightPosition"
->;
+  "titleBarStyle" | "trafficLightPosition"
+> & {
+  readonly titleBarOverlay?: Exclude<
+    Electron.BrowserWindowConstructorOptions["titleBarOverlay"],
+    boolean | undefined
+  >;
+};
 
 type DesktopWindowRuntimeServices =
   | DesktopEnvironment.DesktopEnvironment
@@ -228,8 +234,9 @@ function syncWindowAppearance(
     }
 
     window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
-    const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
-    if (typeof titleBarOverlay === "object") {
+    const titleBarOptions = getWindowTitleBarOptions(shouldUseDarkColors, platform);
+    const { titleBarOverlay } = titleBarOptions;
+    if (titleBarOverlay) {
       window.setTitleBarOverlay(titleBarOverlay);
     }
   });
@@ -326,7 +333,10 @@ export const make = Effect.gen(function* () {
       displayBoundsResult._tag === "Success"
         ? displayBoundsResult.bounds
         : yield* logWindowWarning("failed to read connected displays; using defaults", {
-            cause: displayBoundsResult.cause,
+            cause:
+              displayBoundsResult.cause instanceof Error
+                ? displayBoundsResult.cause.message
+                : String(displayBoundsResult.cause),
           }).pipe(Effect.as<readonly Electron.Rectangle[]>([]));
     const initialBounds = resolveInitialMainWindowBounds(persistedBounds, displayBounds);
     const restoredPersistedBounds = persistedBounds !== null && initialBounds === persistedBounds;
@@ -339,7 +349,7 @@ export const make = Effect.gen(function* () {
       minHeight: 620,
       show: false,
       autoHideMenuBar: true,
-      ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
+      ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : undefined),
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
       ...iconOption,
       title: environment.displayName,
@@ -447,7 +457,7 @@ export const make = Effect.gen(function* () {
     yield* previewManager.setMainWindow(window);
     window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
       if (
-        typeof params.partition !== "string" ||
+        !RuntimePredicate.isString(params.partition) ||
         !previewManager.isBrowserPartition(params.partition)
       ) {
         event.preventDefault();
@@ -640,7 +650,7 @@ export const make = Effect.gen(function* () {
             errorCode,
             errorDescription,
             url: validatedURL,
-            ...(retryInMs === undefined ? {} : { retryInMs }),
+            ...(retryInMs === undefined ? undefined : { retryInMs }),
           }),
         );
       },

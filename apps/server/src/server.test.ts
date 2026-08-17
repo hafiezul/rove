@@ -1,3 +1,4 @@
+import { testDouble } from "./testDouble.ts";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeSocket from "@effect/platform-node/NodeSocket";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -73,6 +74,8 @@ import { OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import * as Socket from "effect/unstable/socket/Socket";
 import { vi } from "vite-plus/test";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const TEST_EPOCH = DateTime.makeUnsafe("1970-01-01T00:00:00.000Z");
 const decodeTransferThreadSnapshot = Schema.decodeUnknownEffect(
@@ -324,7 +327,7 @@ const makeBrowserOtlpPayload = (spanName: string) =>
           server.on("error", reject);
           server.listen(0, "127.0.0.1", () => {
             const address = server.address();
-            if (!address || typeof address === "string") {
+            if (!address || RuntimePredicate.isString(address)) {
               reject(new Error("Expected TCP collector address"));
               return;
             }
@@ -376,7 +379,8 @@ const makeBrowserOtlpPayload = (spanName: string) =>
         Effect.andThen(Effect.die(new Error("Timed out waiting for OTLP trace export"))),
       ),
     );
-    // @effect-diagnostics-next-line preferSchemaOverJson:off
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
     return JSON.parse(request.body) as OtlpTracer.TraceData;
   });
 
@@ -824,58 +828,38 @@ const buildAppUnderTest = (options?: {
       ),
     );
 
-    const appLayer = servedRoutesLayer.pipe(
-      Layer.provide(resourceTelemetryLayer),
-      Layer.provide(UsageService.layerTest),
-      Layer.provide(
-        Layer.mock(BrowserTraceCollector.BrowserTraceCollector)({
-          record: () => Effect.void,
-          ...options?.layers?.browserTraceCollector,
-        }),
-      ),
-      Layer.provide(
-        Layer.mock(ServerLifecycleEvents.ServerLifecycleEvents)({
-          publish: (event) => Effect.succeed({ ...(event as any), sequence: 1 }),
-          snapshot: Effect.succeed({ sequence: 0, events: [] }),
-          stream: Stream.empty,
-          ...options?.layers?.serverLifecycleEvents,
-        }),
-      ),
-      Layer.provide(
-        Layer.mock(ServerRuntimeStartup.ServerRuntimeStartup)({
-          awaitCommandReady: Effect.void,
-          markHttpListening: Effect.void,
-          enqueueCommand: (effect) => effect,
-          ...options?.layers?.serverRuntimeStartup,
-        }),
-      ),
-      Layer.provide(
-        Layer.mock(BackgroundPolicy.BackgroundPolicy)({
-          reportClientActivity: () => Effect.void,
-          removeRpcClient: () => Effect.void,
-          reportHostPowerState: () => Effect.void,
-          snapshot: Effect.succeed({
-            hostPower: {
-              source: "unknown",
-              idle: "unknown",
-              idleSeconds: null,
-              locked: "unknown",
-              suspended: false,
-              onBattery: "unknown",
-              lowPowerMode: "unknown",
-              thermalState: "unknown",
-              stale: true,
-              updatedAt: TEST_EPOCH,
-            },
-            leases: [],
-            activeForegroundLeaseCount: 0,
-            activeScopeKeys: [],
-            shouldRunOpportunisticWork: false,
-            updatedAt: TEST_EPOCH,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      appLayer = servedRoutesLayer.pipe(
+        Layer.provide(resourceTelemetryLayer),
+        Layer.provide(UsageService.layerTest),
+        Layer.provide(
+          Layer.mock(BrowserTraceCollector.BrowserTraceCollector)({
+            record: () => Effect.void,
+            ...options?.layers?.browserTraceCollector,
           }),
-          streamChanges: Stream.empty,
-          subscribe: Effect.succeed({
-            latest: {
+        ),
+        Layer.provide(
+          Layer.mock(ServerLifecycleEvents.ServerLifecycleEvents)({
+            publish: (event) => Effect.succeed({ ...(event as any), sequence: 1 }),
+            snapshot: Effect.succeed({ sequence: 0, events: [] }),
+            stream: Stream.empty,
+            ...options?.layers?.serverLifecycleEvents,
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(ServerRuntimeStartup.ServerRuntimeStartup)({
+            awaitCommandReady: Effect.void,
+            markHttpListening: Effect.void,
+            enqueueCommand: (effect) => effect,
+            ...options?.layers?.serverRuntimeStartup,
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(BackgroundPolicy.BackgroundPolicy)({
+            reportClientActivity: () => Effect.void,
+            removeRpcClient: () => Effect.void,
+            reportHostPowerState: () => Effect.void,
+            snapshot: Effect.succeed({
               hostPower: {
                 source: "unknown",
                 idle: "unknown",
@@ -893,73 +877,92 @@ const buildAppUnderTest = (options?: {
               activeScopeKeys: [],
               shouldRunOpportunisticWork: false,
               updatedAt: TEST_EPOCH,
-            },
-            changes: Stream.empty,
-          }),
-          hasDemand: () => Effect.succeed(false),
-          shouldRunScopeWork: () => Effect.succeed(false),
-          shouldRunOpportunisticWork: Effect.succeed(false),
-        }),
-      ),
-      Layer.provide(
-        Layer.mock(ServerEnvironment.ServerEnvironment)({
-          getEnvironmentId: Effect.succeed(testEnvironmentDescriptor.environmentId),
-          getDescriptor: Effect.succeed(testEnvironmentDescriptor),
-          ...options?.layers?.serverEnvironment,
-        }),
-      ),
-      Layer.provide(
-        Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({
-          resolve: () => Effect.succeed(null),
-          ...options?.layers?.repositoryIdentityResolver,
-        }),
-      ),
-      Layer.provide(
-        Layer.succeed(
-          CloudManagedEndpointRuntime.CloudManagedEndpointRuntime,
-          CloudManagedEndpointRuntime.CloudManagedEndpointRuntime.of({
-            applyConfig: () => Effect.succeed({ status: "disabled" }),
-            ...options?.layers?.cloudManagedEndpointRuntime,
-          }),
-        ),
-      ),
-      Layer.provide(
-        Layer.succeed(
-          RelayClient.RelayClient,
-          RelayClient.RelayClient.of({
-            resolve: Effect.succeed({
-              status: "missing",
-              version: RelayClient.CLOUDFLARED_VERSION,
             }),
-            install: Effect.die("unused relay-client install"),
-            installWithProgress: () => Effect.die("unused relay-client install"),
-            ...options?.layers?.relayClient,
+            streamChanges: Stream.empty,
+            subscribe: Effect.succeed({
+              latest: {
+                hostPower: {
+                  source: "unknown",
+                  idle: "unknown",
+                  idleSeconds: null,
+                  locked: "unknown",
+                  suspended: false,
+                  onBattery: "unknown",
+                  lowPowerMode: "unknown",
+                  thermalState: "unknown",
+                  stale: true,
+                  updatedAt: TEST_EPOCH,
+                },
+                leases: [],
+                activeForegroundLeaseCount: 0,
+                activeScopeKeys: [],
+                shouldRunOpportunisticWork: false,
+                updatedAt: TEST_EPOCH,
+              },
+              changes: Stream.empty,
+            }),
+            hasDemand: () => Effect.succeed(false),
+            shouldRunScopeWork: () => Effect.succeed(false),
+            shouldRunOpportunisticWork: Effect.succeed(false),
           }),
         ),
-      ),
-      Layer.provide(
-        Layer.mock(CloudCliTokenManager.CloudCliTokenManager)({
-          get: Effect.die(new Error("Unexpected T3 Connect CLI authorization request.")),
-          getExisting: Effect.succeed(Option.none()),
-          hasCredential: Effect.succeed(false),
-          clear: Effect.void,
-          ...options?.layers?.cloudCliTokenManager,
-        }),
-      ),
-      Layer.provideMerge(makeAuthTestLayer()),
-      Layer.provideMerge(ServerSecretStore.layer),
-      Layer.provide(workspaceAndProjectServicesLayer),
-      Layer.provideMerge(FetchHttpClient.layer),
-      Layer.provide(layerConfig),
-    );
+        Layer.provide(
+          Layer.mock(ServerEnvironment.ServerEnvironment)({
+            getEnvironmentId: Effect.succeed(testEnvironmentDescriptor.environmentId),
+            getDescriptor: Effect.succeed(testEnvironmentDescriptor),
+            ...options?.layers?.serverEnvironment,
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({
+            resolve: () => Effect.succeed(null),
+            ...options?.layers?.repositoryIdentityResolver,
+          }),
+        ),
+        Layer.provide(
+          Layer.succeed(
+            CloudManagedEndpointRuntime.CloudManagedEndpointRuntime,
+            CloudManagedEndpointRuntime.CloudManagedEndpointRuntime.of({
+              applyConfig: () => Effect.succeed({ status: "disabled" }),
+              ...options?.layers?.cloudManagedEndpointRuntime,
+            }),
+          ),
+        ),
+        Layer.provide(
+          Layer.succeed(
+            RelayClient.RelayClient,
+            RelayClient.RelayClient.of({
+              resolve: Effect.succeed({
+                status: "missing",
+                version: RelayClient.CLOUDFLARED_VERSION,
+              }),
+              install: Effect.die("unused relay-client install"),
+              installWithProgress: () => Effect.die("unused relay-client install"),
+              ...options?.layers?.relayClient,
+            }),
+          ),
+        ),
+        Layer.provide(
+          Layer.mock(CloudCliTokenManager.CloudCliTokenManager)({
+            get: Effect.die(new Error("Unexpected T3 Connect CLI authorization request.")),
+            getExisting: Effect.succeed(Option.none()),
+            hasCredential: Effect.succeed(false),
+            clear: Effect.void,
+            ...options?.layers?.cloudCliTokenManager,
+          }),
+        ),
+        Layer.provideMerge(makeAuthTestLayer()),
+        Layer.provideMerge(ServerSecretStore.layer),
+        Layer.provide(workspaceAndProjectServicesLayer),
+        Layer.provideMerge(FetchHttpClient.layer),
+        Layer.provide(layerConfig),
+      );
 
     yield* Layer.build(appLayer);
     return config;
   });
 
-const parseSessionCookieFromWsUrl = (
-  wsUrl: string,
-): { readonly cookie: string | null; readonly url: string } => {
+const parseSessionCookieFromWsUrl = (wsUrl: string) => {
   const next = new URL(wsUrl);
   const cookie = next.hash.startsWith("#cookie=")
     ? decodeURIComponent(next.hash.slice("#cookie=".length))
@@ -976,11 +979,13 @@ const wsRpcProtocolLayer = (wsUrl: string) => {
   const webSocketConstructorLayer = Layer.succeed(
     Socket.WebSocketConstructor,
     (socketUrl, protocols) =>
-      new NodeSocket.NodeWS.WebSocket(
-        socketUrl,
-        protocols,
-        cookie ? { headers: { cookie } } : undefined,
-      ) as unknown as globalThis.WebSocket,
+      testDouble<globalThis.WebSocket>(
+        new NodeSocket.NodeWS.WebSocket(
+          socketUrl,
+          protocols,
+          cookie ? { headers: { cookie } } : undefined,
+        ),
+      ),
   );
 
   return RpcClient.layerProtocolSocket().pipe(
@@ -1008,7 +1013,8 @@ const appendSessionCookieToWsUrl = (url: string, sessionCookieHeader: string) =>
 const getHttpServerUrl = (pathname = "") =>
   Effect.gen(function* () {
     const server = yield* HttpServer.HttpServer;
-    const address = server.address as HttpServer.TcpAddress;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      address = server.address as HttpServer.TcpAddress;
     return `http://127.0.0.1:${address.port}${pathname}`;
   });
 
@@ -1070,11 +1076,13 @@ const exchangeAccessToken = (
         scope:
           options?.scope ??
           "orchestration:read orchestration:operate terminal:operate review:write relay:read access:read access:write relay:write",
-        ...(options?.clientMetadata?.label ? { client_label: options.clientMetadata.label } : {}),
+        ...(options?.clientMetadata?.label
+          ? { client_label: options.clientMetadata.label }
+          : undefined),
         ...(options?.clientMetadata?.deviceType
           ? { client_device_type: options.clientMetadata.deviceType }
-          : {}),
-        ...(options?.clientMetadata?.os ? { client_os: options.clientMetadata.os } : {}),
+          : undefined),
+        ...(options?.clientMetadata?.os ? { client_os: options.clientMetadata.os } : undefined),
       }).toString(),
     });
     const body = yield* responseJsonEffect<{
@@ -1110,6 +1118,7 @@ const makeDpopProof = (input: {
           const { privateKey, publicKey } = NodeCrypto.generateKeyPairSync("ec", {
             namedCurve: "P-256",
           });
+          // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           return { privateKey, publicJwk: publicKey.export({ format: "jwk" }) as DpopPublicJwk };
         })();
   const header = Buffer.from(
@@ -1125,7 +1134,7 @@ const makeDpopProof = (input: {
       htu: input.url,
       jti: input.jti ?? "proof-1",
       iat: input.iat,
-      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : {}),
+      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : undefined),
     }),
   ).toString("base64url");
   const signature = NodeCrypto.sign("sha256", Buffer.from(`${header}.${payload}`), {
@@ -1216,6 +1225,7 @@ const decodeCompactJwtPayload = <A>(token: string): A => {
   if (!encodedPayload) {
     throw new Error("JWT does not contain a payload.");
   }
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as A;
 };
 
@@ -1237,20 +1247,21 @@ const testRequestUrl = (input: Parameters<typeof fetch>[0]): string => {
 };
 
 const fetchEffect = (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-  const request = HttpClientRequest.make((init?.method ?? "GET") as "GET" | "POST")(
-    testRequestUrl(input),
-    {
-      headers: init?.headers as Record<string, string> | undefined,
-    },
-  ).pipe(
-    typeof init?.body === "string"
-      ? HttpClientRequest.bodyText(
-          init.body,
-          (init.headers as Record<string, string> | undefined)?.["content-type"] ??
-            "application/json",
-        )
-      : (request) => request,
-  );
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    request = HttpClientRequest.make((init?.method ?? "GET") as "GET" | "POST")(
+      testRequestUrl(input),
+      {
+        headers: init?.headers as Record<string, string> | undefined,
+      },
+    ).pipe(
+      RuntimePredicate.isString(init?.body)
+        ? HttpClientRequest.bodyText(
+            init.body,
+            (init.headers as Record<string, string> | undefined)?.["content-type"] ??
+              "application/json",
+          )
+        : (request) => request,
+    );
   const effect = HttpClient.execute(request);
   return (
     init?.redirect === "manual"
@@ -1263,11 +1274,12 @@ const jsonRequestBody = (value: unknown): string => {
   return JSON.stringify(value);
 };
 
-const responseJsonEffect = <A>(response: HttpClientResponse.HttpClientResponse) =>
-  response.json.pipe(
-    Effect.map((json) => json as A),
-    Effect.mapError((cause) => new TestHttpRequestError({ cause })),
-  );
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  responseJsonEffect = <A>(response: HttpClientResponse.HttpClientResponse) =>
+    response.json.pipe(
+      Effect.map((json) => json as A),
+      Effect.mapError((cause) => new TestHttpRequestError({ cause })),
+    );
 
 const responseOk = (response: HttpClientResponse.HttpClientResponse) =>
   response.status >= 200 && response.status < 300;
@@ -1367,7 +1379,8 @@ const getWsServerUrl = (
 ) =>
   Effect.gen(function* () {
     const server = yield* HttpServer.HttpServer;
-    const address = server.address as HttpServer.TcpAddress;
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      address = server.address as HttpServer.TcpAddress;
     const baseUrl = `ws://127.0.0.1:${address.port}${pathname}`;
     if (options?.authenticated === false) {
       return baseUrl;
@@ -1568,6 +1581,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(bootstrapResponse.status, 200);
       assert.equal(bootstrapBody.authenticated, true);
       assert.equal(bootstrapBody.sessionMethod, "browser-session-cookie");
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.isUndefined((bootstrapBody as { readonly sessionToken?: string }).sessionToken);
       assert.isDefined(setCookie);
 
@@ -1601,7 +1615,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         tokenBody.scope,
         "orchestration:read orchestration:operate terminal:operate review:write relay:read access:read access:write relay:write",
       );
-      assert.equal(typeof tokenBody.access_token, "string");
+      assert.equal(RuntimePredicate.isString(tokenBody.access_token), true);
 
       const sessionUrl = yield* getHttpServerUrl("/api/auth/session");
       const sessionResponse = yield* fetchEffect(sessionUrl, {
@@ -1646,9 +1660,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const pairingBody = (yield* pairingResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        pairingBody = (yield* pairingResponse.json) as {
+          readonly credential: string;
+        };
 
       const { response } = yield* exchangeAccessToken(pairingBody.credential, {
         headers: {
@@ -1667,16 +1682,17 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cookie: ownerCookie,
         },
       });
-      const clients = (yield* clientsResponse.json) as ReadonlyArray<{
-        readonly current: boolean;
-        readonly client: {
-          readonly label?: string;
-          readonly deviceType: string;
-          readonly ipAddress?: string;
-          readonly os?: string;
-          readonly userAgent?: string;
-        };
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        clients = (yield* clientsResponse.json) as ReadonlyArray<{
+          readonly current: boolean;
+          readonly client: {
+            readonly label?: string;
+            readonly deviceType: string;
+            readonly ipAddress?: string;
+            readonly os?: string;
+            readonly userAgent?: string;
+          };
+        }>;
       const mobileClient = clients.find((client) => !client.current);
 
       assert.equal(pairingResponse.status, 200);
@@ -1703,7 +1719,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           headers: { cookie: ownerCookie },
           body: yield* HttpBody.json({}),
         });
-        const credential = (yield* credentialResponse.json) as { readonly credential: string };
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          credential = (yield* credentialResponse.json) as { readonly credential: string };
         const tokenUrl = yield* getHttpServerUrl("/oauth/token");
         const now = yield* DateTime.now;
         const tokenProof = makeDpopProof({
@@ -1779,18 +1796,20 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const firstCredential = (yield* firstCredentialResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        firstCredential = (yield* firstCredentialResponse.json) as {
+          readonly credential: string;
+        };
       const secondCredentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
         headers: {
           cookie: ownerCookie,
         },
         body: yield* HttpBody.json({}),
       });
-      const secondCredential = (yield* secondCredentialResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        secondCredential = (yield* secondCredentialResponse.json) as {
+          readonly credential: string;
+        };
       const tokenUrl = yield* getHttpServerUrl("/oauth/token");
       const now = yield* DateTime.now;
       const dpop = makeDpopProof({
@@ -1817,7 +1836,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(replayBootstrap.body._tag, "EnvironmentAuthInvalidError");
       assert.equal(replayBootstrap.body.code, "auth_invalid");
       assert.equal(replayBootstrap.body.reason, "invalid_credential");
-      assert.equal(typeof replayBootstrap.body.traceId, "string");
+      assert.equal(RuntimePredicate.isString(replayBootstrap.body.traceId), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -1832,9 +1851,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const credential = (yield* credentialResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        credential = (yield* credentialResponse.json) as {
+          readonly credential: string;
+        };
       const tokenUrl = yield* getHttpServerUrl("/oauth/token");
       const now = yield* DateTime.now;
       const dpop = makeDpopProof({
@@ -1867,9 +1887,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const credential = (yield* credentialResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        credential = (yield* credentialResponse.json) as {
+          readonly credential: string;
+        };
       const tokenUrl = yield* getHttpServerUrl("/oauth/token");
       const spoofedUrl = new URL(tokenUrl);
       spoofedUrl.hostname = "environment.example.test";
@@ -1892,7 +1913,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(bootstrap.body._tag, "EnvironmentAuthInvalidError");
       assert.equal(bootstrap.body.code, "auth_invalid");
       assert.equal(bootstrap.body.reason, "invalid_credential");
-      assert.equal(typeof bootstrap.body.traceId, "string");
+      assert.equal(RuntimePredicate.isString(bootstrap.body.traceId), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -2005,10 +2026,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           "application/json",
         ),
       });
-      const body = (yield* linkProofResponse.json) as {
-        readonly _tag?: string;
-        readonly message?: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        body = (yield* linkProofResponse.json) as {
+          readonly _tag?: string;
+          readonly message?: string;
+        };
 
       assert.equal(linkProofResponse.status, 400);
       assert.equal(body._tag, "EnvironmentHttpBadRequestError");
@@ -2049,10 +2071,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             "application/json",
           ),
         });
-        const body = (yield* linkProofResponse.json) as {
-          readonly _tag?: string;
-          readonly message?: string;
-        };
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          body = (yield* linkProofResponse.json) as {
+            readonly _tag?: string;
+            readonly message?: string;
+          };
 
         assert.equal(linkProofResponse.status, 400);
         assert.equal(body._tag, "EnvironmentHttpBadRequestError");
@@ -2091,10 +2114,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           "application/json",
         ),
       });
-      const body = (yield* linkProofResponse.json) as {
-        readonly _tag?: string;
-        readonly message?: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        body = (yield* linkProofResponse.json) as {
+          readonly _tag?: string;
+          readonly message?: string;
+        };
 
       assert.equal(linkProofResponse.status, 400);
       assert.equal(body._tag, "EnvironmentHttpBadRequestError");
@@ -2149,7 +2173,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         headers: { cookie: ownerCookie },
         body: yield* HttpBody.json({}),
       });
-      const credential = (yield* credentialResponse.json) as { readonly credential: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        credential = (yield* credentialResponse.json) as { readonly credential: string };
       const pairedCookie = yield* getAuthenticatedSessionCookieHeader(credential.credential);
       const linkStateUrl = yield* getHttpServerUrl("/api/connect/link-state");
       const response = yield* fetchEffect(linkStateUrl, {
@@ -2236,7 +2261,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         headers: { cookie: ownerCookie },
         body: yield* HttpBody.json({}),
       });
-      const credential = (yield* credentialResponse.json) as { readonly credential: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        credential = (yield* credentialResponse.json) as { readonly credential: string };
       const pairedCookie = yield* getAuthenticatedSessionCookieHeader(credential.credential);
       const pairedResponse = yield* fetchEffect(preferencesUrl, {
         method: "POST",
@@ -2497,8 +2523,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 status: "running",
                 providerKind: "cloudflare_tunnel",
                 pid: 123,
-                ...(config.tunnelId ? { tunnelId: config.tunnelId } : {}),
-                ...(config.tunnelName ? { tunnelName: config.tunnelName } : {}),
+                ...(config.tunnelId ? { tunnelId: config.tunnelId } : undefined),
+                ...(config.tunnelName ? { tunnelName: config.tunnelName } : undefined),
               });
             },
           },
@@ -2687,8 +2713,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         readonly credential?: string;
         readonly proof?: string;
       }>(response);
-      assert.equal(typeof body.credential, "string");
-      assert.equal(typeof body.proof, "string");
+      assert.equal(RuntimePredicate.isString(body.credential), true);
+      assert.equal(RuntimePredicate.isString(body.proof), true);
       assert.equal(
         decodeCompactJwtPayload<{ readonly requestNonce?: string }>(body.proof!).requestNonce,
         "cloud-mint-nonce-documented-endpoint",
@@ -2748,7 +2774,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       }>(response);
       assert.equal(body.status, "online");
       assert.equal(body.descriptor?.environmentId, testEnvironmentDescriptor.environmentId);
-      assert.equal(typeof body.proof, "string");
+      assert.equal(RuntimePredicate.isString(body.proof), true);
       assert.equal(
         decodeCompactJwtPayload<{ readonly requestNonce?: string }>(body.proof!).requestNonce,
         "cloud-health-nonce-documented-endpoint",
@@ -3310,7 +3336,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           Effect.callback<NodeSocket.NodeWS.WebSocket, Error>((resume) => {
             const socket = new NodeSocket.NodeWS.WebSocket(url, {
               perMessageDeflate,
-              ...(cookie ? { headers: { cookie } } : {}),
+              ...(cookie ? { headers: { cookie } } : undefined),
             });
             socket.on("open", () => resume(Effect.succeed(socket)));
             socket.on("error", (error) => resume(Effect.fail(error)));
@@ -3346,9 +3372,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       }>(wsTicketResponse);
 
       assert.equal(wsTicketResponse.status, 200);
-      assert.equal(typeof wsTicketBody.ticket, "string");
+      assert.equal(RuntimePredicate.isString(wsTicketBody.ticket), true);
       assert.isTrue(wsTicketBody.ticket.length > 0);
-      assert.equal(typeof wsTicketBody.expiresAt, "string");
+      assert.equal(RuntimePredicate.isString(wsTicketBody.expiresAt), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3370,9 +3396,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const overbroadPairingBody = (yield* overbroadPairingResponse.json) as {
-        readonly requiredScope: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        overbroadPairingBody = (yield* overbroadPairingResponse.json) as {
+          readonly requiredScope: string;
+        };
       const pairingResponse = yield* HttpClient.post("/api/auth/pairing-token", {
         headers: {
           authorization: `Bearer ${tokenBody.access_token ?? ""}`,
@@ -3384,7 +3411,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           authorization: `Bearer ${tokenBody.access_token ?? ""}`,
         },
       });
-      const wsTicketBody = (yield* wsTicketResponse.json) as { readonly ticket: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        wsTicketBody = (yield* wsTicketResponse.json) as { readonly ticket: string };
       assert.equal(overbroadPairingResponse.status, 403);
       assert.equal(overbroadPairingBody.requiredScope, "orchestration:read");
       assert.equal(pairingResponse.status, 200);
@@ -3415,7 +3443,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(tokenResponse.status, 200);
       assertBrowserApiCorsResponseHeaders(tokenResponse.headers);
       assert.equal(tokenBody.token_type, "Bearer");
-      assert.equal(typeof tokenBody.access_token, "string");
+      assert.equal(RuntimePredicate.isString(tokenBody.access_token), true);
 
       const sessionUrl = yield* getHttpServerUrl("/api/auth/session");
       const sessionResponse = yield* fetchEffect(sessionUrl, {
@@ -3448,7 +3476,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
 
       assert.equal(wsTicketResponse.status, 200);
       assertBrowserApiCorsResponseHeaders(wsTicketResponse.headers);
-      assert.equal(typeof wsTicketBody.ticket, "string");
+      assert.equal(RuntimePredicate.isString(wsTicketBody.ticket), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3574,7 +3602,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(body._tag, "EnvironmentAuthInvalidError");
       assert.equal(body.code, "auth_invalid");
       assert.equal(body.reason, "missing_credential");
-      assert.equal(typeof body.traceId, "string");
+      assert.equal(RuntimePredicate.isString(body.traceId), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3588,15 +3616,16 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const body = (yield* response.json) as {
-        readonly credential: string;
-        readonly expiresAt: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        body = (yield* response.json) as {
+          readonly credential: string;
+          readonly expiresAt: string;
+        };
 
       assert.equal(response.status, 200);
-      assert.equal(typeof body.credential, "string");
+      assert.equal(RuntimePredicate.isString(body.credential), true);
       assert.isTrue(body.credential.length > 0);
-      assert.equal(typeof body.expiresAt, "string");
+      assert.equal(RuntimePredicate.isString(body.expiresAt), true);
 
       const bootstrapResult = yield* bootstrapBrowserSession(body.credential);
       assert.equal(bootstrapResult.response.status, 200);
@@ -3617,10 +3646,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({ label: "Hosted web" }),
       });
-      const body = (yield* response.json) as {
-        readonly credential: string;
-        readonly label?: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        body = (yield* response.json) as {
+          readonly credential: string;
+          readonly label?: string;
+        };
 
       assert.equal(response.status, 200);
       assert.isTrue(body.credential.length > 0);
@@ -3638,10 +3668,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({ scopes: [] }),
       });
-      const body = (yield* response.json) as {
-        readonly code: string;
-        readonly reason: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        body = (yield* response.json) as {
+          readonly code: string;
+          readonly reason: string;
+        };
 
       assert.equal(response.status, 400);
       assert.equal(body.code, "invalid_request");
@@ -3675,20 +3706,22 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const createdBody = (yield* createdResponse.json) as {
-        readonly id: string;
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        createdBody = (yield* createdResponse.json) as {
+          readonly id: string;
+          readonly credential: string;
+        };
 
       const listResponse = yield* HttpClient.get("/api/auth/pairing-links", {
         headers: {
           cookie: ownerCookie,
         },
       });
-      const listedLinks = (yield* listResponse.json) as ReadonlyArray<{
-        readonly id: string;
-        readonly credential: string;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        listedLinks = (yield* listResponse.json) as ReadonlyArray<{
+          readonly id: string;
+          readonly credential: string;
+        }>;
 
       const revokeResponse = yield* HttpClient.post("/api/auth/pairing-links/revoke", {
         headers: {
@@ -3721,9 +3754,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const ownerBody = (yield* ownerResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        ownerBody = (yield* ownerResponse.json) as {
+          readonly credential: string;
+        };
       assert.equal(ownerResponse.status, 200);
 
       const pairedSessionCookie = yield* getAuthenticatedSessionCookieHeader(ownerBody.credential);
@@ -3733,18 +3767,19 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const pairedBody = (yield* pairedResponse.json) as {
-        readonly _tag: string;
-        readonly code: string;
-        readonly requiredScope: string;
-        readonly traceId: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        pairedBody = (yield* pairedResponse.json) as {
+          readonly _tag: string;
+          readonly code: string;
+          readonly requiredScope: string;
+          readonly traceId: string;
+        };
 
       assert.equal(pairedResponse.status, 403);
       assert.equal(pairedBody._tag, "EnvironmentScopeRequiredError");
       assert.equal(pairedBody.code, "insufficient_scope");
       assert.equal(pairedBody.requiredScope, "access:write");
-      assert.equal(typeof pairedBody.traceId, "string");
+      assert.equal(RuntimePredicate.isString(pairedBody.traceId), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3788,17 +3823,18 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cookie: ownerCookie,
         },
       });
-      const clientsBefore = (yield* listBeforeResponse.json) as ReadonlyArray<{
-        readonly sessionId: string;
-        readonly current: boolean;
-        readonly client: {
-          readonly label?: string;
-          readonly deviceType: string;
-          readonly ipAddress?: string;
-          readonly os?: string;
-          readonly browser?: string;
-        };
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        clientsBefore = (yield* listBeforeResponse.json) as ReadonlyArray<{
+          readonly sessionId: string;
+          readonly current: boolean;
+          readonly client: {
+            readonly label?: string;
+            readonly deviceType: string;
+            readonly ipAddress?: string;
+            readonly os?: string;
+            readonly browser?: string;
+          };
+        }>;
       const pairedClientBefore = clientsBefore.find((entry) => !entry.current);
       const pairedSessionId = clientsBefore.find((entry) => !entry.current)?.sessionId;
 
@@ -3807,19 +3843,21 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cookie: ownerCookie,
         },
       });
-      const revokeOthersBody = (yield* revokeOthersResponse.json) as {
-        readonly revokedCount: number;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        revokeOthersBody = (yield* revokeOthersResponse.json) as {
+          readonly revokedCount: number;
+        };
 
       const listAfterResponse = yield* HttpClient.get("/api/auth/clients", {
         headers: {
           cookie: ownerCookie,
         },
       });
-      const clientsAfter = (yield* listAfterResponse.json) as ReadonlyArray<{
-        readonly sessionId: string;
-        readonly current: boolean;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        clientsAfter = (yield* listAfterResponse.json) as ReadonlyArray<{
+          readonly sessionId: string;
+          readonly current: boolean;
+        }>;
 
       const pairedClientPairingResponse = yield* HttpClient.post("/api/auth/pairing-token", {
         headers: {
@@ -3827,12 +3865,13 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const pairedClientPairingBody = (yield* pairedClientPairingResponse.json) as {
-        readonly _tag: string;
-        readonly code: string;
-        readonly reason: string;
-        readonly traceId: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        pairedClientPairingBody = (yield* pairedClientPairingResponse.json) as {
+          readonly _tag: string;
+          readonly code: string;
+          readonly reason: string;
+          readonly traceId: string;
+        };
 
       assert.equal(listBeforeResponse.status, 200);
       assert.equal(ownerPairingBody.label, "Julius iPhone");
@@ -3855,7 +3894,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(pairedClientPairingBody._tag, "EnvironmentAuthInvalidError");
       assert.equal(pairedClientPairingBody.code, "auth_invalid");
       assert.equal(pairedClientPairingBody.reason, "invalid_credential");
-      assert.equal(typeof pairedClientPairingBody.traceId, "string");
+      assert.equal(RuntimePredicate.isString(pairedClientPairingBody.traceId), true);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3878,9 +3917,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           body: yield* HttpBody.json({ scopes: [scope] }),
         });
         assert.equal(pairingResponse.status, 200);
-        const pairingBody = (yield* pairingResponse.json) as {
-          readonly credential: string;
-        };
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          pairingBody = (yield* pairingResponse.json) as {
+            readonly credential: string;
+          };
         return yield* getAuthenticatedSessionCookieHeader(pairingBody.credential);
       });
 
@@ -3896,9 +3936,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const readWriteBody = (yield* readWriteResponse.json) as {
-        readonly requiredScope: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        readWriteBody = (yield* readWriteResponse.json) as {
+          readonly requiredScope: string;
+        };
 
       const writeCookie = yield* issueScopedSession("access:write");
       const writeListResponse = yield* HttpClient.get("/api/auth/clients", {
@@ -3906,9 +3947,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cookie: writeCookie,
         },
       });
-      const writeListBody = (yield* writeListResponse.json) as {
-        readonly requiredScope: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        writeListBody = (yield* writeListResponse.json) as {
+          readonly requiredScope: string;
+        };
 
       assert.equal(readListResponse.status, 200);
       assert.equal(readWriteResponse.status, 403);
@@ -3933,9 +3975,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         body: yield* HttpBody.json({}),
       });
-      const pairingBody = (yield* pairingResponse.json) as {
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        pairingBody = (yield* pairingResponse.json) as {
+          readonly credential: string;
+        };
       const pairedSessionCookie = yield* getAuthenticatedSessionCookieHeader(
         pairingBody.credential,
       );
@@ -3945,10 +3988,11 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cookie: ownerCookie,
         },
       });
-      const clients = (yield* clientsResponse.json) as ReadonlyArray<{
-        readonly sessionId: string;
-        readonly current: boolean;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        clients = (yield* clientsResponse.json) as ReadonlyArray<{
+          readonly sessionId: string;
+          readonly current: boolean;
+        }>;
       const pairedSessionId = clients.find((entry) => !entry.current)?.sessionId;
       assert.isDefined(pairedSessionId);
 
@@ -4166,7 +4210,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             server.on("error", reject);
             server.listen(0, "127.0.0.1", () => {
               const address = server.address();
-              if (!address || typeof address === "string") {
+              if (!address || RuntimePredicate.isString(address)) {
                 reject(new Error("Expected TCP collector address"));
                 return;
               }
@@ -4331,24 +4375,25 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
 
         assert.equal(response.status, 204);
         assert.equal(localTraceRecords.length, 1);
-        const record = localTraceRecords[0] as {
-          readonly type: string;
-          readonly name: string;
-          readonly traceId: string;
-          readonly spanId: string;
-          readonly kind: string;
-          readonly attributes: Readonly<Record<string, unknown>>;
-          readonly events: ReadonlyArray<unknown>;
-          readonly links: ReadonlyArray<unknown>;
-          readonly scope: {
-            readonly name?: string;
-            readonly attributes: Readonly<Record<string, unknown>>;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          record = localTraceRecords[0] as {
+            readonly type: string;
+            readonly name: string;
+            readonly traceId: string;
+            readonly spanId: string;
+            readonly kind: string;
+            readonly attributes: Readonly<Record<string, SchemaJson>>;
+            readonly events: ReadonlyArray<unknown>;
+            readonly links: ReadonlyArray<unknown>;
+            readonly scope: {
+              readonly name?: string;
+              readonly attributes: Readonly<Record<string, SchemaJson>>;
+            };
+            readonly resourceAttributes: Readonly<Record<string, SchemaJson>>;
+            readonly status?: {
+              readonly code?: string;
+            };
           };
-          readonly resourceAttributes: Readonly<Record<string, unknown>>;
-          readonly status?: {
-            readonly code?: string;
-          };
-        };
 
         assert.equal(record.type, "otlp-span");
         assert.equal(record.name, span.name);

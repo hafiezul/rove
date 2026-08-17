@@ -25,8 +25,8 @@ import { PREVIEW_WEBVIEW_PREFERENCES } from "./WebviewPreferences.ts";
  * keeps the test independent of Electron internals while still failing if
  * we accidentally ship `"contextIsolation=no"` again.
  */
-function parseWebPreferences(input: string): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+function parseWebPreferences(input: string) {
+  const out: Record<string, string | undefined> = {};
   for (const pair of input.split(",")) {
     if (pair !== pair.trim()) {
       // Electron's parser doesn't trim; surface the bug as undefined-key.

@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { describe, expect, it } from "vite-plus/test";
 
 import { GHOSTTY_CELL_WIDE, type GhosttyCell, type GhosttySnapshot } from "./core";
@@ -44,10 +45,10 @@ describe("measureGhosttyCell", () => {
       text === "M"
         ? { width: 7.2, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 0 }
         : { width: 14.4, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 };
-    const context = {
+    const context = testDouble<CanvasRenderingContext2D>({
       font: "",
       measureText,
-    } as unknown as CanvasRenderingContext2D;
+    });
 
     expect(measureGhosttyCell(context, 12, "monospace")).toEqual({
       width: 7.2,
@@ -73,7 +74,7 @@ describe("ghosttyTextRunEnd", () => {
 describe("renderGhosttySnapshot", () => {
   it("underlines every cell in a hovered wrapped link", () => {
     const fillRectCalls: number[][] = [];
-    const context = {
+    const context = testDouble<CanvasRenderingContext2D>({
       canvas: { width: 200, height: 80 },
       beginPath: () => {},
       clip: () => {},
@@ -86,7 +87,7 @@ describe("renderGhosttySnapshot", () => {
       set fillStyle(_value: string) {},
       set font(_value: string) {},
       set textBaseline(_value: string) {},
-    } as unknown as CanvasRenderingContext2D;
+    });
     const snapshot: GhosttySnapshot = {
       cols: 4,
       rows: 2,
@@ -129,7 +130,7 @@ describe("renderGhosttySnapshot", () => {
 
   it("constrains text runs and cursor glyphs to their terminal cells", () => {
     const fillTextCalls: unknown[][] = [];
-    const context = {
+    const context = testDouble<CanvasRenderingContext2D>({
       canvas: { width: 200, height: 40 },
       beginPath: () => {},
       clip: () => {},
@@ -142,7 +143,7 @@ describe("renderGhosttySnapshot", () => {
       set fillStyle(_value: string) {},
       set font(_value: string) {},
       set textBaseline(_value: string) {},
-    } as unknown as CanvasRenderingContext2D;
+    });
     const cells = [cell("a"), cell("b"), cell("x")];
     const snapshot: GhosttySnapshot = {
       cols: 3,
@@ -178,7 +179,7 @@ describe("renderGhosttySnapshot", () => {
 
   it("repaints the cell without an overlay during the blink off phase", () => {
     const fillTextCalls: unknown[][] = [];
-    const context = {
+    const context = testDouble<CanvasRenderingContext2D>({
       canvas: { width: 200, height: 40 },
       beginPath: () => {},
       clip: () => {},
@@ -191,7 +192,7 @@ describe("renderGhosttySnapshot", () => {
       set fillStyle(_value: string) {},
       set font(_value: string) {},
       set textBaseline(_value: string) {},
-    } as unknown as CanvasRenderingContext2D;
+    });
     const snapshot: GhosttySnapshot = {
       cols: 3,
       rows: 1,
@@ -232,7 +233,7 @@ describe("renderGhosttySnapshot", () => {
 
   it("repaints the previous cursor row after the cursor moves", () => {
     const clearedRows: number[] = [];
-    const context = {
+    const context = testDouble<CanvasRenderingContext2D>({
       canvas: { width: 200, height: 80 },
       beginPath: () => {},
       clip: () => {},
@@ -247,7 +248,7 @@ describe("renderGhosttySnapshot", () => {
       set fillStyle(_value: string) {},
       set font(_value: string) {},
       set textBaseline(_value: string) {},
-    } as unknown as CanvasRenderingContext2D;
+    });
     const snapshot: GhosttySnapshot = {
       cols: 1,
       rows: 3,

@@ -132,8 +132,8 @@ function makeLiveActivityRequest(input: MakeLiveActivityRequestInput): ApnsLiveA
         aps: {
           timestamp,
           event: "end",
-          ...(input.state ? { "content-state": contentState(input.state) } : {}),
-          ...(input.alert ? liveActivityAlertPayload(input.alert) : {}),
+          ...(input.state ? { "content-state": contentState(input.state) } : undefined),
+          ...(input.alert ? liveActivityAlertPayload(input.alert) : undefined),
           "dismissal-date":
             timestamp + (input.state ? DISMISS_AFTER_SECONDS : CONTENTLESS_DISMISS_AFTER_SECONDS),
         },
@@ -162,8 +162,10 @@ function makeLiveActivityRequest(input: MakeLiveActivityRequestInput): ApnsLiveA
                 body: state.subtitle,
               },
             }
-          : {}),
-        ...(input.event === "update" && input.alert ? liveActivityAlertPayload(input.alert) : {}),
+          : undefined),
+        ...(input.event === "update" && input.alert
+          ? liveActivityAlertPayload(input.alert)
+          : undefined),
         "content-state": contentState(state),
         "stale-date": timestamp + STALE_AFTER_SECONDS,
       },
@@ -279,7 +281,7 @@ export const make = Effect.gen(function* () {
     return {
       ok: response.status >= 200 && response.status < 300,
       status: response.status,
-      ...(reason === undefined ? {} : { reason }),
+      ...(reason === undefined ? undefined : { reason }),
       apnsId: Option.getOrNull(Headers.get(response.headers, "apns-id")),
     };
   });
@@ -339,7 +341,7 @@ export const make = Effect.gen(function* () {
       return {
         ok: response.status >= 200 && response.status < 300,
         status: response.status,
-        ...(reason === undefined ? {} : { reason }),
+        ...(reason === undefined ? undefined : { reason }),
         apnsId: Option.getOrNull(Headers.get(response.headers, "apns-id")),
       };
     });

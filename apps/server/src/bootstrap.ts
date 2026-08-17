@@ -198,7 +198,7 @@ const makeBootstrapInputStream = (fd: number) =>
         new BootstrapInputStreamOpenError({
           fd,
           platform,
-          ...(fdPath === undefined ? {} : { fdPath }),
+          ...(fdPath === undefined ? undefined : { fdPath }),
           cause: error,
         }),
     });

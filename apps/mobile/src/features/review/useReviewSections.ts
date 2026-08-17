@@ -52,16 +52,17 @@ export function useReviewSections(input: {
     () => getReadyReviewCheckpoints(selectedThread?.checkpoints ?? []),
     [selectedThread?.checkpoints],
   );
-  const checkpointBySectionId = useMemo(
-    () =>
-      Object.fromEntries(
-        readyCheckpoints.map((checkpoint) => [
-          getReviewSectionIdForCheckpoint(checkpoint),
-          checkpoint,
-        ]),
-      ) as Record<string, OrchestrationCheckpointSummary>,
-    [readyCheckpoints],
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    checkpointBySectionId = useMemo(
+      () =>
+        Object.fromEntries(
+          readyCheckpoints.map((checkpoint) => [
+            getReviewSectionIdForCheckpoint(checkpoint),
+            checkpoint,
+          ]),
+        ) as Record<string, OrchestrationCheckpointSummary>,
+      [readyCheckpoints],
+    );
   const reviewSections = useMemo(
     () =>
       buildReviewSectionItems({

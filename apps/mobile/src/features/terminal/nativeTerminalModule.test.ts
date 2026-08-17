@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const expoMocks = vi.hoisted(() => ({
@@ -7,9 +8,9 @@ const nativeView = () => null;
 const originalExpo = globalThis.expo;
 
 function setExpoViewConfigAvailable() {
-  globalThis.expo = {
+  globalThis.expo = testDouble<typeof globalThis.expo>({
     getViewConfig: vi.fn().mockReturnValue({ validAttributes: {}, directEventTypes: {} }),
-  } as unknown as typeof globalThis.expo;
+  });
 }
 
 vi.mock("expo", () => ({
@@ -20,7 +21,7 @@ describe("resolveNativeTerminalSurfaceView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    globalThis.expo = undefined as unknown as typeof globalThis.expo;
+    globalThis.expo = testDouble<typeof globalThis.expo>(undefined);
   });
 
   afterEach(() => {

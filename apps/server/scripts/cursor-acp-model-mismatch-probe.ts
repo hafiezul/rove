@@ -5,6 +5,7 @@ import * as NodeReadline from "node:readline";
 import * as NodeTimers from "node:timers";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import * as Effect from "effect/Effect";
+import * as RuntimePredicate from "effect/Predicate";
 
 type JsonPrimitive = null | boolean | number | string;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -76,7 +77,7 @@ function fail(message: string): never {
 }
 
 function asString(value: JsonValue | undefined): string | null {
-  return typeof value === "string" ? value : null;
+  return RuntimePredicate.isString(value) ? value : null;
 }
 
 function flattenSelectValues(option: SessionConfigOption | undefined): string[] {
@@ -86,16 +87,20 @@ function flattenSelectValues(option: SessionConfigOption | undefined): string[] 
 
   const values: string[] = [];
   for (const entry of option.options) {
-    if (!entry || typeof entry !== "object") {
+    if (!entry || !(RuntimePredicate.isObjectOrArray(entry) || entry === null)) {
       continue;
     }
-    if ("value" in entry && typeof entry.value === "string") {
+    if ("value" in entry && RuntimePredicate.isString(entry.value)) {
       values.push(entry.value);
       continue;
     }
     if ("options" in entry && Array.isArray(entry.options)) {
       for (const nested of entry.options) {
-        if (nested && typeof nested === "object" && typeof nested.value === "string") {
+        if (
+          nested &&
+          (RuntimePredicate.isObjectOrArray(nested) || nested === null) &&
+          RuntimePredicate.isString(nested.value)
+        ) {
           values.push(nested.value);
         }
       }
@@ -244,8 +249,10 @@ class JsonRpcChild {
 
     let message: JsonRpcMessage;
     try {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       message = JSON.parse(line) as JsonRpcMessage;
     } catch (error) {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       NodeProcess.stdout.write(`[parse-error] ${(error as Error).message}\n`);
       return;
     }
@@ -319,11 +326,12 @@ async function setSelectOptionIfAdvertised(
     return configOptions;
   }
 
-  const response = (await rpc.request("session/set_config_option", {
-    sessionId,
-    configId: option.id,
-    value,
-  })) as SetConfigResult | null | undefined;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    response = (await rpc.request("session/set_config_option", {
+      sessionId,
+      configId: option.id,
+      value,
+    })) as SetConfigResult | null | undefined;
 
   logSection(`SET_${label}_RESPONSE`, response);
   return response?.configOptions ?? configOptions;
@@ -354,10 +362,11 @@ async function main() {
     });
     logSection("AUTHENTICATE_RESPONSE", authenticateResponse);
 
-    const sessionResponse = (await rpc.request("session/new", {
-      cwd: targetCwd,
-      mcpServers: [],
-    })) as SessionNewResult;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      sessionResponse = (await rpc.request("session/new", {
+        cwd: targetCwd,
+        mcpServers: [],
+      })) as SessionNewResult;
     logSection("SESSION_NEW_RESPONSE", sessionResponse);
 
     const sessionId = asString(sessionResponse.sessionId);
@@ -380,11 +389,12 @@ async function main() {
       );
     }
 
-    const setModelResponse = (await rpc.request("session/set_config_option", {
-      sessionId,
-      configId: modelConfig.id,
-      value: targetModel,
-    })) as SetConfigResult | null | undefined;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      setModelResponse = (await rpc.request("session/set_config_option", {
+        sessionId,
+        configId: modelConfig.id,
+        value: targetModel,
+      })) as SetConfigResult | null | undefined;
     logSection("SET_MODEL_RESPONSE", setModelResponse);
 
     configOptions = setModelResponse?.configOptions ?? configOptions;

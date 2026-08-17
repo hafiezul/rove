@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { OpenCodeSettings, ProviderInstanceId, TextGenerationError } from "@t3tools/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
@@ -14,32 +15,33 @@ import * as OpenCodeRuntime from "../provider/opencodeRuntime.ts";
 import * as OpenCodeTextGeneration from "./OpenCodeTextGeneration.ts";
 import * as TextGeneration from "./TextGeneration.ts";
 
-const runtimeMock = {
-  state: {
-    startCalls: [] as string[],
-    promptUrls: [] as string[],
-    authHeaders: [] as Array<string | null>,
-    closeCalls: [] as string[],
-    sessionCreateError: undefined as unknown,
-    sessionResult: undefined as { data?: { id: string } } | undefined,
-    promptRequestError: undefined as unknown,
-    promptResult: undefined as
-      | { data?: { info?: { error?: unknown }; parts?: Array<unknown> } }
-      | undefined,
-  },
-  reset() {
-    this.state.startCalls.length = 0;
-    this.state.promptUrls.length = 0;
-    this.state.authHeaders.length = 0;
-    this.state.closeCalls.length = 0;
-    this.state.sessionCreateError = undefined;
-    this.state.sessionResult = undefined;
-    this.state.promptRequestError = undefined;
-    this.state.promptResult = undefined;
-  },
-};
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  runtimeMock = {
+    state: {
+      startCalls: [] as string[],
+      promptUrls: [] as string[],
+      authHeaders: [] as Array<string | null>,
+      closeCalls: [] as string[],
+      sessionCreateError: undefined as unknown,
+      sessionResult: undefined as { data?: { id: string } } | undefined,
+      promptRequestError: undefined as unknown,
+      promptResult: undefined as
+        | { data?: { info?: { error?: unknown }; parts?: Array<unknown> } }
+        | undefined,
+    },
+    reset() {
+      this.state.startCalls.length = 0;
+      this.state.promptUrls.length = 0;
+      this.state.authHeaders.length = 0;
+      this.state.closeCalls.length = 0;
+      this.state.sessionCreateError = undefined;
+      this.state.sessionResult = undefined;
+      this.state.promptRequestError = undefined;
+      this.state.promptResult = undefined;
+    },
+  };
 
-const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeShape = {
+const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeContract = {
   startOpenCodeServerProcess: ({ binaryPath }) =>
     Effect.gen(function* () {
       const index = runtimeMock.state.startCalls.length + 1;
@@ -65,7 +67,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeShape = {
     }),
   runOpenCodeCommand: () => Effect.succeed({ stdout: "", stderr: "", code: 0 }),
   createOpenCodeSdkClient: ({ baseUrl, serverPassword }) =>
-    ({
+    testDouble<ReturnType<OpenCodeRuntime.OpenCodeRuntimeContract["createOpenCodeSdkClient"]>>({
       session: {
         create: async () => {
           if (runtimeMock.state.sessionCreateError !== undefined) {
@@ -98,7 +100,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntime.OpenCodeRuntimeShape = {
           );
         },
       },
-    }) as unknown as ReturnType<OpenCodeRuntime.OpenCodeRuntimeShape["createOpenCodeSdkClient"]>,
+    }),
   loadOpenCodeInventory: () =>
     Effect.fail(
       new OpenCodeRuntime.OpenCodeRuntimeError({
@@ -268,6 +270,7 @@ it.layer(OpenCodeTextGenerationTestLayer)("OpenCodeTextGeneration", (it) => {
           cwd: process.cwd(),
           cause: sdkCause,
         });
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect((error.cause as { cause: unknown }).cause).toBe(sdkCause);
       }),
     ),
@@ -313,6 +316,7 @@ it.layer(OpenCodeTextGenerationTestLayer)("OpenCodeTextGeneration", (it) => {
           modelId: "gpt-5",
           cause: sdkCause,
         });
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect((error.cause as { cause: unknown }).cause).toBe(sdkCause);
       }),
     ),

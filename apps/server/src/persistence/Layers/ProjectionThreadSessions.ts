@@ -8,7 +8,7 @@ import { toPersistenceSqlError } from "../Errors.ts";
 import {
   ProjectionThreadSession,
   ProjectionThreadSessionRepository,
-  type ProjectionThreadSessionRepositoryShape,
+  type ProjectionThreadSessionRepositoryContract,
   DeleteProjectionThreadSessionInput,
   GetProjectionThreadSessionInput,
 } from "../Services/ProjectionThreadSessions.ts";
@@ -80,19 +80,19 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionThreadSessionRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadSessionRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadSessionRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadSessionRepository.upsert:query")),
     );
 
-  const getByThreadId: ProjectionThreadSessionRepositoryShape["getByThreadId"] = (input) =>
+  const getByThreadId: ProjectionThreadSessionRepositoryContract["getByThreadId"] = (input) =>
     getProjectionThreadSessionRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadSessionRepository.getByThreadId:query"),
       ),
     );
 
-  const deleteByThreadId: ProjectionThreadSessionRepositoryShape["deleteByThreadId"] = (input) =>
+  const deleteByThreadId: ProjectionThreadSessionRepositoryContract["deleteByThreadId"] = (input) =>
     deleteProjectionThreadSessionRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadSessionRepository.deleteByThreadId:query"),
@@ -103,7 +103,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
     upsert,
     getByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadSessionRepositoryShape;
+  } satisfies ProjectionThreadSessionRepositoryContract;
 });
 
 export const ProjectionThreadSessionRepositoryLive = Layer.effect(

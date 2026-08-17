@@ -35,7 +35,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
  * stalled/waiting/queued subagent is still the fleet doing its job, not a
  * user problem). Only settled states differentiate.
  */
-const STATUS_VISUALS: Record<RuntimeSubagent["status"], { dotClass: string; label: string }> = {
+const STATUS_VISUALS = {
   pending: { dotClass: "bg-info", label: "Working" },
   running: { dotClass: "bg-info", label: "Working" },
   waiting: { dotClass: "bg-info", label: "Working" },
@@ -46,7 +46,7 @@ const STATUS_VISUALS: Record<RuntimeSubagent["status"], { dotClass: string; labe
   failed: { dotClass: "bg-destructive", label: "Failed" },
   cancelled: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
   interrupted: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-};
+} satisfies Record<RuntimeSubagent["status"], { dotClass: string; label: string }>;
 
 function StatusDot({ status }: { status: RuntimeSubagent["status"] }) {
   return (

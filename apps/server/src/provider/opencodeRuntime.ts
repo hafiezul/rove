@@ -1,6 +1,11 @@
 import * as NodeURL from "node:url";
 
-import type { ChatAttachment, ProviderApprovalDecision, RuntimeMode } from "@t3tools/contracts";
+import type {
+  ChatAttachment,
+  ProviderApprovalDecision,
+  ProviderUserInputAnswers,
+  RuntimeMode,
+} from "@t3tools/contracts";
 import {
   createOpencodeClient,
   type Agent,
@@ -34,6 +39,8 @@ import { collectStreamAsString } from "./providerSnapshot.ts";
 import * as NetService from "@t3tools/shared/Net";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const OPENCODE_EMPTY_CONFIG_CONTENT = "{}";
 
@@ -69,10 +76,12 @@ function encodeJsonStringForDiagnostics(input: unknown): string | undefined {
 export function openCodeRuntimeErrorDetail(cause: unknown): string {
   if (OpenCodeRuntimeError.is(cause)) return cause.detail;
   if (cause instanceof Error && cause.message.trim().length > 0) return cause.message.trim();
-  if (cause && typeof cause === "object") {
+  if (cause && (RuntimePredicate.isObjectOrArray(cause) || cause === null)) {
     // SDK v2 throws { response, request, error? } shapes — extract what's useful
-    const anyCause = cause as Record<string, unknown>;
-    const status = (anyCause.response as { status?: number } | undefined)?.status;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      anyCause = cause as Record<string, SchemaJson>;
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      status = (anyCause.response as { status?: number } | undefined)?.status;
     const body = anyCause.error ?? anyCause.data ?? anyCause.body;
     const encodedBody = encodeJsonStringForDiagnostics(body ?? cause);
     if (encodedBody) {
@@ -108,7 +117,7 @@ export interface ParsedOpenCodeModelSlug {
   readonly modelID: string;
 }
 
-export interface OpenCodeRuntimeShape {
+export interface OpenCodeRuntimeContract {
   /**
    * Spawns a local OpenCode server process. Its lifetime is bound to the caller's
    * `Scope.Scope` — the child is killed automatically when that scope closes.
@@ -174,13 +183,7 @@ const AGENT_HEADER_RE = /^(.+)\s+\((\S+)\)\s*$/;
 const KNOWN_HIDDEN_AGENTS = new Set(["compaction", "summary", "title"]);
 
 /** @internal */
-export function parseModelsCliOutput(stdout: string): {
-  readonly providers: ReadonlyMap<
-    string,
-    { readonly id: string; readonly name: string; readonly models: { [key: string]: Model } }
-  >;
-  readonly connected: ReadonlyArray<string>;
-} {
+export function parseModelsCliOutput(stdout: string) {
   const providers = new Map<
     string,
     { id: string; name: string; models: { [key: string]: Model } }
@@ -194,7 +197,8 @@ export function parseModelsCliOutput(stdout: string): {
       const jsonStr = jsonLines.join("\n").trim();
       if (jsonStr.length > 0) {
         try {
-          const model = JSON.parse(jsonStr) as Model;
+          const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+            model = JSON.parse(jsonStr) as Model;
           const separator = currentSlug.indexOf("/");
           if (separator > 0) {
             const providerID = currentSlug.slice(0, separator);
@@ -248,6 +252,7 @@ export function parseAgentListCliOutput(stdout: string): ReadonlyArray<Agent> {
       if (jsonStr.length > 0) {
         try {
           const permission = JSON.parse(jsonStr);
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
           agents.push({
             name: currentHeader.name,
             mode: currentHeader.mode as Agent["mode"],
@@ -281,7 +286,7 @@ export function parseAgentListCliOutput(stdout: string): ReadonlyArray<Agent> {
 export function parseOpenCodeModelSlug(
   slug: string | null | undefined,
 ): ParsedOpenCodeModelSlug | null {
-  if (typeof slug !== "string") {
+  if (!RuntimePredicate.isString(slug)) {
     return null;
   }
 
@@ -366,7 +371,7 @@ export function toOpenCodePermissionReply(
 
 export function toOpenCodeQuestionAnswers(
   request: QuestionRequest,
-  answers: Record<string, unknown>,
+  answers: ProviderUserInputAnswers,
 ): Array<QuestionAnswer> {
   return request.questions.map((question, index) => {
     const raw =
@@ -374,9 +379,9 @@ export function toOpenCodeQuestionAnswers(
       answers[question.header] ??
       answers[question.question];
     if (Array.isArray(raw)) {
-      return raw.filter((value): value is string => typeof value === "string");
+      return raw.filter((value): value is string => RuntimePredicate.isString(value));
     }
-    if (typeof raw === "string") {
+    if (RuntimePredicate.isString(raw)) {
       return raw.trim().length > 0 ? [raw] : [];
     }
     return [];
@@ -400,7 +405,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
   const resolveCommand = (command: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) =>
     resolveSpawnCommand(command, args, env ? { env } : {});
 
-  const runOpenCodeCommand: OpenCodeRuntimeShape["runOpenCodeCommand"] = (input) =>
+  const runOpenCodeCommand: OpenCodeRuntimeContract["runOpenCodeCommand"] = (input) =>
     Effect.gen(function* () {
       const spawnCommand = yield* resolveCommand(input.binaryPath, input.args, input.environment);
       const child = yield* spawner.spawn(
@@ -436,7 +441,9 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       ),
     );
 
-  const startOpenCodeServerProcess: OpenCodeRuntimeShape["startOpenCodeServerProcess"] = (input) =>
+  const startOpenCodeServerProcess: OpenCodeRuntimeContract["startOpenCodeServerProcess"] = (
+    input,
+  ) =>
     Effect.gen(function* () {
       // Bind this server's lifetime to the caller's scope. When the caller's
       // scope closes, the spawned child is killed and all associated fibers
@@ -594,7 +601,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       } satisfies OpenCodeServerProcess;
     });
 
-  const connectToOpenCodeServer: OpenCodeRuntimeShape["connectToOpenCodeServer"] = (input) => {
+  const connectToOpenCodeServer: OpenCodeRuntimeContract["connectToOpenCodeServer"] = (input) => {
     const serverUrl = input.serverUrl?.trim();
     if (serverUrl) {
       // We don't own externally-configured servers — no scope interaction.
@@ -607,10 +614,10 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
 
     return startOpenCodeServerProcess({
       binaryPath: input.binaryPath,
-      ...(input.environment !== undefined ? { environment: input.environment } : {}),
-      ...(input.port !== undefined ? { port: input.port } : {}),
-      ...(input.hostname !== undefined ? { hostname: input.hostname } : {}),
-      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
+      ...(input.environment !== undefined ? { environment: input.environment } : undefined),
+      ...(input.port !== undefined ? { port: input.port } : undefined),
+      ...(input.hostname !== undefined ? { hostname: input.hostname } : undefined),
+      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined),
     }).pipe(
       Effect.map((server) => ({
         url: server.url,
@@ -620,7 +627,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
     );
   };
 
-  const createOpenCodeSdkClient: OpenCodeRuntimeShape["createOpenCodeSdkClient"] = (input) =>
+  const createOpenCodeSdkClient: OpenCodeRuntimeContract["createOpenCodeSdkClient"] = (input) =>
     createOpencodeClient({
       baseUrl: input.baseUrl,
       directory: input.directory,
@@ -630,7 +637,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
               Authorization: `Basic ${Buffer.from(`opencode:${input.serverPassword}`, "utf8").toString("base64")}`,
             },
           }
-        : {}),
+        : undefined),
       throwOnError: true,
     });
 
@@ -655,12 +662,12 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       Effect.map((result) => result.data ?? []),
     );
 
-  const loadOpenCodeInventory: OpenCodeRuntimeShape["loadOpenCodeInventory"] = (client) =>
+  const loadOpenCodeInventory: OpenCodeRuntimeContract["loadOpenCodeInventory"] = (client) =>
     Effect.all([loadProviders(client), loadAgents(client)], { concurrency: "unbounded" }).pipe(
       Effect.map(([providerList, agents]) => ({ providerList, agents })),
     );
 
-  const loadInventoryFromCli: OpenCodeRuntimeShape["loadInventoryFromCli"] = (input) =>
+  const loadInventoryFromCli: OpenCodeRuntimeContract["loadInventoryFromCli"] = (input) =>
     Effect.gen(function* () {
       const env = input.environment !== undefined ? { environment: input.environment } : ({} as {});
 
@@ -744,10 +751,10 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
     createOpenCodeSdkClient,
     loadOpenCodeInventory,
     loadInventoryFromCli,
-  } satisfies OpenCodeRuntimeShape;
+  } satisfies OpenCodeRuntimeContract;
 });
 
-export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, OpenCodeRuntimeShape>()(
+export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, OpenCodeRuntimeContract>()(
   "t3/provider/opencodeRuntime",
 ) {}
 

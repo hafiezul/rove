@@ -47,7 +47,7 @@ export function useProjectFaviconAsset(input: {
   return useAssetUrlState(input.environmentId, {
     _tag: "project-favicon",
     cwd: input.cwd,
-    ...(input.faviconPath ? { path: input.faviconPath } : {}),
+    ...(input.faviconPath ? { path: input.faviconPath } : undefined),
   });
 }
 

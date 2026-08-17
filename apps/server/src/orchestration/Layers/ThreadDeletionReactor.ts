@@ -10,7 +10,7 @@ import * as TerminalManager from "../../terminal/Manager.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ThreadDeletionReactor,
-  type ThreadDeletionReactorShape,
+  type ThreadDeletionReactorContract,
 } from "../Services/ThreadDeletionReactor.ts";
 import { forkParked } from "../../serverActivation.ts";
 
@@ -80,7 +80,7 @@ const make = Effect.gen(function* () {
 
   const worker = yield* makeDrainableWorker(processThreadDeletedSafely);
 
-  const start: ThreadDeletionReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: ThreadDeletionReactorContract["start"] = Effect.fn("start")(function* () {
     yield* forkParked(
       Stream.runForEach(orchestrationEngine.streamDomainEvents, (event) => {
         if (event.type !== "thread.deleted") {
@@ -94,7 +94,7 @@ const make = Effect.gen(function* () {
   return {
     start,
     drain: worker.drain,
-  } satisfies ThreadDeletionReactorShape;
+  } satisfies ThreadDeletionReactorContract;
 });
 
 export const ThreadDeletionReactorLive = Layer.effect(ThreadDeletionReactor, make);

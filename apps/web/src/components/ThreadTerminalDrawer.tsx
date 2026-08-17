@@ -71,6 +71,7 @@ import {
   resolveTerminalFontSizePreference,
   TYPOGRAPHY_ADVANCED_STORAGE_KEY,
 } from "../appearanceFonts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
@@ -121,7 +122,7 @@ function runtimeEnvSignature(runtimeEnv: Record<string, string> | undefined): st
   if (!runtimeEnv) return "";
   return JSON.stringify(
     Object.entries(runtimeEnv)
-      .filter(([key, value]) => key.length > 0 && typeof value === "string")
+      .filter(([key, value]) => key.length > 0 && RuntimePredicate.isString(value))
       .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)),
   );
 }
@@ -202,7 +203,7 @@ export function resolveTerminalSelectionActionPosition(options: {
   selectionRect: { right: number; bottom: number } | null;
   pointer: { x: number; y: number } | null;
   viewport?: { width: number; height: number } | null;
-}): { x: number; y: number } {
+}) {
   const { bounds, selectionRect, pointer, viewport } = options;
   const viewportWidth =
     viewport?.width ??
@@ -243,10 +244,7 @@ export function shouldHandleTerminalSelectionMouseUp(
   return selectionGestureActive && button === 0;
 }
 
-export function terminalSelectionLineRange(position: {
-  start: { y: number };
-  end: { y: number };
-}): { lineStart: number; lineEnd: number } {
+export function terminalSelectionLineRange(position: { start: { y: number }; end: { y: number } }) {
   const lineStart = position.start.y + 1;
   return {
     lineStart,
@@ -359,8 +357,8 @@ export function TerminalViewport({
       threadId,
       terminalId,
       cwd,
-      ...(worktreePath !== undefined ? { worktreePath } : {}),
-      ...(runtimeEnv ? { env: runtimeEnv } : {}),
+      ...(worktreePath !== undefined ? { worktreePath } : undefined),
+      ...(runtimeEnv ? { env: runtimeEnv } : undefined),
     },
   });
   const writeTerminal = useEffectEvent((data: string) =>
@@ -972,7 +970,7 @@ export default function ThreadTerminalDrawer({
       setDrawerHeightState((current) => {
         const currentHeight =
           current.threadId === threadId ? current.height : controlledDrawerHeight;
-        const nextHeight = typeof update === "function" ? update(currentHeight) : update;
+        const nextHeight = RuntimePredicate.isFunction(update) ? update(currentHeight) : update;
         return nextHeight === currentHeight && current.threadId === threadId
           ? current
           : { threadId, height: nextHeight };
@@ -1063,7 +1061,7 @@ export default function ThreadTerminalDrawer({
         terminalIds: nextTerminalIds,
         ...(terminalGroup.splitDirection === "vertical"
           ? { splitDirection: "vertical" as const }
-          : {}),
+          : undefined),
       });
     }
 
@@ -1121,8 +1119,8 @@ export default function ThreadTerminalDrawer({
       return (
         terminalLaunchLocationsById?.get(terminalId) ?? {
           cwd,
-          ...(worktreePath !== undefined ? { worktreePath } : {}),
-          ...(runtimeEnv ? { runtimeEnv } : {}),
+          ...(worktreePath !== undefined ? { worktreePath } : undefined),
+          ...(runtimeEnv ? { runtimeEnv } : undefined),
         }
       );
     },

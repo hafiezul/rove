@@ -1,3 +1,4 @@
+import { testDouble } from "../../testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -20,6 +21,7 @@ import {
   TurnId,
 } from "@t3tools/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import type { Json as SchemaJson } from "effect/Schema";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -47,13 +49,13 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../Services/OrchestrationEngine.ts";
 import { CheckpointReactor } from "../Services/CheckpointReactor.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import { checkpointRefForThreadTurn } from "../../checkpointing/Utils.ts";
 import { ServerConfig } from "../../config.ts";
@@ -72,8 +74,8 @@ type LegacyProviderRuntimeEvent = {
   readonly turnId?: string | undefined;
   readonly itemId?: string | undefined;
   readonly requestId?: string | undefined;
-  readonly payload?: unknown | undefined;
-  readonly [key: string]: unknown;
+  readonly payload?: SchemaJson | undefined;
+  readonly [key: string]: SchemaJson | undefined;
 };
 
 function createProviderServiceHarness(
@@ -88,8 +90,9 @@ function createProviderServiceHarness(
     (_input: { readonly threadId: ThreadId; readonly numTurns: number }) => Effect.void,
   );
 
-  const unsupported = <A>() =>
-    Effect.die(new Error("Unsupported provider call in test")) as Effect.Effect<A, never>;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    unsupported = <A>() =>
+      Effect.die(new Error("Unsupported provider call in test")) as Effect.Effect<A, never>;
   const listSessions = () =>
     hasSession
       ? Effect.succeed([
@@ -104,7 +107,7 @@ function createProviderServiceHarness(
           },
         ] satisfies ReadonlyArray<ProviderSession>)
       : Effect.succeed([] as ReadonlyArray<ProviderSession>);
-  const service: ProviderServiceShape = {
+  const service: ProviderServiceContract = {
     startSession: () => unsupported(),
     sendTurn: () => unsupported(),
     interruptTurn: () => unsupported(),
@@ -131,7 +134,8 @@ function createProviderServiceHarness(
   };
 
   const emit = (event: LegacyProviderRuntimeEvent): void => {
-    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as unknown as ProviderRuntimeEvent));
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    Effect.runSync(PubSub.publish(runtimeEventPubSub, event as ProviderRuntimeEvent));
   };
 
   return {
@@ -178,7 +182,7 @@ async function waitForThread(
 }
 
 async function waitForEvent(
-  engine: OrchestrationEngineShape,
+  engine: OrchestrationEngineContract,
   predicate: (event: { type: string }) => boolean,
   timeoutMs = 15_000,
 ) {
@@ -569,11 +573,12 @@ describe("CheckpointReactor", () => {
     });
 
     await harness.drain();
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     await waitForEvent(
       harness.engine,
       (event) =>
         event.type === "thread.meta-updated" &&
-        (event as unknown as { payload: { branch?: string } }).payload.branch ===
+        testDouble<{ payload: { branch?: string } }>(event).payload.branch ===
           "t3code/renamed-by-agent",
     );
 

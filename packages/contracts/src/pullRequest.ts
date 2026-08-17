@@ -946,9 +946,20 @@ export type PullRequestUnavailableReason = typeof PullRequestUnavailableReason.T
  * symptom. Bitbucket is credentials on the server rather than a signed-in CLI, which is why
  * these are whole sentences instead of a tool name to interpolate.
  */
-const PROVIDER_REQUIREMENT: Partial<
-  Record<SourceControlProviderKind, { readonly missing: string; readonly unauthenticated: string }>
-> = {
+interface ProviderRequirement {
+  readonly missing: string;
+  readonly unauthenticated: string;
+}
+
+interface ProviderRequirements {
+  readonly github?: ProviderRequirement;
+  readonly gitlab?: ProviderRequirement;
+  readonly "azure-devops"?: ProviderRequirement;
+  readonly bitbucket?: ProviderRequirement;
+  readonly unknown?: ProviderRequirement;
+}
+
+const PROVIDER_REQUIREMENT: ProviderRequirements = {
   github: {
     missing:
       "GitHub CLI (`gh`) is required to browse change requests on this host. Install it from https://cli.github.com/ and reload.",

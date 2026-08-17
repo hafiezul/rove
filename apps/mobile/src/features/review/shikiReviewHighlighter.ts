@@ -19,6 +19,7 @@ import {
 } from "./reviewHighlighterEngine";
 import type { ReviewRenderableFile, ReviewRenderableLineRow } from "./reviewModel";
 import { applyDiffRangesToTokens, computeWordAltDiffRanges } from "./reviewWordDiffs";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type ReviewDiffTheme = "light" | "dark";
 export type { ReviewHighlighterEngine };
@@ -94,7 +95,11 @@ const loadedLanguages = new Set<string>([
   "yaml",
 ]);
 const languageLoadingPromises = new Map<string, Promise<boolean>>();
-const languageImports: Partial<Record<string, () => Promise<unknown>>> = {
+interface ReviewLanguageImporters {
+  readonly [language: string]: (() => Promise<LoadedLanguageModule>) | undefined;
+}
+
+const languageImports: ReviewLanguageImporters = {
   javascript: () => import("@shikijs/langs/javascript"),
   typescript: () => import("@shikijs/langs/typescript"),
   jsx: () => import("@shikijs/langs/jsx"),
@@ -159,7 +164,11 @@ const languageImports: Partial<Record<string, () => Promise<unknown>>> = {
   groovy: () => import("@shikijs/langs/groovy"),
 };
 
-const languageAliases: Record<string, string> = {
+interface ReviewLanguageAliases {
+  readonly [alias: string]: string | undefined;
+}
+
+const languageAliases: ReviewLanguageAliases = {
   js: "javascript",
   mjs: "javascript",
   cjs: "javascript",
@@ -224,7 +233,10 @@ function isReviewHighlighterDebugLoggingEnabled(): boolean {
   return typeof __DEV__ !== "undefined" ? __DEV__ : false;
 }
 
-function logReviewHighlighterDiagnostic(message: string, details?: Record<string, unknown>): void {
+function logReviewHighlighterDiagnostic(
+  message: string,
+  details?: Record<string, SchemaJson>,
+): void {
   if (!isReviewHighlighterDebugLoggingEnabled()) {
     return;
   }
@@ -437,7 +449,7 @@ async function loadSingleLanguage(
 
   const loadingPromise = (async () => {
     try {
-      const languageModule = (await importer()) as LoadedLanguageModule;
+      const languageModule = await importer();
       await highlighter.loadLanguage(languageModule.default);
       loadedLanguages.add(language);
       return true;
@@ -588,7 +600,7 @@ function applyWordAltDiffHighlightsToFile(
 function applyWordAltDiffHighlightsToSelectedLines(input: {
   readonly lines: ReadonlyArray<ReviewRenderableLineRow>;
   readonly tokenMap: Record<string, ReadonlyArray<ReviewHighlightedToken>>;
-}): Record<string, ReadonlyArray<ReviewHighlightedToken>> {
+}) {
   const additionLineByTokenIndex = new Map<number, ReviewRenderableLineRow>();
   const deletionLineByTokenIndex = new Map<number, ReviewRenderableLineRow>();
 

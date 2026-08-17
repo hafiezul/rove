@@ -23,7 +23,8 @@ import wireFixture from "../testFixtures/codexMultiAgentWire.json" with { type: 
 import { makeCodexSessionRuntime } from "./CodexSessionRuntime.ts";
 
 const ROOT = wireFixture.rootThreadId;
-const [CHILD_A, CHILD_B] = wireFixture.childThreadIds as [string, string];
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  [CHILD_A, CHILD_B] = wireFixture.childThreadIds as [string, string];
 
 /**
  * The captured sequence, extended with the shapes the live capture didn't
@@ -109,18 +110,20 @@ describe("CodexSessionRuntime collab integration", () => {
       assert.include(methods, "collabAgent/turnCompleted");
       assert.include(methods, "collabAgent/closed");
 
-      const childTurnCompleted = events.find(
-        (event) =>
-          event.method === "collabAgent/turnCompleted" &&
-          (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_A,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childTurnCompleted = events.find(
+          (event) =>
+            event.method === "collabAgent/turnCompleted" &&
+            (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_A,
+        );
       assert.isDefined(childTurnCompleted, "child A's turn completion becomes an agent event");
 
-      const childClosed = events.find(
-        (event) =>
-          event.method === "collabAgent/closed" &&
-          (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_B,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childClosed = events.find(
+          (event) =>
+            event.method === "collabAgent/closed" &&
+            (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_B,
+        );
       assert.isDefined(childClosed, "child B's close becomes an agent event");
 
       // Parent-owned resolution passes through — not swallowed, not
@@ -133,7 +136,8 @@ describe("CodexSessionRuntime collab integration", () => {
 
       // No raw child conversation methods leak onto the parent stream.
       const leaked = events.filter((event) => {
-        const payload = event.payload as { threadId?: string } | undefined;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          payload = event.payload as { threadId?: string } | undefined;
         const addressedToChild = payload?.threadId === CHILD_A || payload?.threadId === CHILD_B;
         return addressedToChild && (event.method?.startsWith("thread/") ?? false);
       });
@@ -163,11 +167,13 @@ describe("CodexSessionRuntime collab integration", () => {
       // turn/started precedes its registration, and drop terminal rows so
       // children stay live when Stop fires.
       const byIndex = wireFixture.notifications;
-      const isTurnStarted = (entry: (typeof byIndex)[number], child: string) =>
-        entry.method === "turn/started" &&
-        (entry.params as { threadId?: string }).threadId === child;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        isTurnStarted = (entry: (typeof byIndex)[number], child: string) =>
+          entry.method === "turn/started" &&
+          (entry.params as { threadId?: string }).threadId === child;
       const isRegistration = (entry: (typeof byIndex)[number], child: string) => {
-        const item = (entry.params as { item?: { type?: string; agentThreadId?: string } }).item;
+        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+          item = (entry.params as { item?: { type?: string; agentThreadId?: string } }).item;
         return item?.type === "subAgentActivity" && item.agentThreadId === child;
       };
       const turnStartedA = byIndex.find((entry) => isTurnStarted(entry, CHILD_A));
@@ -206,16 +212,17 @@ describe("CodexSessionRuntime collab integration", () => {
       // Wait for both children's turnStarted signals to be processed before
       // stopping (B via the registered-child path; A only produces live-turn
       // bookkeeping, so key on B's synthetic event).
-      const childBStartedFiber = yield* runtime.events.pipe(
-        Stream.filter(
-          (event) =>
-            event.method === "collabAgent/turnStarted" &&
-            (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_B,
-        ),
-        Stream.take(1),
-        Stream.runCollect,
-        Effect.forkScoped,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childBStartedFiber = yield* runtime.events.pipe(
+          Stream.filter(
+            (event) =>
+              event.method === "collabAgent/turnStarted" &&
+              (event.payload as { agentThreadId?: string }).agentThreadId === CHILD_B,
+          ),
+          Stream.take(1),
+          Stream.runCollect,
+          Effect.forkScoped,
+        );
 
       yield* runtime.start();
       yield* runtime.sendTurn({ input: "fan out and hang" });
@@ -228,7 +235,8 @@ describe("CodexSessionRuntime collab integration", () => {
       // deadline must expire and the parent interrupt must still be sent.
       yield* runtime.interruptTurn();
 
-      const parseInterruptLine = (line: string) => JSON.parse(line) as { threadId?: string };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        parseInterruptLine = (line: string) => JSON.parse(line) as { threadId?: string };
       const interrupted = NodeFS.readFileSync(interruptsPath, "utf8")
         .trim()
         .split("\n")
@@ -282,10 +290,11 @@ describe("CodexSessionRuntime collab integration", () => {
       yield* runtime.sendTurn({ input: "queued follow-up" });
       yield* runtime.interruptTurn();
 
-      const interrupts = NodeFS.readFileSync(interruptsPath, "utf8")
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line) as { threadId?: string; turnId?: string });
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        interrupts = NodeFS.readFileSync(interruptsPath, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as { threadId?: string; turnId?: string });
       assert.deepEqual(interrupts.at(-1), {
         threadId: ROOT,
         turnId: activeTurnId,

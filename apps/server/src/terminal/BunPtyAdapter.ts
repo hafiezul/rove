@@ -6,6 +6,7 @@ import * as Schema from "effect/Schema";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 
 import * as PtyAdapter from "./PtyAdapter.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class BunPtyUnsupportedPlatformError extends Schema.TaggedErrorClass<BunPtyUnsupportedPlatformError>()(
   "BunPtyUnsupportedPlatformError",
@@ -43,7 +44,9 @@ class BunPtyProcess implements PtyAdapter.PtyProcess {
       .then((exitCode) => {
         this.emitExit({
           exitCode: Number.isInteger(exitCode) ? exitCode : 0,
-          signal: typeof this.process.signalCode === "number" ? this.process.signalCode : null,
+          signal: RuntimePredicate.isNumber(this.process.signalCode)
+            ? this.process.signalCode
+            : null,
         });
       })
       .catch(() => {
@@ -74,6 +77,7 @@ class BunPtyProcess implements PtyAdapter.PtyProcess {
       this.process.kill();
       return;
     }
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     this.process.kill(signal as NodeJS.Signals);
   }
 

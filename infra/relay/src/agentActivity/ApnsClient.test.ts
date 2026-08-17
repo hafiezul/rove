@@ -297,6 +297,7 @@ describe("ApnsClient", () => {
         message: "APNs push-notification request failed during send in sandbox.",
       });
       expect(error.cause).toBeInstanceOf(HttpClientError.HttpClientError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect((error.cause as HttpClientError.HttpClientError).reason).toMatchObject({
         _tag: "TransportError",
         cause: httpCause,

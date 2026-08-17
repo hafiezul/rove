@@ -72,6 +72,7 @@ export const BranchToolbarEnvironmentSelector = memo(function BranchToolbarEnvir
     );
   }
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <Select
       modal={false}

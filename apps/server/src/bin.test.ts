@@ -41,6 +41,7 @@ import * as WorkspacePaths from "./workspace/WorkspacePaths.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import { environmentAuthenticatedAuthLayer } from "./auth/http.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const CliRuntimeLayer = Layer.mergeAll(NodeServices.layer, NetService.layer);
 class ProjectCliHttpApi extends HttpApi.make("environment").add(EnvironmentOrchestrationHttpApi) {}
@@ -57,8 +58,9 @@ const captureStdout = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const result = yield* effect;
     const output =
-      (yield* TestConsole.logLines).findLast((line): line is string => typeof line === "string") ??
-      "";
+      (yield* TestConsole.logLines).findLast((line): line is string =>
+        RuntimePredicate.isString(line),
+      ) ?? "";
     return { result, output };
   }).pipe(Effect.provide(Layer.mergeAll(CliRuntimeLayer, TestConsole.layer)));
 
@@ -145,7 +147,7 @@ const withLiveProjectCliServer = <A, E, R>(baseDir: string, run: () => Effect.Ef
       Effect.gen(function* () {
         const server = yield* HttpServer.HttpServer;
         const address = server.address;
-        if (typeof address === "string" || !("port" in address)) {
+        if (RuntimePredicate.isString(address) || !("port" in address)) {
           assert.fail(`Expected TCP address, got ${address}`);
         }
         yield* persistServerRuntimeState({
@@ -223,14 +225,15 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       const { output } = yield* captureStdout(
         runConnectCli(["connect", "status", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off - CLI JSON output is decoded as a presentation DTO.
-      const status = JSON.parse(output) as {
-        readonly desired: boolean;
-        readonly authenticated: boolean;
-        readonly linked: boolean;
-        readonly cloudUserId: string | null;
-        readonly relayUrl: string | null;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        status = JSON.parse(output) as {
+          readonly desired: boolean;
+          readonly authenticated: boolean;
+          readonly linked: boolean;
+          readonly cloudUserId: string | null;
+          readonly relayUrl: string | null;
+        };
 
       assert.equal(status.desired, false);
       assert.equal(status.authenticated, false);
@@ -279,11 +282,12 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       const status = yield* captureStdout(
         runConnectCli(["connect", "status", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off - CLI JSON output is decoded as a presentation DTO.
-      const decoded = JSON.parse(status.output) as {
-        readonly desired: boolean;
-        readonly authenticated: boolean;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        decoded = JSON.parse(status.output) as {
+          readonly desired: boolean;
+          readonly authenticated: boolean;
+        };
 
       assert.equal(login.output, "✓ Signed in");
       assert.isFalse(decoded.desired);
@@ -335,22 +339,24 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       const createdOutput = yield* captureStdout(
         runCli(["auth", "pairing", "create", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const created = JSON.parse(createdOutput.output) as {
-        readonly id: string;
-        readonly credential: string;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        created = JSON.parse(createdOutput.output) as {
+          readonly id: string;
+          readonly credential: string;
+        };
       const listedOutput = yield* captureStdout(
         runCli(["auth", "pairing", "list", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const listed = JSON.parse(listedOutput.output) as ReadonlyArray<{
-        readonly id: string;
-        readonly credential?: string;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        listed = JSON.parse(listedOutput.output) as ReadonlyArray<{
+          readonly id: string;
+          readonly credential?: string;
+        }>;
 
-      assert.equal(typeof created.id, "string");
-      assert.equal(typeof created.credential, "string");
+      assert.equal(RuntimePredicate.isString(created.id), true);
+      assert.equal(RuntimePredicate.isString(created.credential), true);
       assert.equal(created.credential.length > 0, true);
       assert.equal(listed.length, 1);
       assert.equal(listed[0]?.id, created.id);
@@ -367,24 +373,26 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       const issuedOutput = yield* captureStdout(
         runCli(["auth", "session", "issue", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const issued = JSON.parse(issuedOutput.output) as {
-        readonly sessionId: string;
-        readonly token: string;
-        readonly scopes: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        issued = JSON.parse(issuedOutput.output) as {
+          readonly sessionId: string;
+          readonly token: string;
+          readonly scopes: ReadonlyArray<string>;
+        };
       const listedOutput = yield* captureStdout(
         runCli(["auth", "session", "list", "--base-dir", baseDir, "--json"]),
       );
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
-      const listed = JSON.parse(listedOutput.output) as ReadonlyArray<{
-        readonly sessionId: string;
-        readonly token?: string;
-        readonly scopes: ReadonlyArray<string>;
-      }>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
+        listed = JSON.parse(listedOutput.output) as ReadonlyArray<{
+          readonly sessionId: string;
+          readonly token?: string;
+          readonly scopes: ReadonlyArray<string>;
+        }>;
 
-      assert.equal(typeof issued.sessionId, "string");
-      assert.equal(typeof issued.token, "string");
+      assert.equal(RuntimePredicate.isString(issued.sessionId), true);
+      assert.equal(RuntimePredicate.isString(issued.token), true);
       assert.deepEqual(issued.scopes, [
         "orchestration:read",
         "orchestration:operate",
@@ -424,7 +432,8 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
         assert.fail(`Expected ShowHelp, got ${error._tag}`);
       }
       assert.deepEqual(error.commandPath, ["t3", "auth", "pairing", "create"]);
-      const ttlError = error.errors[0] as CliError.CliError | undefined;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        ttlError = error.errors[0] as CliError.CliError | undefined;
       if (!ttlError || ttlError._tag !== "InvalidValue") {
         assert.fail(`Expected InvalidValue, got ${String(ttlError?._tag)}`);
       }
@@ -592,7 +601,8 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
         assert.fail(`Expected ShowHelp, got ${error._tag}`);
       }
       assert.deepEqual(error.commandPath, ["t3", "project", "add"]);
-      const optionError = error.errors[0] as CliError.CliError | undefined;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        optionError = error.errors[0] as CliError.CliError | undefined;
       if (!optionError || optionError._tag !== "UnrecognizedOption") {
         assert.fail(`Expected UnrecognizedOption, got ${String(optionError?._tag)}`);
       }

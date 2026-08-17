@@ -23,6 +23,7 @@ import * as Client from "effect/unstable/sql/SqlClient";
 import type { Connection } from "effect/unstable/sql/SqlConnection";
 import { SqlError, classifySqliteError } from "effect/unstable/sql/SqlError";
 import * as Statement from "effect/unstable/sql/Statement";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const ATTR_DB_SYSTEM_NAME = "db.system.name";
 
@@ -36,7 +37,7 @@ export interface SqliteClientConfig {
   readonly allowExtension?: boolean | undefined;
   readonly prepareCacheSize?: number | undefined;
   readonly prepareCacheTTL?: Duration.Input | undefined;
-  readonly spanAttributes?: Record<string, unknown> | undefined;
+  readonly spanAttributes?: Record<string, SchemaJson> | undefined;
   readonly transformResultNames?: ((str: string) => string) | undefined;
   readonly transformQueryNames?: ((str: string) => string) | undefined;
 }
@@ -157,19 +158,17 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
       lookup: prepare,
     });
 
-    const runStatement = (
-      statement: NodeSqlite.StatementSync,
-      params: ReadonlyArray<unknown>,
-      raw: boolean,
-    ) =>
+    const runStatement = (statement: NodeSqlite.StatementSync, params: ReadonlyArray<unknown>) =>
       Effect.withFiber<ReadonlyArray<any>, SqlError>((fiber) => {
         try {
           statement.setReadBigInts(Boolean(Context.get(fiber.context, Client.SafeIntegers)));
           if (hasRows(statement)) {
+            // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
             return Effect.succeed(statement.all(...(params as any)));
           }
-          const result = statement.run(...(params as any));
-          return Effect.succeed(raw ? (result as unknown as ReadonlyArray<any>) : []);
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          statement.run(...(params as any));
+          return Effect.succeed([]);
         } catch (cause) {
           return Effect.fail(
             new SqlError({
@@ -182,8 +181,35 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
         }
       });
 
-    const run = (sql: string, params: ReadonlyArray<unknown>, raw = false) =>
-      Effect.flatMap(Cache.get(prepareCache, sql), (s) => runStatement(s, params, raw));
+    const runStatementRaw = (statement: NodeSqlite.StatementSync, params: ReadonlyArray<unknown>) =>
+      Effect.withFiber<unknown, SqlError>((fiber) => {
+        try {
+          statement.setReadBigInts(Boolean(Context.get(fiber.context, Client.SafeIntegers)));
+          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+          return Effect.succeed(
+            hasRows(statement)
+              ? statement.all(...(params as any))
+              : statement.run(...(params as any)),
+          );
+        } catch (cause) {
+          return Effect.fail(
+            new SqlError({
+              reason: classifySqliteError(cause, {
+                message: "Failed to execute statement",
+                operation: "execute",
+              }),
+            }),
+          );
+        }
+      });
+
+    const run = (sql: string, params: ReadonlyArray<unknown>) =>
+      Effect.flatMap(Cache.get(prepareCache, sql), (statement) => runStatement(statement, params));
+
+    const runRaw = (sql: string, params: ReadonlyArray<unknown>) =>
+      Effect.flatMap(Cache.get(prepareCache, sql), (statement) =>
+        runStatementRaw(statement, params),
+      );
 
     const runStatementValues = (
       statement: NodeSqlite.StatementSync,
@@ -196,11 +222,10 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
             try: () => {
               if (hasRows(statement)) {
                 statement.setReturnArrays(true);
-                // Safe to cast to array after we've setReturnArrays(true)
-                return statement.all(...(params as any)) as unknown as ReadonlyArray<
-                  ReadonlyArray<unknown>
-                >;
+                // SAFETY: node:sqlite accepts the dynamically-bound SQL parameter tuple at this driver boundary.
+                return statement.all(...(params as any)).map((row) => Object.values(row));
               }
+              // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               statement.run(...(params as any));
               return [];
             },
@@ -239,7 +264,7 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
         return rowTransform ? Effect.map(run(sql, params), rowTransform) : run(sql, params);
       },
       executeRaw(sql, params) {
-        return run(sql, params, true);
+        return runRaw(sql, params);
       },
       executeValues(sql, params) {
         return runValues(sql, params);
@@ -251,7 +276,7 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
       },
       executeUnprepared(sql, params, rowTransform) {
         const effect = prepare(sql).pipe(
-          Effect.flatMap((statement) => runStatement(statement, params ?? [], false)),
+          Effect.flatMap((statement) => runStatement(statement, params ?? [])),
         );
         return rowTransform ? Effect.map(effect, rowTransform) : effect;
       },

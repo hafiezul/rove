@@ -18,7 +18,7 @@ export interface SettingsSearchItem {
  * Section labels in sidebar order. The sidebar nav and the search-result
  * subtitles both render from this record, so each label exists once.
  */
-export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
+export const SETTINGS_SECTION_LABELS = {
   "/settings/general": "General",
   "/settings/appearance": "Appearance",
   "/settings/keybindings": "Keybindings",
@@ -26,7 +26,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/source-control": "Source Control",
   "/settings/connections": "Connections",
   "/settings/archived": "Archive",
-};
+} satisfies Readonly<Record<SettingsPath, string>>;
 
 /**
  * Every searchable setting, in result order. This catalog is the single
@@ -203,19 +203,17 @@ export const SETTINGS_SEARCH_ITEMS = [
 
 export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
 
-const SEARCH_ITEMS_BY_ID = Object.fromEntries(
-  SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item]),
-) as Readonly<Record<SettingsSearchItemId, SettingsSearchItem>>;
+const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  SEARCH_ITEMS_BY_ID = Object.fromEntries(
+    SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item]),
+  ) as Readonly<Record<SettingsSearchItemId, SettingsSearchItem>>;
 
 /**
  * `id` and `title` props for the element a search item anchors to. Panels
  * spread (or pick from) this instead of restating the strings, so the catalog
  * and the rendered settings cannot drift apart.
  */
-export function searchableSetting(id: SettingsSearchItemId): {
-  readonly id: string;
-  readonly title: string;
-} {
+export function searchableSetting(id: SettingsSearchItemId) {
   const { id: anchorId, title } = SEARCH_ITEMS_BY_ID[id];
   return { id: anchorId, title };
 }

@@ -16,6 +16,7 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import * as NodeSqliteClient from "../src/persistence/NodeSqliteClient.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const SqliteStateOperation = Schema.Literals(["query", "exec"]);
 export type SqliteStateOperation = typeof SqliteStateOperation.Type;
@@ -145,7 +146,8 @@ const resolveSqlSource = Effect.fn("resolveSqliteStateSqlSource")(function* (
   if (sql !== undefined) {
     source = sql;
   } else {
-    const filePath = path.resolve(file as string);
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      filePath = path.resolve(file as string);
     source = yield* fs
       .readFileString(filePath)
       .pipe(Effect.mapError((cause) => new SqliteStateSqlFileError({ filePath, cause })));
@@ -159,7 +161,7 @@ const resolveSqlSource = Effect.fn("resolveSqliteStateSqlSource")(function* (
 });
 
 function normalizeSqliteValue(value: RawSqliteValue): typeof SqliteStateValue.Type {
-  if (typeof value === "bigint") {
+  if (RuntimePredicate.isBigInt(value)) {
     const numericValue = Number(value);
     return Number.isSafeInteger(numericValue) ? numericValue : value.toString();
   }

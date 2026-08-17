@@ -1,3 +1,4 @@
+import { testDouble } from "../src/testDouble.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeChildProcess from "node:child_process";
 
@@ -23,7 +24,10 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 
 import * as CheckpointStore from "../src/checkpointing/CheckpointStore.ts";
-import { TextGeneration, type TextGenerationShape } from "../src/textGeneration/TextGeneration.ts";
+import {
+  TextGeneration,
+  type TextGenerationContract,
+} from "../src/textGeneration/TextGeneration.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../src/persistence/Layers/OrchestrationCommandReceipts.ts";
 import { OrchestrationEventStoreLive } from "../src/persistence/Layers/OrchestrationEventStore.ts";
 import { ProjectionCheckpointRepositoryLive } from "../src/persistence/Layers/ProjectionCheckpoints.ts";
@@ -60,7 +64,7 @@ import { CheckpointReactor } from "../src/orchestration/Services/CheckpointReact
 import { ProviderRuntimeIngestionService } from "../src/orchestration/Services/ProviderRuntimeIngestion.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../src/orchestration/Services/OrchestrationEngine.ts";
 import { ThreadDeletionReactor } from "../src/orchestration/Services/ThreadDeletionReactor.ts";
 import { OrchestrationReactor } from "../src/orchestration/Services/OrchestrationReactor.ts";
@@ -180,7 +184,7 @@ export interface OrchestrationIntegrationHarness {
   readonly workspaceDir: string;
   readonly dbPath: string;
   readonly adapterHarness: TestProviderAdapterHarness | null;
-  readonly engine: OrchestrationEngineShape;
+  readonly engine: OrchestrationEngineContract;
   readonly snapshotQuery: ProjectionSnapshotQuery["Service"];
   readonly providerService: ProviderService["Service"];
   readonly checkpointStore: CheckpointStore.CheckpointStore["Service"];
@@ -327,10 +331,13 @@ export const makeOrchestrationIntegrationHarness = (
         readonly newBranch: string;
       }) => Effect.succeed({ branch: input.newBranch }),
     });
-    const textGenerationLayer = Layer.succeed(TextGeneration, {
-      generateBranchName: () => Effect.succeed({ branch: "update" }),
-      generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
-    } as unknown as TextGenerationShape);
+    const textGenerationLayer = Layer.succeed(
+      TextGeneration,
+      testDouble<TextGenerationContract>({
+        generateBranchName: () => Effect.succeed({ branch: "update" }),
+        generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
+      }),
+    );
     const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitWorkflowLayer),
@@ -438,23 +445,24 @@ export const makeOrchestrationIntegrationHarness = (
     ).pipe(Effect.forkIn(scope));
     yield* Effect.sleep(10);
 
-    const waitForThread: OrchestrationIntegrationHarness["waitForThread"] = (
-      threadId,
-      predicate,
-      timeoutMs,
-    ) =>
-      waitFor(
-        snapshotQuery
-          .getSnapshot()
-          .pipe(
-            Effect.map(
-              (snapshot) => snapshot.threads.find((thread) => thread.id === threadId) ?? null,
-            ),
-          ),
-        (thread): thread is OrchestrationThread => thread !== null && predicate(thread),
-        `projected thread '${threadId}'`,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      waitForThread: OrchestrationIntegrationHarness["waitForThread"] = (
+        threadId,
+        predicate,
         timeoutMs,
-      ) as Effect.Effect<OrchestrationThread, never>;
+      ) =>
+        waitFor(
+          snapshotQuery
+            .getSnapshot()
+            .pipe(
+              Effect.map(
+                (snapshot) => snapshot.threads.find((thread) => thread.id === threadId) ?? null,
+              ),
+            ),
+          (thread): thread is OrchestrationThread => thread !== null && predicate(thread),
+          `projected thread '${threadId}'`,
+          timeoutMs,
+        ) as Effect.Effect<OrchestrationThread, never>;
 
     const waitForDomainEvent: OrchestrationIntegrationHarness["waitForDomainEvent"] = (
       predicate,
@@ -469,43 +477,44 @@ export const makeOrchestrationIntegrationHarness = (
         timeoutMs,
       );
 
-    const waitForPendingApproval: OrchestrationIntegrationHarness["waitForPendingApproval"] = (
-      requestId,
-      predicate,
-      timeoutMs,
-    ) =>
-      waitFor(
-        pendingApprovalRepository
-          .getByRequestId({ requestId: ApprovalRequestId.make(requestId) })
-          .pipe(
-            Effect.map((row) =>
-              Option.match(row, {
-                onNone: () => null,
-                onSome: (value) => ({
-                  status: value.status,
-                  decision: value.decision,
-                  resolvedAt: value.resolvedAt,
-                }),
-              }),
-            ),
-          ),
-        (
-          row,
-        ): row is {
-          readonly status: "pending" | "resolved";
-          readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
-          readonly resolvedAt: string | null;
-        } => row !== null && predicate(row),
-        `pending approval '${requestId}'`,
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      waitForPendingApproval: OrchestrationIntegrationHarness["waitForPendingApproval"] = (
+        requestId,
+        predicate,
         timeoutMs,
-      ) as Effect.Effect<
-        {
-          readonly status: "pending" | "resolved";
-          readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
-          readonly resolvedAt: string | null;
-        },
-        never
-      >;
+      ) =>
+        waitFor(
+          pendingApprovalRepository
+            .getByRequestId({ requestId: ApprovalRequestId.make(requestId) })
+            .pipe(
+              Effect.map((row) =>
+                Option.match(row, {
+                  onNone: () => null,
+                  onSome: (value) => ({
+                    status: value.status,
+                    decision: value.decision,
+                    resolvedAt: value.resolvedAt,
+                  }),
+                }),
+              ),
+            ),
+          (
+            row,
+          ): row is {
+            readonly status: "pending" | "resolved";
+            readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
+            readonly resolvedAt: string | null;
+          } => row !== null && predicate(row),
+          `pending approval '${requestId}'`,
+          timeoutMs,
+        ) as Effect.Effect<
+          {
+            readonly status: "pending" | "resolved";
+            readonly decision: "accept" | "acceptForSession" | "decline" | "cancel" | null;
+            readonly resolvedAt: string | null;
+          },
+          never
+        >;
 
     function waitForReceipt(
       predicate: (receipt: OrchestrationRuntimeReceipt) => boolean,

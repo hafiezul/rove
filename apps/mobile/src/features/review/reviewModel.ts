@@ -179,10 +179,7 @@ function stripTrailingNewline(value: string): string {
   return value.endsWith("\n") ? value.slice(0, -1) : value;
 }
 
-function splitTruncationMarker(diff: string): {
-  readonly text: string;
-  readonly truncated: boolean;
-} {
+function splitTruncationMarker(diff: string) {
   const trimmed = diff.trimEnd();
   if (!trimmed.endsWith("[truncated]")) {
     return { text: trimmed, truncated: false };

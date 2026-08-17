@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import {
   AuthStandardClientScopes,
   EnvironmentId,
@@ -30,7 +31,7 @@ function makeBridge(
   calls: string[],
   options?: { readonly failDescriptor?: boolean },
 ): DesktopBridge {
-  return {
+  return testDouble<DesktopBridge>({
     ensureSshEnvironment: async (target: DesktopSshEnvironmentTarget) => {
       calls.push("ensure");
       return {
@@ -68,7 +69,7 @@ function makeBridge(
         scope: AuthStandardClientScopes.join(" "),
       };
     },
-  } as unknown as DesktopBridge;
+  });
 }
 
 describe("desktop SSH pairing", () => {

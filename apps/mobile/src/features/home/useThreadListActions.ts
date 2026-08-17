@@ -59,13 +59,13 @@ function environmentSupportsTitleRegeneration(
 
 type ThreadListAction = "archive" | "unarchive" | "delete" | "settle" | "unsettle";
 
-const ACTION_VERBS: Record<ThreadListAction, string> = {
+const ACTION_VERBS = {
   archive: "archived",
   unarchive: "unarchived",
   delete: "deleted",
   settle: "settled",
   unsettle: "un-settled",
-};
+} satisfies Record<ThreadListAction, string>;
 
 function actionFailureMessage(action: ThreadListAction, cause: Cause.Cause<unknown>): string {
   const error = Cause.squash(cause);
@@ -223,21 +223,7 @@ function useConfirmDeleteThread(
   );
 }
 
-export function useThreadListActions(): {
-  readonly archiveThread: (thread: EnvironmentThreadShell) => void;
-  readonly confirmDeleteThread: (thread: EnvironmentThreadShell) => void;
-  readonly settleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly snoozeThread: (thread: EnvironmentThreadShell, snoozedUntil: string) => Promise<boolean>;
-  readonly unsnoozeThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly unsettleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly pinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly unpinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly movePinnedThread: (
-    thread: EnvironmentThreadShell,
-    direction: "up" | "down",
-  ) => Promise<boolean>;
-  readonly regenerateThreadTitle: (thread: EnvironmentThreadShell) => Promise<boolean>;
-} {
+export function useThreadListActions() {
   const executeAction = useThreadActionExecutor();
   const snoozeMutation = useAtomCommand(threadEnvironment.snooze, { reportFailure: false });
   const unsnoozeMutation = useAtomCommand(threadEnvironment.unsnooze, { reportFailure: false });
@@ -375,7 +361,7 @@ export function useThreadListActions(): {
       }
       const result = await pinMutation({
         environmentId: thread.environmentId,
-        input: { threadId: thread.id, ...(orderKey !== undefined ? { orderKey } : {}) },
+        input: { threadId: thread.id, ...(orderKey !== undefined ? { orderKey } : undefined) },
       });
       if (result._tag === "Failure") {
         const error = Cause.squash(result.cause);
@@ -558,10 +544,7 @@ export function useThreadListActions(): {
 
 export function useArchivedThreadListActions(
   onCompleted: (thread: EnvironmentThreadShell) => void,
-): {
-  readonly unarchiveThread: (thread: EnvironmentThreadShell) => void;
-  readonly confirmDeleteThread: (thread: EnvironmentThreadShell) => void;
-} {
+) {
   const handleCompleted = useCallback(
     (_action: ThreadListAction, thread: EnvironmentThreadShell) => {
       onCompleted(thread);

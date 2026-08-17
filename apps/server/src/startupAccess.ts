@@ -6,6 +6,7 @@ import { HttpServer } from "effect/unstable/http";
 
 import { ServerConfig } from "./config.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface HeadlessServeAccessInfo {
   readonly connectionString: string;
@@ -79,10 +80,9 @@ export const resolveHeadlessConnectionString = (
 
 export const resolveListeningPort = (address: unknown, fallbackPort: number): number => {
   if (
-    typeof address === "object" &&
-    address !== null &&
+    RuntimePredicate.isObjectOrArray(address) &&
     "port" in address &&
-    typeof address.port === "number"
+    RuntimePredicate.isNumber(address.port)
   ) {
     return address.port;
   }

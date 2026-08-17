@@ -20,7 +20,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { SpawnExecutableResolution } from "@t3tools/shared/shell";
 
-import { ProviderRegistry, type ProviderRegistryShape } from "./Services/ProviderRegistry.ts";
+import { ProviderRegistry, type ProviderRegistryContract } from "./Services/ProviderRegistry.ts";
 import * as ProviderMaintenanceRunner from "./providerMaintenanceRunner.ts";
 import {
   makeProviderMaintenanceCapabilities,
@@ -139,10 +139,11 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        childProcess = command as {
+          readonly command: string;
+          readonly args: ReadonlyArray<string>;
+        };
       return Effect.succeed(mockHandle(handler(childProcess.command, childProcess.args)));
     }),
   );
@@ -185,7 +186,7 @@ function makeRegistry(
       );
     });
 
-    const registry: ProviderRegistryShape = {
+    const registry: ProviderRegistryContract = {
       getProviders: Ref.get(providersRef),
       refresh: () => Ref.get(providersRef),
       refreshInstance: () => Ref.get(providersRef),
@@ -202,7 +203,7 @@ function makeRegistry(
   });
 }
 
-const makeTestRunner = (registry: ProviderRegistryShape) =>
+const makeTestRunner = (registry: ProviderRegistryContract) =>
   Effect.service(ProviderMaintenanceRunner.ProviderMaintenanceRunner).pipe(
     Effect.provide(
       ProviderMaintenanceRunner.layer.pipe(
@@ -452,8 +453,8 @@ describe("providerMaintenanceRunner", () => {
   );
 
   it.effect("prevents concurrent updates for the same provider", () => {
-    const startedLatch: { resolve: () => void } = { resolve: () => {} };
-    const releaseLatch: { resolve: () => void } = { resolve: () => {} };
+    const startedLatch = { resolve: () => {} } satisfies { resolve: () => void };
+    const releaseLatch = { resolve: () => {} } satisfies { resolve: () => void };
     const started = new Promise<void>((resolve) => {
       startedLatch.resolve = resolve;
     });
@@ -499,8 +500,8 @@ describe("providerMaintenanceRunner", () => {
   });
 
   it.effect("serializes different providers that share the same update lock key", () => {
-    const firstStartedLatch: { resolve: () => void } = { resolve: () => {} };
-    const releaseFirstLatch: { resolve: () => void } = { resolve: () => {} };
+    const firstStartedLatch = { resolve: () => {} } satisfies { resolve: () => void };
+    const releaseFirstLatch = { resolve: () => {} } satisfies { resolve: () => void };
     const firstStarted = new Promise<void>((resolve) => {
       firstStartedLatch.resolve = resolve;
     });
@@ -620,8 +621,8 @@ describe("providerMaintenanceRunner", () => {
       Effect.gen(function* () {
         const { registry } = yield* makeRegistry(baseProvider);
         let blockQueuedState = true;
-        const queuedStateWrittenLatch: { resolve: () => void } = { resolve: () => {} };
-        const releaseQueuedStateLatch: { resolve: () => void } = { resolve: () => {} };
+        const queuedStateWrittenLatch = { resolve: () => {} } satisfies { resolve: () => void };
+        const releaseQueuedStateLatch = { resolve: () => {} } satisfies { resolve: () => void };
         const queuedStateWritten = new Promise<void>((resolve) => {
           queuedStateWrittenLatch.resolve = resolve;
         });
@@ -710,11 +711,12 @@ describe("providerMaintenanceRunner", () => {
           Layer.succeed(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make((command) => {
-              const childProcess = command as unknown as {
-                readonly command: string;
-                readonly args: ReadonlyArray<string>;
-                readonly options: { readonly shell?: boolean | string | undefined };
-              };
+              const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+                childProcess = command as {
+                  readonly command: string;
+                  readonly args: ReadonlyArray<string>;
+                  readonly options: { readonly shell?: boolean | string | undefined };
+                };
               captured.push({
                 command: childProcess.command,
                 args: childProcess.args,

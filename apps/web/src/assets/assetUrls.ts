@@ -37,7 +37,9 @@ export function useAssetUrlState(
     : {
         _tag: "Success",
         url,
-        ...(result.value.sourcePath !== undefined ? { sourcePath: result.value.sourcePath } : {}),
+        ...(result.value.sourcePath !== undefined
+          ? { sourcePath: result.value.sourcePath }
+          : undefined),
       };
 }
 

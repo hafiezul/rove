@@ -28,11 +28,7 @@ type NewTaskRouteParams = {
   readonly incomingShareId?: string | string[];
 };
 
-function deriveProjectEmptyState(catalogState: WorkspaceState): {
-  readonly title: string;
-  readonly detail: string;
-  readonly loading: boolean;
-} {
+function deriveProjectEmptyState(catalogState: WorkspaceState) {
   if (catalogState.isLoadingConnections) {
     return {
       title: "Loading environments",

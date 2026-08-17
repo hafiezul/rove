@@ -11,13 +11,15 @@ import {
   ComboboxPopup,
   ComboboxTrigger,
 } from "../ui/combobox";
+import * as RuntimePredicate from "effect/Predicate";
 
 const DEFAULT_FONT_VALUE = "__default__";
 
 function supportsFontEnumeration(): boolean {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     typeof window !== "undefined" &&
-    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts === "function"
+    RuntimePredicate.isFunction((window as { queryLocalFonts?: unknown }).queryLocalFonts)
   );
 }
 
@@ -72,7 +74,7 @@ function probeAlreadyGrantedPermission(): void {
   if (grantedProbeStarted || enumerationState.status !== "unknown") return;
   grantedProbeStarted = true;
   const permissions = typeof navigator !== "undefined" ? navigator.permissions : undefined;
-  if (typeof permissions?.query !== "function") return;
+  if (!RuntimePredicate.isFunction(permissions?.query)) return;
   permissions.query({ name: "local-fonts" as PermissionName }).then(
     (status) => {
       if (status.state === "granted") discoverInstalledFonts();
@@ -194,7 +196,7 @@ export function FontFamilyPicker({
       onOpenChange={handleOpenChange}
       value={selectedValue}
       onValueChange={(next) => {
-        if (typeof next === "string") handlePick(next);
+        if (RuntimePredicate.isString(next)) handlePick(next);
       }}
       onItemHighlighted={(_value, eventDetails) => {
         // Keyboard highlights must pull the virtualized row into view, or

@@ -13,7 +13,7 @@ import type * as Scope from "effect/Scope";
 /**
  * CheckpointReactorShape - Service API for checkpoint reactor lifecycle.
  */
-export interface CheckpointReactorShape {
+export interface CheckpointReactorContract {
   /**
    * Start the checkpoint reactor.
    *
@@ -35,6 +35,7 @@ export interface CheckpointReactorShape {
 /**
  * CheckpointReactor - Service tag for checkpoint reactor workers.
  */
-export class CheckpointReactor extends Context.Service<CheckpointReactor, CheckpointReactorShape>()(
-  "t3/orchestration/Services/CheckpointReactor",
-) {}
+export class CheckpointReactor extends Context.Service<
+  CheckpointReactor,
+  CheckpointReactorContract
+>()("t3/orchestration/Services/CheckpointReactor") {}

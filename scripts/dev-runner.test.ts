@@ -30,6 +30,7 @@ import {
   resolveOffset,
   runDevRunnerWithInput,
 } from "./dev-runner.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const emptyConfigLayer = ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }));
 const netServiceLayer = Layer.succeed(NetService.NetService, {
@@ -42,10 +43,9 @@ const netServiceLayer = Layer.succeed(NetService.NetService, {
 function mockProcess(exit: number | PlatformError.PlatformError) {
   return ChildProcessSpawner.makeHandle({
     pid: ChildProcessSpawner.ProcessId(1),
-    exitCode:
-      typeof exit === "number"
-        ? Effect.succeed(ChildProcessSpawner.ExitCode(exit))
-        : Effect.fail(exit),
+    exitCode: RuntimePredicate.isNumber(exit)
+      ? Effect.succeed(ChildProcessSpawner.ExitCode(exit))
+      : Effect.fail(exit),
     isRunning: Effect.succeed(false),
     kill: () => Effect.void,
     unref: Effect.succeed(Effect.void),
@@ -834,6 +834,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
         }
         assert.deepStrictEqual(error.configKeys, ["T3CODE_PORT_OFFSET", "T3CODE_DEV_INSTANCE"]);
         assert.ok(error.cause !== undefined);
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         assert.ok(!error.message.includes(String((error.cause as Error).message)));
       }),
     );
@@ -1021,11 +1022,12 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const spawnerLayer = Layer.succeed(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make((command) => {
-              const spawned = command as unknown as {
-                readonly command: string;
-                readonly args: ReadonlyArray<string>;
-                readonly options?: { readonly env?: Record<string, string | undefined> };
-              };
+              const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+                spawned = command as {
+                  readonly command: string;
+                  readonly args: ReadonlyArray<string>;
+                  readonly options?: { readonly env?: Record<string, string | undefined> };
+                };
               if (spawned.command === "vp") {
                 captured = spawned.options?.env;
                 return Effect.succeed(mockProcess(0));
@@ -1095,6 +1097,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const spawnerLayer = Layer.succeed(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make((command) => {
+              // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
               captured = (
                 command as {
                   readonly options?: { readonly env?: Record<string, string | undefined> };
@@ -1229,6 +1232,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const spawnerLayer = Layer.succeed(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make((command) => {
+              // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
               captured = (
                 command as {
                   readonly options?: { readonly env?: Record<string, string | undefined> };

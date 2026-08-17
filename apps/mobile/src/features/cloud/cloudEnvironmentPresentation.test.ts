@@ -18,8 +18,8 @@ function relayStatus(
     },
     status,
     checkedAt: "2026-06-05T16:49:11.000Z",
-    ...(error ? { error } : {}),
-    ...(traceId ? { traceId } : {}),
+    ...(error ? { error } : undefined),
+    ...(traceId ? { traceId } : undefined),
   };
 }
 

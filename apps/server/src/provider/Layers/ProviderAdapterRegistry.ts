@@ -27,13 +27,13 @@ import { ProviderUnsupportedError } from "../Errors.ts";
 import { ProviderInstanceRegistry } from "../Services/ProviderInstanceRegistry.ts";
 import {
   ProviderAdapterRegistry,
-  type ProviderAdapterRegistryShape,
+  type ProviderAdapterRegistryContract,
 } from "../Services/ProviderAdapterRegistry.ts";
 
 const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(function* () {
   const registry = yield* ProviderInstanceRegistry;
 
-  const getByInstance: ProviderAdapterRegistryShape["getByInstance"] = (instanceId) =>
+  const getByInstance: ProviderAdapterRegistryContract["getByInstance"] = (instanceId) =>
     registry.getInstance(instanceId).pipe(
       Effect.flatMap((instance) =>
         instance === undefined
@@ -46,7 +46,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       ),
     );
 
-  const getInstanceInfo: ProviderAdapterRegistryShape["getInstanceInfo"] = (instanceId) =>
+  const getInstanceInfo: ProviderAdapterRegistryContract["getInstanceInfo"] = (instanceId) =>
     registry.getInstance(instanceId).pipe(
       Effect.flatMap((instance) =>
         instance === undefined
@@ -66,12 +66,12 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       ),
     );
 
-  const listInstances: ProviderAdapterRegistryShape["listInstances"] = () =>
+  const listInstances: ProviderAdapterRegistryContract["listInstances"] = () =>
     registry.listInstances.pipe(
       Effect.map((instances) => instances.map((instance) => instance.instanceId)),
     );
 
-  const listProviders: ProviderAdapterRegistryShape["listProviders"] = () =>
+  const listProviders: ProviderAdapterRegistryContract["listProviders"] = () =>
     registry.listInstances.pipe(
       Effect.map((instances) => {
         const kinds = new Set<ProviderDriverKind>();
@@ -97,7 +97,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
     // registry already coalesces adds/removes/rebuilds into one emission.
     streamChanges: registry.streamChanges,
     subscribeChanges: registry.subscribeChanges,
-  } satisfies ProviderAdapterRegistryShape;
+  } satisfies ProviderAdapterRegistryContract;
 });
 
 export const ProviderAdapterRegistryLive = Layer.effect(

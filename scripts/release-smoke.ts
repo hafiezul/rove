@@ -48,7 +48,7 @@ function copyWorkspaceManifestFixture(targetRoot: string): void {
   }
 }
 
-function writeMacManifestFixtures(targetRoot: string): { arm64Path: string; x64Path: string } {
+function writeMacManifestFixtures(targetRoot: string) {
   const assetDirectory = NodePath.resolve(targetRoot, "release-assets");
   NodeFS.mkdirSync(assetDirectory, { recursive: true });
 
@@ -90,10 +90,7 @@ releaseDate: '2026-03-08T10:36:07.540Z'
   return { arm64Path, x64Path };
 }
 
-function writeWindowsManifestFixtures(
-  targetRoot: string,
-  channel: string,
-): { arm64Path: string; x64Path: string } {
+function writeWindowsManifestFixtures(targetRoot: string, channel: string) {
   const assetDirectory = NodePath.resolve(targetRoot, "release-assets");
   NodeFS.mkdirSync(assetDirectory, { recursive: true });
 
@@ -135,10 +132,7 @@ releaseDate: '2026-03-08T10:36:07.540Z'
   return { arm64Path, x64Path };
 }
 
-function writeWindowsBuilderDebugFixtures(targetRoot: string): {
-  arm64Path: string;
-  x64Path: string;
-} {
+function writeWindowsBuilderDebugFixtures(targetRoot: string) {
   const assetDirectory = NodePath.resolve(targetRoot, "release-assets");
   NodeFS.mkdirSync(assetDirectory, { recursive: true });
 
@@ -170,9 +164,10 @@ function assertExists(path: string, message: string): void {
 }
 
 function assertPackageVersion(path: string, version: string): void {
-  const packageJson = JSON.parse(NodeFS.readFileSync(path, "utf8")) as {
-    readonly version?: unknown;
-  };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    packageJson = JSON.parse(NodeFS.readFileSync(path, "utf8")) as {
+      readonly version?: unknown;
+    };
 
   if (packageJson.version !== version) {
     throw new Error(`Expected ${path} to have version ${version}.`);

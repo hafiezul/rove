@@ -1,19 +1,25 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+type TestComposerDraftStore = {
+  readonly addReviewComment: ReturnType<typeof vi.fn>;
+  readonly removeReviewComment: ReturnType<typeof vi.fn>;
+  readonly getComposerDraft: () => undefined;
+};
+
 const testState = vi.hoisted(() => ({
-  codeViewOptions: null as Record<string, unknown> | null,
+  codeViewOptions: null as object | null,
 }));
 
 vi.mock("@pierre/diffs/react", () => ({
-  CodeView: (props: { options: Record<string, unknown> }) => {
+  CodeView: (props: { options: object }) => {
     testState.codeViewOptions = props.options;
     return null;
   },
 }));
 
 vi.mock("~/composerDraftStore", () => ({
-  useComposerDraftStore: (selector: (store: Record<string, unknown>) => unknown) =>
+  useComposerDraftStore: <A,>(selector: (store: TestComposerDraftStore) => A) =>
     selector({
       addReviewComment: vi.fn(),
       removeReviewComment: vi.fn(),

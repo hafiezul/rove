@@ -31,10 +31,12 @@ export class ElectronPowerMonitor extends Context.Service<
 const onSimpleEvent: ElectronPowerMonitor["Service"]["onSimpleEvent"] = (eventName, listener) =>
   Effect.acquireRelease(
     Effect.sync(() => {
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       Electron.powerMonitor.on(eventName as any, listener as any);
     }),
     () =>
       Effect.sync(() => {
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         Electron.powerMonitor.removeListener(eventName as any, listener as any);
       }),
   ).pipe(Effect.asVoid);

@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as Electron from "electron";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface ElectronMenuPosition {
   readonly x: number;
@@ -63,7 +64,7 @@ function normalizeContextMenuItems(source: readonly ContextMenuItem[]): ContextM
   const normalizedItems: ContextMenuItem[] = [];
 
   for (const sourceItem of source) {
-    if (typeof sourceItem.id !== "string" || typeof sourceItem.label !== "string") {
+    if (!RuntimePredicate.isString(sourceItem.id) || !RuntimePredicate.isString(sourceItem.label)) {
       continue;
     }
 

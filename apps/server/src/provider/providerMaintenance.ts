@@ -13,6 +13,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import * as RuntimePredicate from "effect/Predicate";
 
 const LATEST_VERSION_CACHE_TTL_MS = 60 * 60 * 1_000;
 const LATEST_VERSION_TIMEOUT_MS = 4_000;
@@ -91,7 +92,7 @@ const NpmLatestVersionResponse = Schema.Struct({
 });
 
 function nonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  return RuntimePredicate.isString(value) && value.trim().length > 0 ? value.trim() : null;
 }
 
 export function makeProviderMaintenanceCapabilities(input: {

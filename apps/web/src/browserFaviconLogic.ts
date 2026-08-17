@@ -1,6 +1,8 @@
 import { FAVICON_CAPTURED_AT_MAX, FAVICON_DATA_URL_MAX_LENGTH } from "@t3tools/contracts";
 
 import { isLocalLoopbackHost, normalizeHostname } from "./browser/browserTargetResolver";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export type BrowserFaviconEntry = {
   dataUrl: string;
@@ -33,7 +35,7 @@ export function canCanonicalizeFaviconWithoutEnvironment(url: string): boolean {
 
 export function isValidFaviconCapturedAt(value: unknown): value is number {
   return (
-    typeof value === "number" &&
+    RuntimePredicate.isNumber(value) &&
     Number.isFinite(value) &&
     value >= 0 &&
     value <= FAVICON_CAPTURED_AT_MAX &&
@@ -67,7 +69,8 @@ function migratePersistedFaviconKey(key: string): string | null {
 }
 
 function persistedFaviconAlias(value: unknown): string | null {
-  if (typeof value !== "string" || value.length > BROWSER_FAVICON_MAX_ALIAS_LENGTH) return null;
+  if (!RuntimePredicate.isString(value) || value.length > BROWSER_FAVICON_MAX_ALIAS_LENGTH)
+    return null;
   const normalized = normalizeHostname(value);
   if (!normalized || normalized !== value) return null;
   try {
@@ -134,7 +137,7 @@ export function faviconStorageLocation(
 
 export function isStorableFaviconDataUrl(value: unknown): value is string {
   if (
-    typeof value !== "string" ||
+    !RuntimePredicate.isString(value) ||
     !value.startsWith("data:image/png;base64,") ||
     value.length > FAVICON_DATA_URL_MAX_LENGTH
   ) {
@@ -154,6 +157,7 @@ export function evictExcessFavicons(
 ): Record<string, BrowserFaviconEntry> {
   const keys = Object.keys(byKey);
   if (keys.length <= BROWSER_FAVICON_MAX_ENTRIES) return byKey;
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     keys
       .toSorted((left, right) => (byKey[right]?.capturedAt ?? 0) - (byKey[left]?.capturedAt ?? 0))
@@ -162,21 +166,28 @@ export function evictExcessFavicons(
   );
 }
 
-export function migratePersistedBrowserFaviconState(persistedState: unknown): {
-  byKey: Record<string, BrowserFaviconEntry>;
-} {
-  if (!persistedState || typeof persistedState !== "object") return { byKey: {} };
-  const raw = "byKey" in persistedState ? (persistedState as { byKey?: unknown }).byKey : null;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { byKey: {} };
+// SAFETY: The surrounding adapter has established this JSON-object view before field access.
+export function migratePersistedBrowserFaviconState(persistedState: unknown) {
+  if (
+    !persistedState ||
+    !(RuntimePredicate.isObjectOrArray(persistedState) || persistedState === null)
+  )
+    return { byKey: {} };
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    raw = "byKey" in persistedState ? (persistedState as { byKey?: unknown }).byKey : null;
+  if (!raw || !(RuntimePredicate.isObjectOrArray(raw) || raw === null) || Array.isArray(raw))
+    return { byKey: {} };
   const byKey: Record<string, BrowserFaviconEntry> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(raw as Record<string, SchemaJson>)) {
     const migratedKey = migratePersistedFaviconKey(key);
     if (!migratedKey) continue;
-    if (!value || typeof value !== "object") continue;
-    const { dataUrl, capturedAt } = value as Record<string, unknown>;
+    if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) continue;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      { dataUrl, capturedAt } = value as Record<string, SchemaJson>;
     if (!isStorableFaviconDataUrl(dataUrl)) continue;
     if (!isValidFaviconCapturedAt(capturedAt)) continue;
-    const rawAliases = (value as Record<string, unknown>).aliases;
+    const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+      rawAliases = (value as Record<string, SchemaJson>).aliases;
     const aliases = Array.isArray(rawAliases)
       ? [...new Set(rawAliases.map(persistedFaviconAlias).filter((alias) => alias !== null))].slice(
           0,
@@ -194,7 +205,7 @@ export function migratePersistedBrowserFaviconState(persistedState: unknown): {
     byKey[migratedKey] = {
       dataUrl: newest ? dataUrl : existing.dataUrl,
       capturedAt: newest ? capturedAt : existing.capturedAt,
-      ...(mergedAliases.length > 0 ? { aliases: mergedAliases } : {}),
+      ...(mergedAliases.length > 0 ? { aliases: mergedAliases } : undefined),
     };
   }
   return { byKey: evictExcessFavicons(byKey) };

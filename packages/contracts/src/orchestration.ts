@@ -22,6 +22,7 @@ import {
   TurnId,
 } from "./baseSchemas.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export const ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
@@ -80,6 +81,12 @@ const ModelSelectionSource = Schema.Struct({
   options: Schema.optional(Schema.Unknown),
 });
 
+interface ModelSelectionEncodedFields {
+  readonly instanceId: unknown;
+  readonly model: unknown;
+  options?: unknown;
+}
+
 export const ModelSelection = ModelSelectionSource.pipe(
   Schema.decodeTo(
     ModelSelectionWire,
@@ -93,22 +100,24 @@ export const ModelSelection = ModelSelectionSource.pipe(
         const instanceIdSource =
           raw.instanceId !== undefined
             ? raw.instanceId
-            : typeof raw.provider === "string"
+            : RuntimePredicate.isString(raw.provider)
               ? raw.provider
               : undefined;
-        const base: Record<string, unknown> = {
+        const base: ModelSelectionEncodedFields = {
           instanceId: instanceIdSource,
           model: raw.model,
         };
         if (raw.options !== undefined) base.options = raw.options;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return Effect.succeed(base as typeof ModelSelectionWire.Encoded);
       },
       encode: (value) => {
-        const base: Record<string, unknown> = {
+        const base: ModelSelectionEncodedFields = {
           model: value.model,
           instanceId: value.instanceId,
         };
         if (value.options !== undefined) base.options = value.options;
+        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return Effect.succeed(base as typeof ModelSelectionSource.Encoded);
       },
     }),

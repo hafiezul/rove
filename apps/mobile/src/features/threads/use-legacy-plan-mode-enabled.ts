@@ -13,7 +13,7 @@ export function useLegacyPlanModeEnabled(): boolean {
   return useLegacyPlanModeState().enabled;
 }
 
-export function useLegacyPlanModeState(): { readonly enabled: boolean; readonly loaded: boolean } {
+export function useLegacyPlanModeState() {
   const preferences = useAtomValue(mobilePreferencesAtom);
   const loaded = AsyncResult.isSuccess(preferences);
   return {

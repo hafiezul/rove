@@ -2,7 +2,7 @@ import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
-export interface ProviderSessionReaperShape {
+export interface ProviderSessionReaperContract {
   /**
    * Start the background provider session reaper within the provided scope.
    */
@@ -11,5 +11,5 @@ export interface ProviderSessionReaperShape {
 
 export class ProviderSessionReaper extends Context.Service<
   ProviderSessionReaper,
-  ProviderSessionReaperShape
+  ProviderSessionReaperContract
 >()("t3/provider/Services/ProviderSessionReaper") {}

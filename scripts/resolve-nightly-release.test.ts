@@ -93,6 +93,7 @@ it.layer(NodeServices.layer)("readDesktopBaseVersion", (it) => {
       assert.equal(error.operation, "read");
       assert.equal(error.packageJsonPath, packageJsonPath);
       assert.instanceOf(error.cause, PlatformError.PlatformError);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.notInclude(error.message, String((error.cause as Error).message));
     }),
   );
@@ -116,6 +117,7 @@ it.layer(NodeServices.layer)("readDesktopBaseVersion", (it) => {
       assert.equal(error.operation, "decode");
       assert.equal(error.packageJsonPath, packageJsonPath);
       assert.ok(error.cause !== undefined);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.notInclude(error.message, String((error.cause as Error).message));
     }),
   );

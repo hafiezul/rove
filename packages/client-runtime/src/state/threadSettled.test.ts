@@ -149,13 +149,14 @@ describe("effectiveSettled", () => {
       const shell = makeShell({
         settledOverride,
         activityAt,
-        ...(running ? { sessionStatus: "running" as const } : {}),
-        ...(pending === undefined ? {} : { pending }),
+        ...(running ? { sessionStatus: "running" as const } : undefined),
+        ...(pending === undefined ? undefined : { pending }),
       });
-      const changeRequestOptions =
-        changeRequestState === undefined
-          ? {}
-          : { changeRequestState: changeRequestState as ChangeRequestStateLike };
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        changeRequestOptions =
+          changeRequestState === undefined
+            ? {}
+            : { changeRequestState: changeRequestState as ChangeRequestStateLike };
 
       expect(
         effectiveSettled(shell, {

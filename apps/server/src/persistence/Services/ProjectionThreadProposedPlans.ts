@@ -35,7 +35,7 @@ export const DeleteProjectionThreadProposedPlansInput = Schema.Struct({
 export type DeleteProjectionThreadProposedPlansInput =
   typeof DeleteProjectionThreadProposedPlansInput.Type;
 
-export interface ProjectionThreadProposedPlanRepositoryShape {
+export interface ProjectionThreadProposedPlanRepositoryContract {
   readonly upsert: (
     proposedPlan: ProjectionThreadProposedPlan,
   ) => Effect.Effect<void, ProjectionRepositoryError>;
@@ -49,7 +49,7 @@ export interface ProjectionThreadProposedPlanRepositoryShape {
 
 export class ProjectionThreadProposedPlanRepository extends Context.Service<
   ProjectionThreadProposedPlanRepository,
-  ProjectionThreadProposedPlanRepositoryShape
+  ProjectionThreadProposedPlanRepositoryContract
 >()(
   "t3/persistence/Services/ProjectionThreadProposedPlans/ProjectionThreadProposedPlanRepository",
 ) {}

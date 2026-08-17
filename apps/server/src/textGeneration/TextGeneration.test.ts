@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as PubSub from "effect/PubSub";
@@ -24,23 +25,24 @@ const makeStubTextGeneration = (
     ...overrides,
   });
 
-const makeStubInstance = (
-  instanceId: ProviderInstanceId,
-  textGeneration: TextGeneration.TextGeneration["Service"],
-): ProviderInstance =>
-  ({
-    instanceId,
-    driverKind: instanceId as unknown as ProviderInstance["driverKind"],
-    continuationIdentity: {
-      driverKind: instanceId as unknown as ProviderInstance["driverKind"],
-      continuationKey: `${instanceId}:test`,
-    },
-    displayName: undefined,
-    enabled: true,
-    snapshot: {} as ProviderInstance["snapshot"],
-    adapter: {} as ProviderInstance["adapter"],
-    textGeneration,
-  }) satisfies ProviderInstance;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  makeStubInstance = (
+    instanceId: ProviderInstanceId,
+    textGeneration: TextGeneration.TextGeneration["Service"],
+  ): ProviderInstance =>
+    ({
+      instanceId,
+      driverKind: testDouble<ProviderInstance["driverKind"]>(instanceId),
+      continuationIdentity: {
+        driverKind: testDouble<ProviderInstance["driverKind"]>(instanceId),
+        continuationKey: `${instanceId}:test`,
+      },
+      displayName: undefined,
+      enabled: true,
+      snapshot: {} as ProviderInstance["snapshot"],
+      adapter: {} as ProviderInstance["adapter"],
+      textGeneration,
+    }) satisfies ProviderInstance;
 
 const makeStubRegistry = (
   instances: ReadonlyArray<ProviderInstance>,

@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import * as Tracer from "effect/Tracer";
 import type { HttpClient } from "effect/unstable/http";
 import { OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface RelayClientTracingConfig {
   readonly tracesUrl: string;
@@ -54,15 +55,14 @@ function traceSafeError(value: unknown, seen = new WeakSet<object>()): Error {
   const message =
     value instanceof Error
       ? value.message
-      : typeof value === "object" &&
-          value !== null &&
+      : RuntimePredicate.isObjectOrArray(value) &&
           "message" in value &&
-          typeof value.message === "string"
+          RuntimePredicate.isString(value.message)
         ? value.message
         : String(value);
 
   let cause: Error | undefined;
-  if (typeof value === "object" && value !== null && !seen.has(value)) {
+  if (RuntimePredicate.isObjectOrArray(value) && !seen.has(value)) {
     seen.add(value);
     if ("cause" in value && value.cause !== undefined) {
       cause = traceSafeError(value.cause, seen);
@@ -74,10 +74,9 @@ function traceSafeError(value: unknown, seen = new WeakSet<object>()): Error {
     error.name = value.name;
     error.stack = cleanTraceStack(value);
   } else if (
-    typeof value === "object" &&
-    value !== null &&
+    RuntimePredicate.isObjectOrArray(value) &&
     "name" in value &&
-    typeof value.name === "string"
+    RuntimePredicate.isString(value.name)
   ) {
     error.name = value.name;
   }
@@ -120,7 +119,7 @@ function nonInterferingTracer(delegate: Tracer.Tracer): Tracer.Tracer {
       };
       return span;
     },
-    ...(delegate.context ? { context: delegate.context } : {}),
+    ...(delegate.context ? { context: delegate.context } : undefined),
   });
 }
 

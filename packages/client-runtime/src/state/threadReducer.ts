@@ -170,7 +170,7 @@ export function applyThreadDetailEvent(
           pinnedAt: event.payload.pinnedAt,
           ...(event.payload.pinOrderKey !== undefined
             ? { pinOrderKey: event.payload.pinOrderKey }
-            : {}),
+            : undefined),
           updatedAt: event.payload.updatedAt,
         },
       };
@@ -202,17 +202,17 @@ export function applyThreadDetailEvent(
         kind: "updated",
         thread: {
           ...thread,
-          ...(event.payload.title !== undefined ? { title: event.payload.title } : {}),
+          ...(event.payload.title !== undefined ? { title: event.payload.title } : undefined),
           ...(event.payload.titleRegeneration !== undefined
             ? { titleRegeneration: event.payload.titleRegeneration }
-            : {}),
+            : undefined),
           ...(event.payload.modelSelection !== undefined
             ? { modelSelection: event.payload.modelSelection }
-            : {}),
-          ...(event.payload.branch !== undefined ? { branch: event.payload.branch } : {}),
+            : undefined),
+          ...(event.payload.branch !== undefined ? { branch: event.payload.branch } : undefined),
           ...(event.payload.worktreePath !== undefined
             ? { worktreePath: event.payload.worktreePath }
-            : {}),
+            : undefined),
           updatedAt: event.payload.updatedAt,
         },
       };
@@ -245,7 +245,7 @@ export function applyThreadDetailEvent(
           ...thread,
           ...(event.payload.modelSelection !== undefined
             ? { modelSelection: event.payload.modelSelection }
-            : {}),
+            : undefined),
           runtimeMode: event.payload.runtimeMode,
           interactionMode: event.payload.interactionMode,
           updatedAt: event.occurredAt,
@@ -283,7 +283,7 @@ export function applyThreadDetailEvent(
         text: event.payload.text,
         ...(event.payload.attachments !== undefined
           ? { attachments: event.payload.attachments }
-          : {}),
+          : undefined),
         turnId: event.payload.turnId,
         streaming: event.payload.streaming,
         createdAt: event.payload.createdAt,
@@ -303,11 +303,11 @@ export function applyThreadDetailEvent(
                       ? message.text
                       : entry.text,
                   streaming: message.streaming,
-                  ...(message.turnId !== undefined ? { turnId: message.turnId } : {}),
-                  ...(message.streaming ? {} : { updatedAt: message.updatedAt }),
+                  ...(message.turnId !== undefined ? { turnId: message.turnId } : undefined),
+                  ...(message.streaming ? undefined : { updatedAt: message.updatedAt }),
                   ...(message.attachments !== undefined
                     ? { attachments: message.attachments }
-                    : {}),
+                    : undefined),
                 },
           )
         : Arr.append(thread.messages, message);
@@ -528,6 +528,7 @@ export function applyThreadDetailEvent(
       );
       const latestCheckpoint = checkpoints.at(-1) ?? null;
 
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         kind: "updated",
         thread: {

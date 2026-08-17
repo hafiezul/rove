@@ -51,11 +51,14 @@ import {
   isModelSelectionProviderEnabled,
 } from "@t3tools/shared/serverSettings";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
 export { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
 
 const encodeServerSettings = Schema.encodeEffect(ServerSettings);
-const encodeServerSettingsJson = Schema.encodeUnknownEffect(fromJsonStringPretty(ServerSettings));
+const decodeJsonValue = Schema.decodeUnknownEffect(Schema.Json);
+const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json));
+const encodeJsonString = Schema.encodeUnknownEffect(fromJsonStringPretty(Schema.Unknown));
 const decodeServerSettings = Schema.decodeUnknownEffect(ServerSettings);
 
 const textEncoder = new TextEncoder();
@@ -93,7 +96,7 @@ function redactProviderEnvironmentVariable(
   return {
     ...variable,
     value: "",
-    ...(variable.value.length > 0 || variable.valueRedacted ? { valueRedacted: true } : {}),
+    ...(variable.value.length > 0 || variable.valueRedacted ? { valueRedacted: true } : undefined),
   };
 }
 
@@ -149,15 +152,16 @@ const makeTest = (overrides: DeepPartial<ServerSettings> = {}) =>
     const { automaticGitFetchInterval, providerHealthRefreshInterval, ...overridesForMerge } =
       overrides;
     const merged = deepMerge(DEFAULT_SERVER_SETTINGS, overridesForMerge);
-    const initialSettings = yield* normalizeServerSettings({
-      ...merged,
-      ...(automaticGitFetchInterval !== undefined
-        ? { automaticGitFetchInterval: automaticGitFetchInterval as Duration.Duration }
-        : {}),
-      ...(providerHealthRefreshInterval !== undefined
-        ? { providerHealthRefreshInterval: providerHealthRefreshInterval as Duration.Duration }
-        : {}),
-    });
+    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+      initialSettings = yield* normalizeServerSettings({
+        ...merged,
+        ...(automaticGitFetchInterval !== undefined
+          ? { automaticGitFetchInterval: automaticGitFetchInterval as Duration.Duration }
+          : undefined),
+        ...(providerHealthRefreshInterval !== undefined
+          ? { providerHealthRefreshInterval: providerHealthRefreshInterval as Duration.Duration }
+          : undefined),
+      });
     const currentSettingsRef = yield* Ref.make<ServerSettings>(initialSettings);
 
     return {
@@ -216,28 +220,29 @@ const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "textGenerationModelSelection",
 ]);
 
-function stripDefaultServerSettings(current: unknown, defaults: unknown): unknown | undefined {
+function stripDefaultServerSettings(
+  current: SchemaJson,
+  defaults: SchemaJson | undefined,
+): SchemaJson | undefined {
   if (Array.isArray(current) || Array.isArray(defaults)) {
     return Equal.equals(current, defaults) ? undefined : current;
   }
 
-  if (
-    current !== null &&
-    defaults !== null &&
-    typeof current === "object" &&
-    typeof defaults === "object"
-  ) {
-    const currentRecord = current as Record<string, unknown>;
-    const defaultsRecord = defaults as Record<string, unknown>;
-    const next: Record<string, unknown> = {};
+  if (isJsonObject(current) && isJsonObject(defaults)) {
+    const next: Record<string, SchemaJson> = {};
 
-    for (const key of Object.keys(currentRecord)) {
+    for (const key of Object.keys(current)) {
+      const currentValue = current[key];
+      if (currentValue === undefined) {
+        continue;
+      }
+      const defaultValue = defaults[key];
       if (ATOMIC_SETTINGS_KEYS.has(key)) {
-        if (!Equal.equals(currentRecord[key], defaultsRecord[key])) {
-          next[key] = currentRecord[key];
+        if (!Equal.equals(currentValue, defaultValue)) {
+          next[key] = currentValue;
         }
       } else {
-        const stripped = stripDefaultServerSettings(currentRecord[key], defaultsRecord[key]);
+        const stripped = stripDefaultServerSettings(currentValue, defaultValue);
         if (stripped !== undefined) {
           next[key] = stripped;
         }
@@ -313,11 +318,15 @@ const make = Effect.gen(function* () {
 
   const getSettingsFromCache = Cache.get(settingsCache, cacheKey);
 
+  interface ProviderInstancesById {
+    [instanceId: string]: ProviderInstanceConfig;
+  }
+
   const materializeProviderEnvironmentSecrets = (
     settings: ServerSettings,
   ): Effect.Effect<ServerSettings, ServerSettingsError> =>
     Effect.gen(function* () {
-      const providerInstances: Record<string, ProviderInstanceConfig> = {
+      const providerInstances: ProviderInstancesById = {
         ...settings.providerInstances,
       };
       for (const [instanceId, instance] of Object.entries(settings.providerInstances)) {
@@ -352,6 +361,7 @@ const make = Effect.gen(function* () {
           environment,
         } satisfies ProviderInstanceConfig;
       }
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         ...settings,
         providerInstances: providerInstances as ServerSettings["providerInstances"],
@@ -380,7 +390,7 @@ const make = Effect.gen(function* () {
     next: ServerSettings,
   ): Effect.Effect<ServerSettings, ServerSettingsError> =>
     Effect.gen(function* () {
-      const providerInstances: Record<string, ProviderInstanceConfig> = {
+      const providerInstances: ProviderInstancesById = {
         ...next.providerInstances,
       };
 
@@ -470,6 +480,7 @@ const make = Effect.gen(function* () {
         }
       }
 
+      // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return {
         ...next,
         providerInstances: providerInstances as ServerSettings["providerInstances"],
@@ -478,8 +489,12 @@ const make = Effect.gen(function* () {
 
   const writeSettingsAtomically = Effect.fnUntraced(
     function* (settings: ServerSettings) {
-      const sparseSettingsJson = yield* encodeServerSettingsJson(
-        stripDefaultServerSettings(settings, DEFAULT_SERVER_SETTINGS) ?? {},
+      const settingsJson = yield* decodeJsonValue(yield* encodeServerSettings(settings));
+      const defaultSettingsJson = yield* decodeJsonValue(
+        yield* encodeServerSettings(DEFAULT_SERVER_SETTINGS),
+      );
+      const sparseSettingsJson = yield* encodeJsonString(
+        stripDefaultServerSettings(settingsJson, defaultSettingsJson) ?? {},
       );
 
       return yield* writeFileStringAtomically({

@@ -1,3 +1,4 @@
+import { testDouble } from "~/testDouble";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   $createParagraphNode,
@@ -17,10 +18,10 @@ class TestClipboardEvent extends Event {
 
   constructor(text: string) {
     super("paste", { cancelable: true });
-    this.clipboardData = {
+    this.clipboardData = testDouble<DataTransfer>({
       files: [],
       getData: (type: string) => (type === "text/plain" ? text : ""),
-    } as unknown as DataTransfer;
+    });
   }
 }
 
@@ -58,6 +59,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },
@@ -103,6 +105,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },
@@ -137,6 +140,7 @@ describe("registerComposerInlineTokenPaste", () => {
     let handled = false;
     editor.update(
       () => {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         handled = editor.dispatchCommand(PASTE_COMMAND, event as ClipboardEvent);
       },
       { discrete: true },

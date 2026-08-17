@@ -6,6 +6,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { PositiveInt, TrimmedNonEmptyString } from "@t3tools/contracts";
 import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
+import * as RuntimePredicate from "effect/Predicate";
 
 export interface NormalizedGitLabMergeRequestRecord {
   readonly number: number;
@@ -94,7 +95,8 @@ function normalizeGitLabMergeRequestRecord(
   const sourceProjectPath = projectPathWithNamespace(raw.source_project);
   const targetProjectPath = projectPathWithNamespace(raw.target_project);
   const isCrossRepository =
-    typeof raw.source_project_id === "number" && typeof raw.target_project_id === "number"
+    RuntimePredicate.isNumber(raw.source_project_id) &&
+    RuntimePredicate.isNumber(raw.target_project_id)
       ? raw.source_project_id !== raw.target_project_id
       : sourceProjectPath !== null && targetProjectPath !== null
         ? sourceProjectPath.toLowerCase() !== targetProjectPath.toLowerCase()
@@ -109,9 +111,9 @@ function normalizeGitLabMergeRequestRecord(
     headRefName: raw.source_branch,
     state: normalizeGitLabMergeRequestState(raw.state),
     updatedAt: raw.updated_at ?? Option.none(),
-    ...(typeof isCrossRepository === "boolean" ? { isCrossRepository } : {}),
-    ...(sourceProjectPath ? { headRepositoryNameWithOwner: sourceProjectPath } : {}),
-    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : {}),
+    ...(RuntimePredicate.isBoolean(isCrossRepository) ? { isCrossRepository } : undefined),
+    ...(sourceProjectPath ? { headRepositoryNameWithOwner: sourceProjectPath } : undefined),
+    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : undefined),
   };
 }
 

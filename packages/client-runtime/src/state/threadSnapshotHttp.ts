@@ -64,10 +64,10 @@ export const fetchEnvironmentThreadSnapshot = Effect.fn(
       client.orchestration.threadSnapshot({
         params: { threadId: input.threadId },
         payload: {
-          ...(input.window !== undefined ? { turnLimit: input.window.turnLimit } : {}),
+          ...(input.window !== undefined ? { turnLimit: input.window.turnLimit } : undefined),
           ...(input.window?.beforeCursor !== undefined
             ? { beforeCursor: input.window.beforeCursor }
-            : {}),
+            : undefined),
         },
         headers,
       }),
@@ -112,7 +112,7 @@ export const threadSnapshotLoaderLayer: Layer.Layer<
           prepared,
           threadId,
           signer,
-          ...(window !== undefined ? { window } : {}),
+          ...(window !== undefined ? { window } : undefined),
         }).pipe(
           Effect.map(Option.some<OrchestrationThreadDetailSnapshot>),
           Effect.provideService(HttpClient.HttpClient, httpClient),

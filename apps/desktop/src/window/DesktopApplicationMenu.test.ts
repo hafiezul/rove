@@ -15,6 +15,7 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const environmentInput = {
   dirname: "/repo/apps/desktop/dist-electron",
@@ -137,7 +138,7 @@ describe("DesktopApplicationMenu", () => {
       const settingsItem = fileMenu.submenu.find((item) => item.label === "Settings...");
       assert.isDefined(settingsItem);
       const settingsClick = settingsItem.click;
-      if (typeof settingsClick !== "function") {
+      if (!RuntimePredicate.isFunction(settingsClick)) {
         throw new Error("Expected Settings menu item to have a click handler.");
       }
 
@@ -171,7 +172,7 @@ describe("DesktopApplicationMenu", () => {
       const zoomIn = viewMenu.submenu.find((item) => item.label === "Zoom In");
       assert.isDefined(zoomIn);
       assert.equal(zoomIn.accelerator, "CmdOrCtrl+=");
-      if (typeof zoomIn.click !== "function") {
+      if (!RuntimePredicate.isFunction(zoomIn.click)) {
         throw new Error("Expected Zoom In menu item to have a click handler.");
       }
 

@@ -28,7 +28,7 @@ function capabilities(edit?: PullRequestCapabilities["edit"]): PullRequestCapabi
     reactions: true,
     review: { inlineComment: true, reply: true, resolve: true, verdicts: [] },
     reviewers: { request: true, listCandidates: true },
-    ...(edit === undefined ? {} : { edit }),
+    ...(edit === undefined ? undefined : { edit }),
   };
 }
 

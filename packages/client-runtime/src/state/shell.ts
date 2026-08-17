@@ -242,7 +242,7 @@ export const makeEnvironmentShellState = Effect.fn("EnvironmentShellState.make")
         }
         return {
           afterSequence: current.snapshot.value.snapshotSequence,
-          ...(supportsCompletionMarker ? { requestCompletionMarker: true as const } : {}),
+          ...(supportsCompletionMarker ? { requestCompletionMarker: true as const } : undefined),
         };
       }),
       {

@@ -32,12 +32,13 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
 
   const params = props.route.params;
 
-  const confirmAction = params.confirmAction as
-    | "push"
-    | "create_pr"
-    | "commit_push"
-    | "commit_push_pr"
-    | undefined;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    confirmAction = params.confirmAction as
+      | "push"
+      | "create_pr"
+      | "commit_push"
+      | "commit_push_pr"
+      | undefined;
   const branchName = params.branchName ?? "";
   const includesCommit = params.includesCommit === "true";
   const environmentId = params.environmentId ?? "";
@@ -60,8 +61,8 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
     navigation.dispatch(StackActions.replace("Thread", { environmentId, threadId }));
     await gitActions.onRunSelectedThreadGitAction({
       action: confirmAction,
-      ...(params.commitMessage ? { commitMessage: params.commitMessage } : {}),
-      ...(params.filePaths ? { filePaths: params.filePaths.split(",") } : {}),
+      ...(params.commitMessage ? { commitMessage: params.commitMessage } : undefined),
+      ...(params.filePaths ? { filePaths: params.filePaths.split(",") } : undefined),
     });
   }, [confirmAction, environmentId, gitActions, params, navigation, threadId]);
 
@@ -73,8 +74,8 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
       await gitActions.onRunSelectedThreadGitAction({
         action: confirmAction,
         featureBranch: true,
-        ...(params.commitMessage ? { commitMessage: params.commitMessage } : {}),
-        ...(params.filePaths ? { filePaths: params.filePaths.split(",") } : {}),
+        ...(params.commitMessage ? { commitMessage: params.commitMessage } : undefined),
+        ...(params.filePaths ? { filePaths: params.filePaths.split(",") } : undefined),
       });
       return;
     }

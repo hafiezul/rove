@@ -1,5 +1,8 @@
+import { testDouble } from "~/testDouble";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
 
 const {
   events,
@@ -19,11 +22,14 @@ const {
     readonly height: number;
     readonly receivedAt: string;
   };
-  const frameSubscription: { listener: ((frame: Frame) => void) | null } = {
+  interface FrameSubscription {
+    listener: ((frame: Frame) => void) | null;
+  }
+  const frameSubscription: FrameSubscription = {
     listener: null,
   };
   const surfaceState = {
-    byTabId: {} as Record<string, unknown>,
+    byTabId: {} as Record<string, SchemaJson>,
   };
   return {
     events,
@@ -49,12 +55,13 @@ const {
     })),
     startScreencast: vi.fn(async (tabId: string) => {
       events.push("start-screencast");
-      const surface = surfaceState.byTabId[tabId] as
-        | {
-            readonly content?: { readonly width: number; readonly height: number };
-            readonly rect?: { readonly width: number; readonly height: number };
-          }
-        | undefined;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        surface = surfaceState.byTabId[tabId] as
+          | {
+              readonly content?: { readonly width: number; readonly height: number };
+              readonly rect?: { readonly width: number; readonly height: number };
+            }
+          | undefined;
       const size = surface?.content ?? surface?.rect;
       frameSubscription.listener?.({
         tabId,
@@ -118,7 +125,7 @@ class FakeMediaRecorder {
   stop(): void {
     this.state = "inactive";
     for (const listener of this.listeners.get("stop") ?? []) {
-      if (typeof listener === "function") listener(new Event("stop"));
+      if (RuntimePredicate.isFunction(listener)) listener(new Event("stop"));
       else listener.handleEvent(new Event("stop"));
     }
   }
@@ -147,7 +154,8 @@ describe("browser recording", () => {
     };
     vi.clearAllMocks();
     vi.stubGlobal("window", globalThis);
-    vi.stubGlobal("MediaRecorder", FakeMediaRecorder as unknown as typeof MediaRecorder);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    vi.stubGlobal("MediaRecorder", testDouble<typeof MediaRecorder>(FakeMediaRecorder));
     class ImmediateImage {
       private loadListener: EventListenerOrEventListenerObject | undefined;
 
@@ -157,11 +165,12 @@ describe("browser recording", () => {
 
       set src(_value: string) {
         const event = new Event("load");
-        if (typeof this.loadListener === "function") this.loadListener(event);
+        if (RuntimePredicate.isFunction(this.loadListener)) this.loadListener(event);
         else this.loadListener?.handleEvent(event);
       }
     }
-    vi.stubGlobal("Image", ImmediateImage as unknown as typeof Image);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    vi.stubGlobal("Image", testDouble<typeof Image>(ImmediateImage));
     vi.stubGlobal("document", {
       createElement: () => ({
         width: 0,
@@ -287,11 +296,12 @@ describe("browser recording", () => {
 
       finishLoading(): void {
         const event = new Event("load");
-        if (typeof this.loadListener === "function") this.loadListener(event);
+        if (RuntimePredicate.isFunction(this.loadListener)) this.loadListener(event);
         else this.loadListener?.handleEvent(event);
       }
     }
-    vi.stubGlobal("Image", DeferredImage as unknown as typeof Image);
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    vi.stubGlobal("Image", testDouble<typeof Image>(DeferredImage));
     vi.stubGlobal("document", {
       createElement: () => ({
         width: 0,

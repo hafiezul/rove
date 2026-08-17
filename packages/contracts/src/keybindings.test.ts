@@ -8,18 +8,21 @@ import {
   ResolvedKeybindingRule,
   ResolvedKeybindingsConfig,
 } from "./keybindings.ts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-const decode = <S extends Schema.Top>(
-  schema: S,
-  input: unknown,
-): Effect.Effect<Schema.Schema.Type<S>, Schema.SchemaError, never> =>
-  Schema.decodeUnknownEffect(schema as never)(input) as Effect.Effect<
-    Schema.Schema.Type<S>,
-    Schema.SchemaError,
-    never
-  >;
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  decode = <S extends Schema.Top>(
+    schema: S,
+    input: unknown,
+  ): Effect.Effect<Schema.Schema.Type<S>, Schema.SchemaError, never> =>
+    Schema.decodeUnknownEffect(schema as never)(input) as Effect.Effect<
+      Schema.Schema.Type<S>,
+      Schema.SchemaError,
+      never
+    >;
 
-const decodeResolvedRule = Schema.decodeUnknownEffect(ResolvedKeybindingRule as never);
+const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+  decodeResolvedRule = Schema.decodeUnknownEffect(ResolvedKeybindingRule as never);
 const encodeResolvedKeybindings = Schema.encodeEffect(ResolvedKeybindingsConfig);
 
 it.effect("parses keybinding rules", () =>
@@ -270,7 +273,8 @@ it.effect("drops unknown fields in resolved keybinding rules", () =>
     key: "mod+j",
   }).pipe(
     Effect.map((parsed) => {
-      const view = parsed as Record<string, unknown>;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        view = parsed as Record<string, SchemaJson>;
       assert.strictEqual("key" in view, false);
       assert.strictEqual(view.command, "terminal.toggle");
     }),

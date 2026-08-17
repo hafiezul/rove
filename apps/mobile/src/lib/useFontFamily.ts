@@ -11,5 +11,6 @@ const FONT_FAMILY_VARIABLES = {
  * Prefer Uniwind font classes when the target component accepts `className`.
  */
 export function useFontFamily(weight: keyof typeof FONT_FAMILY_VARIABLES): string {
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return useCSSVariable(FONT_FAMILY_VARIABLES[weight]) as string;
 }

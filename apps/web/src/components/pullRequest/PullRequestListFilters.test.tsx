@@ -4,6 +4,7 @@ import { Children, isValidElement, type ReactElement, type ReactNode } from "rea
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { PullRequestFiltersMenu, pullRequestProjectKey } from "./PullRequestListFilters";
+import * as RuntimePredicate from "effect/Predicate";
 
 function findValueChange(
   node: ReactNode,
@@ -12,11 +13,13 @@ function findValueChange(
   | undefined {
   for (const child of Children.toArray(node)) {
     if (!isValidElement(child)) continue;
-    const props = child.props as {
-      readonly children?: ReactNode;
-      readonly onValueChange?: (value: string) => void;
-    };
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      props = child.props as {
+        readonly children?: ReactNode;
+        readonly onValueChange?: (value: string) => void;
+      };
     if (props.onValueChange) {
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return child as ReactElement<{
         readonly children?: ReactNode;
         readonly onValueChange: (value: string) => void;
@@ -32,8 +35,10 @@ function findValueChange(
 function findLabeledGroup(node: ReactNode, label: string): ReactNode {
   for (const child of Children.toArray(node)) {
     if (!isValidElement(child)) continue;
-    const props = child.props as { readonly children?: ReactNode; readonly label?: string };
-    if (props.label === label && typeof child.type === "function") {
+    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      props = child.props as { readonly children?: ReactNode; readonly label?: string };
+    if (props.label === label && RuntimePredicate.isFunction(child.type)) {
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return (child.type as (properties: unknown) => ReactNode)(child.props);
     }
     const nested = findLabeledGroup(props.children, label);

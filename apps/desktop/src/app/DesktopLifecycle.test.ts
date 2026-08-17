@@ -49,10 +49,8 @@ describe("DesktopLifecycle", () => {
         on: (eventName, listener) =>
           Effect.acquireRelease(
             Effect.sync(() => {
-              appListeners.set(
-                eventName,
-                listener as unknown as (...args: readonly unknown[]) => void,
-              );
+              // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+              appListeners.set(eventName, listener as (...args: readonly unknown[]) => void);
             }),
             () =>
               Effect.sync(() => {

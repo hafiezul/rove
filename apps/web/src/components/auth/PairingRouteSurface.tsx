@@ -13,6 +13,7 @@ import { readHostedPairingRequest } from "../../hostedPairing";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useAtomCommand } from "../../state/use-atom-command";
+import * as RuntimePredicate from "effect/Predicate";
 
 export function PairingPendingSurface() {
   return (
@@ -292,7 +293,7 @@ function errorMessageFromUnknown(error: unknown): string {
     return error.message;
   }
 
-  if (typeof error === "string" && error.trim().length > 0) {
+  if (RuntimePredicate.isString(error) && error.trim().length > 0) {
     return error;
   }
 

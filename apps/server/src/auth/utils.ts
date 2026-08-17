@@ -7,6 +7,7 @@ import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest"
 import * as NodeCrypto from "node:crypto";
 import * as Encoding from "effect/Encoding";
 import * as Result from "effect/Result";
+import * as RuntimePredicate from "effect/Predicate";
 
 const SESSION_COOKIE_NAME = "t3_session";
 
@@ -67,7 +68,7 @@ export function isRemoteReachableHost(host: string | undefined): boolean {
 }
 
 export function base64UrlEncode(input: string | Uint8Array): string {
-  return typeof input === "string"
+  return RuntimePredicate.isString(input)
     ? Encoding.encodeBase64Url(new TextEncoder().encode(input))
     : Encoding.encodeBase64Url(input);
 }
@@ -90,7 +91,7 @@ export function timingSafeEqualBase64Url(left: string, right: string): boolean {
 }
 
 function normalizeNonEmptyString(value: string | null | undefined): string | undefined {
-  if (typeof value !== "string") {
+  if (!RuntimePredicate.isString(value)) {
     return undefined;
   }
   const trimmed = value.trim();
@@ -151,16 +152,17 @@ function inferOs(userAgent: string | undefined): string | undefined {
 }
 
 function readRemoteAddressFromSource(source: unknown): string | undefined {
-  if (!source || typeof source !== "object") {
+  if (!source || !(RuntimePredicate.isObjectOrArray(source) || source === null)) {
     return undefined;
   }
 
-  const candidate = source as {
-    readonly remoteAddress?: string | null;
-    readonly socket?: {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    candidate = source as {
       readonly remoteAddress?: string | null;
+      readonly socket?: {
+        readonly remoteAddress?: string | null;
+      };
     };
-  };
 
   return normalizeIpAddress(candidate.socket?.remoteAddress ?? candidate.remoteAddress);
 }
@@ -174,11 +176,11 @@ export function deriveAuthClientMetadata(input: {
   const os = input.presented?.os ?? inferOs(userAgent);
   const browser = inferBrowser(userAgent);
   return {
-    ...(input.presented?.label ? { label: input.presented.label } : {}),
-    ...(ipAddress ? { ipAddress } : {}),
-    ...(userAgent ? { userAgent } : {}),
+    ...(input.presented?.label ? { label: input.presented.label } : undefined),
+    ...(ipAddress ? { ipAddress } : undefined),
+    ...(userAgent ? { userAgent } : undefined),
     deviceType: input.presented?.deviceType ?? inferDeviceType(userAgent),
-    ...(os ? { os } : {}),
-    ...(browser ? { browser } : {}),
+    ...(os ? { os } : undefined),
+    ...(browser ? { browser } : undefined),
   };
 }

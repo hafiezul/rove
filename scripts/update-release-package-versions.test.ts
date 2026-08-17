@@ -20,6 +20,7 @@ import {
   updateReleasePackageVersions,
   updateReleasePackageVersionsCommand,
 } from "./update-release-package-versions.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 const ScriptTestLayer = Layer.mergeAll(NodeServices.layer, TestConsole.layer);
 const runCli = Command.runWith(updateReleasePackageVersionsCommand, { version: "0.0.0" });
@@ -66,8 +67,8 @@ const readReleaseVersions = Effect.fn("readReleaseVersions")(function* (rootDir:
 const captureLogs = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const result = yield* effect;
-    const logs = (yield* TestConsole.logLines).filter(
-      (line): line is string => typeof line === "string",
+    const logs = (yield* TestConsole.logLines).filter((line): line is string =>
+      RuntimePredicate.isString(line),
     );
     return { result, logs };
   });
@@ -285,8 +286,9 @@ it.layer(ScriptTestLayer)("update-release-package-versions", (it) => {
         assert.fail(`Expected CliError, got ${String(error)}`);
       }
 
-      const optionError =
-        error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        optionError =
+          error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
 
       if (!optionError || optionError._tag !== "UnrecognizedOption") {
         assert.fail(`Expected UnrecognizedOption, got ${String(optionError?._tag)}`);
@@ -304,8 +306,9 @@ it.layer(ScriptTestLayer)("update-release-package-versions", (it) => {
         assert.fail(`Expected CliError, got ${String(error)}`);
       }
 
-      const versionError =
-        error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        versionError =
+          error._tag === "ShowHelp" ? (error.errors[0] as CliError.CliError | undefined) : error;
 
       if (!versionError || versionError._tag !== "MissingArgument") {
         assert.fail(`Expected MissingArgument, got ${String(versionError?._tag)}`);

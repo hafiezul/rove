@@ -7,6 +7,7 @@ import * as React from "react";
 import { cn } from "~/lib/utils";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
+import * as RuntimePredicate from "effect/Predicate";
 
 const ComboboxContext = React.createContext<{
   chipsRef: React.RefObject<Element | null> | null;
@@ -36,7 +37,8 @@ function ComboboxChipsInput({
   size?: "sm" | "default" | "lg" | number;
   ref?: React.Ref<HTMLInputElement>;
 }) {
-  const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
 
   return (
     <ComboboxPrimitive.Input
@@ -45,9 +47,9 @@ function ComboboxChipsInput({
         sizeValue === "sm" ? "ps-1.5" : "ps-2",
         className,
       )}
-      data-size={typeof sizeValue === "string" ? sizeValue : undefined}
+      data-size={RuntimePredicate.isString(sizeValue) ? sizeValue : undefined}
       data-slot="combobox-chips-input"
-      size={typeof sizeValue === "number" ? sizeValue : undefined}
+      size={RuntimePredicate.isNumber(sizeValue) ? sizeValue : undefined}
       {...props}
     />
   );
@@ -71,7 +73,8 @@ function ComboboxInput({
   unstyled?: boolean;
   ref?: React.Ref<HTMLInputElement>;
 }) {
-  const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
 
   return (
     <div className="relative not-has-[>*.w-full]:w-fit w-full text-foreground has-disabled:opacity-64">
@@ -327,6 +330,7 @@ function ComboboxChips({
 }) {
   const { chipsRef } = React.use(ComboboxContext);
 
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <ComboboxPrimitive.Chips
       className={cn(

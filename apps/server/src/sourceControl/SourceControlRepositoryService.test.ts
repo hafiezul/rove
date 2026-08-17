@@ -24,11 +24,12 @@ const CLONE_URLS = {
 function makeProvider(
   overrides: Partial<SourceControlProvider.SourceControlProvider["Service"]> = {},
 ): SourceControlProvider.SourceControlProvider["Service"] {
-  const unsupported = (operation: string) =>
-    Effect.die(`unexpected provider operation ${operation}`) as Effect.Effect<
-      never,
-      SourceControlProviderError
-    >;
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    unsupported = (operation: string) =>
+      Effect.die(`unexpected provider operation ${operation}`) as Effect.Effect<
+        never,
+        SourceControlProviderError
+      >;
 
   return {
     kind: "github",

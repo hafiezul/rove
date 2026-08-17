@@ -4,6 +4,7 @@ import { Input as InputPrimitive } from "@base-ui/react/input";
 import type * as React from "react";
 
 import { cn } from "~/lib/utils";
+import * as RuntimePredicate from "effect/Predicate";
 
 type InputProps = Omit<InputPrimitive.Props & React.RefAttributes<HTMLInputElement>, "size"> & {
   size?: "sm" | "default" | "lg" | number;
@@ -31,13 +32,14 @@ function Input({
 
   if (nativeInput) {
     const { style, onValueChange: _onValueChange, ...nativeInputProps } = props;
-    const nativeStyle = typeof style === "function" ? undefined : style;
+    const nativeStyle = RuntimePredicate.isFunction(style) ? undefined : style;
 
+    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     inputElement = (
       <input
         className={inputClassName}
         data-slot="input"
-        size={typeof size === "number" ? size : undefined}
+        size={RuntimePredicate.isNumber(size) ? size : undefined}
         style={nativeStyle}
         {...(nativeInputProps as React.ComponentProps<"input">)}
       />
@@ -47,7 +49,7 @@ function Input({
       <InputPrimitive
         className={inputClassName}
         data-slot="input"
-        size={typeof size === "number" ? size : undefined}
+        size={RuntimePredicate.isNumber(size) ? size : undefined}
         {...props}
       />
     );

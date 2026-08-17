@@ -1,4 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { testDouble } from "../testDouble.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -8,6 +9,7 @@ import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as References from "effect/References";
+import type { ReadonlyRecord } from "effect/Record";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -103,8 +105,9 @@ function makeFakeBrowserWindow() {
     webContents,
   };
 
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
-    window: window as unknown as Electron.BrowserWindow,
+    window: testDouble<Electron.BrowserWindow>(window),
     getBounds: window.getBounds,
     getNormalBounds: window.getNormalBounds,
     isDestroyed: window.isDestroyed,
@@ -294,7 +297,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
       return Option.fromNullishOr(created[0] ?? null);
     });
 
-    const electronWindowShape = {
+    const electronWindowContract = {
       create: () =>
         Effect.gen(function* () {
           const index = yield* Ref.getAndUpdate(createCalls, (count) => count + 1);
@@ -352,7 +355,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
           electronThemeLayer,
-          Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
+          Layer.succeed(ElectronWindow.ElectronWindow, electronWindowContract),
           Layer.mock(PreviewManager.PreviewManager)({
             getBrowserSession: () => Effect.succeed({} as Electron.Session),
             setMainWindow: () => Effect.void,
@@ -807,7 +810,7 @@ describe("DesktopWindow", () => {
       });
       const logRecords: Array<{
         readonly message: unknown;
-        readonly annotations: Readonly<Record<string, unknown>>;
+        readonly annotations: ReadonlyRecord<string, unknown>;
       }> = [];
       const logger = Logger.make(({ fiber, message }) => {
         logRecords.push({
@@ -839,7 +842,7 @@ describe("DesktopWindow", () => {
           record.message[0] === "failed to read connected displays; using defaults",
       );
       assert.isDefined(warning);
-      assert.strictEqual(warning.annotations.cause, displayLookupFailure);
+      assert.strictEqual(warning.annotations.cause, displayLookupFailure.message);
       assert.equal(createdWindowOptions[0]?.width, 1100);
       assert.equal(createdWindowOptions[0]?.height, 780);
       assert.isUndefined(createdWindowOptions[0]?.x);

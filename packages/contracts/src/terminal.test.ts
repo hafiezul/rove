@@ -15,11 +15,13 @@ import {
 } from "./terminal.ts";
 
 function decodeSync<S extends Schema.Top>(schema: S, input: unknown): Schema.Schema.Type<S> {
+  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return Schema.decodeUnknownSync(schema as never)(input) as Schema.Schema.Type<S>;
 }
 
 function decodes<S extends Schema.Top>(schema: S, input: unknown): boolean {
   try {
+    // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
     Schema.decodeUnknownSync(schema as never)(input);
     return true;
   } catch {

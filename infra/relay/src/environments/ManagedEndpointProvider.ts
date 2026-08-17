@@ -24,6 +24,7 @@ import {
 } from "../deploymentConfig.ts";
 import * as ManagedEndpointAllocations from "./ManagedEndpointAllocations.ts";
 import * as ManagedTunnelLimits from "./ManagedTunnelLimits.ts";
+import * as RuntimePredicate from "effect/Predicate";
 
 export class ManagedEndpointProvisioningNotConfigured extends Schema.TaggedErrorClass<ManagedEndpointProvisioningNotConfigured>()(
   "ManagedEndpointProvisioningNotConfigured",
@@ -334,7 +335,7 @@ function isLoopbackOrigin(origin: RelayManagedEndpointOrigin): boolean {
 }
 
 function isNotFoundCause(cause: unknown): boolean {
-  if (typeof cause !== "object" || cause === null) {
+  if (!RuntimePredicate.isObjectOrArray(cause)) {
     return false;
   }
   if ("_tag" in cause && cause._tag === "NotFound") {
@@ -479,8 +480,10 @@ export const make = Effect.gen(function* () {
               new ManagedEndpointDeprovisioningFailed({
                 ...input,
                 stage: "claim-deprovision",
-                ...(allocation.tunnelId === null ? {} : { tunnelId: allocation.tunnelId }),
-                ...(allocation.dnsRecordId === null ? {} : { dnsRecordId: allocation.dnsRecordId }),
+                ...(allocation.tunnelId === null ? undefined : { tunnelId: allocation.tunnelId }),
+                ...(allocation.dnsRecordId === null
+                  ? undefined
+                  : { dnsRecordId: allocation.dnsRecordId }),
                 cause,
               }),
           ),
@@ -528,8 +531,10 @@ export const make = Effect.gen(function* () {
               new ManagedEndpointDeprovisioningFailed({
                 ...input,
                 stage: "remove-allocation",
-                ...(allocation.tunnelId === null ? {} : { tunnelId: allocation.tunnelId }),
-                ...(allocation.dnsRecordId === null ? {} : { dnsRecordId: allocation.dnsRecordId }),
+                ...(allocation.tunnelId === null ? undefined : { tunnelId: allocation.tunnelId }),
+                ...(allocation.dnsRecordId === null
+                  ? undefined
+                  : { dnsRecordId: allocation.dnsRecordId }),
                 cause,
               }),
           ),
@@ -712,8 +717,8 @@ export const make = Effect.gen(function* () {
           stage: "validate-tunnel-response",
           hostname,
           tunnelName,
-          ...(tunnelResponse.id ? { returnedTunnelId: tunnelResponse.id } : {}),
-          ...(tunnelResponse.name ? { returnedTunnelName: tunnelResponse.name } : {}),
+          ...(tunnelResponse.id ? { returnedTunnelId: tunnelResponse.id } : undefined),
+          ...(tunnelResponse.name ? { returnedTunnelName: tunnelResponse.name } : undefined),
         });
       }
       const tunnel = { id: tunnelResponse.id, name: tunnelResponse.name };
@@ -781,7 +786,9 @@ export const make = Effect.gen(function* () {
               hostname,
               tunnelName,
               tunnelId: tunnel.id,
-              ...(allocation.dnsRecordId === null ? {} : { dnsRecordId: allocation.dnsRecordId }),
+              ...(allocation.dnsRecordId === null
+                ? undefined
+                : { dnsRecordId: allocation.dnsRecordId }),
               cause,
             }),
         ),
@@ -935,7 +942,7 @@ export const layerCloudflareBindings = (
               Effect.map((response) =>
                 response.result.filter(
                   (record): record is typeof record & { readonly id: string } =>
-                    typeof record.id === "string" &&
+                    RuntimePredicate.isString(record.id) &&
                     normalizeHostname(record.name) === normalizeHostname(hostname),
                 ),
               ),

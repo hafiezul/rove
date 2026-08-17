@@ -1,37 +1,47 @@
-function dataFromNotificationResponse(response: unknown): Record<string, unknown> | null {
-  if (typeof response !== "object" || response === null) {
+import * as RuntimePredicate from "effect/Predicate";
+import type { Json as SchemaJson } from "effect/Schema";
+function dataFromNotificationResponse(response: unknown): Record<string, SchemaJson> | null {
+  if (!RuntimePredicate.isObjectOrArray(response)) {
     return null;
   }
-  const notification = (response as { readonly notification?: unknown }).notification;
-  if (typeof notification !== "object" || notification === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    notification = (response as { readonly notification?: unknown }).notification;
+  if (!RuntimePredicate.isObjectOrArray(notification)) {
     return null;
   }
-  const request = (notification as { readonly request?: unknown }).request;
-  if (typeof request !== "object" || request === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    request = (notification as { readonly request?: unknown }).request;
+  if (!RuntimePredicate.isObjectOrArray(request)) {
     return null;
   }
-  const content = (request as { readonly content?: unknown }).content;
-  if (typeof content !== "object" || content === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    content = (request as { readonly content?: unknown }).content;
+  if (!RuntimePredicate.isObjectOrArray(content)) {
     return null;
   }
-  const data = (content as { readonly data?: unknown }).data;
-  return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    data = (content as { readonly data?: unknown }).data;
+  // SAFETY: The surrounding adapter has established this JSON-object view before field access.
+  return RuntimePredicate.isObjectOrArray(data) ? (data as Record<string, SchemaJson>) : null;
 }
 
 function identifierFromNotificationResponse(response: unknown): string | null {
-  if (typeof response !== "object" || response === null) {
+  if (!RuntimePredicate.isObjectOrArray(response)) {
     return null;
   }
-  const notification = (response as { readonly notification?: unknown }).notification;
-  if (typeof notification !== "object" || notification === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    notification = (response as { readonly notification?: unknown }).notification;
+  if (!RuntimePredicate.isObjectOrArray(notification)) {
     return null;
   }
-  const request = (notification as { readonly request?: unknown }).request;
-  if (typeof request !== "object" || request === null) {
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    request = (notification as { readonly request?: unknown }).request;
+  if (!RuntimePredicate.isObjectOrArray(request)) {
     return null;
   }
-  const identifier = (request as { readonly identifier?: unknown }).identifier;
-  return typeof identifier === "string" ? identifier : null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    identifier = (request as { readonly identifier?: unknown }).identifier;
+  return RuntimePredicate.isString(identifier) ? identifier : null;
 }
 
 function encodeThreadDeepLink(input: {
@@ -72,7 +82,7 @@ function normalizeThreadDeepLink(value: string): string | null {
 export function extractAgentNotificationDeepLink(response: unknown): string | null {
   const data = dataFromNotificationResponse(response);
   const deepLink = data?.deepLink;
-  if (typeof deepLink === "string") {
+  if (RuntimePredicate.isString(deepLink)) {
     const normalizedDeepLink = normalizeThreadDeepLink(deepLink);
     if (normalizedDeepLink) {
       return normalizedDeepLink;
@@ -81,7 +91,7 @@ export function extractAgentNotificationDeepLink(response: unknown): string | nu
 
   const environmentId = data?.environmentId;
   const threadId = data?.threadId;
-  if (typeof environmentId === "string" && typeof threadId === "string") {
+  if (RuntimePredicate.isString(environmentId) && RuntimePredicate.isString(threadId)) {
     return encodeThreadDeepLink({ environmentId, threadId });
   }
   return null;

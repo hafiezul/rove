@@ -29,7 +29,7 @@ export type GetProjectionStateInput = typeof GetProjectionStateInput.Type;
 /**
  * ProjectionStateRepositoryShape - Service API for projector state records.
  */
-export interface ProjectionStateRepositoryShape {
+export interface ProjectionStateRepositoryContract {
   /**
    * Insert or replace a projection cursor row.
    *
@@ -62,5 +62,5 @@ export interface ProjectionStateRepositoryShape {
  */
 export class ProjectionStateRepository extends Context.Service<
   ProjectionStateRepository,
-  ProjectionStateRepositoryShape
+  ProjectionStateRepositoryContract
 >()("t3/persistence/Services/ProjectionState/ProjectionStateRepository") {}

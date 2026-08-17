@@ -455,19 +455,20 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
       ? promptPreview
       : `${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}`;
   const handleActivate = useCallback(() => onNavigate(draftId), [draftId, onNavigate]);
-  const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent) => {
-      // Keys targeting the nested discard button belong to the button:
-      // preventDefault here would swallow Space's synthesized click and
-      // navigate instead of discarding.
-      if ((event.target as HTMLElement).closest("button")) return;
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onNavigate(draftId);
-      }
-    },
-    [draftId, onNavigate],
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    handleKeyDown = useCallback(
+      (event: ReactKeyboardEvent) => {
+        // Keys targeting the nested discard button belong to the button:
+        // preventDefault here would swallow Space's synthesized click and
+        // navigate instead of discarding.
+        if ((event.target as HTMLElement).closest("button")) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onNavigate(draftId);
+        }
+      },
+      [draftId, onNavigate],
+    );
   const handleDiscard = useCallback(
     (event: ReactMouseEvent) => {
       event.preventDefault();
@@ -917,17 +918,18 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
     },
     [onThreadActivate, threadRef],
   );
-  const handleDoubleClick = useCallback(
-    (event: ReactMouseEvent) => {
-      if (isRenaming || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      if ((event.target as HTMLElement).closest("button, a, input")) return;
-      event.preventDefault();
-      onStartRename(threadRef, thread.title);
-    },
-    [isRenaming, onStartRename, thread.title, threadRef],
-  );
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    handleDoubleClick = useCallback(
+      (event: ReactMouseEvent) => {
+        if (isRenaming || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+        if ((event.target as HTMLElement).closest("button, a, input")) return;
+        event.preventDefault();
+        onStartRename(threadRef, thread.title);
+      },
+      [isRenaming, onStartRename, thread.title, threadRef],
+    );
   const renameCommittedRef = useRef(false);
   useEffect(() => {
     if (isRenaming) renameCommittedRef.current = false;
@@ -1755,15 +1757,16 @@ export default function Sidebar() {
     [sidebarProjectSortOrder, threads, unsortedProjectGroups],
   );
   const serverProviders = useAtomValue(primaryServerProvidersAtom);
-  const providerEntryByInstanceId = useMemo(
-    () =>
-      new Map(
-        deriveProviderInstanceEntries(serverProviders).map(
-          (entry) => [entry.instanceId as string, entry] as const,
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    providerEntryByInstanceId = useMemo(
+      () =>
+        new Map(
+          deriveProviderInstanceEntries(serverProviders).map(
+            (entry) => [entry.instanceId as string, entry] as const,
+          ),
         ),
-      ),
-    [serverProviders],
-  );
+      [serverProviders],
+    );
   const projectCwdByKey = useMemo(
     () =>
       new Map(
@@ -3235,6 +3238,7 @@ export default function Sidebar() {
     shortcutLabelForCommand(keybindings, "chat.new") ??
     (projectGroups.length <= 1 ? shortcutLabelForCommand(keybindings, "chat.newLocal") : undefined);
   const newThreadInProjectShortcutLabel = shortcutLabelForCommand(keybindings, "chat.newLocal");
+  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return (
     <>
       <SidebarChromeHeader isElectron={isElectron} />

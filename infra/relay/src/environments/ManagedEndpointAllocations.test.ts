@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble.ts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,7 +13,7 @@ const layerWithDb = (db: RelayDb.RelayDb["Service"]) =>
 describe("ManagedEndpointAllocations", () => {
   it.effect("returns a claim generation only when deprovision wins the allocation CAS", () => {
     let claimedAt: string | undefined;
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       update: (table: unknown) => {
         expect(table).toBe(relayManagedEndpointAllocations);
         return {
@@ -26,7 +27,7 @@ describe("ManagedEndpointAllocations", () => {
           },
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -42,7 +43,7 @@ describe("ManagedEndpointAllocations", () => {
   });
 
   it.effect("does not remove an allocation superseded after a deprovision claim", () => {
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       delete: (table: unknown) => {
         expect(table).toBe(relayManagedEndpointAllocations);
         return {
@@ -51,7 +52,7 @@ describe("ManagedEndpointAllocations", () => {
           }),
         };
       },
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -67,7 +68,7 @@ describe("ManagedEndpointAllocations", () => {
 
   it.effect("retains database failures with allocation operation and identity", () => {
     const cause = new Error("database unavailable");
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
         from: (table: unknown) => {
           expect(table).toBe(relayManagedEndpointAllocations);
@@ -78,7 +79,7 @@ describe("ManagedEndpointAllocations", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;
@@ -98,7 +99,7 @@ describe("ManagedEndpointAllocations", () => {
   });
 
   it.effect("reports an unresolved reservation without manufacturing a cause", () => {
-    const fakeDb = {
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       insert: (table: unknown) => {
         expect(table).toBe(relayManagedEndpointAllocations);
         return {
@@ -119,7 +120,7 @@ describe("ManagedEndpointAllocations", () => {
           };
         },
       }),
-    } as unknown as RelayDb.RelayDb["Service"];
+    });
 
     return Effect.gen(function* () {
       const allocations = yield* ManagedEndpointAllocations.ManagedEndpointAllocations;

@@ -14,6 +14,7 @@ import { ManagedRelay } from "@t3tools/client-runtime/relay";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { verifyDpopProof } from "@t3tools/shared/dpop";
 import type { SavedRemoteConnection } from "../../lib/connection";
+import { testDouble } from "../../testDouble";
 import { cryptoLayer } from "../cloud/dpop";
 import { managedRelayClientLayer } from "../cloud/managedRelayLayer";
 import {
@@ -188,9 +189,10 @@ function proofIat(proof: string): number {
   if (!payload) {
     throw new Error("Missing DPoP payload.");
   }
-  const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-    readonly iat: number;
-  };
+  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+    decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      readonly iat: number;
+    };
   return decoded.iat;
 }
 
@@ -224,9 +226,10 @@ const runBackgroundOperations = Effect.fn("TestRemoteRegistration.runBackgroundO
         continue;
       }
       idlePasses = 0;
-      const exit = yield* Effect.exit(
-        pending.operation as Effect.Effect<unknown, unknown, ManagedRelay.ManagedRelayClient>,
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        exit = yield* Effect.exit(
+          pending.operation as Effect.Effect<unknown, unknown, ManagedRelay.ManagedRelayClient>,
+        );
       yield* Effect.sync(() => {
         pending.resolve(exit);
       });
@@ -388,7 +391,9 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     };
 
     return Effect.gen(function* () {
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(yield* registerLiveActivityPushToken({ activity: activity as never })).toBe(false);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       expect(yield* registerLiveActivityPushToken({ activity: activity as never })).toBe(false);
 
       expect(activity.getPushToken).toHaveBeenCalledTimes(2);
@@ -404,9 +409,8 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     };
 
     return Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        registerLiveActivityPushToken({ activity: activity as never }),
-      );
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        error = yield* Effect.flip(registerLiveActivityPushToken({ activity: activity as never }));
 
       expect(error).toBeInstanceOf(AgentAwarenessOperationError);
       expect(error).toMatchObject({
@@ -428,6 +432,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
       };
 
       return Effect.gen(function* () {
+        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         expect(yield* registerLiveActivityPushToken({ activity: activity as never })).toBe(false);
       }).pipe(Effect.provide(relayTestLayer));
     },
@@ -546,10 +551,8 @@ describe("makeRelayDeviceRegistrationRequest", () => {
       yield* runBackgroundOperations();
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      const [request, init] = fetchMock.mock.calls[1] as unknown as [
-        unknown,
-        RequestInit | undefined,
-      ];
+      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+        [request, init] = testDouble<[unknown, RequestInit | undefined]>(fetchMock.mock.calls[1]);
       const url = request instanceof Request ? request.url : String(request);
       const method = request instanceof Request ? request.method : init?.method;
       const headers = request instanceof Request ? request.headers : new Headers(init?.headers);

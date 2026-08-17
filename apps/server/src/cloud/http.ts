@@ -18,12 +18,12 @@ import {
   RelayCloudMintCredentialProofPayload,
   RelayCloudMintCredentialRequest,
   RelayEnvironmentHealthResponseProofPayload,
-  type RelayEnvironmentHealthResponse as RelayEnvironmentHealthResponseShape,
+  type RelayEnvironmentHealthResponse as RelayEnvironmentHealthResponseContract,
   RelayEnvironmentConfigRequest,
   RelayEnvironmentLinkChallengeResponse,
   RelayEnvironmentLinkResponse,
   RelayEnvironmentMintResponseProofPayload,
-  type RelayEnvironmentMintResponse as RelayEnvironmentMintResponseShape,
+  type RelayEnvironmentMintResponse as RelayEnvironmentMintResponseContract,
   RelayEnvironmentLinkProof,
   RelayEnvironmentLinkProofPayload,
   RelayLinkProofRequest,
@@ -927,7 +927,7 @@ const cloudEnvironmentHealthHandler = Effect.fn("environment.cloud.health")(
       descriptor,
       checkedAt: responsePayload.checkedAt,
       proof: responseProof,
-    } satisfies RelayEnvironmentHealthResponseShape;
+    } satisfies RelayEnvironmentHealthResponseContract;
 
     yield* appendCloudCredentialResponseHeaders;
     return response;
@@ -1048,7 +1048,7 @@ const cloudMintCredentialHandler = Effect.fn("environment.cloud.mintCredential")
       credential: issued.credential,
       expiresAt: DateTime.formatIso(issued.expiresAt),
       proof: responseProof,
-    } satisfies RelayEnvironmentMintResponseShape;
+    } satisfies RelayEnvironmentMintResponseContract;
 
     yield* appendCloudCredentialResponseHeaders;
     return response;

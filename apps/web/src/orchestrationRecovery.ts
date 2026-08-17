@@ -97,7 +97,7 @@ export function createOrchestrationRecoveryCoordinator() {
 
   const snapshotState = (): OrchestrationRecoveryState => ({
     ...state,
-    ...(state.inFlight ? { inFlight: { ...state.inFlight } } : {}),
+    ...(state.inFlight ? { inFlight: { ...state.inFlight } } : undefined),
   });
 
   const observeSequence = (sequence: number) => {

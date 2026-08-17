@@ -51,6 +51,7 @@ import {
   isSvgImagePreviewFile,
 } from "./filePath";
 import { useWorkspaceFileAssetUrl } from "./workspaceFileAssetUrl";
+import * as RuntimePredicate from "effect/Predicate";
 
 type FileViewMode = "preview" | "source";
 
@@ -182,10 +183,11 @@ function useThreadFilesWorkspace(params: {
       ? EnvironmentId.make(routeEnvironmentId)
       : (selectedThread?.environmentId ?? null);
   const threadId = routeThreadId !== null ? ThreadId.make(routeThreadId) : null;
-  const project = selectedThreadProject as {
-    readonly title?: string;
-    readonly workspaceRoot?: string;
-  } | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    project = selectedThreadProject as {
+      readonly title?: string;
+      readonly workspaceRoot?: string;
+    } | null;
 
   return {
     cwd: selectedThreadCwd ?? project?.workspaceRoot ?? null,
@@ -258,7 +260,8 @@ export function ThreadFilesTreeScreen(props: ThreadFilesRouteScreenProps) {
         })
       : null,
   );
-  const entriesData = entriesQuery.data as ProjectListEntriesResult | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    entriesData = entriesQuery.data as ProjectListEntriesResult | null;
   const handleReturnToThread = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -507,7 +510,8 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
         })
       : null,
   );
-  const fileData = fileQuery.data as ProjectReadFileResult | null;
+  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+    fileData = fileQuery.data as ProjectReadFileResult | null;
 
   const handleSelectFile = useCallback(
     (path: string) => {
@@ -633,7 +637,7 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
             >
               Copy path
             </NativeHeaderToolbar.MenuAction>
-            {isBrowserFile && typeof assetPreviewUri === "string" ? (
+            {isBrowserFile && RuntimePredicate.isString(assetPreviewUri) ? (
               <NativeHeaderToolbar.MenuAction
                 icon="safari"
                 onPress={() => {
