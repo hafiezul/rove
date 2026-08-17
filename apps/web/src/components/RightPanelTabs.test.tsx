@@ -14,7 +14,7 @@ const secondSurface = {
   kind: "preview" as const,
   resourceId: "tab-2",
 };
-const sessions: Readonly<Record<string, PreviewSessionSnapshot>> = {
+const sessions = {
   "tab-1": {
     threadId: "thread-1",
     tabId: "tab-1",
@@ -31,7 +31,7 @@ const sessions: Readonly<Record<string, PreviewSessionSnapshot>> = {
     canGoForward: false,
     updatedAt: "2026-08-09T00:00:00.000Z",
   },
-};
+} satisfies Readonly<Record<string, PreviewSessionSnapshot>>;
 
 const favicon = (dataUrl: string, pageUrl: string): DesktopPreviewFavicon => ({
   dataUrl,

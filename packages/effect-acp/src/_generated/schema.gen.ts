@@ -4,7 +4,7 @@
 import * as Schema from "effect/Schema";
 
 export type AuthEnvVar = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly label?: string | null;
   readonly name: string;
   readonly optional?: boolean;
@@ -13,7 +13,7 @@ export type AuthEnvVar = {
 export const AuthEnvVar = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -50,14 +50,14 @@ export const AuthEnvVar = Schema.Struct({
 });
 
 export type AvailableCommandInput = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly hint: string;
 };
 export const AvailableCommandInput = Schema.Union([
   Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -95,12 +95,12 @@ export const ElicitationContentValue = Schema.Union([
 ]);
 
 export type ElicitationFormCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
 };
 export const ElicitationFormCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -113,12 +113,12 @@ export const ElicitationFormCapabilities = Schema.Struct({
 });
 
 export type ElicitationUrlCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
 };
 export const ElicitationUrlCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -132,13 +132,13 @@ export const ElicitationUrlCapabilities = Schema.Struct({
 
 export type EmbeddedResourceResource =
   | {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly mimeType?: string | null;
       readonly text: string;
       readonly uri: string;
     }
   | {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly blob: string;
       readonly mimeType?: string | null;
       readonly uri: string;
@@ -147,7 +147,7 @@ export const EmbeddedResourceResource = Schema.Union([
   Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -161,7 +161,7 @@ export const EmbeddedResourceResource = Schema.Union([
   Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -181,14 +181,14 @@ export const EnumOption = Schema.Struct({
 }).annotate({ description: "A titled enum option with a const value and human-readable title." });
 
 export type EnvVariable = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly name: string;
   readonly value: string;
 };
 export const EnvVariable = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -211,7 +211,7 @@ export type Error = {
     | -32002
     | -32042
     | number;
-  readonly data?: unknown;
+  readonly data?: Schema.Json;
   readonly message: string;
 };
 export const Error = Schema.Struct({
@@ -276,7 +276,7 @@ export const Error = Schema.Struct({
       "Predefined error codes for common JSON-RPC and ACP-specific errors.\n\nThese codes follow the JSON-RPC 2.0 specification for standard errors\nand use the reserved range (-32000 to -32099) for protocol-specific errors.",
   }),
   data: Schema.optionalKey(
-    Schema.Unknown.annotate({
+    Schema.Json.annotate({
       description:
         "Optional primitive or structured value that contains additional information about the error.\nThis may include debugging information or context-specific details.",
     }),
@@ -291,14 +291,14 @@ export const Error = Schema.Struct({
 });
 
 export type HttpHeader = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly name: string;
   readonly value: string;
 };
 export const HttpHeader = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -310,7 +310,7 @@ export const HttpHeader = Schema.Struct({
 }).annotate({ description: "An HTTP header to set when making requests to the MCP server." });
 
 export type Implementation = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly name: string;
   readonly title?: string | null;
   readonly version: string;
@@ -318,7 +318,7 @@ export type Implementation = {
 export const Implementation = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -347,11 +347,11 @@ export const Implementation = Schema.Struct({
     "Metadata about the implementation of the client or agent.\nDescribes the name and version of an MCP implementation, with an optional\ntitle for UI representation.",
 });
 
-export type LogoutCapabilities = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type LogoutCapabilities = { readonly _meta?: { readonly [x: string]: Schema.Json } | null };
 export const LogoutCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -364,7 +364,7 @@ export const LogoutCapabilities = Schema.Struct({
 });
 
 export type ModelInfo = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description?: string | null;
   readonly modelId: string;
   readonly name: string;
@@ -372,7 +372,7 @@ export type ModelInfo = {
 export const ModelInfo = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -396,7 +396,7 @@ export const ModelInfo = Schema.Struct({
 });
 
 export type PermissionOption = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
   readonly name: string;
   readonly optionId: string;
@@ -404,7 +404,7 @@ export type PermissionOption = {
 export const PermissionOption = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -420,7 +420,7 @@ export const PermissionOption = Schema.Struct({
 }).annotate({ description: "An option presented to the user when requesting permission." });
 
 export type PlanEntry = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content: string;
   readonly priority: "high" | "medium" | "low";
   readonly status: "pending" | "in_progress" | "completed";
@@ -428,7 +428,7 @@ export type PlanEntry = {
 export const PlanEntry = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -467,12 +467,12 @@ export const Role = Schema.Literals(["assistant", "user"]).annotate({
 });
 
 export type SessionCloseCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
 };
 export const SessionCloseCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -496,7 +496,7 @@ export const SessionConfigOptionCategory = Schema.Union([
 });
 
 export type SessionConfigSelectOption = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description?: string | null;
   readonly name: string;
   readonly value: string;
@@ -504,7 +504,7 @@ export type SessionConfigSelectOption = {
 export const SessionConfigSelectOption = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -523,11 +523,13 @@ export const SessionConfigSelectOption = Schema.Struct({
   }),
 }).annotate({ description: "A possible value for a session configuration option." });
 
-export type SessionForkCapabilities = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type SessionForkCapabilities = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const SessionForkCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -540,7 +542,7 @@ export const SessionForkCapabilities = Schema.Struct({
 });
 
 export type SessionInfo = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cwd: string;
   readonly sessionId: string;
   readonly title?: string | null;
@@ -549,7 +551,7 @@ export type SessionInfo = {
 export const SessionInfo = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -577,11 +579,13 @@ export const SessionInfo = Schema.Struct({
   ),
 }).annotate({ description: "Information about a session returned by session/list" });
 
-export type SessionListCapabilities = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type SessionListCapabilities = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const SessionListCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -599,12 +603,12 @@ export const SessionModeId = Schema.String.annotate({
 });
 
 export type SessionResumeCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
 };
 export const SessionResumeCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -622,14 +626,14 @@ export const StringFormat = Schema.Literals(["email", "uri", "date", "date-time"
 });
 
 export type TerminalExitStatus = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly exitCode?: number | null;
   readonly signal?: string | null;
 };
 export const TerminalExitStatus = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -658,14 +662,14 @@ export const TerminalExitStatus = Schema.Struct({
 }).annotate({ description: "Exit status of a terminal command." });
 
 export type ToolCallLocation = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly line?: number | null;
   readonly path: string;
 };
 export const ToolCallLocation = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -786,7 +790,7 @@ export const Usage = Schema.Struct({
 export type AuthMethod =
   | {
       readonly type: "env_var";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly description?: string | null;
       readonly id: string;
       readonly link?: string | null;
@@ -795,7 +799,7 @@ export type AuthMethod =
     }
   | {
       readonly type: "terminal";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly args?: ReadonlyArray<string>;
       readonly description?: string | null;
       readonly env?: { readonly [x: string]: string };
@@ -803,7 +807,7 @@ export type AuthMethod =
       readonly name: string;
     }
   | {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly description?: string | null;
       readonly id: string;
       readonly name: string;
@@ -813,7 +817,7 @@ export const AuthMethod = Schema.Union([
     type: Schema.Literal("env_var"),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -854,7 +858,7 @@ export const AuthMethod = Schema.Union([
     type: Schema.Literal("terminal"),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -895,7 +899,7 @@ export const AuthMethod = Schema.Union([
   Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -928,7 +932,7 @@ export const AuthMethod = Schema.Union([
 });
 
 export type AvailableCommand = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description: string;
   readonly input?: AvailableCommandInput | null;
   readonly name: string;
@@ -936,7 +940,7 @@ export type AvailableCommand = {
 export const AvailableCommand = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -957,14 +961,14 @@ export const AvailableCommand = Schema.Struct({
 }).annotate({ description: "Information about a command." });
 
 export type ElicitationCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly form?: ElicitationFormCapabilities | null;
   readonly url?: ElicitationUrlCapabilities | null;
 };
 export const ElicitationCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -989,20 +993,20 @@ export const ElicitationCapabilities = Schema.Struct({
 export type McpServer =
   | {
       readonly type: "http";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly headers: ReadonlyArray<HttpHeader>;
       readonly name: string;
       readonly url: string;
     }
   | {
       readonly type: "sse";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly headers: ReadonlyArray<HttpHeader>;
       readonly name: string;
       readonly url: string;
     }
   | {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly args: ReadonlyArray<string>;
       readonly command: string;
       readonly env: ReadonlyArray<EnvVariable>;
@@ -1013,7 +1017,7 @@ export const McpServer = Schema.Union([
     type: Schema.Literal("http"),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -1032,7 +1036,7 @@ export const McpServer = Schema.Union([
     type: Schema.Literal("sse"),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -1050,7 +1054,7 @@ export const McpServer = Schema.Union([
   Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -1074,14 +1078,14 @@ export const McpServer = Schema.Union([
 });
 
 export type SessionModelState = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly availableModels: ReadonlyArray<ModelInfo>;
   readonly currentModelId: string;
 };
 export const SessionModelState = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1101,7 +1105,7 @@ export const SessionModelState = Schema.Struct({
 });
 
 export type Annotations = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly audience?: ReadonlyArray<Role> | null;
   readonly lastModified?: string | null;
   readonly priority?: number | null;
@@ -1109,7 +1113,7 @@ export type Annotations = {
 export const Annotations = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1130,7 +1134,7 @@ export const Annotations = Schema.Struct({
 });
 
 export type SessionConfigSelectGroup = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly group: string;
   readonly name: string;
   readonly options: ReadonlyArray<SessionConfigSelectOption>;
@@ -1138,7 +1142,7 @@ export type SessionConfigSelectGroup = {
 export const SessionConfigSelectGroup = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1155,7 +1159,7 @@ export const SessionConfigSelectGroup = Schema.Struct({
 }).annotate({ description: "A group of possible values for a session configuration option." });
 
 export type SessionMode = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description?: string | null;
   readonly id: SessionModeId;
   readonly name: string;
@@ -1163,7 +1167,7 @@ export type SessionMode = {
 export const SessionMode = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1462,13 +1466,13 @@ export const ElicitationPropertySchema = Schema.Union(
 export type ContentBlock =
   | {
       readonly type: "text";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly annotations?: Annotations | null;
       readonly text: string;
     }
   | {
       readonly type: "image";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly annotations?: Annotations | null;
       readonly data: string;
       readonly mimeType: string;
@@ -1476,14 +1480,14 @@ export type ContentBlock =
     }
   | {
       readonly type: "audio";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly annotations?: Annotations | null;
       readonly data: string;
       readonly mimeType: string;
     }
   | {
       readonly type: "resource_link";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly annotations?: Annotations | null;
       readonly description?: string | null;
       readonly mimeType?: string | null;
@@ -1494,7 +1498,7 @@ export type ContentBlock =
     }
   | {
       readonly type: "resource";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly annotations?: Annotations | null;
       readonly resource: EmbeddedResourceResource;
     };
@@ -1504,7 +1508,7 @@ export const ContentBlock = Schema.Union(
       type: Schema.Literal("text"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1518,7 +1522,7 @@ export const ContentBlock = Schema.Union(
       type: Schema.Literal("image"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1534,7 +1538,7 @@ export const ContentBlock = Schema.Union(
       type: Schema.Literal("audio"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1549,7 +1553,7 @@ export const ContentBlock = Schema.Union(
       type: Schema.Literal("resource_link"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1576,7 +1580,7 @@ export const ContentBlock = Schema.Union(
       type: Schema.Literal("resource"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1598,17 +1602,17 @@ export const ContentBlock = Schema.Union(
 export type ToolCallContent =
   | {
       readonly type: "content";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content:
         | {
             readonly type: "text";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly text: string;
           }
         | {
             readonly type: "image";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
@@ -1616,14 +1620,14 @@ export type ToolCallContent =
           }
         | {
             readonly type: "audio";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
           }
         | {
             readonly type: "resource_link";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly description?: string | null;
             readonly mimeType?: string | null;
@@ -1634,21 +1638,21 @@ export type ToolCallContent =
           }
         | {
             readonly type: "resource";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly resource: EmbeddedResourceResource;
           };
     }
   | {
       readonly type: "diff";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly newText: string;
       readonly oldText?: string | null;
       readonly path: string;
     }
   | {
       readonly type: "terminal";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly terminalId: string;
     };
 export const ToolCallContent = Schema.Union(
@@ -1657,7 +1661,7 @@ export const ToolCallContent = Schema.Union(
       type: Schema.Literal("content"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1670,7 +1674,7 @@ export const ToolCallContent = Schema.Union(
             type: Schema.Literal("text"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -1684,7 +1688,7 @@ export const ToolCallContent = Schema.Union(
             type: Schema.Literal("image"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -1700,7 +1704,7 @@ export const ToolCallContent = Schema.Union(
             type: Schema.Literal("audio"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -1715,7 +1719,7 @@ export const ToolCallContent = Schema.Union(
             type: Schema.Literal("resource_link"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -1742,7 +1746,7 @@ export const ToolCallContent = Schema.Union(
             type: Schema.Literal("resource"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -1765,7 +1769,7 @@ export const ToolCallContent = Schema.Union(
       type: Schema.Literal("diff"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1788,7 +1792,7 @@ export const ToolCallContent = Schema.Union(
       type: Schema.Literal("terminal"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -1814,7 +1818,7 @@ export type SessionConfigOption =
       readonly options:
         | ReadonlyArray<SessionConfigSelectOption>
         | ReadonlyArray<SessionConfigSelectGroup>;
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly category?: SessionConfigOptionCategory | null;
       readonly description?: string | null;
       readonly id: string;
@@ -1823,7 +1827,7 @@ export type SessionConfigOption =
   | {
       readonly type: "boolean";
       readonly currentValue: boolean;
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly category?: SessionConfigOptionCategory | null;
       readonly description?: string | null;
       readonly id: string;
@@ -1847,7 +1851,7 @@ export const SessionConfigOption = Schema.Union([
     ]).annotate({ description: "Possible values for a session configuration option." }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -1879,7 +1883,7 @@ export const SessionConfigOption = Schema.Union([
     }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -1907,14 +1911,14 @@ export const SessionConfigOption = Schema.Union([
 ]);
 
 export type SessionModeState = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly availableModes: ReadonlyArray<SessionMode>;
   readonly currentModeId: string;
 };
 export const SessionModeState = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1928,13 +1932,13 @@ export const SessionModeState = Schema.Struct({
 }).annotate({ description: "The set of modes and the one currently active." });
 
 export type AgentAuthCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly logout?: LogoutCapabilities | null;
 };
 export const AgentAuthCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1953,25 +1957,25 @@ export const AgentAuthCapabilities = Schema.Struct({
 });
 
 export type AgentCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly auth?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly logout?: LogoutCapabilities | null;
   };
   readonly loadSession?: boolean;
   readonly mcpCapabilities?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly http?: boolean;
     readonly sse?: boolean;
   };
   readonly promptCapabilities?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly audio?: boolean;
     readonly embeddedContext?: boolean;
     readonly image?: boolean;
   };
   readonly sessionCapabilities?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly close?: SessionCloseCapabilities | null;
     readonly fork?: SessionForkCapabilities | null;
     readonly list?: SessionListCapabilities | null;
@@ -1981,7 +1985,7 @@ export type AgentCapabilities = {
 export const AgentCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -1992,7 +1996,7 @@ export const AgentCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -2021,7 +2025,7 @@ export const AgentCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -2049,7 +2053,7 @@ export const AgentCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -2085,7 +2089,7 @@ export const AgentCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -2130,22 +2134,22 @@ export type AgentNotification = {
   readonly method: string;
   readonly params?:
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly sessionId: string;
         readonly update:
           | {
               readonly sessionUpdate: "user_message_chunk";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly content:
                 | {
                     readonly type: "text";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly text: string;
                   }
                 | {
                     readonly type: "image";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
@@ -2153,14 +2157,14 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "audio";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
                   }
                 | {
                     readonly type: "resource_link";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly description?: string | null;
                     readonly mimeType?: string | null;
@@ -2171,7 +2175,7 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "resource";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly resource: EmbeddedResourceResource;
                   };
@@ -2179,17 +2183,17 @@ export type AgentNotification = {
             }
           | {
               readonly sessionUpdate: "agent_message_chunk";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly content:
                 | {
                     readonly type: "text";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly text: string;
                   }
                 | {
                     readonly type: "image";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
@@ -2197,14 +2201,14 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "audio";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
                   }
                 | {
                     readonly type: "resource_link";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly description?: string | null;
                     readonly mimeType?: string | null;
@@ -2215,7 +2219,7 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "resource";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly resource: EmbeddedResourceResource;
                   };
@@ -2223,17 +2227,17 @@ export type AgentNotification = {
             }
           | {
               readonly sessionUpdate: "agent_thought_chunk";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly content:
                 | {
                     readonly type: "text";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly text: string;
                   }
                 | {
                     readonly type: "image";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
@@ -2241,14 +2245,14 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "audio";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly data: string;
                     readonly mimeType: string;
                   }
                 | {
                     readonly type: "resource_link";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly description?: string | null;
                     readonly mimeType?: string | null;
@@ -2259,7 +2263,7 @@ export type AgentNotification = {
                   }
                 | {
                     readonly type: "resource";
-                    readonly _meta?: { readonly [x: string]: unknown } | null;
+                    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                     readonly annotations?: Annotations | null;
                     readonly resource: EmbeddedResourceResource;
                   };
@@ -2267,7 +2271,7 @@ export type AgentNotification = {
             }
           | {
               readonly sessionUpdate: "tool_call";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly content?: ReadonlyArray<ToolCallContent>;
               readonly kind?:
                 | "read"
@@ -2281,60 +2285,63 @@ export type AgentNotification = {
                 | "switch_mode"
                 | "other";
               readonly locations?: ReadonlyArray<ToolCallLocation>;
-              readonly rawInput?: unknown;
-              readonly rawOutput?: unknown;
+              readonly rawInput?: Schema.Json;
+              readonly rawOutput?: Schema.Json;
               readonly status?: "pending" | "in_progress" | "completed" | "failed";
               readonly title: string;
               readonly toolCallId: string;
             }
           | {
               readonly sessionUpdate: "tool_call_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly content?: ReadonlyArray<ToolCallContent> | null;
               readonly kind?: ToolKind | null;
               readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-              readonly rawInput?: unknown;
-              readonly rawOutput?: unknown;
+              readonly rawInput?: Schema.Json;
+              readonly rawOutput?: Schema.Json;
               readonly status?: ToolCallStatus | null;
               readonly title?: string | null;
               readonly toolCallId: string;
             }
           | {
               readonly sessionUpdate: "plan";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly entries: ReadonlyArray<PlanEntry>;
             }
           | {
               readonly sessionUpdate: "available_commands_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly availableCommands: ReadonlyArray<AvailableCommand>;
             }
           | {
               readonly sessionUpdate: "current_mode_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly currentModeId: string;
             }
           | {
               readonly sessionUpdate: "config_option_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly configOptions: ReadonlyArray<SessionConfigOption>;
             }
           | {
               readonly sessionUpdate: "session_info_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly title?: string | null;
               readonly updatedAt?: string | null;
             }
           | {
               readonly sessionUpdate: "usage_update";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly cost?: Cost | null;
               readonly size: number;
               readonly used: number;
             };
       }
-    | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly elicitationId: string }
-    | unknown
+    | {
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+        readonly elicitationId: string;
+      }
+    | Schema.Json
     | null;
 };
 export const AgentNotification = Schema.Struct({
@@ -2345,7 +2352,7 @@ export const AgentNotification = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -2362,7 +2369,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("user_message_chunk"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2375,7 +2382,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("text"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2389,7 +2396,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("image"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2405,7 +2412,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("audio"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2420,7 +2427,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource_link"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2447,7 +2454,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2480,7 +2487,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("agent_message_chunk"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2493,7 +2500,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("text"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2507,7 +2514,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("image"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2523,7 +2530,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("audio"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2538,7 +2545,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource_link"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2565,7 +2572,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2598,7 +2605,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("agent_thought_chunk"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2611,7 +2618,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("text"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2625,7 +2632,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("image"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2641,7 +2648,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("audio"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2656,7 +2663,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource_link"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2683,7 +2690,7 @@ export const AgentNotification = Schema.Struct({
                       type: Schema.Literal("resource"),
                       _meta: Schema.optionalKey(
                         Schema.Union([
-                          Schema.Record(Schema.String, Schema.Unknown).annotate({
+                          Schema.Record(Schema.String, Schema.Json).annotate({
                             description:
                               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                           }),
@@ -2716,7 +2723,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("tool_call"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2752,12 +2759,12 @@ export const AgentNotification = Schema.Struct({
                   }),
                 ),
                 rawInput: Schema.optionalKey(
-                  Schema.Unknown.annotate({
+                  Schema.Json.annotate({
                     description: "Raw input parameters sent to the tool.",
                   }),
                 ),
                 rawOutput: Schema.optionalKey(
-                  Schema.Unknown.annotate({ description: "Raw output returned by the tool." }),
+                  Schema.Json.annotate({ description: "Raw output returned by the tool." }),
                 ),
                 status: Schema.optionalKey(
                   Schema.Literals(["pending", "in_progress", "completed", "failed"]).annotate({
@@ -2779,7 +2786,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("tool_call_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2808,10 +2815,10 @@ export const AgentNotification = Schema.Struct({
                   ]),
                 ),
                 rawInput: Schema.optionalKey(
-                  Schema.Unknown.annotate({ description: "Update the raw input." }),
+                  Schema.Json.annotate({ description: "Update the raw input." }),
                 ),
                 rawOutput: Schema.optionalKey(
-                  Schema.Unknown.annotate({ description: "Update the raw output." }),
+                  Schema.Json.annotate({ description: "Update the raw output." }),
                 ),
                 status: Schema.optionalKey(
                   Schema.Union([ToolCallStatus, Schema.Null]).annotate({
@@ -2835,7 +2842,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("plan"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2854,7 +2861,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("available_commands_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2869,7 +2876,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("current_mode_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2887,7 +2894,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("config_option_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2902,7 +2909,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("session_info_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2933,7 +2940,7 @@ export const AgentNotification = Schema.Struct({
                 sessionUpdate: Schema.Literal("usage_update"),
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -2975,7 +2982,7 @@ export const AgentNotification = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -2991,7 +2998,7 @@ export const AgentNotification = Schema.Struct({
           description:
             "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nNotification sent by the agent when a URL-based elicitation is complete.",
         }),
-        Schema.Unknown.annotate({
+        Schema.Json.annotate({
           title: "ExtNotification",
           description:
             "Allows the Agent to send an arbitrary notification that is not part of the ACP spec.\nExtension notifications provide a way to send one-way messages for custom functionality\nwhile maintaining protocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -3010,36 +3017,36 @@ export type AgentRequest = {
   readonly method: string;
   readonly params?:
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content: string;
         readonly path: string;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly limit?: number | null;
         readonly line?: number | null;
         readonly path: string;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly options: ReadonlyArray<PermissionOption>;
         readonly sessionId: string;
         readonly toolCall: {
-          readonly _meta?: { readonly [x: string]: unknown } | null;
+          readonly _meta?: { readonly [x: string]: Schema.Json } | null;
           readonly content?: ReadonlyArray<ToolCallContent> | null;
           readonly kind?: ToolKind | null;
           readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-          readonly rawInput?: unknown;
-          readonly rawOutput?: unknown;
+          readonly rawInput?: Schema.Json;
+          readonly rawOutput?: Schema.Json;
           readonly status?: ToolCallStatus | null;
           readonly title?: string | null;
           readonly toolCallId: string;
         };
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly args?: ReadonlyArray<string>;
         readonly command: string;
         readonly cwd?: string | null;
@@ -3048,22 +3055,22 @@ export type AgentRequest = {
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly sessionId: string;
         readonly terminalId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly sessionId: string;
         readonly terminalId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly sessionId: string;
         readonly terminalId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly sessionId: string;
         readonly terminalId: string;
       }
@@ -3076,7 +3083,7 @@ export type AgentRequest = {
           readonly title?: string | null;
           readonly type?: "object";
         };
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly message: string;
         readonly sessionId: string;
       }
@@ -3084,11 +3091,11 @@ export type AgentRequest = {
         readonly mode: "url";
         readonly elicitationId: string;
         readonly url: string;
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly message: string;
         readonly sessionId: string;
       }
-    | unknown
+    | Schema.Json
     | null;
 };
 export const AgentRequest = Schema.Struct({
@@ -3100,7 +3107,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3123,7 +3130,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3165,7 +3172,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3182,7 +3189,7 @@ export const AgentRequest = Schema.Struct({
           toolCall: Schema.Struct({
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -3211,10 +3218,10 @@ export const AgentRequest = Schema.Struct({
               ]),
             ),
             rawInput: Schema.optionalKey(
-              Schema.Unknown.annotate({ description: "Update the raw input." }),
+              Schema.Json.annotate({ description: "Update the raw input." }),
             ),
             rawOutput: Schema.optionalKey(
-              Schema.Unknown.annotate({ description: "Update the raw output." }),
+              Schema.Json.annotate({ description: "Update the raw output." }),
             ),
             status: Schema.optionalKey(
               Schema.Union([ToolCallStatus, Schema.Null]).annotate({
@@ -3242,7 +3249,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3289,7 +3296,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3310,7 +3317,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3329,7 +3336,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3350,7 +3357,7 @@ export const AgentRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -3410,7 +3417,7 @@ export const AgentRequest = Schema.Struct({
             }),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -3440,7 +3447,7 @@ export const AgentRequest = Schema.Struct({
             }),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -3463,7 +3470,7 @@ export const AgentRequest = Schema.Struct({
           description:
             "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nRequests structured user input via a form or URL.",
         }),
-        Schema.Unknown.annotate({
+        Schema.Json.annotate({
           title: "ExtMethodRequest",
           description:
             "Allows for sending an arbitrary request that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -3482,27 +3489,27 @@ export type AgentResponse =
       readonly id: RequestId;
       readonly result:
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly agentCapabilities?: {
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly auth?: {
-                readonly _meta?: { readonly [x: string]: unknown } | null;
+                readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                 readonly logout?: LogoutCapabilities | null;
               };
               readonly loadSession?: boolean;
               readonly mcpCapabilities?: {
-                readonly _meta?: { readonly [x: string]: unknown } | null;
+                readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                 readonly http?: boolean;
                 readonly sse?: boolean;
               };
               readonly promptCapabilities?: {
-                readonly _meta?: { readonly [x: string]: unknown } | null;
+                readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                 readonly audio?: boolean;
                 readonly embeddedContext?: boolean;
                 readonly image?: boolean;
               };
               readonly sessionCapabilities?: {
-                readonly _meta?: { readonly [x: string]: unknown } | null;
+                readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                 readonly close?: SessionCloseCapabilities | null;
                 readonly fork?: SessionForkCapabilities | null;
                 readonly list?: SessionListCapabilities | null;
@@ -3513,47 +3520,47 @@ export type AgentResponse =
             readonly authMethods?: ReadonlyArray<AuthMethod>;
             readonly protocolVersion: number;
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
             readonly models?: SessionModelState | null;
             readonly modes?: SessionModeState | null;
             readonly sessionId: string;
           }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
             readonly models?: SessionModelState | null;
             readonly modes?: SessionModeState | null;
           }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly nextCursor?: string | null;
             readonly sessions: ReadonlyArray<SessionInfo>;
           }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
             readonly models?: SessionModelState | null;
             readonly modes?: SessionModeState | null;
             readonly sessionId: string;
           }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
             readonly models?: SessionModelState | null;
             readonly modes?: SessionModeState | null;
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly configOptions: ReadonlyArray<SessionConfigOption>;
           }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly stopReason:
               | "end_turn"
               | "max_tokens"
@@ -3563,8 +3570,8 @@ export type AgentResponse =
             readonly usage?: Usage | null;
             readonly userMessageId?: string | null;
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
-        | unknown;
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
+        | Schema.Json;
     }
   | { readonly error: Error; readonly id: RequestId };
 export const AgentResponse = Schema.Union([
@@ -3574,7 +3581,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3585,7 +3592,7 @@ export const AgentResponse = Schema.Union([
           Schema.Struct({
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -3596,7 +3603,7 @@ export const AgentResponse = Schema.Union([
               Schema.Struct({
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -3625,7 +3632,7 @@ export const AgentResponse = Schema.Union([
               Schema.Struct({
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -3653,7 +3660,7 @@ export const AgentResponse = Schema.Union([
               Schema.Struct({
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -3689,7 +3696,7 @@ export const AgentResponse = Schema.Union([
               Schema.Struct({
                 _meta: Schema.optionalKey(
                   Schema.Union([
-                    Schema.Record(Schema.String, Schema.Unknown).annotate({
+                    Schema.Record(Schema.String, Schema.Json).annotate({
                       description:
                         "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                     }),
@@ -3765,7 +3772,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3779,7 +3786,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3794,7 +3801,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3833,7 +3840,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3867,7 +3874,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3893,7 +3900,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3932,7 +3939,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3967,7 +3974,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3982,7 +3989,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -3996,7 +4003,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -4013,7 +4020,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -4053,7 +4060,7 @@ export const AgentResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -4065,7 +4072,7 @@ export const AgentResponse = Schema.Union([
         description:
           "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nResponse to `session/set_model` method.",
       }),
-      Schema.Unknown.annotate({
+      Schema.Json.annotate({
         title: "ExtMethodResponse",
         description:
           "Allows for sending an arbitrary response to an [`ExtRequest`] that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -4079,7 +4086,7 @@ export const AgentResponse = Schema.Union([
 ]);
 
 export type AudioContent = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly annotations?: Annotations | null;
   readonly data: string;
   readonly mimeType: string;
@@ -4087,7 +4094,7 @@ export type AudioContent = {
 export const AudioContent = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4100,13 +4107,13 @@ export const AudioContent = Schema.Struct({
 }).annotate({ description: "Audio provided to or from an LLM." });
 
 export type AuthCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly terminal?: boolean;
 };
 export const AuthCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4126,13 +4133,13 @@ export const AuthCapabilities = Schema.Struct({
 });
 
 export type AuthenticateRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly methodId: string;
 };
 export const AuthenticateRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4148,11 +4155,13 @@ export const AuthenticateRequest = Schema.Struct({
     "Request parameters for the authenticate method.\n\nSpecifies which authentication method to use.",
 });
 
-export type AuthenticateResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type AuthenticateResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const AuthenticateResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4162,7 +4171,7 @@ export const AuthenticateResponse = Schema.Struct({
 }).annotate({ description: "Response to the `authenticate` method." });
 
 export type AuthMethodAgent = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description?: string | null;
   readonly id: string;
   readonly name: string;
@@ -4170,7 +4179,7 @@ export type AuthMethodAgent = {
 export const AuthMethodAgent = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4196,7 +4205,7 @@ export const AuthMethodAgent = Schema.Struct({
 });
 
 export type AuthMethodEnvVar = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly description?: string | null;
   readonly id: string;
   readonly link?: string | null;
@@ -4206,7 +4215,7 @@ export type AuthMethodEnvVar = {
 export const AuthMethodEnvVar = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4243,7 +4252,7 @@ export const AuthMethodEnvVar = Schema.Struct({
 });
 
 export type AuthMethodTerminal = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly args?: ReadonlyArray<string>;
   readonly description?: string | null;
   readonly env?: { readonly [x: string]: string };
@@ -4253,7 +4262,7 @@ export type AuthMethodTerminal = {
 export const AuthMethodTerminal = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4290,13 +4299,13 @@ export const AuthMethodTerminal = Schema.Struct({
 });
 
 export type AvailableCommandsUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly availableCommands: ReadonlyArray<AvailableCommand>;
 };
 export const AvailableCommandsUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4309,7 +4318,7 @@ export const AvailableCommandsUpdate = Schema.Struct({
 }).annotate({ description: "Available commands are ready or have changed" });
 
 export type BlobResourceContents = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly blob: string;
   readonly mimeType?: string | null;
   readonly uri: string;
@@ -4317,7 +4326,7 @@ export type BlobResourceContents = {
 export const BlobResourceContents = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4353,13 +4362,13 @@ export const BooleanPropertySchema = Schema.Struct({
 }).annotate({ description: "Schema for boolean properties in an elicitation form." });
 
 export type CancelNotification = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
 };
 export const CancelNotification = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4376,13 +4385,13 @@ export const CancelNotification = Schema.Struct({
 });
 
 export type CancelRequestNotification = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly requestId: null | number | string;
 };
 export const CancelRequestNotification = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4403,14 +4412,14 @@ export const CancelRequestNotification = Schema.Struct({
 });
 
 export type ClientCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly auth?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly terminal?: boolean;
   };
   readonly elicitation?: ElicitationCapabilities | null;
   readonly fs?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly readTextFile?: boolean;
     readonly writeTextFile?: boolean;
   };
@@ -4419,7 +4428,7 @@ export type ClientCapabilities = {
 export const ClientCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -4430,7 +4439,7 @@ export const ClientCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -4460,7 +4469,7 @@ export const ClientCapabilities = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -4499,8 +4508,8 @@ export const ClientCapabilities = Schema.Struct({
 export type ClientNotification = {
   readonly method: string;
   readonly params?:
-    | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly sessionId: string }
-    | unknown
+    | { readonly _meta?: { readonly [x: string]: Schema.Json } | null; readonly sessionId: string }
+    | Schema.Json
     | null;
 };
 export const ClientNotification = Schema.Struct({
@@ -4511,7 +4520,7 @@ export const ClientNotification = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4527,7 +4536,7 @@ export const ClientNotification = Schema.Struct({
           description:
             "Notification to cancel ongoing operations for a session.\n\nSee protocol docs: [Cancellation](https://agentclientprotocol.com/protocol/prompt-turn#cancellation)",
         }),
-        Schema.Unknown.annotate({
+        Schema.Json.annotate({
           title: "ExtNotification",
           description:
             "Allows the Agent to send an arbitrary notification that is not part of the ACP spec.\nExtension notifications provide a way to send one-way messages for custom functionality\nwhile maintaining protocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -4546,16 +4555,16 @@ export type ClientRequest = {
   readonly method: string;
   readonly params?:
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly clientCapabilities?: {
-          readonly _meta?: { readonly [x: string]: unknown } | null;
+          readonly _meta?: { readonly [x: string]: Schema.Json } | null;
           readonly auth?: {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly terminal?: boolean;
           };
           readonly elicitation?: ElicitationCapabilities | null;
           readonly fs?: {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly readTextFile?: boolean;
             readonly writeTextFile?: boolean;
           };
@@ -4564,67 +4573,67 @@ export type ClientRequest = {
         readonly clientInfo?: Implementation | null;
         readonly protocolVersion: number;
       }
-    | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly methodId: string }
-    | { readonly _meta?: { readonly [x: string]: unknown } | null }
+    | { readonly _meta?: { readonly [x: string]: Schema.Json } | null; readonly methodId: string }
+    | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cwd: string;
         readonly mcpServers: ReadonlyArray<McpServer>;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cwd: string;
         readonly mcpServers: ReadonlyArray<McpServer>;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cursor?: string | null;
         readonly cwd?: string | null;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cwd: string;
         readonly mcpServers?: ReadonlyArray<McpServer>;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cwd: string;
         readonly mcpServers?: ReadonlyArray<McpServer>;
         readonly sessionId: string;
       }
-    | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly sessionId: string }
+    | { readonly _meta?: { readonly [x: string]: Schema.Json } | null; readonly sessionId: string }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly modeId: string;
         readonly sessionId: string;
       }
     | {
         readonly type: "boolean";
         readonly value: boolean;
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly configId: string;
         readonly sessionId: string;
       }
     | {
         readonly value: string;
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly configId: string;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly messageId?: string | null;
         readonly prompt: ReadonlyArray<ContentBlock>;
         readonly sessionId: string;
       }
     | {
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly modelId: string;
         readonly sessionId: string;
       }
-    | unknown
+    | Schema.Json
     | null;
 };
 export const ClientRequest = Schema.Struct({
@@ -4636,7 +4645,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4647,7 +4656,7 @@ export const ClientRequest = Schema.Struct({
             Schema.Struct({
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -4658,7 +4667,7 @@ export const ClientRequest = Schema.Struct({
                 Schema.Struct({
                   _meta: Schema.optionalKey(
                     Schema.Union([
-                      Schema.Record(Schema.String, Schema.Unknown).annotate({
+                      Schema.Record(Schema.String, Schema.Json).annotate({
                         description:
                           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                       }),
@@ -4688,7 +4697,7 @@ export const ClientRequest = Schema.Struct({
                 Schema.Struct({
                   _meta: Schema.optionalKey(
                     Schema.Union([
-                      Schema.Record(Schema.String, Schema.Unknown).annotate({
+                      Schema.Record(Schema.String, Schema.Json).annotate({
                         description:
                           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                       }),
@@ -4751,7 +4760,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4770,7 +4779,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4785,7 +4794,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4807,7 +4816,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4830,7 +4839,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4862,7 +4871,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4887,7 +4896,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4912,7 +4921,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4931,7 +4940,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -4953,7 +4962,7 @@ export const ClientRequest = Schema.Struct({
             value: Schema.Boolean.annotate({ description: "The boolean value." }),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -4976,7 +4985,7 @@ export const ClientRequest = Schema.Struct({
             }),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -5001,7 +5010,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -5033,7 +5042,7 @@ export const ClientRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -5053,7 +5062,7 @@ export const ClientRequest = Schema.Struct({
           description:
             "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nRequest parameters for setting a session model.",
         }),
-        Schema.Unknown.annotate({
+        Schema.Json.annotate({
           title: "ExtMethodRequest",
           description:
             "Allows for sending an arbitrary request that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -5071,34 +5080,40 @@ export type ClientResponse =
   | {
       readonly id: RequestId;
       readonly result:
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly content: string }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+            readonly content: string;
+          }
+        | {
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly outcome:
               | { readonly outcome: "cancelled" }
               | {
                   readonly outcome: "selected";
-                  readonly _meta?: { readonly [x: string]: unknown } | null;
+                  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
                   readonly optionId: string;
                 };
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null; readonly terminalId: string }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+            readonly terminalId: string;
+          }
+        | {
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly exitStatus?: TerminalExitStatus | null;
             readonly output: string;
             readonly truncated: boolean;
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly exitCode?: number | null;
             readonly signal?: string | null;
           }
-        | { readonly _meta?: { readonly [x: string]: unknown } | null }
+        | { readonly _meta?: { readonly [x: string]: Schema.Json } | null }
         | {
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly action:
               | {
                   readonly action: "accept";
@@ -5107,7 +5122,7 @@ export type ClientResponse =
               | { readonly action: "decline" }
               | { readonly action: "cancel" };
           }
-        | unknown;
+        | Schema.Json;
     }
   | { readonly error: Error; readonly id: RequestId };
 export const ClientResponse = Schema.Union([
@@ -5117,7 +5132,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5131,7 +5146,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5146,7 +5161,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5163,7 +5178,7 @@ export const ClientResponse = Schema.Union([
               outcome: Schema.Literal("selected"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -5184,7 +5199,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5201,7 +5216,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5224,7 +5239,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5238,7 +5253,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5272,7 +5287,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5286,7 +5301,7 @@ export const ClientResponse = Schema.Union([
       Schema.Struct({
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5327,7 +5342,7 @@ export const ClientResponse = Schema.Union([
         description:
           "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nResponse from the client to an elicitation request.",
       }),
-      Schema.Unknown.annotate({
+      Schema.Json.annotate({
         title: "ExtMethodResponse",
         description:
           "Allows for sending an arbitrary response to an [`ExtRequest`] that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
@@ -5341,13 +5356,13 @@ export const ClientResponse = Schema.Union([
 ]);
 
 export type CloseSessionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
 };
 export const CloseSessionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5363,11 +5378,13 @@ export const CloseSessionRequest = Schema.Struct({
     "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nRequest parameters for closing an active session.\n\nIf supported, the agent **must** cancel any ongoing work related to the session\n(treat it as if `session/cancel` was called) and then free up any resources\nassociated with the session.\n\nOnly available if the Agent supports the `session.close` capability.",
 });
 
-export type CloseSessionResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type CloseSessionResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const CloseSessionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5380,13 +5397,13 @@ export const CloseSessionResponse = Schema.Struct({
 });
 
 export type ConfigOptionUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions: ReadonlyArray<SessionConfigOption>;
 };
 export const ConfigOptionUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5399,17 +5416,17 @@ export const ConfigOptionUpdate = Schema.Struct({
 }).annotate({ description: "Session configuration options have been updated." });
 
 export type Content = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content:
     | {
         readonly type: "text";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly text: string;
       }
     | {
         readonly type: "image";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly data: string;
         readonly mimeType: string;
@@ -5417,14 +5434,14 @@ export type Content = {
       }
     | {
         readonly type: "audio";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly data: string;
         readonly mimeType: string;
       }
     | {
         readonly type: "resource_link";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly description?: string | null;
         readonly mimeType?: string | null;
@@ -5435,7 +5452,7 @@ export type Content = {
       }
     | {
         readonly type: "resource";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly resource: EmbeddedResourceResource;
       };
@@ -5443,7 +5460,7 @@ export type Content = {
 export const Content = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5456,7 +5473,7 @@ export const Content = Schema.Struct({
         type: Schema.Literal("text"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5470,7 +5487,7 @@ export const Content = Schema.Struct({
         type: Schema.Literal("image"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5486,7 +5503,7 @@ export const Content = Schema.Struct({
         type: Schema.Literal("audio"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5501,7 +5518,7 @@ export const Content = Schema.Struct({
         type: Schema.Literal("resource_link"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5528,7 +5545,7 @@ export const Content = Schema.Struct({
         type: Schema.Literal("resource"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5549,17 +5566,17 @@ export const Content = Schema.Struct({
 }).annotate({ description: "Standard content block (text, images, resources)." });
 
 export type ContentChunk = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content:
     | {
         readonly type: "text";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly text: string;
       }
     | {
         readonly type: "image";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly data: string;
         readonly mimeType: string;
@@ -5567,14 +5584,14 @@ export type ContentChunk = {
       }
     | {
         readonly type: "audio";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly data: string;
         readonly mimeType: string;
       }
     | {
         readonly type: "resource_link";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly description?: string | null;
         readonly mimeType?: string | null;
@@ -5585,7 +5602,7 @@ export type ContentChunk = {
       }
     | {
         readonly type: "resource";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly annotations?: Annotations | null;
         readonly resource: EmbeddedResourceResource;
       };
@@ -5594,7 +5611,7 @@ export type ContentChunk = {
 export const ContentChunk = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5607,7 +5624,7 @@ export const ContentChunk = Schema.Struct({
         type: Schema.Literal("text"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5621,7 +5638,7 @@ export const ContentChunk = Schema.Struct({
         type: Schema.Literal("image"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5637,7 +5654,7 @@ export const ContentChunk = Schema.Struct({
         type: Schema.Literal("audio"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5652,7 +5669,7 @@ export const ContentChunk = Schema.Struct({
         type: Schema.Literal("resource_link"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5679,7 +5696,7 @@ export const ContentChunk = Schema.Struct({
         type: Schema.Literal("resource"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -5709,7 +5726,7 @@ export const ContentChunk = Schema.Struct({
 }).annotate({ description: "A streamed item of content" });
 
 export type CreateTerminalRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly args?: ReadonlyArray<string>;
   readonly command: string;
   readonly cwd?: string | null;
@@ -5720,7 +5737,7 @@ export type CreateTerminalRequest = {
 export const CreateTerminalRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5759,13 +5776,13 @@ export const CreateTerminalRequest = Schema.Struct({
 }).annotate({ description: "Request to create a new terminal and execute a command." });
 
 export type CreateTerminalResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly terminalId: string;
 };
 export const CreateTerminalResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5778,13 +5795,13 @@ export const CreateTerminalResponse = Schema.Struct({
 }).annotate({ description: "Response containing the ID of the created terminal." });
 
 export type CurrentModeUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly currentModeId: string;
 };
 export const CurrentModeUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5798,7 +5815,7 @@ export const CurrentModeUpdate = Schema.Struct({
 });
 
 export type Diff = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly newText: string;
   readonly oldText?: string | null;
   readonly path: string;
@@ -5806,7 +5823,7 @@ export type Diff = {
 export const Diff = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5882,13 +5899,13 @@ export const ElicitationAction = Schema.Union(
 });
 
 export type ElicitationCompleteNotification = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly elicitationId: string;
 };
 export const ElicitationCompleteNotification = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -5972,7 +5989,7 @@ export type ElicitationRequest =
         readonly title?: string | null;
         readonly type?: "object";
       };
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly message: string;
       readonly sessionId: string;
     }
@@ -5980,7 +5997,7 @@ export type ElicitationRequest =
       readonly mode: "url";
       readonly elicitationId: string;
       readonly url: string;
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly message: string;
       readonly sessionId: string;
     };
@@ -6026,7 +6043,7 @@ export const ElicitationRequest = Schema.Union([
     }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -6053,7 +6070,7 @@ export const ElicitationRequest = Schema.Union([
     url: Schema.String.annotate({ description: "The URL to direct the user to.", format: "uri" }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -6074,7 +6091,7 @@ export const ElicitationRequest = Schema.Union([
 ]);
 
 export type ElicitationResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly action:
     | {
         readonly action: "accept";
@@ -6086,7 +6103,7 @@ export type ElicitationResponse = {
 export const ElicitationResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6195,14 +6212,14 @@ export const ElicitationUrlMode = Schema.Struct({
 });
 
 export type EmbeddedResource = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly annotations?: Annotations | null;
   readonly resource: EmbeddedResourceResource;
 };
 export const EmbeddedResource = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6287,33 +6304,33 @@ export const ErrorCode = Schema.Union([
     "Predefined error codes for common JSON-RPC and ACP-specific errors.\n\nThese codes follow the JSON-RPC 2.0 specification for standard errors\nand use the reserved range (-32000 to -32099) for protocol-specific errors.",
 });
 
-export type ExtNotification = unknown;
-export const ExtNotification = Schema.Unknown.annotate({
+export type ExtNotification = Schema.Json;
+export const ExtNotification = Schema.Json.annotate({
   description:
     "Allows the Agent to send an arbitrary notification that is not part of the ACP spec.\nExtension notifications provide a way to send one-way messages for custom functionality\nwhile maintaining protocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
 });
 
-export type ExtRequest = unknown;
-export const ExtRequest = Schema.Unknown.annotate({
+export type ExtRequest = Schema.Json;
+export const ExtRequest = Schema.Json.annotate({
   description:
     "Allows for sending an arbitrary request that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
 });
 
-export type ExtResponse = unknown;
-export const ExtResponse = Schema.Unknown.annotate({
+export type ExtResponse = Schema.Json;
+export const ExtResponse = Schema.Json.annotate({
   description:
     "Allows for sending an arbitrary response to an [`ExtRequest`] that is not part of the ACP spec.\nExtension methods provide a way to add custom functionality while maintaining\nprotocol compatibility.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
 });
 
 export type FileSystemCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly readTextFile?: boolean;
   readonly writeTextFile?: boolean;
 };
 export const FileSystemCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6338,7 +6355,7 @@ export const FileSystemCapabilities = Schema.Struct({
 });
 
 export type ForkSessionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cwd: string;
   readonly mcpServers?: ReadonlyArray<McpServer>;
   readonly sessionId: string;
@@ -6346,7 +6363,7 @@ export type ForkSessionRequest = {
 export const ForkSessionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6369,7 +6386,7 @@ export const ForkSessionRequest = Schema.Struct({
 });
 
 export type ForkSessionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
   readonly models?: SessionModelState | null;
   readonly modes?: SessionModeState | null;
@@ -6378,7 +6395,7 @@ export type ForkSessionResponse = {
 export const ForkSessionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6415,7 +6432,7 @@ export const ForkSessionResponse = Schema.Struct({
 });
 
 export type ImageContent = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly annotations?: Annotations | null;
   readonly data: string;
   readonly mimeType: string;
@@ -6424,7 +6441,7 @@ export type ImageContent = {
 export const ImageContent = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6438,16 +6455,16 @@ export const ImageContent = Schema.Struct({
 }).annotate({ description: "An image provided to or from an LLM." });
 
 export type InitializeRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly clientCapabilities?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly auth?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly terminal?: boolean;
     };
     readonly elicitation?: ElicitationCapabilities | null;
     readonly fs?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly readTextFile?: boolean;
       readonly writeTextFile?: boolean;
     };
@@ -6459,7 +6476,7 @@ export type InitializeRequest = {
 export const InitializeRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6470,7 +6487,7 @@ export const InitializeRequest = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -6481,7 +6498,7 @@ export const InitializeRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6511,7 +6528,7 @@ export const InitializeRequest = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6572,27 +6589,27 @@ export const InitializeRequest = Schema.Struct({
 });
 
 export type InitializeResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly agentCapabilities?: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly auth?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly logout?: LogoutCapabilities | null;
     };
     readonly loadSession?: boolean;
     readonly mcpCapabilities?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly http?: boolean;
       readonly sse?: boolean;
     };
     readonly promptCapabilities?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly audio?: boolean;
       readonly embeddedContext?: boolean;
       readonly image?: boolean;
     };
     readonly sessionCapabilities?: {
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly close?: SessionCloseCapabilities | null;
       readonly fork?: SessionForkCapabilities | null;
       readonly list?: SessionListCapabilities | null;
@@ -6606,7 +6623,7 @@ export type InitializeResponse = {
 export const InitializeResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6617,7 +6634,7 @@ export const InitializeResponse = Schema.Struct({
     Schema.Struct({
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -6628,7 +6645,7 @@ export const InitializeResponse = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6657,7 +6674,7 @@ export const InitializeResponse = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6685,7 +6702,7 @@ export const InitializeResponse = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6721,7 +6738,7 @@ export const InitializeResponse = Schema.Struct({
         Schema.Struct({
           _meta: Schema.optionalKey(
             Schema.Union([
-              Schema.Record(Schema.String, Schema.Unknown).annotate({
+              Schema.Record(Schema.String, Schema.Json).annotate({
                 description:
                   "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
               }),
@@ -6841,14 +6858,14 @@ export const IntegerPropertySchema = Schema.Struct({
 }).annotate({ description: "Schema for integer properties in an elicitation form." });
 
 export type KillTerminalRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
   readonly terminalId: string;
 };
 export const KillTerminalRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6862,11 +6879,13 @@ export const KillTerminalRequest = Schema.Struct({
   terminalId: Schema.String.annotate({ description: "The ID of the terminal to kill." }),
 }).annotate({ description: "Request to kill a terminal without releasing it." });
 
-export type KillTerminalResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type KillTerminalResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const KillTerminalResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6876,14 +6895,14 @@ export const KillTerminalResponse = Schema.Struct({
 }).annotate({ description: "Response to `terminal/kill` method" });
 
 export type ListSessionsRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cursor?: string | null;
   readonly cwd?: string | null;
 };
 export const ListSessionsRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6913,14 +6932,14 @@ export const ListSessionsRequest = Schema.Struct({
 });
 
 export type ListSessionsResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly nextCursor?: string | null;
   readonly sessions: ReadonlyArray<SessionInfo>;
 };
 export const ListSessionsResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6942,7 +6961,7 @@ export const ListSessionsResponse = Schema.Struct({
 }).annotate({ description: "Response from listing sessions." });
 
 export type LoadSessionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cwd: string;
   readonly mcpServers: ReadonlyArray<McpServer>;
   readonly sessionId: string;
@@ -6950,7 +6969,7 @@ export type LoadSessionRequest = {
 export const LoadSessionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -6971,7 +6990,7 @@ export const LoadSessionRequest = Schema.Struct({
 });
 
 export type LoadSessionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
   readonly models?: SessionModelState | null;
   readonly modes?: SessionModeState | null;
@@ -6979,7 +6998,7 @@ export type LoadSessionResponse = {
 export const LoadSessionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7008,11 +7027,11 @@ export const LoadSessionResponse = Schema.Struct({
   ),
 }).annotate({ description: "Response from loading an existing session." });
 
-export type LogoutRequest = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type LogoutRequest = { readonly _meta?: { readonly [x: string]: Schema.Json } | null };
 export const LogoutRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7024,11 +7043,11 @@ export const LogoutRequest = Schema.Struct({
     "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nRequest parameters for the logout method.\n\nTerminates the current authenticated session.",
 });
 
-export type LogoutResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type LogoutResponse = { readonly _meta?: { readonly [x: string]: Schema.Json } | null };
 export const LogoutResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7041,14 +7060,14 @@ export const LogoutResponse = Schema.Struct({
 });
 
 export type McpCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly http?: boolean;
   readonly sse?: boolean;
 };
 export const McpCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7064,7 +7083,7 @@ export const McpCapabilities = Schema.Struct({
 }).annotate({ description: "MCP capabilities supported by the agent" });
 
 export type McpServerHttp = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly headers: ReadonlyArray<HttpHeader>;
   readonly name: string;
   readonly url: string;
@@ -7072,7 +7091,7 @@ export type McpServerHttp = {
 export const McpServerHttp = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7087,7 +7106,7 @@ export const McpServerHttp = Schema.Struct({
 }).annotate({ description: "HTTP transport configuration for MCP." });
 
 export type McpServerSse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly headers: ReadonlyArray<HttpHeader>;
   readonly name: string;
   readonly url: string;
@@ -7095,7 +7114,7 @@ export type McpServerSse = {
 export const McpServerSse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7110,7 +7129,7 @@ export const McpServerSse = Schema.Struct({
 }).annotate({ description: "SSE transport configuration for MCP." });
 
 export type McpServerStdio = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly args: ReadonlyArray<string>;
   readonly command: string;
   readonly env: ReadonlyArray<EnvVariable>;
@@ -7119,7 +7138,7 @@ export type McpServerStdio = {
 export const McpServerStdio = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7234,14 +7253,14 @@ export const MultiSelectPropertySchema = Schema.Struct({
 }).annotate({ description: "Schema for multi-select (array) properties in an elicitation form." });
 
 export type NewSessionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cwd: string;
   readonly mcpServers: ReadonlyArray<McpServer>;
 };
 export const NewSessionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7260,7 +7279,7 @@ export const NewSessionRequest = Schema.Struct({
 });
 
 export type NewSessionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
   readonly models?: SessionModelState | null;
   readonly modes?: SessionModeState | null;
@@ -7269,7 +7288,7 @@ export type NewSessionResponse = {
 export const NewSessionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7370,13 +7389,13 @@ export const PermissionOptionKind = Schema.Literals([
 });
 
 export type Plan = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly entries: ReadonlyArray<PlanEntry>;
 };
 export const Plan = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7405,7 +7424,7 @@ export const PlanEntryStatus = Schema.Literals(["pending", "in_progress", "compl
 });
 
 export type PromptCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly audio?: boolean;
   readonly embeddedContext?: boolean;
   readonly image?: boolean;
@@ -7413,7 +7432,7 @@ export type PromptCapabilities = {
 export const PromptCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7445,7 +7464,7 @@ export const PromptCapabilities = Schema.Struct({
 });
 
 export type PromptRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly messageId?: string | null;
   readonly prompt: ReadonlyArray<ContentBlock>;
   readonly sessionId: string;
@@ -7453,7 +7472,7 @@ export type PromptRequest = {
 export const PromptRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7483,7 +7502,7 @@ export const PromptRequest = Schema.Struct({
 });
 
 export type PromptResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly stopReason: "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled";
   readonly usage?: Usage | null;
   readonly userMessageId?: string | null;
@@ -7491,7 +7510,7 @@ export type PromptResponse = {
 export const PromptResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7539,7 +7558,7 @@ export const ProtocolVersion = Schema.Number.annotate({
   .check(Schema.isLessThanOrEqualTo(65535));
 
 export type ReadTextFileRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly limit?: number | null;
   readonly line?: number | null;
   readonly path: string;
@@ -7548,7 +7567,7 @@ export type ReadTextFileRequest = {
 export const ReadTextFileRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7585,13 +7604,13 @@ export const ReadTextFileRequest = Schema.Struct({
 });
 
 export type ReadTextFileResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content: string;
 };
 export const ReadTextFileResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7602,14 +7621,14 @@ export const ReadTextFileResponse = Schema.Struct({
 }).annotate({ description: "Response containing the contents of a text file." });
 
 export type ReleaseTerminalRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
   readonly terminalId: string;
 };
 export const ReleaseTerminalRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7623,11 +7642,13 @@ export const ReleaseTerminalRequest = Schema.Struct({
   terminalId: Schema.String.annotate({ description: "The ID of the terminal to release." }),
 }).annotate({ description: "Request to release a terminal and free its resources." });
 
-export type ReleaseTerminalResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type ReleaseTerminalResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const ReleaseTerminalResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7640,7 +7661,7 @@ export type RequestPermissionOutcome =
   | { readonly outcome: "cancelled" }
   | {
       readonly outcome: "selected";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly optionId: string;
     };
 export const RequestPermissionOutcome = Schema.Union(
@@ -7653,7 +7674,7 @@ export const RequestPermissionOutcome = Schema.Union(
       outcome: Schema.Literal("selected"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -7669,16 +7690,16 @@ export const RequestPermissionOutcome = Schema.Union(
 ).annotate({ description: "The outcome of a permission request." });
 
 export type RequestPermissionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly options: ReadonlyArray<PermissionOption>;
   readonly sessionId: string;
   readonly toolCall: {
-    readonly _meta?: { readonly [x: string]: unknown } | null;
+    readonly _meta?: { readonly [x: string]: Schema.Json } | null;
     readonly content?: ReadonlyArray<ToolCallContent> | null;
     readonly kind?: ToolKind | null;
     readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-    readonly rawInput?: unknown;
-    readonly rawOutput?: unknown;
+    readonly rawInput?: Schema.Json;
+    readonly rawOutput?: Schema.Json;
     readonly status?: ToolCallStatus | null;
     readonly title?: string | null;
     readonly toolCallId: string;
@@ -7687,7 +7708,7 @@ export type RequestPermissionRequest = {
 export const RequestPermissionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7704,7 +7725,7 @@ export const RequestPermissionRequest = Schema.Struct({
   toolCall: Schema.Struct({
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -7728,10 +7749,8 @@ export const RequestPermissionRequest = Schema.Struct({
         Schema.Null,
       ]),
     ),
-    rawInput: Schema.optionalKey(Schema.Unknown.annotate({ description: "Update the raw input." })),
-    rawOutput: Schema.optionalKey(
-      Schema.Unknown.annotate({ description: "Update the raw output." }),
-    ),
+    rawInput: Schema.optionalKey(Schema.Json.annotate({ description: "Update the raw input." })),
+    rawOutput: Schema.optionalKey(Schema.Json.annotate({ description: "Update the raw output." })),
     status: Schema.optionalKey(
       Schema.Union([ToolCallStatus, Schema.Null]).annotate({
         description: "Update the execution status.",
@@ -7756,19 +7775,19 @@ export const RequestPermissionRequest = Schema.Struct({
 });
 
 export type RequestPermissionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly outcome:
     | { readonly outcome: "cancelled" }
     | {
         readonly outcome: "selected";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly optionId: string;
       };
 };
 export const RequestPermissionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7785,7 +7804,7 @@ export const RequestPermissionResponse = Schema.Struct({
         outcome: Schema.Literal("selected"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -7802,7 +7821,7 @@ export const RequestPermissionResponse = Schema.Struct({
 }).annotate({ description: "Response to a permission request." });
 
 export type ResourceLink = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly annotations?: Annotations | null;
   readonly description?: string | null;
   readonly mimeType?: string | null;
@@ -7814,7 +7833,7 @@ export type ResourceLink = {
 export const ResourceLink = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7836,7 +7855,7 @@ export const ResourceLink = Schema.Struct({
 });
 
 export type ResumeSessionRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cwd: string;
   readonly mcpServers?: ReadonlyArray<McpServer>;
   readonly sessionId: string;
@@ -7844,7 +7863,7 @@ export type ResumeSessionRequest = {
 export const ResumeSessionRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7867,7 +7886,7 @@ export const ResumeSessionRequest = Schema.Struct({
 });
 
 export type ResumeSessionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions?: ReadonlyArray<SessionConfigOption> | null;
   readonly models?: SessionModelState | null;
   readonly modes?: SessionModeState | null;
@@ -7875,7 +7894,7 @@ export type ResumeSessionResponse = {
 export const ResumeSessionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7908,13 +7927,13 @@ export const ResumeSessionResponse = Schema.Struct({
 });
 
 export type SelectedPermissionOutcome = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly optionId: string;
 };
 export const SelectedPermissionOutcome = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -7925,7 +7944,7 @@ export const SelectedPermissionOutcome = Schema.Struct({
 }).annotate({ description: "The user selected one of the provided options." });
 
 export type SessionCapabilities = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly close?: SessionCloseCapabilities | null;
   readonly fork?: SessionForkCapabilities | null;
   readonly list?: SessionListCapabilities | null;
@@ -7934,7 +7953,7 @@ export type SessionCapabilities = {
 export const SessionCapabilities = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -8039,14 +8058,14 @@ export const SessionId = Schema.String.annotate({
 });
 
 export type SessionInfoUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly title?: string | null;
   readonly updatedAt?: string | null;
 };
 export const SessionInfoUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -8075,22 +8094,22 @@ export const SessionInfoUpdate = Schema.Struct({
 });
 
 export type SessionNotification = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
   readonly update:
     | {
         readonly sessionUpdate: "user_message_chunk";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content:
           | {
               readonly type: "text";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly text: string;
             }
           | {
               readonly type: "image";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
@@ -8098,14 +8117,14 @@ export type SessionNotification = {
             }
           | {
               readonly type: "audio";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
             }
           | {
               readonly type: "resource_link";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly description?: string | null;
               readonly mimeType?: string | null;
@@ -8116,7 +8135,7 @@ export type SessionNotification = {
             }
           | {
               readonly type: "resource";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly resource: EmbeddedResourceResource;
             };
@@ -8124,17 +8143,17 @@ export type SessionNotification = {
       }
     | {
         readonly sessionUpdate: "agent_message_chunk";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content:
           | {
               readonly type: "text";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly text: string;
             }
           | {
               readonly type: "image";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
@@ -8142,14 +8161,14 @@ export type SessionNotification = {
             }
           | {
               readonly type: "audio";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
             }
           | {
               readonly type: "resource_link";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly description?: string | null;
               readonly mimeType?: string | null;
@@ -8160,7 +8179,7 @@ export type SessionNotification = {
             }
           | {
               readonly type: "resource";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly resource: EmbeddedResourceResource;
             };
@@ -8168,17 +8187,17 @@ export type SessionNotification = {
       }
     | {
         readonly sessionUpdate: "agent_thought_chunk";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content:
           | {
               readonly type: "text";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly text: string;
             }
           | {
               readonly type: "image";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
@@ -8186,14 +8205,14 @@ export type SessionNotification = {
             }
           | {
               readonly type: "audio";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly data: string;
               readonly mimeType: string;
             }
           | {
               readonly type: "resource_link";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly description?: string | null;
               readonly mimeType?: string | null;
@@ -8204,7 +8223,7 @@ export type SessionNotification = {
             }
           | {
               readonly type: "resource";
-              readonly _meta?: { readonly [x: string]: unknown } | null;
+              readonly _meta?: { readonly [x: string]: Schema.Json } | null;
               readonly annotations?: Annotations | null;
               readonly resource: EmbeddedResourceResource;
             };
@@ -8212,7 +8231,7 @@ export type SessionNotification = {
       }
     | {
         readonly sessionUpdate: "tool_call";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content?: ReadonlyArray<ToolCallContent>;
         readonly kind?:
           | "read"
@@ -8226,53 +8245,53 @@ export type SessionNotification = {
           | "switch_mode"
           | "other";
         readonly locations?: ReadonlyArray<ToolCallLocation>;
-        readonly rawInput?: unknown;
-        readonly rawOutput?: unknown;
+        readonly rawInput?: Schema.Json;
+        readonly rawOutput?: Schema.Json;
         readonly status?: "pending" | "in_progress" | "completed" | "failed";
         readonly title: string;
         readonly toolCallId: string;
       }
     | {
         readonly sessionUpdate: "tool_call_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly content?: ReadonlyArray<ToolCallContent> | null;
         readonly kind?: ToolKind | null;
         readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-        readonly rawInput?: unknown;
-        readonly rawOutput?: unknown;
+        readonly rawInput?: Schema.Json;
+        readonly rawOutput?: Schema.Json;
         readonly status?: ToolCallStatus | null;
         readonly title?: string | null;
         readonly toolCallId: string;
       }
     | {
         readonly sessionUpdate: "plan";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly entries: ReadonlyArray<PlanEntry>;
       }
     | {
         readonly sessionUpdate: "available_commands_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly availableCommands: ReadonlyArray<AvailableCommand>;
       }
     | {
         readonly sessionUpdate: "current_mode_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly currentModeId: string;
       }
     | {
         readonly sessionUpdate: "config_option_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly configOptions: ReadonlyArray<SessionConfigOption>;
       }
     | {
         readonly sessionUpdate: "session_info_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly title?: string | null;
         readonly updatedAt?: string | null;
       }
     | {
         readonly sessionUpdate: "usage_update";
-        readonly _meta?: { readonly [x: string]: unknown } | null;
+        readonly _meta?: { readonly [x: string]: Schema.Json } | null;
         readonly cost?: Cost | null;
         readonly size: number;
         readonly used: number;
@@ -8281,7 +8300,7 @@ export type SessionNotification = {
 export const SessionNotification = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -8298,7 +8317,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("user_message_chunk"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8311,7 +8330,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("text"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8325,7 +8344,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("image"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8341,7 +8360,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("audio"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8356,7 +8375,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource_link"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8383,7 +8402,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8416,7 +8435,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("agent_message_chunk"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8429,7 +8448,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("text"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8443,7 +8462,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("image"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8459,7 +8478,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("audio"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8474,7 +8493,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource_link"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8501,7 +8520,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8534,7 +8553,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("agent_thought_chunk"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8547,7 +8566,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("text"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8561,7 +8580,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("image"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8577,7 +8596,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("audio"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8592,7 +8611,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource_link"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8619,7 +8638,7 @@ export const SessionNotification = Schema.Struct({
               type: Schema.Literal("resource"),
               _meta: Schema.optionalKey(
                 Schema.Union([
-                  Schema.Record(Schema.String, Schema.Unknown).annotate({
+                  Schema.Record(Schema.String, Schema.Json).annotate({
                     description:
                       "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                   }),
@@ -8652,7 +8671,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("tool_call"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8688,10 +8707,10 @@ export const SessionNotification = Schema.Struct({
           }),
         ),
         rawInput: Schema.optionalKey(
-          Schema.Unknown.annotate({ description: "Raw input parameters sent to the tool." }),
+          Schema.Json.annotate({ description: "Raw input parameters sent to the tool." }),
         ),
         rawOutput: Schema.optionalKey(
-          Schema.Unknown.annotate({ description: "Raw output returned by the tool." }),
+          Schema.Json.annotate({ description: "Raw output returned by the tool." }),
         ),
         status: Schema.optionalKey(
           Schema.Literals(["pending", "in_progress", "completed", "failed"]).annotate({
@@ -8713,7 +8732,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("tool_call_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8740,10 +8759,10 @@ export const SessionNotification = Schema.Struct({
           ]),
         ),
         rawInput: Schema.optionalKey(
-          Schema.Unknown.annotate({ description: "Update the raw input." }),
+          Schema.Json.annotate({ description: "Update the raw input." }),
         ),
         rawOutput: Schema.optionalKey(
-          Schema.Unknown.annotate({ description: "Update the raw output." }),
+          Schema.Json.annotate({ description: "Update the raw output." }),
         ),
         status: Schema.optionalKey(
           Schema.Union([ToolCallStatus, Schema.Null]).annotate({
@@ -8767,7 +8786,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("plan"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8786,7 +8805,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("available_commands_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8801,7 +8820,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("current_mode_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8819,7 +8838,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("config_option_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8834,7 +8853,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("session_info_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8865,7 +8884,7 @@ export const SessionNotification = Schema.Struct({
         sessionUpdate: Schema.Literal("usage_update"),
         _meta: Schema.optionalKey(
           Schema.Union([
-            Schema.Record(Schema.String, Schema.Unknown).annotate({
+            Schema.Record(Schema.String, Schema.Json).annotate({
               description:
                 "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
             }),
@@ -8907,17 +8926,17 @@ export const SessionNotification = Schema.Struct({
 export type SessionUpdate =
   | {
       readonly sessionUpdate: "user_message_chunk";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content:
         | {
             readonly type: "text";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly text: string;
           }
         | {
             readonly type: "image";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
@@ -8925,14 +8944,14 @@ export type SessionUpdate =
           }
         | {
             readonly type: "audio";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
           }
         | {
             readonly type: "resource_link";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly description?: string | null;
             readonly mimeType?: string | null;
@@ -8943,7 +8962,7 @@ export type SessionUpdate =
           }
         | {
             readonly type: "resource";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly resource: EmbeddedResourceResource;
           };
@@ -8951,17 +8970,17 @@ export type SessionUpdate =
     }
   | {
       readonly sessionUpdate: "agent_message_chunk";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content:
         | {
             readonly type: "text";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly text: string;
           }
         | {
             readonly type: "image";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
@@ -8969,14 +8988,14 @@ export type SessionUpdate =
           }
         | {
             readonly type: "audio";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
           }
         | {
             readonly type: "resource_link";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly description?: string | null;
             readonly mimeType?: string | null;
@@ -8987,7 +9006,7 @@ export type SessionUpdate =
           }
         | {
             readonly type: "resource";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly resource: EmbeddedResourceResource;
           };
@@ -8995,17 +9014,17 @@ export type SessionUpdate =
     }
   | {
       readonly sessionUpdate: "agent_thought_chunk";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content:
         | {
             readonly type: "text";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly text: string;
           }
         | {
             readonly type: "image";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
@@ -9013,14 +9032,14 @@ export type SessionUpdate =
           }
         | {
             readonly type: "audio";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly data: string;
             readonly mimeType: string;
           }
         | {
             readonly type: "resource_link";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly description?: string | null;
             readonly mimeType?: string | null;
@@ -9031,7 +9050,7 @@ export type SessionUpdate =
           }
         | {
             readonly type: "resource";
-            readonly _meta?: { readonly [x: string]: unknown } | null;
+            readonly _meta?: { readonly [x: string]: Schema.Json } | null;
             readonly annotations?: Annotations | null;
             readonly resource: EmbeddedResourceResource;
           };
@@ -9039,7 +9058,7 @@ export type SessionUpdate =
     }
   | {
       readonly sessionUpdate: "tool_call";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content?: ReadonlyArray<ToolCallContent>;
       readonly kind?:
         | "read"
@@ -9053,53 +9072,53 @@ export type SessionUpdate =
         | "switch_mode"
         | "other";
       readonly locations?: ReadonlyArray<ToolCallLocation>;
-      readonly rawInput?: unknown;
-      readonly rawOutput?: unknown;
+      readonly rawInput?: Schema.Json;
+      readonly rawOutput?: Schema.Json;
       readonly status?: "pending" | "in_progress" | "completed" | "failed";
       readonly title: string;
       readonly toolCallId: string;
     }
   | {
       readonly sessionUpdate: "tool_call_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly content?: ReadonlyArray<ToolCallContent> | null;
       readonly kind?: ToolKind | null;
       readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-      readonly rawInput?: unknown;
-      readonly rawOutput?: unknown;
+      readonly rawInput?: Schema.Json;
+      readonly rawOutput?: Schema.Json;
       readonly status?: ToolCallStatus | null;
       readonly title?: string | null;
       readonly toolCallId: string;
     }
   | {
       readonly sessionUpdate: "plan";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly entries: ReadonlyArray<PlanEntry>;
     }
   | {
       readonly sessionUpdate: "available_commands_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly availableCommands: ReadonlyArray<AvailableCommand>;
     }
   | {
       readonly sessionUpdate: "current_mode_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly currentModeId: string;
     }
   | {
       readonly sessionUpdate: "config_option_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly configOptions: ReadonlyArray<SessionConfigOption>;
     }
   | {
       readonly sessionUpdate: "session_info_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly title?: string | null;
       readonly updatedAt?: string | null;
     }
   | {
       readonly sessionUpdate: "usage_update";
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly cost?: Cost | null;
       readonly size: number;
       readonly used: number;
@@ -9110,7 +9129,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("user_message_chunk"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9123,7 +9142,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("text"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9137,7 +9156,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("image"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9153,7 +9172,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("audio"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9168,7 +9187,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource_link"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9195,7 +9214,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9227,7 +9246,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("agent_message_chunk"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9240,7 +9259,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("text"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9254,7 +9273,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("image"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9270,7 +9289,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("audio"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9285,7 +9304,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource_link"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9312,7 +9331,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9344,7 +9363,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("agent_thought_chunk"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9357,7 +9376,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("text"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9371,7 +9390,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("image"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9387,7 +9406,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("audio"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9402,7 +9421,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource_link"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9429,7 +9448,7 @@ export const SessionUpdate = Schema.Union(
             type: Schema.Literal("resource"),
             _meta: Schema.optionalKey(
               Schema.Union([
-                Schema.Record(Schema.String, Schema.Unknown).annotate({
+                Schema.Record(Schema.String, Schema.Json).annotate({
                   description:
                     "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
                 }),
@@ -9461,7 +9480,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("tool_call"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9497,10 +9516,10 @@ export const SessionUpdate = Schema.Union(
         }),
       ),
       rawInput: Schema.optionalKey(
-        Schema.Unknown.annotate({ description: "Raw input parameters sent to the tool." }),
+        Schema.Json.annotate({ description: "Raw input parameters sent to the tool." }),
       ),
       rawOutput: Schema.optionalKey(
-        Schema.Unknown.annotate({ description: "Raw output returned by the tool." }),
+        Schema.Json.annotate({ description: "Raw output returned by the tool." }),
       ),
       status: Schema.optionalKey(
         Schema.Literals(["pending", "in_progress", "completed", "failed"]).annotate({
@@ -9522,7 +9541,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("tool_call_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9548,11 +9567,9 @@ export const SessionUpdate = Schema.Union(
           Schema.Null,
         ]),
       ),
-      rawInput: Schema.optionalKey(
-        Schema.Unknown.annotate({ description: "Update the raw input." }),
-      ),
+      rawInput: Schema.optionalKey(Schema.Json.annotate({ description: "Update the raw input." })),
       rawOutput: Schema.optionalKey(
-        Schema.Unknown.annotate({ description: "Update the raw output." }),
+        Schema.Json.annotate({ description: "Update the raw output." }),
       ),
       status: Schema.optionalKey(
         Schema.Union([ToolCallStatus, Schema.Null]).annotate({
@@ -9576,7 +9593,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("plan"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9595,7 +9612,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("available_commands_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9610,7 +9627,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("current_mode_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9628,7 +9645,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("config_option_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9643,7 +9660,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("session_info_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9674,7 +9691,7 @@ export const SessionUpdate = Schema.Union(
       sessionUpdate: Schema.Literal("usage_update"),
       _meta: Schema.optionalKey(
         Schema.Union([
-          Schema.Record(Schema.String, Schema.Unknown).annotate({
+          Schema.Record(Schema.String, Schema.Json).annotate({
             description:
               "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
           }),
@@ -9713,13 +9730,13 @@ export type SetSessionConfigOptionRequest =
   | {
       readonly type: "boolean";
       readonly value: boolean;
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly configId: string;
       readonly sessionId: string;
     }
   | {
       readonly value: string;
-      readonly _meta?: { readonly [x: string]: unknown } | null;
+      readonly _meta?: { readonly [x: string]: Schema.Json } | null;
       readonly configId: string;
       readonly sessionId: string;
     };
@@ -9729,7 +9746,7 @@ export const SetSessionConfigOptionRequest = Schema.Union([
     value: Schema.Boolean.annotate({ description: "The boolean value." }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -9750,7 +9767,7 @@ export const SetSessionConfigOptionRequest = Schema.Union([
     }),
     _meta: Schema.optionalKey(
       Schema.Union([
-        Schema.Record(Schema.String, Schema.Unknown).annotate({
+        Schema.Record(Schema.String, Schema.Json).annotate({
           description:
             "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
         }),
@@ -9771,13 +9788,13 @@ export const SetSessionConfigOptionRequest = Schema.Union([
 ]);
 
 export type SetSessionConfigOptionResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly configOptions: ReadonlyArray<SessionConfigOption>;
 };
 export const SetSessionConfigOptionResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9790,14 +9807,14 @@ export const SetSessionConfigOptionResponse = Schema.Struct({
 }).annotate({ description: "Response to `session/set_config_option` method." });
 
 export type SetSessionModelRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly modelId: string;
   readonly sessionId: string;
 };
 export const SetSessionModelRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9817,11 +9834,13 @@ export const SetSessionModelRequest = Schema.Struct({
     "**UNSTABLE**\n\nThis capability is not part of the spec yet, and may be removed or changed at any point.\n\nRequest parameters for setting a session model.",
 });
 
-export type SetSessionModelResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type SetSessionModelResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const SetSessionModelResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9834,14 +9853,14 @@ export const SetSessionModelResponse = Schema.Struct({
 });
 
 export type SetSessionModeRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly modeId: string;
   readonly sessionId: string;
 };
 export const SetSessionModeRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9855,11 +9874,13 @@ export const SetSessionModeRequest = Schema.Struct({
   }),
 }).annotate({ description: "Request parameters for setting a session mode." });
 
-export type SetSessionModeResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type SetSessionModeResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const SetSessionModeResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9954,13 +9975,13 @@ export const StringPropertySchema = Schema.Struct({
 });
 
 export type Terminal = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly terminalId: string;
 };
 export const Terminal = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9974,14 +9995,14 @@ export const Terminal = Schema.Struct({
 });
 
 export type TerminalOutputRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
   readonly terminalId: string;
 };
 export const TerminalOutputRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -9996,7 +10017,7 @@ export const TerminalOutputRequest = Schema.Struct({
 }).annotate({ description: "Request to get the current output and status of a terminal." });
 
 export type TerminalOutputResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly exitStatus?: TerminalExitStatus | null;
   readonly output: string;
   readonly truncated: boolean;
@@ -10004,7 +10025,7 @@ export type TerminalOutputResponse = {
 export const TerminalOutputResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10023,14 +10044,14 @@ export const TerminalOutputResponse = Schema.Struct({
 }).annotate({ description: "Response containing the terminal output and exit status." });
 
 export type TextContent = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly annotations?: Annotations | null;
   readonly text: string;
 };
 export const TextContent = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10042,7 +10063,7 @@ export const TextContent = Schema.Struct({
 }).annotate({ description: "Text provided to or from an LLM." });
 
 export type TextResourceContents = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly mimeType?: string | null;
   readonly text: string;
   readonly uri: string;
@@ -10050,7 +10071,7 @@ export type TextResourceContents = {
 export const TextResourceContents = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10068,7 +10089,7 @@ export const TitledMultiSelectItems = Schema.Struct({
 }).annotate({ description: "Items definition for titled multi-select enum properties." });
 
 export type ToolCall = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content?: ReadonlyArray<ToolCallContent>;
   readonly kind?:
     | "read"
@@ -10082,8 +10103,8 @@ export type ToolCall = {
     | "switch_mode"
     | "other";
   readonly locations?: ReadonlyArray<ToolCallLocation>;
-  readonly rawInput?: unknown;
-  readonly rawOutput?: unknown;
+  readonly rawInput?: Schema.Json;
+  readonly rawOutput?: Schema.Json;
   readonly status?: "pending" | "in_progress" | "completed" | "failed";
   readonly title: string;
   readonly toolCallId: string;
@@ -10091,7 +10112,7 @@ export type ToolCall = {
 export const ToolCall = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10125,10 +10146,10 @@ export const ToolCall = Schema.Struct({
     }),
   ),
   rawInput: Schema.optionalKey(
-    Schema.Unknown.annotate({ description: "Raw input parameters sent to the tool." }),
+    Schema.Json.annotate({ description: "Raw input parameters sent to the tool." }),
   ),
   rawOutput: Schema.optionalKey(
-    Schema.Unknown.annotate({ description: "Raw output returned by the tool." }),
+    Schema.Json.annotate({ description: "Raw output returned by the tool." }),
   ),
   status: Schema.optionalKey(
     Schema.Literals(["pending", "in_progress", "completed", "failed"]).annotate({
@@ -10153,12 +10174,12 @@ export const ToolCallId = Schema.String.annotate({
 });
 
 export type ToolCallUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content?: ReadonlyArray<ToolCallContent> | null;
   readonly kind?: ToolKind | null;
   readonly locations?: ReadonlyArray<ToolCallLocation> | null;
-  readonly rawInput?: unknown;
-  readonly rawOutput?: unknown;
+  readonly rawInput?: Schema.Json;
+  readonly rawOutput?: Schema.Json;
   readonly status?: ToolCallStatus | null;
   readonly title?: string | null;
   readonly toolCallId: string;
@@ -10166,7 +10187,7 @@ export type ToolCallUpdate = {
 export const ToolCallUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10188,8 +10209,8 @@ export const ToolCallUpdate = Schema.Struct({
       Schema.Null,
     ]),
   ),
-  rawInput: Schema.optionalKey(Schema.Unknown.annotate({ description: "Update the raw input." })),
-  rawOutput: Schema.optionalKey(Schema.Unknown.annotate({ description: "Update the raw output." })),
+  rawInput: Schema.optionalKey(Schema.Json.annotate({ description: "Update the raw input." })),
+  rawOutput: Schema.optionalKey(Schema.Json.annotate({ description: "Update the raw output." })),
   status: Schema.optionalKey(
     Schema.Union([ToolCallStatus, Schema.Null]).annotate({
       description: "Update the execution status.",
@@ -10210,13 +10231,13 @@ export const ToolCallUpdate = Schema.Struct({
 });
 
 export type UnstructuredCommandInput = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly hint: string;
 };
 export const UnstructuredCommandInput = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10242,7 +10263,7 @@ export const UntitledMultiSelectItems = Schema.Struct({
 }).annotate({ description: "Items definition for untitled multi-select enum properties." });
 
 export type UsageUpdate = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly cost?: Cost | null;
   readonly size: number;
   readonly used: number;
@@ -10250,7 +10271,7 @@ export type UsageUpdate = {
 export const UsageUpdate = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10277,14 +10298,14 @@ export const UsageUpdate = Schema.Struct({
 });
 
 export type WaitForTerminalExitRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly sessionId: string;
   readonly terminalId: string;
 };
 export const WaitForTerminalExitRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10299,14 +10320,14 @@ export const WaitForTerminalExitRequest = Schema.Struct({
 }).annotate({ description: "Request to wait for a terminal command to exit." });
 
 export type WaitForTerminalExitResponse = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly exitCode?: number | null;
   readonly signal?: string | null;
 };
 export const WaitForTerminalExitResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10335,7 +10356,7 @@ export const WaitForTerminalExitResponse = Schema.Struct({
 }).annotate({ description: "Response containing the exit status of a terminal command." });
 
 export type WriteTextFileRequest = {
-  readonly _meta?: { readonly [x: string]: unknown } | null;
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
   readonly content: string;
   readonly path: string;
   readonly sessionId: string;
@@ -10343,7 +10364,7 @@ export type WriteTextFileRequest = {
 export const WriteTextFileRequest = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),
@@ -10361,11 +10382,13 @@ export const WriteTextFileRequest = Schema.Struct({
     "Request to write content to a text file.\n\nOnly available if the client supports the `fs.writeTextFile` capability.",
 });
 
-export type WriteTextFileResponse = { readonly _meta?: { readonly [x: string]: unknown } | null };
+export type WriteTextFileResponse = {
+  readonly _meta?: { readonly [x: string]: Schema.Json } | null;
+};
 export const WriteTextFileResponse = Schema.Struct({
   _meta: Schema.optionalKey(
     Schema.Union([
-      Schema.Record(Schema.String, Schema.Unknown).annotate({
+      Schema.Record(Schema.String, Schema.Json).annotate({
         description:
           "The _meta property is reserved by ACP to allow clients and agents to attach additional\nmetadata to their interactions. Implementations MUST NOT make assumptions about values at\nthese keys.\n\nSee protocol docs: [Extensibility](https://agentclientprotocol.com/protocol/extensibility)",
       }),

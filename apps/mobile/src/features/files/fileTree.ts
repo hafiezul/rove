@@ -44,10 +44,7 @@ function splitSearchWords(value: string): ReadonlyArray<string> {
     .map((word) => word.toLowerCase());
 }
 
-function buildNodeSearchTerms(path: string): {
-  readonly segments: ReadonlyArray<string>;
-  readonly words: ReadonlyArray<string>;
-} {
+function buildNodeSearchTerms(path: string) {
   const segments: string[] = [];
   const words: string[] = [];
 

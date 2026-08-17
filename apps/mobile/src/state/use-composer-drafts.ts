@@ -395,7 +395,7 @@ export function clearComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   options?: { readonly clearWorkspaceSelection?: boolean },
-): Record<string, ComposerDraft> {
+) {
   const existing = current[draftKey];
   if (!existing) {
     return current;
@@ -424,7 +424,7 @@ export function restoreComposerDraftSnapshotState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   snapshot: ComposerDraft,
-): Record<string, ComposerDraft> {
+) {
   const next = { ...current };
   if (isEmptyDraft(snapshot)) {
     delete next[draftKey];
@@ -438,7 +438,7 @@ export function copyComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   sourceDraftKey: string,
   targetDraftKey: string,
-): Record<string, ComposerDraft> {
+) {
   if (sourceDraftKey === targetDraftKey) {
     return current;
   }
@@ -498,7 +498,7 @@ export function mergeComposerDraftContentState(
   current: Record<string, ComposerDraft>,
   draftKey: string,
   content: ComposerDraftContent,
-): Record<string, ComposerDraft> {
+) {
   const existing = normalizeDraft(current[draftKey]);
   if (content.sourceShareId && existing.importedShareIds?.includes(content.sourceShareId)) {
     return current;

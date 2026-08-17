@@ -40,7 +40,7 @@ export type ProviderSessionDirectoryWriteError =
   | ProviderValidationError
   | ProviderSessionDirectoryPersistenceError;
 
-export interface ProviderSessionDirectoryShape {
+export interface ProviderSessionDirectoryContract {
   readonly upsert: (
     binding: ProviderRuntimeBinding,
   ) => Effect.Effect<void, ProviderSessionDirectoryWriteError>;
@@ -66,5 +66,5 @@ export interface ProviderSessionDirectoryShape {
 
 export class ProviderSessionDirectory extends Context.Service<
   ProviderSessionDirectory,
-  ProviderSessionDirectoryShape
+  ProviderSessionDirectoryContract
 >()("t3/provider/Services/ProviderSessionDirectory") {}

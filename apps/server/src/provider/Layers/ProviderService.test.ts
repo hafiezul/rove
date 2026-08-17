@@ -42,7 +42,7 @@ import {
   ProviderValidationError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
 import * as ProviderService from "../Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "../Services/ProviderSessionDirectory.ts";
@@ -203,7 +203,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = CODEX_DRIVER) {
       }),
   );
 
-  const adapter: ProviderAdapterShape<ProviderAdapterError> = {
+  const adapter: ProviderAdapterContract<ProviderAdapterError> = {
     provider,
     capabilities: {
       sessionModelSwitch: "in-session",
@@ -1571,7 +1571,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       ).pipe(Effect.forkChild);
       yield* advanceTestClock(50);
 
-      const completedEvent: LegacyProviderRuntimeEvent = {
+      const completedEvent = {
         type: "turn.completed",
         eventId: asEventId("evt-1"),
         provider: ProviderDriverKind.make("codex"),
@@ -1579,7 +1579,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
         status: "completed",
-      };
+      } satisfies LegacyProviderRuntimeEvent;
 
       fanout.codex.emit(completedEvent);
       yield* advanceTestClock(50);

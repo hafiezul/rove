@@ -68,9 +68,13 @@ export interface CloudflaredReleaseAsset {
   readonly archive: "binary" | "tgz";
 }
 
-const CLOUDFLARED_RELEASE_ASSETS: Readonly<
-  Partial<Record<`${NodeJS.Platform}-${string}`, CloudflaredReleaseAsset>>
-> = {
+interface CloudflaredReleaseAssets {
+  readonly [platformArchitecture: `${NodeJS.Platform}-${string}`]:
+    | CloudflaredReleaseAsset
+    | undefined;
+}
+
+const CLOUDFLARED_RELEASE_ASSETS: CloudflaredReleaseAssets = {
   "darwin-arm64": {
     url: "https://github.com/cloudflare/cloudflared/releases/download/2026.5.2/cloudflared-darwin-arm64.tgz",
     sha256: "ba94054c9fd4297645093d59d51442e5e546d07bb0516120e694a13d5b216d38",
@@ -123,7 +127,7 @@ export interface CloudflaredRelayClientOptions {
   readonly releaseAsset?: CloudflaredReleaseAsset;
 }
 
-export interface RelayClientShape {
+export interface RelayClientContract {
   readonly resolve: Effect.Effect<RelayClientStatus>;
   readonly install: Effect.Effect<AvailableRelayClient, RelayClientInstallError>;
   readonly installWithProgress: (
@@ -131,7 +135,7 @@ export interface RelayClientShape {
   ) => Effect.Effect<AvailableRelayClient, RelayClientInstallError>;
 }
 
-export class RelayClient extends Context.Service<RelayClient, RelayClientShape>()(
+export class RelayClient extends Context.Service<RelayClient, RelayClientContract>()(
   "@t3tools/shared/relayClient",
 ) {}
 
@@ -172,7 +176,7 @@ const wrapInstallFailure =
 export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function* (
   options: CloudflaredRelayClientOptions,
 ): Effect.fn.Return<
-  RelayClientShape,
+  RelayClientContract,
   never,
   | ChildProcessSpawner.ChildProcessSpawner
   | Crypto.Crypto
@@ -221,7 +225,7 @@ export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function
     return null;
   });
 
-  const resolve: RelayClientShape["resolve"] = Effect.gen(function* () {
+  const resolve: RelayClientContract["resolve"] = Effect.gen(function* () {
     const config = yield* loadCloudflaredConfig;
     if (Option.isSome(config.executableOverride)) {
       return (yield* isExecutableFile(config.executableOverride.value))
@@ -458,7 +462,7 @@ export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function
       ),
     );
   });
-  const installWithProgress: RelayClientShape["installWithProgress"] = (report) =>
+  const installWithProgress: RelayClientContract["installWithProgress"] = (report) =>
     installSemaphore.withPermit(
       installUnlocked((stage) =>
         report({

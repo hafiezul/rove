@@ -111,10 +111,7 @@ export function usePullRequestList(
 /** The line counts for the rows on screen, asked of each environment for its own rows. */
 export function usePullRequestListStats(
   targets: ReadonlyArray<EnvironmentQueryTarget<PullRequestListStatsInput>>,
-): {
-  readonly stats: ReadonlyArray<EnvironmentPullRequestStat> | null;
-  readonly refresh: () => void;
-} {
+) {
   const query = usePullRequestStatsQuery(targets);
   const stats = useMemo(
     () =>

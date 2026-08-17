@@ -9,16 +9,16 @@ import { ClaudeAI, type Icon, OpenAI } from "../Icons";
  */
 export const PROVIDER_ORDER: readonly UsageProviderKind[] = ["codex", "claude"];
 
-export const PROVIDER_LABEL: Record<UsageProviderKind, string> = {
+export const PROVIDER_LABEL = {
   claude: "Claude Code",
   codex: "Codex",
-};
+} satisfies Record<UsageProviderKind, string>;
 
 /** Claude's brand orange against a neutral white for Codex. */
-export const PROVIDER_COLOR: Record<UsageProviderKind, string> = {
+export const PROVIDER_COLOR = {
   claude: "#d97757",
   codex: "#e6e6e6",
-};
+} satisfies Record<UsageProviderKind, string>;
 
 /**
  * Brand marks, reused from the provider picker.
@@ -27,7 +27,7 @@ export const PROVIDER_COLOR: Record<UsageProviderKind, string> = {
  * which are the same colours as the chart bands, so swapping a colour dot for a
  * mark keeps the series association intact rather than trading it away.
  */
-export const PROVIDER_MARK: Record<UsageProviderKind, Icon> = {
+export const PROVIDER_MARK = {
   claude: ClaudeAI,
   codex: OpenAI,
-};
+} satisfies Record<UsageProviderKind, Icon>;

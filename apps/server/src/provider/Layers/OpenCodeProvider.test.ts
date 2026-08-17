@@ -12,7 +12,7 @@ import { ServerConfig } from "../../config.ts";
 import {
   OpenCodeRuntime,
   OpenCodeRuntimeError,
-  type OpenCodeRuntimeShape,
+  type OpenCodeRuntimeContract,
 } from "../opencodeRuntime.ts";
 import { checkOpenCodeProviderStatus } from "./OpenCodeProvider.ts";
 import type { OpenCodeInventory } from "../opencodeRuntime.ts";
@@ -29,7 +29,20 @@ const DEFAULT_VERSION_STDOUT = "opencode 1.14.19\n";
  * invoke the check, assert on the returned snapshot.
  */
 
-const runtimeMock = {
+interface OpenCodeRuntimeMockState {
+  runVersionError: Error | null;
+  versionStdout: string;
+  inventoryError: Error | null;
+  closeCalls: number;
+  inventory: unknown;
+}
+
+interface OpenCodeRuntimeMock {
+  state: OpenCodeRuntimeMockState;
+  reset: () => void;
+}
+
+const runtimeMock: OpenCodeRuntimeMock = {
   state: {
     runVersionError: null as Error | null,
     versionStdout: DEFAULT_VERSION_STDOUT,
@@ -38,7 +51,7 @@ const runtimeMock = {
     inventory: {
       providerList: { connected: [] as string[], all: [] as unknown[], default: {} },
       agents: [] as unknown[],
-    } as unknown,
+    },
   },
   reset() {
     this.state.runVersionError = null;
@@ -52,7 +65,7 @@ const runtimeMock = {
   },
 };
 
-const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
+const OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
   startOpenCodeServerProcess: () =>
     Effect.succeed({
       url: "http://127.0.0.1:4301",
@@ -84,7 +97,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
         )
       : Effect.succeed({ stdout: runtimeMock.state.versionStdout, stderr: "", code: 0 }),
   createOpenCodeSdkClient: () =>
-    ({}) as unknown as ReturnType<OpenCodeRuntimeShape["createOpenCodeSdkClient"]>,
+    ({}) as unknown as ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>,
   loadOpenCodeInventory: () =>
     runtimeMock.state.inventoryError
       ? Effect.fail(

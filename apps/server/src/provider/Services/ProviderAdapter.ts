@@ -42,7 +42,7 @@ export interface ProviderThreadSnapshot {
   readonly turns: ReadonlyArray<ProviderThreadTurnSnapshot>;
 }
 
-export interface ProviderAdapterShape<TError> {
+export interface ProviderAdapterContract<TError> {
   /**
    * Provider kind implemented by this adapter.
    */

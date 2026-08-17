@@ -748,7 +748,7 @@ export function resolveBaseFreshness(detail: {
  * what anyone is looking at. Written as a `Record` so a new `PullRequestAction` fails to compile
  * here until somebody decides which side of the diff it belongs on.
  */
-const ACTION_NEEDS_HOST_REFRESH: Record<PullRequestAction, boolean> = {
+const ACTION_NEEDS_HOST_REFRESH = {
   "update-branch": true,
   merge: false,
   ready: false,
@@ -757,7 +757,7 @@ const ACTION_NEEDS_HOST_REFRESH: Record<PullRequestAction, boolean> = {
   reopen: false,
   "enable-auto-merge": false,
   "disable-auto-merge": false,
-};
+} satisfies Record<PullRequestAction, boolean>;
 
 export function pullRequestActionNeedsHostRefresh(action: PullRequestAction): boolean {
   return ACTION_NEEDS_HOST_REFRESH[action];

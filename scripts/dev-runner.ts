@@ -429,10 +429,7 @@ export function createDevRunnerEnv({
   });
 }
 
-function portPairForOffset(offset: number): {
-  readonly serverPort: number;
-  readonly webPort: number;
-} {
+function portPairForOffset(offset: number) {
   return {
     serverPort: BASE_SERVER_PORT + offset,
     webPort: BASE_WEB_PORT + offset,

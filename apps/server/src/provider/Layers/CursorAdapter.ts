@@ -74,7 +74,7 @@ import {
   extractPlanMarkdown,
   extractTodosAsPlan,
 } from "../acp/CursorAcpExtension.ts";
-import { type CursorAdapterShape } from "../Services/CursorAdapter.ts";
+import { type CursorAdapterContract } from "../Services/CursorAdapter.ts";
 import { resolveCursorAcpBaseModelId } from "./CursorProvider.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
@@ -476,7 +476,7 @@ export function makeCursorAdapter(
         });
       });
 
-    const startSession: CursorAdapterShape["startSession"] = (input) =>
+    const startSession: CursorAdapterContract["startSession"] = (input) =>
       withThreadLock(
         input.threadId,
         Effect.gen(function* () {
@@ -907,7 +907,7 @@ export function makeCursorAdapter(
         }).pipe(Effect.scoped),
       );
 
-    const sendTurn: CursorAdapterShape["sendTurn"] = (input) =>
+    const sendTurn: CursorAdapterContract["sendTurn"] = (input) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(input.threadId);
         // A sendTurn while a prompt is in flight is a steer: the agent folds
@@ -1058,7 +1058,7 @@ export function makeCursorAdapter(
         );
       });
 
-    const interruptTurn: CursorAdapterShape["interruptTurn"] = (threadId) =>
+    const interruptTurn: CursorAdapterContract["interruptTurn"] = (threadId) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(threadId);
         yield* settlePendingApprovalsAsCancelled(ctx.pendingApprovals);
@@ -1072,7 +1072,7 @@ export function makeCursorAdapter(
         );
       });
 
-    const respondToRequest: CursorAdapterShape["respondToRequest"] = (
+    const respondToRequest: CursorAdapterContract["respondToRequest"] = (
       threadId,
       requestId,
       decision,
@@ -1090,7 +1090,7 @@ export function makeCursorAdapter(
         yield* Deferred.succeed(pending.decision, decision);
       });
 
-    const respondToUserInput: CursorAdapterShape["respondToUserInput"] = (
+    const respondToUserInput: CursorAdapterContract["respondToUserInput"] = (
       threadId,
       requestId,
       answers,
@@ -1108,13 +1108,13 @@ export function makeCursorAdapter(
         yield* Deferred.succeed(pending.answers, answers);
       });
 
-    const readThread: CursorAdapterShape["readThread"] = (threadId) =>
+    const readThread: CursorAdapterContract["readThread"] = (threadId) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(threadId);
         return { threadId, turns: ctx.turns };
       });
 
-    const rollbackThread: CursorAdapterShape["rollbackThread"] = (threadId, numTurns) =>
+    const rollbackThread: CursorAdapterContract["rollbackThread"] = (threadId, numTurns) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(threadId);
         if (!Number.isInteger(numTurns) || numTurns < 1) {
@@ -1129,7 +1129,7 @@ export function makeCursorAdapter(
         return { threadId, turns: ctx.turns };
       });
 
-    const stopSession: CursorAdapterShape["stopSession"] = (threadId) =>
+    const stopSession: CursorAdapterContract["stopSession"] = (threadId) =>
       withThreadLock(
         threadId,
         Effect.gen(function* () {
@@ -1138,16 +1138,16 @@ export function makeCursorAdapter(
         }),
       );
 
-    const listSessions: CursorAdapterShape["listSessions"] = () =>
+    const listSessions: CursorAdapterContract["listSessions"] = () =>
       Effect.sync(() => Array.from(sessions.values(), (c) => ({ ...c.session })));
 
-    const hasSession: CursorAdapterShape["hasSession"] = (threadId) =>
+    const hasSession: CursorAdapterContract["hasSession"] = (threadId) =>
       Effect.sync(() => {
         const c = sessions.get(threadId);
         return c !== undefined && !c.stopped;
       });
 
-    const stopAll: CursorAdapterShape["stopAll"] = () =>
+    const stopAll: CursorAdapterContract["stopAll"] = () =>
       Effect.forEach(sessions.values(), stopSessionInternal, { discard: true });
 
     yield* Effect.addFinalizer(() =>
@@ -1177,6 +1177,6 @@ export function makeCursorAdapter(
       hasSession,
       stopAll,
       streamEvents,
-    } satisfies CursorAdapterShape;
+    } satisfies CursorAdapterContract;
   });
 }

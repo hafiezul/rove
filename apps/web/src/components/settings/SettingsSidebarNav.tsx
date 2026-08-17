@@ -42,9 +42,7 @@ import {
   type SettingsSearchItem,
 } from "./settingsSearch";
 
-const SETTINGS_SECTION_ICONS: Readonly<
-  Record<SettingsPath, ComponentType<{ className?: string }>>
-> = {
+const SETTINGS_SECTION_ICONS = {
   "/settings/general": Settings2Icon,
   "/settings/appearance": PaletteIcon,
   "/settings/keybindings": KeyboardIcon,
@@ -52,7 +50,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/source-control": GitBranchIcon,
   "/settings/connections": Link2Icon,
   "/settings/archived": ArchiveIcon,
-};
+} satisfies Readonly<Record<SettingsPath, ComponentType<{ className?: string }>>>;
 
 export const SETTINGS_NAV_ITEMS: ReadonlyArray<{
   label: string;

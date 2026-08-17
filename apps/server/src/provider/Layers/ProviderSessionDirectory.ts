@@ -11,7 +11,7 @@ import {
   ProviderSessionDirectory,
   type ProviderRuntimeBinding,
   type ProviderRuntimeBindingWithMetadata,
-  type ProviderSessionDirectoryShape,
+  type ProviderSessionDirectoryContract,
 } from "../Services/ProviderSessionDirectory.ts";
 const decodeProviderDriverKindValue = Schema.decodeUnknownEffect(ProviderDriverKind);
 
@@ -100,7 +100,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       ),
     );
 
-  const upsert: ProviderSessionDirectoryShape["upsert"] = Effect.fn(function* (binding) {
+  const upsert: ProviderSessionDirectoryContract["upsert"] = Effect.fn(function* (binding) {
     const existing = yield* repository
       .getByThreadId({ threadId: binding.threadId })
       .pipe(Effect.mapError(toPersistenceError("ProviderSessionDirectory.upsert:getByThreadId")));
@@ -148,7 +148,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       .pipe(Effect.mapError(toPersistenceError("ProviderSessionDirectory.upsert:upsert")));
   });
 
-  const getProvider: ProviderSessionDirectoryShape["getProvider"] = (threadId) =>
+  const getProvider: ProviderSessionDirectoryContract["getProvider"] = (threadId) =>
     getBinding(threadId).pipe(
       Effect.flatMap((binding) =>
         Option.match(binding, {
@@ -164,13 +164,13 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       ),
     );
 
-  const listThreadIds: ProviderSessionDirectoryShape["listThreadIds"] = () =>
+  const listThreadIds: ProviderSessionDirectoryContract["listThreadIds"] = () =>
     repository.list().pipe(
       Effect.mapError(toPersistenceError("ProviderSessionDirectory.listThreadIds:list")),
       Effect.map((rows) => rows.map((row) => row.threadId)),
     );
 
-  const listBindings: ProviderSessionDirectoryShape["listBindings"] = () =>
+  const listBindings: ProviderSessionDirectoryContract["listBindings"] = () =>
     repository.list().pipe(
       Effect.mapError(toPersistenceError("ProviderSessionDirectory.listBindings:list")),
       Effect.flatMap((rows) =>
@@ -188,7 +188,7 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
     getBinding,
     listThreadIds,
     listBindings,
-  } satisfies ProviderSessionDirectoryShape;
+  } satisfies ProviderSessionDirectoryContract;
 });
 
 export const ProviderSessionDirectoryLive = Layer.effect(

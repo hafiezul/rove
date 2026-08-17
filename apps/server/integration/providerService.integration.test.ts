@@ -21,7 +21,7 @@ import {
 import { makeProviderServiceLive } from "../src/provider/Layers/ProviderService.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../src/provider/Services/ProviderService.ts";
 import * as ServerConfig from "../src/config.ts";
 import { ServerSettingsService } from "../src/serverSettings.ts";
@@ -131,7 +131,7 @@ const collectEventsDuring = <A, E, R>(
   });
 
 const runTurn = (input: {
-  readonly provider: ProviderServiceShape;
+  readonly provider: ProviderServiceContract;
   readonly harness: TestProviderAdapterHarness;
   readonly threadId: ThreadId;
   readonly userText: string;

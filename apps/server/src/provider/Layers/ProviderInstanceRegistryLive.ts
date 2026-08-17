@@ -54,11 +54,11 @@ import * as Stream from "effect/Stream";
 import { buildUnavailableProviderSnapshot } from "../unavailableProviderSnapshot.ts";
 import {
   ProviderInstanceRegistry,
-  type ProviderInstanceRegistryShape,
+  type ProviderInstanceRegistryContract,
 } from "../Services/ProviderInstanceRegistry.ts";
 import {
   ProviderInstanceRegistryMutator,
-  type ProviderInstanceRegistryMutatorShape,
+  type ProviderInstanceRegistryMutatorContract,
 } from "../Services/ProviderInstanceRegistryMutator.ts";
 import type { AnyProviderDriver, ProviderInstance } from "../ProviderDriver.ts";
 
@@ -332,8 +332,8 @@ export const makeProviderInstanceRegistry = <R>(input: {
   readonly configMap: ProviderInstanceConfigMap;
 }): Effect.Effect<
   {
-    readonly registry: ProviderInstanceRegistryShape;
-    readonly mutator: ProviderInstanceRegistryMutatorShape;
+    readonly registry: ProviderInstanceRegistryContract;
+    readonly mutator: ProviderInstanceRegistryMutatorContract;
   },
   never,
   R | Scope.Scope
@@ -362,14 +362,14 @@ export const makeProviderInstanceRegistry = <R>(input: {
 
     const state: RegistryState = { entries, unavailable, changes };
     const reconcileWithR = makeReconcile({ state, driversById, parentScope });
-    const reconcile: ProviderInstanceRegistryMutatorShape["reconcile"] = (configMap) =>
+    const reconcile: ProviderInstanceRegistryMutatorContract["reconcile"] = (configMap) =>
       reconcileWithR(configMap).pipe(Effect.provideContext(driverContext));
 
     // Hydrate the initial configMap synchronously so callers can read
     // `listInstances` immediately after this effect completes.
     yield* reconcile(input.configMap);
 
-    const registry: ProviderInstanceRegistryShape = {
+    const registry: ProviderInstanceRegistryContract = {
       getInstance: (id) => Ref.get(entries).pipe(Effect.map((map) => map.get(id)?.instance)),
       listInstances: Ref.get(entries).pipe(
         Effect.map(
@@ -397,7 +397,7 @@ export const makeProviderInstanceRegistry = <R>(input: {
       },
     };
 
-    const mutator: ProviderInstanceRegistryMutatorShape = { reconcile };
+    const mutator: ProviderInstanceRegistryMutatorContract = { reconcile };
 
     return { registry, mutator };
   });

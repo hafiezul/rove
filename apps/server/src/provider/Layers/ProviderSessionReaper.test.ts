@@ -22,7 +22,7 @@ import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import * as ProviderSessionRuntime from "../../persistence/ProviderSessionRuntime.ts";
 import { ProviderValidationError } from "../Errors.ts";
 import { ProviderSessionReaper } from "../Services/ProviderSessionReaper.ts";
-import { ProviderService, type ProviderServiceShape } from "../Services/ProviderService.ts";
+import { ProviderService, type ProviderServiceContract } from "../Services/ProviderService.ts";
 import { ProviderSessionDirectoryLive } from "./ProviderSessionDirectory.ts";
 import { makeProviderSessionReaperLive } from "./ProviderSessionReaper.ts";
 
@@ -149,19 +149,19 @@ describe("ProviderSessionReaper", () => {
     readonly readModel: ReturnType<typeof makeReadModel>;
     readonly stopSessionImplementation?: (input: {
       readonly threadId: ThreadId;
-    }) => ReturnType<ProviderServiceShape["stopSession"]>;
+    }) => ReturnType<ProviderServiceContract["stopSession"]>;
   }) {
     const stoppedThreadIds = new Set<ThreadId>();
-    const stopSession = vi.fn<ProviderServiceShape["stopSession"]>(
+    const stopSession = vi.fn<ProviderServiceContract["stopSession"]>(
       (request) =>
         (input.stopSessionImplementation
           ? input.stopSessionImplementation(request)
           : Effect.sync(() => {
               stoppedThreadIds.add(request.threadId);
-            })) as ReturnType<ProviderServiceShape["stopSession"]>,
+            })) as ReturnType<ProviderServiceContract["stopSession"]>,
     );
 
-    const providerService: ProviderServiceShape = {
+    const providerService: ProviderServiceContract = {
       startSession: () => unsupported(),
       sendTurn: () => unsupported(),
       interruptTurn: () => unsupported(),

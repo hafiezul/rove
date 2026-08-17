@@ -321,7 +321,7 @@ const isCommandFailed = Schema.is(NativeTelemetryCommandFailed);
 
 function eventVersion(value: unknown): number | undefined {
   if (typeof value !== "object" || value === null) return undefined;
-  const version = Reflect.get(value, "version");
+  const version = Object.getOwnPropertyDescriptor(value, "version")?.value;
   return typeof version === "number" ? version : undefined;
 }
 

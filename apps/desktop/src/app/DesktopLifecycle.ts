@@ -51,15 +51,17 @@ export class DesktopLifecycle extends Context.Service<
 const { logInfo: logLifecycleInfo, logError: logLifecycleError } =
   makeComponentLogger("desktop-lifecycle");
 
+interface ScopedEventTarget {
+  on: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
+  removeListener: (eventName: string, listener: (...args: Array<unknown>) => void) => void;
+}
+
 function addScopedListener<Args extends ReadonlyArray<unknown>>(
   target: unknown,
   eventName: string,
   listener: (...args: Args) => void,
 ): Effect.Effect<void, never, Scope.Scope> {
-  const eventTarget = target as {
-    on: (eventName: string, listener: (...args: Array<unknown>) => void) => unknown;
-    removeListener: (eventName: string, listener: (...args: Array<unknown>) => void) => unknown;
-  };
+  const eventTarget = target as ScopedEventTarget;
   const untypedListener = listener as unknown as (...args: Array<unknown>) => void;
   return Effect.acquireRelease(
     Effect.sync(() => {

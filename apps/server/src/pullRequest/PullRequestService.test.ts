@@ -1256,9 +1256,13 @@ it.effect("refuses a comment on a host that cannot post one", () =>
   }),
 );
 
+interface ViewerByWorkspaceRoot {
+  readonly [workspaceRoot: string]: string;
+}
+
 it.effect("keeps two hosts of one provider kind as two accounts", () =>
   Effect.gen(function* () {
-    const viewerFor: Record<string, string> = { "/cloud": "bilal", "/enterprise": "b.hassan" };
+    const viewerFor: ViewerByWorkspaceRoot = { "/cloud": "bilal", "/enterprise": "b.hassan" };
     const service = yield* makeService({
       projects: [
         project({ id: "p1", title: "cloud", workspaceRoot: "/cloud", repository: "acme/web" }),

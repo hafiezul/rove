@@ -131,10 +131,7 @@ export function isAppUpdateCheckAvailable(client: Pick<AppUpdateClient, "isEnabl
  * Keeps the manual update affordance discoverable only to someone deliberately
  * tapping the version row five times.
  */
-export function registerHiddenUpdateTap(count: number): {
-  readonly nextCount: number;
-  readonly shouldCheck: boolean;
-} {
+export function registerHiddenUpdateTap(count: number) {
   const nextCount = count + 1;
   if (nextCount >= HIDDEN_UPDATE_TAP_COUNT) {
     return {

@@ -12,7 +12,7 @@ export const PULL_REQUEST_REACTION_ORDER: ReadonlyArray<PullRequestReactionConte
   "eyes",
 ];
 
-const REACTION_EMOJI: Record<PullRequestReactionContent, string> = {
+const REACTION_EMOJI = {
   "thumbs-up": "👍",
   "thumbs-down": "👎",
   laugh: "😄",
@@ -21,10 +21,10 @@ const REACTION_EMOJI: Record<PullRequestReactionContent, string> = {
   heart: "❤️",
   rocket: "🚀",
   eyes: "👀",
-};
+} satisfies Record<PullRequestReactionContent, string>;
 
 /** The spoken names GitHub uses in its own hover text, which is what a screen reader reads out. */
-const REACTION_NAME: Record<PullRequestReactionContent, string> = {
+const REACTION_NAME = {
   "thumbs-up": "thumbs up",
   "thumbs-down": "thumbs down",
   laugh: "laugh",
@@ -33,7 +33,7 @@ const REACTION_NAME: Record<PullRequestReactionContent, string> = {
   heart: "heart",
   rocket: "rocket",
   eyes: "eyes",
-};
+} satisfies Record<PullRequestReactionContent, string>;
 
 export function pullRequestReactionEmoji(content: PullRequestReactionContent): string {
   return REACTION_EMOJI[content];

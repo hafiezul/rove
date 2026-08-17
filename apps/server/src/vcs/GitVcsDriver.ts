@@ -443,7 +443,7 @@ const gitCommand = (
       : {}),
   });
 
-export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* () {
+export const makeVcsDriverContract = Effect.fn("makeGitVcsDriverShape")(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const vcsProcess = yield* VcsProcess.VcsProcess;
@@ -916,7 +916,7 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
 });
 
 export const makeVcsDriver = Effect.gen(function* () {
-  const driver = yield* makeVcsDriverShape();
+  const driver = yield* makeVcsDriverContract();
   return VcsDriver.VcsDriver.of(driver);
 });
 

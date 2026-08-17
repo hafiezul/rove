@@ -11,7 +11,7 @@ const XAiPromptCompleteNotification = Schema.Struct({
   sessionId: Schema.String,
   promptId: Schema.optional(Schema.String),
   stopReason: Schema.optional(Schema.String),
-  agentResult: Schema.optional(Schema.NullOr(Schema.Unknown)),
+  agentResult: Schema.optional(Schema.NullOr(Schema.Json)),
 });
 
 type XAiPromptCompleteNotification = typeof XAiPromptCompleteNotification.Type;
@@ -113,7 +113,9 @@ interface NormalizedXAiAnswer {
   readonly annotation?: XAiAskUserQuestionAnnotation;
 }
 
-function answerValues(answer: unknown): ReadonlyArray<string> {
+type XAiAnswerValue = string | ReadonlyArray<string> | undefined;
+
+function answerValues(answer: XAiAnswerValue): ReadonlyArray<string> {
   if (Array.isArray(answer)) {
     return answer.flatMap((entry) => {
       const text = typeof entry === "string" ? trimmed(entry) : undefined;
@@ -126,7 +128,7 @@ function answerValues(answer: unknown): ReadonlyArray<string> {
 
 function normalizeAnswerForXAi(
   question: XAiAskUserQuestionRequestParams["questions"][number],
-  answer: unknown,
+  answer: XAiAnswerValue,
 ): NormalizedXAiAnswer | undefined {
   const values = answerValues(answer);
   if (values.length === 0) {
@@ -163,9 +165,17 @@ function normalizeAnswerForXAi(
 function findQuestionAnswer(
   answers: ProviderUserInputAnswers,
   question: XAiAskUserQuestionRequestParams["questions"][number],
-): unknown {
-  const key = question.id ?? question.question;
-  return answers[key] ?? answers[question.question];
+): XAiAnswerValue {
+  const answer = answers[question.id ?? question.question] ?? answers[question.question];
+  if (typeof answer === "string") {
+    return answer;
+  }
+  if (Array.isArray(answer)) {
+    return answer.flatMap(
+      (entry): ReadonlyArray<string> => (typeof entry === "string" ? [entry] : []),
+    );
+  }
+  return undefined;
 }
 
 export function makeXAiAskUserQuestionResponse(
@@ -399,19 +409,19 @@ function promptResponseFromXAi(
   notification: XAiPromptCompleteNotification,
 ): EffectAcpSchema.PromptResponse {
   const stopReason = normalizeXAiStopReason(notification.stopReason);
-  const meta: Record<string, unknown> = {
-    sessionId: notification.sessionId,
-  };
+  const metaEntries: Array<readonly [string, Schema.Json]> = [
+    ["sessionId", notification.sessionId],
+  ];
   if (notification.stopReason === undefined) {
-    meta[xAiStopReasonMissingMetaKey] = true;
+    metaEntries.push([xAiStopReasonMissingMetaKey, true]);
   }
   if (notification.promptId !== undefined) {
-    meta.promptId = notification.promptId;
-    meta.requestId = notification.promptId;
+    metaEntries.push(["promptId", notification.promptId], ["requestId", notification.promptId]);
   }
   if (notification.agentResult !== undefined) {
-    meta.agentResult = notification.agentResult;
+    metaEntries.push(["agentResult", notification.agentResult]);
   }
+  const meta = Object.fromEntries(metaEntries);
   return {
     stopReason,
     _meta: meta,

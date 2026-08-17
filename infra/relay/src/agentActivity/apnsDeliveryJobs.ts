@@ -282,7 +282,7 @@ export function expiresAtForJob(createdAtMs: number): string {
   return DateTime.formatIso(Option.getOrThrow(DateTime.make(createdAtMs + MAX_JOB_AGE_MS)));
 }
 
-function validatePayloadShape(payload: ApnsDeliveryJobPayload): ApnsDeliveryJobInvalid | null {
+function validatePayloadContract(payload: ApnsDeliveryJobPayload): ApnsDeliveryJobInvalid | null {
   switch (payload.kind) {
     case "live_activity_start":
     case "live_activity_update":
@@ -367,7 +367,7 @@ export function verifySignedApnsDeliveryJob(input: {
   readonly nowMs: number;
 }): ApnsDeliveryJobPayload | ApnsDeliveryJobVerificationError {
   const payload = input.job.payload;
-  const invalidPayload = validatePayloadShape(payload);
+  const invalidPayload = validatePayloadContract(payload);
   if (invalidPayload !== null) {
     return invalidPayload;
   }

@@ -13,7 +13,7 @@ import {
   ListProjectionThreadActivitiesInput,
   ProjectionThreadActivity,
   ProjectionThreadActivityRepository,
-  type ProjectionThreadActivityRepositoryShape,
+  type ProjectionThreadActivityRepositoryContract,
 } from "../Services/ProjectionThreadActivities.ts";
 
 const ProjectionThreadActivityDbRowSchema = ProjectionThreadActivity.mapFields(
@@ -106,7 +106,7 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionThreadActivityRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadActivityRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadActivityRow(row).pipe(
       Effect.mapError(
         toPersistenceSqlOrDecodeError(
@@ -116,7 +116,7 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
       ),
     );
 
-  const listByThreadId: ProjectionThreadActivityRepositoryShape["listByThreadId"] = (input) =>
+  const listByThreadId: ProjectionThreadActivityRepositoryContract["listByThreadId"] = (input) =>
     listProjectionThreadActivityRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlOrDecodeError(
@@ -139,7 +139,9 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
       ),
     );
 
-  const deleteByThreadId: ProjectionThreadActivityRepositoryShape["deleteByThreadId"] = (input) =>
+  const deleteByThreadId: ProjectionThreadActivityRepositoryContract["deleteByThreadId"] = (
+    input,
+  ) =>
     deleteProjectionThreadActivityRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadActivityRepository.deleteByThreadId:query"),
@@ -150,7 +152,7 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
     upsert,
     listByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadActivityRepositoryShape;
+  } satisfies ProjectionThreadActivityRepositoryContract;
 });
 
 export const ProjectionThreadActivityRepositoryLive = Layer.effect(

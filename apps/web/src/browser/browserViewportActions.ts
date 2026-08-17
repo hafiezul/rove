@@ -15,13 +15,7 @@ export class BrowserViewportCommitTimeoutError extends Error {
 const handlers = new Map<string, BrowserViewportHandler>();
 const commitTails = new Map<string, Promise<void>>();
 
-const queueBrowserViewportMutation = <A>(
-  tabId: string,
-  start: () => Promise<A>,
-): {
-  readonly started: Promise<{ readonly operation: Promise<A> }>;
-  readonly execution: Promise<A>;
-} => {
+const queueBrowserViewportMutation = <A>(tabId: string, start: () => Promise<A>) => {
   const previous = commitTails.get(tabId) ?? Promise.resolve();
   const started = previous
     .catch(() => undefined)

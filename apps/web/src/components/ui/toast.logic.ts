@@ -28,10 +28,7 @@ type VisibleToastLayoutItem<TToast extends object> = {
 
 export function buildVisibleToastLayout<TToast extends object>(
   visibleToasts: readonly (TToast & ToastWithLayoutProps)[],
-): {
-  frontmostHeight: number;
-  items: VisibleToastLayoutItem<TToast & ToastWithLayoutProps>[];
-} {
+) {
   // Two parallel cursors:
   //   - `full*`  advances on every toast, so an ending toast keeps the slot it
   //     occupied before dismissal and its data-ending-style exit transform

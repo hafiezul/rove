@@ -113,14 +113,14 @@ const schemaErrorAttributes = (error: unknown): Record<string, unknown> | undefi
   if (Option.isNone(encoded) || typeof encoded.value !== "object" || encoded.value === null) {
     return undefined;
   }
-  const tag = Reflect.get(encoded.value, "_tag");
+  const tag = Object.getOwnPropertyDescriptor(encoded.value, "_tag")?.value;
   if (typeof tag !== "string") {
     return undefined;
   }
 
-  const attributes: Record<string, unknown> = {
+  const attributes = {
     "error.type": tag,
-  };
+  } satisfies Record<string, unknown>;
   for (const [key, value] of Object.entries(encoded.value)) {
     if (key !== "_tag") {
       appendEncodedAttributes(attributes, `error.${key}`, value);

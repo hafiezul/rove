@@ -39,19 +39,14 @@ export function resolveThreadRouteRenderState(input: {
   return input.serverThreadShellExists ? "loading" : "missing";
 }
 
-export function buildThreadRouteParams(ref: ScopedThreadRef): {
-  environmentId: EnvironmentId;
-  threadId: ThreadId;
-} {
+export function buildThreadRouteParams(ref: ScopedThreadRef) {
   return {
     environmentId: ref.environmentId,
     threadId: ref.threadId,
   };
 }
 
-export function buildDraftThreadRouteParams(draftId: DraftId): {
-  draftId: DraftId;
-} {
+export function buildDraftThreadRouteParams(draftId: DraftId) {
   return { draftId };
 }
 

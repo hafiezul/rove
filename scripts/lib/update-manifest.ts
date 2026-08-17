@@ -189,8 +189,8 @@ function mergeExtras(
   primary: Readonly<Record<string, UpdateManifestScalar>>,
   secondary: Readonly<Record<string, UpdateManifestScalar>>,
   platformLabel: string,
-): Record<string, UpdateManifestScalar> {
-  const merged: Record<string, UpdateManifestScalar> = { ...primary };
+) {
+  const merged = { ...primary } satisfies Record<string, UpdateManifestScalar>;
 
   for (const [key, value] of Object.entries(secondary)) {
     const existing = merged[key];

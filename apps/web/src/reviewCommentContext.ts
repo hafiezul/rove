@@ -65,7 +65,7 @@ function unescapeReviewCommentAttribute(value: string): string {
     .replace(/&amp;/g, "&");
 }
 
-function readReviewCommentAttributes(rawAttributes: string): Record<string, string> {
+function readReviewCommentAttributes(rawAttributes: string) {
   const attributes: Record<string, string> = {};
   for (const match of rawAttributes.matchAll(REVIEW_COMMENT_ATTRIBUTE_PATTERN)) {
     attributes[match[1]!] = unescapeReviewCommentAttribute(match[2] ?? "");
@@ -80,11 +80,7 @@ function readNonNegativeInteger(value: string | undefined): number | null {
   return Number(value);
 }
 
-function extractReviewCommentBody(rawBody: string): {
-  text: string;
-  language: string;
-  contents: string;
-} {
+function extractReviewCommentBody(rawBody: string) {
   const matches = Array.from(rawBody.matchAll(REVIEW_COMMENT_FENCE_PATTERN));
   const match = matches.at(-1);
   const fenceIndex = match?.index;
@@ -373,7 +369,7 @@ function findDiffReviewLineIndex(
 function getDiffRange(
   lines: ReadonlyArray<DiffReviewLine>,
   key: "oldLineNumber" | "newLineNumber",
-): { start: number; count: number } {
+) {
   const numberedLines = lines.filter((line) => line[key] !== null);
   return {
     start: numberedLines[0]?.[key] ?? 0,

@@ -162,9 +162,7 @@ export function evictExcessFavicons(
   );
 }
 
-export function migratePersistedBrowserFaviconState(persistedState: unknown): {
-  byKey: Record<string, BrowserFaviconEntry>;
-} {
+export function migratePersistedBrowserFaviconState(persistedState: unknown) {
   if (!persistedState || typeof persistedState !== "object") return { byKey: {} };
   const raw = "byKey" in persistedState ? (persistedState as { byKey?: unknown }).byKey : null;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { byKey: {} };

@@ -194,6 +194,16 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   };
 }
 
+function constrainWireValuesToJson(generatedOutput: string): string {
+  // ACP is a JSON-RPC protocol: extension fields and unspecified OpenAPI values
+  // cross the process boundary as JSON, never arbitrary JavaScript values.
+  return generatedOutput
+    .replaceAll("Schema.Unknown", "Schema.Json")
+    .replaceAll(": unknown", ": Schema.Json")
+    .replaceAll("| unknown", "| Schema.Json")
+    .replaceAll("= unknown", "= Schema.Json");
+}
+
 const generateSchemas = Effect.fn("generateSchemas")(function* (skipDownload: boolean) {
   const { upstreamMetaPath, upstreamSchemaPath } = yield* getGeneratedPaths();
 
@@ -225,7 +235,9 @@ const generateSchemas = Effect.fn("generateSchemas")(function* (skipDownload: bo
     generator.addSchema(name, schema as never);
   }
 
-  const output = generator.generate("openapi-3.1", normalizedDefinitions as never, false).trim();
+  const output = constrainWireValuesToJson(
+    generator.generate("openapi-3.1", normalizedDefinitions as never, false).trim(),
+  );
   if (output.length > 0) {
     for (const entry of collectSchemaEntries(output)) {
       if (!generatedEntries.has(entry.name)) {

@@ -192,10 +192,10 @@ function parseThemeCollection(value: unknown): ThemeCollection | undefined {
     : undefined;
 }
 
-function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance): ThemeColors | null {
+function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance) {
   if (!isRecord(value)) return null;
 
-  const colors: Partial<Record<ThemeColorRole, string>> = {
+  const colors = {
     ...getDefaultThemeColors(appearance),
   };
   // Tolerate unknown roles and malformed values so themes saved by other
@@ -206,7 +206,7 @@ function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance): Th
       colors[role as ThemeColorRole] = normalized;
     }
   }
-  return colors as ThemeColors;
+  return colors;
 }
 
 function parseStoredThemeVariants(
@@ -335,7 +335,11 @@ export function subscribeToCustomThemes(listener: () => void): () => void {
 // Earlier builds shipped every maintainer theme under a t3- prefix; only the
 // genuinely T3-branded palette keeps it. Stored preferences and mixes with the
 // old ids stay readable through this alias table.
-const LEGACY_THEME_ID_ALIASES: Readonly<Record<string, string>> = {
+interface LegacyThemeIdAliases {
+  readonly [legacyThemeId: string]: string | undefined;
+}
+
+const LEGACY_THEME_ID_ALIASES: LegacyThemeIdAliases = {
   [LEGACY_T3_CHAT_DARK_THEME_ID]: T3_CHAT_THEME_ID,
   "t3-grove": GROVE_THEME_ID,
   "t3-ocean": OCEAN_THEME_ID,
@@ -374,7 +378,7 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 // flattened over --chat-background so this opaque palette reproduces the
 // pixels users see after T3 Chat's blur and noise layers are composited.
 // Foreground pairs deviate where necessary to keep normal text at WCAG AA.
-const T3_CHAT_LIGHT_COLORS: ThemeColors = {
+const T3_CHAT_LIGHT_COLORS = {
   canvas: "#fdf7fd",
   // T3 Code's workspace header belongs to the chat panel, so keep it seamless
   // with the light chat canvas rather than mapping it to T3 Chat's outer shell.
@@ -440,9 +444,9 @@ const T3_CHAT_LIGHT_COLORS: ThemeColors = {
   terminalSelection: "#f1c4e6",
   terminalScrollbar: "#e7c1dc",
   terminalScrollbarHover: "#eaa7cb",
-};
+} satisfies ThemeColors;
 
-const T3_CHAT_DARK_COLORS: ThemeColors = {
+const T3_CHAT_DARK_COLORS = {
   canvas: "#1f1a24",
   // T3 Code's workspace header belongs to the chat panel, so keep it seamless
   // with the canvas rather than mapping it to T3 Chat's outer shell.
@@ -513,7 +517,7 @@ const T3_CHAT_DARK_COLORS: ThemeColors = {
   terminalSelection: "#362d3d",
   terminalScrollbar: "#302029",
   terminalScrollbarHover: "#423a45",
-};
+} satisfies ThemeColors;
 
 /**
  * The palette T3 Code wears with no theme installed, captured from the app's
@@ -522,7 +526,7 @@ const T3_CHAT_DARK_COLORS: ThemeColors = {
  * their real backdrops (canvas, or the sidebar for its rows) because theme
  * colors are stored as opaque OKLCH tokens.
  */
-const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
+const T3_CODE_LIGHT_THEME_COLORS = {
   canvas: "#fcfcfc",
   chrome: "#fcfcfc",
   toolbar: "#fcfcfc",
@@ -580,9 +584,9 @@ const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
   terminalSelection: "#d0d6dd",
   terminalScrollbar: "#d6d6d6",
   terminalScrollbarHover: "#bdbdbd",
-};
+} satisfies ThemeColors;
 
-const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
+const T3_CODE_DARK_THEME_COLORS = {
   canvas: "#0a0a0a",
   chrome: "#0a0a0a",
   toolbar: "#0a0a0a",
@@ -640,7 +644,7 @@ const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalSelection: "#343a47",
   terminalScrollbar: "#222222",
   terminalScrollbarHover: "#363636",
-};
+} satisfies ThemeColors;
 
 /**
  * The standard T3 Code look as a theme palette, for seeding a new theme when
@@ -876,7 +880,7 @@ function themeRgbToOklch(color: ThemeRgbColor): ThemeOklch {
   return { L, C: Math.hypot(a, bb), h: (Math.atan2(bb, a) * 180) / Math.PI };
 }
 
-function oklchToRgbUnclamped({ L, C, h }: ThemeOklch): { r: number; g: number; b: number } {
+function oklchToRgbUnclamped({ L, C, h }: ThemeOklch) {
   const hr = (h * Math.PI) / 180;
   const a = C * Math.cos(hr);
   const bb = C * Math.sin(hr);
@@ -977,14 +981,7 @@ const STANDARD_STATUS_COLORS = {
  * (the unthemed app uses 8% in light and 16% in dark), so alerts still sit on
  * the palette while the signal color stays standard.
  */
-function standardStatusColors(canvas: ThemeRgbColor): {
-  error: string;
-  errorForeground: string;
-  errorSurface: string;
-  warning: string;
-  warningForeground: string;
-  warningSurface: string;
-} {
+function standardStatusColors(canvas: ThemeRgbColor) {
   // Keyed off the canvas rather than the appearance slot: a dark canvas saved
   // as a light theme still needs the dark pair, or the alert foreground lands
   // on a dark surface unreadable.
@@ -1028,7 +1025,7 @@ export function createVividThemeColors(
   appearance: ThemeAppearance,
   backgroundValue: string,
   accentValue: string,
-): ThemeColors {
+) {
   const defaults = getDefaultThemeColors(appearance);
   const canvasRgb = parseThemeRgbColor(
     backgroundValue,
@@ -1294,7 +1291,7 @@ export function createManagedThemeColors(
      * readability envelope. Derived foregrounds still adapt for contrast. */
     exactSeeds?: boolean;
   },
-): ThemeColors {
+) {
   const defaults = getDefaultThemeColors(appearance);
   const canvas = options?.exactSeeds
     ? parseThemeRgbColor(
@@ -1786,7 +1783,7 @@ export function removeCustomThemes(themeIds: ReadonlyArray<string>): void {
   );
 }
 
-function parseThemeColorOverrides(value: unknown): ThemeColorOverrides {
+function parseThemeColorOverrides(value: unknown) {
   if (!isRecord(value)) throw new Error("Theme colors must be objects.");
 
   const overrides: Partial<Record<ThemeColorRole, string>> = {};
@@ -1884,7 +1881,7 @@ export function serializeThemeFile(theme: ThemeDefinition): string {
   return `${JSON.stringify(file, null, 2)}\n`;
 }
 
-const APP_THEME_VARIABLES: Readonly<Record<ThemeColorRole, string>> = {
+const APP_THEME_VARIABLES = {
   canvas: "--app-theme-canvas",
   chrome: "--app-theme-chrome",
   toolbar: "--app-theme-toolbar",
@@ -1942,7 +1939,7 @@ const APP_THEME_VARIABLES: Readonly<Record<ThemeColorRole, string>> = {
   terminalSelection: "--app-theme-terminal-selection-background",
   terminalScrollbar: "--app-theme-terminal-scrollbar",
   terminalScrollbarHover: "--app-theme-terminal-scrollbar-hover",
-};
+} satisfies Readonly<Record<ThemeColorRole, string>>;
 
 export function getThemeColorVariable(role: ThemeColorRole): string {
   return APP_THEME_VARIABLES[role];
@@ -2065,12 +2062,17 @@ export function isKnownThemePreference(theme: string): boolean {
  */
 export type ThemeHalves = Readonly<{ light?: string; dark?: string }>;
 
+interface MutableThemeHalves {
+  light?: string;
+  dark?: string;
+}
+
 export function parseThemeHalves(raw: string | null): ThemeHalves | null {
   if (!raw) return null;
   try {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value)) return null;
-    const halves: { light?: string; dark?: string } = {};
+    const halves: MutableThemeHalves = {};
     for (const appearance of ["light", "dark"] as const) {
       const themeId = value[appearance];
       if (typeof themeId !== "string") continue;

@@ -126,7 +126,7 @@ import {
 
 type DetailTab = "summary" | "timeline" | "code";
 
-const ACTION_SUCCESS_LABELS: Record<PullRequestAction, string> = {
+const ACTION_SUCCESS_LABELS = {
   merge: "Pull request merged",
   ready: "Marked ready for review",
   draft: "Converted to draft",
@@ -138,10 +138,10 @@ const ACTION_SUCCESS_LABELS: Record<PullRequestAction, string> = {
   "enable-auto-merge":
     "Auto-merge turned on — merges as soon as this is ready, sooner if it already is",
   "disable-auto-merge": "Auto-merge turned off",
-};
+} satisfies Record<PullRequestAction, string>;
 
 /** Said as the thing that did not happen, rather than as the operation that returned an error. */
-const ACTION_FAILURE_LABELS: Record<PullRequestAction, string> = {
+const ACTION_FAILURE_LABELS = {
   merge: "Could not merge this pull request",
   ready: "Could not mark this ready for review",
   draft: "Could not convert this to a draft",
@@ -150,10 +150,10 @@ const ACTION_FAILURE_LABELS: Record<PullRequestAction, string> = {
   "update-branch": "Could not update this branch",
   "enable-auto-merge": "Could not turn on auto-merge",
   "disable-auto-merge": "Could not turn off auto-merge",
-};
+} satisfies Record<PullRequestAction, string>;
 
 /** What to try, for the times the host says only that it refused. */
-const ACTION_FAILURE_HINTS: Record<PullRequestAction, string> = {
+const ACTION_FAILURE_HINTS = {
   merge:
     "The host refused the merge. Check that you have write access, that the checks it requires have passed, and that the branch is not conflicting.",
   ready: "The host refused it. Check that you have write access to this repository.",
@@ -171,7 +171,7 @@ const ACTION_FAILURE_HINTS: Record<PullRequestAction, string> = {
     "The host refused it. Check that this repository allows auto-merge, that you have write access, and that there is something left for it to wait on.",
   "disable-auto-merge":
     "The host refused it. Check that you have write access, and that the merge has not already happened.",
-};
+} satisfies Record<PullRequestAction, string>;
 
 /**
  * Said instead of the update hint when the reader asked for a rebase: it is the one that fails on

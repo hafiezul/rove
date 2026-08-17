@@ -25,7 +25,7 @@ import {
 } from "../Errors.ts";
 import {
   OrchestrationEventStore,
-  type OrchestrationEventStoreShape,
+  type OrchestrationEventStoreContract,
 } from "../Services/OrchestrationEventStore.ts";
 
 const decodeEvent = Schema.decodeUnknownEffect(OrchestrationEvent);
@@ -181,7 +181,7 @@ const makeEventStore = Effect.gen(function* () {
       `,
   });
 
-  const append: OrchestrationEventStoreShape["append"] = (event) =>
+  const append: OrchestrationEventStoreContract["append"] = (event) =>
     appendEventRow({
       eventId: event.eventId,
       aggregateKind: event.aggregateKind,
@@ -208,7 +208,7 @@ const makeEventStore = Effect.gen(function* () {
       ),
     );
 
-  const readFromSequence: OrchestrationEventStoreShape["readFromSequence"] = (
+  const readFromSequence: OrchestrationEventStoreContract["readFromSequence"] = (
     sequenceExclusive,
     limit = DEFAULT_READ_FROM_SEQUENCE_LIMIT,
   ) => {
@@ -264,7 +264,7 @@ const makeEventStore = Effect.gen(function* () {
     append,
     readFromSequence,
     readAll: () => readFromSequence(0, Number.MAX_SAFE_INTEGER),
-  } satisfies OrchestrationEventStoreShape;
+  } satisfies OrchestrationEventStoreContract;
 });
 
 export const OrchestrationEventStoreLive = Layer.effect(OrchestrationEventStore, makeEventStore);

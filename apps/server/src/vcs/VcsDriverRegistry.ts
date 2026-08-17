@@ -43,10 +43,12 @@ function detectionCacheKey(input: {
   return `${input.requestedKind}\0${input.cwd}`;
 }
 
-function parseDetectionCacheKey(key: string): {
+interface ParsedDetectionCacheKey {
   readonly cwd: string;
   readonly requestedKind: VcsDriverKind | "auto";
-} {
+}
+
+function parseDetectionCacheKey(key: string): ParsedDetectionCacheKey {
   const separatorIndex = key.indexOf("\0");
   if (separatorIndex === -1) {
     return {
@@ -60,10 +62,16 @@ function parseDetectionCacheKey(key: string): {
   };
 }
 
+interface RegisteredVcsDrivers {
+  readonly git?: VcsDriver.VcsDriver["Service"];
+  readonly jj?: VcsDriver.VcsDriver["Service"];
+  readonly unknown?: VcsDriver.VcsDriver["Service"];
+}
+
 export const make = Effect.gen(function* () {
   const projectConfig = yield* VcsProjectConfig.VcsProjectConfig;
   const git = yield* GitVcsDriver.makeVcsDriver;
-  const drivers: Partial<Record<VcsDriverKind, VcsDriver.VcsDriver["Service"]>> = {
+  const drivers: RegisteredVcsDrivers = {
     git,
   };
 

@@ -581,7 +581,11 @@ export interface LocalProviderUpdateOutcome {
 
 // Worst-case ordering across backends: a failed copy outranks an unchanged one,
 // which outranks a still-running one, which outranks a succeeded one.
-const PROVIDER_UPDATE_STATUS_SEVERITY: Record<string, number> = {
+interface ProviderUpdateStatusSeverities {
+  readonly [status: string]: number | undefined;
+}
+
+const PROVIDER_UPDATE_STATUS_SEVERITY: ProviderUpdateStatusSeverities = {
   succeeded: 1,
   queued: 2,
   running: 2,
@@ -724,7 +728,7 @@ export interface LocalEnvironmentUpdateGroup {
  */
 export function buildLocalEnvironmentUpdateGroups(
   environments: ReadonlyArray<LocalEnvironmentProvidersInput>,
-): { groups: LocalEnvironmentUpdateGroup[]; isAnySettling: boolean } {
+) {
   const groups = environments.map((environment) => ({
     environmentId: environment.environmentId,
     label: environment.label,

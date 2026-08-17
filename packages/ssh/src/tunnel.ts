@@ -138,7 +138,7 @@ interface SshAuthAttemptInput<T> extends SshAuthOperationInput<T> {
   readonly authSecret: string | null;
 }
 
-export interface SshEnvironmentManagerShape {
+export interface SshEnvironmentManagerContract {
   readonly ensureEnvironment: (
     target: DesktopSshEnvironmentTarget,
     options?: { readonly issuePairingToken?: boolean },
@@ -1147,7 +1147,7 @@ const startSshTunnel = Effect.fn("ssh/tunnel.startSshTunnel")(function* (input: 
 
 const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.make")(function* (
   options: SshEnvironmentManagerOptions = {},
-): Effect.fn.Return<SshEnvironmentManagerShape, never, Scope.Scope> {
+): Effect.fn.Return<SshEnvironmentManagerContract, never, Scope.Scope> {
   const managerScope = yield* Scope.Scope;
   const tunnels = new Map<string, SshTunnelEntry>();
   const pendingTunnelEntries = new Map<
@@ -1599,7 +1599,7 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
  */
 export class SshEnvironmentManager extends Context.Service<
   SshEnvironmentManager,
-  SshEnvironmentManagerShape
+  SshEnvironmentManagerContract
 >()("@t3tools/ssh/tunnel/SshEnvironmentManager") {
   static readonly layer = (options: SshEnvironmentManagerOptions = {}) =>
     Layer.effect(SshEnvironmentManager, makeSshEnvironmentManager(options));

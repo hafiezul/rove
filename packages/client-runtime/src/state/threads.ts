@@ -131,6 +131,13 @@ function shouldPersistThread(thread: OrchestrationThread): boolean {
   return status !== "starting" && status !== "running";
 }
 
+interface InitialThreadSubscriptionConfig {
+  readonly threadResumeCompletionMarker?: boolean;
+  readonly threadSnapshotPagination?: boolean;
+}
+
+const EMPTY_INITIAL_THREAD_SUBSCRIPTION_CONFIG: InitialThreadSubscriptionConfig = {};
+
 export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make")(function* (
   threadId: ThreadIdType,
 ) {
@@ -558,11 +565,7 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
       Effect.fn("EnvironmentThreadState.makeSubscribeInput")(function* (session) {
         const config = yield* session.initialConfig.pipe(
           Effect.orElseSucceed(
-            () =>
-              ({}) as {
-                threadResumeCompletionMarker?: boolean;
-                threadSnapshotPagination?: boolean;
-              },
+            () => EMPTY_INITIAL_THREAD_SUBSCRIPTION_CONFIG as InitialThreadSubscriptionConfig,
           ),
         );
         const supportsCompletionMarker = config.threadResumeCompletionMarker === true;

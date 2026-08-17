@@ -150,10 +150,7 @@ export function readPngMetadata(bytes: Uint8Array): PngMetadata {
   };
 }
 
-export function readPngDimensions(bytes: Uint8Array): {
-  readonly width: number;
-  readonly height: number;
-} {
+export function readPngDimensions(bytes: Uint8Array) {
   const { width, height } = readPngMetadata(bytes);
   return { width, height };
 }

@@ -117,6 +117,13 @@ type PublishProviderKind = Extract<
   "github" | "gitlab" | "bitbucket" | "azure-devops"
 >;
 
+interface PublishAccountsByProvider {
+  github: string | null;
+  gitlab: string | null;
+  bitbucket: string | null;
+  "azure-devops": string | null;
+}
+
 type GitActionToastId = ReturnType<typeof toastManager.add>;
 
 interface ActiveGitActionProgress {
@@ -219,7 +226,7 @@ function isPublishProviderKind(
 function getPublishProviderReadiness(input: {
   provider: PublishProviderKind;
   sourceControlProviders: ReadonlyArray<SourceControlProviderDiscoveryItem>;
-}): { readonly ready: boolean; readonly hint: string | null } {
+}) {
   const discovered = input.sourceControlProviders.find(
     (provider) => provider.kind === input.provider,
   );
@@ -410,7 +417,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
   );
   const publishRepositoryAction = useSourceControlPublishRepositoryAction(sourceControlScope);
   const publishAccountByProvider = useMemo(() => {
-    const accounts: Record<PublishProviderKind, string | null> = {
+    const accounts: PublishAccountsByProvider = {
       github: null,
       gitlab: null,
       bitbucket: null,

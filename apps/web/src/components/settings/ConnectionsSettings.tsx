@@ -339,10 +339,7 @@ function parsePairingUrlFields(
   }
 }
 
-function parseRemotePairingFields(input: { readonly host: string; readonly pairingCode: string }): {
-  readonly host: string;
-  readonly pairingCode: string;
-} {
+function parseRemotePairingFields(input: { readonly host: string; readonly pairingCode: string }) {
   const parsedPairingUrl = parsePairingUrlFields(input.host);
   if (parsedPairingUrl) return parsedPairingUrl;
 

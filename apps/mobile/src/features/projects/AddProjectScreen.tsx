@@ -323,11 +323,7 @@ function useEnvironmentOptions(): ReadonlyArray<EnvironmentOption> {
   }, [connectedEnvironments, savedConnectionsById, serverConfigByEnvironmentId]);
 }
 
-function useSelectedEnvironment(): {
-  readonly environmentOptions: ReadonlyArray<EnvironmentOption>;
-  readonly selectedEnvironment: EnvironmentOption | null;
-  readonly setSelectedEnvironmentId: (environmentId: EnvironmentId) => void;
-} {
+function useSelectedEnvironment() {
   const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<EnvironmentId | null>(null);
   const environmentOptions = useEnvironmentOptions();
   const selectedEnvironment =

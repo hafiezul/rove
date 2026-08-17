@@ -37,19 +37,19 @@ import * as CodexErrors from "effect-codex-app-server/errors";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderAdapterValidationError } from "../Errors.ts";
-import type { CodexAdapterShape } from "../Services/CodexAdapter.ts";
+import type { CodexAdapterContract } from "../Services/CodexAdapter.ts";
 import { ProviderSessionDirectory } from "../Services/ProviderSessionDirectory.ts";
 import {
   type CodexSessionRuntimeOptions,
   type CodexSessionRuntimeSendTurnInput,
-  type CodexSessionRuntimeShape,
+  type CodexSessionRuntimeContract,
   type CodexThreadSnapshot,
 } from "./CodexSessionRuntime.ts";
 import { makeCodexAdapter } from "./CodexAdapter.ts";
 const decodeCodexSettings = Schema.decodeSync(CodexSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* CodexAdapter`.
-class CodexAdapter extends Context.Service<CodexAdapter, CodexAdapterShape>()(
+class CodexAdapter extends Context.Service<CodexAdapter, CodexAdapterContract>()(
   "t3/provider/Layers/CodexAdapter.test/CodexAdapter",
 ) {}
 
@@ -58,7 +58,7 @@ const asTurnId = (value: string): TurnId => TurnId.make(value);
 const asEventId = (value: string): EventId => EventId.make(value);
 const asItemId = (value: string): ProviderItemId => ProviderItemId.make(value);
 
-class FakeCodexRuntime implements CodexSessionRuntimeShape {
+class FakeCodexRuntime implements CodexSessionRuntimeContract {
   private readonly eventQueue = Effect.runSync(Queue.unbounded<ProviderEvent>());
   private readonly now = "2026-01-01T00:00:00.000Z";
 

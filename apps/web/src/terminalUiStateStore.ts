@@ -493,7 +493,7 @@ function updateTerminalUiStateByThreadKey(
   terminalUiStateByThreadKey: Record<string, ThreadTerminalUiState>,
   threadRef: ScopedThreadRef,
   updater: (state: ThreadTerminalUiState) => ThreadTerminalUiState,
-): Record<string, ThreadTerminalUiState> {
+) {
   if (threadRef.threadId.length === 0) {
     return terminalUiStateByThreadKey;
   }
@@ -524,7 +524,7 @@ function updateSuppressedTerminalId(
   threadRef: ScopedThreadRef,
   terminalId: string,
   suppressed: boolean,
-): Record<string, string[]> {
+) {
   const normalizedTerminalId = terminalId.trim();
   if (normalizedTerminalId.length === 0) {
     return suppressedTerminalIdsByThreadKey;

@@ -56,7 +56,20 @@ const isEnvironmentPublishSignatureInvalid = Schema.is(
   EnvironmentPublishSignatures.EnvironmentPublishSignatureInvalid,
 );
 
-function signTestJwt(payload: object, privateKey: string): string {
+type JsonWebTokenValue =
+  | null
+  | boolean
+  | number
+  | string
+  | ReadonlyArray<JsonWebTokenValue>
+  | { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+type JsonWebTokenPayload = { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+function signTestJwt<TPayload extends JsonWebTokenPayload>(
+  payload: TPayload,
+  privateKey: string,
+): string {
   const header = Buffer.from(
     JSON.stringify({ alg: "EdDSA", typ: RELAY_ACTIVITY_PUBLISH_TYP }),
   ).toString("base64url");

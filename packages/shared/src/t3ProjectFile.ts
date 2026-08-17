@@ -1,4 +1,5 @@
 import * as Exit from "effect/Exit";
+import type * as JsonSchema from "effect/JsonSchema";
 import * as Schema from "effect/Schema";
 
 import { T3ProjectFile, T3_PROJECT_FILE_SCHEMA_URL } from "@t3tools/contracts";
@@ -12,6 +13,12 @@ import { fromLenientJson } from "./schemaJson.ts";
 export const T3ProjectFileFromJson = fromLenientJson(T3ProjectFile);
 
 const decodeT3ProjectFile = Schema.decodeExit(T3ProjectFileFromJson);
+
+interface T3ProjectFileJsonSchema extends JsonSchema.JsonSchema {
+  readonly $schema: string;
+  readonly $id: string;
+  $defs?: JsonSchema.Definitions;
+}
 
 /**
  * Decode raw `t3.json` contents, treating invalid or malformed files as
@@ -29,9 +36,9 @@ export function parseT3ProjectFile(contents: string): T3ProjectFile | null {
  * Served from the marketing site at {@link T3_PROJECT_FILE_SCHEMA_URL} so
  * editors get LSP support via a `$schema` reference.
  */
-export function buildT3ProjectFileJsonSchema(): Record<string, unknown> {
+export function buildT3ProjectFileJsonSchema(): T3ProjectFileJsonSchema {
   const document = Schema.toJsonSchemaDocument(T3ProjectFile);
-  const jsonSchema: Record<string, unknown> = {
+  const jsonSchema: T3ProjectFileJsonSchema = {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: T3_PROJECT_FILE_SCHEMA_URL,
     ...document.schema,

@@ -35,11 +35,7 @@ function makeUpdateClient(overrides: Partial<AppUpdateClient> = {}): AppUpdateCl
   };
 }
 
-function makeUpdateEnvironment(overrides: Partial<AppUpdateEnvironment> = {}): {
-  readonly backgroundCallbacks: Array<() => void>;
-  readonly environment: AppUpdateEnvironment;
-  readonly foregroundStayCallbacks: Array<() => void>;
-} {
+function makeUpdateEnvironment(overrides: Partial<AppUpdateEnvironment> = {}) {
   const backgroundCallbacks: Array<() => void> = [];
   const foregroundStayCallbacks: Array<() => void> = [];
   return {

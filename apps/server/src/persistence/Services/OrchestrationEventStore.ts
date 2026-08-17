@@ -19,7 +19,7 @@ import type { OrchestrationEventStoreError } from "../Errors.ts";
 /**
  * OrchestrationEventStoreShape - Service API for orchestration event persistence.
  */
-export interface OrchestrationEventStoreShape {
+export interface OrchestrationEventStoreContract {
   /**
    * Persist a new orchestration event.
    *
@@ -67,5 +67,5 @@ export interface OrchestrationEventStoreShape {
  */
 export class OrchestrationEventStore extends Context.Service<
   OrchestrationEventStore,
-  OrchestrationEventStoreShape
+  OrchestrationEventStoreContract
 >()("t3/persistence/Services/OrchestrationEventStore") {}

@@ -162,7 +162,7 @@ function readPersistedState(): UiState {
 
 function sanitizePersistedThreadChangedFilesExpanded(
   value: PersistedUiState["threadChangedFilesExpandedById"],
-): Record<string, Record<string, boolean>> {
+) {
   if (!value || typeof value !== "object") {
     return {};
   }

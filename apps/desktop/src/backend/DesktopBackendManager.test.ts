@@ -117,7 +117,7 @@ function decodeBootstrap(raw: string) {
 interface MakeInstanceInput {
   readonly spawnerLayer: Layer.Layer<ChildProcessSpawner.ChildProcessSpawner>;
   readonly httpClientLayer?: Layer.Layer<HttpClient.HttpClient>;
-  readonly backendOutputLog?: Partial<DesktopObservability.DesktopBackendOutputLogShape>;
+  readonly backendOutputLog?: Partial<DesktopObservability.DesktopBackendOutputLogContract>;
   readonly onReady?: Effect.Effect<void>;
   readonly onShutdown?: Effect.Effect<void>;
   readonly onPreflightFailed?: (
@@ -140,7 +140,7 @@ interface MakeInstanceInput {
 // a scoped layer; tests yield the returned Effect inside `Effect.scoped`
 // to drive the instance's lifecycle.
 function makeTestInstance(input: MakeInstanceInput) {
-  const stubLog: DesktopObservability.DesktopBackendOutputLogShape = {
+  const stubLog: DesktopObservability.DesktopBackendOutputLogContract = {
     beginSession: () => Effect.void,
     writeOutputChunk: () => Effect.void,
     persistFailureSnapshot: () => Effect.void,

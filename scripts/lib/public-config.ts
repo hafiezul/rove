@@ -17,7 +17,9 @@ export interface T3CodePublicConfig {
   readonly relayClientOtlpTracesToken: string | undefined;
 }
 
-type Environment = Readonly<Record<string, string | undefined>>;
+interface Environment {
+  readonly [key: string]: string | undefined;
+}
 
 const REPO_ROOT = NodePath.dirname(
   NodePath.dirname(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url))),
@@ -29,7 +31,7 @@ export function loadRepoEnv({
 }: {
   readonly baseEnv?: Environment;
   readonly repoRoot?: string;
-} = {}): Record<string, string | undefined> {
+} = {}): Environment {
   const rootEnv = readEnvFile(NodePath.join(repoRoot, ".env"));
   const localEnv = readEnvFile(NodePath.join(repoRoot, ".env.local"));
   const config = resolvePublicConfig(baseEnv, localEnv, rootEnv);

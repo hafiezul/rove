@@ -28,7 +28,10 @@ import {
 } from "../../checkpointing/Utils.ts";
 import * as CheckpointStore from "../../checkpointing/CheckpointStore.ts";
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
-import { CheckpointReactor, type CheckpointReactorShape } from "../Services/CheckpointReactor.ts";
+import {
+  CheckpointReactor,
+  type CheckpointReactorContract,
+} from "../Services/CheckpointReactor.ts";
 import { forkParked } from "../../serverActivation.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
@@ -912,7 +915,7 @@ const make = Effect.gen(function* () {
 
   const worker = yield* makeDrainableWorker(processInputSafely);
 
-  const start: CheckpointReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: CheckpointReactorContract["start"] = Effect.fn("start")(function* () {
     yield* forkParked(
       Stream.runForEach(orchestrationEngine.streamDomainEvents, (event) => {
         if (
@@ -940,7 +943,7 @@ const make = Effect.gen(function* () {
   return {
     start,
     drain: worker.drain,
-  } satisfies CheckpointReactorShape;
+  } satisfies CheckpointReactorContract;
 });
 
 export const CheckpointReactorLive = Layer.effect(CheckpointReactor, make);

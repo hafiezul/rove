@@ -17,10 +17,15 @@ export function projectScriptCwd(input: {
   return input.worktreePath ?? input.project.cwd;
 }
 
+interface ProjectScriptRuntimeEnv {
+  [name: string]: string;
+  readonly T3CODE_PROJECT_ROOT: string;
+}
+
 export function projectScriptRuntimeEnv(
   input: ProjectScriptRuntimeEnvInput,
-): Record<string, string> {
-  const env: Record<string, string> = {
+): ProjectScriptRuntimeEnv {
+  const env: ProjectScriptRuntimeEnv = {
     T3CODE_PROJECT_ROOT: input.project.cwd,
   };
   if (input.worktreePath) {

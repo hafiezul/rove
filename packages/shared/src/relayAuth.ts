@@ -28,10 +28,7 @@ export class ClerkPublishableKeyFrontendApiError extends Schema.TaggedErrorClass
   }
 }
 
-function parseClerkFrontendApi(publishableKey: string): {
-  readonly hostname: string;
-  readonly url: string;
-} {
+function parseClerkFrontendApi(publishableKey: string) {
   const keyPrefix = publishableKey.startsWith("pk_test_")
     ? "pk_test"
     : publishableKey.startsWith("pk_live_")

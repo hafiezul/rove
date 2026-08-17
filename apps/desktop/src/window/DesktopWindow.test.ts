@@ -294,7 +294,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
       return Option.fromNullishOr(created[0] ?? null);
     });
 
-    const electronWindowShape = {
+    const electronWindowContract = {
       create: () =>
         Effect.gen(function* () {
           const index = yield* Ref.getAndUpdate(createCalls, (count) => count + 1);
@@ -352,7 +352,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
           electronThemeLayer,
-          Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
+          Layer.succeed(ElectronWindow.ElectronWindow, electronWindowContract),
           Layer.mock(PreviewManager.PreviewManager)({
             getBrowserSession: () => Effect.succeed({} as Electron.Session),
             setMainWindow: () => Effect.void,

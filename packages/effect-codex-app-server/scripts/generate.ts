@@ -70,7 +70,11 @@ class GeneratorError extends Schema.TaggedErrorClass<GeneratorError>()("Generato
   }
 }
 
-const ManualSchemas: Record<string, Schema.Json> = {
+interface ManualSchemaByName {
+  readonly [name: string]: Schema.Json;
+}
+
+const ManualSchemas: ManualSchemaByName = {
   GetAuthStatusParams: {
     type: "object",
     title: "GetAuthStatusParams",
@@ -340,12 +344,16 @@ function resolveSchemaTypeName(
   throw new Error(`Unable to resolve schema type name: ${rawTypeName}`);
 }
 
+interface ResponseTypeOverrideByMethod {
+  readonly [method: string]: string | undefined;
+}
+
 function resolveResponseTypeName(
   method: string,
   paramsType: string | undefined,
   generatedSchemaNames: ReadonlySet<string>,
 ): string {
-  const overrides: Record<string, string> = {
+  const overrides: ResponseTypeOverrideByMethod = {
     "account/logout": "LogoutAccountResponse",
     "account/rateLimits/read": "GetAccountRateLimitsResponse",
     "account/usage/read": "GetAccountTokenUsageResponse",

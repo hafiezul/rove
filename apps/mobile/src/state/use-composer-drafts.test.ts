@@ -267,10 +267,10 @@ describe("mobile composer drafts", () => {
   it("does not overwrite unfinished content already stored for the selected project", () => {
     const sourceKey = "new-task:environment-1:project-1";
     const targetKey = "new-task:environment-1:project-2";
-    const drafts: Record<string, ComposerDraft> = {
+    const drafts = {
       [sourceKey]: { text: "Source task", attachments: [] },
       [targetKey]: { text: "Target task", attachments: [] },
-    };
+    } satisfies Record<string, ComposerDraft>;
 
     expect(copyComposerDraftContentState(drafts, sourceKey, targetKey)).toBe(drafts);
   });
@@ -286,9 +286,9 @@ describe("mobile composer drafts", () => {
       dataUrl: "data:image/png;base64,YWJj",
       previewUri: "data:image/png;base64,YWJj",
     };
-    const existing: Record<string, ComposerDraft> = {
+    const existing = {
       [draftKey]: { text: "Existing context", attachments: [] },
-    };
+    } satisfies Record<string, ComposerDraft>;
     const content = {
       text: "Shared note",
       attachments: [sharedAttachment],

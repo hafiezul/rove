@@ -1286,10 +1286,7 @@ function toRawToolCommand(value: unknown, normalizedCommand: string | null): str
   return formatted === normalizedCommand ? null : formatted;
 }
 
-function extractToolCommand(payload: Record<string, unknown> | null): {
-  command: string | null;
-  rawCommand: string | null;
-} {
+function extractToolCommand(payload: Record<string, unknown> | null) {
   const data = asRecord(payload?.data);
   const item = asRecord(data?.item);
   const itemResult = asRecord(item?.result);
@@ -1433,10 +1430,7 @@ function extractToolDetail(
   return null;
 }
 
-function stripTrailingExitCode(value: string): {
-  output: string | null;
-  exitCode?: number | undefined;
-} {
+function stripTrailingExitCode(value: string) {
   const trimmed = value.trim();
   const match = /^(?<output>[\s\S]*?)(?:\s*<exited with exit code (?<code>\d+)>)\s*$/i.exec(
     trimmed,
@@ -1616,11 +1610,15 @@ export function deriveTimelineEntries(
   );
 }
 
+export interface CheckpointTurnCounts {
+  [turnId: string]: number;
+}
+
 export function inferCheckpointTurnCountByTurnId(
   summaries: ReadonlyArray<TurnDiffSummary>,
-): Record<TurnId, number> {
+): CheckpointTurnCounts {
   const sorted = [...summaries].toSorted((a, b) => a.completedAt.localeCompare(b.completedAt));
-  const result: Record<TurnId, number> = {};
+  const result: CheckpointTurnCounts = {};
   for (let index = 0; index < sorted.length; index += 1) {
     const summary = sorted[index];
     if (!summary) continue;

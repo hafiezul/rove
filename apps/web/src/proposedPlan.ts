@@ -74,22 +74,24 @@ export function buildPlanImplementationPrompt(planMarkdown: string): string {
   return `PLEASE IMPLEMENT THIS PLAN:\n${planMarkdown.trim()}`;
 }
 
-export function resolvePlanFollowUpSubmission(input: { draftText: string; planMarkdown: string }): {
-  text: string;
-  interactionMode: "default" | "plan";
-} {
+type PlanFollowUpSubmission = {
+  readonly text: string;
+  readonly interactionMode: "default" | "plan";
+};
+
+export function resolvePlanFollowUpSubmission(input: { draftText: string; planMarkdown: string }) {
   const trimmedDraftText = input.draftText.trim();
   if (trimmedDraftText.length > 0) {
     return {
       text: trimmedDraftText,
       interactionMode: "plan",
-    };
+    } satisfies PlanFollowUpSubmission;
   }
 
   return {
     text: buildPlanImplementationPrompt(input.planMarkdown),
     interactionMode: "default",
-  };
+  } satisfies PlanFollowUpSubmission;
 }
 
 export function buildPlanImplementationThreadTitle(planMarkdown: string): string {

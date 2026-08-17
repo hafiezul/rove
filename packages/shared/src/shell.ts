@@ -360,7 +360,7 @@ export function readEnvironmentFromWindowsShell(
   names: ReadonlyArray<string>,
   optionsOrExecFile?: WindowsEnvironmentProbeOptions | ExecFileSyncLike,
   maybeExecFile?: ExecFileSyncLike,
-): Partial<Record<string, string>> {
+) {
   if (names.length === 0) {
     return {};
   }

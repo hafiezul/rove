@@ -881,10 +881,7 @@ function toRawToolCommand(value: unknown, normalizedCommand: string | null): str
   return formatted === normalizedCommand ? null : formatted;
 }
 
-function extractToolCommand(payload: Record<string, unknown> | null): {
-  command: string | null;
-  rawCommand: string | null;
-} {
+function extractToolCommand(payload: Record<string, unknown> | null) {
   const data = asRecord(payload?.data);
   const item = asRecord(data?.item);
   const itemResult = asRecord(item?.result);
@@ -936,10 +933,7 @@ function extractWorkLogToolLifecycleStatus(
   return undefined;
 }
 
-function stripTrailingExitCode(value: string): {
-  output: string | null;
-  exitCode?: number | undefined;
-} {
+function stripTrailingExitCode(value: string) {
   const trimmed = value.trim();
   const match = /^(?<output>[\s\S]*?)(?:\s*<exited with exit code (?<code>\d+)>)\s*$/i.exec(
     trimmed,

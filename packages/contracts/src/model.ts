@@ -112,9 +112,7 @@ function coerceLegacyOptionsObjectToArray(
   return entries;
 }
 
-function canonicalSelectionsToLegacyObject(
-  selections: ReadonlyArray<ProviderOptionSelection>,
-): Record<string, string | boolean> {
+function canonicalSelectionsToLegacyObject(selections: ReadonlyArray<ProviderOptionSelection>) {
   const out: Record<string, string | boolean> = {};
   for (const { id, value } of selections) {
     out[id] = value;
@@ -148,7 +146,7 @@ export const PREFERRED_DEFAULT_CODEX_MODELS: ReadonlyArray<string> = [
 export const DEFAULT_TEXT_GENERATION_MODEL = "gpt-5.6-luna";
 export const DEFAULT_TEXT_GENERATION_REASONING_EFFORT = "low";
 
-export const DEFAULT_MODEL_BY_PROVIDER: Partial<Record<ProviderDriverKind, string>> = {
+export const DEFAULT_MODEL_BY_PROVIDER = {
   [CODEX_DRIVER_KIND]: DEFAULT_MODEL,
   [CLAUDE_DRIVER_KIND]: "claude-sonnet-5",
   [CURSOR_DRIVER_KIND]: "auto",
@@ -156,21 +154,21 @@ export const DEFAULT_MODEL_BY_PROVIDER: Partial<Record<ProviderDriverKind, strin
   // Pi has no static default: new sessions use the user's own Pi default
   // model (from ~/.pi/agent settings), which the snapshot probe resolves.
   [OPENCODE_DRIVER_KIND]: "openai/gpt-5",
-};
+} satisfies Partial<Record<ProviderDriverKind, string>>;
 
 /** Per-provider text generation model defaults. */
-export const DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER: Partial<
-  Record<ProviderDriverKind, string>
-> = {
+export const DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER = {
   [CODEX_DRIVER_KIND]: DEFAULT_TEXT_GENERATION_MODEL,
   [CLAUDE_DRIVER_KIND]: "claude-haiku-4-5",
   [CURSOR_DRIVER_KIND]: "composer-2",
   [OPENCODE_DRIVER_KIND]: "openai/gpt-5",
-};
+} satisfies Partial<Record<ProviderDriverKind, string>>;
 
-export const MODEL_SLUG_ALIASES_BY_PROVIDER: Partial<
-  Record<ProviderDriverKind, Record<string, string>>
-> = {
+interface ModelSlugAliasesByProvider {
+  readonly [provider: string]: Readonly<Record<string, string>> | undefined;
+}
+
+export const MODEL_SLUG_ALIASES_BY_PROVIDER: ModelSlugAliasesByProvider = {
   [CODEX_DRIVER_KIND]: {
     "gpt-5-codex": "gpt-5.4",
     "5.4": "gpt-5.4",
@@ -219,10 +217,10 @@ export const MODEL_SLUG_ALIASES_BY_PROVIDER: Partial<
 
 // ── Provider display names ────────────────────────────────────────────
 
-export const PROVIDER_DISPLAY_NAMES: Partial<Record<ProviderDriverKind, string>> = {
+export const PROVIDER_DISPLAY_NAMES = {
   [CODEX_DRIVER_KIND]: "Codex",
   [CLAUDE_DRIVER_KIND]: "Claude",
   [CURSOR_DRIVER_KIND]: "Cursor",
   [GROK_DRIVER_KIND]: "Grok",
   [OPENCODE_DRIVER_KIND]: "OpenCode",
-};
+} satisfies Partial<Record<ProviderDriverKind, string>>;

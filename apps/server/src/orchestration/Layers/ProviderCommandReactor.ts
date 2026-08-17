@@ -36,7 +36,7 @@ import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   ProviderCommandReactor,
-  type ProviderCommandReactorShape,
+  type ProviderCommandReactorContract,
 } from "../Services/ProviderCommandReactor.ts";
 import { forkParked, ServerActivation } from "../../serverActivation.ts";
 import {
@@ -132,11 +132,7 @@ function limitFirstUserSection(section: string): string {
 function collectRecentThreadTitleContext(
   messages: ReadonlyArray<ThreadTitleMessage>,
   maxChars: number,
-): {
-  readonly context: string;
-  readonly attachments: ReadonlyArray<ChatAttachment>;
-  readonly truncated: boolean;
-} {
+) {
   let context = "";
   let truncated = false;
   const retainedAttachments: Array<ChatAttachment> = [];
@@ -164,10 +160,7 @@ function collectRecentThreadTitleContext(
   return { context, attachments: retainedAttachments, truncated };
 }
 
-function formatThreadTitleContext(messages: ReadonlyArray<ThreadTitleMessage>): {
-  readonly message: string;
-  readonly attachments: ReadonlyArray<ChatAttachment>;
-} {
+function formatThreadTitleContext(messages: ReadonlyArray<ThreadTitleMessage>) {
   const recent = collectRecentThreadTitleContext(messages, MAX_THREAD_TITLE_CONTEXT_CHARS);
   if (!recent.truncated) {
     return {
@@ -1387,7 +1380,7 @@ const make = Effect.gen(function* () {
 
   const worker = yield* makeDrainableWorker(processDomainEventSafely);
 
-  const start: ProviderCommandReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: ProviderCommandReactorContract["start"] = Effect.fn("start")(function* () {
     const interruptedTitleRegenerations = yield* findInterruptedThreadTitleRegenerations().pipe(
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {
@@ -1447,7 +1440,7 @@ const make = Effect.gen(function* () {
       yield* worker.drain;
       yield* threadTitleRegenerationWorker.drain;
     }),
-  } satisfies ProviderCommandReactorShape;
+  } satisfies ProviderCommandReactorContract;
 });
 
 export const ProviderCommandReactorLive = Layer.effect(ProviderCommandReactor, make);

@@ -167,18 +167,18 @@ export class PullRequestService extends Context.Service<
 >()("t3/pullRequest/PullRequestService") {}
 
 /** What a verdict is called when refusing it, so the sentence reads as an action. */
-const VERDICT_LABELS: Record<PullRequestReviewVerdict, string> = {
+const VERDICT_LABELS = {
   comment: "review",
   approve: "approve",
   "request-changes": "request changes on",
-};
+} satisfies Record<PullRequestReviewVerdict, string>;
 
 /**
  * Why an action is refused to this viewer, said as the access it would take rather than as the
  * refusal the host would have answered with. Merging is the one that needs write and nothing
  * else; the other four are also the author's to take, whatever access they have.
  */
-const ACTION_ACCESS_REFUSALS: Record<PullRequestAction, string> = {
+const ACTION_ACCESS_REFUSALS = {
   merge: "You need write access on this repository to merge.",
   ready:
     "You need write access on this repository, or to have opened this change request, to mark it ready for review.",
@@ -194,7 +194,7 @@ const ACTION_ACCESS_REFUSALS: Record<PullRequestAction, string> = {
     "You need write access on this repository to have it merged for you once it is ready.",
   "disable-auto-merge":
     "You need write access on this repository to stop it being merged for you once it is ready.",
-};
+} satisfies Record<PullRequestAction, string>;
 
 /**
  * Why asking for a review is refused, and why the menu behind it is too. Write access is what the

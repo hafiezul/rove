@@ -39,6 +39,16 @@ export interface SubagentUsage {
   readonly durationMs?: number;
 }
 
+interface MutableSubagentUsage {
+  totalTokens: number;
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  outputTokens?: number;
+  reasoningOutputTokens?: number;
+  toolUses?: number;
+  durationMs?: number;
+}
+
 export interface SubagentActivityEntry {
   readonly at: string;
   readonly summary: string;
@@ -54,6 +64,13 @@ export interface SubagentRunHandles {
   readonly scriptPath?: string;
   readonly transcriptDir?: string;
   readonly sessionUrl?: string;
+}
+
+interface MutableSubagentRunHandles {
+  runId?: string;
+  scriptPath?: string;
+  transcriptDir?: string;
+  sessionUrl?: string;
 }
 
 export interface RuntimeSubagent {
@@ -155,15 +172,7 @@ function asUsage(value: unknown): SubagentUsage | undefined {
   if (totalTokens === undefined) {
     return undefined;
   }
-  const usage: {
-    totalTokens: number;
-    inputTokens?: number;
-    cachedInputTokens?: number;
-    outputTokens?: number;
-    reasoningOutputTokens?: number;
-    toolUses?: number;
-    durationMs?: number;
-  } = { totalTokens };
+  const usage: MutableSubagentUsage = { totalTokens };
   const inputTokens = asCount(record.inputTokens);
   if (inputTokens !== undefined) usage.inputTokens = inputTokens;
   const cachedInputTokens = asCount(record.cachedInputTokens);
@@ -201,15 +210,9 @@ function mergeUsageMax(
   }
   const pick = (a: number | undefined, b: number | undefined): number | undefined =>
     a === undefined ? b : b === undefined ? a : Math.max(a, b);
-  const merged: {
-    totalTokens: number;
-    inputTokens?: number;
-    cachedInputTokens?: number;
-    outputTokens?: number;
-    reasoningOutputTokens?: number;
-    toolUses?: number;
-    durationMs?: number;
-  } = { totalTokens: Math.max(current.totalTokens, incoming.totalTokens) };
+  const merged: MutableSubagentUsage = {
+    totalTokens: Math.max(current.totalTokens, incoming.totalTokens),
+  };
   const inputTokens = pick(current.inputTokens, incoming.inputTokens);
   if (inputTokens !== undefined) merged.inputTokens = inputTokens;
   const cachedInputTokens = pick(current.cachedInputTokens, incoming.cachedInputTokens);
@@ -369,12 +372,7 @@ function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): vo
   }
   if (typeof payload.runHandles === "object" && payload.runHandles !== null) {
     const record = payload.runHandles as Record<string, unknown>;
-    const runHandles: {
-      runId?: string;
-      scriptPath?: string;
-      transcriptDir?: string;
-      sessionUrl?: string;
-    } = {};
+    const runHandles: MutableSubagentRunHandles = {};
     const runId = asString(record.runId);
     if (runId) runHandles.runId = runId;
     const scriptPath = asString(record.scriptPath);
@@ -858,10 +856,7 @@ export function deriveAgentPanelModel({
  * Members ordered by urgency for the capped inline workflow card: running and
  * failed first, then waiting, then most recently updated.
  */
-export function workflowCardMembers(
-  group: AgentPanelWorkflowGroup,
-  limit: number,
-): { readonly visible: ReadonlyArray<RuntimeSubagent>; readonly overflow: number } {
+export function workflowCardMembers(group: AgentPanelWorkflowGroup, limit: number) {
   const all = [...group.phases.flatMap((phase) => phase.members), ...group.unphasedMembers];
   const urgency = (agent: RuntimeSubagent): number => {
     if (agent.status === "failed") return 0;

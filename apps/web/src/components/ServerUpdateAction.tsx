@@ -15,11 +15,11 @@ import { toastManager } from "./ui/toast";
 // The wire "installing" stage is a sub-second launcher handoff, so the UI
 // folds it into the download phase; everything after the handoff is the
 // restart the user is actually waiting through.
-const UPDATE_STAGE_LABELS: Record<ServerUpdateStage, string> = {
+const UPDATE_STAGE_LABELS = {
   downloading: "Downloading…",
   installing: "Downloading…",
   resuming: "Restarting…",
-};
+} satisfies Record<ServerUpdateStage, string>;
 const pendingUpdateEnvironmentIds = new Set<EnvironmentId>();
 
 export function serverUpdateStageLabel(stage: ServerUpdateStage): string {

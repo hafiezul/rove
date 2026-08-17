@@ -188,7 +188,7 @@ export class AcpInputStreamEndedError extends Schema.TaggedErrorClass<AcpInputSt
 export class AcpRequestError extends Schema.TaggedErrorClass<AcpRequestError>()("AcpRequestError", {
   code: AcpSchema.ErrorCode,
   errorMessage: Schema.String,
-  data: Schema.optional(Schema.Unknown),
+  data: Schema.optional(Schema.Json),
   method: Schema.optionalKey(Schema.String),
   requestId: Schema.optionalKey(AcpRequestId),
   operation: Schema.optionalKey(AcpRequestOperation),

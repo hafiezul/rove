@@ -11,11 +11,28 @@ import {
   relayPublicDomainForStage,
 } from "./deploymentConfig.ts";
 
+function readProxyProperty<Resource extends object, Receiver>(
+  target: Resource,
+  property: PropertyKey,
+  receiver: Receiver,
+) {
+  let owner: object | null = target;
+  while (owner !== null) {
+    const descriptor = Object.getOwnPropertyDescriptor(owner, property);
+    if (descriptor !== undefined) {
+      if ("value" in descriptor) return descriptor.value;
+      return descriptor.get?.call(receiver);
+    }
+    owner = Object.getPrototypeOf(owner);
+  }
+  return undefined;
+}
+
 function withLogicalId<Resource extends object>(resource: Resource, logicalId: string): Resource {
   return new Proxy(resource, {
     has: (target, property) => property === "LogicalId" || property in target,
     get: (target, property, receiver) =>
-      property === "LogicalId" ? logicalId : Reflect.get(target, property, receiver),
+      property === "LogicalId" ? logicalId : readProxyProperty(target, property, receiver),
   });
 }
 

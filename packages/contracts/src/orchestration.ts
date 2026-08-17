@@ -80,6 +80,12 @@ const ModelSelectionSource = Schema.Struct({
   options: Schema.optional(Schema.Unknown),
 });
 
+interface ModelSelectionEncodedFields {
+  readonly instanceId: unknown;
+  readonly model: unknown;
+  options?: unknown;
+}
+
 export const ModelSelection = ModelSelectionSource.pipe(
   Schema.decodeTo(
     ModelSelectionWire,
@@ -96,7 +102,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
             : typeof raw.provider === "string"
               ? raw.provider
               : undefined;
-        const base: Record<string, unknown> = {
+        const base: ModelSelectionEncodedFields = {
           instanceId: instanceIdSource,
           model: raw.model,
         };
@@ -104,7 +110,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
         return Effect.succeed(base as typeof ModelSelectionWire.Encoded);
       },
       encode: (value) => {
-        const base: Record<string, unknown> = {
+        const base: ModelSelectionEncodedFields = {
           model: value.model,
           instanceId: value.instanceId,
         };

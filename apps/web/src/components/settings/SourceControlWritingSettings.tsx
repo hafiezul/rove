@@ -22,23 +22,22 @@ import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { SettingResetButton, SettingsRow, SettingsSection } from "./settingsLayout";
 
-const MODE_OPTIONS: Record<SourceControlWritingStyleMode, { label: string; description: string }> =
-  {
-    repo_conventions: {
-      label: "Repository conventions",
-      description: "In each project, matches recent change descriptions and change request titles.",
-    },
-    conventional_commits: {
-      label: "Conventional Commits",
-      description:
-        "Uses Conventional Commit prefixes for change descriptions; change request titles and descriptions stay concise.",
-    },
-    custom: {
-      label: "Custom instructions",
-      description:
-        "Applies your instructions to change descriptions and change request titles and descriptions in every project.",
-    },
-  };
+const MODE_OPTIONS = {
+  repo_conventions: {
+    label: "Repository conventions",
+    description: "In each project, matches recent change descriptions and change request titles.",
+  },
+  conventional_commits: {
+    label: "Conventional Commits",
+    description:
+      "Uses Conventional Commit prefixes for change descriptions; change request titles and descriptions stay concise.",
+  },
+  custom: {
+    label: "Custom instructions",
+    description:
+      "Applies your instructions to change descriptions and change request titles and descriptions in every project.",
+  },
+} satisfies Record<SourceControlWritingStyleMode, { label: string; description: string }>;
 
 export function SourceControlWritingSettingsSection() {
   const settings = usePrimarySettings();

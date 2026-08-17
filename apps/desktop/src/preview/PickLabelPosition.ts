@@ -25,7 +25,7 @@ export function computeLabelPosition(input: {
   labelHeight: number;
   viewportWidth: number;
   viewportHeight: number;
-}): { x: number; y: number } {
+}) {
   const { targetLeft, targetTop, targetBottom, labelWidth, labelHeight } = input;
   const { viewportWidth, viewportHeight } = input;
 

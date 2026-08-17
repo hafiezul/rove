@@ -4,6 +4,7 @@ import type * as Exit from "effect/Exit";
 import * as ExitRuntime from "effect/Exit";
 import * as Option from "effect/Option";
 import * as Tracer from "effect/Tracer";
+import type { Json, JsonObject } from "effect/Schema";
 import { OtlpResource, OtlpTracer } from "effect/unstable/observability";
 
 import { RotatingFileSink } from "./logging.ts";
@@ -155,7 +156,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function markSeen(value: object, seen: WeakSet<object>): boolean {
+function markSeen(value: WeakKey, seen: WeakSet<WeakKey>): boolean {
   if (seen.has(value)) {
     return true;
   }
@@ -163,7 +164,7 @@ function markSeen(value: object, seen: WeakSet<object>): boolean {
   return false;
 }
 
-function normalizeJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown {
+function normalizeJsonValue(value: unknown, seen: WeakSet<WeakKey> = new WeakSet()): Json {
   if (
     value === null ||
     value === undefined ||
@@ -528,7 +529,11 @@ export const makeLocalFileTracer = Effect.fn("makeLocalFileTracer")(function* (
   });
 });
 
-const SPAN_KIND_MAP: Record<number, OtlpTraceRecord["kind"]> = {
+interface SpanKindByCode {
+  readonly [code: number]: OtlpTraceRecord["kind"] | undefined;
+}
+
+const SPAN_KIND_MAP: SpanKindByCode = {
   1: "internal",
   2: "server",
   3: "client",
@@ -632,19 +637,17 @@ function decodeLinks(input: ReadonlyArray<OtlpSpanLink>): ReadonlyArray<TraceRec
   });
 }
 
-function decodeAttributes(
-  input: ReadonlyArray<OtlpResource.KeyValue>,
-): Readonly<Record<string, unknown>> {
-  const entries: Record<string, unknown> = {};
+function decodeAttributes(input: ReadonlyArray<OtlpResource.KeyValue>): JsonObject {
+  const entries: Array<readonly [string, Json]> = [];
 
   for (const attribute of input) {
-    entries[attribute.key] = decodeValue(attribute.value);
+    entries.push([attribute.key, decodeValue(attribute.value)]);
   }
 
-  return compactTraceAttributes(entries);
+  return Object.fromEntries(entries);
 }
 
-function decodeValue(input: OtlpResource.AnyValue | null | undefined): unknown {
+function decodeValue(input: OtlpResource.AnyValue | null | undefined): Json {
   if (input == null) {
     return null;
   }
@@ -661,7 +664,7 @@ function decodeValue(input: OtlpResource.AnyValue | null | undefined): unknown {
     return input.doubleValue;
   }
   if ("bytesValue" in input) {
-    return input.bytesValue;
+    return input.bytesValue === undefined ? null : Array.from(input.bytesValue);
   }
   if (input.arrayValue) {
     return input.arrayValue.values.map((entry) => decodeValue(entry));

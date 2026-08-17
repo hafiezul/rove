@@ -130,7 +130,7 @@ export interface CodexThreadSnapshot {
   readonly turns: ReadonlyArray<CodexThreadTurnSnapshot>;
 }
 
-export interface CodexSessionRuntimeShape {
+export interface CodexSessionRuntimeContract {
   readonly start: () => Effect.Effect<ProviderSession, CodexSessionRuntimeError>;
   readonly getSession: Effect.Effect<ProviderSession>;
   readonly sendTurn: (
@@ -261,13 +261,15 @@ function readResumeCursorThreadId(
   return isCodexResumeCursorSchema(resumeCursor) ? resumeCursor.threadId : undefined;
 }
 
-function runtimeModeToThreadConfig(input: RuntimeMode): {
+interface CodexRuntimeThreadConfig {
   readonly approvalPolicy: EffectCodexSchema.V2ThreadStartParams__AskForApproval;
   readonly sandbox: EffectCodexSchema.V2ThreadStartParams__SandboxMode;
   // Always explicit: omitting the field on resume keeps the thread's previous
   // reviewer, which would leave auto_review sticky after switching modes.
   readonly approvalsReviewer: EffectCodexSchema.V2ThreadStartParams__ApprovalsReviewer;
-} {
+}
+
+function runtimeModeToThreadConfig(input: RuntimeMode): CodexRuntimeThreadConfig {
   switch (input) {
     case "approval-required":
       return {
@@ -541,10 +543,7 @@ function readNotificationThreadId(notification: CodexServerNotification): string
   }
 }
 
-function readRouteFields(notification: CodexServerNotification): {
-  readonly turnId: TurnId | undefined;
-  readonly itemId: ProviderItemId | undefined;
-} {
+function readRouteFields(notification: CodexServerNotification) {
   switch (notification.method) {
     case "thread/started":
       return {
@@ -841,7 +840,7 @@ function parseThreadSnapshot(
 export const makeCodexSessionRuntime = (
   options: CodexSessionRuntimeOptions,
 ): Effect.Effect<
-  CodexSessionRuntimeShape,
+  CodexSessionRuntimeContract,
   CodexErrors.CodexAppServerError,
   ChildProcessSpawner.ChildProcessSpawner | Crypto.Crypto | Scope.Scope
 > =>
@@ -1911,5 +1910,5 @@ export const makeCodexSessionRuntime = (
         }),
       events: Stream.fromQueue(events),
       close,
-    } satisfies CodexSessionRuntimeShape;
+    } satisfies CodexSessionRuntimeContract;
   });

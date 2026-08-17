@@ -58,6 +58,10 @@ describe("isPreviewRefreshShortcut", () => {
   });
 });
 
+interface NativeImageTestDouble {
+  readonly isEmpty: () => boolean;
+}
+
 const {
   browserWindowConstructor,
   createFromPath,
@@ -70,7 +74,7 @@ const {
   writeImage,
 } = vi.hoisted(() => ({
   browserWindowConstructor: vi.fn(),
-  createFromPath: vi.fn((): { readonly isEmpty: () => boolean } => ({ isEmpty: () => false })),
+  createFromPath: vi.fn((): NativeImageTestDouble => ({ isEmpty: () => false })),
   fromId: vi.fn((_id?: number) => null),
   getFocusedWebContents: vi.fn(() => null),
   mkdir: vi.fn((_path: string) => undefined),

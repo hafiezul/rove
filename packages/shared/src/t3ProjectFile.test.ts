@@ -8,6 +8,23 @@ import {
 } from "./t3ProjectFile.ts";
 
 const decodeJson = Schema.decodeUnknownSync(T3ProjectFileFromJson);
+const decodeProjectJsonSchema = Schema.decodeUnknownSync(
+  Schema.Struct({
+    properties: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        description: Schema.optional(Schema.String),
+        items: Schema.optional(
+          Schema.Struct({
+            properties: Schema.Record(Schema.String, Schema.Unknown),
+            required: Schema.Array(Schema.String),
+          }),
+        ),
+      }),
+    ),
+    required: Schema.optional(Schema.Array(Schema.String)),
+  }),
+);
 
 describe("buildT3ProjectFileJsonSchema", () => {
   it("emits a draft 2020-12 schema with the published $id", () => {
@@ -20,16 +37,7 @@ describe("buildT3ProjectFileJsonSchema", () => {
   });
 
   it("documents every supported field", () => {
-    const schema = buildT3ProjectFileJsonSchema() as {
-      properties: Record<
-        string,
-        {
-          description?: string;
-          items?: { properties: Record<string, unknown>; required: ReadonlyArray<string> };
-        }
-      >;
-      required?: ReadonlyArray<string>;
-    };
+    const schema = decodeProjectJsonSchema(buildT3ProjectFileJsonSchema());
 
     expect(Object.keys(schema.properties).sort()).toEqual([
       "$schema",

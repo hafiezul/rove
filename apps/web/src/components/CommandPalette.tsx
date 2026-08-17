@@ -304,10 +304,18 @@ function sortAddProjectProviderSources(
   });
 }
 
-type AddProjectRemoteSourceReadiness = Record<
-  AddProjectRemoteSource,
-  { readonly ready: boolean; readonly hint: string | null }
->;
+interface AddProjectRemoteSourceReadinessEntry {
+  readonly ready: boolean;
+  readonly hint: string | null;
+}
+
+interface AddProjectRemoteSourceReadiness {
+  url: AddProjectRemoteSourceReadinessEntry;
+  github: AddProjectRemoteSourceReadinessEntry;
+  gitlab: AddProjectRemoteSourceReadinessEntry;
+  bitbucket: AddProjectRemoteSourceReadinessEntry;
+  "azure-devops": AddProjectRemoteSourceReadinessEntry;
+}
 
 function buildAddProjectRemoteSourceReadiness(
   discovery: SourceControlDiscoveryResult | null,

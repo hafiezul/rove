@@ -54,7 +54,11 @@ export const T3_PIERRE_ICONS = {
 
 const completeIconResolver = createFileTreeIconResolver(T3_PIERRE_ICONS);
 
-const LANGUAGE_EXTENSION_ALIASES: Record<string, string> = {
+interface LanguageExtensionAliases {
+  readonly [language: string]: string | undefined;
+}
+
+const LANGUAGE_EXTENSION_ALIASES: LanguageExtensionAliases = {
   bash: "sh",
   csharp: "cs",
   dockerfile: "dockerfile",

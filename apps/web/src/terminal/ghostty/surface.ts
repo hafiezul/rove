@@ -370,7 +370,7 @@ export function terminalWheelDeltaRows(
   cellHeight: number,
   viewportRows: number,
   remainder: number,
-): { readonly rows: number; readonly remainder: number } {
+) {
   // deltaMode: 0 pixels, 1 lines, 2 pages.
   const pixels =
     event.deltaMode === 1
@@ -1585,7 +1585,7 @@ export class GhosttyTerminalSurface {
     this.input.style.height = `${this.metrics.height}px`;
   }
 
-  private cellAt(clientX: number, clientY: number): { x: number; y: number } {
+  private cellAt(clientX: number, clientY: number) {
     const bounds = this.canvas.getBoundingClientRect();
     return {
       x: Math.max(

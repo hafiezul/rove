@@ -328,7 +328,7 @@ function parseJsoncObject(source: string, description: string): Record<string, u
   return value;
 }
 
-function sanitizeThemeObject(value: Record<string, unknown>): Record<string, unknown> {
+function sanitizeThemeObject(value: Record<string, unknown>) {
   const colors: Record<string, string> = {};
   if (isRecord(value.colors)) {
     for (const [key, color] of Object.entries(value.colors)) {

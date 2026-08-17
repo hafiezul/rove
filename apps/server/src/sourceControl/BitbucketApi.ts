@@ -909,7 +909,7 @@ export const make = Effect.gen(function* () {
       resolveRepository(input).pipe(
         Effect.flatMap((repository) => {
           const states = toBitbucketStates(input.state);
-          const query: Record<string, string | ReadonlyArray<string>> = {
+          const query = {
             pagelen: String(Math.max(1, Math.min(input.limit ?? 20, 50))),
             sort: "-updated_on",
             q: bitbucketQueryString([
@@ -917,7 +917,7 @@ export const make = Effect.gen(function* () {
               bitbucketStateFilter(states),
             ]),
             state: states,
-          };
+          } satisfies Record<string, string | ReadonlyArray<string>>;
 
           return executeJson(
             "listPullRequests",

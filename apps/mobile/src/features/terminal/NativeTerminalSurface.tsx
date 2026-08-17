@@ -48,7 +48,7 @@ function estimateGridSize(input: {
   readonly width: number;
   readonly height: number;
   readonly fontSize: number;
-}): { readonly cols: number; readonly rows: number } {
+}) {
   const cellWidth = input.fontSize * 0.62;
   const cellHeight = input.fontSize * 1.35;
   return {

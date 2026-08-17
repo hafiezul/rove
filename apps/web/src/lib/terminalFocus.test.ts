@@ -2,11 +2,15 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { getTerminalFocusOwner, isTerminalFocused } from "./terminalFocus";
 
+interface MockTerminalDataset {
+  terminalOwner?: string;
+}
+
 class MockHTMLElement {
   isConnected = false;
   className = "";
   terminalOwner: string | null = null;
-  readonly dataset: { terminalOwner?: string } = {};
+  readonly dataset: MockTerminalDataset = {};
 
   readonly classList = {
     contains: (value: string) => this.className.split(/\s+/).includes(value),

@@ -155,10 +155,7 @@ function persistClientSettings(settings: ClientSettings): void {
 
 const SERVER_SETTINGS_KEYS = new Set<string>(Struct.keys(ServerSettings.fields));
 
-function splitPatch(patch: UnifiedSettingsPatch): {
-  serverPatch: ServerSettingsPatch;
-  clientPatch: ClientSettingsPatch;
-} {
+function splitPatch(patch: UnifiedSettingsPatch) {
   const serverPatch: Record<string, unknown> = {};
   const clientPatch: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {

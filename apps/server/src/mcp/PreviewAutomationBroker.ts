@@ -117,7 +117,7 @@ const removeConnectionFromState = (
   current: BrokerState,
   clientId: string,
   queue: ClientConnection["queue"],
-): { readonly state: BrokerState; readonly disconnected: ReadonlyArray<PendingRequest> } => {
+) => {
   const clients = new Map(current.clients);
   const assignments = new Map(current.assignments);
   const pending = new Map(current.pending);

@@ -189,10 +189,7 @@ function mapDirectorySearchResult(
   };
 }
 
-function mapMixedSearchResult(
-  result: MixedSearchResult,
-  limit: number,
-): { readonly entries: ProjectEntry[]; readonly truncated: boolean } {
+function mapMixedSearchResult(result: MixedSearchResult, limit: number) {
   const entries: ProjectEntry[] = [];
   for (const item of result.items) {
     const entry = toProjectEntry(item);
@@ -230,10 +227,7 @@ function codePointBefore(line: string, index: number): string | undefined {
   return codePointAt(line, previousIndex);
 }
 
-function buildContentSearchQuery(input: Omit<ProjectSearchContentsInput, "cwd">): {
-  readonly searchQuery: string;
-  readonly regexMode: boolean;
-} {
+function buildContentSearchQuery(input: Omit<ProjectSearchContentsInput, "cwd">) {
   if (input.caseSensitive) {
     return { searchQuery: input.query, regexMode: input.useRegex };
   }
@@ -535,10 +529,7 @@ export type WorkspaceSearchIndexVariant = (typeof WORKSPACE_SEARCH_INDEX_VARIANT
 export const workspaceSearchIndexKey = (cwd: string, variant: WorkspaceSearchIndexVariant) =>
   `${variant}\n${cwd}`;
 
-function parseWorkspaceSearchIndexKey(key: string): {
-  readonly cwd: string;
-  readonly variant: WorkspaceSearchIndexVariant;
-} {
+function parseWorkspaceSearchIndexKey(key: string) {
   const separatorIndex = key.indexOf("\n");
   return {
     variant: key.slice(0, separatorIndex) as WorkspaceSearchIndexVariant,

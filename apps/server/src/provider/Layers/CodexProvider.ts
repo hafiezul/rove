@@ -50,7 +50,11 @@ export interface CodexAppServerProviderSnapshot {
   readonly skills: ReadonlyArray<ServerProviderSkill>;
 }
 
-const REASONING_EFFORT_LABELS: Readonly<Record<string, string>> = {
+interface CodexReasoningEffortLabels {
+  readonly [reasoningEffort: string]: string | undefined;
+}
+
+const REASONING_EFFORT_LABELS: CodexReasoningEffortLabels = {
   none: "None",
   minimal: "Minimal",
   low: "Low",
@@ -471,11 +475,15 @@ const makePendingCodexProvider = (
     });
   });
 
-function accountProbeStatus(account: CodexAppServerProviderSnapshot["account"]): {
+interface CodexAccountProbeStatus {
   readonly status: Exclude<ServerProviderState, "disabled">;
   readonly auth: ServerProvider["auth"];
   readonly message?: string;
-} {
+}
+
+function accountProbeStatus(
+  account: CodexAppServerProviderSnapshot["account"],
+): CodexAccountProbeStatus {
   const authLabel = codexAccountAuthLabel(account.account);
   const authEmail = codexAccountEmail(account.account);
   const auth = {

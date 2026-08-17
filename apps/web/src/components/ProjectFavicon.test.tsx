@@ -1,10 +1,10 @@
 import type { ComponentType, Dispatch, ReactElement, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { AssetResource, EnvironmentId } from "@t3tools/contracts";
 
 const testState = vi.hoisted(() => ({
   faviconUrl: "https://environment.test/api/assets/token-a/v1-20-favicon.svg",
-  lastResource: null as unknown,
+  lastResource: null as AssetResource | null,
 }));
 
 const hooks = vi.hoisted(() => {
@@ -53,7 +53,7 @@ vi.mock("react", async (importOriginal) => {
 
 vi.mock("react/compiler-runtime", () => ({ c: hooks.useMemoCache }));
 vi.mock("../assets/assetUrls", () => ({
-  useAssetUrlState: (_environmentId: unknown, resource: unknown) => {
+  useAssetUrlState: (_environmentId: EnvironmentId, resource: AssetResource) => {
     testState.lastResource = resource;
     return { _tag: "Success", url: testState.faviconUrl };
   },
@@ -78,10 +78,7 @@ type ProjectFaviconImageElement = ReactElement<{
   readonly children: [ReactElement | null, ImageElement | null, ImageElement | null];
 }>;
 
-function resolveImageComponent(): {
-  readonly Component: (props: ProjectFaviconImageProps) => ProjectFaviconImageElement;
-  readonly props: ProjectFaviconImageProps;
-} {
+function resolveImageComponent() {
   hooks.beginRender();
   const element = ProjectFavicon({
     environmentId: "environment-test" as EnvironmentId,

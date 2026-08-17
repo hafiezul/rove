@@ -6,12 +6,16 @@ export type DeepPartial<T> = T extends readonly (infer U)[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 
+interface MutableMergeRecord {
+  [key: string]: unknown;
+}
+
 export function deepMerge<T extends Record<string, unknown>>(current: T, patch: DeepPartial<T>): T {
   if (!P.isObject(current) || !P.isObject(patch)) {
     return patch as T;
   }
 
-  const next = { ...current } as Record<string, unknown>;
+  const next: MutableMergeRecord = { ...current };
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
 

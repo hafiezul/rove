@@ -41,7 +41,7 @@ export type GetByCommandIdInput = typeof GetByCommandIdInput.Type;
 /**
  * OrchestrationCommandReceiptRepositoryShape - Service API for command receipts.
  */
-export interface OrchestrationCommandReceiptRepositoryShape {
+export interface OrchestrationCommandReceiptRepositoryContract {
   /**
    * Insert or replace a command receipt row.
    *
@@ -67,5 +67,5 @@ export interface OrchestrationCommandReceiptRepositoryShape {
  */
 export class OrchestrationCommandReceiptRepository extends Context.Service<
   OrchestrationCommandReceiptRepository,
-  OrchestrationCommandReceiptRepositoryShape
+  OrchestrationCommandReceiptRepositoryContract
 >()("t3/persistence/Services/OrchestrationCommandReceipts/OrchestrationCommandReceiptRepository") {}

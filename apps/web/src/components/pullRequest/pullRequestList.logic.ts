@@ -54,7 +54,27 @@ type ScopedEntry = PullRequestListEntry & { readonly environmentId?: string };
 export const pullRequestViewerKey = (entry: ScopedEntry): string =>
   `${entry.environmentId ?? ""} ${entry.host}`;
 
-const GROUP_LABELS: Record<PullRequestGroupKey, string> = {
+interface PullRequestGroupLabels {
+  readonly reviewRequested: string;
+  readonly authored: string;
+  readonly others: string;
+}
+
+interface PullRequestReviewValues {
+  readonly [value: string]: PullRequestListFilters["review"] | undefined;
+}
+
+interface PullRequestCheckValues {
+  readonly [value: string]: PullRequestListFilters["checks"] | undefined;
+}
+
+interface PullRequestGroupingBuckets<Entry extends PullRequestListEntry> {
+  reviewRequested: Array<Entry>;
+  authored: Array<Entry>;
+  others: Array<Entry>;
+}
+
+const GROUP_LABELS: PullRequestGroupLabels = {
   reviewRequested: "Review requested",
   authored: "Authored",
   others: "Others",
@@ -89,7 +109,7 @@ function isAuthoredByViewer(entry: ScopedEntry, viewers: PullRequestViewers): bo
 }
 
 /** What `review:` and `status:` take, in GitHub's spelling and in the contract's. */
-const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
+const REVIEW_VALUES: PullRequestReviewValues = {
   approved: "approved",
   changes_requested: "changes-requested",
   "changes-requested": "changes-requested",
@@ -97,7 +117,7 @@ const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
   "review-required": "review-required",
   none: "none",
 };
-const CHECKS_VALUES: Record<string, PullRequestListFilters["checks"]> = {
+const CHECKS_VALUES: PullRequestCheckValues = {
   success: "passing",
   passing: "passing",
   failure: "failing",
@@ -157,10 +177,7 @@ function boundedNames(names: ReadonlyArray<string>): string[] {
  * makes a literal search for a colon still possible. A known key whose value it does not take is
  * text too, so a search for "status:" itself is still findable.
  */
-export function parsePullRequestQuery(raw: string): {
-  readonly text: string;
-  readonly filters: PullRequestListFilters;
-} {
+export function parsePullRequestQuery(raw: string) {
   const text: string[] = [];
   const labels: string[][] = [];
   const excludedLabels: string[] = [];
@@ -335,7 +352,7 @@ export function groupPullRequestsByInvolvement<Entry extends ScopedEntry>(
   entries: ReadonlyArray<Entry>,
   viewers: PullRequestViewers,
 ): ReadonlyArray<PullRequestGroup<Entry>> {
-  const buckets: Record<PullRequestGroupKey, Entry[]> = {
+  const buckets: PullRequestGroupingBuckets<Entry> = {
     reviewRequested: [],
     authored: [],
     others: [],

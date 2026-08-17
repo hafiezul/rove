@@ -138,10 +138,7 @@ export function shouldWriteThreadErrorToCurrentServerThread(input: {
   );
 }
 
-export function buildThreadTurnInterruptInput(thread: Pick<Thread, "id" | "session">): {
-  threadId: ThreadId;
-  turnId?: TurnId;
-} {
+export function buildThreadTurnInterruptInput(thread: Pick<Thread, "id" | "session">) {
   const runningTurnId = thread.session?.status === "running" ? thread.session.activeTurnId : null;
   return {
     threadId: thread.id,
@@ -283,12 +280,7 @@ export function deriveComposerSendState(options: {
    * contexts do: a prompt of just element chips is still a valid send.
    */
   elementContextCount?: number;
-}): {
-  trimmedPrompt: string;
-  sendableTerminalContexts: TerminalContextDraft[];
-  expiredTerminalContextCount: number;
-  hasSendableContent: boolean;
-} {
+}) {
   const trimmedPrompt = stripInlineTerminalContextPlaceholders(options.prompt).trim();
   const sendableTerminalContexts = filterTerminalContextsWithText(options.terminalContexts);
   const expiredTerminalContextCount =
@@ -309,7 +301,7 @@ export function deriveComposerSendState(options: {
 export function buildExpiredTerminalContextToastCopy(
   expiredTerminalContextCount: number,
   variant: "omitted" | "empty",
-): { title: string; description: string } {
+) {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
   const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
   if (variant === "empty") {

@@ -9,7 +9,7 @@ import {
   GetByCommandIdInput,
   OrchestrationCommandReceipt,
   OrchestrationCommandReceiptRepository,
-  type OrchestrationCommandReceiptRepositoryShape,
+  type OrchestrationCommandReceiptRepositoryContract,
 } from "../Services/OrchestrationCommandReceipts.ts";
 
 const makeOrchestrationCommandReceiptRepository = Effect.gen(function* () {
@@ -66,12 +66,12 @@ const makeOrchestrationCommandReceiptRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: OrchestrationCommandReceiptRepositoryShape["upsert"] = (receipt) =>
+  const upsert: OrchestrationCommandReceiptRepositoryContract["upsert"] = (receipt) =>
     upsertReceiptRow(receipt).pipe(
       Effect.mapError(toPersistenceSqlError("OrchestrationCommandReceiptRepository.upsert:query")),
     );
 
-  const getByCommandId: OrchestrationCommandReceiptRepositoryShape["getByCommandId"] = (input) =>
+  const getByCommandId: OrchestrationCommandReceiptRepositoryContract["getByCommandId"] = (input) =>
     findReceiptByCommandId(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("OrchestrationCommandReceiptRepository.getByCommandId:query"),
@@ -81,7 +81,7 @@ const makeOrchestrationCommandReceiptRepository = Effect.gen(function* () {
   return {
     upsert,
     getByCommandId,
-  } satisfies OrchestrationCommandReceiptRepositoryShape;
+  } satisfies OrchestrationCommandReceiptRepositoryContract;
 });
 
 export const OrchestrationCommandReceiptRepositoryLive = Layer.effect(

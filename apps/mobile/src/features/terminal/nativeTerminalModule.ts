@@ -6,9 +6,13 @@ import { NativeViewResolutionError } from "../../native/nativeViewResolutionErro
 
 const NATIVE_TERMINAL_MODULE_NAME = "T3TerminalSurface";
 
+interface ExpoViewConfig {
+  readonly __expoViewConfig?: never;
+}
+
 interface ExpoGlobalWithViewConfig {
   readonly expo?: {
-    getViewConfig?: (moduleName: string, viewName?: string) => unknown;
+    getViewConfig?: (moduleName: string, viewName?: string) => ExpoViewConfig | undefined;
   };
 }
 

@@ -48,6 +48,10 @@ function parseLogLine(line: string) {
   };
 }
 
+interface CircularLogEvent {
+  [field: string]: unknown;
+}
+
 describe("EventNdjsonLogger", () => {
   it.effect("logs bounded diagnostics when an event cannot be serialized", () => {
     const messages: Array<unknown> = [];
@@ -63,7 +67,7 @@ describe("EventNdjsonLogger", () => {
     return Effect.gen(function* () {
       const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-provider-log-"));
       const basePath = NodePath.join(tempDir, "provider-native.ndjson");
-      const circular: Record<string, unknown> = { secret };
+      const circular: CircularLogEvent = { secret };
       circular.self = circular;
 
       try {
@@ -296,7 +300,7 @@ describe("EventNdjsonLogger", () => {
         const canonical = store.logger("canonical");
         const native = store.logger("native");
         const threadId = ThreadId.make("thread-filtered");
-        const circularDelta: Record<string, unknown> = { type: "content.delta" };
+        const circularDelta: CircularLogEvent = { type: "content.delta" };
         circularDelta["self"] = circularDelta;
 
         yield* canonical.write(circularDelta, threadId);

@@ -116,10 +116,7 @@ function appendTokenSegment(
 export function computeWordAltDiffRanges(input: {
   readonly deletionLine: string;
   readonly additionLine: string;
-}): {
-  readonly deletion: ReadonlyArray<ReviewDiffHighlightRange>;
-  readonly addition: ReadonlyArray<ReviewDiffHighlightRange>;
-} {
+}) {
   const deletionLine = cleanLineEnding(input.deletionLine);
   const additionLine = cleanLineEnding(input.additionLine);
 

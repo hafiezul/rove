@@ -76,22 +76,24 @@ export class MobilePreferencesStore extends Context.Service<
   }
 >()("@t3tools/mobile/persistence/MobilePreferencesStore") {}
 
+interface SanitizedMobilePreferences {
+  liveActivitiesEnabled?: boolean;
+  baseFontSize?: number;
+  terminalFontSize?: number | null;
+  markdownFontSize?: number;
+  codeFontSize?: number | null;
+  codeWordBreak?: boolean;
+  connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
+  collapsedProjectGroups?: readonly string[];
+  projectGroupingEnabled?: boolean;
+  projectGroupingMode?: SidebarProjectGroupingMode;
+  autoSettleOnMerge?: boolean;
+  legacyThreadListEnabled?: boolean;
+  planModeEnabled?: boolean;
+}
+
 function sanitizePreferences(parsed: Preferences): Preferences {
-  const preferences: {
-    liveActivitiesEnabled?: boolean;
-    baseFontSize?: number;
-    terminalFontSize?: number | null;
-    markdownFontSize?: number;
-    codeFontSize?: number | null;
-    codeWordBreak?: boolean;
-    connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
-    collapsedProjectGroups?: readonly string[];
-    projectGroupingEnabled?: boolean;
-    projectGroupingMode?: SidebarProjectGroupingMode;
-    autoSettleOnMerge?: boolean;
-    legacyThreadListEnabled?: boolean;
-    planModeEnabled?: boolean;
-  } = {};
+  const preferences: SanitizedMobilePreferences = {};
 
   if (typeof parsed.liveActivitiesEnabled === "boolean") {
     preferences.liveActivitiesEnabled = parsed.liveActivitiesEnabled;

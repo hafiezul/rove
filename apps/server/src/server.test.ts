@@ -957,9 +957,7 @@ const buildAppUnderTest = (options?: {
     return config;
   });
 
-const parseSessionCookieFromWsUrl = (
-  wsUrl: string,
-): { readonly cookie: string | null; readonly url: string } => {
+const parseSessionCookieFromWsUrl = (wsUrl: string) => {
   const next = new URL(wsUrl);
   const cookie = next.hash.startsWith("#cookie=")
     ? decodeURIComponent(next.hash.slice("#cookie=".length))

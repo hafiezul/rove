@@ -212,9 +212,7 @@ const makePublishProof = Effect.fn("makePublishProof")(function* (input: {
 });
 
 // Compact, log-safe view of the fields the awareness phase ladder reads.
-export function describeThreadShellForAwareness(
-  thread: Option.Option<OrchestrationThreadShell>,
-): Record<string, unknown> {
+export function describeThreadShellForAwareness(thread: Option.Option<OrchestrationThreadShell>) {
   if (Option.isNone(thread)) {
     return { found: false };
   }
@@ -236,11 +234,7 @@ export function resolveAgentAwarenessRelayPublishSnapshot(input: {
   readonly threadId: ThreadId;
   readonly thread: Option.Option<OrchestrationThreadShell>;
   readonly project: Option.Option<OrchestrationProjectShell>;
-}): {
-  readonly projectId: string | null;
-  readonly state: RelayAgentActivityState | null;
-  readonly reason: "snapshot" | "thread-not-found" | "project-not-found";
-} {
+}) {
   if (Option.isNone(input.thread)) {
     return {
       projectId: null,

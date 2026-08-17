@@ -46,7 +46,7 @@ import { ProjectionThreadRepositoryLive } from "../../persistence/Layers/Project
 import { ServerConfig } from "../../config.ts";
 import {
   OrchestrationProjectionPipeline,
-  type OrchestrationProjectionPipelineShape,
+  type OrchestrationProjectionPipelineContract,
 } from "../Services/ProjectionPipeline.ts";
 import {
   attachmentRelativePath,
@@ -1694,7 +1694,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           ),
         );
 
-    const projectEvent: OrchestrationProjectionPipelineShape["projectEvent"] = (event) =>
+    const projectEvent: OrchestrationProjectionPipelineContract["projectEvent"] = (event) =>
       Effect.forEach(projectors, (projector) => runProjectorForEvent(projector, event), {
         concurrency: 1,
       }).pipe(
@@ -1707,7 +1707,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         ),
       );
 
-    const bootstrap: OrchestrationProjectionPipelineShape["bootstrap"] = Effect.forEach(
+    const bootstrap: OrchestrationProjectionPipelineContract["bootstrap"] = Effect.forEach(
       projectors,
       bootstrapProjector,
       { concurrency: 1 },
@@ -1729,7 +1729,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
     return {
       bootstrap,
       projectEvent,
-    } satisfies OrchestrationProjectionPipelineShape;
+    } satisfies OrchestrationProjectionPipelineContract;
   },
 );
 

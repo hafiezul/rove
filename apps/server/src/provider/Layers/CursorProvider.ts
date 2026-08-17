@@ -742,7 +742,7 @@ function parseCursorAboutJsonPayload(raw: string): CursorAboutJsonPayload | unde
   }
 }
 
-function hasOwn(record: object, key: string): boolean {
+function hasOwn<TRecord extends object>(record: TRecord, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
 }
 

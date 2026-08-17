@@ -56,6 +56,11 @@ export interface AcpSessionModeState {
   readonly availableModes: ReadonlyArray<AcpSessionMode>;
 }
 
+export interface AcpToolCallData {
+  [field: string]: unknown;
+  toolCallId?: string;
+}
+
 export interface AcpToolCallState {
   readonly toolCallId: string;
   readonly kind?: string;
@@ -63,7 +68,7 @@ export interface AcpToolCallState {
   readonly status?: "pending" | "inProgress" | "completed" | "failed";
   readonly command?: string;
   readonly detail?: string;
-  readonly data: Record<string, unknown>;
+  readonly data: AcpToolCallData;
 }
 
 export interface AcpPlanUpdate {
@@ -331,7 +336,7 @@ function makeToolCallState(
     title && title.toLowerCase() !== "terminal" && title.toLowerCase() !== "tool call"
       ? title
       : undefined;
-  const data: Record<string, unknown> = { toolCallId };
+  const data: AcpToolCallData = { toolCallId };
   const kind = normalizeToolKind(input.kind);
   if (kind) {
     data.kind = kind;
@@ -505,10 +510,7 @@ export function syntheticLoadSessionResponseFromInitialize(
   };
 }
 
-export function parseSessionUpdateEvent(params: EffectAcpSchema.SessionNotification): {
-  readonly modeId?: string;
-  readonly events: ReadonlyArray<AcpParsedSessionEvent>;
-} {
+export function parseSessionUpdateEvent(params: EffectAcpSchema.SessionNotification) {
   const upd = params.update;
   const events: Array<AcpParsedSessionEvent> = [];
   let modeId: string | undefined;

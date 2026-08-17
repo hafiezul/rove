@@ -54,7 +54,7 @@ export const QueuedThreadMessageSchema = Schema.Struct({
 });
 
 const decodeStoredQueuedThreadMessage = Schema.decodeUnknownSync(QueuedThreadMessageSchema);
-const encodeStoredQueuedThreadMessage = Schema.encodeUnknownSync(QueuedThreadMessageSchema);
+const encodeStoredQueuedThreadMessage = Schema.encodeSync(QueuedThreadMessageSchema);
 
 export interface QueuedThreadCreation {
   readonly projectId: ProjectIdType;
@@ -105,7 +105,7 @@ export function modelSelectionsEqual(left: ModelSelectionType, right: ModelSelec
   );
 }
 
-export function encodeQueuedThreadMessage(message: QueuedThreadMessage): unknown {
+export function encodeQueuedThreadMessage(message: QueuedThreadMessage) {
   return encodeStoredQueuedThreadMessage({
     schemaVersion: THREAD_OUTBOX_SCHEMA_VERSION,
     ...message,
@@ -117,9 +117,7 @@ export function decodeQueuedThreadMessage(value: unknown): QueuedThreadMessage {
   return message;
 }
 
-export function groupQueuedThreadMessages(
-  messages: ReadonlyArray<QueuedThreadMessage>,
-): Record<string, ReadonlyArray<QueuedThreadMessage>> {
+export function groupQueuedThreadMessages(messages: ReadonlyArray<QueuedThreadMessage>) {
   const deduplicated = new Map<MessageId, QueuedThreadMessage>();
   for (const message of messages) {
     deduplicated.set(message.messageId, message);

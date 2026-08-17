@@ -7,11 +7,7 @@ function entry(
   name: string,
   status: PullRequestCheckStatus,
   extra: { readonly workflowName?: string | null; readonly at?: string | null } = {},
-): {
-  readonly check: PullRequestCheck;
-  readonly workflowName: string | null;
-  readonly at: string | null;
-} {
+) {
   return {
     check: { name, status, description: null, url: null },
     workflowName: extra.workflowName ?? null,

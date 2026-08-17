@@ -9,7 +9,7 @@ import { toPersistenceSqlError } from "../Errors.ts";
 
 import {
   ProjectionStateRepository,
-  type ProjectionStateRepositoryShape,
+  type ProjectionStateRepositoryContract,
   GetProjectionStateInput,
   ProjectionState,
 } from "../Services/ProjectionState.ts";
@@ -81,22 +81,22 @@ const makeProjectionStateRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionStateRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionStateRepositoryContract["upsert"] = (row) =>
     upsertProjectionStateRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionStateRepository.upsert:query")),
     );
 
-  const getByProjector: ProjectionStateRepositoryShape["getByProjector"] = (input) =>
+  const getByProjector: ProjectionStateRepositoryContract["getByProjector"] = (input) =>
     getProjectionStateRow(input).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionStateRepository.getByProjector:query")),
     );
 
-  const listAll: ProjectionStateRepositoryShape["listAll"] = () =>
+  const listAll: ProjectionStateRepositoryContract["listAll"] = () =>
     listProjectionStateRows(undefined).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionStateRepository.listAll:query")),
     );
 
-  const minLastAppliedSequence: ProjectionStateRepositoryShape["minLastAppliedSequence"] = () =>
+  const minLastAppliedSequence: ProjectionStateRepositoryContract["minLastAppliedSequence"] = () =>
     readMinLastAppliedSequence(undefined).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionStateRepository.minLastAppliedSequence:query"),
@@ -109,7 +109,7 @@ const makeProjectionStateRepository = Effect.gen(function* () {
     getByProjector,
     listAll,
     minLastAppliedSequence,
-  } satisfies ProjectionStateRepositoryShape;
+  } satisfies ProjectionStateRepositoryContract;
 });
 
 export const ProjectionStateRepositoryLive = Layer.effect(

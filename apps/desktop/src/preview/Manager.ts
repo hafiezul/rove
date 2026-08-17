@@ -215,6 +215,11 @@ export const PreviewAutomationSelectorKind = Schema.Literals([
 ]);
 export type PreviewAutomationSelectorKind = typeof PreviewAutomationSelectorKind.Type;
 
+interface AutomationSelectorDiagnostics {
+  readonly selectorKind: PreviewAutomationSelectorKind;
+  readonly selectorLength?: number;
+}
+
 export const PreviewAutomationEvaluationDetailKind = Schema.Literals([
   "exception-description",
   "exception-text",
@@ -1166,10 +1171,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   const automationSelectorDiagnostics = (input: {
     readonly selector?: string | undefined;
     readonly locator?: string | undefined;
-  }): {
-    readonly selectorKind: PreviewAutomationSelectorKind;
-    readonly selectorLength?: number;
-  } => {
+  }): AutomationSelectorDiagnostics => {
     if (input.locator !== undefined) {
       return { selectorKind: "locator", selectorLength: input.locator.length };
     }
@@ -3668,10 +3670,7 @@ export class PreviewAutomationInvalidSelectorError extends Schema.TaggedErrorCla
     return typeof reason === "string" && reason.length > 0 ? reason : error.message;
   }
 
-  get detail(): {
-    readonly selectorKind: PreviewAutomationSelectorKind;
-    readonly selectorLength?: number;
-  } {
+  get detail() {
     return {
       selectorKind: this.selectorKind,
       ...(this.selectorLength === undefined ? {} : { selectorLength: this.selectorLength }),
@@ -3692,7 +3691,7 @@ export class PreviewAutomationResultTooLargeError extends Schema.TaggedErrorClas
     maximumBytes: Schema.Number,
   },
 ) {
-  get detail(): { readonly maximumBytes: number } {
+  get detail() {
     return { maximumBytes: this.maximumBytes };
   }
 

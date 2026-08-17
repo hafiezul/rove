@@ -562,10 +562,7 @@ export class GitHubPullRequestCli extends Context.Service<
  * The host is not read off the identity: it travels alongside it, because the identity a
  * project records is the path below its host and never names the host itself.
  */
-export function parseRepositorySelector(value: string): {
-  readonly owner: string;
-  readonly name: string;
-} {
+export function parseRepositorySelector(value: string) {
   const parts = value.trim().split("/").filter(Boolean);
   return { name: parts.at(-1) ?? "", owner: parts.at(-2) ?? "" };
 }

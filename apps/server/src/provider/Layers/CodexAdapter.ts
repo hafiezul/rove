@@ -51,7 +51,7 @@ import {
   ProviderAdapterValidationError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import { type CodexAdapterShape } from "../Services/CodexAdapter.ts";
+import { type CodexAdapterContract } from "../Services/CodexAdapter.ts";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 import {
@@ -60,7 +60,7 @@ import {
   makeCodexSessionRuntime,
   type CodexSessionRuntimeError,
   type CodexSessionRuntimeOptions,
-  type CodexSessionRuntimeShape,
+  type CodexSessionRuntimeContract,
 } from "./CodexSessionRuntime.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { resolveCodexLaunchArgs } from "./codexLaunchArgs.ts";
@@ -79,7 +79,7 @@ export interface CodexAdapterLiveOptions {
   readonly makeRuntime?: (
     options: CodexSessionRuntimeOptions,
   ) => Effect.Effect<
-    CodexSessionRuntimeShape,
+    CodexSessionRuntimeContract,
     CodexSessionRuntimeError,
     ChildProcessSpawner.ChildProcessSpawner | Scope.Scope
   >;
@@ -90,7 +90,7 @@ export interface CodexAdapterLiveOptions {
 interface CodexAdapterSessionContext {
   readonly threadId: ThreadId;
   readonly scope: Scope.Closeable;
-  readonly runtime: CodexSessionRuntimeShape;
+  readonly runtime: CodexSessionRuntimeContract;
   readonly eventFiber: Fiber.Fiber<void, never>;
   stopped: boolean;
 }
@@ -1642,7 +1642,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
   const runtimeEventQueue = yield* Queue.unbounded<ProviderRuntimeEvent>();
   const sessions = new Map<ThreadId, CodexAdapterSessionContext>();
 
-  const startSession: CodexAdapterShape["startSession"] = (input) =>
+  const startSession: CodexAdapterContract["startSession"] = (input) =>
     Effect.scoped(
       Effect.gen(function* () {
         if (input.provider !== undefined && input.provider !== PROVIDER) {
@@ -1796,7 +1796,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     };
   });
 
-  const sendTurn: CodexAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
+  const sendTurn: CodexAdapterContract["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
     const codexAttachments = yield* Effect.forEach(
       input.attachments ?? [],
       (attachment) => resolveAttachment(input, attachment),
@@ -1841,7 +1841,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     return session;
   });
 
-  const interruptTurn: CodexAdapterShape["interruptTurn"] = (threadId, turnId) =>
+  const interruptTurn: CodexAdapterContract["interruptTurn"] = (threadId, turnId) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.interruptTurn(turnId)),
       Effect.mapError((cause) =>
@@ -1851,7 +1851,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       ),
     );
 
-  const readThread: CodexAdapterShape["readThread"] = (threadId) =>
+  const readThread: CodexAdapterContract["readThread"] = (threadId) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.readThread),
       Effect.mapError((cause) =>
@@ -1865,7 +1865,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       })),
     );
 
-  const rollbackThread: CodexAdapterShape["rollbackThread"] = (threadId, numTurns) => {
+  const rollbackThread: CodexAdapterContract["rollbackThread"] = (threadId, numTurns) => {
     if (!Number.isInteger(numTurns) || numTurns < 1) {
       return Effect.fail(
         new ProviderAdapterValidationError({
@@ -1890,7 +1890,11 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     );
   };
 
-  const respondToRequest: CodexAdapterShape["respondToRequest"] = (threadId, requestId, decision) =>
+  const respondToRequest: CodexAdapterContract["respondToRequest"] = (
+    threadId,
+    requestId,
+    decision,
+  ) =>
     requireSession(threadId).pipe(
       Effect.flatMap((session) => session.runtime.respondToRequest(requestId, decision)),
       Effect.mapError((cause) =>
@@ -1900,7 +1904,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       ),
     );
 
-  const respondToUserInput: CodexAdapterShape["respondToUserInput"] = (
+  const respondToUserInput: CodexAdapterContract["respondToUserInput"] = (
     threadId,
     requestId,
     answers,
@@ -1934,7 +1938,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     yield* Fiber.interrupt(session.eventFiber).pipe(Effect.ignore);
   });
 
-  const stopSession: CodexAdapterShape["stopSession"] = (threadId) =>
+  const stopSession: CodexAdapterContract["stopSession"] = (threadId) =>
     Effect.gen(function* () {
       const session = sessions.get(threadId);
       if (!session) {
@@ -1943,17 +1947,17 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       yield* stopSessionInternal(session);
     });
 
-  const listSessions: CodexAdapterShape["listSessions"] = () =>
+  const listSessions: CodexAdapterContract["listSessions"] = () =>
     Effect.forEach(
       Array.from(sessions.values()).filter((session) => !session.stopped),
       (session) => session.runtime.getSession,
       { concurrency: 1 },
     );
 
-  const hasSession: CodexAdapterShape["hasSession"] = (threadId) =>
+  const hasSession: CodexAdapterContract["hasSession"] = (threadId) =>
     Effect.succeed(Boolean(sessions.get(threadId) && !sessions.get(threadId)?.stopped));
 
-  const stopAll: CodexAdapterShape["stopAll"] = () =>
+  const stopAll: CodexAdapterContract["stopAll"] = () =>
     Effect.forEach(Array.from(sessions.values()), stopSessionInternal, {
       concurrency: 1,
       discard: true,
@@ -1986,7 +1990,7 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     get streamEvents() {
       return Stream.fromQueue(runtimeEventQueue);
     },
-  } satisfies CodexAdapterShape;
+  } satisfies CodexAdapterContract;
 });
 
 // NOTE: the old `CodexAdapterLive` / `makeCodexAdapterLive` singleton Layer

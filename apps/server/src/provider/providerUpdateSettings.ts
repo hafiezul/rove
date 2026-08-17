@@ -30,10 +30,7 @@ export function haveProviderSnapshotSettingsChanged<Settings>(
 export function makeProviderSnapshotSettingsSource<Settings>(
   provider: Settings,
   serverSettings: ServerSettingsModule.ServerSettingsService["Service"],
-): {
-  readonly getSettings: Effect.Effect<ProviderSnapshotSettings<Settings>, ServerSettingsError>;
-  readonly streamSettings: Stream.Stream<ProviderSnapshotSettings<Settings>>;
-} {
+) {
   const mapSettings = (settings: ServerSettings) =>
     makeProviderSnapshotSettings(provider, settings);
   return {

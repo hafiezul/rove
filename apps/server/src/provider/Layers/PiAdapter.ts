@@ -42,7 +42,7 @@ import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import type {
-  ProviderAdapterShape,
+  ProviderAdapterContract,
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../Services/ProviderAdapter.ts";
@@ -117,7 +117,7 @@ export interface PiSessionLike {
     message?: { role?: string } | undefined;
   }>;
   getLeafId?(): string | undefined;
-  fork?(entryId: string): unknown;
+  fork?(entryId: string): void;
 }
 
 /** Pi SDK `AgentSessionEvent` — typed loosely here so the fake can drive it. */
@@ -152,7 +152,7 @@ interface PiSessionContext {
   unsubscribe: () => void;
 }
 
-export interface PiAdapterShape extends ProviderAdapterShape<ProviderAdapterRequestError> {}
+export interface PiAdapterContract extends ProviderAdapterContract<ProviderAdapterRequestError> {}
 
 /**
  * The composer dispatches the thread's model selection on every turn, but it
@@ -177,7 +177,7 @@ function selectedModelSlug(
 export function makePiAdapter(
   piSettings: PiSettings,
   options: PiAdapterLiveOptions,
-): Effect.Effect<PiAdapterShape, never, Crypto.Crypto> {
+): Effect.Effect<PiAdapterContract, never, Crypto.Crypto> {
   return Effect.gen(function* () {
     const boundInstanceId = options.instanceId;
     const crypto = yield* Crypto.Crypto;
@@ -408,7 +408,7 @@ export function makePiAdapter(
         Effect.orElseSucceed(() => undefined),
       );
 
-    const startSession: PiAdapterShape["startSession"] = (input: ProviderSessionStartInput) =>
+    const startSession: PiAdapterContract["startSession"] = (input: ProviderSessionStartInput) =>
       Effect.gen(function* () {
         const existing = sessions.get(input.threadId);
         if (existing) {
@@ -476,7 +476,7 @@ export function makePiAdapter(
         return yield* providerSessionFor(ctx, "ready");
       });
 
-    const sendTurn: PiAdapterShape["sendTurn"] = (input: ProviderSendTurnInput) =>
+    const sendTurn: PiAdapterContract["sendTurn"] = (input: ProviderSendTurnInput) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(input.threadId, "sendTurn");
         const rawText = input.input?.trim();
@@ -576,7 +576,7 @@ export function makePiAdapter(
         } satisfies ProviderTurnStartResult;
       });
 
-    const interruptTurn: PiAdapterShape["interruptTurn"] = (threadId) =>
+    const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "interruptTurn");
         yield* Effect.tryPromise({
@@ -605,7 +605,7 @@ export function makePiAdapter(
         }
       });
 
-    const respondToRequest: PiAdapterShape["respondToRequest"] = (
+    const respondToRequest: PiAdapterContract["respondToRequest"] = (
       _threadId,
       _requestId,
       _decision,
@@ -614,13 +614,13 @@ export function makePiAdapter(
       // response can never legitimately arrive. No-op by design.
       Effect.void;
 
-    const respondToUserInput: PiAdapterShape["respondToUserInput"] = (
+    const respondToUserInput: PiAdapterContract["respondToUserInput"] = (
       _threadId,
       _requestId,
       _answers,
     ) => Effect.void;
 
-    const stopSession: PiAdapterShape["stopSession"] = (threadId) =>
+    const stopSession: PiAdapterContract["stopSession"] = (threadId) =>
       Effect.suspend(() => {
         const ctx = sessions.get(threadId);
         if (!ctx) return Effect.void;
@@ -638,13 +638,13 @@ export function makePiAdapter(
         }).pipe(Effect.ignore);
       });
 
-    const listSessions: PiAdapterShape["listSessions"] = () =>
+    const listSessions: PiAdapterContract["listSessions"] = () =>
       Effect.all([...sessions.values()].map((ctx) => providerSessionFor(ctx, "ready")));
 
-    const hasSession: PiAdapterShape["hasSession"] = (threadId) =>
+    const hasSession: PiAdapterContract["hasSession"] = (threadId) =>
       Effect.succeed(sessions.has(threadId));
 
-    const readThread: PiAdapterShape["readThread"] = (threadId) =>
+    const readThread: PiAdapterContract["readThread"] = (threadId) =>
       Effect.map(getSession(threadId, "readThread"), (ctx) => {
         const turn: ProviderThreadTurnSnapshot = {
           id: ctx.activeTurnId ?? TurnId.make("pi-history"),
@@ -653,7 +653,7 @@ export function makePiAdapter(
         return { threadId, turns: [turn] } satisfies ProviderThreadSnapshot;
       });
 
-    const rollbackThread: PiAdapterShape["rollbackThread"] = (threadId, numTurns) =>
+    const rollbackThread: PiAdapterContract["rollbackThread"] = (threadId, numTurns) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "rollbackThread");
         const session = ctx.session;
@@ -706,7 +706,7 @@ export function makePiAdapter(
         return { threadId, turns: [turn] } satisfies ProviderThreadSnapshot;
       });
 
-    const stopAll: PiAdapterShape["stopAll"] = () =>
+    const stopAll: PiAdapterContract["stopAll"] = () =>
       Effect.suspend(() => {
         const contexts = [...sessions.values()];
         sessions.clear();
@@ -736,6 +736,6 @@ export function makePiAdapter(
       rollbackThread,
       stopAll,
       streamEvents: Stream.fromPubSub(runtimeEventPubSub),
-    } satisfies PiAdapterShape;
+    } satisfies PiAdapterContract;
   });
 }

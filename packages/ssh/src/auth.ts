@@ -34,16 +34,17 @@ export interface SshAuthOptions {
   readonly interactiveAuth?: boolean;
 }
 
-export interface SshPasswordPromptShape {
+export interface SshPasswordPromptContract {
   readonly isAvailable: boolean;
   readonly request: (
     request: SshPasswordRequest,
   ) => Effect.Effect<string | null, SshPasswordPromptError>;
 }
 
-export class SshPasswordPrompt extends Context.Service<SshPasswordPrompt, SshPasswordPromptShape>()(
-  "@t3tools/ssh/auth/SshPasswordPrompt",
-) {
+export class SshPasswordPrompt extends Context.Service<
+  SshPasswordPrompt,
+  SshPasswordPromptContract
+>()("@t3tools/ssh/auth/SshPasswordPrompt") {
   static readonly disabledLayer = Layer.succeed(
     SshPasswordPrompt,
     SshPasswordPrompt.of({

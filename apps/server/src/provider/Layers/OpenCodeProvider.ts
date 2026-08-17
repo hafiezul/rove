@@ -65,7 +65,7 @@ function formatOpenCodeProbeError(input: {
   readonly cause: unknown;
   readonly isExternalServer: boolean;
   readonly serverUrl: string;
-}): { readonly installed: boolean; readonly message: string } {
+}) {
   const detail = normalizedErrorMessage(input.cause);
   const lower = detail?.toLowerCase() ?? "";
 

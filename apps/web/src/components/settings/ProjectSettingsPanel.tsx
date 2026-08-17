@@ -110,11 +110,11 @@ import {
 } from "./settingsLayout";
 import { ProjectFaviconPickerDialog } from "./ProjectFaviconPickerDialog";
 
-export const PROJECT_GROUPING_MODE_LABELS: Record<SidebarProjectGroupingMode, string> = {
+export const PROJECT_GROUPING_MODE_LABELS = {
   repository: "Group by repository",
   repository_path: "Group by repository path",
   separate: "Keep separate",
-};
+} satisfies Record<SidebarProjectGroupingMode, string>;
 
 /** Logical project groups for the settings page, sorted by display name. */
 export function useSettingsProjectGroups(): SidebarProjectSnapshot[] {

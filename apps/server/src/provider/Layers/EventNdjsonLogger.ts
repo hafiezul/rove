@@ -182,7 +182,7 @@ function shouldPersist(stream: EventNdjsonStream, event: unknown): boolean {
     return true;
   }
   try {
-    const type = Reflect.get(event, "type");
+    const type = Object.getOwnPropertyDescriptor(event, "type")?.value;
     return typeof type !== "string" || !transientCanonicalEventTypes.has(type);
   } catch {
     return true;

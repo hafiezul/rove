@@ -142,10 +142,7 @@ export function formatReviewSelectedRangeLabel(target: ReviewCommentTarget): str
 function getDiffHunkRange(
   selectedLines: ReadonlyArray<ReviewRenderableLineRow>,
   key: "oldLineNumber" | "newLineNumber",
-): {
-  readonly start: number;
-  readonly count: number;
-} {
+) {
   const numberedLines = selectedLines.filter((line) => line[key] !== null);
   if (numberedLines.length === 0) {
     return { start: 0, count: 0 };
@@ -187,7 +184,7 @@ function unescapeReviewCommentAttribute(value: string): string {
     .replace(/&amp;/g, "&");
 }
 
-function readReviewCommentAttributes(rawAttributes: string): Record<string, string> {
+function readReviewCommentAttributes(rawAttributes: string) {
   const attributes: Record<string, string> = {};
   for (const match of rawAttributes.matchAll(REVIEW_COMMENT_ATTRIBUTE_PATTERN)) {
     attributes[match[1]!] = unescapeReviewCommentAttribute(match[2] ?? "");
@@ -202,11 +199,7 @@ function readNonNegativeInteger(value: string | undefined): number | null {
   return Number(value);
 }
 
-function extractReviewCommentBody(rawBody: string): {
-  text: string;
-  language: string;
-  contents: string;
-} {
+function extractReviewCommentBody(rawBody: string) {
   const matches = Array.from(rawBody.matchAll(REVIEW_COMMENT_FENCE_PATTERN));
   const match = matches.at(-1);
   const fenceIndex = match?.index;

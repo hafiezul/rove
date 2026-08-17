@@ -666,10 +666,7 @@ export function decodeCommitDiffRefsJson(
   );
 }
 
-function diffHeaderPaths(raw: Schema.Schema.Type<typeof RawDiffSchema>): {
-  readonly from: string;
-  readonly to: string;
-} {
+function diffHeaderPaths(raw: Schema.Schema.Type<typeof RawDiffSchema>) {
   return {
     from: raw.new_file === true ? "/dev/null" : `a/${raw.old_path}`,
     to: raw.deleted_file === true ? "/dev/null" : `b/${raw.new_path}`,
@@ -728,7 +725,7 @@ export function decodeMergeRequestDiffsJson(
 }
 
 /** GitLab's award names for the eight reactions the contract carries. */
-const GITLAB_AWARD_BY_CONTENT: Readonly<Record<PullRequestReactionContent, string>> = {
+const GITLAB_AWARD_BY_CONTENT = {
   "thumbs-up": "thumbsup",
   "thumbs-down": "thumbsdown",
   laugh: "laughing",
@@ -737,7 +734,7 @@ const GITLAB_AWARD_BY_CONTENT: Readonly<Record<PullRequestReactionContent, strin
   heart: "heart",
   rocket: "rocket",
   eyes: "eyes",
-};
+} satisfies Readonly<Record<PullRequestReactionContent, string>>;
 
 const CONTENT_BY_GITLAB_AWARD: Readonly<Record<string, PullRequestReactionContent>> =
   Object.fromEntries(

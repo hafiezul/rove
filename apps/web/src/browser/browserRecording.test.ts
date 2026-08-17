@@ -19,7 +19,10 @@ const {
     readonly height: number;
     readonly receivedAt: string;
   };
-  const frameSubscription: { listener: ((frame: Frame) => void) | null } = {
+  interface FrameSubscription {
+    listener: ((frame: Frame) => void) | null;
+  }
+  const frameSubscription: FrameSubscription = {
     listener: null,
   };
   const surfaceState = {

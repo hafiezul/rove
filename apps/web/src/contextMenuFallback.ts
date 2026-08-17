@@ -3,7 +3,16 @@ import type { ContextMenuItem } from "@t3tools/contracts";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Inline Lucide-style icon paths (stroke-based, viewBox 0 0 24 24, strokeWidth 2).
-const ICON_PATHS: Record<string, ReadonlyArray<{ tag: string; attrs: Record<string, string> }>> = {
+interface ContextMenuIconPath {
+  readonly tag: string;
+  readonly attrs: Record<string, string>;
+}
+
+interface ContextMenuIconPaths {
+  readonly [name: string]: ReadonlyArray<ContextMenuIconPath> | undefined;
+}
+
+const ICON_PATHS: ContextMenuIconPaths = {
   pencil: [
     {
       tag: "path",

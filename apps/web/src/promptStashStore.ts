@@ -100,10 +100,7 @@ function clearOrphanedPendingImages(
  */
 export function partitionStashAttachments(
   attachments: ReadonlyArray<PersistedComposerImageAttachment>,
-): {
-  kept: PersistedComposerImageAttachment[];
-  droppedNames: string[];
-} {
+) {
   const kept: PersistedComposerImageAttachment[] = [];
   const droppedNames: string[] = [];
   let usedChars = 0;
@@ -128,7 +125,7 @@ export function partitionStashAttachments(
  * vanish on reload, and callers clear the composer on the strength of a
  * successful stash, so they must be told the difference.
  */
-function resolveBaseStorage(): { storage: StateStorage; durable: boolean } {
+function resolveBaseStorage() {
   try {
     if (typeof localStorage !== "undefined") {
       return { storage: localStorage, durable: true };
@@ -150,12 +147,7 @@ const { storage: baseStashStorage, durable: storageIsDurable } = resolveBaseStor
  * Returns whether the write will survive a reload: false on a quota rejection
  * or when only the in-memory fallback is available.
  */
-function persistEntries(entries: ReadonlyArray<PromptStashEntry>): {
-  /** The write succeeded (possibly only into the in-memory fallback). */
-  written: boolean;
-  /** The write will survive a reload. */
-  durable: boolean;
-} {
+function persistEntries(entries: ReadonlyArray<PromptStashEntry>) {
   try {
     baseStashStorage.setItem(
       PROMPT_STASH_STORAGE_KEY,

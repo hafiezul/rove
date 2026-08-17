@@ -122,7 +122,7 @@ export const CodexAppServerIdentifierPurpose = Schema.Literals([
 ]);
 export type CodexAppServerIdentifierPurpose = typeof CodexAppServerIdentifierPurpose.Type;
 
-export interface CodexAppServerProtocolErrorShape {
+export interface CodexAppServerProtocolErrorContract {
   readonly code: number;
   readonly message: string;
   readonly data?: unknown;
@@ -285,7 +285,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
   }
 
   static fromProtocolError(
-    error: CodexAppServerProtocolErrorShape,
+    error: CodexAppServerProtocolErrorContract,
     method: string,
     requestId: string,
   ) {
@@ -405,7 +405,7 @@ export class CodexAppServerRequestError extends Schema.TaggedErrorClass<CodexApp
     });
   }
 
-  toProtocolError(): CodexAppServerProtocolErrorShape {
+  toProtocolError(): CodexAppServerProtocolErrorContract {
     return {
       code: this.code,
       message: this.errorMessage,

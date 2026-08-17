@@ -143,11 +143,11 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
 
-const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
+const ENVIRONMENT_IDENTIFICATION_LABELS = {
   artwork: "Artwork",
   pill: "Version pill",
   none: "None",
-};
+} satisfies Record<EnvironmentIdentificationMode, string>;
 
 const TIMESTAMP_FORMAT_LABELS = {
   locale: "System default",
@@ -155,25 +155,25 @@ const TIMESTAMP_FORMAT_LABELS = {
   "24-hour": "24-hour",
 } as const;
 
-const BACKGROUND_ACTIVITY_PROFILE_LABELS: Record<BackgroundActivityProfile, string> = {
+const BACKGROUND_ACTIVITY_PROFILE_LABELS = {
   balanced: "Balanced",
   performance: "Performance",
   "battery-saver": "Battery saver",
-};
+} satisfies Record<BackgroundActivityProfile, string>;
 
 type BackgroundActivityProfileOption = BackgroundActivityProfile | "advanced";
 
-const BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS: Record<BackgroundActivityProfileOption, string> = {
+const BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS = {
   ...BACKGROUND_ACTIVITY_PROFILE_LABELS,
   advanced: "Advanced",
-};
+} satisfies Record<BackgroundActivityProfileOption, string>;
 
-const BACKGROUND_ACTIVITY_PROFILE_DESCRIPTIONS: Record<BackgroundActivityProfile, string> = {
+const BACKGROUND_ACTIVITY_PROFILE_DESCRIPTIONS = {
   balanced:
     "Pauses background probes when clients are idle, the host is locked, or low power mode is active.",
   performance: "Allows scoped background probes while any subscribed client remains connected.",
   "battery-saver": "Also pauses background probes when the host or client is on battery.",
-};
+} satisfies Record<BackgroundActivityProfile, string>;
 
 const ADVANCED_BACKGROUND_ACTIVITY_DESCRIPTION =
   "Uses custom background intervals with the selected shared power policy.";
@@ -350,8 +350,12 @@ function AboutVersionSection() {
       ? !canCheckForUpdate(updateState)
       : isDesktopUpdateButtonDisabled(updateState);
 
-  const actionLabel: Record<string, string> = { download: "Download", install: "Install" };
-  const statusLabel: Record<string, string> = {
+  interface DesktopUpdateLabels {
+    readonly [value: string]: string | undefined;
+  }
+
+  const actionLabel: DesktopUpdateLabels = { download: "Download", install: "Install" };
+  const statusLabel: DesktopUpdateLabels = {
     checking: "Checking…",
     downloading: "Downloading…",
     "up-to-date": "Up to Date",

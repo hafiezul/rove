@@ -102,6 +102,35 @@ interface PlatformConfig {
   readonly archChoices: ReadonlyArray<typeof BuildArch.Type>;
 }
 
+interface PlatformConfigByPlatform {
+  readonly mac: PlatformConfig;
+  readonly linux: PlatformConfig;
+  readonly win: PlatformConfig;
+}
+
+interface DesktopBuildConfig {
+  readonly appId: string;
+  readonly productName: string;
+  readonly artifactName: string;
+  readonly electronLanguages: ReadonlyArray<string>;
+  readonly files: ReadonlyArray<string>;
+  readonly directories: { readonly buildResources: string };
+  readonly extraResources: ReadonlyArray<{ readonly from: string; readonly to: string }>;
+  readonly asarUnpack?: ReadonlyArray<string>;
+  publish?: unknown;
+  mac?: unknown;
+  linux?: unknown;
+  npmRebuild?: boolean;
+  win?: unknown;
+}
+
+interface WindowsDesktopBuildConfig {
+  readonly target: ReadonlyArray<string>;
+  readonly icon: string;
+  readonly signAndEditExecutable: boolean;
+  azureSignOptions?: unknown;
+}
+
 export function resolveResourceMonitorRustTargets(
   platform: typeof BuildPlatform.Type,
   arch: typeof BuildArch.Type,
@@ -122,7 +151,7 @@ export function resourceMonitorExecutableName(platform: typeof BuildPlatform.Typ
   return platform === "win" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
 }
 
-const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
+const PLATFORM_CONFIG: PlatformConfigByPlatform = {
   mac: {
     cliFlag: "--mac",
     defaultTarget: "dmg",
@@ -138,7 +167,7 @@ const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
     defaultTarget: "nsis",
     archChoices: ["x64", "arm64"],
   },
-};
+} satisfies Record<typeof BuildPlatform.Type, PlatformConfig>;
 
 interface BuildCliInput {
   readonly platform: Option.Option<typeof BuildPlatform.Type>;
@@ -672,7 +701,7 @@ interface StagePackageJson {
   readonly description: string;
   readonly author: string;
   readonly main: string;
-  readonly build: Record<string, unknown>;
+  readonly build: DesktopBuildConfig;
   readonly dependencies: Record<string, unknown>;
   readonly devDependencies: {
     readonly electron: string;
@@ -1869,7 +1898,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       }
     | undefined,
 ) {
-  const buildConfig: Record<string, unknown> = {
+  const buildConfig: DesktopBuildConfig = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
     artifactName: "T3-Code-${version}-${arch}.${ext}",
@@ -1942,7 +1971,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 
   if (platform === "win") {
     buildConfig.npmRebuild = false;
-    const winConfig: Record<string, unknown> = {
+    const winConfig: WindowsDesktopBuildConfig = {
       target: [target],
       icon: "icon.ico",
       // Resource editing applies the product metadata and icon independently

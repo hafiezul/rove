@@ -97,9 +97,7 @@ export function evictExcessProjects(
   return Object.fromEntries(kept.map((key) => [key, byProjectKey[key] ?? []]));
 }
 
-export function migratePersistedBrowserHistoryState(persistedState: unknown): {
-  byProjectKey: Record<string, BrowserHistoryEntry[]>;
-} {
+export function migratePersistedBrowserHistoryState(persistedState: unknown) {
   if (!persistedState || typeof persistedState !== "object") return { byProjectKey: {} };
   const raw = (persistedState as { byProjectKey?: unknown }).byProjectKey;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { byProjectKey: {} };
@@ -171,7 +169,7 @@ function addPendingByThread<T>(
   pendingByThreadKey: Record<string, T[]>,
   threadKey: string,
   item: T,
-): Record<string, T[]> {
+) {
   const existing = pendingByThreadKey[threadKey] ?? [];
   const next = { ...pendingByThreadKey };
   next[threadKey] = [...existing, item].slice(-PENDING_MAX_PER_THREAD);

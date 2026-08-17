@@ -25,10 +25,7 @@ function logReviewDiffDiagnostic(message: string, details?: Record<string, unkno
   console.log(`[review-sheet] ${message}`);
 }
 
-export function formatHeaderDiffSummary(parsedDiff: ReviewParsedDiff): {
-  readonly additions: string | null;
-  readonly deletions: string | null;
-} {
+export function formatHeaderDiffSummary(parsedDiff: ReviewParsedDiff) {
   if (parsedDiff.kind !== "files") {
     return { additions: null, deletions: null };
   }

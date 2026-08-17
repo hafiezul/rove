@@ -375,10 +375,7 @@ function toSummaryWithOptionalUpdatedAt(
   return Option.isSome(updatedAt) ? { ...summary, updatedAt } : summary;
 }
 
-function parseRepositoryPath(repository: string): {
-  readonly namespacePath: string | null;
-  readonly projectPath: string;
-} {
+function parseRepositoryPath(repository: string) {
   const parts: Array<string> = [];
   for (const part of repository.split("/")) {
     const trimmed = part.trim();

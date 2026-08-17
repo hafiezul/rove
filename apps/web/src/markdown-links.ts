@@ -64,7 +64,7 @@ export function normalizeMarkdownLinkDestination(value: string): string {
   return unwrapMarkdownLinkDestination(value.trim());
 }
 
-function stripSearchAndHash(value: string): { path: string; hash: string } {
+function stripSearchAndHash(value: string) {
   const hashIndex = value.indexOf("#");
   const pathWithSearch = hashIndex >= 0 ? value.slice(0, hashIndex) : value;
   const rawHash = hashIndex >= 0 ? value.slice(hashIndex) : "";
@@ -328,12 +328,12 @@ export function resolveInlineCodeFileLinkMeta(
   const hasPosition = POSITION_SUFFIX_PATTERN.test(candidate);
   if (!hasPosition && !PATH_SEPARATOR_PATTERN.test(candidate)) return null;
 
-  const hasExplicitPathShape =
+  const hasExplicitPathContract =
     RELATIVE_PATH_PREFIX_PATTERN.test(candidate) ||
     candidate.startsWith("/") ||
     WINDOWS_DRIVE_PATH_PATTERN.test(candidate) ||
     WINDOWS_UNC_PATH_PATTERN.test(candidate);
-  if (!hasExplicitPathShape) {
+  if (!hasExplicitPathContract) {
     const withoutPosition = candidate.replace(POSITION_SUFFIX_PATTERN, "");
     const firstSegment = withoutPosition.split("/")[0] ?? withoutPosition;
     if (looksLikeHostname(firstSegment, hasPosition)) return null;

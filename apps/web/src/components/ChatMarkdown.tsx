@@ -183,10 +183,18 @@ const CHAT_MARKDOWN_REHYPE_PLUGINS = [
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
-const GITHUB_ALERT_PRESENTATIONS: Record<
-  string,
-  { label: string; Icon: typeof InfoIcon; borderClassName: string; titleClassName: string }
-> = {
+interface GitHubAlertPresentation {
+  readonly label: string;
+  readonly Icon: typeof InfoIcon;
+  readonly borderClassName: string;
+  readonly titleClassName: string;
+}
+
+interface GitHubAlertPresentations {
+  readonly [kind: string]: GitHubAlertPresentation | undefined;
+}
+
+const GITHUB_ALERT_PRESENTATIONS: GitHubAlertPresentations = {
   note: {
     label: "Note",
     Icon: InfoIcon,

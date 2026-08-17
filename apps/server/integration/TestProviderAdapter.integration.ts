@@ -20,7 +20,7 @@ import {
   type ProviderAdapterError,
 } from "../src/provider/Errors.ts";
 import type {
-  ProviderAdapterShape,
+  ProviderAdapterContract,
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
 } from "../src/provider/Services/ProviderAdapter.ts";
@@ -93,6 +93,10 @@ function mapItemType(toolKind: unknown): "command_execution" | "file_change" | "
     return "file_change";
   }
   return "unknown";
+}
+
+interface MutableFixtureRuntimeEvent {
+  [field: string]: unknown;
 }
 
 function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRuntimeEvent {
@@ -177,7 +181,7 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
 }
 
 export interface TestProviderAdapterHarness {
-  readonly adapter: ProviderAdapterShape<ProviderAdapterError>;
+  readonly adapter: ProviderAdapterContract<ProviderAdapterError>;
   readonly provider: ProviderDriverKind;
   readonly queueTurnResponse: (
     threadId: ThreadId,
@@ -246,7 +250,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
       return EventId.make(`test-provider:${provider}:${threadId}:${eventCount}`);
     };
 
-    const startSession: ProviderAdapterShape<ProviderAdapterError>["startSession"] = (input) =>
+    const startSession: ProviderAdapterContract<ProviderAdapterError>["startSession"] = (input) =>
       Effect.gen(function* () {
         if (input.provider !== undefined && input.provider !== provider) {
           return yield* new ProviderAdapterValidationError({
@@ -288,7 +292,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
         return session;
       });
 
-    const sendTurn: ProviderAdapterShape<ProviderAdapterError>["sendTurn"] = (input) =>
+    const sendTurn: ProviderAdapterContract<ProviderAdapterError>["sendTurn"] = (input) =>
       Effect.gen(function* () {
         const state = sessions.get(input.threadId);
         if (!state) {
@@ -311,7 +315,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
         const assistantDeltas: string[] = [];
         const deferredTurnCompletedEvents: ProviderRuntimeEvent[] = [];
         for (const fixtureEvent of response.events) {
-          const rawEvent: Record<string, unknown> = {
+          const rawEvent: MutableFixtureRuntimeEvent = {
             ...(fixtureEvent as Record<string, unknown>),
             eventId: nextEventId(input.threadId),
             provider,
@@ -391,7 +395,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
         } satisfies ProviderTurnStartResult;
       });
 
-    const interruptTurn: ProviderAdapterShape<ProviderAdapterError>["interruptTurn"] = (
+    const interruptTurn: ProviderAdapterContract<ProviderAdapterError>["interruptTurn"] = (
       threadId,
       turnId,
     ) =>
@@ -403,7 +407,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
           })
         : missingSessionEffect(provider, threadId);
 
-    const respondToRequest: ProviderAdapterShape<ProviderAdapterError>["respondToRequest"] = (
+    const respondToRequest: ProviderAdapterContract<ProviderAdapterError>["respondToRequest"] = (
       threadId,
       requestId,
       decision,
@@ -420,24 +424,22 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
           })
         : missingSessionEffect(provider, threadId);
 
-    const respondToUserInput: ProviderAdapterShape<ProviderAdapterError>["respondToUserInput"] = (
-      threadId,
-      _requestId,
-      _answers,
-    ) => (sessions.has(threadId) ? Effect.void : missingSessionEffect(provider, threadId));
+    const respondToUserInput: ProviderAdapterContract<ProviderAdapterError>["respondToUserInput"] =
+      (threadId, _requestId, _answers) =>
+        sessions.has(threadId) ? Effect.void : missingSessionEffect(provider, threadId);
 
-    const stopSession: ProviderAdapterShape<ProviderAdapterError>["stopSession"] = (threadId) =>
+    const stopSession: ProviderAdapterContract<ProviderAdapterError>["stopSession"] = (threadId) =>
       Effect.sync(() => {
         sessions.delete(threadId);
       });
 
-    const listSessions: ProviderAdapterShape<ProviderAdapterError>["listSessions"] = () =>
+    const listSessions: ProviderAdapterContract<ProviderAdapterError>["listSessions"] = () =>
       Effect.sync(() => Array.from(sessions.values(), (state) => state.session));
 
-    const hasSession: ProviderAdapterShape<ProviderAdapterError>["hasSession"] = (threadId) =>
+    const hasSession: ProviderAdapterContract<ProviderAdapterError>["hasSession"] = (threadId) =>
       Effect.succeed(sessions.has(threadId));
 
-    const readThread: ProviderAdapterShape<ProviderAdapterError>["readThread"] = (threadId) => {
+    const readThread: ProviderAdapterContract<ProviderAdapterError>["readThread"] = (threadId) => {
       const state = sessions.get(threadId);
       if (!state) {
         return missingSessionEffect(provider, threadId);
@@ -445,7 +447,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
       return Effect.succeed(state.snapshot);
     };
 
-    const rollbackThread: ProviderAdapterShape<ProviderAdapterError>["rollbackThread"] = (
+    const rollbackThread: ProviderAdapterContract<ProviderAdapterError>["rollbackThread"] = (
       threadId,
       numTurns,
     ) => {
@@ -474,12 +476,12 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
       });
     };
 
-    const stopAll: ProviderAdapterShape<ProviderAdapterError>["stopAll"] = () =>
+    const stopAll: ProviderAdapterContract<ProviderAdapterError>["stopAll"] = () =>
       Effect.sync(() => {
         sessions.clear();
       });
 
-    const adapter: ProviderAdapterShape<ProviderAdapterError> = {
+    const adapter: ProviderAdapterContract<ProviderAdapterError> = {
       provider,
       capabilities: {
         sessionModelSwitch: "in-session",

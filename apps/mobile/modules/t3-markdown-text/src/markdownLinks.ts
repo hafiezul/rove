@@ -41,7 +41,11 @@ export type MarkdownLinkPresentation =
 
 export type MarkdownFileIcon = keyof typeof MARKDOWN_FILE_ICON_SOURCES;
 
-const FILE_ICON_BY_NAME: Readonly<Record<string, MarkdownFileIcon>> = {
+interface MarkdownFileIconsByName {
+  readonly [fileName: string]: MarkdownFileIcon | undefined;
+}
+
+const FILE_ICON_BY_NAME: MarkdownFileIconsByName = {
   ".babelrc": "babel",
   ".babelrc.json": "babel",
   ".bash_profile": "bash",
@@ -147,7 +151,11 @@ const FILE_ICON_BY_NAME: Readonly<Record<string, MarkdownFileIcon>> = {
   "webpack.config.ts": "webpack",
 };
 
-const FILE_ICON_BY_EXTENSION: Readonly<Record<string, MarkdownFileIcon>> = {
+interface MarkdownFileIconsByExtension {
+  readonly [extension: string]: MarkdownFileIcon | undefined;
+}
+
+const FILE_ICON_BY_EXTENSION: MarkdownFileIconsByExtension = {
   "7z": "zip",
   astro: "astro",
   avif: "image",
@@ -266,7 +274,7 @@ function fileUrlTarget(href: string): { readonly path: string; readonly hash: st
   }
 }
 
-function stripSearchAndHash(value: string): { readonly path: string; readonly hash: string } {
+function stripSearchAndHash(value: string) {
   const hashIndex = value.indexOf("#");
   const pathWithSearch = hashIndex >= 0 ? value.slice(0, hashIndex) : value;
   const hash = hashIndex >= 0 ? value.slice(hashIndex) : "";
@@ -277,10 +285,7 @@ function stripSearchAndHash(value: string): { readonly path: string; readonly ha
   };
 }
 
-function splitFilePosition(
-  path: string,
-  hash: string,
-): { readonly path: string; readonly line?: number; readonly column?: number } {
+function splitFilePosition(path: string, hash: string) {
   const suffixMatch = path.match(/:(\d+)(?::(\d+))?$/);
   const hashMatch = suffixMatch ? null : hash.match(/^#L(\d+)(?:C(\d+))?$/i);
   const match = suffixMatch ?? hashMatch;

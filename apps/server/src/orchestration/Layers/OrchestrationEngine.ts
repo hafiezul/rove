@@ -43,7 +43,7 @@ import { OrchestrationProjectionPipeline } from "../Services/ProjectionPipeline.
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../Services/OrchestrationEngine.ts";
 const isOrchestrationCommandPreviouslyRejectedError = Schema.is(
   OrchestrationCommandPreviouslyRejectedError,
@@ -56,10 +56,12 @@ interface CommandEnvelope {
   startedAtMs: number;
 }
 
-function commandToAggregateRef(command: OrchestrationCommand): {
+interface CommandAggregateRef {
   readonly aggregateKind: "project" | "thread";
   readonly aggregateId: ProjectId | ThreadId;
-} {
+}
+
+function commandToAggregateRef(command: OrchestrationCommand): CommandAggregateRef {
   switch (command.type) {
     case "project.create":
     case "project.meta.update":
@@ -306,10 +308,10 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.annotateLogs({ sequence: commandReadModel.snapshotSequence }),
   );
 
-  const readEvents: OrchestrationEngineShape["readEvents"] = (fromSequenceExclusive, limit) =>
+  const readEvents: OrchestrationEngineContract["readEvents"] = (fromSequenceExclusive, limit) =>
     eventStore.readFromSequence(fromSequenceExclusive, limit);
 
-  const dispatch: OrchestrationEngineShape["dispatch"] = (command) =>
+  const dispatch: OrchestrationEngineContract["dispatch"] = (command) =>
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, {
@@ -326,7 +328,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     // Each access creates a fresh PubSub subscription so that multiple
     // consumers (wsServer, ProviderRuntimeIngestion, CheckpointReactor, etc.)
     // each independently receive all domain events.
-    get streamDomainEvents(): OrchestrationEngineShape["streamDomainEvents"] {
+    get streamDomainEvents(): OrchestrationEngineContract["streamDomainEvents"] {
       return Stream.fromPubSub(eventPubSub);
     },
     // The command read model's snapshotSequence tracks the latest committed
@@ -334,7 +336,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     // consistent, committed value — reassignment of `commandReadModel` is
     // atomic on the single-threaded event loop.
     latestSequence: Effect.sync(() => commandReadModel.snapshotSequence),
-  } satisfies OrchestrationEngineShape;
+  } satisfies OrchestrationEngineContract;
 });
 
 export const OrchestrationEngineLive = Layer.effect(

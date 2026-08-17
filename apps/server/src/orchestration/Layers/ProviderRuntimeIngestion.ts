@@ -40,7 +40,7 @@ import { ThreadPlanProgressService } from "../ThreadPlanProgress.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   ProviderRuntimeIngestionService,
-  type ProviderRuntimeIngestionShape,
+  type ProviderRuntimeIngestionContract,
 } from "../Services/ProviderRuntimeIngestion.ts";
 import { forkParked } from "../../serverActivation.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
@@ -349,8 +349,12 @@ function requestKindFromCanonicalRequestType(
  * into the persisted activity payload. Identity fields ride on every row so
  * client folds survive activity retention; absent fields stay absent.
  */
-function taskLinkageActivityFields(payload: Record<string, unknown>): Record<string, unknown> {
-  const fields: Record<string, unknown> = {
+interface TaskLinkageActivityFields {
+  [field: string]: unknown;
+}
+
+function taskLinkageActivityFields(payload: Record<string, unknown>): TaskLinkageActivityFields {
+  const fields: TaskLinkageActivityFields = {
     // Server-stamped classification: persisted rows are self-describing, so
     // clients trust the stamp instead of re-deriving agent-vs-background
     // from taskType denylists and marker heuristics (legacy rows without a
@@ -2269,7 +2273,7 @@ const make = Effect.gen(function* () {
 
   const worker = yield* makeDrainableWorker(processInputSafely);
 
-  const start: ProviderRuntimeIngestionShape["start"] = () =>
+  const start: ProviderRuntimeIngestionContract["start"] = () =>
     Effect.gen(function* () {
       yield* forkParked(
         Stream.runForEach(providerService.streamEvents, (event) =>
@@ -2289,7 +2293,7 @@ const make = Effect.gen(function* () {
   return {
     start,
     drain: worker.drain,
-  } satisfies ProviderRuntimeIngestionShape;
+  } satisfies ProviderRuntimeIngestionContract;
 });
 
 export const ProviderRuntimeIngestionLive = Layer.effect(

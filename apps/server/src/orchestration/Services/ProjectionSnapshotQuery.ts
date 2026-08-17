@@ -57,7 +57,7 @@ export interface ProjectionFullThreadDiffContext {
 /**
  * ProjectionSnapshotQueryShape - Service API for read-model snapshots.
  */
-export interface ProjectionSnapshotQueryShape {
+export interface ProjectionSnapshotQueryContract {
   /**
    * Read the lightweight command snapshot used to bootstrap the in-memory
    * orchestration engine without hydrating message/activity/checkpoint bodies.
@@ -193,5 +193,5 @@ export interface ProjectionSnapshotQueryShape {
  */
 export class ProjectionSnapshotQuery extends Context.Service<
   ProjectionSnapshotQuery,
-  ProjectionSnapshotQueryShape
+  ProjectionSnapshotQueryContract
 >()("t3/orchestration/Services/ProjectionSnapshotQuery") {}

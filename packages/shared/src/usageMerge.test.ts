@@ -192,11 +192,11 @@ describe("mergeUsage", () => {
   it("keeps two machines apart when hostname and home path collide", () => {
     // Every Mac resolves /Users/theo/.claude, so a hostname clash used to make
     // one machine's usage vanish. Filesystem identity separates them.
-    const shape = { provider: "claude" as const, hostId: "mac", homePath: "/Users/theo/.claude" };
+    const source = { provider: "claude" as const, hostId: "mac", homePath: "/Users/theo/.claude" };
     const merged = mergeUsage(
       [
-        environment("env-a", summary([bucket()], [{ ...shape, volumeId: "16777220:1234" }])),
-        environment("env-b", summary([bucket()], [{ ...shape, volumeId: "16777221:9999" }])),
+        environment("env-a", summary([bucket()], [{ ...source, volumeId: "16777220:1234" }])),
+        environment("env-b", summary([bucket()], [{ ...source, volumeId: "16777221:9999" }])),
       ],
       USAGE_CONTRACT_VERSION,
     );

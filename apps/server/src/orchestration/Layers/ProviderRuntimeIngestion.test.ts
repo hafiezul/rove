@@ -39,7 +39,7 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
@@ -101,7 +101,7 @@ function createProviderServiceHarness() {
   const runtimeSessions: ProviderSession[] = [];
 
   const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
-  const service: ProviderServiceShape = {
+  const service: ProviderServiceContract = {
     startSession: () => unsupported(),
     sendTurn: () => unsupported(),
     interruptTurn: () => unsupported(),

@@ -11,7 +11,7 @@ import { toPersistenceSqlError } from "../Errors.ts";
 import {
   GetProjectionThreadMessageInput,
   ProjectionThreadMessageRepository,
-  type ProjectionThreadMessageRepositoryShape,
+  type ProjectionThreadMessageRepositoryContract,
   DeleteProjectionThreadMessagesInput,
   ListProjectionThreadMessagesInput,
   ProjectionThreadMessage,
@@ -146,12 +146,12 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionThreadMessageRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadMessageRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadMessageRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadMessageRepository.upsert:query")),
     );
 
-  const getByMessageId: ProjectionThreadMessageRepositoryShape["getByMessageId"] = (input) =>
+  const getByMessageId: ProjectionThreadMessageRepositoryContract["getByMessageId"] = (input) =>
     getProjectionThreadMessageRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.getByMessageId:query"),
@@ -159,7 +159,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       Effect.map(Option.map(toProjectionThreadMessage)),
     );
 
-  const listByThreadId: ProjectionThreadMessageRepositoryShape["listByThreadId"] = (input) =>
+  const listByThreadId: ProjectionThreadMessageRepositoryContract["listByThreadId"] = (input) =>
     listProjectionThreadMessageRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.listByThreadId:query"),
@@ -167,7 +167,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       Effect.map((rows) => rows.map(toProjectionThreadMessage)),
     );
 
-  const deleteByThreadId: ProjectionThreadMessageRepositoryShape["deleteByThreadId"] = (input) =>
+  const deleteByThreadId: ProjectionThreadMessageRepositoryContract["deleteByThreadId"] = (input) =>
     deleteProjectionThreadMessageRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.deleteByThreadId:query"),
@@ -179,7 +179,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
     getByMessageId,
     listByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadMessageRepositoryShape;
+  } satisfies ProjectionThreadMessageRepositoryContract;
 });
 
 export const ProjectionThreadMessageRepositoryLive = Layer.effect(

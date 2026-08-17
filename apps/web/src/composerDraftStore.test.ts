@@ -46,7 +46,7 @@ function toSelections(
 
 function selectionsByProvider(
   options: Partial<Record<ProviderDriverKind, Record<string, string | boolean | undefined>>>,
-): ProviderOptionSelectionsByProvider {
+) {
   const result: ProviderOptionSelectionsByProvider = {};
   for (const [provider, bag] of Object.entries(options) as Array<
     [ProviderDriverKind, Record<string, string | boolean | undefined>]
@@ -1148,9 +1148,6 @@ describe("composerDraftStore project draft thread mapping", () => {
     const runtimeUndefinedOptions = {
       branch: undefined,
       worktreePath: undefined,
-    } as unknown as {
-      branch?: string | null;
-      worktreePath?: string | null;
     };
     store.setProjectDraftThreadId(projectRef, draftId, runtimeUndefinedOptions);
 
@@ -1175,10 +1172,6 @@ describe("composerDraftStore project draft thread mapping", () => {
       branch: undefined,
       worktreePath: undefined,
       envMode: undefined,
-    } as unknown as {
-      branch?: string | null;
-      worktreePath?: string | null;
-      envMode?: "local" | "worktree";
     };
     store.setProjectDraftThreadId(projectRef, draftId, runtimeUndefinedOptions);
 

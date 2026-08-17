@@ -49,7 +49,11 @@ const TERMINAL_WORD_FORWARD = "\u001bf";
 const TERMINAL_LINE_START = "\u0001";
 const TERMINAL_LINE_END = "\u0005";
 const TERMINAL_DELETE_TO_LINE_START = "\u0015";
-const EVENT_CODE_KEY_ALIASES: Readonly<Record<string, readonly string[]>> = {
+interface EventCodeKeyAliases {
+  readonly [code: string]: ReadonlyArray<string> | undefined;
+}
+
+const EVENT_CODE_KEY_ALIASES: EventCodeKeyAliases = {
   BracketLeft: ["["],
   BracketRight: ["]"],
   Digit0: ["0"],

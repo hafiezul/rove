@@ -153,12 +153,30 @@ function legacySetupFailureDescription(cause: unknown): string {
   return String(cause);
 }
 
-function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesError): {
+interface ProjectEntriesFailureContext {
   readonly failure: ProjectEntriesFailure;
   readonly normalizedCwd?: string;
   readonly timeout?: string;
   readonly detail?: string;
-} {
+}
+
+interface FilesystemBrowseFailureContext {
+  readonly failure: FilesystemBrowseFailure;
+  readonly parentPath?: string;
+  readonly platform?: string;
+}
+
+interface ProjectFileFailureContext {
+  readonly failure: ProjectFileFailure;
+  readonly resolvedPath?: string;
+  readonly resolvedWorkspaceRoot?: string;
+  readonly operation?: ProjectFileOperation;
+  readonly operationPath?: string;
+}
+
+function projectEntriesFailureContext(
+  error: WorkspaceEntries.WorkspaceEntriesError,
+): ProjectEntriesFailureContext {
   switch (error._tag) {
     case "WorkspaceRootNotExistsError":
       return {
@@ -204,11 +222,9 @@ function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesEr
   }
 }
 
-function filesystemBrowseFailureContext(error: WorkspaceEntries.WorkspaceEntriesBrowseError): {
-  readonly failure: FilesystemBrowseFailure;
-  readonly parentPath?: string;
-  readonly platform?: string;
-} {
+function filesystemBrowseFailureContext(
+  error: WorkspaceEntries.WorkspaceEntriesBrowseError,
+): FilesystemBrowseFailureContext {
   switch (error._tag) {
     case "WorkspaceEntriesWindowsPathUnsupportedError":
       return { failure: "windows_path_unsupported", platform: error.platform };
@@ -225,13 +241,7 @@ function projectFileFailureContext(
   error:
     | WorkspaceFileSystem.WorkspaceFileSystemError
     | WorkspacePaths.WorkspacePathOutsideRootError,
-): {
-  readonly failure: ProjectFileFailure;
-  readonly resolvedPath?: string;
-  readonly resolvedWorkspaceRoot?: string;
-  readonly operation?: ProjectFileOperation;
-  readonly operationPath?: string;
-} {
+): ProjectFileFailureContext {
   switch (error._tag) {
     case "WorkspacePathOutsideRootError":
       return { failure: "workspace_path_outside_root" };

@@ -26,10 +26,14 @@ function shouldTraceRpc(method: string): boolean {
   return !RPC_METHODS_WITH_TRACING_DISABLED.has(method);
 }
 
+interface RpcSpanAttributes {
+  readonly [attributeName: string]: unknown;
+}
+
 const rpcSpanAttributes = (
   method: string,
   traceAttributes?: Readonly<Record<string, unknown>>,
-): Record<string, unknown> => ({
+): RpcSpanAttributes => ({
   ...DEFAULT_RPC_SPAN_ATTRIBUTES,
   "rpc.method": method,
   ...traceAttributes,

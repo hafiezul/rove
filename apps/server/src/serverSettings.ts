@@ -313,11 +313,15 @@ const make = Effect.gen(function* () {
 
   const getSettingsFromCache = Cache.get(settingsCache, cacheKey);
 
+  interface ProviderInstancesById {
+    [instanceId: string]: ProviderInstanceConfig;
+  }
+
   const materializeProviderEnvironmentSecrets = (
     settings: ServerSettings,
   ): Effect.Effect<ServerSettings, ServerSettingsError> =>
     Effect.gen(function* () {
-      const providerInstances: Record<string, ProviderInstanceConfig> = {
+      const providerInstances: ProviderInstancesById = {
         ...settings.providerInstances,
       };
       for (const [instanceId, instance] of Object.entries(settings.providerInstances)) {
@@ -380,7 +384,7 @@ const make = Effect.gen(function* () {
     next: ServerSettings,
   ): Effect.Effect<ServerSettings, ServerSettingsError> =>
     Effect.gen(function* () {
-      const providerInstances: Record<string, ProviderInstanceConfig> = {
+      const providerInstances: ProviderInstancesById = {
         ...next.providerInstances,
       };
 

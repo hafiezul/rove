@@ -378,10 +378,10 @@ interface ComposerDraftStoreState {
     draftId: DraftId,
     options?: {
       threadId?: ThreadId;
-      branch?: string | null;
-      worktreePath?: string | null;
+      branch?: string | null | undefined;
+      worktreePath?: string | null | undefined;
       createdAt?: string;
-      envMode?: DraftThreadEnvMode;
+      envMode?: DraftThreadEnvMode | undefined;
       startFromOrigin?: boolean;
       runtimeMode?: RuntimeMode;
       interactionMode?: ProviderInteractionMode;
@@ -393,10 +393,10 @@ interface ComposerDraftStoreState {
     draftId: DraftId,
     options?: {
       threadId?: ThreadId;
-      branch?: string | null;
-      worktreePath?: string | null;
+      branch?: string | null | undefined;
+      worktreePath?: string | null | undefined;
       createdAt?: string;
-      envMode?: DraftThreadEnvMode;
+      envMode?: DraftThreadEnvMode | undefined;
       startFromOrigin?: boolean;
       runtimeMode?: RuntimeMode;
       interactionMode?: ProviderInteractionMode;
@@ -956,7 +956,7 @@ function legacyReplaceProviderModelOptions(
 ): ProviderOptionSelectionsByProvider | null {
   const { [provider]: _discardedProviderModelOptions, ...otherProviderModelOptions } =
     currentModelOptions ?? {};
-  const merged: ProviderOptionSelectionsByProvider = { ...otherProviderModelOptions };
+  const merged = { ...otherProviderModelOptions } satisfies ProviderOptionSelectionsByProvider;
   if (nextProviderOptions && nextProviderOptions.length > 0) {
     merged[provider] = nextProviderOptions;
   }
@@ -965,11 +965,15 @@ function legacyReplaceProviderModelOptions(
 
 // ── New helpers for the consolidated representation ────────────────────
 
+interface ModelSelectionsByInstance {
+  [instanceId: string]: ModelSelection | undefined;
+}
+
 function legacyToModelSelectionByProvider(
   modelSelection: NormalizedModelSelection | null,
   modelOptions: ProviderOptionSelectionsByProvider | null | undefined,
-): Partial<Record<ProviderInstanceId, ModelSelection>> {
-  const result: Partial<Record<ProviderInstanceId, ModelSelection>> = {};
+): ModelSelectionsByInstance {
+  const result: ModelSelectionsByInstance = {};
   if (modelOptions) {
     for (const provider of ["codex", "claudeAgent", "cursor", "opencode"] as const) {
       const options = modelOptions[provider];
@@ -1366,10 +1370,10 @@ function createDraftThreadState(
   existingThread: DraftThreadState | undefined,
   options?: {
     threadId?: ThreadId;
-    branch?: string | null;
-    worktreePath?: string | null;
+    branch?: string | null | undefined;
+    worktreePath?: string | null | undefined;
     createdAt?: string;
-    envMode?: DraftThreadEnvMode;
+    envMode?: DraftThreadEnvMode | undefined;
     startFromOrigin?: boolean;
     runtimeMode?: RuntimeMode;
     interactionMode?: ProviderInteractionMode;
@@ -2361,14 +2365,14 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             if (hasSameLogicalMapping && draftThreadsEqual(existingThread, nextDraftThread)) {
               return state;
             }
-            const nextLogicalProjectDraftThreadKeyByLogicalProjectKey: Record<string, string> = {
+            const nextLogicalProjectDraftThreadKeyByLogicalProjectKey = {
               ...state.logicalProjectDraftThreadKeyByLogicalProjectKey,
               [normalizedLogicalProjectKey]: draftId,
-            };
-            const nextDraftThreadsByThreadKey: Record<string, DraftThreadState> = {
+            } satisfies Record<string, string>;
+            const nextDraftThreadsByThreadKey = {
               ...state.draftThreadsByThreadKey,
               [draftId]: nextDraftThread,
-            };
+            } satisfies Record<string, DraftThreadState>;
             let nextDraftsByThreadKey = state.draftsByThreadKey;
             const previousDraftThread =
               previousThreadKeyForLogicalProject === undefined
@@ -2603,10 +2607,10 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             if (!normalized) {
               return state;
             }
-            const nextMap: Partial<Record<ProviderInstanceId, ModelSelection>> = {
+            const nextMap = {
               ...state.stickyModelSelectionByProvider,
               [normalized.instanceId]: normalized,
-            };
+            } satisfies Partial<Record<ProviderInstanceId, ModelSelection>>;
             if (Equal.equals(state.stickyModelSelectionByProvider, nextMap)) {
               return state.stickyActiveProvider === normalized.instanceId
                 ? state

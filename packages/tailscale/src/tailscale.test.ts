@@ -35,7 +35,7 @@ const encoder = new TextEncoder();
  * Walks values instead of serializing so it holds for fields added later, and
  * tracks visited objects so a cyclic cause chain terminates.
  */
-function assertCarriesNoSecret(error: object, secret: string): void {
+function assertCarriesNoSecret(error: Error, secret: string): void {
   const seen = new WeakSet<object>();
 
   const walk = (value: unknown, path: string): void => {

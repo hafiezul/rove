@@ -36,12 +36,12 @@ import { attachmentRelativePath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderAdapterProcessError, ProviderAdapterValidationError } from "../Errors.ts";
-import type { ClaudeAdapterShape } from "../Services/ClaudeAdapter.ts";
+import type { ClaudeAdapterContract } from "../Services/ClaudeAdapter.ts";
 import { makeClaudeAdapter, type ClaudeAdapterLiveOptions } from "./ClaudeAdapter.ts";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* ClaudeAdapter`.
-class ClaudeAdapter extends Context.Service<ClaudeAdapter, ClaudeAdapterShape>()(
+class ClaudeAdapter extends Context.Service<ClaudeAdapter, ClaudeAdapterContract>()(
   "t3/provider/Layers/ClaudeAdapter.test/ClaudeAdapter",
 ) {}
 
@@ -115,7 +115,7 @@ class FakeClaudeQuery implements AsyncIterable<SDKMessage> {
     this.setMaxThinkingTokensCalls.push(maxThinkingTokens);
   };
 
-  readonly close = (): void => {
+  close = (): void => {
     this.closeCalls += 1;
     this.finish();
   };
@@ -210,10 +210,7 @@ function makeHarness(config?: {
   };
 }
 
-function makeDeterministicRandomService(seed = 0x1234_5678): {
-  nextIntUnsafe: () => number;
-  nextDoubleUnsafe: () => number;
-} {
+function makeDeterministicRandomService(seed = 0x1234_5678) {
   let state = seed >>> 0;
   const nextIntUnsafe = (): number => {
     state = (Math.imul(1_664_525, state) + 1_013_904_223) >>> 0;
@@ -2027,7 +2024,7 @@ describe("ClaudeAdapterLive", () => {
     // before the shutdown propagates. Override it to match real SDK behavior
     // where close() does not resolve the prompt consumer.
     const query = new FakeClaudeQuery();
-    (query as { close: () => void }).close = () => {
+    query.close = () => {
       query.closeCalls += 1;
     };
 

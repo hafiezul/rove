@@ -136,13 +136,20 @@ const normalizeIncomingError = (
         cause: error,
       });
 
+interface CodexProtocolMessage {
+  readonly [key: string]: unknown;
+  readonly id: string | number;
+  readonly result?: unknown;
+  readonly error?: CodexError.CodexAppServerProtocolErrorContract;
+}
+
 const toProtocolMessage = (
   requestId: string | number,
   fields: {
     readonly result?: unknown;
-    readonly error?: CodexError.CodexAppServerProtocolErrorShape;
+    readonly error?: CodexError.CodexAppServerProtocolErrorContract;
   },
-): { readonly [key: string]: unknown } => ({
+): CodexProtocolMessage => ({
   id: requestId,
   ...(fields.result !== undefined ? { result: fields.result } : {}),
   ...(fields.error !== undefined ? { error: fields.error } : {}),

@@ -28,7 +28,7 @@ const closeServer = (server: NodeNet.Server) => {
   }
 };
 
-export interface NetServiceShape {
+export interface NetServiceContract {
   /**
    * Returns true when a TCP server can bind to {host, port}.
    */
@@ -53,7 +53,7 @@ export interface NetServiceShape {
 /**
  * NetService - Service tag for startup networking helpers.
  */
-export class NetService extends Context.Service<NetService, NetServiceShape>()(
+export class NetService extends Context.Service<NetService, NetServiceContract>()(
   "@t3tools/shared/Net/NetService",
 ) {}
 
@@ -191,7 +191,7 @@ export const make = () => {
         }
         return yield* reserveLoopbackPort();
       }),
-  } satisfies NetServiceShape;
+  } satisfies NetServiceContract;
 };
 
 export const layer = Layer.sync(NetService, make);

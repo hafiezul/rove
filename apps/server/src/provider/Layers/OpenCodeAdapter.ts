@@ -37,7 +37,7 @@ import {
   ProviderAdapterSessionNotFoundError,
   ProviderAdapterValidationError,
 } from "../Errors.ts";
-import { type OpenCodeAdapterShape } from "../Services/OpenCodeAdapter.ts";
+import { type OpenCodeAdapterContract } from "../Services/OpenCodeAdapter.ts";
 import {
   buildOpenCodePermissionRules,
   OpenCodeRuntime,
@@ -429,13 +429,7 @@ function resolveLatestAssistantText(previousText: string | undefined, nextText: 
   return nextText;
 }
 
-export function mergeOpenCodeAssistantText(
-  previousText: string | undefined,
-  nextText: string,
-): {
-  readonly latestText: string;
-  readonly deltaToEmit: string;
-} {
+export function mergeOpenCodeAssistantText(previousText: string | undefined, nextText: string) {
   const latestText = resolveLatestAssistantText(previousText, nextText);
   return {
     latestText,
@@ -443,13 +437,7 @@ export function mergeOpenCodeAssistantText(
   };
 }
 
-export function appendOpenCodeAssistantTextDelta(
-  previousText: string,
-  delta: string,
-): {
-  readonly nextText: string;
-  readonly deltaToEmit: string;
-} {
+export function appendOpenCodeAssistantTextDelta(previousText: string, delta: string) {
   return {
     nextText: previousText + delta,
     deltaToEmit: delta,
@@ -518,20 +506,21 @@ function updateProviderSession(
     readonly clearActiveTurnId?: boolean;
     readonly clearLastError?: boolean;
   },
-): Effect.Effect<ProviderSession> {
+) {
   return Effect.gen(function* () {
     const updatedAt = yield* nowIso;
-    const nextSession = {
+    let nextSession: ProviderSession = {
       ...context.session,
       ...patch,
       updatedAt,
-    } as ProviderSession & Record<string, unknown>;
-    const mutableSession = nextSession as Record<string, unknown>;
+    };
     if (options?.clearActiveTurnId) {
-      delete mutableSession.activeTurnId;
+      const { activeTurnId: _clearedActiveTurnId, ...withoutActiveTurnId } = nextSession;
+      nextSession = withoutActiveTurnId;
     }
     if (options?.clearLastError) {
-      delete mutableSession.lastError;
+      const { lastError: _clearedLastError, ...withoutLastError } = nextSession;
+      nextSession = withoutLastError;
     }
     context.session = nextSession;
     return nextSession;
@@ -1184,7 +1173,7 @@ export function makeOpenCodeAdapter(
       }
     });
 
-    const startSession: OpenCodeAdapterShape["startSession"] = Effect.fn("startSession")(
+    const startSession: OpenCodeAdapterContract["startSession"] = Effect.fn("startSession")(
       function* (input) {
         const binaryPath = openCodeSettings.binaryPath;
         const serverUrl = openCodeSettings.serverUrl;
@@ -1409,7 +1398,7 @@ export function makeOpenCodeAdapter(
       },
     );
 
-    const sendTurn: OpenCodeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
+    const sendTurn: OpenCodeAdapterContract["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
       const context = yield* ensureSessionContext(sessions, input.threadId);
       // A sendTurn while a turn is active is a steer: OpenCode queues the
       // prompt into the busy session and the work continues as one turn, so
@@ -1537,7 +1526,7 @@ export function makeOpenCodeAdapter(
       };
     });
 
-    const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
+    const interruptTurn: OpenCodeAdapterContract["interruptTurn"] = Effect.fn("interruptTurn")(
       function* (threadId, turnId) {
         const context = yield* ensureSessionContext(sessions, threadId);
         yield* runOpenCodeSdk("session.abort", () =>
@@ -1558,7 +1547,7 @@ export function makeOpenCodeAdapter(
       },
     );
 
-    const respondToRequest: OpenCodeAdapterShape["respondToRequest"] = Effect.fn(
+    const respondToRequest: OpenCodeAdapterContract["respondToRequest"] = Effect.fn(
       "respondToRequest",
     )(function* (threadId, requestId, decision) {
       const context = yield* ensureSessionContext(sessions, threadId);
@@ -1578,7 +1567,7 @@ export function makeOpenCodeAdapter(
       ).pipe(Effect.mapError(toRequestError));
     });
 
-    const respondToUserInput: OpenCodeAdapterShape["respondToUserInput"] = Effect.fn(
+    const respondToUserInput: OpenCodeAdapterContract["respondToUserInput"] = Effect.fn(
       "respondToUserInput",
     )(function* (threadId, requestId, answers) {
       const context = yield* ensureSessionContext(sessions, threadId);
@@ -1599,7 +1588,7 @@ export function makeOpenCodeAdapter(
       ).pipe(Effect.mapError(toRequestError));
     });
 
-    const stopSession: OpenCodeAdapterShape["stopSession"] = Effect.fn("stopSession")(
+    const stopSession: OpenCodeAdapterContract["stopSession"] = Effect.fn("stopSession")(
       function* (threadId) {
         const context = sessions.get(threadId);
         if (!context) {
@@ -1625,13 +1614,13 @@ export function makeOpenCodeAdapter(
       },
     );
 
-    const listSessions: OpenCodeAdapterShape["listSessions"] = () =>
+    const listSessions: OpenCodeAdapterContract["listSessions"] = () =>
       Effect.sync(() => [...sessions.values()].map((context) => context.session));
 
-    const hasSession: OpenCodeAdapterShape["hasSession"] = (threadId) =>
+    const hasSession: OpenCodeAdapterContract["hasSession"] = (threadId) =>
       Effect.sync(() => sessions.has(threadId));
 
-    const readThread: OpenCodeAdapterShape["readThread"] = Effect.fn("readThread")(
+    const readThread: OpenCodeAdapterContract["readThread"] = Effect.fn("readThread")(
       function* (threadId) {
         const context = yield* ensureSessionContext(sessions, threadId);
         const messages = yield* runOpenCodeSdk("session.messages", () =>
@@ -1657,7 +1646,7 @@ export function makeOpenCodeAdapter(
       },
     );
 
-    const rollbackThread: OpenCodeAdapterShape["rollbackThread"] = Effect.fn("rollbackThread")(
+    const rollbackThread: OpenCodeAdapterContract["rollbackThread"] = Effect.fn("rollbackThread")(
       function* (threadId, numTurns) {
         const context = yield* ensureSessionContext(sessions, threadId);
         const messages = yield* runOpenCodeSdk("session.messages", () =>
@@ -1682,7 +1671,7 @@ export function makeOpenCodeAdapter(
       },
     );
 
-    const stopAll: OpenCodeAdapterShape["stopAll"] = () =>
+    const stopAll: OpenCodeAdapterContract["stopAll"] = () =>
       Effect.gen(function* () {
         const contexts = [...sessions.values()];
         sessions.clear();
@@ -1716,6 +1705,6 @@ export function makeOpenCodeAdapter(
       get streamEvents() {
         return Stream.fromQueue(runtimeEvents);
       },
-    } satisfies OpenCodeAdapterShape;
+    } satisfies OpenCodeAdapterContract;
   });
 }

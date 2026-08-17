@@ -270,9 +270,7 @@ const deployBaseServices = Layer.mergeAll(
 );
 const deployServices = deployBaseServices;
 
-function relayPublicConfigValues(
-  output: unknown,
-): Readonly<Record<RelayDeployOutputField, string | undefined>> {
+function relayPublicConfigValues(output: unknown) {
   if (typeof output !== "object" || output === null) {
     return {
       url: undefined,

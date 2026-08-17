@@ -1976,32 +1976,34 @@ function WorkEntryIconSvg({ name, className }: { name: WorkEntryIconName; classN
   }
 }
 
-function workToneIcon(tone: TimelineWorkEntry["tone"]): {
-  iconName: WorkEntryIconName;
-  className: string;
-} {
+type WorkToneIcon = {
+  readonly iconName: WorkEntryIconName;
+  readonly className: string;
+};
+
+function workToneIcon(tone: TimelineWorkEntry["tone"]) {
   if (tone === "error") {
     return {
       iconName: "circle-alert",
       className: "text-foreground",
-    };
+    } satisfies WorkToneIcon;
   }
   if (tone === "thinking") {
     return {
       iconName: "bot",
       className: "text-foreground",
-    };
+    } satisfies WorkToneIcon;
   }
   if (tone === "info") {
     return {
       iconName: "check",
       className: "text-icon-muted",
-    };
+    } satisfies WorkToneIcon;
   }
   return {
     iconName: "zap",
     className: "text-foreground",
-  };
+  } satisfies WorkToneIcon;
 }
 
 function workEntryPreview(

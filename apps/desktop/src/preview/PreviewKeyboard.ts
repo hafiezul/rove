@@ -33,7 +33,15 @@ export interface PreviewAutomationKeySequence {
   };
 }
 
-const NAMED_KEYS: Readonly<Record<string, KeyDefinition>> = {
+interface NamedKeyDefinitions {
+  readonly [key: string]: KeyDefinition | undefined;
+}
+
+interface MacEditingCommands {
+  readonly [shortcut: string]: string | undefined;
+}
+
+const NAMED_KEYS: NamedKeyDefinitions = {
   Escape: { code: "Escape", key: "Escape", keyCode: 27 },
   Backspace: { code: "Backspace", key: "Backspace", keyCode: 8 },
   Tab: { code: "Tab", key: "Tab", keyCode: 9 },
@@ -85,7 +93,7 @@ const PRINTABLE_KEYS: ReadonlyArray<KeyDefinition> = [
  * Keep the common browser editing/navigation shortcuts explicit so dispatched
  * key events behave like their physical-key equivalents.
  */
-const MAC_EDITING_COMMANDS: Readonly<Record<string, string>> = {
+const MAC_EDITING_COMMANDS: MacEditingCommands = {
   "Meta+Backspace": "deleteToBeginningOfLine",
   "Meta+ArrowUp": "moveToBeginningOfDocument",
   "Meta+ArrowDown": "moveToEndOfDocument",

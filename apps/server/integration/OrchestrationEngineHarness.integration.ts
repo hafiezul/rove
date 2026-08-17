@@ -23,7 +23,10 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 
 import * as CheckpointStore from "../src/checkpointing/CheckpointStore.ts";
-import { TextGeneration, type TextGenerationShape } from "../src/textGeneration/TextGeneration.ts";
+import {
+  TextGeneration,
+  type TextGenerationContract,
+} from "../src/textGeneration/TextGeneration.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../src/persistence/Layers/OrchestrationCommandReceipts.ts";
 import { OrchestrationEventStoreLive } from "../src/persistence/Layers/OrchestrationEventStore.ts";
 import { ProjectionCheckpointRepositoryLive } from "../src/persistence/Layers/ProjectionCheckpoints.ts";
@@ -60,7 +63,7 @@ import { CheckpointReactor } from "../src/orchestration/Services/CheckpointReact
 import { ProviderRuntimeIngestionService } from "../src/orchestration/Services/ProviderRuntimeIngestion.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../src/orchestration/Services/OrchestrationEngine.ts";
 import { ThreadDeletionReactor } from "../src/orchestration/Services/ThreadDeletionReactor.ts";
 import { OrchestrationReactor } from "../src/orchestration/Services/OrchestrationReactor.ts";
@@ -180,7 +183,7 @@ export interface OrchestrationIntegrationHarness {
   readonly workspaceDir: string;
   readonly dbPath: string;
   readonly adapterHarness: TestProviderAdapterHarness | null;
-  readonly engine: OrchestrationEngineShape;
+  readonly engine: OrchestrationEngineContract;
   readonly snapshotQuery: ProjectionSnapshotQuery["Service"];
   readonly providerService: ProviderService["Service"];
   readonly checkpointStore: CheckpointStore.CheckpointStore["Service"];
@@ -330,7 +333,7 @@ export const makeOrchestrationIntegrationHarness = (
     const textGenerationLayer = Layer.succeed(TextGeneration, {
       generateBranchName: () => Effect.succeed({ branch: "update" }),
       generateThreadTitle: () => Effect.succeed({ title: "New thread" }),
-    } as unknown as TextGenerationShape);
+    } as unknown as TextGenerationContract);
     const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitWorkflowLayer),

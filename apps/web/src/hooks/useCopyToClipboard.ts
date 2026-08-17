@@ -58,7 +58,7 @@ export function useCopyToClipboard<TContext = void>({
   target?: string;
   onCopy?: (ctx: TContext) => void;
   onError?: (error: Error, ctx: TContext) => void;
-} = {}): { copyToClipboard: (value: string, ctx: TContext) => void; isCopied: boolean } {
+} = {}) {
   const [isCopied, setIsCopied] = React.useState(false);
   const timeoutIdRef = React.useRef<NodeJS.Timeout | null>(null);
   const onCopyRef = React.useRef(onCopy);

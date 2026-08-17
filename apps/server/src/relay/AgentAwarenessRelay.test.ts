@@ -32,11 +32,11 @@ import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../orchestration/Services/OrchestrationEngine.ts";
 import {
   ProjectionSnapshotQuery,
-  type ProjectionSnapshotQueryShape,
+  type ProjectionSnapshotQueryContract,
 } from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import {
   RELAY_ENVIRONMENT_CREDENTIAL_SECRET,
@@ -475,7 +475,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
           dispatch: () => Effect.succeed({ sequence: 1 }),
           streamDomainEvents: Stream.fromQueue(events),
           latestSequence: Effect.succeed(0),
-        } satisfies OrchestrationEngineShape;
+        } satisfies OrchestrationEngineContract;
 
         const snapshotQuery = {
           getShellSnapshot: () =>
@@ -491,7 +491,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               Effect.as(Option.some(thread)),
             ),
           getProjectShellById: () => Effect.succeed(Option.some(project)),
-        } as unknown as ProjectionSnapshotQueryShape;
+        } as unknown as ProjectionSnapshotQueryContract;
 
         const descriptor = {
           environmentId,
@@ -667,7 +667,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
             dispatch: () => Effect.succeed({ sequence: 1 }),
             streamDomainEvents: Stream.fromQueue(events),
             latestSequence: Effect.succeed(0),
-          } satisfies OrchestrationEngineShape),
+          } satisfies OrchestrationEngineContract),
           Layer.succeed(ProjectionSnapshotQuery, {
             getShellSnapshot: () =>
               Effect.succeed({
@@ -678,7 +678,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
               } satisfies OrchestrationShellSnapshot),
             getThreadShellById: () => Effect.succeed(Option.some(thread)),
             getProjectShellById: () => Effect.succeed(Option.some(project)),
-          } as unknown as ProjectionSnapshotQueryShape),
+          } as unknown as ProjectionSnapshotQueryContract),
         );
 
         yield* Effect.gen(function* () {

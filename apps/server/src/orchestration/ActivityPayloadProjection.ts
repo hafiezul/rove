@@ -184,7 +184,7 @@ function summarizeMcpResult(result: unknown): Record<string, unknown> | undefine
  * keep the expanded-row UI working. Keep the fields the UI actually renders
  * and summarize the result like regular tool output.
  */
-function projectMcpToolCallData(data: Record<string, unknown>): Record<string, unknown> {
+function projectMcpToolCallData(data: Record<string, unknown>) {
   const projectedData: Record<string, unknown> = {};
 
   const item = asRecord(data.item);

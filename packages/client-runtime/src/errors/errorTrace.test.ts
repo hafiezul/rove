@@ -3,6 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { findErrorTraceId } from "./errorTrace.ts";
 
+interface CyclicCause {
+  cause?: unknown;
+}
+
 describe("findErrorTraceId", () => {
   it("finds trace metadata through wrapped typed errors", () => {
     expect(
@@ -18,7 +22,7 @@ describe("findErrorTraceId", () => {
   });
 
   it("terminates for cyclic causes", () => {
-    const error: { cause?: unknown } = {};
+    const error: CyclicCause = {};
     error.cause = error;
 
     expect(findErrorTraceId(error)).toBeNull();

@@ -40,10 +40,13 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import { makeProviderRegistryLayer } from "../../provider/testUtils/providerRegistryMock.ts";
-import { TextGeneration, type TextGenerationShape } from "../../textGeneration/TextGeneration.ts";
+import {
+  TextGeneration,
+  type TextGenerationContract,
+} from "../../textGeneration/TextGeneration.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
@@ -236,8 +239,10 @@ describe("ProviderCommandReactor", () => {
       }),
     );
     const interruptTurn = vi.fn((_: unknown) => Effect.void);
-    const respondToRequest = vi.fn<ProviderServiceShape["respondToRequest"]>(() => Effect.void);
-    const respondToUserInput = vi.fn<ProviderServiceShape["respondToUserInput"]>(() => Effect.void);
+    const respondToRequest = vi.fn<ProviderServiceContract["respondToRequest"]>(() => Effect.void);
+    const respondToUserInput = vi.fn<ProviderServiceContract["respondToUserInput"]>(
+      () => Effect.void,
+    );
     const stopSession = vi.fn((input: unknown) =>
       Effect.sync(() => {
         const threadId =
@@ -282,7 +287,7 @@ describe("ProviderCommandReactor", () => {
         pr: null,
       }),
     );
-    const generateBranchName = vi.fn<TextGenerationShape["generateBranchName"]>((_) =>
+    const generateBranchName = vi.fn<TextGenerationContract["generateBranchName"]>((_) =>
       Effect.fail(
         new TextGenerationError({
           operation: "generateBranchName",
@@ -290,7 +295,7 @@ describe("ProviderCommandReactor", () => {
         }),
       ),
     );
-    const generateThreadTitle = vi.fn<TextGenerationShape["generateThreadTitle"]>((_) =>
+    const generateThreadTitle = vi.fn<TextGenerationContract["generateThreadTitle"]>((_) =>
       Effect.fail(
         new TextGenerationError({
           operation: "generateThreadTitle",
@@ -308,13 +313,13 @@ describe("ProviderCommandReactor", () => {
     ];
 
     const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
-    const service: ProviderServiceShape = {
-      startSession: startSession as ProviderServiceShape["startSession"],
-      sendTurn: sendTurn as ProviderServiceShape["sendTurn"],
-      interruptTurn: interruptTurn as ProviderServiceShape["interruptTurn"],
-      respondToRequest: respondToRequest as ProviderServiceShape["respondToRequest"],
-      respondToUserInput: respondToUserInput as ProviderServiceShape["respondToUserInput"],
-      stopSession: stopSession as ProviderServiceShape["stopSession"],
+    const service: ProviderServiceContract = {
+      startSession: startSession as ProviderServiceContract["startSession"],
+      sendTurn: sendTurn as ProviderServiceContract["sendTurn"],
+      interruptTurn: interruptTurn as ProviderServiceContract["interruptTurn"],
+      respondToRequest: respondToRequest as ProviderServiceContract["respondToRequest"],
+      respondToUserInput: respondToUserInput as ProviderServiceContract["respondToUserInput"],
+      stopSession: stopSession as ProviderServiceContract["stopSession"],
       listSessions: () => Effect.succeed(runtimeSessions),
       getCapabilities: (_provider) =>
         Effect.succeed({

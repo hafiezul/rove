@@ -17,7 +17,7 @@ import * as Semaphore from "effect/Semaphore";
 
 import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
-import type { ServerProviderShape } from "./Services/ServerProvider.ts";
+import type { ServerProviderContract } from "./Services/ServerProvider.ts";
 
 interface ProviderSnapshotState {
   readonly snapshot: ServerProvider;
@@ -27,7 +27,7 @@ interface ProviderSnapshotState {
 export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(function* <
   Settings,
 >(input: {
-  readonly maintenanceCapabilities: ServerProviderShape["maintenanceCapabilities"];
+  readonly maintenanceCapabilities: ServerProviderContract["maintenanceCapabilities"];
   readonly getSettings: Effect.Effect<Settings, ServerSettingsError>;
   readonly streamSettings: Stream.Stream<Settings>;
   readonly haveSettingsChanged: (previous: Settings, next: Settings) => boolean;
@@ -41,7 +41,7 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
   }) => Effect.Effect<void>;
   readonly refreshInterval?: Duration.Input;
 }): Effect.fn.Return<
-  ServerProviderShape,
+  ServerProviderContract,
   ServerSettingsError,
   Scope.Scope | BackgroundPolicy.BackgroundPolicy | ServerSettingsService
 > {
@@ -225,5 +225,5 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
     get streamChanges() {
       return Stream.fromPubSub(changesPubSub);
     },
-  } satisfies ServerProviderShape;
+  } satisfies ServerProviderContract;
 });

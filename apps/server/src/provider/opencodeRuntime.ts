@@ -108,7 +108,7 @@ export interface ParsedOpenCodeModelSlug {
   readonly modelID: string;
 }
 
-export interface OpenCodeRuntimeShape {
+export interface OpenCodeRuntimeContract {
   /**
    * Spawns a local OpenCode server process. Its lifetime is bound to the caller's
    * `Scope.Scope` — the child is killed automatically when that scope closes.
@@ -174,13 +174,7 @@ const AGENT_HEADER_RE = /^(.+)\s+\((\S+)\)\s*$/;
 const KNOWN_HIDDEN_AGENTS = new Set(["compaction", "summary", "title"]);
 
 /** @internal */
-export function parseModelsCliOutput(stdout: string): {
-  readonly providers: ReadonlyMap<
-    string,
-    { readonly id: string; readonly name: string; readonly models: { [key: string]: Model } }
-  >;
-  readonly connected: ReadonlyArray<string>;
-} {
+export function parseModelsCliOutput(stdout: string) {
   const providers = new Map<
     string,
     { id: string; name: string; models: { [key: string]: Model } }
@@ -400,7 +394,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
   const resolveCommand = (command: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) =>
     resolveSpawnCommand(command, args, env ? { env } : {});
 
-  const runOpenCodeCommand: OpenCodeRuntimeShape["runOpenCodeCommand"] = (input) =>
+  const runOpenCodeCommand: OpenCodeRuntimeContract["runOpenCodeCommand"] = (input) =>
     Effect.gen(function* () {
       const spawnCommand = yield* resolveCommand(input.binaryPath, input.args, input.environment);
       const child = yield* spawner.spawn(
@@ -436,7 +430,9 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       ),
     );
 
-  const startOpenCodeServerProcess: OpenCodeRuntimeShape["startOpenCodeServerProcess"] = (input) =>
+  const startOpenCodeServerProcess: OpenCodeRuntimeContract["startOpenCodeServerProcess"] = (
+    input,
+  ) =>
     Effect.gen(function* () {
       // Bind this server's lifetime to the caller's scope. When the caller's
       // scope closes, the spawned child is killed and all associated fibers
@@ -594,7 +590,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       } satisfies OpenCodeServerProcess;
     });
 
-  const connectToOpenCodeServer: OpenCodeRuntimeShape["connectToOpenCodeServer"] = (input) => {
+  const connectToOpenCodeServer: OpenCodeRuntimeContract["connectToOpenCodeServer"] = (input) => {
     const serverUrl = input.serverUrl?.trim();
     if (serverUrl) {
       // We don't own externally-configured servers — no scope interaction.
@@ -620,7 +616,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
     );
   };
 
-  const createOpenCodeSdkClient: OpenCodeRuntimeShape["createOpenCodeSdkClient"] = (input) =>
+  const createOpenCodeSdkClient: OpenCodeRuntimeContract["createOpenCodeSdkClient"] = (input) =>
     createOpencodeClient({
       baseUrl: input.baseUrl,
       directory: input.directory,
@@ -655,12 +651,12 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       Effect.map((result) => result.data ?? []),
     );
 
-  const loadOpenCodeInventory: OpenCodeRuntimeShape["loadOpenCodeInventory"] = (client) =>
+  const loadOpenCodeInventory: OpenCodeRuntimeContract["loadOpenCodeInventory"] = (client) =>
     Effect.all([loadProviders(client), loadAgents(client)], { concurrency: "unbounded" }).pipe(
       Effect.map(([providerList, agents]) => ({ providerList, agents })),
     );
 
-  const loadInventoryFromCli: OpenCodeRuntimeShape["loadInventoryFromCli"] = (input) =>
+  const loadInventoryFromCli: OpenCodeRuntimeContract["loadInventoryFromCli"] = (input) =>
     Effect.gen(function* () {
       const env = input.environment !== undefined ? { environment: input.environment } : ({} as {});
 
@@ -744,10 +740,10 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
     createOpenCodeSdkClient,
     loadOpenCodeInventory,
     loadInventoryFromCli,
-  } satisfies OpenCodeRuntimeShape;
+  } satisfies OpenCodeRuntimeContract;
 });
 
-export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, OpenCodeRuntimeShape>()(
+export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, OpenCodeRuntimeContract>()(
   "t3/provider/opencodeRuntime",
 ) {}
 

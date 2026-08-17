@@ -202,7 +202,7 @@ export function resolveTerminalSelectionActionPosition(options: {
   selectionRect: { right: number; bottom: number } | null;
   pointer: { x: number; y: number } | null;
   viewport?: { width: number; height: number } | null;
-}): { x: number; y: number } {
+}) {
   const { bounds, selectionRect, pointer, viewport } = options;
   const viewportWidth =
     viewport?.width ??
@@ -243,10 +243,7 @@ export function shouldHandleTerminalSelectionMouseUp(
   return selectionGestureActive && button === 0;
 }
 
-export function terminalSelectionLineRange(position: {
-  start: { y: number };
-  end: { y: number };
-}): { lineStart: number; lineEnd: number } {
+export function terminalSelectionLineRange(position: { start: { y: number }; end: { y: number } }) {
   const lineStart = position.start.y + 1;
   return {
     lineStart,

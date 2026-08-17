@@ -401,10 +401,7 @@ function isDuplicateAttachSnapshotEvent(
         event.snapshot.updatedAt <= initialSnapshot.updatedAt;
 }
 
-function advanceEventSequence(session: TerminalSessionState): {
-  readonly updatedAt: string;
-  readonly sequence: number;
-} {
+function advanceEventSequence(session: TerminalSessionState) {
   const updatedAt = DateTime.formatIso(DateTime.nowUnsafe());
   session.eventSequence += 1;
   session.updatedAt = updatedAt;
@@ -950,10 +947,7 @@ function findEscapeSequenceEndIndex(input: string, start: number): number | null
   return isEscapeFinalByte(input.charCodeAt(cursor)) ? cursor + 1 : start + 1;
 }
 
-function sanitizeTerminalHistoryChunk(
-  pendingControlSequence: string,
-  data: string,
-): { visibleText: string; pendingControlSequence: string } {
+function sanitizeTerminalHistoryChunk(pendingControlSequence: string, data: string) {
   const input = `${pendingControlSequence}${data}`;
   let visibleText = "";
   let index = 0;

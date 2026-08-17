@@ -201,14 +201,16 @@ const multiTerminalHistoryLogPath = (
     }),
   );
 
+interface TerminalSubprocessInspection {
+  readonly hasRunningSubprocess: boolean;
+  readonly childCommand: string | null;
+  readonly processIds: ReadonlyArray<number>;
+}
+
 interface CreateManagerOptions {
   shellResolver?: () => string;
   env?: NodeJS.ProcessEnv;
-  subprocessInspector?: (terminalPid: number) => Effect.Effect<{
-    readonly hasRunningSubprocess: boolean;
-    readonly childCommand: string | null;
-    readonly processIds: ReadonlyArray<number>;
-  }>;
+  subprocessInspector?: (terminalPid: number) => Effect.Effect<TerminalSubprocessInspection>;
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
   maxRetainedInactiveSessions?: number;
@@ -886,11 +888,11 @@ it.layer(
 
   it.effect("emits subprocess activity events when child-process state changes", () =>
     Effect.gen(function* () {
-      let inspect: {
-        readonly hasRunningSubprocess: boolean;
-        readonly childCommand: string | null;
-        readonly processIds: ReadonlyArray<number>;
-      } = { hasRunningSubprocess: false, childCommand: null, processIds: [] };
+      let inspect: TerminalSubprocessInspection = {
+        hasRunningSubprocess: false,
+        childCommand: null,
+        processIds: [],
+      };
       const { manager, getEvents } = yield* createManager(5, {
         subprocessInspector: () => Effect.succeed(inspect),
         subprocessPollIntervalMs: 20,

@@ -1,6 +1,10 @@
 import Mime from "@effect/platform-node/Mime";
 
-export const IMAGE_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+export interface ImageExtensionsByMimeType {
+  readonly [mimeType: string]: string;
+}
+
+export const IMAGE_EXTENSION_BY_MIME_TYPE: ImageExtensionsByMimeType = {
   "image/avif": ".avif",
   "image/bmp": ".bmp",
   "image/gif": ".gif",

@@ -26,7 +26,7 @@ import type * as Stream from "effect/Stream";
 
 import type { ProviderInstance } from "../ProviderDriver.ts";
 
-export interface ProviderInstanceRegistryShape {
+export interface ProviderInstanceRegistryContract {
   /**
    * Look up one instance by id. Returns `undefined` (not Option) when the
    * id is unknown — callers branch on falsy and emit
@@ -83,5 +83,5 @@ export interface ProviderInstanceRegistryShape {
 
 export class ProviderInstanceRegistry extends Context.Service<
   ProviderInstanceRegistry,
-  ProviderInstanceRegistryShape
+  ProviderInstanceRegistryContract
 >()("t3/provider/Services/ProviderInstanceRegistry") {}

@@ -227,10 +227,7 @@ import { searchProviderSkills } from "../../providerSkillSearch";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import type { ReviewCommentContext } from "../../reviewCommentContext";
 
-const runtimeModeConfig: Record<
-  RuntimeMode,
-  { label: string; description: string; icon: LucideIcon }
-> = {
+const runtimeModeConfig = {
   "approval-required": {
     label: "Supervised",
     description: "Ask before commands and file changes.",
@@ -251,7 +248,7 @@ const runtimeModeConfig: Record<
     description: "Allow commands and edits without prompts.",
     icon: LockOpenIcon,
   },
-};
+} satisfies Record<RuntimeMode, { label: string; description: string; icon: LucideIcon }>;
 
 const runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];
 const COMPOSER_FLOATING_LAYER_SELECTOR = [
@@ -1620,12 +1617,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
-  const readComposerSnapshot = useCallback((): {
-    value: string;
-    cursor: number;
-    expandedCursor: number;
-    terminalContextIds: string[];
-  } => {
+  const readComposerSnapshot = useCallback(() => {
     const editorSnapshot = composerEditorRef.current?.readSnapshot();
     if (editorSnapshot) {
       return editorSnapshot;
@@ -1638,10 +1630,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     };
   }, [composerCursor, composerTerminalContexts, promptRef]);
 
-  const resolveActiveComposerTrigger = useCallback((): {
-    snapshot: { value: string; cursor: number; expandedCursor: number };
-    trigger: ComposerTrigger | null;
-  } => {
+  const resolveActiveComposerTrigger = useCallback(() => {
     const snapshot = readComposerSnapshot();
     return {
       snapshot,

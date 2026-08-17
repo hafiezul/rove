@@ -25,11 +25,11 @@ import { createModelSelection } from "@t3tools/shared/model";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderSessionDirectory } from "../Services/ProviderSessionDirectory.ts";
-import type { OpenCodeAdapterShape } from "../Services/OpenCodeAdapter.ts";
+import type { OpenCodeAdapterContract } from "../Services/OpenCodeAdapter.ts";
 import {
   OpenCodeRuntime,
   OpenCodeRuntimeError,
-  type OpenCodeRuntimeShape,
+  type OpenCodeRuntimeContract,
 } from "../opencodeRuntime.ts";
 import {
   appendOpenCodeAssistantTextDelta,
@@ -40,7 +40,7 @@ import {
 } from "./OpenCodeAdapter.ts";
 
 // Test-local service tag so the rest of the file can keep using `yield* OpenCodeAdapter`.
-class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterShape>()(
+class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterContract>()(
   "t3/provider/Layers/OpenCodeAdapter.test/OpenCodeAdapter",
 ) {}
 
@@ -97,7 +97,7 @@ const runtimeMock = {
   },
 };
 
-const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
+const OpenCodeRuntimeTestDouble: OpenCodeRuntimeContract = {
   startOpenCodeServerProcess: ({ binaryPath }) =>
     Effect.gen(function* () {
       runtimeMock.state.startCalls.push(binaryPath);
@@ -212,7 +212,7 @@ const OpenCodeRuntimeTestDouble: OpenCodeRuntimeShape = {
           })(),
         }),
       },
-    }) as unknown as ReturnType<OpenCodeRuntimeShape["createOpenCodeSdkClient"]>,
+    }) as unknown as ReturnType<OpenCodeRuntimeContract["createOpenCodeSdkClient"]>,
   loadOpenCodeInventory: () =>
     Effect.fail(
       new OpenCodeRuntimeError({

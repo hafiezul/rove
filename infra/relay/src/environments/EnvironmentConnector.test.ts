@@ -80,7 +80,21 @@ const settings = RelayConfiguration.RelayConfiguration.of({
   managedEndpointNamespace: undefined,
 });
 
-function signTestJwt(payload: object, typ: string, privateKey: string): string {
+type JsonWebTokenValue =
+  | null
+  | boolean
+  | number
+  | string
+  | ReadonlyArray<JsonWebTokenValue>
+  | { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+type JsonWebTokenPayload = { readonly [claim: string]: JsonWebTokenValue | undefined };
+
+function signTestJwt<TPayload extends JsonWebTokenPayload>(
+  payload: TPayload,
+  typ: string,
+  privateKey: string,
+): string {
   const header = Buffer.from(JSON.stringify({ alg: "EdDSA", typ })).toString("base64url");
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const input = `${header}.${encodedPayload}`;

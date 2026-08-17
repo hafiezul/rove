@@ -228,7 +228,7 @@ const updateThread = (
   byThreadKey: Record<string, ThreadRightPanelState>,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
-): Record<string, ThreadRightPanelState> => {
+) => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
   const next = updater(current);
   if (!next.isOpen && next.activeSurfaceId === null && next.surfaces.length === 0) {
@@ -245,9 +245,7 @@ function normalizeRevealLine(line: number | undefined): number | null {
   return Math.max(1, Math.trunc(line));
 }
 
-export function migratePersistedRightPanelState(persistedState: unknown): {
-  byThreadKey: Record<string, ThreadRightPanelState>;
-} {
+export function migratePersistedRightPanelState(persistedState: unknown) {
   if (!persistedState || typeof persistedState !== "object") {
     return { byThreadKey: {} };
   }

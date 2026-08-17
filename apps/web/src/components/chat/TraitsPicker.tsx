@@ -392,7 +392,7 @@ export function buildTraitsTriggerDisplay(input: {
   descriptors: ReadonlyArray<ProviderOptionDescriptor>;
   primarySelectDescriptorId: string | null;
   ultrathinkPromptControlled: boolean;
-}): { label: string; showFastModeIcon: boolean } {
+}) {
   let hasFastMode = false;
   let fastModeEnabled = false;
   const labels: Array<string> = [];

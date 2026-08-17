@@ -149,7 +149,7 @@ export interface BranchNamePromptInput {
 
 interface PromptFromMessageInput {
   instruction: string;
-  responseShape: string;
+  responseContract: string;
   rules: ReadonlyArray<string>;
   message: string;
   attachments?: ReadonlyArray<ChatAttachment> | undefined;
@@ -163,7 +163,7 @@ function buildPromptFromMessage(input: PromptFromMessageInput): string {
 
   const promptSections = [
     input.instruction,
-    input.responseShape,
+    input.responseContract,
     "Rules:",
     ...input.rules.map((rule) => `- ${rule}`),
     "",
@@ -185,7 +185,7 @@ function buildPromptFromMessage(input: PromptFromMessageInput): string {
 export function buildBranchNamePrompt(input: BranchNamePromptInput) {
   const prompt = buildPromptFromMessage({
     instruction: "You generate concise git branch names.",
-    responseShape: "Return a JSON object with key: branch.",
+    responseContract: "Return a JSON object with key: branch.",
     rules: [
       "Branch should describe the requested work from the user message.",
       "Keep it short and specific (2-6 words).",

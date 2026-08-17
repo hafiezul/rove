@@ -3,7 +3,7 @@ import * as Layer from "effect/Layer";
 
 import {
   OrchestrationReactor,
-  type OrchestrationReactorShape,
+  type OrchestrationReactorContract,
 } from "../Services/OrchestrationReactor.ts";
 import { CheckpointReactor } from "../Services/CheckpointReactor.ts";
 import { ProviderCommandReactor } from "../Services/ProviderCommandReactor.ts";
@@ -18,7 +18,7 @@ export const makeOrchestrationReactor = Effect.gen(function* () {
   const threadDeletionReactor = yield* ThreadDeletionReactor;
   const agentAwarenessRelay = yield* AgentAwarenessRelay.AgentAwarenessRelay;
 
-  const start: OrchestrationReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: OrchestrationReactorContract["start"] = Effect.fn("start")(function* () {
     yield* providerRuntimeIngestion.start();
     yield* providerCommandReactor.start();
     yield* checkpointReactor.start();
@@ -28,7 +28,7 @@ export const makeOrchestrationReactor = Effect.gen(function* () {
 
   return {
     start,
-  } satisfies OrchestrationReactorShape;
+  } satisfies OrchestrationReactorContract;
 });
 
 export const OrchestrationReactorLive = Layer.effect(

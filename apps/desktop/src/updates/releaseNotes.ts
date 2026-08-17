@@ -18,7 +18,11 @@ const MAX_RELEASE_NOTE_GROUPS = 6;
 const MAX_RELEASE_NOTE_ITEMS_PER_GROUP = 8;
 const MAX_RELEASE_NOTE_ITEM_LENGTH = 220;
 
-const HTML_ENTITY_REPLACEMENTS: Readonly<Record<string, string>> = {
+interface HtmlEntityReplacements {
+  readonly [entity: string]: string | undefined;
+}
+
+const HTML_ENTITY_REPLACEMENTS: HtmlEntityReplacements = {
   amp: "&",
   apos: "'",
   gt: ">",

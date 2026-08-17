@@ -134,7 +134,7 @@ export interface ThreadStatusPill {
 // Rollup order mirrors the per-thread resolver exactly: attention states,
 // then active work, then the actionable plan prompt, then passive
 // monitoring. A Monitoring sibling must never hide a Plan Ready thread.
-const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
+const THREAD_STATUS_PRIORITY = {
   "Pending Approval": 6,
   "Awaiting Input": 5,
   Working: 4,
@@ -142,7 +142,7 @@ const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
   "Plan Ready": 3,
   Monitoring: 2,
   Completed: 1,
-};
+} satisfies Record<ThreadStatusPill["label"], number>;
 
 type ThreadStatusInput = Pick<
   SidebarThreadSummary,
@@ -215,10 +215,7 @@ export function createThreadJumpHintVisibilityController(input: {
   };
 }
 
-export function useThreadJumpHintVisibility(): {
-  showThreadJumpHints: boolean;
-  updateThreadJumpHintsVisibility: (shouldShow: boolean) => void;
-} {
+export function useThreadJumpHintVisibility() {
   const [showThreadJumpHints, setShowThreadJumpHints] = React.useState(false);
   const controllerRef = React.useRef<ThreadJumpHintVisibilityController | null>(null);
 
@@ -274,22 +271,18 @@ export function isTrailingDoubleClick(detail: number): boolean {
   return detail > 1;
 }
 
-function nodeClosest(node: object | null, selector: string): unknown {
-  if (node === null || !("closest" in node) || typeof node.closest !== "function") return null;
-  return node.closest(selector);
+function nodeClosest(node: Element | null, selector: string): Element | null {
+  return node?.closest(selector) ?? null;
+}
+
+function closestElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  return target instanceof Node ? target.parentElement : null;
 }
 
 /** Clicks on a nested link keep the link's meaning. The row must not treat them as multi-select. */
 export function isSidebarNestedLinkClick(target: EventTarget | null): boolean {
-  if (target == null || typeof target !== "object") return false;
-  if (nodeClosest(target, "a[href]") !== null) return true;
-  const parent =
-    "parentElement" in target &&
-    target.parentElement !== null &&
-    typeof target.parentElement === "object"
-      ? target.parentElement
-      : null;
-  return nodeClosest(parent, "a[href]") !== null;
+  return nodeClosest(closestElement(target), "a[href]") !== null;
 }
 
 // Shift+click on the new thread button creates directly in the current
@@ -749,11 +742,7 @@ export function getVisibleThreadsForProject<T extends Pick<Thread, "id">>(input:
   activeThreadId: T["id"] | undefined;
   isThreadListExpanded: boolean;
   previewLimit: number;
-}): {
-  hasHiddenThreads: boolean;
-  visibleThreads: T[];
-  hiddenThreads: T[];
-} {
+}) {
   const { activeThreadId, isThreadListExpanded, previewLimit, threads } = input;
   const hasHiddenThreads = threads.length > previewLimit;
 

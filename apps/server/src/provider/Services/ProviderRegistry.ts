@@ -19,7 +19,7 @@ import type { ProviderMaintenanceCapabilities } from "../providerMaintenance.ts"
 
 export type ProviderMaintenanceActionKind = "update";
 
-export interface ProviderRegistryShape {
+export interface ProviderRegistryContract {
   /**
    * Read the latest provider snapshots for every configured instance.
    * Multiple snapshots may share the same `provider` kind (multiple
@@ -76,6 +76,6 @@ export interface ProviderRegistryShape {
   readonly streamChanges: Stream.Stream<ReadonlyArray<ServerProvider>>;
 }
 
-export class ProviderRegistry extends Context.Service<ProviderRegistry, ProviderRegistryShape>()(
+export class ProviderRegistry extends Context.Service<ProviderRegistry, ProviderRegistryContract>()(
   "t3/provider/Services/ProviderRegistry",
 ) {}

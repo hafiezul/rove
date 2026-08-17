@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
+import type { Json } from "effect/Schema";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 export const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
@@ -13,26 +14,48 @@ export const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
  * message/cause) shape for Effect tagged errors while recursing through nested
  * `cause`/`reason` chains.
  */
-export function describeReadinessCause(cause: unknown): unknown {
+interface ReadinessCauseRecord {
+  readonly [field: string]: unknown;
+}
+
+interface TaggedReadinessError extends Error {
+  readonly _tag?: unknown;
+  readonly cause?: unknown;
+}
+
+function isReadinessCauseRecord(value: unknown): value is ReadinessCauseRecord {
+  return typeof value === "object" && value !== null;
+}
+
+export function describeReadinessCause(cause: unknown): Json {
   if (cause instanceof Error) {
-    const tag = (cause as { readonly _tag?: unknown })._tag;
-    const nested = (cause as { readonly cause?: unknown }).cause;
+    const taggedCause: TaggedReadinessError = cause;
+    const tag = taggedCause._tag;
+    const nested = taggedCause.cause;
     return {
       ...(typeof tag === "string" ? { _tag: tag } : { name: cause.name }),
       message: cause.message,
       ...(nested === undefined ? {} : { cause: describeReadinessCause(nested) }),
     };
   }
-  if (typeof cause !== "object" || cause === null) {
+  if (cause === null) {
+    return null;
+  }
+  if (typeof cause === "string" || typeof cause === "number" || typeof cause === "boolean") {
     return cause;
   }
+  if (typeof cause === "bigint") {
+    return cause.toString();
+  }
+  if (!isReadinessCauseRecord(cause)) {
+    return String(cause);
+  }
 
-  const record = cause as Readonly<Record<string, unknown>>;
   return {
-    ...(typeof record._tag === "string" ? { _tag: record._tag } : {}),
-    ...(typeof record.message === "string" ? { message: record.message } : {}),
-    ...(record.reason === undefined ? {} : { reason: describeReadinessCause(record.reason) }),
-    ...(record.cause === undefined ? {} : { cause: describeReadinessCause(record.cause) }),
+    ...(typeof cause._tag === "string" ? { _tag: cause._tag } : {}),
+    ...(typeof cause.message === "string" ? { message: cause.message } : {}),
+    ...(cause.reason === undefined ? {} : { reason: describeReadinessCause(cause.reason) }),
+    ...(cause.cause === undefined ? {} : { cause: describeReadinessCause(cause.cause) }),
   };
 }
 

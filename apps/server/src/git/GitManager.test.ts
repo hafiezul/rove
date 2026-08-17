@@ -346,10 +346,12 @@ function createTextGeneration(
   };
 }
 
-function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
-  service: GitHubCli.GitHubCli["Service"];
-  ghCalls: string[];
-} {
+interface FakeGitHubCliFixture {
+  readonly service: GitHubCli.GitHubCli["Service"];
+  readonly ghCalls: Array<string>;
+}
+
+function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): FakeGitHubCliFixture {
   const prListQueue = [...(scenario.prListSequence ?? [])];
   const prListQueueByHeadSelector = new Map(
     Object.entries(scenario.prListSequenceByHeadSelector ?? {}).map(([headSelector, values]) => [

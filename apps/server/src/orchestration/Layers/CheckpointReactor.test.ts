@@ -47,13 +47,13 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../Services/OrchestrationEngine.ts";
 import { CheckpointReactor } from "../Services/CheckpointReactor.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import { checkpointRefForThreadTurn } from "../../checkpointing/Utils.ts";
 import { ServerConfig } from "../../config.ts";
@@ -104,7 +104,7 @@ function createProviderServiceHarness(
           },
         ] satisfies ReadonlyArray<ProviderSession>)
       : Effect.succeed([] as ReadonlyArray<ProviderSession>);
-  const service: ProviderServiceShape = {
+  const service: ProviderServiceContract = {
     startSession: () => unsupported(),
     sendTurn: () => unsupported(),
     interruptTurn: () => unsupported(),
@@ -178,7 +178,7 @@ async function waitForThread(
 }
 
 async function waitForEvent(
-  engine: OrchestrationEngineShape,
+  engine: OrchestrationEngineContract,
   predicate: (event: { type: string }) => boolean,
   timeoutMs = 15_000,
 ) {

@@ -48,7 +48,7 @@ import {
   withMetrics,
 } from "../../observability/Metrics.ts";
 import { type ProviderAdapterError, ProviderValidationError } from "../Errors.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
 import * as ProviderService from "../Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "../Services/ProviderSessionDirectory.ts";
@@ -128,7 +128,7 @@ function toRuntimePayloadFromSession(
     readonly lastRuntimeEvent?: string;
     readonly lastRuntimeEventAt?: string;
   },
-): Record<string, unknown> {
+) {
   return {
     cwd: session.cwd ?? null,
     model: session.model ?? null,
@@ -309,7 +309,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   // instances become visible to those call sites as soon as settings edits
   // land.
   const subscribedAdapters = yield* Ref.make(
-    new Map<ProviderInstanceId, ProviderAdapterShape<ProviderAdapterError>>(),
+    new Map<ProviderInstanceId, ProviderAdapterContract<ProviderAdapterError>>(),
   );
 
   const getAdapterEntries = Ref.get(subscribedAdapters).pipe(
@@ -325,7 +325,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   const reconcileInstanceSubscriptions = Effect.gen(function* () {
     const previous = yield* Ref.get(subscribedAdapters);
     const currentIds = yield* registry.listInstances();
-    const next = new Map<ProviderInstanceId, ProviderAdapterShape<ProviderAdapterError>>();
+    const next = new Map<ProviderInstanceId, ProviderAdapterContract<ProviderAdapterError>>();
     for (const id of currentIds) {
       const adapterOption = yield* registry
         .getByInstance(id)
@@ -931,6 +931,12 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     },
   );
 
+  interface ProviderSessionBindingOverrides {
+    resumeCursor?: ProviderSession["resumeCursor"];
+    runtimeMode?: ProviderSession["runtimeMode"];
+    providerInstanceId?: ProviderSession["providerInstanceId"];
+  }
+
   const listSessions: ProviderServiceMethod<"listSessions"> = Effect.fn("listSessions")(
     function* () {
       const currentAdapters = yield* getAdapterEntries;
@@ -983,11 +989,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           continue;
         }
 
-        const overrides: {
-          resumeCursor?: ProviderSession["resumeCursor"];
-          runtimeMode?: ProviderSession["runtimeMode"];
-          providerInstanceId?: ProviderSession["providerInstanceId"];
-        } = {};
+        const overrides: ProviderSessionBindingOverrides = {};
         overrides.providerInstanceId = dieOnMissingBindingInstanceId(
           "ProviderService.listSessions",
           binding,

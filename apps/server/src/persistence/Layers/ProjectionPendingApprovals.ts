@@ -10,7 +10,7 @@ import {
   ListProjectionPendingApprovalsInput,
   ProjectionPendingApproval,
   ProjectionPendingApprovalRepository,
-  type ProjectionPendingApprovalRepositoryShape,
+  type ProjectionPendingApprovalRepositoryContract,
 } from "../Services/ProjectionPendingApprovals.ts";
 
 const makeProjectionPendingApprovalRepository = Effect.gen(function* () {
@@ -95,26 +95,26 @@ const makeProjectionPendingApprovalRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionPendingApprovalRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionPendingApprovalRepositoryContract["upsert"] = (row) =>
     upsertProjectionPendingApprovalRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionPendingApprovalRepository.upsert:query")),
     );
 
-  const listByThreadId: ProjectionPendingApprovalRepositoryShape["listByThreadId"] = (input) =>
+  const listByThreadId: ProjectionPendingApprovalRepositoryContract["listByThreadId"] = (input) =>
     listProjectionPendingApprovalRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionPendingApprovalRepository.listByThreadId:query"),
       ),
     );
 
-  const getByRequestId: ProjectionPendingApprovalRepositoryShape["getByRequestId"] = (input) =>
+  const getByRequestId: ProjectionPendingApprovalRepositoryContract["getByRequestId"] = (input) =>
     getProjectionPendingApprovalRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionPendingApprovalRepository.getByRequestId:query"),
       ),
     );
 
-  const deleteByRequestId: ProjectionPendingApprovalRepositoryShape["deleteByRequestId"] = (
+  const deleteByRequestId: ProjectionPendingApprovalRepositoryContract["deleteByRequestId"] = (
     input,
   ) =>
     deleteProjectionPendingApprovalRow(input).pipe(
@@ -128,7 +128,7 @@ const makeProjectionPendingApprovalRepository = Effect.gen(function* () {
     listByThreadId,
     getByRequestId,
     deleteByRequestId,
-  } satisfies ProjectionPendingApprovalRepositoryShape;
+  } satisfies ProjectionPendingApprovalRepositoryContract;
 });
 
 export const ProjectionPendingApprovalRepositoryLive = Layer.effect(

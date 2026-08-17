@@ -256,7 +256,11 @@ export function parseVsCodeThemeFile(value: unknown): ThemeDefinition {
     return relativeLuminance(surfaceRgb) < 0.179 ? "#ffffff" : "#000000";
   };
 
-  const overrides: Partial<Record<ThemeColorRole, string>> = {
+  interface ThemeColorOverrideValues {
+    [role: string]: string | undefined;
+  }
+
+  const overrides: ThemeColorOverrideValues = {
     canvas: canvasHex,
     text: readableOn(canvasHex, derived.text, "editor.foreground", "foreground"),
     textMuted: readableOn(

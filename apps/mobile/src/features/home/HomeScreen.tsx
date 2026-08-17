@@ -135,7 +135,7 @@ const PRE_LIQUID_GLASS_BOTTOM_TOOLBAR_HEIGHT = 44;
 function deriveEmptyState(props: {
   readonly catalogState: WorkspaceState;
   readonly projectCount: number;
-}): { readonly title: string; readonly detail: string; readonly loading: boolean } {
+}) {
   const { catalogState } = props;
   if (catalogState.isLoadingConnections) {
     return {

@@ -30,12 +30,12 @@ import type { ChildProcessSpawner } from "effect/unstable/process";
  * than the CLI's: tailscale prints auth keys and node names into stderr, and
  * this string is logged.
  */
-const DIAGNOSTIC_EXPLANATIONS: Record<TailscaleStderrDiagnostic, string | undefined> = {
+const DIAGNOSTIC_EXPLANATIONS = {
   "no-existing-handler": "no mapping existed for that port",
   "not-logged-in": "this machine is not logged into a tailnet — run `tailscale up`",
   "permission-denied": "permission denied — `tailscale serve` may need elevated privileges",
   unknown: undefined,
-};
+} satisfies Record<TailscaleStderrDiagnostic, string | undefined>;
 
 /**
  * Our own wording for why a tailscale command failed, derived from the

@@ -35,7 +35,7 @@ import type { ProviderInstanceRoutingInfo } from "./ProviderAdapterRegistry.ts";
 /**
  * ProviderServiceShape - Service API for provider session and turn orchestration.
  */
-export interface ProviderServiceShape {
+export interface ProviderServiceContract {
   /**
    * Start a provider session.
    */
@@ -116,6 +116,6 @@ export interface ProviderServiceShape {
 /**
  * ProviderService - Service tag for provider orchestration.
  */
-export class ProviderService extends Context.Service<ProviderService, ProviderServiceShape>()(
+export class ProviderService extends Context.Service<ProviderService, ProviderServiceContract>()(
   "t3/provider/Services/ProviderService",
 ) {}

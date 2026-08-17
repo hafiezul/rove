@@ -40,7 +40,7 @@ export interface ProviderMaintenanceCommandResult {
   readonly stderrTruncated: boolean;
 }
 
-export interface ProviderMaintenanceRunnerShape {
+export interface ProviderMaintenanceRunnerContract {
   readonly updateProvider: (
     target:
       | ProviderDriverKind
@@ -53,7 +53,7 @@ export interface ProviderMaintenanceRunnerShape {
 
 export class ProviderMaintenanceRunner extends Context.Service<
   ProviderMaintenanceRunner,
-  ProviderMaintenanceRunnerShape
+  ProviderMaintenanceRunnerContract
 >()("t3/provider/providerMaintenanceRunner") {}
 
 class ProviderMaintenanceCommandError extends Data.TaggedError("ProviderMaintenanceCommandError")<{
@@ -284,7 +284,7 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
       }),
     );
 
-  const updateProvider: ProviderMaintenanceRunnerShape["updateProvider"] = Effect.fn(
+  const updateProvider: ProviderMaintenanceRunnerContract["updateProvider"] = Effect.fn(
     "ProviderMaintenanceRunner.updateProvider",
   )(function* (target) {
     const provider = typeof target === "string" ? target : target.provider;

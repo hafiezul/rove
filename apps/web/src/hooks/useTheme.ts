@@ -559,7 +559,7 @@ export function useTheme() {
       if (typeof window === "undefined") return false;
       try {
         const current = readStoredThemeHalves() ?? {};
-        const next: { light?: string; dark?: string } = { ...current };
+        const next = { ...current } satisfies { light?: string; dark?: string };
         if (themeId === null) delete next[appearance];
         else next[appearance] = themeId;
         if (next.light === undefined && next.dark === undefined) {

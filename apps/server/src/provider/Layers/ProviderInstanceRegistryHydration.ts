@@ -73,7 +73,7 @@ import { ProviderInstanceRegistryMutableLayer } from "./ProviderInstanceRegistry
 export const deriveProviderInstanceConfigMap = (
   settings: ServerSettings,
 ): ProviderInstanceConfigMap => {
-  const merged: Record<string, ProviderInstanceConfig> = { ...settings.providerInstances };
+  const merged = { ...settings.providerInstances } satisfies Record<string, ProviderInstanceConfig>;
 
   for (const driver of BUILT_IN_DRIVERS) {
     const instanceId = defaultInstanceIdForDriver(driver.driverKind);

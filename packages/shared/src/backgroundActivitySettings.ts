@@ -21,7 +21,7 @@ export interface ResolvedBackgroundActivitySettings {
   readonly pauseWhenOnBattery: boolean;
 }
 
-const PRESET_SETTINGS: Record<BackgroundActivityProfile, ResolvedBackgroundActivitySettings> = {
+const PRESET_SETTINGS = {
   performance: {
     profile: "performance",
     automaticGitFetchInterval: Duration.seconds(15),
@@ -58,7 +58,7 @@ const PRESET_SETTINGS: Record<BackgroundActivityProfile, ResolvedBackgroundActiv
     pauseWhenClientLowPower: true,
     pauseWhenOnBattery: true,
   },
-};
+} satisfies Record<BackgroundActivityProfile, ResolvedBackgroundActivitySettings>;
 
 export function getBackgroundActivityPresetSettings(
   profile: BackgroundActivityProfile,

@@ -14,9 +14,13 @@ import { NativeViewResolutionError } from "../../native/nativeViewResolutionErro
 const NATIVE_REVIEW_DIFF_MODULE_NAME = "T3ReviewDiffSurface";
 const NATIVE_REVIEW_DIFF_PAYLOAD_RETRY_FRAMES = 60;
 
+interface ExpoViewConfig {
+  readonly __expoViewConfig?: never;
+}
+
 interface ExpoGlobalWithViewConfig {
   readonly expo?: {
-    getViewConfig?: (moduleName: string, viewName?: string) => unknown;
+    getViewConfig?: (moduleName: string, viewName?: string) => ExpoViewConfig | undefined;
   };
 }
 

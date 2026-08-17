@@ -14,7 +14,7 @@ import {
 } from "./bitbucketPullRequestJson.ts";
 
 /** Shaped after a real api.bitbucket.org pull request, trimmed to the fields that are read. */
-function pullRequest(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function pullRequest(overrides: Record<string, unknown> = {}) {
   return {
     id: 897,
     title: "Add trustabl-pipe",

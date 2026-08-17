@@ -233,20 +233,25 @@ const clearActiveRecording = (recording: ActiveRecording): void => {
   });
 };
 
+const recordingCleanupError = (operation: string, cause: unknown): Error =>
+  cause instanceof Error
+    ? cause
+    : new Error(`Browser recording cleanup failed while ${operation}.`, { cause });
+
 const cleanupFailedRecordingStart = async (
   bridge: NonNullable<typeof previewBridge>,
   recording: ActiveRecording,
-): Promise<unknown | undefined> => {
-  const errors: unknown[] = [];
+): Promise<Error | undefined> => {
+  const errors: Error[] = [];
   try {
     await bridge.recording.stopScreencast(recording.tabId);
   } catch (error) {
-    errors.push(error);
+    errors.push(recordingCleanupError("stopping the screencast", error));
   }
   try {
     await stopMediaRecorder(recording.recorder);
   } catch (error) {
-    errors.push(error);
+    errors.push(recordingCleanupError("stopping the media recorder", error));
   } finally {
     clearActiveRecording(recording);
   }

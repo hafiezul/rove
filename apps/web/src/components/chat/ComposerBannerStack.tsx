@@ -25,13 +25,13 @@ const exitTransitionStyle = {
 // The collapsed cap peeking above the front banner is the only hint that more
 // banners are stacked behind it, so its border must match the severity of the
 // first hidden banner — a neutral banner must not masquerade as a warning.
-const stackCapBorderClass: Record<ComposerBannerStackItem["variant"], string> = {
+const stackCapBorderClass = {
   default: "border-border",
   error: "border-destructive/24",
   info: "border-info/24",
   success: "border-success/24",
   warning: "border-warning/24",
-};
+} satisfies Record<ComposerBannerStackItem["variant"], string>;
 
 export interface ComposerBannerStackItem {
   readonly id: string;
