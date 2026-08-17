@@ -608,7 +608,12 @@ function workEntryIndicatesToolSuccess(entry: WorkLogEntry): boolean {
   );
 }
 
-function workEntryStatus(entry: WorkLogEntry): ThreadFeedActivity["status"] {
+function workEntryStatus(entry: DerivedWorkLogEntry): ThreadFeedActivity["status"] {
+  // Reasoning is a live, expandable narrative row rather than a tool status.
+  // A neutral status is filtered from the mobile work log.
+  if (entry.activityKind === "turn.reasoning") {
+    return null;
+  }
   if (!workLogEntryIsToolLike(entry)) {
     return null;
   }
