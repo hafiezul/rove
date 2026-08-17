@@ -53,6 +53,8 @@ export interface ThreadFeedActivity {
     | "wrench"
     | "zap";
   readonly toolLike: boolean;
+  /** True only for a provider reasoning phase; it separates work-log groups. */
+  readonly reasoning?: boolean;
   readonly status: "success" | "failure" | "neutral" | null;
 }
 
@@ -1079,6 +1081,7 @@ function groupAdjacentActivities(entries: ReadonlyArray<RawThreadFeedEntry>): Th
   // long tool runs). The array is only mutated while it is the trailing group.
   let openGroupActivities: ThreadFeedActivity[] | null = null;
   let openGroupTurnId: TurnId | null = null;
+  let openGroupContainsReasoning = false;
 
   for (const entry of entries) {
     // Skip empty messages so they don't break activity grouping.
@@ -1089,16 +1092,23 @@ function groupAdjacentActivities(entries: ReadonlyArray<RawThreadFeedEntry>): Th
     if (entry.type !== "activity") {
       grouped.push(entry);
       openGroupActivities = null;
+      openGroupContainsReasoning = false;
       continue;
     }
 
-    if (openGroupActivities !== null && openGroupTurnId === entry.turnId) {
+    if (
+      openGroupActivities !== null &&
+      openGroupTurnId === entry.turnId &&
+      !openGroupContainsReasoning &&
+      entry.activity.reasoning !== true
+    ) {
       openGroupActivities.push(entry.activity);
       continue;
     }
 
     openGroupActivities = [entry.activity];
     openGroupTurnId = entry.turnId;
+    openGroupContainsReasoning = entry.activity.reasoning === true;
     grouped.push({
       type: "activity-group",
       id: entry.id,
@@ -1259,6 +1269,7 @@ export function deriveThreadFeedPresentation(
     (entry) =>
       entry.type !== "turn-fold" && entry.type !== "work-toggle" && entry.type !== "working",
   );
+  const unsettledTurnId = deriveUnsettledTurnId(latestTurn);
   const foldsByAnchorId = deriveThreadFeedTurnFolds(sourceFeed, latestTurn);
   const collapsedEntryIds = new Set<string>();
   for (const fold of foldsByAnchorId.values()) {
@@ -1283,7 +1294,7 @@ export function deriveThreadFeedPresentation(
       });
     }
     if (!collapsedEntryIds.has(entry.id)) {
-      appendPresentedFeedEntry(result, entry, expandedWorkGroupIds);
+      appendPresentedFeedEntry(result, entry, expandedWorkGroupIds, unsettledTurnId);
     }
   }
   if (activeWorkStartedAt !== null) {
@@ -1300,6 +1311,7 @@ function appendPresentedFeedEntry(
   result: ThreadFeedEntry[],
   entry: Exclude<ThreadFeedEntry, { readonly type: "turn-fold" | "work-toggle" | "working" }>,
   expandedWorkGroupIds: ReadonlySet<string>,
+  unsettledTurnId: TurnId | null,
 ): void {
   if (entry.type !== "activity-group") {
     result.push(entry);
@@ -1310,6 +1322,23 @@ function appendPresentedFeedEntry(
     (activity) => !(activity.toolLike && activity.status === "neutral"),
   );
   if (activities.length === 0) {
+    return;
+  }
+  const keepLiveActivitiesExpanded = unsettledTurnId !== null && entry.turnId === unsettledTurnId;
+  if (keepLiveActivitiesExpanded) {
+    if (activities.length === 1) {
+      result.push({ ...entry, activities });
+    } else {
+      for (const activity of activities) {
+        result.push({
+          type: "activity-group",
+          id: activity.id,
+          createdAt: activity.createdAt,
+          turnId: activity.turnId,
+          activities: [activity],
+        });
+      }
+    }
     return;
   }
   if (activities.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {
@@ -1569,7 +1598,8 @@ export function buildThreadFeed(
               getFullDetail,
               getCopyText,
               icon: workEntryIcon(entry),
-              toolLike: workLogEntryIsToolLike(entry),
+              reasoning: entry.activityKind === "turn.reasoning",
+              toolLike: entry.activityKind !== "turn.reasoning" && workLogEntryIsToolLike(entry),
               status: workEntryStatus(entry),
             },
           };
