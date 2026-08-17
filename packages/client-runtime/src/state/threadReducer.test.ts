@@ -729,6 +729,48 @@ describe("applyThreadDetailEvent", () => {
       }
     });
 
+    it("replaces a known context reading with an intentional unknown state", () => {
+      const known = {
+        id: EventId.make("activity-cw-known"),
+        tone: "info" as const,
+        kind: "context-window.updated",
+        summary: "Context window updated",
+        payload: { usedTokens: 1_000, maxTokens: 200_000 },
+        turnId: TurnId.make("turn-1"),
+        sequence: 1,
+        createdAt: "2026-04-01T11:00:00.000Z",
+      };
+      const unknown = {
+        ...known,
+        id: EventId.make("activity-cw-unknown"),
+        payload: { contextUsageState: "unknown", maxTokens: 200_000 },
+        sequence: 2,
+      };
+
+      const result = applyThreadDetailEvent(
+        { ...baseThread, activities: [known] },
+        {
+          ...baseEventFields,
+          sequence: 22,
+          occurredAt: "2026-04-01T11:04:00.000Z",
+          aggregateKind: "thread",
+          aggregateId: ThreadId.make("thread-1"),
+          type: "thread.activity-appended",
+          payload: {
+            threadId: ThreadId.make("thread-1"),
+            activity: unknown,
+          },
+        },
+      );
+
+      expect(result.kind).toBe("updated");
+      if (result.kind === "updated") {
+        expect(result.thread.activities.map((activity) => activity.id)).toEqual([
+          "activity-cw-unknown",
+        ]);
+      }
+    });
+
     it("does not collapse context-window history for a malformed update", () => {
       const resolvable = {
         id: EventId.make("activity-cw-resolvable"),

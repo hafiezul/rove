@@ -93,9 +93,9 @@ or viewport.
 
 Run the `Mobile Showcase Screenshots` workflow from GitHub's Actions tab, choose `all`, `ios`, or
 `android`, and select `light`, `dark`, or `both`. The default dispatch captures both appearances and
-runs iOS and Android concurrently: iPhone and iPad capture on a
-12-vCPU Blacksmith macOS runner, while Android phone, 7-inch tablet, and 10-inch tablet capture on a
-16-vCPU Blacksmith Linux runner with a KVM-accelerated x86_64 emulator.
+runs iOS and Android concurrently: iPhone and iPad capture on a GitHub-hosted macOS 26 runner,
+while Android phone, 7-inch tablet, and 10-inch tablet capture on a GitHub-hosted Ubuntu 24.04
+runner with a KVM-accelerated x86_64 emulator.
 
 Every job uploads its PNGs even when capture fails, which makes partial runs useful for diagnosis.
 The separate validation step is success-gated: it runs before upload only when capture succeeds. If

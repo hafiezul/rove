@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import * as Schema from "effect/Schema";
 
-import { classifyTaskAgentKind, ProviderRuntimeEvent } from "./providerRuntime.ts";
+import {
+  classifyTaskAgentKind,
+  isContextWindowSnapshotPayload,
+  ProviderRuntimeEvent,
+} from "./providerRuntime.ts";
 
 const decodeRuntimeEvent = Schema.decodeUnknownSync(ProviderRuntimeEvent);
 
@@ -178,12 +182,73 @@ describe("ProviderRuntimeEvent", () => {
     if (parsed.type !== "thread.token-usage.updated") {
       throw new Error("expected thread.token-usage.updated");
     }
-    expect(parsed.payload.usage.maxTokens).toBe(200000);
-    expect(parsed.payload.usage.usedTokens).toBe(31251);
+    const { usage } = parsed.payload;
+    if (!("usedTokens" in usage)) {
+      throw new Error("expected known context usage");
+    }
+    expect(usage.maxTokens).toBe(200000);
+    expect(usage.usedTokens).toBe(31251);
   });
-});
+  it("decodes intentional unknown context usage with active-branch totals", () => {
+    const parsed = decodeRuntimeEvent({
+      type: "thread.token-usage.updated",
+      eventId: "event-token-usage-unknown-1",
+      provider: "pi",
+      createdAt: "2026-02-28T00:00:05.000Z",
+      threadId: "thread-1",
+      payload: {
+        usage: {
+          contextUsageState: "unknown",
+          contextUsageUnknownReason: "compacted",
+          maxTokens: 400000,
+          totalProcessedTokens: 748126,
+          totalProcessedTokensScope: "activeBranch",
+          compactsAutomatically: true,
+        },
+      },
+    });
 
-describe("classifyTaskAgentKind", () => {
+    expect(parsed.type).toBe("thread.token-usage.updated");
+    if (parsed.type !== "thread.token-usage.updated") {
+      throw new Error("expected thread.token-usage.updated");
+    }
+    expect(parsed.payload.usage).toMatchObject({
+      contextUsageState: "unknown",
+      contextUsageUnknownReason: "compacted",
+      maxTokens: 400000,
+      totalProcessedTokensScope: "activeBranch",
+    });
+  });
+  it("decodes an unavailable context state that clears a stale meter", () => {
+    const parsed = decodeRuntimeEvent({
+      type: "thread.token-usage.updated",
+      eventId: "event-token-usage-unavailable-1",
+      provider: "pi",
+      createdAt: "2026-02-28T00:00:06.000Z",
+      threadId: "thread-1",
+      payload: { usage: { contextUsageState: "unavailable" } },
+    });
+
+    expect(parsed.type).toBe("thread.token-usage.updated");
+    if (parsed.type !== "thread.token-usage.updated") {
+      throw new Error("expected thread.token-usage.updated");
+    }
+    expect(parsed.payload.usage).toEqual({ contextUsageState: "unavailable" });
+  });
+
+  it("recognizes authoritative context-window state transitions in raw activities", () => {
+    expect(isContextWindowSnapshotPayload({ usedTokens: 0, maxTokens: 200_000 })).toBe(true);
+    expect(
+      isContextWindowSnapshotPayload({
+        contextUsageState: "unknown",
+        maxTokens: 200_000,
+      }),
+    ).toBe(true);
+    expect(isContextWindowSnapshotPayload({ contextUsageState: "unavailable" })).toBe(true);
+    expect(isContextWindowSnapshotPayload({ contextUsageState: "unknown" })).toBe(false);
+    expect(isContextWindowSnapshotPayload({ usedTokens: Number.NaN })).toBe(false);
+  });
+
   it("classifies agent-flavored, watch-loop, and inert types", () => {
     expect(classifyTaskAgentKind({ taskType: "local_agent" })).toBe("agent");
     expect(classifyTaskAgentKind({ taskType: "local_workflow" })).toBe("agent");

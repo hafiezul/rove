@@ -281,10 +281,15 @@ function assistantSegmentMessageId(baseKey: string, segmentIndex: number): Messa
 function buildContextWindowActivityPayload(
   event: ProviderRuntimeEvent,
 ): ThreadTokenUsageSnapshot | undefined {
-  if (event.type !== "thread.token-usage.updated" || event.payload.usage.usedTokens <= 0) {
+  if (event.type !== "thread.token-usage.updated") {
     return undefined;
   }
-  return event.payload.usage;
+
+  const usage = event.payload.usage;
+  if (usage.contextUsageState === "unknown" || usage.contextUsageState === "unavailable") {
+    return usage;
+  }
+  return usage.usedTokens > 0 ? usage : undefined;
 }
 
 function normalizeRuntimeTurnState(

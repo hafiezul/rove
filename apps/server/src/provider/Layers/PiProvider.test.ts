@@ -32,95 +32,107 @@ const EMPTY_DISCOVERY: PiDiscoveryClient = {
   discover: async () => ({ skills: [], slashCommands: [] }),
 };
 
-it("surfaces a thinking-level option descriptor on every probed model", async () => {
-  const snapshot = await Effect.runPromise(
-    checkPiProviderStatus(decodePiSettings({}), makeProbeClient(), EMPTY_DISCOVERY),
-  );
-
-  assert.isTrue(snapshot.models.length > 0);
-  for (const model of snapshot.models) {
-    const descriptor = model.capabilities?.optionDescriptors?.find(
-      (candidate) => candidate.id === PI_THINKING_DESCRIPTOR_ID,
+it.effect("surfaces a thinking-level option descriptor on every probed model", () =>
+  Effect.gen(function* () {
+    const snapshot = yield* checkPiProviderStatus(
+      decodePiSettings({}),
+      makeProbeClient(),
+      EMPTY_DISCOVERY,
     );
-    assert.isDefined(descriptor, `model ${model.slug} has no thinking descriptor`);
-    assert.strictEqual(descriptor!.type, "select");
-    if (descriptor!.type === "select") {
-      assert.deepEqual(
-        descriptor!.options.map((option) => option.id),
-        ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
-      );
-    }
-  }
-});
 
-it("defaults the thinking descriptor to the instance thinkingLevel setting", async () => {
-  const snapshot = await Effect.runPromise(
-    checkPiProviderStatus(
+    assert.isTrue(snapshot.models.length > 0);
+    for (const model of snapshot.models) {
+      const descriptor = model.capabilities?.optionDescriptors?.find(
+        (candidate) => candidate.id === PI_THINKING_DESCRIPTOR_ID,
+      );
+      assert.isDefined(descriptor, `model ${model.slug} has no thinking descriptor`);
+      assert.strictEqual(descriptor!.type, "select");
+      if (descriptor!.type === "select") {
+        assert.deepEqual(
+          descriptor!.options.map((option) => option.id),
+          ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        );
+      }
+    }
+  }),
+);
+
+it.effect("defaults the thinking descriptor to the instance thinkingLevel setting", () =>
+  Effect.gen(function* () {
+    const snapshot = yield* checkPiProviderStatus(
       decodePiSettings({ thinkingLevel: "high" }),
       makeProbeClient(),
       EMPTY_DISCOVERY,
-    ),
-  );
+    );
 
-  const descriptor = snapshot.models[0]?.capabilities?.optionDescriptors?.find(
-    (candidate) => candidate.id === PI_THINKING_DESCRIPTOR_ID,
-  );
-  assert.strictEqual(descriptor?.type, "select");
-  if (descriptor?.type === "select") {
-    assert.strictEqual(descriptor.currentValue, "high");
-  }
-});
+    const descriptor = snapshot.models[0]?.capabilities?.optionDescriptors?.find(
+      (candidate) => candidate.id === PI_THINKING_DESCRIPTOR_ID,
+    );
+    assert.strictEqual(descriptor?.type, "select");
+    if (descriptor?.type === "select") {
+      assert.strictEqual(descriptor.currentValue, "high");
+    }
+  }),
+);
 
-it("surfaces discovered skills and prompt templates for the composer pickers", async () => {
-  const discovery: PiDiscoveryClient = {
-    discover: async () => ({
-      skills: [
-        {
-          name: "diagnosing-bugs",
-          description: "Diagnosis loop for hard bugs.",
-          path: "/home/user/.pi/agent/skills/diagnosing-bugs/SKILL.md",
-          scope: "user",
-          enabled: true,
-        },
-      ],
-      slashCommands: [
-        {
-          name: "review",
-          description: "Review the current diff.",
-          input: { hint: "[path]" },
-        },
-      ],
-    }),
-  };
+it.effect("surfaces discovered skills and prompt templates for the composer pickers", () =>
+  Effect.gen(function* () {
+    const discovery: PiDiscoveryClient = {
+      discover: async () => ({
+        skills: [
+          {
+            name: "diagnosing-bugs",
+            description: "Diagnosis loop for hard bugs.",
+            path: "/home/user/.pi/agent/skills/diagnosing-bugs/SKILL.md",
+            scope: "user",
+            enabled: true,
+          },
+        ],
+        slashCommands: [
+          {
+            name: "review",
+            description: "Review the current diff.",
+            input: { hint: "[path]" },
+          },
+        ],
+      }),
+    };
 
-  const snapshot = await Effect.runPromise(
-    checkPiProviderStatus(decodePiSettings({}), makeProbeClient(), discovery),
-  );
+    const snapshot = yield* checkPiProviderStatus(
+      decodePiSettings({}),
+      makeProbeClient(),
+      discovery,
+    );
 
-  assert.deepEqual(
-    snapshot.skills.map((skill) => skill.name),
-    ["diagnosing-bugs"],
-  );
-  assert.strictEqual(snapshot.skills[0]?.scope, "user");
-  assert.deepEqual(
-    snapshot.slashCommands.map((command) => command.name),
-    ["review"],
-  );
-  assert.strictEqual(snapshot.slashCommands[0]?.input?.hint, "[path]");
-});
+    assert.deepEqual(
+      snapshot.skills.map((skill) => skill.name),
+      ["diagnosing-bugs"],
+    );
+    assert.strictEqual(snapshot.skills[0]?.scope, "user");
+    assert.deepEqual(
+      snapshot.slashCommands.map((command) => command.name),
+      ["review"],
+    );
+    assert.strictEqual(snapshot.slashCommands[0]?.input?.hint, "[path]");
+  }),
+);
 
-it("treats a discovery failure as empty pickers, not a snapshot failure", async () => {
-  const discovery: PiDiscoveryClient = {
-    discover: async () => {
-      throw new Error("resource loader exploded");
-    },
-  };
+it.effect("treats a discovery failure as empty pickers, not a snapshot failure", () =>
+  Effect.gen(function* () {
+    const discovery: PiDiscoveryClient = {
+      discover: async () => {
+        throw new Error("resource loader exploded");
+      },
+    };
 
-  const snapshot = await Effect.runPromise(
-    checkPiProviderStatus(decodePiSettings({}), makeProbeClient(), discovery),
-  );
+    const snapshot = yield* checkPiProviderStatus(
+      decodePiSettings({}),
+      makeProbeClient(),
+      discovery,
+    );
 
-  assert.strictEqual(snapshot.status, "ready");
-  assert.deepEqual(snapshot.skills, []);
-  assert.deepEqual(snapshot.slashCommands, []);
-});
+    assert.strictEqual(snapshot.status, "ready");
+    assert.deepEqual(snapshot.skills, []);
+    assert.deepEqual(snapshot.slashCommands, []);
+  }),
+);

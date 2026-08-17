@@ -61,6 +61,48 @@ describe("contextWindow", () => {
     });
   });
 
+  it("derives an intentional unknown context state without retaining stale usage", () => {
+    const snapshot = deriveLatestContextWindowSnapshot([
+      makeActivity("activity-known", "context-window.updated", {
+        usedTokens: 81_659,
+        maxTokens: 400_000,
+      }),
+      makeActivity("activity-unknown", "context-window.updated", {
+        contextUsageState: "unknown",
+        contextUsageUnknownReason: "compacted",
+        maxTokens: 400_000,
+        totalProcessedTokens: 748_126,
+        totalProcessedTokensScope: "activeBranch",
+        compactsAutomatically: true,
+      }),
+    ]);
+
+    expect(snapshot).toMatchObject({
+      usedTokens: null,
+      maxTokens: 400_000,
+      usedPercentage: null,
+      remainingTokens: null,
+      contextUsageState: "unknown",
+      contextUsageUnknownReason: "compacted",
+      totalProcessedTokens: 748_126,
+      totalProcessedTokensScope: "activeBranch",
+    });
+  });
+
+  it("clears a previous meter when context-window metadata becomes unavailable", () => {
+    const snapshot = deriveLatestContextWindowSnapshot([
+      makeActivity("activity-known", "context-window.updated", {
+        usedTokens: 81_659,
+        maxTokens: 400_000,
+      }),
+      makeActivity("activity-unavailable", "context-window.updated", {
+        contextUsageState: "unavailable",
+      }),
+    ]);
+
+    expect(snapshot).toBeNull();
+  });
+
   it("formats compact token counts", () => {
     expect(formatContextWindowTokens(999)).toBe("999");
     expect(formatContextWindowTokens(1400)).toBe("1.4k");
