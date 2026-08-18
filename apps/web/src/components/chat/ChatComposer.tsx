@@ -296,12 +296,14 @@ function isInsideComposerFloatingLayer(element: Element): boolean {
 
 const ComposerFooterModeControls = memo(function ComposerFooterModeControls(props: {
   showInteractionModeToggle: boolean;
+  runtimeModeSelectable: boolean;
   interactionMode: ProviderInteractionMode;
   runtimeMode: RuntimeMode;
   onToggleInteractionMode: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
-  const runtimeModeOption = runtimeModeConfig[props.runtimeMode];
+  const displayedRuntimeMode = props.runtimeModeSelectable ? props.runtimeMode : "full-access";
+  const runtimeModeOption = runtimeModeConfig[displayedRuntimeMode];
   const RuntimeModeIcon = runtimeModeOption.icon;
   const interactionModeTooltip =
     props.interactionMode === "plan"
@@ -346,39 +348,62 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
       <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />
 
       <Tooltip>
-        <Select
-          value={props.runtimeMode}
-          onValueChange={(value) => props.onRuntimeModeChange(value!)}
+        <TooltipTrigger
+          delay={150}
+          closeDelay={0}
+          render={
+            <span
+              className={cn("inline-flex", !props.runtimeModeSelectable && "cursor-not-allowed")}
+            />
+          }
         >
-          <TooltipTrigger
-            render={<ComposerSelectControl className="font-medium" aria-label="Runtime mode" />}
+          <Select
+            disabled={!props.runtimeModeSelectable}
+            value={displayedRuntimeMode}
+            onValueChange={(value) => {
+              if (!props.runtimeModeSelectable || !value || value === props.runtimeMode) return;
+              props.onRuntimeModeChange(value);
+            }}
           >
-            <ComposerControlIcon icon={RuntimeModeIcon} />
-            <SelectValue>{runtimeModeOption.label}</SelectValue>
-          </TooltipTrigger>
-          <SelectPopup alignItemWithTrigger={false}>
-            {runtimeModeOptions.map((mode) => {
-              const option = runtimeModeConfig[mode];
-              const OptionIcon = option.icon;
-              return (
-                <SelectItem key={mode} value={mode} hideIndicator className="min-w-64 py-2">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid min-w-0 flex-1 gap-0.5">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                        <OptionIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                        {option.label}
-                      </span>
-                      <span className="text-muted-foreground text-xs leading-4">
-                        {option.description}
-                      </span>
+            <ComposerSelectControl
+              className="font-medium"
+              aria-label={
+                props.runtimeModeSelectable
+                  ? "Runtime mode"
+                  : "Pi managed: permission modes can't be changed yet"
+              }
+            >
+              <ComposerControlIcon icon={RuntimeModeIcon} />
+              <SelectValue>{runtimeModeOption.label}</SelectValue>
+            </ComposerSelectControl>
+            <SelectPopup alignItemWithTrigger={false}>
+              {runtimeModeOptions.map((mode) => {
+                const option = runtimeModeConfig[mode];
+                const OptionIcon = option.icon;
+                return (
+                  <SelectItem key={mode} value={mode} hideIndicator className="min-w-64 py-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                          <OptionIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                          {option.label}
+                        </span>
+                        <span className="text-muted-foreground text-xs leading-4">
+                          {option.description}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectPopup>
-        </Select>
-        <TooltipPopup side="top">{runtimeModeOption.description}</TooltipPopup>
+                  </SelectItem>
+                );
+              })}
+            </SelectPopup>
+          </Select>
+        </TooltipTrigger>
+        <TooltipPopup side="top">
+          {props.runtimeModeSelectable
+            ? runtimeModeOption.description
+            : "Pi managed: permission modes can't be changed yet."}
+        </TooltipPopup>
       </Tooltip>
 
       {interactionModeToggle}
@@ -883,8 +908,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     () => ({
       showInteractionModeToggle:
         planModeUiEnabled && getProviderInteractionModeToggle(providerStatuses, selectedProvider),
+      // Older server snapshots do not advertise this capability; Pi has never
+      // exposed permission gates, so keep its control locked during upgrades.
+      runtimeModeSelectable:
+        selectedProviderStatus?.runtimeModeSelectable ?? selectedProvider !== "pi",
     }),
-    [planModeUiEnabled, providerStatuses, selectedProvider],
+    [planModeUiEnabled, providerStatuses, selectedProvider, selectedProviderStatus],
   );
   const selectedModelSelection = useMemo<ModelSelection>(
     () => createModelSelection(selectedInstanceId, selectedModel, selectedModelOptionsForDispatch),
@@ -3143,6 +3172,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     interactionMode={interactionMode}
                     runtimeMode={runtimeMode}
                     showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
+                    runtimeModeSelectable={composerProviderControls.runtimeModeSelectable}
                     traitsMenuContent={providerTraitsMenuContent}
                     onToggleInteractionMode={toggleInteractionMode}
                     onRuntimeModeChange={handleRuntimeModeChange}
@@ -3157,6 +3187,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     ) : null}
                     <ComposerFooterModeControls
                       showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
+                      runtimeModeSelectable={composerProviderControls.runtimeModeSelectable}
                       interactionMode={interactionMode}
                       runtimeMode={runtimeMode}
                       onToggleInteractionMode={toggleInteractionMode}

@@ -47,6 +47,15 @@ describe("ServerProvider", () => {
     expect(parsed.updateState).toBeUndefined();
   });
 
+  it("preserves the runtime-mode selection capability", () => {
+    const parsed = decodeServerProvider({
+      ...baseProviderSnapshot,
+      runtimeModeSelectable: false,
+    });
+
+    expect(parsed.runtimeModeSelectable).toBe(false);
+  });
+
   it("defaults one-click update support when decoding older advisory snapshots", () => {
     const parsed = decodeServerProvider({
       instanceId: "codex",

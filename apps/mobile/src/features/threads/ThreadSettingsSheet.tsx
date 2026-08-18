@@ -198,16 +198,25 @@ function DisclosureRow(props: {
   readonly label: string;
   readonly value: string | undefined;
   readonly onPress: () => void;
+  readonly disabled?: boolean;
   readonly isLast?: boolean;
 }) {
   const iconSubtle = useThemeColor("--color-icon-subtle");
   return (
     <Pressable
+      accessibilityHint={
+        props.disabled
+          ? "Pi manages permissions, so permission modes can't be changed yet."
+          : undefined
+      }
       accessibilityRole="button"
+      accessibilityState={{ disabled: props.disabled ?? false }}
+      disabled={props.disabled}
       onPress={props.onPress}
       className={cn(
-        "min-h-11 flex-row items-center gap-2 bg-card px-4 py-2 active:bg-subtle",
+        "min-h-11 flex-row items-center gap-2 bg-card px-4 py-2",
         !props.isLast && "border-b border-border-subtle",
+        props.disabled ? "opacity-50" : "active:bg-subtle",
       )}
     >
       <Text className="text-sm font-t3-medium text-foreground">{props.label}</Text>
@@ -217,7 +226,9 @@ function DisclosureRow(props: {
           {props.value}
         </Text>
       ) : null}
-      <SymbolView name="chevron.right" size={12} tintColor={iconSubtle} type="monochrome" />
+      {!props.disabled ? (
+        <SymbolView name="chevron.right" size={12} tintColor={iconSubtle} type="monochrome" />
+      ) : null}
     </Pressable>
   );
 }
@@ -295,6 +306,8 @@ type ThreadSettingsSessionProps = {
   readonly optionDescriptors: ReadonlyArray<ProviderOptionDescriptor>;
   readonly onUpdateOptionSelections: (selections: ReadonlyArray<ProviderOptionSelection>) => void;
   readonly runtimeMode: RuntimeMode;
+  /** Whether the selected provider can honor access-mode changes. */
+  readonly runtimeModeSelectable?: boolean;
   readonly onUpdateRuntimeMode: (mode: RuntimeMode) => void;
 };
 
@@ -342,6 +355,7 @@ export function useExistingThreadSettingsRoutePresentation() {
 type ThreadSettingsSessionValue = {
   readonly providerGroups: ReadonlyArray<ProviderGroup>;
   readonly runtimeMode: RuntimeMode;
+  readonly runtimeModeSelectable: boolean;
   readonly onUpdateRuntimeMode: (mode: RuntimeMode) => void;
   readonly displayedDescriptors: ReadonlyArray<ProviderOptionDescriptor>;
   readonly providerExpansionOverrides: ReadonlySet<string>;
@@ -460,6 +474,7 @@ function ThreadSettingsSessionProvider(
     () => ({
       providerGroups: props.providerGroups,
       runtimeMode: props.runtimeMode,
+      runtimeModeSelectable: props.runtimeModeSelectable ?? true,
       onUpdateRuntimeMode: props.onUpdateRuntimeMode,
       displayedDescriptors,
       providerExpansionOverrides,
@@ -492,6 +507,7 @@ function ThreadSettingsSessionProvider(
       props.onUpdateRuntimeMode,
       props.providerGroups,
       props.runtimeMode,
+      props.runtimeModeSelectable,
       searchQuery,
       showLegacyToggle,
       toggleProvider,
@@ -669,6 +685,7 @@ function ThreadSettingsOptionsItem(props: {
     Platform.OS === "ios" && NATIVE_MAIL_SEARCH_TOOLBAR_SUPPORTED
       ? NATIVE_MAIL_SEARCH_TOOLBAR_CONTENT_INSET
       : 0;
+  const displayedRuntimeMode = session.runtimeModeSelectable ? session.runtimeMode : "full-access";
 
   return (
     <View style={{ paddingBottom: insets.bottom + bottomToolbarInset + 12 }}>
@@ -713,10 +730,11 @@ function ThreadSettingsOptionsItem(props: {
         })}
         <Animated.View layout={THREAD_SETTINGS_OPTIONS_LAYOUT_TRANSITION}>
           <DisclosureRow
+            disabled={!session.runtimeModeSelectable}
             isLast
             label="Runtime"
             value={
-              RUNTIME_MODE_CHOICES.find((choice) => choice.mode === session.runtimeMode)?.label
+              RUNTIME_MODE_CHOICES.find((choice) => choice.mode === displayedRuntimeMode)?.label
             }
             onPress={() => props.onOpenSubmenu({ kind: "runtime" })}
           />
@@ -864,7 +882,7 @@ function ThreadSettingsChoiceContent(props: {
       : undefined;
 
   const submenuContent =
-    props.submenu.kind === "runtime"
+    props.submenu.kind === "runtime" && session.runtimeModeSelectable
       ? {
           rows: RUNTIME_MODE_CHOICES.map((choice) => ({
             id: choice.mode,
@@ -1237,6 +1255,7 @@ export function NewTaskThreadSettingsRouteScreen() {
       optionDescriptors={optionDescriptors}
       onUpdateOptionSelections={flow.setSelectedModelOptions}
       runtimeMode={flow.runtimeMode}
+      runtimeModeSelectable={flow.runtimeModeSelectable}
       onUpdateRuntimeMode={flow.setRuntimeMode}
     >
       <ThreadSettingsPickerNavigator onClose={() => navigation.goBack()} />
