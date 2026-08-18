@@ -9,6 +9,17 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
+import {
+  isBoolean,
+  isDesktopAppBranding,
+  isDesktopPreviewPointerEvent,
+  isDesktopPreviewRecordingFrame,
+  isDesktopPreviewTabState,
+  isDesktopSshPasswordPromptRequest,
+  isDesktopUpdateState,
+  isRecord,
+  isString,
+} from "./preloadGuards.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
   "requested",
@@ -47,13 +58,12 @@ if (clientPlatform === "darwin") {
 
 function unwrapEnsureSshEnvironmentResult(result: unknown) {
   if (
-    typeof result === "object" &&
-    result !== null &&
+    isRecord(result) &&
     "type" in result &&
     result.type === IpcChannels.SSH_PASSWORD_PROMPT_CANCELLED_RESULT
   ) {
     const message =
-      "message" in result && typeof result.message === "string"
+      "message" in result && isString(result.message)
         ? result.message
         : "SSH authentication cancelled.";
     throw new Error(message);
@@ -184,7 +194,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   pasteAsText: () => ipcRenderer.invoke(IpcChannels.PASTE_AS_TEXT_CHANNEL, undefined),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
-      if (typeof action !== "string") return;
+      if (!isString(action)) return;
       listener(action);
     };
 
@@ -229,7 +239,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULLSCREEN_STATE_CHANNEL) === true,
   onWindowFullscreenStateChange: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, fullscreen: unknown) => {
-      if (typeof fullscreen !== "boolean") return;
+      if (!isBoolean(fullscreen)) return;
       listener(fullscreen);
     };
 
@@ -370,8 +380,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         tabId: unknown,
         state: unknown,
       ) => {
-        if (typeof tabId !== "string" || typeof state !== "object" || state === null) return;
-        listener(tabId, state as DesktopPreviewTabState);
+        if (!isString(tabId) || !isDesktopPreviewTabState(state)) return;
+        listener(tabId, state);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_STATE_CHANGE_CHANNEL, wrappedListener);
       return () =>
