@@ -222,6 +222,10 @@
     "./runtimeValueKind": {
       "types": "./src/runtimeValueKind.ts",
       "import": "./src/runtimeValueKind.ts"
+    },
+    "./streamingText": {
+      "types": "./src/streamingText.ts",
+      "import": "./src/streamingText.ts"
     }
   },
   "scripts": {

@@ -800,14 +800,15 @@ describe("deriveWorkLogEntries", () => {
     expect(entries).toHaveLength(2);
     expect(entries[0]).toMatchObject({
       id: "reasoning-streaming",
-      label: "Reasoning",
+      label: "Thinking",
       tone: "thinking",
       sourceActivityKind: "turn.reasoning",
+      reasoningStreaming: true,
       detail: "First I check the adapter.",
     });
     expect(entries[1]).toMatchObject({
       id: "reasoning-settled",
-      label: "Reasoned",
+      label: "Thinking",
       tone: "thinking",
       detail: "Done — reviewed and green.",
     });

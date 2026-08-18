@@ -2590,6 +2590,101 @@ describe("ProviderRuntimeIngestion", () => {
     expect(assistantEvents[3]?.payload.text).toBe("");
   });
 
+  it("starts a new buffered assistant segment after a tool, preserving only the terminal response", async () => {
+    const harness = await createHarness();
+    const threadId = asThreadId("thread-1");
+    const turnId = asTurnId("turn-assistant-tool-boundary");
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-assistant-tool-boundary"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:00.000Z",
+      threadId,
+      turnId,
+    });
+    await waitForThread(
+      harness.readModel,
+      (thread) => thread.session?.status === "running" && thread.session.activeTurnId === turnId,
+    );
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-assistant-commentary-before-tool"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:01.000Z",
+      threadId,
+      turnId,
+      payload: {
+        streamKind: "assistant_text",
+        delta: "I will inspect the file first.",
+      },
+    });
+    harness.emit({
+      type: "item.started",
+      eventId: asEventId("evt-tool-started-after-assistant-commentary"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:02.000Z",
+      threadId,
+      turnId,
+      itemId: asItemId("tool-after-assistant-commentary"),
+      payload: {
+        itemType: "command_execution",
+        status: "inProgress",
+        title: "bash",
+      },
+    });
+
+    await waitForThread(harness.readModel, (thread) =>
+      thread.messages.some(
+        (message: ProviderRuntimeTestMessage) =>
+          message.id === "assistant:turn-assistant-tool-boundary" &&
+          !message.streaming &&
+          message.text === "I will inspect the file first.",
+      ),
+    );
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-assistant-final-after-tool"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:03.000Z",
+      threadId,
+      turnId,
+      payload: {
+        streamKind: "assistant_text",
+        delta: "The file was inspected successfully.",
+      },
+    });
+    harness.emit({
+      type: "turn.completed",
+      eventId: asEventId("evt-turn-completed-assistant-tool-boundary"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:04.000Z",
+      threadId,
+      turnId,
+      payload: { state: "completed" },
+    });
+
+    const thread = await waitForThread(
+      harness.readModel,
+      (entry) =>
+        entry.session?.status === "ready" &&
+        entry.messages.some(
+          (message: ProviderRuntimeTestMessage) =>
+            message.id === "assistant:turn-assistant-tool-boundary:segment:1" && !message.streaming,
+        ),
+    );
+    const messages = thread.messages.filter((message: ProviderRuntimeTestMessage) =>
+      message.id.startsWith("assistant:turn-assistant-tool-boundary"),
+    );
+    expect(messages.map((message: ProviderRuntimeTestMessage) => message.text)).toEqual([
+      "I will inspect the file first.",
+      "The file was inspected successfully.",
+    ]);
+    expect(messages.every((message: ProviderRuntimeTestMessage) => !message.streaming)).toBe(true);
+  });
+
   it("starts a new streaming assistant message segment after approval", async () => {
     const harness = await createHarness({ serverSettings: { enableLegacyTokenStreaming: true } });
     const startedAt = "2026-03-28T07:00:00.000Z";

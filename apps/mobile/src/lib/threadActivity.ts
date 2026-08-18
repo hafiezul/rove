@@ -57,6 +57,8 @@ export interface ThreadFeedActivity {
   readonly toolLike: boolean;
   /** True only for a provider reasoning phase; it separates work-log groups. */
   readonly reasoning?: boolean;
+  /** True while this reasoning phase is still receiving provider deltas. */
+  readonly reasoningStreaming?: boolean;
   readonly status: "success" | "failure" | "neutral" | null;
 }
 
@@ -79,6 +81,7 @@ interface WorkLogEntry {
   requestKind?: PendingApproval["requestKind"];
   toolLifecycleStatus?: WorkLogToolLifecycleStatus;
   toolData?: unknown;
+  reasoningStreaming?: boolean;
 }
 
 interface DerivedWorkLogEntry extends WorkLogEntry {
@@ -140,6 +143,48 @@ export type ThreadFeedLatestTurn = Pick<
   OrchestrationLatestTurn,
   "turnId" | "state" | "startedAt" | "completedAt"
 >;
+
+/** Separates terminal assistant responses from progress narration around tools. */
+export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFeedEntry>) {
+  const terminalIdByTurn = new Map<TurnId, string>();
+  let hasStreamingText = false;
+  for (const entry of feed) {
+    if (
+      (entry.type === "message" && entry.message.role === "assistant" && entry.message.streaming) ||
+      (entry.type === "activity-group" &&
+        entry.activities.some((activity) => activity.reasoningStreaming === true))
+    ) {
+      hasStreamingText = true;
+    }
+    if (entry.type === "message" && entry.message.role === "assistant" && entry.message.turnId) {
+      terminalIdByTurn.set(entry.message.turnId, entry.message.id);
+    }
+  }
+
+  const terminalIds = new Set(terminalIdByTurn.values());
+  const commentaryIds = new Set<string>();
+  const hasLaterToolByTurnId = new Set<TurnId>();
+  for (let index = feed.length - 1; index >= 0; index -= 1) {
+    const entry = feed[index];
+    if (!entry) {
+      continue;
+    }
+    if (entry.type === "activity-group") {
+      if (entry.turnId && entry.activities.some((activity) => activity.toolLike)) {
+        hasLaterToolByTurnId.add(entry.turnId);
+      }
+      continue;
+    }
+    if (entry.type !== "message" || entry.message.role !== "assistant" || !entry.message.turnId) {
+      continue;
+    }
+    if (!terminalIds.has(entry.message.id) || hasLaterToolByTurnId.has(entry.message.turnId)) {
+      commentaryIds.add(entry.message.id);
+    }
+  }
+
+  return { terminalIds, commentaryIds, hasStreamingText };
+}
 
 function requestKindFromRequestType(requestType: unknown): PendingApproval["requestKind"] | null {
   switch (requestType) {
@@ -392,6 +437,7 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       ? payload.detail
       : null;
   const taskLabel = taskSummary || taskDetailAsLabel;
+  const isReasoningActivity = activity.kind === "turn.reasoning";
   const taskId =
     isTaskActivity && RuntimePredicate.isString(payload?.taskId) && payload.taskId.length > 0
       ? payload.taskId
@@ -401,9 +447,9 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     createdAt: activity.createdAt,
     turnId: activity.turnId,
     ...(taskId ? { taskId } : undefined),
-    label: taskLabel || activity.summary,
+    label: isReasoningActivity ? "Thinking" : taskLabel || activity.summary,
     tone:
-      activity.kind === "task.progress" || activity.kind === "turn.reasoning"
+      activity.kind === "task.progress" || isReasoningActivity
         ? "thinking"
         : activity.tone === "approval"
           ? "info"
@@ -422,6 +468,9 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     if (detail) {
       entry.detail = detail;
     }
+  }
+  if (isReasoningActivity && payload?.streaming === true) {
+    entry.reasoningStreaming = true;
   }
   if (commandPreview.command) {
     entry.command = commandPreview.command;
@@ -1622,6 +1671,7 @@ export function buildThreadFeed(
               getCopyText,
               icon: workEntryIcon(entry),
               reasoning: entry.activityKind === "turn.reasoning",
+              ...(entry.reasoningStreaming ? { reasoningStreaming: true } : undefined),
               toolLike: entry.activityKind !== "turn.reasoning" && workLogEntryIsToolLike(entry),
               status: workEntryStatus(entry),
             },
