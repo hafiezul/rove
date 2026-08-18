@@ -191,7 +191,6 @@ export type MessagesTimelineRow =
       message: ChatMessage;
       durationStart: string;
       showAssistantMeta: boolean;
-      assistantCommentary: boolean;
       showAssistantCopyButton: boolean;
       assistantCopyStreaming: boolean;
       assistantTurnDiffSummary?: TurnDiffSummary | undefined;
@@ -281,40 +280,6 @@ function deriveTerminalAssistantMessageIds(timelineEntries: ReadonlyArray<Timeli
   return new Set(lastAssistantMessageIdByResponseKey.values());
 }
 
-function deriveAssistantCommentaryMessageIds(
-  timelineEntries: ReadonlyArray<TimelineEntry>,
-  terminalAssistantMessageIds: ReadonlySet<string>,
-): ReadonlySet<string> {
-  const commentaryIds = new Set<string>();
-  const hasLaterToolByTurnId = new Set<TurnId>();
-
-  for (let index = timelineEntries.length - 1; index >= 0; index -= 1) {
-    const timelineEntry = timelineEntries[index];
-    if (!timelineEntry) {
-      continue;
-    }
-    if (timelineEntry.kind === "work") {
-      if (timelineEntry.entry.turnId && workLogEntryIsToolLike(timelineEntry.entry)) {
-        hasLaterToolByTurnId.add(timelineEntry.entry.turnId);
-      }
-      continue;
-    }
-    if (timelineEntry.kind !== "message" || timelineEntry.message.role !== "assistant") {
-      continue;
-    }
-
-    const turnId = timelineEntry.message.turnId;
-    if (
-      !terminalAssistantMessageIds.has(timelineEntry.message.id) ||
-      (turnId !== null && hasLaterToolByTurnId.has(turnId))
-    ) {
-      commentaryIds.add(timelineEntry.message.id);
-    }
-  }
-
-  return commentaryIds;
-}
-
 interface TurnFold {
   turnId: TurnId;
   anchorEntryId: string;
@@ -346,7 +311,7 @@ function deriveUnsettledTurnId(
 }
 
 /**
- * Settled turns fold their commentary and tool activity behind a
+ * Settled turns fold non-terminal assistant messages and tool activity behind a
  * "Worked for ..." row anchored at the turn's first foldable entry; the
  * terminal assistant message stays visible below the fold.
  */
@@ -493,10 +458,6 @@ export function deriveMessagesTimelineRows(input: {
     input.timelineEntries.flatMap((entry) => (entry.kind === "message" ? [entry.message] : [])),
   );
   const terminalAssistantMessageIds = deriveTerminalAssistantMessageIds(input.timelineEntries);
-  const assistantCommentaryMessageIds = deriveAssistantCommentaryMessageIds(
-    input.timelineEntries,
-    terminalAssistantMessageIds,
-  );
   const unsettledTurnId = deriveUnsettledTurnId(
     input.latestTurn ?? null,
     input.runningTurnId ?? null,
@@ -560,78 +521,55 @@ export function deriveMessagesTimelineRows(input: {
       const visibleGroupedEntries = groupedEntries.filter(
         (entry) => !workEntryIndicatesToolNeutralStatus(entry),
       );
-      if (visibleGroupedEntries.length > 0) {
-        // An active turn is its own progress display. Keep every completed
-        // tool row visible between reasoning phases; settled turns retain the
-        // compact disclosure to avoid expanding historic conversations.
-        const keepLiveWorkEntriesExpanded =
-          unsettledTurnId !== null && timelineEntry.entry.turnId === unsettledTurnId;
-        if (keepLiveWorkEntriesExpanded) {
-          if (visibleGroupedEntries.length === 1) {
-            nextRows.push({
-              kind: "work",
-              id: timelineEntry.id,
-              createdAt: timelineEntry.createdAt,
-              groupedEntries: visibleGroupedEntries,
-            });
-          } else {
-            for (const workEntry of visibleGroupedEntries) {
-              nextRows.push({
-                kind: "work",
-                id: workEntry.id,
-                createdAt: workEntry.createdAt,
-                groupedEntries: [workEntry],
-              });
-            }
-          }
-        } else if (visibleGroupedEntries.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {
+      if (visibleGroupedEntries.length === 0) {
+        index = cursor - 1;
+        continue;
+      }
+      if (visibleGroupedEntries.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {
+        nextRows.push({
+          kind: "work",
+          id: timelineEntry.id,
+          createdAt: timelineEntry.createdAt,
+          groupedEntries: visibleGroupedEntries,
+        });
+      } else {
+        const groupId = `work-group:${timelineEntry.id}`;
+        const expanded = input.expandedWorkGroupIds?.has(groupId) ?? false;
+        // Agent-spawn CTA rows are always visible: a running fleet must
+        // never hide behind a "+N tool calls" toggle. Selection is by
+        // membership (spawn OR recent-tail), preserving the group's
+        // chronological order in both collapsed and expanded states
+        // (review finding: concatenating two filtered lists moved a
+        // mid-group spawn row above earlier tool rows).
+        const overflowCandidates = visibleGroupedEntries.filter(
+          (entry) => entry.agentSpawn === undefined,
+        );
+        const hiddenEntries = overflowCandidates.slice(0, -MAX_VISIBLE_WORK_LOG_ENTRIES);
+        const hiddenIds = new Set(hiddenEntries.map((entry) => entry.id));
+        const visibleEntries = visibleGroupedEntries.filter(
+          (entry) => entry.agentSpawn !== undefined || !hiddenIds.has(entry.id),
+        );
+        const renderedEntries = expanded ? visibleGroupedEntries : visibleEntries;
+
+        for (const workEntry of renderedEntries) {
           nextRows.push({
             kind: "work",
-            id: timelineEntry.id,
-            createdAt: timelineEntry.createdAt,
-            groupedEntries: visibleGroupedEntries,
+            id: workEntry.id,
+            createdAt: workEntry.createdAt,
+            groupedEntries: [workEntry],
           });
-        } else {
-          const groupId = `work-group:${timelineEntry.id}`;
-          const expanded = input.expandedWorkGroupIds?.has(groupId) ?? false;
-          // Agent-spawn CTA rows are always visible: a running fleet must
-          // never hide behind a "+N tool calls" toggle. Selection is by
-          // membership (spawn OR recent-tail), preserving the group's
-          // chronological order in both collapsed and expanded states
-          // (review finding: concatenating two filtered lists moved a
-          // mid-group spawn row above earlier tool rows).
-          const overflowCandidates = visibleGroupedEntries.filter(
-            (entry) => entry.agentSpawn === undefined,
-          );
-          const hiddenEntries = overflowCandidates.slice(0, -MAX_VISIBLE_WORK_LOG_ENTRIES);
-          const hiddenIds = new Set(hiddenEntries.map((entry) => entry.id));
-          const visibleEntries = visibleGroupedEntries.filter(
-            (entry) => entry.agentSpawn !== undefined || !hiddenIds.has(entry.id),
-          );
-          const renderedEntries = expanded ? visibleGroupedEntries : visibleEntries;
+        }
 
-          for (const workEntry of renderedEntries) {
-            nextRows.push({
-              kind: "work",
-              id: workEntry.id,
-              createdAt: workEntry.createdAt,
-              groupedEntries: [workEntry],
-            });
-          }
-
-          if (hiddenEntries.length > 0) {
-            nextRows.push({
-              kind: "work-toggle",
-              id: `work-toggle:${timelineEntry.id}`,
-              createdAt: timelineEntry.createdAt,
-              groupId,
-              hiddenCount: hiddenEntries.length,
-              expanded,
-              onlyToolEntries: visibleGroupedEntries.every((entry) =>
-                workLogEntryIsToolLike(entry),
-              ),
-            });
-          }
+        if (hiddenEntries.length > 0) {
+          nextRows.push({
+            kind: "work-toggle",
+            id: `work-toggle:${timelineEntry.id}`,
+            createdAt: timelineEntry.createdAt,
+            groupId,
+            hiddenCount: hiddenEntries.length,
+            expanded,
+            onlyToolEntries: visibleGroupedEntries.every((entry) => workLogEntryIsToolLike(entry)),
+          });
         }
       }
       index = cursor - 1;
@@ -666,22 +604,11 @@ export function deriveMessagesTimelineRows(input: {
     const durationStart =
       durationStartByMessageId.get(timelineEntry.message.id) ?? timelineEntry.message.createdAt;
 
-    // Buffered text becomes visible when a tool starts, before the lifecycle's
-    // completion row reaches the timeline. A completed segment in an active
-    // turn is therefore public progress narration.
-    const completedActiveAssistantSegment =
-      assistantTurnStillInProgress && !timelineEntry.message.streaming;
-    const assistantCommentary =
-      timelineEntry.message.role === "assistant" &&
-      (assistantCommentaryMessageIds.has(timelineEntry.message.id) ||
-        completedActiveAssistantSegment);
-
     // While the turn is still running, the latest assistant message is only
     // provisionally terminal — withhold the metadata row until the turn
-    // settles so commentary doesn't flash timestamps mid-work.
+    // settles so timestamps do not flash mid-work.
     const showAssistantMeta =
       timelineEntry.message.role === "assistant" &&
-      !assistantCommentary &&
       terminalAssistantMessageIds.has(timelineEntry.message.id) &&
       !assistantTurnStillInProgress;
 
@@ -692,11 +619,10 @@ export function deriveMessagesTimelineRows(input: {
       message: timelineEntry.message,
       durationStart,
       showAssistantMeta,
-      assistantCommentary,
       showAssistantCopyButton: showAssistantMeta,
       assistantCopyStreaming: timelineEntry.message.streaming || assistantTurnStillInProgress,
       assistantTurnDiffSummary:
-        timelineEntry.message.role === "assistant" && !assistantCommentary
+        timelineEntry.message.role === "assistant"
           ? input.turnDiffSummaryByAssistantMessageId.get(timelineEntry.message.id)
           : undefined,
       revertTurnCount:
@@ -787,7 +713,6 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.message === bm.message &&
         a.durationStart === bm.durationStart &&
         a.showAssistantMeta === bm.showAssistantMeta &&
-        a.assistantCommentary === bm.assistantCommentary &&
         a.showAssistantCopyButton === bm.showAssistantCopyButton &&
         a.assistantCopyStreaming === bm.assistantCopyStreaming &&
         a.assistantTurnDiffSummary === bm.assistantTurnDiffSummary &&

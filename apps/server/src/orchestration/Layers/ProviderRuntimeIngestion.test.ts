@@ -2590,7 +2590,7 @@ describe("ProviderRuntimeIngestion", () => {
     expect(assistantEvents[3]?.payload.text).toBe("");
   });
 
-  it("starts a new buffered assistant segment after a tool, preserving only the terminal response", async () => {
+  it("keeps buffered assistant text in one normal message across a tool", async () => {
     const harness = await createHarness();
     const threadId = asThreadId("thread-1");
     const turnId = asTurnId("turn-assistant-tool-boundary");
@@ -2635,15 +2635,6 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    await waitForThread(harness.readModel, (thread) =>
-      thread.messages.some(
-        (message: ProviderRuntimeTestMessage) =>
-          message.id === "assistant:turn-assistant-tool-boundary" &&
-          !message.streaming &&
-          message.text === "I will inspect the file first.",
-      ),
-    );
-
     harness.emit({
       type: "content.delta",
       eventId: asEventId("evt-assistant-final-after-tool"),
@@ -2653,7 +2644,7 @@ describe("ProviderRuntimeIngestion", () => {
       turnId,
       payload: {
         streamKind: "assistant_text",
-        delta: "The file was inspected successfully.",
+        delta: " The file was inspected successfully.",
       },
     });
     harness.emit({
@@ -2672,15 +2663,17 @@ describe("ProviderRuntimeIngestion", () => {
         entry.session?.status === "ready" &&
         entry.messages.some(
           (message: ProviderRuntimeTestMessage) =>
-            message.id === "assistant:turn-assistant-tool-boundary:segment:1" && !message.streaming,
+            message.id === "assistant:turn-assistant-tool-boundary" && !message.streaming,
         ),
     );
     const messages = thread.messages.filter((message: ProviderRuntimeTestMessage) =>
       message.id.startsWith("assistant:turn-assistant-tool-boundary"),
     );
+    expect(messages.map((message: ProviderRuntimeTestMessage) => message.id)).toEqual([
+      "assistant:turn-assistant-tool-boundary",
+    ]);
     expect(messages.map((message: ProviderRuntimeTestMessage) => message.text)).toEqual([
-      "I will inspect the file first.",
-      "The file was inspected successfully.",
+      "I will inspect the file first. The file was inspected successfully.",
     ]);
     expect(messages.every((message: ProviderRuntimeTestMessage) => !message.streaming)).toBe(true);
   });

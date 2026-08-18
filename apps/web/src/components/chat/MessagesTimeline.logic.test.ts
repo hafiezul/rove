@@ -303,9 +303,9 @@ describe("deriveMessagesTimelineRows", () => {
     });
   });
 
-  it("keeps reasoning phases and every completed tool visible in an active turn", () => {
+  it("keeps reasoning phases visible while compacting active tool runs", () => {
     const turnId = "turn-1" as never;
-    const rows = deriveMessagesTimelineRows({
+    const input = {
       timelineEntries: [
         {
           id: "thinking-one-entry",
@@ -370,28 +370,72 @@ describe("deriveMessagesTimelineRows", () => {
       activeTurnStartedAt: "2026-01-01T00:00:00Z",
       turnDiffSummaryByAssistantMessageId: new Map(),
       revertTurnCountByUserMessageId: new Map(),
-    });
+    } as const;
+
+    const rows = deriveMessagesTimelineRows(input);
 
     expect(rows.map((row) => row.id)).toEqual([
       "thinking-one-entry",
-      "bash-one",
-      "read-one",
       "edit-one",
+      "work-toggle:bash-one-entry",
       "thinking-two-entry",
       "bash-two-entry",
       "working-indicator-row",
     ]);
-    expect(rows.some((row) => row.kind === "work-toggle")).toBe(false);
+    expect(rows.find((row) => row.kind === "work-toggle")).toMatchObject({
+      groupId: "work-group:bash-one-entry",
+      hiddenCount: 2,
+      expanded: false,
+      onlyToolEntries: true,
+    });
     expect(
       rows
         .filter(
           (row): row is Extract<(typeof rows)[number], { kind: "work" }> => row.kind === "work",
         )
         .map((row) => row.groupedEntries[0]?.sourceActivityKind),
-    ).toEqual(["turn.reasoning", undefined, undefined, undefined, "turn.reasoning", undefined]);
+    ).toEqual(["turn.reasoning", undefined, "turn.reasoning", undefined]);
+
+    const settledRows = deriveMessagesTimelineRows({
+      ...input,
+      latestTurn: {
+        ...input.latestTurn,
+        state: "completed",
+        completedAt: "2026-01-01T00:00:07Z",
+      },
+      expandedTurnIds: new Set([turnId]),
+      isWorking: false,
+      activeTurnStartedAt: null,
+    });
+    expect(settledRows.map((row) => row.id)).toEqual([
+      "turn-fold:turn-1",
+      "thinking-one-entry",
+      "edit-one",
+      "work-toggle:bash-one-entry",
+      "thinking-two-entry",
+      "bash-two-entry",
+    ]);
+
+    const expandedRows = deriveMessagesTimelineRows({
+      ...input,
+      expandedWorkGroupIds: new Set(["work-group:bash-one-entry"]),
+    });
+    expect(expandedRows.map((row) => row.id)).toEqual([
+      "thinking-one-entry",
+      "bash-one",
+      "read-one",
+      "edit-one",
+      "work-toggle:bash-one-entry",
+      "thinking-two-entry",
+      "bash-two-entry",
+      "working-indicator-row",
+    ]);
+    expect(expandedRows.find((row) => row.kind === "work-toggle")).toMatchObject({
+      expanded: true,
+    });
   });
 
-  it("renders assistant narration before a tool as commentary and preserves the terminal response", () => {
+  it("keeps assistant text before a tool as a standard assistant row", () => {
     const turnId = "turn-assistant-commentary" as never;
     const rows = deriveMessagesTimelineRows({
       timelineEntries: [
@@ -453,11 +497,11 @@ describe("deriveMessagesTimelineRows", () => {
       (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
         row.kind === "message" && row.message.role === "assistant",
     );
-    expect(assistantRows.map((row) => row.assistantCommentary)).toEqual([true, false]);
     expect(assistantRows.map((row) => row.showAssistantMeta)).toEqual([false, true]);
+    expect(assistantRows.map((row) => row.showAssistantCopyButton)).toEqual([false, true]);
   });
 
-  it("treats a completed assistant segment in an active turn as immediate progress narration", () => {
+  it("keeps a completed assistant segment as standard text while its turn is active", () => {
     const turnId = "turn-active-assistant-commentary" as never;
     const rows = deriveMessagesTimelineRows({
       timelineEntries: [
@@ -492,8 +536,8 @@ describe("deriveMessagesTimelineRows", () => {
       (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
         row.kind === "message" && row.message.role === "assistant",
     );
-    expect(assistantRow?.assistantCommentary).toBe(true);
     expect(assistantRow?.showAssistantMeta).toBe(false);
+    expect(assistantRow?.assistantCopyStreaming).toBe(true);
   });
 
   it("only enables assistant copy for the terminal assistant message in a turn", () => {

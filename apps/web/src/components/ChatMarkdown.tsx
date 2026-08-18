@@ -66,7 +66,6 @@ import { LRUCache } from "../lib/lruCache";
 import { getSyntaxHighlighterPromise } from "../lib/syntaxHighlighting";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { useTheme } from "../hooks/useTheme";
-import { useSmoothedStreamingText } from "../hooks/useSmoothedStreamingText";
 import { getClientSettings } from "../hooks/useSettings";
 import {
   chatMarkdownClipboardPayload,
@@ -1383,7 +1382,6 @@ function ChatMarkdown({
   className,
   lineBreaks = false,
 }: ChatMarkdownProps) {
-  const renderedText = useSmoothedStreamingText(text, isStreaming);
   const { resolvedTheme } = useTheme();
   const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
     reportFailure: false,
@@ -1404,7 +1402,7 @@ function ChatMarkdown({
       string,
       NonNullable<ReturnType<typeof resolveMarkdownFileLinkMeta>>
     >();
-    for (const href of extractMarkdownLinkHrefs(renderedText)) {
+    for (const href of extractMarkdownLinkHrefs(text)) {
       const normalizedHref = normalizeMarkdownLinkHrefKey(href);
       if (metaByHref.has(normalizedHref)) continue;
       const meta = resolveMarkdownFileLinkMeta(normalizedHref, cwd);
@@ -1413,10 +1411,10 @@ function ChatMarkdown({
       }
     }
     return metaByHref;
-  }, [cwd, renderedText]);
+  }, [cwd, text]);
   const inlineCodeFileLinkMetaByText = useMemo(() => {
     const metaByText = new Map<string, MarkdownFileLinkMeta>();
-    for (const span of extractInlineCodeSpans(renderedText)) {
+    for (const span of extractInlineCodeSpans(text)) {
       if (metaByText.has(span)) continue;
       const meta = resolveInlineCodeFileLinkMeta(span, cwd);
       if (meta) {
@@ -1424,7 +1422,7 @@ function ChatMarkdown({
       }
     }
     return metaByText;
-  }, [cwd, renderedText]);
+  }, [cwd, text]);
   const fileLinkParentSuffixByPath = useMemo(() => {
     const filePaths = [
       ...[...markdownFileLinkMetaByHref.values()].map((meta) => meta.filePath),
@@ -1563,7 +1561,7 @@ function ChatMarkdown({
       li({ node, children, ...props }) {
         const listItemStart = node?.position?.start.offset;
         const markerOffset = RuntimePredicate.isNumber(listItemStart)
-          ? findTaskListMarkerOffset(renderedText, listItemStart)
+          ? findTaskListMarkerOffset(text, listItemStart)
           : null;
         return (
           <li {...props} data-task-marker-offset={markerOffset ?? undefined}>
@@ -1749,7 +1747,7 @@ function ChatMarkdown({
     openMarkdownFileInPreview,
     resolvedTheme,
     skills,
-    renderedText,
+    text,
     threadRef,
   ]);
   /* eslint-enable react/no-unstable-nested-components */
@@ -1768,7 +1766,7 @@ function ChatMarkdown({
         }
         components={markdownComponents}
         urlTransform={markdownUrlTransform}
-        text={renderedText}
+        text={text}
       />
     </div>
   );

@@ -925,8 +925,8 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
   return (
     <div
       className={cn(
-        // Commentary (non-terminal assistant) rows carry no metadata row, so
-        // they sit closer to the work that follows them.
+        // Non-terminal assistant rows carry no metadata row, so they sit
+        // closer to the work that follows them.
         (row.kind === "message" && row.message.role === "assistant" && !row.showAssistantMeta) ||
           row.kind === "work" ||
           row.kind === "work-toggle" ||
@@ -944,10 +944,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "work-toggle" ? <WorkGroupToggleTimelineRow row={row} /> : null}
       {row.kind === "turn-fold" ? <TurnFoldTimelineRow row={row} /> : null}
       {row.kind === "message" && row.message.role === "user" ? <UserTimelineRow row={row} /> : null}
-      {row.kind === "message" && row.message.role === "assistant" && row.assistantCommentary ? (
-        <AssistantCommentaryTimelineRow row={row} />
-      ) : null}
-      {row.kind === "message" && row.message.role === "assistant" && !row.assistantCommentary ? (
+      {row.kind === "message" && row.message.role === "assistant" ? (
         <AssistantTimelineRow row={row} />
       ) : null}
       {row.kind === "proposed-plan" ? <ProposedPlanTimelineRow row={row} /> : null}
@@ -1398,20 +1395,6 @@ function ReasoningTimelineRow({ workEntry }: { workEntry: TimelineWorkEntry }) {
     <ThinkingTimelineRow
       text={workEntry.detail ?? ""}
       streaming={workEntry.reasoningStreaming === true}
-    />
-  );
-}
-
-function AssistantCommentaryTimelineRow({
-  row,
-}: {
-  row: Extract<TimelineRow, { kind: "message" }>;
-}) {
-  return (
-    <ThinkingTimelineRow
-      text={row.message.text}
-      streaming={row.message.streaming}
-      autoExpand={row.assistantCopyStreaming}
     />
   );
 }

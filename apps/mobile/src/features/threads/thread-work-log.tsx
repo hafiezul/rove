@@ -6,7 +6,6 @@ import { LayoutAnimation, Pressable, ScrollView, useColorScheme, View } from "re
 import { AppText as Text } from "../../components/AppText";
 import { scaledTypographyLineHeight } from "../../lib/appearancePreferences";
 import { cn } from "../../lib/cn";
-import { useSmoothedStreamingText } from "../../lib/useSmoothedStreamingText";
 import type { ThreadFeedActivity } from "../../lib/threadActivity";
 import { MOBILE_TYPOGRAPHY } from "../../lib/typography";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -120,11 +119,6 @@ const RenderedReasoningDetail = memo(function RenderedReasoningDetail({ text }: 
   );
 });
 
-function SmoothedReasoningDetail(props: { readonly detail: string; readonly streaming: boolean }) {
-  const renderedDetail = useSmoothedStreamingText(props.detail, props.streaming);
-  return <RenderedReasoningDetail text={renderedDetail} />;
-}
-
 function ReasoningWorkLogRow(props: {
   readonly activity: ThreadFeedActivity;
   readonly copied: boolean;
@@ -201,12 +195,7 @@ function ReasoningWorkLogRow(props: {
         </View>
       </Pressable>
 
-      {fullDetail ? (
-        <SmoothedReasoningDetail
-          detail={fullDetail}
-          streaming={activity.reasoningStreaming === true}
-        />
-      ) : null}
+      {fullDetail ? <RenderedReasoningDetail text={fullDetail} /> : null}
     </Animated.View>
   );
 }
