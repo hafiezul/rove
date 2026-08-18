@@ -239,7 +239,7 @@ describe("buildThreadFeed", () => {
     ]);
   });
 
-  it("keeps reasoning phases between every visible tool in an active turn", () => {
+  it("keeps reasoning phases visible while compacting active tool runs", () => {
     const turnId = TurnId.make("turn-reasoning-phases");
     const thread = makeThread({
       id: ThreadId.make("thread-reasoning-phases"),
@@ -302,13 +302,50 @@ describe("buildThreadFeed", () => {
 
     expect(presented.map((entry) => entry.id)).toEqual([
       "thinking-one",
-      "bash-one",
-      "read-one",
       "edit-one",
+      "work-toggle:bash-one",
       "thinking-two",
       "bash-two",
     ]);
-    expect(presented.some((entry) => entry.type === "work-toggle")).toBe(false);
+    expect(presented.find((entry) => entry.type === "work-toggle")).toMatchObject({
+      groupId: "bash-one",
+      hiddenCount: 2,
+      expanded: false,
+      onlyToolActivities: true,
+    });
+    const settledLatestTurn = {
+      ...thread.latestTurn!,
+      state: "completed" as const,
+      completedAt: "2026-04-01T00:00:07.000Z",
+    };
+    const settled = deriveThreadFeedPresentation(feed, settledLatestTurn, new Set([turnId]));
+    expect(settled.map((entry) => entry.id)).toEqual([
+      "turn-fold:turn-reasoning-phases",
+      "thinking-one",
+      "edit-one",
+      "work-toggle:bash-one",
+      "thinking-two",
+      "bash-two",
+    ]);
+
+    const expanded = deriveThreadFeedPresentation(
+      feed,
+      thread.latestTurn,
+      new Set(),
+      new Set(["bash-one"]),
+    );
+    expect(expanded.map((entry) => entry.id)).toEqual([
+      "thinking-one",
+      "bash-one",
+      "read-one",
+      "edit-one",
+      "work-toggle:bash-one",
+      "thinking-two",
+      "bash-two",
+    ]);
+    expect(expanded.find((entry) => entry.type === "work-toggle")).toMatchObject({
+      expanded: true,
+    });
     expect(feed.filter((entry) => entry.type === "activity-group")).toHaveLength(4);
     expect(feed[0]).toMatchObject({
       type: "activity-group",
@@ -589,7 +626,6 @@ describe("buildThreadFeed", () => {
 
     const feed = buildThreadFeed(thread);
     const assistantPresentation = deriveAssistantMessagePresentation(feed);
-    expect(assistantPresentation.commentaryIds).toEqual(new Set(["assistant-commentary"]));
     expect(assistantPresentation.terminalIds).toEqual(new Set(["assistant-final"]));
     expect(assistantPresentation.hasStreamingText).toBe(false);
     const collapsed = deriveThreadFeedPresentation(feed, thread.latestTurn, new Set());

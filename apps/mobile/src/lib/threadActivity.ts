@@ -144,7 +144,7 @@ export type ThreadFeedLatestTurn = Pick<
   "turnId" | "state" | "startedAt" | "completedAt"
 >;
 
-/** Separates terminal assistant responses from progress narration around tools. */
+/** Finds terminal assistant responses and whether visible content is streaming. */
 export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFeedEntry>) {
   const terminalIdByTurn = new Map<TurnId, string>();
   let hasStreamingText = false;
@@ -161,29 +161,7 @@ export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFee
     }
   }
 
-  const terminalIds = new Set(terminalIdByTurn.values());
-  const commentaryIds = new Set<string>();
-  const hasLaterToolByTurnId = new Set<TurnId>();
-  for (let index = feed.length - 1; index >= 0; index -= 1) {
-    const entry = feed[index];
-    if (!entry) {
-      continue;
-    }
-    if (entry.type === "activity-group") {
-      if (entry.turnId && entry.activities.some((activity) => activity.toolLike)) {
-        hasLaterToolByTurnId.add(entry.turnId);
-      }
-      continue;
-    }
-    if (entry.type !== "message" || entry.message.role !== "assistant" || !entry.message.turnId) {
-      continue;
-    }
-    if (!terminalIds.has(entry.message.id) || hasLaterToolByTurnId.has(entry.message.turnId)) {
-      commentaryIds.add(entry.message.id);
-    }
-  }
-
-  return { terminalIds, commentaryIds, hasStreamingText };
+  return { terminalIds: new Set(terminalIdByTurn.values()), hasStreamingText };
 }
 
 function requestKindFromRequestType(requestType: unknown): PendingApproval["requestKind"] | null {
@@ -1335,7 +1313,6 @@ export function deriveThreadFeedPresentation(
     (entry) =>
       entry.type !== "turn-fold" && entry.type !== "work-toggle" && entry.type !== "working",
   );
-  const unsettledTurnId = deriveUnsettledTurnId(latestTurn);
   const foldsByAnchorId = deriveThreadFeedTurnFolds(sourceFeed, latestTurn);
   const collapsedEntryIds = new Set<string>();
   for (const fold of foldsByAnchorId.values()) {
@@ -1360,7 +1337,7 @@ export function deriveThreadFeedPresentation(
       });
     }
     if (!collapsedEntryIds.has(entry.id)) {
-      appendPresentedFeedEntry(result, entry, expandedWorkGroupIds, unsettledTurnId);
+      appendPresentedFeedEntry(result, entry, expandedWorkGroupIds);
     }
   }
   if (activeWorkStartedAt !== null) {
@@ -1377,7 +1354,6 @@ function appendPresentedFeedEntry(
   result: ThreadFeedEntry[],
   entry: Exclude<ThreadFeedEntry, { readonly type: "turn-fold" | "work-toggle" | "working" }>,
   expandedWorkGroupIds: ReadonlySet<string>,
-  unsettledTurnId: TurnId | null,
 ): void {
   if (entry.type !== "activity-group") {
     result.push(entry);
@@ -1388,23 +1364,6 @@ function appendPresentedFeedEntry(
     (activity) => !(activity.toolLike && activity.status === "neutral"),
   );
   if (activities.length === 0) {
-    return;
-  }
-  const keepLiveActivitiesExpanded = unsettledTurnId !== null && entry.turnId === unsettledTurnId;
-  if (keepLiveActivitiesExpanded) {
-    if (activities.length === 1) {
-      result.push({ ...entry, activities });
-    } else {
-      for (const activity of activities) {
-        result.push({
-          type: "activity-group",
-          id: activity.id,
-          createdAt: activity.createdAt,
-          turnId: activity.turnId,
-          activities: [activity],
-        });
-      }
-    }
     return;
   }
   if (activities.length <= MAX_VISIBLE_WORK_LOG_ENTRIES) {

@@ -569,7 +569,7 @@ describe("MessagesTimeline", () => {
     expect(markup).not.toContain("Work Log");
   });
 
-  it("renders interim assistant narration as Thinking and leaves only the terminal segment as the response", () => {
+  it("renders assistant text before a tool as standard assistant content", () => {
     const markup = renderToStaticMarkup(
       <MessagesTimeline
         {...buildProps()}
@@ -618,7 +618,7 @@ describe("MessagesTimeline", () => {
       />,
     );
 
-    expect(markup).toContain('data-thinking-chain="true"');
+    expect(markup).not.toContain('data-thinking-chain="true"');
     expect(markup).toContain("I will inspect the file before the next tool.");
     expect(markup).toContain("The file was inspected successfully.");
     expect(markup.indexOf("I will inspect the file before the next tool.")).toBeLessThan(
