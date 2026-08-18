@@ -24,7 +24,6 @@ import {
   HUMAN_INPUT_CHANNEL,
   START_PICK_CHANNEL,
 } from "./GuestProtocol.ts";
-import * as RuntimePredicate from "effect/Predicate";
 const OVERLAY_ATTRIBUTE = "data-t3code-annotation-ui";
 const Z_INDEX_OVERLAY = 2147483646;
 const PRIMARY = "var(--t3-primary)";
@@ -168,7 +167,7 @@ function describeRawElement(element: Element): string {
   const tag = element.tagName.toLowerCase();
   const id = element.id ? `#${element.id}` : "";
   const classes =
-    element instanceof HTMLElement && RuntimePredicate.isString(element.className)
+    element instanceof HTMLElement
       ? element.className
           .trim()
           .split(/\s+/)

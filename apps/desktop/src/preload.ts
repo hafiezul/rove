@@ -1,36 +1,30 @@
-import {
-  DesktopAppBrandingSchema,
-  DesktopPreviewPointerEventSchema,
-  DesktopPreviewRecordingFrameSchema,
-  DesktopPreviewTabStateSchema,
-  DesktopSshPasswordPromptRequestSchema,
-  DesktopUpdateStateSchema,
-  type DesktopBridge,
-} from "@t3tools/contracts";
+import type { DesktopBridge } from "@t3tools/contracts";
 import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
-import * as RuntimePredicate from "effect/Predicate";
-import * as Schema from "effect/Schema";
-
-const isDesktopAppBranding = Schema.is(DesktopAppBrandingSchema);
-const isDesktopSshPasswordPromptRequest = Schema.is(DesktopSshPasswordPromptRequestSchema);
-const isDesktopUpdateState = Schema.is(DesktopUpdateStateSchema);
-const isDesktopPreviewRecordingFrame = Schema.is(DesktopPreviewRecordingFrameSchema);
-const isDesktopPreviewTabState = Schema.is(DesktopPreviewTabStateSchema);
-const isDesktopPreviewPointerEvent = Schema.is(DesktopPreviewPointerEventSchema);
+import {
+  isBoolean,
+  isDesktopAppBranding,
+  isDesktopPreviewPointerEvent,
+  isDesktopPreviewRecordingFrame,
+  isDesktopPreviewTabState,
+  isDesktopSshPasswordPromptRequest,
+  isDesktopUpdateState,
+  isRecord,
+  isString,
+} from "./preloadGuards.ts";
 
 exposeClerkBridge({ passkeys: true });
 
 function unwrapEnsureSshEnvironmentResult(result: unknown) {
   if (
-    RuntimePredicate.isObjectOrArray(result) &&
+    isRecord(result) &&
     "type" in result &&
     result.type === IpcChannels.SSH_PASSWORD_PROMPT_CANCELLED_RESULT
   ) {
     const message =
-      "message" in result && RuntimePredicate.isString(result.message)
+      "message" in result && isString(result.message)
         ? result.message
         : "SSH authentication cancelled.";
     throw new Error(message);
@@ -117,7 +111,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
-      if (!RuntimePredicate.isString(action)) return;
+      if (!isString(action)) return;
       listener(action);
     };
 
@@ -130,7 +124,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULLSCREEN_STATE_CHANNEL) === true,
   onWindowFullscreenStateChange: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, fullscreen: unknown) => {
-      if (!RuntimePredicate.isBoolean(fullscreen)) return;
+      if (!isBoolean(fullscreen)) return;
       listener(fullscreen);
     };
 
@@ -240,7 +234,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         tabId: unknown,
         state: unknown,
       ) => {
-        if (!RuntimePredicate.isString(tabId) || !isDesktopPreviewTabState(state)) return;
+        if (!isString(tabId) || !isDesktopPreviewTabState(state)) return;
         listener(tabId, state);
       };
       ipcRenderer.on(IpcChannels.PREVIEW_STATE_CHANGE_CHANNEL, wrappedListener);
