@@ -1,3 +1,5 @@
+import * as RuntimePredicate from "effect/Predicate";
+
 import type {
   DesktopAppBranding,
   DesktopPreviewPointerEvent,
@@ -6,18 +8,19 @@ import type {
   DesktopSshPasswordPromptRequest,
   DesktopUpdateState,
 } from "@t3tools/contracts";
+import type { Json as SchemaJson } from "effect/Schema";
 
-type RecordValue = Record<string, unknown>;
+type RecordValue = Record<string, SchemaJson>;
 
 export const isRecord = (value: unknown): value is RecordValue =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
 
-export const isString = (value: unknown): value is string => typeof value === "string";
+export const isString = RuntimePredicate.isString;
 
-export const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
+export const isBoolean = RuntimePredicate.isBoolean;
 
 const isNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+  RuntimePredicate.isNumber(value) && Number.isFinite(value);
 
 const isNullableString = (value: unknown): value is string | null =>
   value === null || isString(value);
