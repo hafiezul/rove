@@ -45,6 +45,243 @@ import {
 import { isImageAttachment, type ChatMessage, type TurnDiffSummary } from "../../types";
 
 describe("streaming row projection", () => {
+  it("keeps a completed assistant segment as standard text while its turn is active", () => {
+    const turnId = "turn-active-assistant-commentary" as never;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-active-commentary-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:01Z",
+          message: {
+            id: "assistant-active-commentary" as never,
+            role: "assistant",
+            text: "I will inspect the file first.",
+            turnId,
+            createdAt: "2026-01-01T00:00:01Z",
+            updatedAt: "2026-01-01T00:00:02Z",
+            streaming: false,
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "running",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:00:00Z",
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+
+    const assistantRow = rows.find(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+    expect(assistantRow?.showAssistantMeta).toBe(false);
+    expect(assistantRow?.assistantCopyStreaming).toBe(true);
+  });
+
+  it("keeps assistant text before a tool as a standard assistant row", () => {
+    const turnId = "turn-assistant-commentary" as never;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-commentary-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:01Z",
+          message: {
+            id: "assistant-commentary" as never,
+            role: "assistant",
+            text: "I will inspect the file first.",
+            turnId,
+            createdAt: "2026-01-01T00:00:01Z",
+            updatedAt: "2026-01-01T00:00:02Z",
+            streaming: false,
+          },
+        },
+        {
+          id: "tool-entry",
+          kind: "work" as const,
+          createdAt: "2026-01-01T00:00:03Z",
+          entry: {
+            id: "tool-1",
+            createdAt: "2026-01-01T00:00:03Z",
+            turnId,
+            label: "bash",
+            tone: "tool",
+          },
+        },
+        {
+          id: "assistant-final-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:04Z",
+          message: {
+            id: "assistant-final" as never,
+            role: "assistant",
+            text: "The file was inspected successfully.",
+            turnId,
+            createdAt: "2026-01-01T00:00:04Z",
+            updatedAt: "2026-01-01T00:00:05Z",
+            streaming: false,
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "completed",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: "2026-01-01T00:00:05Z",
+      },
+      expandedTurnIds: new Set([turnId]),
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+
+    const assistantRows = rows.filter(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+    expect(assistantRows.map((row) => row.showAssistantMeta)).toEqual([false, true]);
+    expect(assistantRows.map((row) => row.showAssistantCopyButton)).toEqual([false, true]);
+  });
+
+  it("keeps reasoning phases visible while compacting active tool runs", () => {
+    const turnId = "turn-1" as never;
+    const input = {
+      timelineEntries: [
+        {
+          id: "thinking-one-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:01Z",
+          entry: {
+            id: "thinking-one",
+            createdAt: "2026-01-01T00:00:01Z",
+            turnId,
+            label: "Reasoned",
+            detail: "Inspecting the adapter.",
+            tone: "thinking",
+            sourceActivityKind: "turn.reasoning",
+          },
+        },
+        ...["bash-one", "read-one", "edit-one"].map((id, index) => ({
+          id: `${id}-entry`,
+          kind: "work" as const,
+          createdAt: `2026-01-01T00:00:0${index + 2}Z`,
+          entry: {
+            id,
+            createdAt: `2026-01-01T00:00:0${index + 2}Z`,
+            turnId,
+            label: id.split("-")[0]!,
+            tone: "tool" as const,
+          },
+        })),
+        {
+          id: "thinking-two-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:05Z",
+          entry: {
+            id: "thinking-two",
+            createdAt: "2026-01-01T00:00:05Z",
+            turnId,
+            label: "Reasoned",
+            detail: "Verifying the change.",
+            tone: "thinking",
+            sourceActivityKind: "turn.reasoning",
+          },
+        },
+        {
+          id: "bash-two-entry",
+          kind: "work",
+          createdAt: "2026-01-01T00:00:06Z",
+          entry: {
+            id: "bash-two",
+            createdAt: "2026-01-01T00:00:06Z",
+            turnId,
+            label: "bash",
+            tone: "tool",
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "running",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:00:00Z",
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    } as const;
+
+    const rows = deriveMessagesTimelineRows(input);
+
+    expect(rows.map((row) => row.id)).toEqual([
+      "thinking-one-entry",
+      "edit-one",
+      "work-toggle:bash-one-entry",
+      "thinking-two-entry",
+      "bash-two-entry",
+      "working-indicator-row",
+    ]);
+    expect(rows.find((row) => row.kind === "work-toggle")).toMatchObject({
+      groupId: "work-group:bash-one-entry",
+      hiddenCount: 2,
+      expanded: false,
+      onlyToolEntries: true,
+    });
+    expect(
+      rows
+        .filter(
+          (row): row is Extract<(typeof rows)[number], { kind: "work" }> => row.kind === "work",
+        )
+        .map((row) => row.groupedEntries[0]?.sourceActivityKind),
+    ).toEqual(["turn.reasoning", undefined, "turn.reasoning", undefined]);
+
+    const settledRows = deriveMessagesTimelineRows({
+      ...input,
+      latestTurn: {
+        ...input.latestTurn,
+        state: "completed",
+        completedAt: "2026-01-01T00:00:07Z",
+      },
+      expandedTurnIds: new Set([turnId]),
+      isWorking: false,
+      activeTurnStartedAt: null,
+    });
+    expect(settledRows.map((row) => row.id)).toEqual([
+      "turn-fold:turn-1",
+      "thinking-one-entry",
+      "edit-one",
+      "work-toggle:bash-one-entry",
+      "thinking-two-entry",
+      "bash-two-entry",
+    ]);
+
+    const expandedRows = deriveMessagesTimelineRows({
+      ...input,
+      expandedWorkGroupIds: new Set(["work-group:bash-one-entry"]),
+    });
+    expect(expandedRows.map((row) => row.id)).toEqual([
+      "thinking-one-entry",
+      "bash-one",
+      "read-one",
+      "edit-one",
+      "work-toggle:bash-one-entry",
+      "thinking-two-entry",
+      "bash-two-entry",
+      "working-indicator-row",
+    ]);
+    expect(expandedRows.find((row) => row.kind === "work-toggle")).toMatchObject({
+      expanded: true,
+    });
+  });
+
   it("keeps reasoning phases and every completed tool visible in an active turn", () => {
     const turnId = "turn-1" as never;
     const rows = deriveMessagesTimelineRows({

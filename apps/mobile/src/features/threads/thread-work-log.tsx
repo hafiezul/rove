@@ -72,7 +72,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useAssetUrl } from "../../state/assets";
-import { useSmoothedStreamingText } from "../../lib/useSmoothedStreamingText";
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_SWEEP_MS = 1_350;
@@ -433,11 +432,6 @@ const RenderedReasoningDetail = memo(function RenderedReasoningDetail({ text }: 
   );
 });
 
-function SmoothedReasoningDetail(props: { readonly detail: string; readonly streaming: boolean }) {
-  const renderedDetail = useSmoothedStreamingText(props.detail, props.streaming);
-  return <RenderedReasoningDetail text={renderedDetail} />;
-}
-
 function ReasoningWorkLogRow(props: {
   readonly activity: ThreadFeedActivity;
   readonly copied: boolean;
@@ -514,12 +508,7 @@ function ReasoningWorkLogRow(props: {
         </View>
       </Pressable>
 
-      {fullDetail ? (
-        <SmoothedReasoningDetail
-          detail={fullDetail}
-          streaming={activity.reasoningStreaming === true}
-        />
-      ) : null}
+      {fullDetail ? <RenderedReasoningDetail text={fullDetail} /> : null}
     </Animated.View>
   );
 }

@@ -233,7 +233,7 @@ export type ThreadFeedLatestTurn = Pick<
   "turnId" | "state" | "startedAt" | "completedAt"
 >;
 
-/** Separates terminal assistant responses from progress narration around tools. */
+/** Finds terminal assistant responses and whether visible content is streaming. */
 export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFeedEntry>) {
   const terminalIdByTurn = new Map<TurnId, string>();
   let hasStreamingText = false;
@@ -250,29 +250,7 @@ export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFee
     }
   }
 
-  const terminalIds = new Set(terminalIdByTurn.values());
-  const commentaryIds = new Set<string>();
-  const hasLaterToolByTurnId = new Set<TurnId>();
-  for (let index = feed.length - 1; index >= 0; index -= 1) {
-    const entry = feed[index];
-    if (!entry) {
-      continue;
-    }
-    if (entry.type === "activity-group") {
-      if (entry.turnId && entry.activities.some((activity) => activity.toolLike)) {
-        hasLaterToolByTurnId.add(entry.turnId);
-      }
-      continue;
-    }
-    if (entry.type !== "message" || entry.message.role !== "assistant" || !entry.message.turnId) {
-      continue;
-    }
-    if (!terminalIds.has(entry.message.id) || hasLaterToolByTurnId.has(entry.message.turnId)) {
-      commentaryIds.add(entry.message.id);
-    }
-  }
-
-  return { terminalIds, commentaryIds, hasStreamingText };
+  return { terminalIds: new Set(terminalIdByTurn.values()), hasStreamingText };
 }
 
 type ThreadFeedActivityGroup = Extract<ThreadFeedEntry, { readonly type: "activity-group" }>;

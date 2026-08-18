@@ -1463,10 +1463,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "turn-fold" ? <TurnFoldTimelineRow row={row} /> : null}
       {row.kind === "context-compaction" ? <ContextCompactionTimelineRow row={row} /> : null}
       {row.kind === "message" && row.message.role === "user" ? <UserTimelineRow row={row} /> : null}
-      {row.kind === "message" && row.message.role === "assistant" && row.assistantCommentary ? (
-        <AssistantCommentaryTimelineRow row={row} />
-      ) : null}
-      {row.kind === "message" && row.message.role === "assistant" && !row.assistantCommentary ? (
+      {row.kind === "message" && row.message.role === "assistant" ? (
         <AssistantTimelineRow row={row} />
       ) : null}
       {row.kind === "assistant-meta" ? <AssistantMetaTimelineRow row={row} /> : null}
@@ -2360,20 +2357,6 @@ function ReasoningTimelineRow({ workEntry }: { workEntry: TimelineWorkEntry }) {
     <ThinkingTimelineRow
       text={workEntry.detail ?? ""}
       streaming={workEntry.reasoningStreaming === true}
-    />
-  );
-}
-
-function AssistantCommentaryTimelineRow({
-  row,
-}: {
-  row: Extract<TimelineRow, { kind: "message" }>;
-}) {
-  return (
-    <ThinkingTimelineRow
-      text={row.message.text}
-      streaming={row.message.streaming}
-      autoExpand={row.assistantCopyStreaming}
     />
   );
 }
