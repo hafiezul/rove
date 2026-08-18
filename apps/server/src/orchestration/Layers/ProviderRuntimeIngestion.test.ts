@@ -2590,7 +2590,7 @@ describe("ProviderRuntimeIngestion", () => {
     expect(assistantEvents[3]?.payload.text).toBe("");
   });
 
-  it("keeps buffered assistant text in one normal message across a tool", async () => {
+  it("preserves completed Pi assistant messages across tool work", async () => {
     const harness = await createHarness();
     const threadId = asThreadId("thread-1");
     const turnId = asTurnId("turn-assistant-tool-boundary");
@@ -2615,9 +2615,23 @@ describe("ProviderRuntimeIngestion", () => {
       createdAt: "2026-03-28T08:00:01.000Z",
       threadId,
       turnId,
+      itemId: asItemId("pi-assistant-commentary"),
       payload: {
         streamKind: "assistant_text",
         delta: "I will inspect the file first.",
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-assistant-commentary-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:01.500Z",
+      threadId,
+      turnId,
+      itemId: asItemId("pi-assistant-commentary"),
+      payload: {
+        itemType: "assistant_message",
+        status: "completed",
       },
     });
     harness.emit({
@@ -2642,9 +2656,23 @@ describe("ProviderRuntimeIngestion", () => {
       createdAt: "2026-03-28T08:00:03.000Z",
       threadId,
       turnId,
+      itemId: asItemId("pi-assistant-final"),
       payload: {
         streamKind: "assistant_text",
-        delta: " The file was inspected successfully.",
+        delta: "Changes:\n- Updated the adapter.",
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-assistant-final-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-03-28T08:00:03.500Z",
+      threadId,
+      turnId,
+      itemId: asItemId("pi-assistant-final"),
+      payload: {
+        itemType: "assistant_message",
+        status: "completed",
       },
     });
     harness.emit({
@@ -2663,19 +2691,22 @@ describe("ProviderRuntimeIngestion", () => {
         entry.session?.status === "ready" &&
         entry.messages.some(
           (message: ProviderRuntimeTestMessage) =>
-            message.id === "assistant:turn-assistant-tool-boundary" && !message.streaming,
+            message.id === "assistant:pi-assistant-final" && !message.streaming,
         ),
     );
     const messages = thread.messages.filter((message: ProviderRuntimeTestMessage) =>
-      message.id.startsWith("assistant:turn-assistant-tool-boundary"),
+      message.id.startsWith("assistant:pi-assistant-"),
     );
     expect(messages.map((message: ProviderRuntimeTestMessage) => message.id)).toEqual([
-      "assistant:turn-assistant-tool-boundary",
+      "assistant:pi-assistant-commentary",
+      "assistant:pi-assistant-final",
     ]);
     expect(messages.map((message: ProviderRuntimeTestMessage) => message.text)).toEqual([
-      "I will inspect the file first. The file was inspected successfully.",
+      "I will inspect the file first.",
+      "Changes:\n- Updated the adapter.",
     ]);
     expect(messages.every((message: ProviderRuntimeTestMessage) => !message.streaming)).toBe(true);
+    expect(thread.latestTurn?.assistantMessageId).toBe("assistant:pi-assistant-final");
   });
 
   it("starts a new streaming assistant message segment after approval", async () => {

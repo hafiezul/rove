@@ -344,6 +344,87 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("preserves Pi assistant message boundaries around tool work", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "inspect then summarize" });
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          contentIndex: 0,
+          delta: "I will inspect the file first.",
+        },
+      });
+      fake.emit({ type: "message_end", message: { role: "assistant", stopReason: "toolUse" } });
+      fake.emit({
+        type: "tool_execution_start",
+        toolCallId: "tool-1",
+        toolName: "read",
+        args: {},
+      });
+      fake.emit({
+        type: "tool_execution_end",
+        toolCallId: "tool-1",
+        toolName: "read",
+        result: {},
+        isError: false,
+      });
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          contentIndex: 0,
+          delta: "Changes:\\n- Updated the adapter.",
+        },
+      });
+      fake.emit({ type: "message_end", message: { role: "assistant", stopReason: "stop" } });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(
+        eventsRef,
+        (received) =>
+          received.filter(
+            (event) =>
+              event.type === "item.completed" && event.payload.itemType === "assistant_message",
+          ).length === 2 && received.some((event) => event.type === "turn.completed"),
+      );
+      const assistantDeltas = events.filter(
+        (event): event is Extract<(typeof events)[number], { type: "content.delta" }> =>
+          event.type === "content.delta" && event.payload.streamKind === "assistant_text",
+      );
+      const assistantCompletions = events.filter(
+        (event): event is Extract<(typeof events)[number], { type: "item.completed" }> =>
+          event.type === "item.completed" && event.payload.itemType === "assistant_message",
+      );
+
+      assert.strictEqual(assistantDeltas.length, 2);
+      assert.strictEqual(assistantCompletions.length, 2);
+      const firstItemId = assistantDeltas[0]?.itemId;
+      const secondItemId = assistantDeltas[1]?.itemId;
+      assert.notStrictEqual(firstItemId, undefined);
+      assert.notStrictEqual(secondItemId, undefined);
+      if (firstItemId === undefined || secondItemId === undefined) {
+        return;
+      }
+      assert.notStrictEqual(String(firstItemId), String(secondItemId));
+      assert.deepStrictEqual(
+        assistantCompletions.map((event) => String(event.itemId)),
+        [String(firstItemId), String(secondItemId)],
+      );
+      assert.isTrue(assistantDeltas.every((event) => event.turnId === turnId));
+    }),
+  );
+
   it.effect("emits Pi context and current-branch processed usage after an assistant settles", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();

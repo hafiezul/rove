@@ -184,6 +184,12 @@ export interface PiAdapterLiveOptions {
   readonly createSession: (input: PiCreateSessionInput) => Promise<PiSessionLike>;
 }
 
+interface PiAssistantMessageItem {
+  readonly itemId: RuntimeItemId;
+  readonly turnId: TurnId;
+  hasTextDelta: boolean;
+}
+
 interface PiSessionContext {
   readonly threadId: ThreadId;
   readonly session: PiSessionLike;
@@ -191,6 +197,8 @@ interface PiSessionContext {
   readonly resumed: boolean;
   currentModelSlug: string | undefined;
   activeTurnId: TurnId | undefined;
+  activeAssistantMessage: PiAssistantMessageItem | undefined;
+  nextAssistantMessageIndex: number;
   /** Deferred error from a failed assistant message, held until we know whether Pi will auto-retry. */
   pendingTurnError: string | undefined;
   unsubscribe: () => void;
@@ -476,6 +484,25 @@ export function makePiAdapter(
             }
             return;
           }
+          case "message_start": {
+            // A Pi run can contain several assistant messages around tool work.
+            // Preserve their boundaries so ingestion can keep only the terminal
+            // assistant item as the final response.
+            const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+              message = event.message as { role?: string } | undefined;
+            if (message?.role === "assistant" && ctx.activeTurnId !== undefined) {
+              const turnId = ctx.activeTurnId;
+              ctx.activeAssistantMessage = {
+                itemId: RuntimeItemId.make(
+                  `pi-assistant:${turnId}:${ctx.nextAssistantMessageIndex}`,
+                ),
+                turnId,
+                hasTextDelta: false,
+              };
+              ctx.nextAssistantMessageIndex += 1;
+            }
+            return;
+          }
           case "message_update": {
             const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               assistantEvent = event.assistantMessageEvent as
@@ -485,10 +512,16 @@ export function makePiAdapter(
               assistantEvent?.type === "text_delta" &&
               RuntimePredicate.isString(assistantEvent.delta)
             ) {
+              const assistantMessage = ctx.activeAssistantMessage;
+              if (assistantMessage !== undefined) {
+                assistantMessage.hasTextDelta = true;
+              }
+              const turnId = assistantMessage?.turnId ?? ctx.activeTurnId;
               yield* offerRuntimeEvent({
                 ...base,
                 type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+                ...(turnId ? { turnId } : undefined),
+                ...(assistantMessage ? { itemId: assistantMessage.itemId } : undefined),
                 payload: {
                   streamKind: "assistant_text",
                   delta: assistantEvent.delta,
@@ -521,6 +554,24 @@ export function makePiAdapter(
               message = event.message as
                 | { role?: string; stopReason?: string; errorMessage?: string }
                 | undefined;
+            const assistantMessage =
+              message?.role === "assistant" ? ctx.activeAssistantMessage : undefined;
+            if (message?.role === "assistant") {
+              ctx.activeAssistantMessage = undefined;
+              if (assistantMessage?.hasTextDelta && message.stopReason !== "error") {
+                yield* offerRuntimeEvent({
+                  ...base,
+                  type: "item.completed",
+                  turnId: assistantMessage.turnId,
+                  itemId: assistantMessage.itemId,
+                  payload: {
+                    itemType: "assistant_message",
+                    status: "completed",
+                    title: "Assistant message",
+                  },
+                });
+              }
+            }
             if (
               message?.role === "assistant" &&
               message.stopReason === "error" &&
@@ -578,6 +629,7 @@ export function makePiAdapter(
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
               ctx.activeTurnId = undefined;
+              ctx.activeAssistantMessage = undefined;
               ctx.pendingTurnError = undefined;
               yield* offerRuntimeEvent({
                 ...base,
@@ -606,6 +658,7 @@ export function makePiAdapter(
               const turnId = ctx.activeTurnId;
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
+              ctx.activeAssistantMessage = undefined;
               ctx.pendingTurnError = undefined;
               yield* offerRuntimeEvent({
                 ...base,
@@ -671,6 +724,8 @@ export function makePiAdapter(
           resumed: resumeCursor?.sessionId !== undefined,
           currentModelSlug: initialModelSlug,
           activeTurnId: undefined,
+          activeAssistantMessage: undefined,
+          nextAssistantMessageIndex: 0,
           pendingTurnError: undefined,
           unsubscribe: () => {},
         };
@@ -820,6 +875,7 @@ export function makePiAdapter(
         if (ctx.activeTurnId !== undefined) {
           const turnId = ctx.activeTurnId;
           ctx.activeTurnId = undefined;
+          ctx.activeAssistantMessage = undefined;
           ctx.pendingTurnError = undefined;
           yield* offerRuntimeEvent({
             ...(yield* makeEventStamp()),
