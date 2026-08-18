@@ -40,8 +40,9 @@ shell commands.
 
 Each provider maps these modes onto its own approval and sandbox settings. Codex, for example,
 translates the mode into its approval policy and sandbox level, so **Supervised** runs the CLI
-with prompting enabled and a restricted workspace while **Full access** disables both. The
-labels above describe what you get; the exact per-provider translation is internal and may
-change.
+with prompting enabled and a restricted workspace while **Full access** disables both. Pi does
+not currently have permission gates, so Pi threads always use **Full access**. Rove shows that
+mode as unavailable because it cannot be changed. The labels above describe what you get; the
+exact per-provider translation is internal and may change.
 
-Mobile offers the same four modes with the same labels and descriptions.
+Mobile offers the same selectable modes and labels where the chosen provider supports them.

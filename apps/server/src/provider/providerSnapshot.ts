@@ -58,6 +58,7 @@ export interface ServerProviderPresentation {
   readonly displayName: string;
   readonly badgeLabel?: string;
   readonly showInteractionModeToggle?: boolean;
+  readonly runtimeModeSelectable?: boolean;
   readonly requiresNewThreadForModelChange?: boolean;
 }
 
@@ -234,6 +235,9 @@ export function buildServerProvider(input: {
     ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : undefined),
     ...(RuntimePredicate.isBoolean(input.presentation.showInteractionModeToggle)
       ? { showInteractionModeToggle: input.presentation.showInteractionModeToggle }
+      : undefined),
+    ...(RuntimePredicate.isBoolean(input.presentation.runtimeModeSelectable)
+      ? { runtimeModeSelectable: input.presentation.runtimeModeSelectable }
       : undefined),
     ...(RuntimePredicate.isBoolean(input.presentation.requiresNewThreadForModelChange)
       ? { requiresNewThreadForModelChange: input.presentation.requiresNewThreadForModelChange }

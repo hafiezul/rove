@@ -140,6 +140,7 @@ type NewTaskFlowContextValue = {
   readonly hasMoreBranches: boolean;
   readonly availableBranches: ReadonlyArray<VcsRef>;
   readonly runtimeMode: RuntimeMode;
+  readonly runtimeModeSelectable: boolean;
   readonly interactionMode: ProviderInteractionMode;
   readonly planModeEnabled: boolean;
   readonly expandedProvider: string | null;
@@ -443,13 +444,18 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         option.selection.instanceId === selectedModel.instanceId &&
         option.selection.model === selectedModel.model,
     ) ?? null;
-  const selectedProviderSkills = useMemo(
+  const selectedProvider = useMemo(
     () =>
       selectedEnvironmentServerConfig?.providers.find(
         (provider) => provider.instanceId === selectedModel?.instanceId,
-      )?.skills ?? [],
+      ) ?? null,
     [selectedEnvironmentServerConfig, selectedModel?.instanceId],
   );
+  // Older server snapshots do not advertise this capability; Pi has never
+  // exposed permission gates, so keep its control locked during upgrades.
+  const runtimeModeSelectable =
+    selectedProvider?.runtimeModeSelectable ?? selectedModelOption?.providerDriver !== "pi";
+  const selectedProviderSkills = selectedProvider?.skills ?? [];
   const setSelectedModelKey = useCallback(
     // Options ride along in the same write: a follow-up setSelectedModelOptions
     // call would rebuild the selection from the stale pre-switch model.
@@ -1004,6 +1010,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       hasMoreBranches,
       availableBranches,
       runtimeMode,
+      runtimeModeSelectable,
       interactionMode,
       planModeEnabled,
       expandedProvider,
@@ -1067,6 +1074,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       reset,
       runtimeMode,
       selectedBranchName,
+      runtimeModeSelectable,
       hasMoreBranches,
       selectedEnvironmentId,
       selectedModel,
