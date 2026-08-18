@@ -121,6 +121,8 @@ import {
   PaintbrushIcon,
   SearchIcon,
   SmartphoneIcon,
+  MinusIcon,
+  SparklesIcon,
   SquarePenIcon,
   TerminalIcon,
   Undo2Icon,
@@ -1461,7 +1463,10 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "turn-fold" ? <TurnFoldTimelineRow row={row} /> : null}
       {row.kind === "context-compaction" ? <ContextCompactionTimelineRow row={row} /> : null}
       {row.kind === "message" && row.message.role === "user" ? <UserTimelineRow row={row} /> : null}
-      {row.kind === "message" && row.message.role === "assistant" ? (
+      {row.kind === "message" && row.message.role === "assistant" && row.assistantCommentary ? (
+        <AssistantCommentaryTimelineRow row={row} />
+      ) : null}
+      {row.kind === "message" && row.message.role === "assistant" && !row.assistantCommentary ? (
         <AssistantTimelineRow row={row} />
       ) : null}
       {row.kind === "assistant-meta" ? <AssistantMetaTimelineRow row={row} /> : null}
@@ -2299,6 +2304,81 @@ function WorkingTimer({ createdAt }: { createdAt: string }) {
 // ---------------------------------------------------------------------------
 
 /** Renders standalone activity or one bounded, virtualized expanded tool group. */
+function ThinkingTimelineRow({
+  text: rawText,
+  streaming,
+  autoExpand = streaming,
+}: {
+  text: string;
+  streaming: boolean;
+  autoExpand?: boolean;
+}) {
+  const ctx = use(TimelineRowCtx);
+  const [expanded, setExpanded] = useState(autoExpand);
+  const text = rawText.trim();
+  const hasText = text.length > 0;
+  const Icon = expanded ? ChevronDownIcon : ChevronRightIcon;
+
+  // A live phase, or its enclosing active turn, remains open until the turn
+  // settles. Manual disclosure changes persist until auto-expansion changes.
+  useEffect(() => {
+    setExpanded(autoExpand);
+  }, [autoExpand]);
+
+  return (
+    <div className="relative min-w-0 px-1 py-0.5" data-thinking-chain="true">
+      <button
+        type="button"
+        aria-expanded={hasText ? expanded : undefined}
+        data-scroll-anchor-ignore
+        disabled={!hasText}
+        onClick={() => setExpanded((value) => !value)}
+        className="flex cursor-pointer select-none items-center gap-1.5 rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 disabled:cursor-default disabled:hover:text-muted-foreground"
+      >
+        <SparklesIcon className="size-3.5 shrink-0" aria-hidden />
+        <span className="font-medium">{streaming ? "Thinking…" : "Thinking"}</span>
+        {hasText ? <Icon className="size-3.5" aria-hidden /> : null}
+      </button>
+      {expanded && hasText ? (
+        <div className="mt-1 border-l-2 border-border/60 pl-3">
+          <ChatMarkdown
+            text={text}
+            cwd={ctx.markdownCwd}
+            threadRef={ctx.threadRef ?? undefined}
+            isStreaming={streaming}
+            skills={ctx.skills}
+            className="text-muted-foreground"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ReasoningTimelineRow({ workEntry }: { workEntry: TimelineWorkEntry }) {
+  return (
+    <ThinkingTimelineRow
+      text={workEntry.detail ?? ""}
+      streaming={workEntry.reasoningStreaming === true}
+    />
+  );
+}
+
+function AssistantCommentaryTimelineRow({
+  row,
+}: {
+  row: Extract<TimelineRow, { kind: "message" }>;
+}) {
+  return (
+    <ThinkingTimelineRow
+      text={row.message.text}
+      streaming={row.message.streaming}
+      autoExpand={row.assistantCopyStreaming}
+    />
+  );
+}
+
+/** Renders one or more already-derived work log rows. Overflow expansion is modeled as LegendList data. */
 const WorkGroupSection = memo(function WorkGroupSection({
   anchorKey,
   groupedEntries,
@@ -2319,6 +2399,14 @@ const WorkGroupSection = memo(function WorkGroupSection({
     () => groupedEntries.filter((entry) => workEntryIsVisibleInGroup(entry, isExpandedToolGroup)),
     [groupedEntries, isExpandedToolGroup],
   );
+  const reasoningEntry =
+    nonEmptyEntries.length === 1 && nonEmptyEntries[0]?.sourceActivityKind === "turn.reasoning"
+      ? nonEmptyEntries[0]
+      : null;
+  if (reasoningEntry) {
+    return <ReasoningTimelineRow workEntry={reasoningEntry} />;
+  }
+
 
   if (nonEmptyEntries.length === 0) return null;
   if (isExpandedToolGroup) {

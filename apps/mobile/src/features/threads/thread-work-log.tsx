@@ -24,6 +24,7 @@ import {
 } from "react";
 import {
   AccessibilityInfo,
+  useColorScheme,
   AppState,
   type ColorValue,
   Pressable,
@@ -71,6 +72,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useAssetUrl } from "../../state/assets";
+import { useSmoothedStreamingText } from "../../lib/useSmoothedStreamingText";
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_SWEEP_MS = 1_350;
@@ -397,6 +399,129 @@ function workLogRowsHeight(
   rowHeight = WORK_ROW_HEIGHT,
 ): number {
   return activities.length * rowHeight + Math.max(0, activities.length - 1) * WORK_ROW_GAP;
+}
+
+export function workLogActivityIsExpanded(
+  activity: ThreadFeedActivity,
+  expandedRows: Readonly<Record<string, boolean>>,
+): boolean {
+  return (
+    expandedRows[activity.id] ??
+    (activity.reasoning === true && activity.reasoningStreaming === true)
+  );
+}
+
+const RenderedReasoningDetail = memo(function RenderedReasoningDetail({ text }: { text: string }) {
+  if (text.length === 0) {
+    return null;
+  }
+
+  return (
+    <View className="ml-7 border-l border-neutral-300/60 pb-1 pl-3 pt-0.5 dark:border-white/[0.12]">
+      <ScrollView
+        nestedScrollEnabled
+        directionalLockEnabled
+        showsVerticalScrollIndicator
+        className="max-h-60"
+        contentContainerStyle={{ paddingRight: 8 }}
+      >
+        <Text selectable className="text-2xs leading-normal text-foreground-muted">
+          {text}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+});
+
+function SmoothedReasoningDetail(props: { readonly detail: string; readonly streaming: boolean }) {
+  const renderedDetail = useSmoothedStreamingText(props.detail, props.streaming);
+  return <RenderedReasoningDetail text={renderedDetail} />;
+}
+
+function ReasoningWorkLogRow(props: {
+  readonly activity: ThreadFeedActivity;
+  readonly copied: boolean;
+  readonly expanded: boolean;
+  readonly iconSubtleColor: import("react-native").ColorValue;
+  readonly onCopy: () => void;
+  readonly onToggle: () => void;
+}) {
+  const colorScheme = useColorScheme();
+  const pressedBackground = colorScheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.035)";
+  const { activity } = props;
+  const fullDetail = props.expanded ? activity.getFullDetail() : null;
+  const hasDetail = activity.canExpand;
+  const displayText = activity.detail ? `Thinking ${activity.detail}` : "Thinking";
+
+  return (
+    <Animated.View {...(isFreshRow(activity.createdAt) ? { entering: FadeIn.duration(200) } : {})}>
+      <Pressable
+        accessibilityRole={hasDetail ? "button" : undefined}
+        accessibilityLabel={displayText}
+        accessibilityHint={
+          hasDetail
+            ? "Double tap to show or hide the thought. Long press to copy."
+            : "Long press to copy."
+        }
+        accessibilityState={hasDetail ? { expanded: props.expanded } : undefined}
+        hitSlop={4}
+        onPress={() => {
+          if (hasDetail) {
+            triggerDisclosureFeedback();
+            props.onToggle();
+          }
+        }}
+        onLongPress={props.onCopy}
+        style={({ pressed }) => ({
+          backgroundColor: pressed ? pressedBackground : "transparent",
+        })}
+        className="rounded-md px-0.5 py-0"
+      >
+        <View className="min-h-8 flex-row items-center gap-1.5">
+          <View className="h-[18px] w-5 shrink-0 items-center justify-center">
+            <SymbolView
+              name={{ ios: "sparkles", android: "auto_awesome" }}
+              size={13}
+              weight="medium"
+              tintColor={props.iconSubtleColor}
+              type="monochrome"
+            />
+          </View>
+          <Text className="min-w-0 flex-1 font-t3-medium text-xs text-foreground">
+            {activity.reasoningStreaming ? "Thinking…" : "Thinking"}
+          </Text>
+          <View className="shrink-0 flex-row items-center gap-px">
+            {props.copied ? (
+              <Text className="pr-1 font-t3-medium text-3xs text-emerald-600 dark:text-emerald-400">
+                Copied
+              </Text>
+            ) : null}
+            <View className="h-4 w-4 items-center justify-center">
+              {hasDetail ? (
+                <SymbolView
+                  name={
+                    props.expanded
+                      ? { ios: "chevron.up", android: "keyboard_arrow_up" }
+                      : { ios: "chevron.down", android: "keyboard_arrow_down" }
+                  }
+                  size={11}
+                  tintColor={props.iconSubtleColor}
+                  type="monochrome"
+                />
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Pressable>
+
+      {fullDetail ? (
+        <SmoothedReasoningDetail
+          detail={fullDetail}
+          streaming={activity.reasoningStreaming === true}
+        />
+      ) : null}
+    </Animated.View>
+  );
 }
 
 export function collapsedWorkLogHeight(activities: ReadonlyArray<ThreadFeedActivity>): number {

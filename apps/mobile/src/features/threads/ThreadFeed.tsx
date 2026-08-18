@@ -85,6 +85,7 @@ import { PresentationSource } from "../../components/NativePresentation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, type SharedValue } from "react-native-reanimated";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
+import { useSmoothedStreamingText } from "../../lib/useSmoothedStreamingText";
 import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
 import { useFontFamily } from "../../lib/useFontFamily";
 import { scopedThreadKey } from "../../lib/scopedEntities";
@@ -143,6 +144,7 @@ import {
   resolveMarkdownLinkPresentation,
 } from "@t3tools/mobile-markdown-text/links";
 import {
+  deriveAssistantMessagePresentation,
   deriveThreadFeedPresentation,
   isContextCompactionActivityGroup,
   type ThreadFeedEntry,
@@ -162,6 +164,7 @@ import {
   ThreadThinkingRow,
   ThreadWorkLog,
   THREAD_DISCLOSURE_TRANSITION_MS,
+  workLogActivityIsExpanded,
   WORK_GROUP_TOGGLE_HEIGHT,
 } from "./thread-work-log";
 import { appendPendingThreadMessages, type PendingThreadFeedEntry } from "./pending-thread-feed";
@@ -1351,6 +1354,7 @@ function renderFeedEntry(
     readonly workRowSizing: ReturnType<typeof deriveThreadWorkLogSizing>;
     readonly workGroupScrollPositions: Map<string, ThreadWorkGroupScrollPosition>;
     readonly terminalAssistantMessageIds: ReadonlySet<string>;
+    readonly assistantCommentaryMessageIds: ReadonlySet<string>;
     readonly unsettledTurnId: TurnId | null;
     readonly onCopyWorkRow: (rowId: string, value: string) => void;
     readonly onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
@@ -1483,8 +1487,16 @@ function renderFeedEntry(
       message.role === "assistant" &&
       props.unsettledTurnId !== null &&
       message.turnId === props.unsettledTurnId;
+    // Buffered text becomes visible when a tool starts, before its completion
+    // row reaches the feed, so a completed active segment is public progress
+    // narration.
+    const completedActiveAssistantSegment = assistantTurnStillInProgress && !message.streaming;
+    const assistantCommentary =
+      message.role === "assistant" &&
+      (props.assistantCommentaryMessageIds.has(message.id) || completedActiveAssistantSegment);
     const showAssistantMeta =
       message.role === "assistant" &&
+      !assistantCommentary &&
       props.terminalAssistantMessageIds.has(message.id) &&
       !assistantTurnStillInProgress &&
       !message.streaming;
@@ -1632,6 +1644,21 @@ function renderFeedEntry(
       );
     }
 
+    if (assistantCommentary) {
+      return (
+        <AssistantThinkingTimelineRow
+          createdAt={message.createdAt}
+          text={message.text}
+          streaming={message.streaming}
+          active={assistantTurnStillInProgress}
+          markdownStyles={styles}
+          skills={props.skills}
+          iconSubtleColor={iconSubtleColor}
+          onLinkPress={props.markdownLinkHandlers.onLinkPress}
+        />
+      );
+    }
+
     // Skip empty assistant messages (no text, no attachments) — they would
     // render as an orphaned timestamp and break adjacent activity-group merging.
     if (renderedText.trim().length === 0 && attachments.length === 0) {
@@ -1718,6 +1745,128 @@ function renderFeedEntry(
     />
   );
 }
+
+const RenderedAssistantMarkdown = memo(function RenderedAssistantMarkdown(props: {
+  readonly text: string;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  if (props.text.length === 0) {
+    return null;
+  }
+
+  return hasNativeSelectableMarkdownText() ? (
+    <SelectableMarkdownText
+      markdown={props.text}
+      skills={props.skills}
+      textStyle={props.markdownStyles.nativeTextStyle}
+      onLinkPress={props.onLinkPress}
+    />
+  ) : (
+    <Markdown
+      options={{ gfm: true }}
+      renderers={props.markdownStyles.renderers}
+      styles={props.markdownStyles.styles}
+      theme={props.markdownStyles.theme}
+    >
+      {props.text}
+    </Markdown>
+  );
+});
+
+const StreamingAssistantMarkdown = memo(function StreamingAssistantMarkdown(props: {
+  readonly text: string;
+  readonly streaming: boolean;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  const renderedText = useSmoothedStreamingText(props.text, props.streaming);
+
+  return (
+    <RenderedAssistantMarkdown
+      text={renderedText}
+      markdownStyles={props.markdownStyles}
+      skills={props.skills}
+      onLinkPress={props.onLinkPress}
+    />
+  );
+});
+
+const AssistantThinkingTimelineRow = memo(function AssistantThinkingTimelineRow(props: {
+  readonly createdAt: string;
+  readonly text: string;
+  readonly streaming: boolean;
+  readonly active: boolean;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly iconSubtleColor: ColorValue;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  const autoExpand = props.streaming || props.active;
+  const [expanded, setExpanded] = useState(autoExpand);
+  const hasSourceText = props.text.trim().length > 0;
+
+  useEffect(() => {
+    setExpanded(autoExpand);
+  }, [autoExpand]);
+
+  if (!hasSourceText && !props.streaming && !props.active) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      className="mb-2 px-1"
+      {...(isFreshTimestamp(props.createdAt) ? { entering: FadeIn.duration(200) } : {})}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Thinking"
+        accessibilityHint="Double tap to show or hide the thought."
+        accessibilityState={{ expanded }}
+        hitSlop={4}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          setExpanded((value) => !value);
+        }}
+        className="flex-row items-center gap-1.5 rounded-md px-1 py-0.5"
+      >
+        <SymbolView
+          name={{ ios: "sparkles", android: "auto_awesome" }}
+          size={14}
+          tintColor={props.iconSubtleColor}
+          type="monochrome"
+        />
+        <Text className="font-t3-medium text-xs text-foreground-muted">
+          {props.streaming ? "Thinking…" : "Thinking"}
+        </Text>
+        <SymbolView
+          name={
+            expanded
+              ? { ios: "chevron.up", android: "keyboard_arrow_up" }
+              : { ios: "chevron.down", android: "keyboard_arrow_down" }
+          }
+          size={12}
+          tintColor={props.iconSubtleColor}
+          type="monochrome"
+        />
+      </Pressable>
+      {expanded && (hasSourceText || props.streaming) ? (
+        <View className="mt-1 ml-5 border-l border-neutral-300/60 pl-3 dark:border-white/[0.12]">
+          <StreamingAssistantMarkdown
+            text={props.text}
+            streaming={props.streaming}
+            markdownStyles={props.markdownStyles}
+            skills={props.skills}
+            onLinkPress={props.onLinkPress}
+          />
+        </View>
+      ) : null}
+    </Animated.View>
+  );
+});
 
 type UserMessageContentProps = {
   readonly text: string;
@@ -2429,15 +2578,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       ),
     [presentedFeed, props.anchorMessageId, anchorTopInset],
   );
-  const terminalAssistantMessageIds = useMemo(() => {
-    const terminalIdsByTurn = new Map<TurnId, string>();
-    for (const entry of props.feed) {
-      if (entry.type === "message" && entry.message.role === "assistant" && entry.message.turnId) {
-        terminalIdsByTurn.set(entry.message.turnId, entry.message.id);
-      }
-    }
-    return new Set(terminalIdsByTurn.values());
-  }, [props.feed]);
+  const assistantMessagePresentation = useMemo(
+    () => deriveAssistantMessagePresentation(props.feed),
+    [props.feed],
+  );
+  const terminalAssistantMessageIds = assistantMessagePresentation.terminalIds;
+  const assistantCommentaryMessageIds = assistantMessagePresentation.commentaryIds;
+  const hasStreamingText = assistantMessagePresentation.hasStreamingText;
   useEffect(() => {
     const previous = previousLatestTurnRef.current;
     previousLatestTurnRef.current = props.latestTurn;
@@ -2637,7 +2784,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           }
           // Expanded rows append a variable detail block — fall back to
           // measurement for those groups.
-          return entry.activities.some((activity) => expandedWorkRows[activity.id])
+          return entry.activities.some((activity) =>
+            workLogActivityIsExpanded(activity, expandedWorkRows),
+          )
             ? undefined
             : collapsedWorkLogHeight(entry.activities);
         default:
@@ -2665,6 +2814,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             workRowSizing,
             workGroupScrollPositions,
             terminalAssistantMessageIds,
+            assistantCommentaryMessageIds,
             unsettledTurnId,
             onCopyWorkRow,
             onToggleWorkGroup,
@@ -2699,6 +2849,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       workRowSizing,
       workGroupScrollPositions,
       terminalAssistantMessageIds,
+      assistantCommentaryMessageIds,
       unsettledTurnId,
       iconSubtleColor,
       screenColor,

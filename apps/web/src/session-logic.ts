@@ -78,6 +78,8 @@ export interface WorkLogEntry {
   toolLifecycleStatus?: WorkLogToolLifecycleStatus;
   /** Originating orchestration activity kind (e.g. `user-input.requested`) for row chrome. */
   sourceActivityKind?: OrchestrationThreadActivity["kind"];
+  /** Whether this provider reasoning phase is still receiving deltas. */
+  reasoningStreaming?: boolean;
   /** Grouping key for subagent lifecycle rows (one row per agent). */
   taskId?: string;
   /** Agent role (subagent_type) for labeled timeline rows. */
@@ -573,6 +575,7 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       ? payload.detail
       : null;
   const taskLabel = taskSummary || taskDetailAsLabel;
+  const isReasoningActivity = activity.kind === "turn.reasoning";
   const detail = isTaskActivity
     ? !taskDetailAsLabel &&
       payload &&
@@ -586,9 +589,9 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     id: activity.id,
     createdAt: activity.createdAt,
     turnId: activity.turnId,
-    label: taskLabel || activity.summary,
+    label: isReasoningActivity ? "Thinking" : taskLabel || activity.summary,
     tone:
-      activity.kind === "task.progress" || activity.kind === "turn.reasoning"
+      activity.kind === "task.progress" || isReasoningActivity
         ? "thinking"
         : activity.tone === "approval"
           ? "info"
@@ -615,6 +618,9 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   }
   if (viewedImagePath) {
     entry.viewedImagePath = viewedImagePath;
+  }
+  if (isReasoningActivity && payload?.streaming === true) {
+    entry.reasoningStreaming = true;
   }
   if (commandPreview.command) {
     entry.command = commandPreview.command;
