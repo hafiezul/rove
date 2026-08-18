@@ -161,6 +161,7 @@ type NewTaskFlowContextValue = {
   readonly availableBranches: ReadonlyArray<VcsRef>;
   readonly currentCheckoutBranchName: string | null;
   readonly runtimeMode: RuntimeMode;
+  readonly runtimeModeSelectable: boolean;
   readonly interactionMode: ProviderInteractionMode;
   readonly planModeEnabled: boolean;
   readonly expandedProvider: string | null;
@@ -539,6 +540,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
   const interactionMode = planModeEnabled
     ? (selectedProjectDraft.interactionMode ?? DEFAULT_PROVIDER_INTERACTION_MODE)
     : DEFAULT_PROVIDER_INTERACTION_MODE;
+  const runtimeModeSelectable = selectedProviderStatus?.runtimeModeSelectable ?? selectedModelOption?.providerDriver !== "pi";
   const setSelectedModelKey = useCallback(
     // Options ride along in the same write: a follow-up setSelectedModelOptions
     // call would rebuild the selection from the stale pre-switch model.
@@ -1176,6 +1178,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       availableBranches,
       currentCheckoutBranchName,
       runtimeMode,
+      runtimeModeSelectable,
       interactionMode,
       planModeEnabled,
       expandedProvider,
@@ -1241,6 +1244,7 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       reset,
       runtimeMode,
       selectedBranchName,
+      runtimeModeSelectable,
       hasMoreBranches,
       selectedEnvironmentId,
       selectedModel,

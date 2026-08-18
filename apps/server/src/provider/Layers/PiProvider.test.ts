@@ -11,6 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 import {
+  buildInitialPiProviderSnapshot,
   checkPiProviderStatus,
   PI_THINKING_DESCRIPTOR_ID,
   type PiDiscoveryClient,
@@ -31,6 +32,21 @@ const makeProbeClient = (overrides?: Partial<PiProbeClient>): PiProbeClient => (
 const EMPTY_DISCOVERY: PiDiscoveryClient = {
   discover: async () => ({ skills: [], slashCommands: [] }),
 };
+
+it.effect("does not offer runtime modes Pi cannot enforce", () =>
+  Effect.gen(function* () {
+    const initialSnapshot = yield* buildInitialPiProviderSnapshot(decodePiSettings({}));
+    assert.strictEqual(initialSnapshot.runtimeModeSelectable, false);
+
+    const snapshot = yield* checkPiProviderStatus(
+      decodePiSettings({}),
+      makeProbeClient(),
+      EMPTY_DISCOVERY,
+    );
+
+    assert.strictEqual(snapshot.runtimeModeSelectable, false);
+  }),
+);
 
 it.effect("surfaces a thinking-level option descriptor on every probed model", () =>
   Effect.gen(function* () {

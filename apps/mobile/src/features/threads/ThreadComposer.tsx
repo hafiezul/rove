@@ -545,6 +545,8 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         option.selection.instanceId === currentModelSelection.instanceId &&
         option.selection.model === currentModelSelection.model,
     ) ?? null;
+  const runtimeModeSelectable =
+    selectedProviderStatus?.runtimeModeSelectable ?? currentModelOption?.providerDriver !== "pi";
   const providerOptionDescriptors = useMemo(
     () =>
       resolveProviderOptionDescriptors({
@@ -566,6 +568,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
       onUpdateOptionSelections: (options) =>
         props.onUpdateModelSelection({ ...currentModelSelection, options }),
       runtimeMode: currentRuntimeMode,
+      runtimeModeSelectable,
       onUpdateRuntimeMode: props.onUpdateRuntimeMode,
     }),
     [
@@ -575,6 +578,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
       props.onUpdateRuntimeMode,
       providerOptionDescriptors,
       settingsOwnerId,
+      runtimeModeSelectable,
       threadProviderGroups,
     ],
   );

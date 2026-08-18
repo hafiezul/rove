@@ -31,3 +31,5 @@ Antigravity can still send native approval requests in **Full access**. It only 
 approvals for actions that support them.
 
 See the [provider guides](./install.md#providers) for setup and provider-specific limits.
+
+Pi does not currently have permission gates. Its permission control is disabled and always displays **Full access**, on web, desktop, and mobile.

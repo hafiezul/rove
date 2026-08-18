@@ -31,6 +31,7 @@ const PI_PRESENTATION = {
   displayName: "Pi",
   // Pi has no tool-approval model; threads run full-access.
   showInteractionModeToggle: false,
+  runtimeModeSelectable: false,
   // set_model works on a live session.
   requiresNewThreadForModelChange: false,
 } as const;

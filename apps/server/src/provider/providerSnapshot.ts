@@ -65,6 +65,7 @@ export interface ServerProviderPresentation {
   readonly badgeLabel?: string;
   readonly showInteractionModeToggle?: boolean;
   readonly reportsContextWindow?: boolean;
+  readonly runtimeModeSelectable?: boolean;
   readonly requiresNewThreadForModelChange?: boolean;
   readonly supportsConversationRollback?: boolean;
 }
@@ -225,6 +226,9 @@ export function buildServerProvider(input: {
       : {}),
     ...(typeof input.presentation.reportsContextWindow === "boolean"
       ? { reportsContextWindow: input.presentation.reportsContextWindow }
+      : {}),
+    ...(typeof input.presentation.runtimeModeSelectable === "boolean"
+      ? { runtimeModeSelectable: input.presentation.runtimeModeSelectable }
       : {}),
     ...(typeof input.presentation.requiresNewThreadForModelChange === "boolean"
       ? { requiresNewThreadForModelChange: input.presentation.requiresNewThreadForModelChange }
