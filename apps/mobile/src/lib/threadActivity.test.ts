@@ -14,6 +14,7 @@ import {
 import {
   buildPendingUserInputAnswers,
   buildThreadFeed,
+  deriveAssistantMessagePresentation,
   deriveThreadFeedPresentation,
   isPendingUserInputOptionSelected,
   setPendingUserInputCustomAnswer,
@@ -184,9 +185,10 @@ describe("buildThreadFeed", () => {
         ? group.activities.find((activity) => activity.id === "activity-reasoning")
         : undefined;
     expect(reasoningRow).toMatchObject({
-      summary: "Reasoned",
+      summary: "Thinking",
       icon: "agent",
       detail: "Done — reviewed and green.",
+      reasoning: true,
       status: null,
     });
     expect(reasoningRow?.canExpand).toBe(true);
@@ -218,11 +220,9 @@ describe("buildThreadFeed", () => {
       ],
     });
 
-    const presented = deriveThreadFeedPresentation(
-      buildThreadFeed(thread),
-      thread.latestTurn,
-      new Set<TurnId>(),
-    );
+    const feed = buildThreadFeed(thread);
+    expect(deriveAssistantMessagePresentation(feed).hasStreamingText).toBe(true);
+    const presented = deriveThreadFeedPresentation(feed, thread.latestTurn, new Set<TurnId>());
 
     expect(presented).toMatchObject([
       {
@@ -230,8 +230,9 @@ describe("buildThreadFeed", () => {
         activities: [
           {
             id: "activity-reasoning-streaming",
-            summary: "Reasoning",
+            summary: "Thinking",
             detail: "Checking the adapter first.",
+            reasoningStreaming: true,
           },
         ],
       },
@@ -587,6 +588,10 @@ describe("buildThreadFeed", () => {
     });
 
     const feed = buildThreadFeed(thread);
+    const assistantPresentation = deriveAssistantMessagePresentation(feed);
+    expect(assistantPresentation.commentaryIds).toEqual(new Set(["assistant-commentary"]));
+    expect(assistantPresentation.terminalIds).toEqual(new Set(["assistant-final"]));
+    expect(assistantPresentation.hasStreamingText).toBe(false);
     const collapsed = deriveThreadFeedPresentation(feed, thread.latestTurn, new Set());
     expect(collapsed.map((entry) => entry.id)).toEqual(["turn-fold:turn-1", "assistant-final"]);
     expect(collapsed[0]).toMatchObject({

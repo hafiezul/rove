@@ -2366,6 +2366,23 @@ const make = Effect.gen(function* () {
         eventTurnId !== undefined &&
         !conflictsWithActiveTurn
       ) {
+        // Assistant text before a tool is progress narration, not the turn's
+        // final answer. Closing its segment here lets the next assistant text
+        // become a fresh terminal-response candidate after the tool run.
+        const detailedThread = yield* getLoadedThreadDetail();
+        yield* finalizeActiveAssistantSegmentForTurn({
+          event,
+          threadId: thread.id,
+          turnId: eventTurnId,
+          createdAt: now,
+          commandTag: "assistant-commentary-complete-on-tool-start",
+          finalDeltaCommandTag: "assistant-commentary-delta-finalize-on-tool-start",
+          hasProjectedMessage:
+            detailedThread !== null &&
+            hasAssistantMessageForTurn(detailedThread.messages, eventTurnId, {
+              streamingOnly: true,
+            }),
+        });
         yield* finalizeActiveReasoningPhase({
           commandTag: "reasoning-tool-boundary",
           threadId: thread.id,

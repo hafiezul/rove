@@ -66,6 +66,7 @@ import { LRUCache } from "../lib/lruCache";
 import { getSyntaxHighlighterPromise } from "../lib/syntaxHighlighting";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { useTheme } from "../hooks/useTheme";
+import { useSmoothedStreamingText } from "../hooks/useSmoothedStreamingText";
 import { getClientSettings } from "../hooks/useSettings";
 import {
   chatMarkdownClipboardPayload,
@@ -183,6 +184,29 @@ const CHAT_MARKDOWN_REHYPE_PLUGINS = [
   rehypeRaw,
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
+
+const RenderedMarkdown = memo(function RenderedMarkdown({
+  text,
+  remarkPlugins,
+  components,
+  urlTransform,
+}: {
+  text: string;
+  remarkPlugins: NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
+  components: Components;
+  urlTransform: NonNullable<ReactMarkdownOptions["urlTransform"]>;
+}) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
+      components={components}
+      urlTransform={urlTransform}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+});
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
 interface GitHubAlertPresentation {
@@ -725,6 +749,17 @@ function SuspenseShikiCodeBlock({
   themeName,
   isStreaming,
 }: SuspenseShikiCodeBlockProps) {
+  if (isStreaming) {
+    // Re-highlighting an incomplete fence on every token is more expensive
+    // than the text itself. Keep the live frame plain, then highlight once
+    // the provider settles the block.
+    return (
+      <pre>
+        <code className={className}>{code}</code>
+      </pre>
+    );
+  }
+
   const language = extractFenceLanguage(className);
   const cacheKey = createHighlightCacheKey(code, language, themeName);
   const cachedHighlightedHtml = !isStreaming ? highlightedCodeCache.get(cacheKey) : null;
@@ -1348,6 +1383,7 @@ function ChatMarkdown({
   className,
   lineBreaks = false,
 }: ChatMarkdownProps) {
+  const renderedText = useSmoothedStreamingText(text, isStreaming);
   const { resolvedTheme } = useTheme();
   const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
     reportFailure: false,
@@ -1368,7 +1404,7 @@ function ChatMarkdown({
       string,
       NonNullable<ReturnType<typeof resolveMarkdownFileLinkMeta>>
     >();
-    for (const href of extractMarkdownLinkHrefs(text)) {
+    for (const href of extractMarkdownLinkHrefs(renderedText)) {
       const normalizedHref = normalizeMarkdownLinkHrefKey(href);
       if (metaByHref.has(normalizedHref)) continue;
       const meta = resolveMarkdownFileLinkMeta(normalizedHref, cwd);
@@ -1377,10 +1413,10 @@ function ChatMarkdown({
       }
     }
     return metaByHref;
-  }, [cwd, text]);
+  }, [cwd, renderedText]);
   const inlineCodeFileLinkMetaByText = useMemo(() => {
     const metaByText = new Map<string, MarkdownFileLinkMeta>();
-    for (const span of extractInlineCodeSpans(text)) {
+    for (const span of extractInlineCodeSpans(renderedText)) {
       if (metaByText.has(span)) continue;
       const meta = resolveInlineCodeFileLinkMeta(span, cwd);
       if (meta) {
@@ -1388,7 +1424,7 @@ function ChatMarkdown({
       }
     }
     return metaByText;
-  }, [cwd, text]);
+  }, [cwd, renderedText]);
   const fileLinkParentSuffixByPath = useMemo(() => {
     const filePaths = [
       ...[...markdownFileLinkMetaByHref.values()].map((meta) => meta.filePath),
@@ -1527,7 +1563,7 @@ function ChatMarkdown({
       li({ node, children, ...props }) {
         const listItemStart = node?.position?.start.offset;
         const markerOffset = RuntimePredicate.isNumber(listItemStart)
-          ? findTaskListMarkerOffset(text, listItemStart)
+          ? findTaskListMarkerOffset(renderedText, listItemStart)
           : null;
         return (
           <li {...props} data-task-marker-offset={markerOffset ?? undefined}>
@@ -1713,7 +1749,7 @@ function ChatMarkdown({
     openMarkdownFileInPreview,
     resolvedTheme,
     skills,
-    text,
+    renderedText,
     threadRef,
   ]);
   /* eslint-enable react/no-unstable-nested-components */
@@ -1726,16 +1762,14 @@ function ChatMarkdown({
       )}
       onCopy={handleCopy}
     >
-      <ReactMarkdown
+      <RenderedMarkdown
         remarkPlugins={
           lineBreaks ? CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS : CHAT_MARKDOWN_REMARK_PLUGINS
         }
-        rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
         components={markdownComponents}
         urlTransform={markdownUrlTransform}
-      >
-        {text}
-      </ReactMarkdown>
+        text={renderedText}
+      />
     </div>
   );
 }

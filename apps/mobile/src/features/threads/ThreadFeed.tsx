@@ -47,6 +47,7 @@ import ImageViewing from "react-native-image-viewing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInUp, type SharedValue } from "react-native-reanimated";
 import { useThemeColor } from "../../lib/useThemeColor";
+import { useSmoothedStreamingText } from "../../lib/useSmoothedStreamingText";
 import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
 import { useFontFamily } from "../../lib/useFontFamily";
 import { scopedThreadKey } from "../../lib/scopedEntities";
@@ -86,6 +87,7 @@ import { useAppearanceCodeSurface } from "../settings/appearance/useAppearanceCo
 import { markdownFileIconSource } from "@t3tools/mobile-markdown-text/file-icons";
 import { resolveMarkdownLinkPresentation } from "@t3tools/mobile-markdown-text/links";
 import {
+  deriveAssistantMessagePresentation,
   deriveThreadFeedPresentation,
   type ThreadFeedEntry,
   type ThreadFeedLatestTurn,
@@ -99,6 +101,7 @@ import {
   collapsedWorkLogHeight,
   ThreadWorkGroupToggle,
   ThreadWorkLog,
+  workLogActivityIsExpanded,
   WORK_GROUP_TOGGLE_HEIGHT,
 } from "./thread-work-log";
 import { useMarkdownCodeHighlight } from "./markdownCodeHighlightState";
@@ -825,10 +828,11 @@ function renderFeedEntry(
     readonly copiedRowId: string | null;
     readonly expandedWorkRows: Record<string, boolean>;
     readonly terminalAssistantMessageIds: ReadonlySet<string>;
+    readonly assistantCommentaryMessageIds: ReadonlySet<string>;
     readonly unsettledTurnId: TurnId | null;
     readonly onCopyWorkRow: (rowId: string, value: string) => void;
     readonly onToggleWorkGroup: (groupId: string) => void;
-    readonly onToggleWorkRow: (rowId: string) => void;
+    readonly onToggleWorkRow: (rowId: string, expanded: boolean) => void;
     readonly onToggleTurnFold: (turnId: TurnId) => void;
     readonly onPressImage: (uri: string, headers?: Record<string, string>) => void;
     readonly onMarkdownLinkPress: (href: string) => void;
@@ -898,8 +902,16 @@ function renderFeedEntry(
       message.role === "assistant" &&
       props.unsettledTurnId !== null &&
       message.turnId === props.unsettledTurnId;
+    // Buffered text becomes visible when a tool starts, before its completion
+    // row reaches the feed, so a completed active segment is public progress
+    // narration.
+    const completedActiveAssistantSegment = assistantTurnStillInProgress && !message.streaming;
+    const assistantCommentary =
+      message.role === "assistant" &&
+      (props.assistantCommentaryMessageIds.has(message.id) || completedActiveAssistantSegment);
     const showAssistantMeta =
       message.role === "assistant" &&
+      !assistantCommentary &&
       props.terminalAssistantMessageIds.has(message.id) &&
       !assistantTurnStillInProgress &&
       !message.streaming;
@@ -962,6 +974,21 @@ function renderFeedEntry(
       );
     }
 
+    if (assistantCommentary) {
+      return (
+        <AssistantThinkingTimelineRow
+          createdAt={message.createdAt}
+          text={message.text}
+          streaming={message.streaming}
+          active={assistantTurnStillInProgress}
+          markdownStyles={styles}
+          skills={props.skills}
+          iconSubtleColor={iconSubtleColor}
+          onLinkPress={props.onMarkdownLinkPress}
+        />
+      );
+    }
+
     // Skip empty assistant messages (no text, no attachments) — they would
     // render as an orphaned timestamp and break adjacent activity-group merging.
     if (message.text.trim().length === 0 && attachments.length === 0) {
@@ -974,24 +1001,14 @@ function renderFeedEntry(
         className={cn(showAssistantMeta ? "mb-5 px-1" : "mb-2 px-1")}
         {...(enterAnimated ? { entering: FadeIn.duration(220) } : {})}
       >
-        {message.text.trim().length > 0 ? (
-          hasNativeSelectableMarkdownText() ? (
-            <SelectableMarkdownText
-              markdown={message.text}
-              skills={props.skills}
-              textStyle={styles.nativeTextStyle}
-              onLinkPress={props.onMarkdownLinkPress}
-            />
-          ) : (
-            <Markdown
-              options={{ gfm: true }}
-              renderers={styles.renderers}
-              styles={styles.styles}
-              theme={styles.theme}
-            >
-              {message.text}
-            </Markdown>
-          )
+        {message.text.trim().length > 0 || message.streaming ? (
+          <StreamingAssistantMarkdown
+            text={message.text}
+            streaming={message.streaming}
+            markdownStyles={styles}
+            skills={props.skills}
+            onLinkPress={props.onMarkdownLinkPress}
+          />
         ) : null}
         {attachments.map((attachment) => {
           return (
@@ -1033,6 +1050,128 @@ function renderFeedEntry(
     />
   );
 }
+
+const RenderedAssistantMarkdown = memo(function RenderedAssistantMarkdown(props: {
+  readonly text: string;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  if (props.text.length === 0) {
+    return null;
+  }
+
+  return hasNativeSelectableMarkdownText() ? (
+    <SelectableMarkdownText
+      markdown={props.text}
+      skills={props.skills}
+      textStyle={props.markdownStyles.nativeTextStyle}
+      onLinkPress={props.onLinkPress}
+    />
+  ) : (
+    <Markdown
+      options={{ gfm: true }}
+      renderers={props.markdownStyles.renderers}
+      styles={props.markdownStyles.styles}
+      theme={props.markdownStyles.theme}
+    >
+      {props.text}
+    </Markdown>
+  );
+});
+
+const StreamingAssistantMarkdown = memo(function StreamingAssistantMarkdown(props: {
+  readonly text: string;
+  readonly streaming: boolean;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  const renderedText = useSmoothedStreamingText(props.text, props.streaming);
+
+  return (
+    <RenderedAssistantMarkdown
+      text={renderedText}
+      markdownStyles={props.markdownStyles}
+      skills={props.skills}
+      onLinkPress={props.onLinkPress}
+    />
+  );
+});
+
+const AssistantThinkingTimelineRow = memo(function AssistantThinkingTimelineRow(props: {
+  readonly createdAt: string;
+  readonly text: string;
+  readonly streaming: boolean;
+  readonly active: boolean;
+  readonly markdownStyles: MarkdownStyleSet;
+  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
+  readonly iconSubtleColor: ColorValue;
+  readonly onLinkPress: (href: string) => void;
+}) {
+  const autoExpand = props.streaming || props.active;
+  const [expanded, setExpanded] = useState(autoExpand);
+  const hasSourceText = props.text.trim().length > 0;
+
+  useEffect(() => {
+    setExpanded(autoExpand);
+  }, [autoExpand]);
+
+  if (!hasSourceText && !props.streaming && !props.active) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      className="mb-2 px-1"
+      {...(isFreshTimestamp(props.createdAt) ? { entering: FadeIn.duration(200) } : {})}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Thinking"
+        accessibilityHint="Double tap to show or hide the thought."
+        accessibilityState={{ expanded }}
+        hitSlop={4}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          setExpanded((value) => !value);
+        }}
+        className="flex-row items-center gap-1.5 rounded-md px-1 py-0.5"
+      >
+        <SymbolView
+          name={{ ios: "sparkles", android: "auto_awesome" }}
+          size={14}
+          tintColor={props.iconSubtleColor}
+          type="monochrome"
+        />
+        <Text className="font-t3-medium text-xs text-foreground-muted">
+          {props.streaming ? "Thinking…" : "Thinking"}
+        </Text>
+        <SymbolView
+          name={
+            expanded
+              ? { ios: "chevron.up", android: "keyboard_arrow_up" }
+              : { ios: "chevron.down", android: "keyboard_arrow_down" }
+          }
+          size={12}
+          tintColor={props.iconSubtleColor}
+          type="monochrome"
+        />
+      </Pressable>
+      {expanded && (hasSourceText || props.streaming) ? (
+        <View className="mt-1 ml-5 border-l border-neutral-300/60 pl-3 dark:border-white/[0.12]">
+          <StreamingAssistantMarkdown
+            text={props.text}
+            streaming={props.streaming}
+            markdownStyles={props.markdownStyles}
+            skills={props.skills}
+            onLinkPress={props.onLinkPress}
+          />
+        </View>
+      ) : null}
+    </Animated.View>
+  );
+});
 
 const WorkingTimelineRow = memo(function WorkingTimelineRow(props: { readonly startedAt: string }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -1633,15 +1772,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       ),
     [presentedFeed, props.anchorMessageId, anchorTopInset],
   );
-  const terminalAssistantMessageIds = useMemo(() => {
-    const terminalIdsByTurn = new Map<TurnId, string>();
-    for (const entry of props.feed) {
-      if (entry.type === "message" && entry.message.role === "assistant" && entry.message.turnId) {
-        terminalIdsByTurn.set(entry.message.turnId, entry.message.id);
-      }
-    }
-    return new Set(terminalIdsByTurn.values());
-  }, [props.feed]);
+  const assistantMessagePresentation = useMemo(
+    () => deriveAssistantMessagePresentation(props.feed),
+    [props.feed],
+  );
+  const terminalAssistantMessageIds = assistantMessagePresentation.terminalIds;
+  const assistantCommentaryMessageIds = assistantMessagePresentation.commentaryIds;
+  const hasStreamingText = assistantMessagePresentation.hasStreamingText;
   const unsettledTurnId =
     props.latestTurn &&
     (props.latestTurn.completedAt === null || props.latestTurn.state === "running")
@@ -1753,13 +1890,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   );
 
   const onToggleWorkRow = useCallback(
-    (rowId: string) => {
+    (rowId: string, expanded: boolean) => {
       suspendEndScrollMaintenanceForDisclosure(rowId);
       setInteractionState((current) => ({
         ...current,
         expandedWorkRows: {
           ...current.expandedWorkRows,
-          [rowId]: !(current.expandedWorkRows[rowId] ?? false),
+          [rowId]: expanded,
         },
       }));
     },
@@ -1808,7 +1945,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         case "activity-group":
           // Expanded rows append a variable detail block — fall back to
           // measurement for those groups.
-          return entry.activities.some((activity) => expandedWorkRows[activity.id])
+          return entry.activities.some((activity) =>
+            workLogActivityIsExpanded(activity, expandedWorkRows),
+          )
             ? undefined
             : collapsedWorkLogHeight(entry.activities, appearance.baseFontSize);
         default:
@@ -1825,6 +1964,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         copiedRowId,
         expandedWorkRows,
         terminalAssistantMessageIds,
+        assistantCommentaryMessageIds,
         unsettledTurnId,
         onCopyWorkRow,
         onToggleWorkGroup,
@@ -1844,6 +1984,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       copiedRowId,
       expandedWorkRows,
       terminalAssistantMessageIds,
+      assistantCommentaryMessageIds,
       unsettledTurnId,
       iconSubtleColor,
       userBubbleColor,
@@ -1924,17 +2065,14 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             // targets land one safe-area short of the true resting offset.
             adjustedInsetCompensation={usesNativeAutomaticInsets ? insets.bottom : 0}
             freeze={props.freeze}
-            // Animated: on send, the optimistic message's dataChange fires
-            // maintainScrollAtEnd before any render-cycle suppression could
-            // engage — an instant snap there teleports the feed to the anchor
-            // instead of scrolling to it. Keeping it enabled (animated) during
-            // anchor scrolls also lets it correct a scroll that landed on a
-            // stale end target once the anchor row finishes measuring.
+            // Native animated end corrections queue behind every streamed text
+            // measurement. Keep the live edge pinned immediately while text is
+            // growing; ordinary send and disclosure changes stay animated.
             maintainScrollAtEnd={
               disclosureToggleSettling || !endFollowEnabled
                 ? false
                 : {
-                    animated: true,
+                    animated: !hasStreamingText,
                     on: {
                       dataChange: true,
                       itemLayout: true,

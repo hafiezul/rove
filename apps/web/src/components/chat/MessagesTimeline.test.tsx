@@ -539,6 +539,93 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain('data-user-message-footer="true"');
   });
 
+  it("renders provider reasoning as a Thinking disclosure instead of a work-log tool row", () => {
+    const markup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        timelineEntries={[
+          {
+            id: "reasoning-entry",
+            kind: "work" as const,
+            createdAt: MESSAGE_CREATED_AT,
+            entry: {
+              id: "reasoning-1",
+              createdAt: MESSAGE_CREATED_AT,
+              label: "Reasoned",
+              detail: "**Inspecting** the adapter before the next tool.",
+              tone: "thinking" as const,
+              sourceActivityKind: "turn.reasoning",
+              reasoningStreaming: true,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain('data-thinking-chain="true"');
+    expect(markup).toContain("Thinking…");
+    expect(markup).toContain("Inspecting");
+    expect(markup).not.toContain("Reasoned");
+    expect(markup).not.toContain("Work Log");
+  });
+
+  it("renders interim assistant narration as Thinking and leaves only the terminal segment as the response", () => {
+    const markup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        timelineEntries={[
+          {
+            id: "assistant-commentary-entry",
+            kind: "message" as const,
+            createdAt: "2026-03-17T19:12:21.000Z",
+            message: {
+              id: MessageId.make("assistant-commentary"),
+              role: "assistant" as const,
+              text: "I will inspect the file before the next tool.",
+              turnId: null,
+              createdAt: "2026-03-17T19:12:21.000Z",
+              updatedAt: "2026-03-17T19:12:22.000Z",
+              streaming: true,
+            },
+          },
+          {
+            id: "tool-entry",
+            kind: "work" as const,
+            createdAt: "2026-03-17T19:12:23.000Z",
+            entry: {
+              id: "tool-1",
+              createdAt: "2026-03-17T19:12:23.000Z",
+              turnId: null,
+              label: "bash",
+              tone: "tool" as const,
+            },
+          },
+          {
+            id: "assistant-final-entry",
+            kind: "message" as const,
+            createdAt: "2026-03-17T19:12:24.000Z",
+            message: {
+              id: MessageId.make("assistant-final"),
+              role: "assistant" as const,
+              text: "The file was inspected successfully.",
+              turnId: null,
+              createdAt: "2026-03-17T19:12:24.000Z",
+              updatedAt: "2026-03-17T19:12:30.000Z",
+              streaming: false,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain('data-thinking-chain="true"');
+    expect(markup).toContain("I will inspect the file before the next tool.");
+    expect(markup).toContain("The file was inspected successfully.");
+    expect(markup.indexOf("I will inspect the file before the next tool.")).toBeLessThan(
+      markup.indexOf("The file was inspected successfully."),
+    );
+  });
+
   it("renders context compaction entries in the normal work log", () => {
     const markup = renderToStaticMarkup(
       <MessagesTimeline

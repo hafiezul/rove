@@ -391,6 +391,111 @@ describe("deriveMessagesTimelineRows", () => {
     ).toEqual(["turn.reasoning", undefined, undefined, undefined, "turn.reasoning", undefined]);
   });
 
+  it("renders assistant narration before a tool as commentary and preserves the terminal response", () => {
+    const turnId = "turn-assistant-commentary" as never;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-commentary-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:01Z",
+          message: {
+            id: "assistant-commentary" as never,
+            role: "assistant",
+            text: "I will inspect the file first.",
+            turnId,
+            createdAt: "2026-01-01T00:00:01Z",
+            updatedAt: "2026-01-01T00:00:02Z",
+            streaming: false,
+          },
+        },
+        {
+          id: "tool-entry",
+          kind: "work" as const,
+          createdAt: "2026-01-01T00:00:03Z",
+          entry: {
+            id: "tool-1",
+            createdAt: "2026-01-01T00:00:03Z",
+            turnId,
+            label: "bash",
+            tone: "tool",
+          },
+        },
+        {
+          id: "assistant-final-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:04Z",
+          message: {
+            id: "assistant-final" as never,
+            role: "assistant",
+            text: "The file was inspected successfully.",
+            turnId,
+            createdAt: "2026-01-01T00:00:04Z",
+            updatedAt: "2026-01-01T00:00:05Z",
+            streaming: false,
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "completed",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: "2026-01-01T00:00:05Z",
+      },
+      expandedTurnIds: new Set([turnId]),
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaryByAssistantMessageId: new Map(),
+      revertTurnCountByUserMessageId: new Map(),
+    });
+
+    const assistantRows = rows.filter(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+    expect(assistantRows.map((row) => row.assistantCommentary)).toEqual([true, false]);
+    expect(assistantRows.map((row) => row.showAssistantMeta)).toEqual([false, true]);
+  });
+
+  it("treats a completed assistant segment in an active turn as immediate progress narration", () => {
+    const turnId = "turn-active-assistant-commentary" as never;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-active-commentary-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:00:01Z",
+          message: {
+            id: "assistant-active-commentary" as never,
+            role: "assistant",
+            text: "I will inspect the file first.",
+            turnId,
+            createdAt: "2026-01-01T00:00:01Z",
+            updatedAt: "2026-01-01T00:00:02Z",
+            streaming: false,
+          },
+        },
+      ],
+      latestTurn: {
+        turnId,
+        state: "running",
+        startedAt: "2026-01-01T00:00:00Z",
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:00:00Z",
+      turnDiffSummaryByAssistantMessageId: new Map(),
+      revertTurnCountByUserMessageId: new Map(),
+    });
+
+    const assistantRow = rows.find(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+    expect(assistantRow?.assistantCommentary).toBe(true);
+    expect(assistantRow?.showAssistantMeta).toBe(false);
+  });
+
   it("only enables assistant copy for the terminal assistant message in a turn", () => {
     const rows = deriveMessagesTimelineRows({
       timelineEntries: [
