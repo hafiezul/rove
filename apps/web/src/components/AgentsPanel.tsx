@@ -27,15 +27,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { orchestrationEnvironment } from "~/state/orchestration";
-import { ScrollArea } from "~/components/ui/scroll-area";
 import {
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetPanel,
-  SheetPopup,
-  SheetTitle,
-} from "~/components/ui/sheet";
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { ScrollArea } from "~/components/ui/scroll-area";
 
 /**
  * In-flight states all present as Working (one steady state, per the
@@ -144,7 +144,7 @@ function agentActivityText(agent: RuntimeSubagent): string | null {
   );
 }
 
-function AgentDetailsSheet({
+function AgentDetailsDialog({
   agent,
   open,
   onOpenChange,
@@ -165,18 +165,18 @@ function AgentDetailsSheet({
   ].filter((value): value is string => value !== null && value.length > 0);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetPopup side="right">
-        <SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPopup>
+        <DialogHeader>
           <div className="flex items-center gap-2 pr-8">
             <StatusDot status={agent.status} />
-            <SheetTitle className="truncate text-lg">{agent.title}</SheetTitle>
+            <DialogTitle className="truncate">{agent.title}</DialogTitle>
           </div>
-          <SheetDescription className="text-xs">
+          <DialogDescription className="text-xs">
             {[agent.role, visuals.label, ...metrics].filter(Boolean).join(" · ")}
-          </SheetDescription>
-        </SheetHeader>
-        <SheetPanel className="space-y-5">
+          </DialogDescription>
+        </DialogHeader>
+        <DialogPanel className="space-y-5">
           {outcome ? (
             <section>
               <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -255,13 +255,13 @@ function AgentDetailsSheet({
               </dl>
             </section>
           ) : null}
-        </SheetPanel>
-      </SheetPopup>
-    </Sheet>
+        </DialogPanel>
+      </DialogPopup>
+    </Dialog>
   );
 }
 
-/** Fixed-height agent status row with a read-only activity drawer. */
+/** Fixed-height agent status row; clicking opens the details dialog. */
 function AgentRow({ agent }: { agent: RuntimeSubagent }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const visuals = STATUS_VISUALS[agent.status];
@@ -284,7 +284,7 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
         type="button"
         onClick={() => setDetailsOpen(true)}
         aria-label={`Open details for ${agent.title}`}
-        className="group grid h-[3.875rem] w-full grid-cols-[0.375rem_minmax(0,1fr)_auto] grid-rows-[1.25rem_1.125rem_1rem] items-center gap-x-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="group grid h-[3.875rem] w-full cursor-pointer grid-cols-[0.375rem_minmax(0,1fr)_auto] grid-rows-[1.25rem_1.125rem_1rem] items-center gap-x-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <span className="col-start-1 row-start-1 flex items-center">
           <StatusDot status={agent.status} />
@@ -320,9 +320,8 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
         <span className="col-start-2 col-end-4 row-start-3 truncate font-mono text-[.7rem] tabular-nums text-muted-foreground/70">
           {metadata.join(" · ")}
         </span>
-        <span className="sr-only">{visuals.label}</span>
       </button>
-      <AgentDetailsSheet agent={agent} open={detailsOpen} onOpenChange={setDetailsOpen} />
+      <AgentDetailsDialog agent={agent} open={detailsOpen} onOpenChange={setDetailsOpen} />
     </>
   );
 }
@@ -424,7 +423,7 @@ function WorkflowScriptView({
           type="button"
           onClick={onClose}
           aria-label="Close script"
-          className="ml-auto text-muted-foreground hover:text-foreground"
+          className="ml-auto cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <X aria-hidden className="size-3" />
         </button>
@@ -474,7 +473,7 @@ function PhaseSection({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         className={cn(
-          "mt-2 flex w-full items-center gap-1.5 rounded-sm px-1.5 text-left text-[.65rem] font-medium uppercase tracking-wider transition-colors duration-150 hover:bg-muted/30",
+          "mt-2 flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1.5 text-left text-[.65rem] font-medium uppercase tracking-wider transition-colors duration-150 hover:bg-muted/30",
           phase.state === "done"
             ? "text-success-foreground"
             : phase.state === "running"
@@ -544,7 +543,7 @@ function ExpandedWorkflowSection({
             type="button"
             onClick={() => setScriptOpen((value) => !value)}
             className={cn(
-              "rounded-sm border border-border/60 px-1 font-mono normal-case hover:text-foreground",
+              "cursor-pointer rounded-sm border border-border/60 px-1 font-mono normal-case hover:text-foreground",
               scriptOpen && "text-foreground",
             )}
             aria-expanded={scriptOpen}
@@ -559,7 +558,7 @@ function ExpandedWorkflowSection({
           type="button"
           onClick={onCollapse}
           aria-label="Collapse workflow"
-          className="text-muted-foreground hover:text-foreground"
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <ChevronDown aria-hidden className="size-3" />
         </button>
@@ -615,7 +614,7 @@ function CollapsedWorkflowSection({
       <button
         type="button"
         onClick={onExpand}
-        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30"
+        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30"
         aria-expanded={false}
       >
         <StatusDot status={failed > 0 ? "failed" : group.workflow.status} />
