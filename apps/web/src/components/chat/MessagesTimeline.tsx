@@ -2263,7 +2263,7 @@ const AgentSpawnCtaRow = memo(function AgentSpawnCtaRow(props: { workEntry: Time
     <button
       type="button"
       onClick={onOpenAgents}
-      className="-mx-1 flex w-full items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5 text-left text-[13px] transition hover:bg-accent/50"
+      className="group -mx-1 flex w-full cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5 text-left text-[13px] transition-colors duration-150 hover:bg-accent/50"
     >
       <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", dotClass)} />
       <WorkEntryIconSvg name="bot" className="size-3.5 shrink-0 text-muted-foreground" />
@@ -2276,7 +2276,9 @@ const AgentSpawnCtaRow = memo(function AgentSpawnCtaRow(props: { workEntry: Time
         {totalTokens > 0 ? (
           <span className="tabular-nums">Σ {formatSubagentTokenCount(totalTokens)}</span>
         ) : null}
-        <span className="text-info-foreground">{live ? "Open Agents ▸" : "View ▸"}</span>
+        <span className="text-info-foreground underline-offset-2 group-hover:underline">
+          {live ? "Open Agents ▸" : "View ▸"}
+        </span>
       </span>
     </button>
   );

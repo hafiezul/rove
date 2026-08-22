@@ -22,11 +22,19 @@ import {
   formatSubagentTokenCount,
 } from "@t3tools/client-runtime/state/subagentRuntime";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { Bot, Braces, Check, ChevronDown, ChevronRight, X } from "lucide-react";
+import { Bot, Braces, Check, ChevronDown, ChevronRight, ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { orchestrationEnvironment } from "~/state/orchestration";
+import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
 /**
@@ -136,8 +144,126 @@ function agentActivityText(agent: RuntimeSubagent): string | null {
   );
 }
 
-/** Flat, non-interactive agent status line. No unfold. */
+function AgentDetailsDialog({
+  agent,
+  open,
+  onOpenChange,
+}: {
+  agent: RuntimeSubagent;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const visuals = STATUS_VISUALS[agent.status];
+  const modelLabel = formatSubagentModelLabel(agent.model, agent.effort);
+  const outcome = agent.error ?? agent.result;
+  const handles = agent.runHandles;
+  const metrics = [
+    modelLabel,
+    agent.usage ? `${formatSubagentTokenCount(agent.usage.totalTokens)} tokens` : null,
+    agent.usage?.toolUses !== undefined ? `${agent.usage.toolUses} tools` : null,
+    agent.startedAt ? elapsedBetween(agent.startedAt, agent.completedAt) : null,
+  ].filter((value): value is string => value !== null && value.length > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPopup>
+        <DialogHeader>
+          <div className="flex items-center gap-2 pr-8">
+            <StatusDot status={agent.status} />
+            <DialogTitle className="truncate">{agent.title}</DialogTitle>
+          </div>
+          <DialogDescription className="text-xs">
+            {[agent.role, visuals.label, ...metrics].filter(Boolean).join(" · ")}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogPanel className="space-y-5">
+          {outcome ? (
+            <section>
+              <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {agent.error ? "Error" : "Result"}
+              </h3>
+              <p
+                className={cn(
+                  "whitespace-pre-wrap break-words text-sm",
+                  agent.error && "text-destructive-foreground",
+                )}
+              >
+                {outcome}
+              </p>
+            </section>
+          ) : null}
+
+          <section>
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Recent activity
+            </h3>
+            {agent.recentActivity.length > 0 ? (
+              <ol className="space-y-2 border-l border-border/60 pl-3">
+                {agent.recentActivity.map((entry) => (
+                  <li key={`${entry.at}:${entry.summary}`} className="min-w-0">
+                    <p className="whitespace-pre-wrap break-words text-sm">{entry.summary}</p>
+                    <time
+                      dateTime={entry.at}
+                      className="font-mono text-[.65rem] text-muted-foreground"
+                    >
+                      {entry.at}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {agentActivityText(agent) ?? "No detailed activity was reported."}
+              </p>
+            )}
+          </section>
+
+          {handles ? (
+            <section>
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Run
+              </h3>
+              <dl className="space-y-2 text-xs">
+                {handles.runId ? (
+                  <div>
+                    <dt className="text-muted-foreground">Run ID</dt>
+                    <dd className="break-all font-mono">{handles.runId}</dd>
+                  </div>
+                ) : null}
+                {handles.transcriptDir ? (
+                  <div>
+                    <dt className="text-muted-foreground">Transcript location</dt>
+                    <dd className="break-all font-mono">{handles.transcriptDir}</dd>
+                  </div>
+                ) : null}
+                {handles.sessionUrl ? (
+                  <div>
+                    <dt className="text-muted-foreground">Session</dt>
+                    <dd>
+                      <a
+                        href={handles.sessionUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                      >
+                        Open session
+                        <ExternalLink aria-hidden className="size-3" />
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+        </DialogPanel>
+      </DialogPopup>
+    </Dialog>
+  );
+}
+
+/** Fixed-height agent status row; clicking opens the details dialog. */
 function AgentRow({ agent }: { agent: RuntimeSubagent }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const visuals = STATUS_VISUALS[agent.status];
   const activity = agentActivityText(agent);
   const modelLabel = formatSubagentModelLabel(agent.model, agent.effort);
@@ -153,39 +279,50 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
   ].filter((value): value is string => value !== null);
 
   return (
-    <div className="grid h-[3.875rem] grid-cols-[0.375rem_minmax(0,1fr)_auto] grid-rows-[1.25rem_1.125rem_1rem] items-center gap-x-2 rounded-md px-1.5 py-1">
-      <span className="col-start-1 row-start-1 flex items-center">
-        <StatusDot status={agent.status} />
-      </span>
-      <span className="col-start-2 row-start-1 flex min-w-0 items-baseline gap-2">
-        <span className="min-w-0 truncate text-sm font-medium">{agent.title}</span>
-        {role ? (
-          <span className="max-w-28 shrink-0 truncate rounded-sm border border-border/60 px-1 font-mono text-[.65rem] text-muted-foreground">
-            {role}
-          </span>
-        ) : null}
-      </span>
-      <span className="col-start-3 row-start-1 min-w-14 text-right font-mono text-[.7rem] text-muted-foreground/80">
-        <span className="inline-flex items-center gap-1">
-          <AgentElapsed agent={agent} />
-          {agent.status === "completed" ? (
-            <Check aria-hidden className="size-3 text-success" />
+    <>
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(true)}
+        aria-label={`Open details for ${agent.title}`}
+        className="group grid h-[3.875rem] w-full cursor-pointer grid-cols-[0.375rem_minmax(0,1fr)_auto] grid-rows-[1.25rem_1.125rem_1rem] items-center gap-x-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <span className="col-start-1 row-start-1 flex items-center">
+          <StatusDot status={agent.status} />
+        </span>
+        <span className="col-start-2 row-start-1 flex min-w-0 items-baseline gap-2">
+          <span className="min-w-0 truncate text-sm font-medium">{agent.title}</span>
+          {role ? (
+            <span className="max-w-28 shrink-0 truncate rounded-sm border border-border/60 px-1 font-mono text-[.65rem] text-muted-foreground">
+              {role}
+            </span>
           ) : null}
         </span>
-      </span>
-      <span
-        className={cn(
-          "col-start-2 col-end-4 row-start-2 block truncate text-xs",
-          agent.status === "failed" ? "text-destructive-foreground" : "text-muted-foreground",
-        )}
-      >
-        {activity ?? visuals.label}
-      </span>
-      <span className="col-start-2 col-end-4 row-start-3 truncate font-mono text-[.7rem] tabular-nums text-muted-foreground/70">
-        {metadata.join(" · ")}
-      </span>
-      <span className="sr-only">{visuals.label}</span>
-    </div>
+        <span className="col-start-3 row-start-1 min-w-14 text-right font-mono text-[.7rem] text-muted-foreground/80">
+          <span className="inline-flex items-center gap-1">
+            <AgentElapsed agent={agent} />
+            {agent.status === "completed" ? (
+              <Check aria-hidden className="size-3 text-success" />
+            ) : null}
+            <ChevronRight
+              aria-hidden
+              className="size-3 text-muted-foreground/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+            />
+          </span>
+        </span>
+        <span
+          className={cn(
+            "col-start-2 col-end-4 row-start-2 block truncate text-xs",
+            agent.status === "failed" ? "text-destructive-foreground" : "text-muted-foreground",
+          )}
+        >
+          {activity ?? visuals.label}
+        </span>
+        <span className="col-start-2 col-end-4 row-start-3 truncate font-mono text-[.7rem] tabular-nums text-muted-foreground/70">
+          {metadata.join(" · ")}
+        </span>
+      </button>
+      <AgentDetailsDialog agent={agent} open={detailsOpen} onOpenChange={setDetailsOpen} />
+    </>
   );
 }
 
@@ -286,7 +423,7 @@ function WorkflowScriptView({
           type="button"
           onClick={onClose}
           aria-label="Close script"
-          className="ml-auto text-muted-foreground hover:text-foreground"
+          className="ml-auto cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <X aria-hidden className="size-3" />
         </button>
@@ -336,7 +473,7 @@ function PhaseSection({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         className={cn(
-          "mt-2 flex w-full items-center gap-1.5 rounded-sm px-1.5 text-left text-[.65rem] font-medium uppercase tracking-wider hover:bg-accent/40",
+          "mt-2 flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1.5 text-left text-[.65rem] font-medium uppercase tracking-wider transition-colors duration-150 hover:bg-muted/30",
           phase.state === "done"
             ? "text-success-foreground"
             : phase.state === "running"
@@ -406,7 +543,7 @@ function ExpandedWorkflowSection({
             type="button"
             onClick={() => setScriptOpen((value) => !value)}
             className={cn(
-              "rounded-sm border border-border/60 px-1 font-mono normal-case hover:text-foreground",
+              "cursor-pointer rounded-sm border border-border/60 px-1 font-mono normal-case hover:text-foreground",
               scriptOpen && "text-foreground",
             )}
             aria-expanded={scriptOpen}
@@ -421,7 +558,7 @@ function ExpandedWorkflowSection({
           type="button"
           onClick={onCollapse}
           aria-label="Collapse workflow"
-          className="text-muted-foreground hover:text-foreground"
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <ChevronDown aria-hidden className="size-3" />
         </button>
@@ -461,11 +598,12 @@ function CollapsedWorkflowSection({
 }) {
   const members = workflowMembers(group);
   const failed = members.filter((member) => member.status === "failed").length;
-  // Coordinator usage may already aggregate members (panel-footer rule):
-  // count it only when there are no member rows to sum.
+  // Coordinator usage may aggregate members when the provider cannot report
+  // per-member tokens. Prefer leaves, then fall back to that aggregate.
+  const hasMemberUsage = members.some((member) => member.usage !== null);
   const totalTokens = members.reduce(
     (sum, member) => sum + (member.usage?.totalTokens ?? 0),
-    members.length === 0 ? (group.workflow.usage?.totalTokens ?? 0) : 0,
+    members.length === 0 || !hasMemberUsage ? (group.workflow.usage?.totalTokens ?? 0) : 0,
   );
   const elapsed =
     group.workflow.startedAt && group.workflow.completedAt
@@ -476,7 +614,7 @@ function CollapsedWorkflowSection({
       <button
         type="button"
         onClick={onExpand}
-        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent/40"
+        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30"
         aria-expanded={false}
       >
         <StatusDot status={failed > 0 ? "failed" : group.workflow.status} />
