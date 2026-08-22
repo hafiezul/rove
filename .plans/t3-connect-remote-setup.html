@@ -91,7 +91,7 @@
 
 <div class="terminal">
 $ npx t3 connect<br><br>
-To set up T3 Connect, open this URL and sign in:<br>
+To set up Rove Connect, open this URL and sign in:<br>
 &nbsp;&nbsp;<span class="b">https://app.t3.codes/connect#B64URL_STATE_AND_CHALLENGE</span><br><br>
 Enter your authentication code: <span class="dim">[code]</span><br><br>
 <span class="g">Connected as theo@t3.gg!</span><br><br>
@@ -237,7 +237,7 @@ loginctl enable-linger $USER            &larr; survives SSH logout / reboot</cod
 <ul>
   <li><span class="warn">&#9888;</span> <strong>Clerk redirect URI:</strong> confirm the CLI OAuth client accepts the hosted redirect and that the token endpoint honors PKCE exchange for codes issued to it. Verify in staging before the phase 2 commit. <em>(Only external dependency in the plan.)</em></li>
   <li><span class="warn">&#9888;</span> <strong>systemd user env is minimal:</strong> always write absolute paths for node + t3 into the unit; never rely on PATH. Service failures are invisible by default &mdash; hence the phase 3 requirement to log to a printed file path.</li>
-  <li><span class="warn">&#9888;</span> <strong>Linger prompt honesty:</strong> the y/n prompt should say the machine becomes reachable via T3 Connect whenever powered on &mdash; that's the feature, but say it.</li>
+  <li><span class="warn">&#9888;</span> <strong>Linger prompt honesty:</strong> the y/n prompt should say the machine becomes reachable via Rove Connect whenever powered on &mdash; that's the feature, but say it.</li>
   <li><span class="ok">&#10003;</span> Re-running <code>connect</code> when linked &#8594; idempotent: refresh token, re-confirm service, done.</li>
 </ul>
 

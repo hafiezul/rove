@@ -218,11 +218,11 @@ Typical uses:
 
 Use `t3 auth --help` and the nested subcommand help pages for the full reference.
 
-### Deregister a T3 Connect Environment
+### Deregister a Rove Connect Environment
 
-Open your account menu and choose **T3 Connect** to see every environment registered to your
-account. On mobile, open **Settings** → **T3 Connect**. Choose **Deregister** to revoke an
-environment's T3 Connect access, remove any managed tunnel, and free its host space.
+Open your account menu and choose **Rove Connect** to see every environment registered to your
+account. On mobile, open **Settings** → **Rove Connect**. Choose **Deregister** to revoke an
+environment's Rove Connect access, remove any managed tunnel, and free its host space.
 
 Deregistration is an account action and does not need a connection to the environment, so it also
 works for a server that was wiped or is no longer reachable. Device-local connect and disconnect

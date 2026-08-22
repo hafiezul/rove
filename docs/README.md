@@ -34,7 +34,7 @@ Setup lives in the [root README](../README.md), contribution guidance in [CONTRI
 - [Server updates](./internals/server-updates.md)
 - [Resource telemetry](./internals/resource-telemetry.md)
 - [Environment auth](./internals/environment-auth.md)
-- [T3 Connect](./internals/t3-connect.md)
+- [Rove Connect](./internals/rove-connect.md)
 - [CI gates](./internals/ci.md)
 
 ### Runbooks
