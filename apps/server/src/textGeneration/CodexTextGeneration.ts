@@ -80,7 +80,7 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
   ): Effect.Effect<string, TextGenerationError, Scope.Scope> =>
     fileSystem
       .makeTempFileScoped({
-        prefix: `t3code-${prefix}-${process.pid}-`,
+        prefix: `rove-${prefix}-${process.pid}-`,
       })
       .pipe(
         Effect.tap((filePath) => fileSystem.writeFileString(filePath, content)),

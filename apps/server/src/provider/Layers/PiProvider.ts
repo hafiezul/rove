@@ -103,7 +103,7 @@ export function buildInitialPiProviderSnapshot(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: piSettings.enabled ? "Probing the Pi SDK…" : "Pi is disabled in T3 Code settings.",
+        message: piSettings.enabled ? "Probing the Pi SDK…" : "Pi is disabled in Rove settings.",
       },
     });
   });
@@ -155,7 +155,7 @@ export function checkPiProviderStatus(
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Pi is disabled in T3 Code settings.",
+          message: "Pi is disabled in Rove settings.",
         },
       });
     }

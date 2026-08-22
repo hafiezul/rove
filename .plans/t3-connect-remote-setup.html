@@ -95,8 +95,8 @@ To set up T3 Connect, open this URL and sign in:<br>
 &nbsp;&nbsp;<span class="b">https://app.t3.codes/connect#B64URL_STATE_AND_CHALLENGE</span><br><br>
 Enter your authentication code: <span class="dim">[code]</span><br><br>
 <span class="g">Connected as theo@t3.gg!</span><br><br>
-Run T3 Code in the background whenever this machine boots? (y/n): y<br><br>
-<span class="g">T3 Code is set up and ready to go.</span>
+Run Rove in the background whenever this machine boots? (y/n): y<br><br>
+<span class="g">Rove is set up and ready to go.</span>
 </div>
 
 <h2>Why this is a small change</h2>
@@ -219,7 +219,7 @@ Run T3 Code in the background whenever this machine boots? (y/n): y<br><br>
 ├── versions/0.0.27/        &larr; npm install --prefix (gets native deps right: node-pty etc.)
 └── current -> versions/0.0.27
 
-~/.config/systemd/user/t3code.service   &larr; ExecStart=/abs/path/node .../current/.../t3 serve
+~/.config/systemd/user/rove.service   &larr; ExecStart=/abs/path/node .../current/.../t3 serve
 loginctl enable-linger $USER            &larr; survives SSH logout / reboot</code></pre>
 <p class="kv">Why a real <code>npm install</code> and not "reuse the npx binary": the npx cache is ephemeral and <code>t3</code> ships native deps (<code>node-pty</code>, <code>@ff-labs/fff-node</code>) that need per-platform prebuilds. Why pinned and not <code>npx t3@latest</code> in the unit: a boot-time registry fetch means the box may simply not come up (network down, PATH-less systemd env, nvm). Deterministic boot; updates happen out-of-band (phase 4 follow-up) or by re-running <code>npx t3 connect</code>.</p>
 

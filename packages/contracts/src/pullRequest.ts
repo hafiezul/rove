@@ -977,9 +977,9 @@ const PROVIDER_REQUIREMENT: ProviderRequirements = {
   },
   bitbucket: {
     missing:
-      "Bitbucket needs API credentials on the server. Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN, or T3CODE_BITBUCKET_ACCESS_TOKEN.",
+      "Bitbucket needs API credentials on the server. Set ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN, or ROVE_BITBUCKET_ACCESS_TOKEN.",
     unauthenticated:
-      "Bitbucket rejected the configured credentials. Check T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN.",
+      "Bitbucket rejected the configured credentials. Check ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN.",
   },
 };
 

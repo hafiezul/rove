@@ -63,7 +63,7 @@ function isJsonRecord(value: SchemaJson): value is Record<string, SchemaJson> {
   return !Array.isArray(value) && RuntimePredicate.isObjectOrArray(value);
 }
 
-export const COMPOSER_DRAFT_STORAGE_KEY = "t3code:composer-drafts:v1";
+export const COMPOSER_DRAFT_STORAGE_KEY = "rove:composer-drafts:v1";
 const COMPOSER_DRAFT_STORAGE_VERSION = 8;
 const DraftThreadEnvModeSchema = Schema.Literals(["local", "worktree"]);
 export type DraftThreadEnvMode = typeof DraftThreadEnvModeSchema.Type;

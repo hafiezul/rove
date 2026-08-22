@@ -297,13 +297,13 @@ describe("makeRelayDeviceRegistrationRequest", () => {
         label: "Julius's iPhone",
         iosMajorVersion: 18,
         appVersion: "1.0.0",
-        bundleId: "com.t3tools.t3code.preview",
+        bundleId: "dev.rove.app.preview",
         apsEnvironment: resolveApsEnvironment("preview"),
         notificationsEnabled: true,
         preferences: {},
       }),
     ).toMatchObject({
-      bundleId: "com.t3tools.t3code.preview",
+      bundleId: "dev.rove.app.preview",
       apsEnvironment: "production",
     });
   });
@@ -897,7 +897,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     armAgentAwarenessLiveActivityForLocalWork({
       environmentId: "env-1" as EnvironmentId,
       threadTitle: "Fix the flaky test",
-      projectTitle: "t3code",
+      projectTitle: "rove",
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -916,7 +916,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     armAgentAwarenessLiveActivityForLocalWork({
       environmentId: "env-publishing" as EnvironmentId,
       threadTitle: "Fix the flaky test",
-      projectTitle: "t3code",
+      projectTitle: "rove",
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(widgetMocks.start).toHaveBeenCalledTimes(1);
@@ -930,7 +930,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     armAgentAwarenessLiveActivityForLocalWork({
       environmentId: "env-pre-capability" as EnvironmentId,
       threadTitle: "Fix the flaky test",
-      projectTitle: "t3code",
+      projectTitle: "rove",
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(widgetMocks.start).toHaveBeenCalledTimes(1);

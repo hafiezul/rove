@@ -15,7 +15,7 @@ import * as LiveActivities from "./LiveActivities.ts";
 import type { Json as SchemaJson } from "effect/Schema";
 
 const aggregate: RelayAgentActivityAggregateState = {
-  title: "T3 Code",
+  title: "Rove",
   subtitle: "Agent work in progress",
   activeCount: 1,
   updatedAt: "2026-05-25T00:00:00.000Z",

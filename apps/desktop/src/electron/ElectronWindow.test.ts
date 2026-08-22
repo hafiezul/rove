@@ -54,7 +54,7 @@ describe("ElectronWindow", () => {
         throw cause;
       });
       const options = {
-        title: "T3 Code",
+        title: "Rove",
         width: 1100,
         height: 780,
         minWidth: 840,
@@ -67,7 +67,7 @@ describe("ElectronWindow", () => {
         icon: {} as Electron.NativeImage,
         webPreferences: {
           preload: "/tmp/preload.js",
-          partition: "persist:t3code-preview-test",
+          partition: "persist:rove-preview-test",
           sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
@@ -82,7 +82,7 @@ describe("ElectronWindow", () => {
       assert.instanceOf(error, ElectronWindow.ElectronWindowCreateError);
       assert.isTrue(ElectronWindow.isElectronWindowCreateError(error));
       assert.deepEqual(error.options, {
-        title: "T3 Code",
+        title: "Rove",
         width: 1100,
         height: 780,
         minWidth: 840,
@@ -94,7 +94,7 @@ describe("ElectronWindow", () => {
         backgroundColor: "#101010",
         webPreferences: {
           preload: "/tmp/preload.js",
-          partition: "persist:t3code-preview-test",
+          partition: "persist:rove-preview-test",
           backgroundThrottling: null,
           sandbox: true,
           contextIsolation: true,
@@ -105,7 +105,7 @@ describe("ElectronWindow", () => {
       assert.isFalse("icon" in error.options);
       assert.isFalse("spellcheck" in error.options.webPreferences);
       assert.strictEqual(error.cause, cause);
-      assert.equal(error.message, 'Failed to create Electron BrowserWindow "T3 Code" (1100x780).');
+      assert.equal(error.message, 'Failed to create Electron BrowserWindow "Rove" (1100x780).');
       assert.notInclude(error.message, cause.message);
       assert.deepEqual(browserWindowMock.mock.calls, [[options]]);
     }).pipe(Effect.provide(TestLayer)),
