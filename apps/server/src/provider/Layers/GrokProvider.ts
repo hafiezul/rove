@@ -84,7 +84,7 @@ export function buildInitialGrokProviderSnapshot(
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Grok is disabled in T3 Code settings.",
+          message: "Grok is disabled in Rove settings.",
         },
       });
     }
@@ -322,7 +322,7 @@ const discoverGrokModelsViaAcpInitialize = (
       environment,
       childProcessSpawner,
       cwd: process.cwd(),
-      clientInfo: { name: "t3-code-provider-probe", version: "0.0.0" },
+      clientInfo: { name: "rove-provider-probe", version: "0.0.0" },
     });
     const initialized = yield* acp.initialize();
     return buildGrokModelsFromSessionModelState(sessionModelStateFromInitialize(initialized));
@@ -351,7 +351,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Grok is disabled in T3 Code settings.",
+        message: "Grok is disabled in Rove settings.",
       },
     });
   }

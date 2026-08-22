@@ -8,7 +8,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 
-const DATABASE_NAME = "t3code-client.db";
+const DATABASE_NAME = "rove-client.db";
 const DATABASE_SCHEMA_VERSION = 1;
 const LEGACY_CACHE_DIRECTORIES = [
   "connection-shell-snapshots",

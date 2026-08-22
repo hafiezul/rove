@@ -967,7 +967,7 @@ function serializeManifest(manifest: ThirdPartyLicenseManifest): string {
 
 export function thirdPartyLicensesPlugin(options: ThirdPartyLicensesPluginOptions): Plugin {
   return {
-    name: "t3code:third-party-licenses",
+    name: "rove:third-party-licenses",
     configureServer(server) {
       let manifestPromise: Promise<ThirdPartyLicenseManifest> | null = null;
       server.middlewares.use((request, response, next) => {

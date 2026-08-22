@@ -83,7 +83,7 @@ describe("DesktopPreReadyPlatform", () => {
         vi.stubEnv("XDG_DATA_HOME", "/xdg");
         vi.stubEnv("APPIMAGE", "/Applications/current.AppImage");
         getSwitchValueMock.mockReturnValue("");
-        let desktopName = "t3code.desktop";
+        let desktopName = "rove.desktop";
         let desktopEntry = previousEntry;
         setDesktopNameMock.mockImplementation((name: string) => {
           desktopName = name;
@@ -103,8 +103,8 @@ describe("DesktopPreReadyPlatform", () => {
             const identity = yield* Effect.promise(() => portalIdentity);
             assert.equal(identity.desktopName, "com.t3tools.T3Code.desktop");
             assert.include(identity.desktopEntry ?? "", 'Exec="/Applications/current.AppImage" %U');
-            assert.include(identity.desktopEntry ?? "", "Name=T3 Code (Alpha)");
-            assert.include(identity.desktopEntry ?? "", "MimeType=x-scheme-handler/t3code;");
+            assert.include(identity.desktopEntry ?? "", "Name=Rove (Alpha)");
+            assert.include(identity.desktopEntry ?? "", "MimeType=x-scheme-handler/rove;");
           }),
         ).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())));
       },

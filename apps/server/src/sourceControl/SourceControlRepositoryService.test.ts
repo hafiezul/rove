@@ -17,9 +17,9 @@ import * as SourceControlProviderRegistry from "./SourceControlProviderRegistry.
 import * as SourceControlRepositoryService from "./SourceControlRepositoryService.ts";
 
 const CLONE_URLS = {
-  nameWithOwner: "octocat/t3code",
-  url: "https://github.com/octocat/t3code",
-  sshUrl: "git@github.com:octocat/t3code.git",
+  nameWithOwner: "octocat/rove",
+  url: "https://github.com/octocat/rove",
+  sshUrl: "git@github.com:octocat/rove.git",
 };
 
 function makeProvider(
@@ -111,12 +111,12 @@ it.effect("looks up repositories through the requested provider without search",
     const service = yield* SourceControlRepositoryService.SourceControlRepositoryService;
     const result = yield* service.lookupRepository({
       provider: "github",
-      repository: "octocat/t3code",
+      repository: "octocat/rove",
       cwd: "/workspace",
     });
 
     assert.deepStrictEqual(result, { provider: "github", ...CLONE_URLS });
-    assert.deepStrictEqual(calls, [{ cwd: "/workspace", repository: "octocat/t3code" }]);
+    assert.deepStrictEqual(calls, [{ cwd: "/workspace", repository: "octocat/rove" }]);
   }).pipe(Effect.provide(makeLayer({ provider })));
 });
 
@@ -125,7 +125,7 @@ it.effect("preserves provider failures without deriving the repository message f
     provider: "github",
     operation: "getRepositoryCloneUrls",
     cwd: "/workspace",
-    repository: "octocat/t3code",
+    repository: "octocat/rove",
     detail: "credential token abc123 was rejected",
   });
   const provider = makeProvider({
@@ -137,7 +137,7 @@ it.effect("preserves provider failures without deriving the repository message f
     const error = yield* Effect.flip(
       service.lookupRepository({
         provider: "github",
-        repository: "octocat/t3code",
+        repository: "octocat/rove",
         cwd: "/workspace",
       }),
     );
@@ -160,14 +160,14 @@ it.effect("clones a looked-up repository into the requested destination", () =>
     const parent = yield* fs.makeTempDirectoryScoped({
       prefix: "t3-source-control-clone-parent-",
     });
-    const destinationPath = path.join(parent, "t3code");
+    const destinationPath = path.join(parent, "rove");
     const cloneCalls: Array<{ cwd: string; args: ReadonlyArray<string> }> = [];
 
     yield* Effect.gen(function* () {
       const service = yield* SourceControlRepositoryService.SourceControlRepositoryService;
       const result = yield* service.cloneRepository({
         provider: "github",
-        repository: "octocat/t3code",
+        repository: "octocat/rove",
         destinationPath,
         protocol: "https",
       });
@@ -180,7 +180,7 @@ it.effect("clones a looked-up repository into the requested destination", () =>
       assert.deepStrictEqual(cloneCalls, [
         {
           cwd: parent,
-          args: ["clone", "--progress", CLONE_URLS.url, "t3code"],
+          args: ["clone", "--progress", CLONE_URLS.url, "rove"],
         },
       ]);
     }).pipe(
@@ -206,16 +206,16 @@ it.effect("reports clone progress from git's stderr and keeps its error text on 
     const parent = yield* fs.makeTempDirectoryScoped({
       prefix: "t3-source-control-clone-progress-",
     });
-    const destinationPath = path.join(parent, "t3code");
+    const destinationPath = path.join(parent, "rove");
     const progress: Array<{ stage: string; percent: number | null; detail: string | null }> = [];
 
     const stderrLines = [
-      "Cloning into 't3code'...",
+      "Cloning into 'rove'...",
       "remote: Enumerating objects: 10, done.",
       "Receiving objects:  40% (4/10), 1.00 MiB | 2.00 MiB/s",
       "Receiving objects: 100% (10/10), 2.50 MiB | 2.00 MiB/s, done.",
       "fatal: early EOF",
-      "fatal: unable to access 'https://user:s3c@ret@github.com/octocat/t3code.git/': could not resolve host",
+      "fatal: unable to access 'https://user:s3c@ret@github.com/octocat/rove.git/': could not resolve host",
     ];
     const error = yield* Effect.gen(function* () {
       const service = yield* SourceControlRepositoryService.SourceControlRepositoryService;
@@ -255,7 +255,7 @@ it.effect("reports clone progress from git's stderr and keeps its error text on 
     // Git echoes the remote in some failures; the credentials must not follow.
     assert.strictEqual(
       error.detail,
-      "fatal: early EOF fatal: unable to access 'https://github.com/octocat/t3code.git/': could not resolve host",
+      "fatal: early EOF fatal: unable to access 'https://github.com/octocat/rove.git/': could not resolve host",
     );
   }).pipe(Effect.provide(NodeServices.layer)),
 );
@@ -265,12 +265,12 @@ it.effect("strips embedded credentials from the remote URL it reports", () =>
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const parent = yield* fs.makeTempDirectoryScoped({ prefix: "t3-source-control-redact-" });
-    const destinationPath = path.join(parent, "t3code");
+    const destinationPath = path.join(parent, "rove");
     const cloneArgs: Array<ReadonlyArray<string>> = [];
     const result = yield* Effect.gen(function* () {
       const service = yield* SourceControlRepositoryService.SourceControlRepositoryService;
       return yield* service.prepareClone({
-        remoteUrl: "https://user:s3cret@github.com/octocat/t3code.git",
+        remoteUrl: "https://user:s3cret@github.com/octocat/rove.git",
         destinationPath,
       });
     }).pipe(
@@ -286,9 +286,9 @@ it.effect("strips embedded credentials from the remote URL it reports", () =>
         }),
       ),
     );
-    assert.equal(result.remoteUrl, "https://github.com/octocat/t3code.git");
+    assert.equal(result.remoteUrl, "https://github.com/octocat/rove.git");
     // Git itself still receives the credentials.
-    assert.equal(result.cloneUrl, "https://user:s3cret@github.com/octocat/t3code.git");
+    assert.equal(result.cloneUrl, "https://user:s3cret@github.com/octocat/rove.git");
   }).pipe(Effect.provide(NodeServices.layer)),
 );
 
@@ -334,15 +334,15 @@ it.effect("redacts query tokens and userinfo containing '@' from reported URLs",
     yield* Effect.gen(function* () {
       const service = yield* SourceControlRepositoryService.SourceControlRepositoryService;
       const query = yield* service.prepareClone({
-        remoteUrl: "https://github.com/octocat/t3code.git?access_token=s3cret",
+        remoteUrl: "https://github.com/octocat/rove.git?access_token=s3cret",
         destinationPath: path.join(parent, "a"),
       });
-      assert.equal(query.remoteUrl, "https://github.com/octocat/t3code.git");
+      assert.equal(query.remoteUrl, "https://github.com/octocat/rove.git");
       const nested = yield* service.prepareClone({
-        remoteUrl: "https://user:pa@rt@github.com/octocat/t3code.git",
+        remoteUrl: "https://user:pa@rt@github.com/octocat/rove.git",
         destinationPath: path.join(parent, "b"),
       });
-      assert.equal(nested.remoteUrl, "https://github.com/octocat/t3code.git");
+      assert.equal(nested.remoteUrl, "https://github.com/octocat/rove.git");
     }).pipe(Effect.provide(makeLayer({})));
   }).pipe(Effect.provide(NodeServices.layer)),
 );
@@ -352,7 +352,7 @@ it.effect("preserves destination probe failures instead of treating them as miss
     _tag: "PermissionDenied",
     module: "FileSystem",
     method: "exists",
-    pathOrDescriptor: "/restricted/t3code",
+    pathOrDescriptor: "/restricted/rove",
   });
 
   return Effect.gen(function* () {
@@ -360,7 +360,7 @@ it.effect("preserves destination probe failures instead of treating them as miss
     const error = yield* Effect.flip(
       service.cloneRepository({
         remoteUrl: CLONE_URLS.sshUrl,
-        destinationPath: "/restricted/t3code",
+        destinationPath: "/restricted/rove",
       }),
     );
 
@@ -400,7 +400,7 @@ it.effect("publishes by creating the repository, adding a remote, and pushing up
     const result = yield* service.publishRepository({
       cwd: "/workspace",
       provider: "github",
-      repository: "octocat/t3code",
+      repository: "octocat/rove",
       visibility: "private",
       remoteName: "origin",
       protocol: "ssh",
@@ -415,7 +415,7 @@ it.effect("publishes by creating the repository, adding a remote, and pushing up
       status: "pushed",
     });
     assert.deepStrictEqual(createCalls, [
-      { cwd: "/workspace", repository: "octocat/t3code", visibility: "private" },
+      { cwd: "/workspace", repository: "octocat/rove", visibility: "private" },
     ]);
     assert.deepStrictEqual(remoteCalls, [
       { cwd: "/workspace", preferredName: "origin", url: CLONE_URLS.sshUrl },
@@ -455,7 +455,7 @@ it.effect("publishes to the remote name returned by ensureRemote", () => {
     const result = yield* service.publishRepository({
       cwd: "/workspace",
       provider: "github",
-      repository: "octocat/t3code",
+      repository: "octocat/rove",
       visibility: "private",
       remoteName: "origin",
       protocol: "ssh",
@@ -491,7 +491,7 @@ it.effect("publish succeeds with status remote_added when the local repo has no 
     const result = yield* service.publishRepository({
       cwd: "/workspace",
       provider: "github",
-      repository: "octocat/t3code",
+      repository: "octocat/rove",
       visibility: "private",
       remoteName: "origin",
       protocol: "ssh",

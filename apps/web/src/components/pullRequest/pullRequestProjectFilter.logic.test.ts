@@ -14,12 +14,12 @@ const labels = new Map([
 function project(
   id: string,
   environmentId = nucbox,
-  canonicalKey: string | null = "github.com/pingdotgg/t3code",
+  canonicalKey: string | null = "github.com/rovedev/rove",
 ) {
   return {
     id: ProjectId.make(id),
     environmentId,
-    title: "t3code",
+    title: "rove",
     workspaceRoot: `/work/${id}`,
     repositoryIdentity: canonicalKey === null ? null : { canonicalKey },
     faviconPath: `${id}/favicon.png`,
@@ -38,8 +38,8 @@ describe("pull request project filter choices", () => {
     const choices = pullRequestFilterProjects(projects, labels);
 
     expect(choices.map(({ id, environmentId, title }) => ({ id, environmentId, title }))).toEqual([
-      { id: "main", environmentId: cups, title: "t3code · cups" },
-      { id: "main", environmentId: nucbox, title: "t3code · nucbox-1" },
+      { id: "main", environmentId: cups, title: "rove · cups" },
+      { id: "main", environmentId: nucbox, title: "rove · nucbox-1" },
     ]);
     expect(choices[1]?.workspaceRoot).toBe("/work/main");
     expect(choices[1]?.faviconPath).toBe("main/favicon.png");
@@ -52,7 +52,7 @@ describe("pull request project filter choices", () => {
     const choices = pullRequestFilterProjects(projects, labels, selected);
 
     expect(choices.filter((choice) => choice.environmentId === nucbox)).toEqual([
-      { ...projects[1], title: "t3code · nucbox-1" },
+      { ...projects[1], title: "rove · nucbox-1" },
     ]);
     expect(findScopedProject(choices, nucbox, "worktree")).toBeDefined();
     expect(findScopedProject(choices, nucbox, "main")).toBeUndefined();
@@ -70,26 +70,26 @@ describe("pull request project filter choices", () => {
     const main = project("main");
 
     expect(pullRequestFilterProjects([main, project("worktree")], labels)).toEqual([main]);
-    expect(main.title).toBe("t3code");
+    expect(main.title).toBe("rove");
   });
 
   it("distinguishes same-named repositories on one server by checkout path", () => {
     const projects = [
       project("upstream"),
-      project("fork", nucbox, "github.com/juliusmarminge/t3code"),
+      project("fork", nucbox, "github.com/juliusmarminge/rove"),
     ];
 
     const choices = pullRequestFilterProjects(projects, labels);
 
     expect(choices.map((choice) => choice.title)).toEqual([
-      "t3code · nucbox-1 · /work/fork",
-      "t3code · nucbox-1 · /work/upstream",
+      "rove · nucbox-1 · /work/fork",
+      "rove · nucbox-1 · /work/upstream",
     ]);
   });
 
   it("keeps repositories on different hosts separate", () => {
     const choices = pullRequestFilterProjects(
-      [project("github"), project("enterprise", nucbox, "git.example.com/pingdotgg/t3code")],
+      [project("github"), project("enterprise", nucbox, "git.example.com/rovedev/rove")],
       labels,
     );
 
@@ -103,8 +103,8 @@ describe("pull request project filter choices", () => {
     );
 
     expect(choices.map((choice) => choice.title)).toEqual([
-      "t3code · nucbox-1 · /work/first",
-      "t3code · nucbox-1 · /work/second",
+      "rove · nucbox-1 · /work/first",
+      "rove · nucbox-1 · /work/second",
     ]);
   });
 
@@ -119,8 +119,8 @@ describe("pull request project filter choices", () => {
     const choices = pullRequestFilterProjects([first, second], repeatedLabels);
 
     expect(choices.map((choice) => choice.title)).toEqual([
-      "t3code · nucbox-1 · /work/main · env-cups",
-      "t3code · nucbox-1 · /work/main · env-nucbox",
+      "rove · nucbox-1 · /work/main · env-cups",
+      "rove · nucbox-1 · /work/main · env-nucbox",
     ]);
   });
 
@@ -131,8 +131,8 @@ describe("pull request project filter choices", () => {
     );
 
     expect(choices.map((choice) => choice.title)).toEqual([
-      "t3code · env-cups",
-      "t3code · env-nucbox",
+      "rove · env-cups",
+      "rove · env-nucbox",
     ]);
   });
 
@@ -143,8 +143,8 @@ describe("pull request project filter choices", () => {
     const choices = pullRequestFilterProjects([first, second], labels);
 
     expect(choices.map((choice) => choice.title)).toEqual([
-      "t3code · nucbox-1 · /work/first · env-nucbox · first",
-      "t3code · nucbox-1 · /work/first · env-nucbox · second",
+      "rove · nucbox-1 · /work/first · env-nucbox · first",
+      "rove · nucbox-1 · /work/first · env-nucbox · second",
     ]);
   });
 

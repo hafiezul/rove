@@ -12,9 +12,9 @@ import { resolveSettingsScope } from "./settingsScope";
 import { retainSettingsScope, validateSettingsRouteSearch } from "./settingsScopeNavigation";
 
 const checkoutSearch = {
-  project: "repository:t3code",
+  project: "repository:rove",
   machine: "remote-server",
-  checkout: "remote-server:/home/user/T3 Code",
+  checkout: "remote-server:/home/user/Rove",
 };
 
 function createSettingsRouter(initialEntry = "/settings/general") {
@@ -112,7 +112,7 @@ describe("settings scope navigation", () => {
       const router = createSettingsRouter();
       await router.navigate({ to, search: checkoutSearch });
 
-      const regroupedCheckout = { ...checkoutSearch, project: "separate:t3code" };
+      const regroupedCheckout = { ...checkoutSearch, project: "separate:rove" };
       await router.navigate({
         from: "/settings",
         to: router.state.location.pathname,

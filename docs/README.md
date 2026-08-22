@@ -1,10 +1,10 @@
 # Rove documentation
 
-Rove is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). The runtime and applications currently retain their upstream product names and technical identifiers, so the inherited user and internals documentation continues to use **T3 Code** where that is the label users see.
+Rove is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 ## Using the application
 
-- [Install T3 Code](./user/install.md)
+- [Install Rove](./user/install.md)
 - [Messages and context](./user/composer.md)
 - [Working with threads](./user/thread-sidebar.md)
 - [Permission modes](./user/permission-modes.md)
@@ -20,7 +20,7 @@ Rove is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). T
 - [Product usage data](./user/telemetry.md)
 - [Remote access](./user/remote-access.md)
 - [Running in the background](./user/background-service.md)
-- [Updating T3 Code](./user/updating.md)
+- [Updating Rove](./user/updating.md)
 - Provider guides: [Codex](./user/providers-codex.md) · [Claude](./user/providers-claude.md) · [OpenCode](./user/providers-opencode.md) · [Antigravity](./user/providers-antigravity.md)
 
 ---

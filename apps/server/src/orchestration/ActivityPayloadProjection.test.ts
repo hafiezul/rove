@@ -258,16 +258,16 @@ describe("projectActivityPayload", () => {
   it.each([
     {
       item: {
-        server: "t3-code",
+        server: "rove",
         tool: "preview_open",
         result: { structuredContent: { url: "https://example.com/" } },
       },
     },
     {
-      toolName: "mcp__t3-code__preview_navigate",
+      toolName: "mcp__rove__preview_navigate",
       result: { content: '{"url":"https://example.com/"}' },
     },
-    { tool: "t3-code_preview_status", state: { output: '{"url":"https://example.com/"}' } },
+    { tool: "rove_preview_status", state: { output: '{"url":"https://example.com/"}' } },
     {
       toolName: "mcp__t3_code__preview_snapshot",
       result: {
@@ -278,7 +278,7 @@ describe("projectActivityPayload", () => {
       },
     },
     {
-      toolName: "mcp__t3-code__preview_click",
+      toolName: "mcp__rove__preview_click",
       result: { content: '{"toolIcon":{"_tag":"website","pageUrl":"https://example.com/"}}' },
     },
     {
@@ -318,15 +318,15 @@ describe("projectActivityPayload", () => {
   it.each([
     { toolName: "mcp__other__preview_open", result: { content: '{"url":"https://example.com/"}' } },
     {
-      toolName: "mcp__t3-code__preview_evaluate",
+      toolName: "mcp__rove__preview_evaluate",
       result: { content: '{"url":"https://example.com/"}' },
     },
     {
-      toolName: "mcp__t3-code__preview_open",
+      toolName: "mcp__rove__preview_open",
       result: { isError: true, content: '{"url":"https://example.com/"}' },
     },
-    { toolName: "mcp__t3-code__preview_open", result: { content: "malformed JSON" } },
-    { toolName: "mcp__t3-code__preview_open", result: { content: '{"url":"about:blank"}' } },
+    { toolName: "mcp__rove__preview_open", result: { content: "malformed JSON" } },
+    { toolName: "mcp__rove__preview_open", result: { content: '{"url":"about:blank"}' } },
   ])("keeps the fallback for unrelated tools, failed navigation, and missing page URLs", (data) => {
     expect(
       projectActivityPayload(activity({ itemType: "mcp_tool_call", data })).payload,

@@ -25,7 +25,7 @@ const runCli = (args: ReadonlyArray<string>) =>
     Effect.provide(Layer.mergeAll(NodeServices.layer, NetService.layer, TestConsole.layer)),
   );
 
-const makeBaseDir = () => NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3code-theme-cli-"));
+const makeBaseDir = () => NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-theme-cli-"));
 
 const settingsPathFor = (baseDir: string) => NodePath.join(baseDir, "userdata", "settings.json");
 
@@ -113,7 +113,7 @@ describe("t3 theme", () => {
   it.effect("publishes a theme file under an explicit id", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();
-      const themeFile = NodePath.join(baseDir, "t3code.json");
+      const themeFile = NodePath.join(baseDir, "rove.json");
       NodeFS.writeFileSync(themeFile, NIGHTFALL_THEME_JSON);
 
       yield* runCli(["theme", "set", "--id", "nightfall", themeFile, "--base-dir", baseDir]);
@@ -343,12 +343,12 @@ describe("t3 theme", () => {
     }),
   );
 
-  it.effect("honors T3CODE_HOME like the rest of the CLI", () =>
+  it.effect("honors ROVE_HOME like the rest of the CLI", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();
       yield* runCli(["theme", "set", "ocean"]).pipe(
         Effect.provide(
-          ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_HOME: baseDir } })),
+          ConfigProvider.layer(ConfigProvider.fromEnv({ env: { ROVE_HOME: baseDir } })),
         ),
       );
       assert.equal(readSettings(baseDir).defaultTheme, "ocean");
@@ -422,7 +422,7 @@ describe("t3 theme", () => {
   it.effect("rejects the mobile default theme id", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();
-      const failure = yield* runCli(["theme", "set", "t3-code", "--base-dir", baseDir]).pipe(
+      const failure = yield* runCli(["theme", "set", "rove", "--base-dir", baseDir]).pipe(
         Effect.flip,
       );
       assert.include(String(failure), "No theme named");

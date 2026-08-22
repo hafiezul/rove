@@ -49,7 +49,7 @@ it.effect("round-trips and clears persisted managed relay access tokens", () =>
 it.effect("falls back to an empty cache when persisted data is invalid", () =>
   Effect.gen(function* () {
     secureStore.clear();
-    secureStore.set("t3code.cloud.relay-access-tokens", "not-json");
+    secureStore.set("rove.cloud.relay-access-tokens", "not-json");
 
     expect(yield* managedRelayAccessTokenStore.load).toEqual([]);
   }),
@@ -78,7 +78,7 @@ it.effect("logs structured storage failures before falling back to an empty cach
     expect(context.cause).toBeInstanceOf(ManagedRelayTokenStoreError);
     expect(context.cause).toMatchObject({
       operation: "read",
-      storageKey: "t3code.cloud.relay-access-tokens",
+      storageKey: "rove.cloud.relay-access-tokens",
       cause,
     });
     expect(context.cause.message).not.toContain(cause.message);

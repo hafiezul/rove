@@ -5,7 +5,7 @@
 See the [development runbook](docs/operations/development.md#first-checkout) for the initial checkout,
 development commands, tests, and platform-specific desktop packaging prerequisites.
 
-Rove is an early fork of [T3 Code](https://github.com/pingdotgg/t3code). Its direction and contribution process are still taking shape.
+Rove is an early fork of [Rove](https://github.com/rovedev/rove). Its direction and contribution process are still taking shape.
 
 ## Before starting
 
@@ -23,6 +23,6 @@ Do not combine unrelated fixes or broad rewrites in one pull request. Include be
 
 ## Working with upstream
 
-Before implementing a fix, check whether it already exists in [upstream T3 Code](https://github.com/pingdotgg/t3code). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove.
+Before implementing a fix, check whether it already exists in [upstream Rove](https://github.com/rovedev/rove). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove.
 
 Preserve upstream copyright and attribution when carrying or adapting upstream work.

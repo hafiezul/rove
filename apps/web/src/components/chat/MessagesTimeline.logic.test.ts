@@ -1116,7 +1116,7 @@ describe("work entry labels", () => {
             entry: {
               ...entry,
               itemType: "mcp_tool_call",
-              toolData: { server: "t3-code", tool },
+              toolData: { server: "rove", tool },
             },
           },
         ],
@@ -3574,7 +3574,7 @@ describe("deriveMessagesTimelineRows", () => {
           toolCallId: `call-${index}`,
           createdAt,
           turnId,
-          label: "t3-code.preview_snapshot",
+          label: "rove.preview_snapshot",
           tone: "tool" as const,
           toolLifecycleStatus:
             isWorking && index === 999 ? ("inProgress" as const) : ("completed" as const),

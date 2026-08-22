@@ -259,7 +259,7 @@ describe("environmentBootstrap", () => {
 
   it("has no primary target when the desktop local environment is disabled", () => {
     vi.stubGlobal("window", {
-      location: new URL("t3code://app/"),
+      location: new URL("rove://app/"),
       desktopBridge: {
         getLocalEnvironmentEnabled: () => false,
         getLocalEnvironmentBootstraps: () => [],
@@ -275,7 +275,7 @@ describe("environmentBootstrap", () => {
 
   it("preserves an unsupported window-origin protocol", () => {
     vi.stubGlobal("window", {
-      location: { origin: "file:///tmp/t3code/" },
+      location: { origin: "file:///tmp/rove/" },
       history: { replaceState: vi.fn() },
     });
 

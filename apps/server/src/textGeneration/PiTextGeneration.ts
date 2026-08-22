@@ -106,7 +106,7 @@ export const makePiTextGeneration = (
               }
               // The prompt builders rebuild the schema per call, so the
               // decoder cannot be hoisted to a stable module-level const.
-              // oxlint-disable-next-line t3code/no-inline-schema-compile
+              // oxlint-disable-next-line rove/no-inline-schema-compile
               return Schema.decodeEffect(Schema.fromJsonString(input.outputSchema))(
                 extractJsonObject(trimmed),
               ).pipe(

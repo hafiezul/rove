@@ -203,7 +203,7 @@ describe("CodexSessionRuntime collab integration", () => {
         binaryPath: peerPath,
         cwd: NodeOS.tmpdir(),
         runtimeMode: "full-access",
-        environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+        environment: { ...process.env, ROVEX_COLLAB_SCRIPT: scriptPath },
       });
       const metadataFiber = yield* runtime.events.pipe(
         Stream.filter(
@@ -295,7 +295,7 @@ describe("CodexSessionRuntime collab integration", () => {
         binaryPath: peerPath,
         cwd: NodeOS.tmpdir(),
         runtimeMode: "full-access",
-        environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+        environment: { ...process.env, ROVEX_COLLAB_SCRIPT: scriptPath },
       });
       const eventsFiber = yield* runtime.events.pipe(
         Stream.takeUntil(
@@ -374,7 +374,7 @@ describe("CodexSessionRuntime collab integration", () => {
             binaryPath: peerPath,
             cwd: NodeOS.tmpdir(),
             runtimeMode: "full-access",
-            environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+            environment: { ...process.env, ROVEX_COLLAB_SCRIPT: scriptPath },
           });
           const eventsFiber = yield* runtime.events.pipe(
             Stream.takeUntil(
@@ -413,7 +413,7 @@ describe("CodexSessionRuntime collab integration", () => {
         binaryPath: peerPath,
         cwd: NodeOS.tmpdir(),
         runtimeMode: "full-access",
-        environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+        environment: { ...process.env, ROVE_CODEX_COLLAB_SCRIPT: scriptPath },
       });
 
       const eventsFiber = yield* runtime.events.pipe(
@@ -555,7 +555,7 @@ describe("CodexSessionRuntime collab integration", () => {
         binaryPath: peerPath,
         cwd: NodeOS.tmpdir(),
         runtimeMode: "full-access",
-        environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+        environment: { ...process.env, ROVE_CODEX_COLLAB_SCRIPT: scriptPath },
       });
 
       // Wait for both children's turnStarted signals to be processed before
@@ -633,7 +633,7 @@ describe("CodexSessionRuntime collab integration", () => {
         binaryPath: peerPath,
         cwd: NodeOS.tmpdir(),
         runtimeMode: "full-access",
-        environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+        environment: { ...process.env, ROVE_CODEX_COLLAB_SCRIPT: scriptPath },
       });
 
       yield* runtime.start();
@@ -730,7 +730,7 @@ describe("CodexSessionRuntime collab integration", () => {
           binaryPath: peerPath,
           cwd: NodeOS.tmpdir(),
           runtimeMode: "auto",
-          environment: { ...process.env, T3_CODEX_COLLAB_SCRIPT: scriptPath },
+          environment: { ...process.env, ROVEX_COLLAB_SCRIPT: scriptPath },
         });
         const approvalRequested = yield* Deferred.make<ProviderEvent>();
         const turnCompleted = yield* Deferred.make<void>();
