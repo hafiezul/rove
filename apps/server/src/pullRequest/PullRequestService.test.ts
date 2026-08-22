@@ -895,7 +895,7 @@ it.effect("reads a repository once when several worktrees share it", () =>
           id: "p2",
           title: "rove worktree",
           workspaceRoot: "/b",
-          repository: "PingDotGG/Rove",
+          repository: "RoveDev/Rove",
         }),
       ],
       providers: [
