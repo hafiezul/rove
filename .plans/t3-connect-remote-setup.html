@@ -202,7 +202,7 @@ Run Rove in the background whenever this machine boots? (y/n): y<br><br>
   </tr>
   <tr>
     <td><span class="pill new">3</span></td>
-    <td><strong>Background on boot &mdash; Linux first</strong> (the SSH case). One new module: pinned runtime install to <code>~/.t3/runtime/versions/&lt;v&gt;</code> + <code>current</code> symlink, systemd <em>user</em> unit with absolute node/t3 paths, <code>enable-linger</code>. y/n prompt at the end of <code>connect</code>; teardown in <code>logout</code>. Install and service-start failures must land in a log file (under <code>~/.t3/userdata/logs/</code>) whose path is printed at connect time &mdash; systemd user units fail invisibly otherwise. Unit-file generation is pure string-building &#8594; trivially testable. macOS launchd / Windows follow as 3b/3c only if wanted.</td>
+    <td><strong>Background on boot &mdash; Linux first</strong> (the SSH case). One new module: pinned runtime install to <code>~/.rove/runtime/versions/&lt;v&gt;</code> + <code>current</code> symlink, systemd <em>user</em> unit with absolute node/t3 paths, <code>enable-linger</code>. y/n prompt at the end of <code>connect</code>; teardown in <code>logout</code>. Install and service-start failures must land in a log file (under <code>~/.rove/userdata/logs/</code>) whose path is printed at connect time &mdash; systemd user units fail invisibly otherwise. Unit-file generation is pure string-building &#8594; trivially testable. macOS launchd / Windows follow as 3b/3c only if wanted.</td>
     <td><code>cloud/bootService.ts</code> (new)<br><code>cli/connect.ts</code> (+prompt/teardown)</td>
     <td>~250</td>
   </tr>
@@ -215,7 +215,7 @@ Run Rove in the background whenever this machine boots? (y/n): y<br><br>
 </table>
 
 <h3>Runtime layout (phase 3)</h3>
-<pre><code>~/.t3/runtime/
+<pre><code>~/.rove/runtime/
 ├── versions/0.0.27/        &larr; npm install --prefix (gets native deps right: node-pty etc.)
 └── current -> versions/0.0.27
 
@@ -246,7 +246,7 @@ loginctl enable-linger $USER            &larr; survives SSH logout / reboot</cod
   <li>Auth: hosted out-of-band OAuth redirect on Clerk PKCE (not relay-brokered pairing, not device grant) &mdash; chosen for minimal new surface.</li>
   <li>URL: stateless static page, no backend short-link.</li>
   <li>Service: real per-user login service (systemd user + linger first); detect + offer install, never silent.</li>
-  <li>Binary: pinned managed runtime under <code>~/.t3</code>; interactive <code>npx</code> usage untouched.</li>
+  <li>Binary: pinned managed runtime under <code>~/.rove</code>; interactive <code>npx</code> usage untouched.</li>
   <li>Updates: not always-latest; web UI surfaces available updates with one-click trigger (phase 4 follow-up).</li>
   <li>Delivery: one PR with a commit per phase (green tree at every boundary), not separate PRs.</li>
   <li>Workspace: assumed already set up; no auto-registration.</li>

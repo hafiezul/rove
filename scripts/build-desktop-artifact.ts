@@ -47,6 +47,21 @@ const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "dev.rove.app";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
+export const MACOS_USAGE_DESCRIPTIONS = {
+  NSDesktopFolderUsageDescription:
+    "Rove needs access to Desktop folders you select so it can open and manage coding projects.",
+  NSDocumentsFolderUsageDescription:
+    "Rove needs access to Documents folders you select so it can open and manage coding projects.",
+  NSDownloadsFolderUsageDescription:
+    "Rove needs access to Downloads folders you select so it can open and manage coding projects.",
+  NSNetworkVolumesUsageDescription:
+    "Rove needs access to network volumes you select so it can open and manage coding projects.",
+  NSRemovableVolumesUsageDescription:
+    "Rove needs access to removable volumes you select so it can open and manage coding projects.",
+  NSLocalNetworkUsageDescription:
+    "Rove uses your local network to connect to development environments when you enable network access.",
+} as const;
+
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
 
@@ -1932,6 +1947,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
+      extendInfo: MACOS_USAGE_DESCRIPTIONS,
       protocols: [
         {
           name: "Rove",

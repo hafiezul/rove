@@ -33,6 +33,7 @@ config.resolver = {
         ? [config.resolver.blockList]
         : []),
     new RegExp(`${escapedWorkspaceRoot}[/\\\\]\\.t3[/\\\\].*`),
+    new RegExp(`${escapedWorkspaceRoot}[/\\\\]\\.rove[/\\\\].*`),
   ],
   extraNodeModules: {
     // oxlint-disable-next-line unicorn/no-useless-fallback-in-spread

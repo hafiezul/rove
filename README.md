@@ -6,7 +6,7 @@ The project follows the upstream project closely while creating room to explore 
 
 ## Current status
 
-Rove is at the beginning of its fork. The repository identity and documentation use the Rove name. Application identifiers have been renamed to Rove, including environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs, and package names. A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and the `~/.t3` state directory) remain unchanged until a migration has a clear user benefit.
+Rove is at the beginning of its fork. The repository identity and documentation use the Rove name. Application identifiers have been renamed to Rove, including environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs, package names, and the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 The inherited application supports Claude Code, Codex, Cursor, Grok Build, and OpenCode across web, desktop, and mobile clients.
 

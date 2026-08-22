@@ -24,6 +24,7 @@ import {
   UnsupportedDesktopBuildArchitectureError,
   isMacPasskeySigningConfigurationError,
   LinuxIconResizeError,
+  MACOS_USAGE_DESCRIPTIONS,
   MacPasskeySigningConfigurationResolutionError,
   MissingMacPasskeyProvisioningProfileError,
   renderMacPasskeyEntitlements,
@@ -355,6 +356,9 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.notProperty(mac, "asarUnpack");
       assert.notProperty(linux, "asarUnpack");
       assert.deepStrictEqual(win.asarUnpack, WINDOWS_ASAR_UNPACK);
+      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+      const macConfig = mac.mac as Record<string, SchemaJson>;
+      assert.deepStrictEqual(macConfig.extendInfo, MACOS_USAGE_DESCRIPTIONS);
       // Linux must register the renderer schemes so the generated .desktop
       // entry advertises MimeType=x-scheme-handler/rove; for OAuth deep links.
       // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
