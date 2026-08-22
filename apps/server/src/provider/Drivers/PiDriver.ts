@@ -69,11 +69,23 @@ const makeSdkProbeClient = (): PiProbeClient => ({
     const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
     const runtime = await ModelRuntime.create({});
     const models = await runtime.getAvailable();
-    return models.map((model) => ({
-      id: model.id,
-      name: model.name,
-      provider: String(model.provider),
-    }));
+    // Provider display names (e.g. "OpenCode Go" for `opencode-go`) ride
+    // along so the model pickers can disambiguate duplicate model names
+    // across Pi providers. Providers missing from the registry fall back
+    // to their id in the snapshot layer.
+    const providerNames = new Map(
+      runtime.getProviders().map((provider) => [provider.id, provider.name]),
+    );
+    return models.map((model) => {
+      const providerId = String(model.provider);
+      const providerName = providerNames.get(providerId);
+      return {
+        id: model.id,
+        name: model.name,
+        provider: providerId,
+        ...(providerName !== undefined ? { providerName } : undefined),
+      };
+    });
   },
   defaultModelProvider: async () => {
     const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");

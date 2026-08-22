@@ -20,6 +20,19 @@ type OverlayProps = {
   className?: string;
 };
 
+/**
+ * Layout-only props the real overlay primitives accept but this stub drops:
+ * they drive positioning/behavior that never reaches static markup.
+ */
+type OverlayLayoutProps = {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  side?: "left" | "right" | "top" | "bottom";
+  showCloseButton?: boolean;
+};
+
+type SlotStubProps = OverlayProps & OverlayLayoutProps;
+
 function makeSlotModule(prefix: "dialog" | "sheet") {
   const parts = [
     "Popup",
@@ -31,25 +44,23 @@ function makeSlotModule(prefix: "dialog" | "sheet") {
     "Viewport",
   ] as const;
   const Root = prefix === "dialog" ? "Dialog" : "Sheet";
-  const module: Record<string, unknown> = {
+  return {
     [Root]: ({ children }: OverlayProps) =>
       createElement("div", { "data-slot": `${prefix}-root` }, children),
+    ...Object.fromEntries(
+      parts.map((part) => [
+        `${Root}${part}`,
+        // The overlay primitives take layout props (side, showCloseButton)
+        // that are meaningless on the stub; they are dropped, not spread.
+        ({ children, className }: SlotStubProps) =>
+          createElement(
+            "div",
+            { "data-slot": `${prefix}-${part.toLowerCase()}`, className },
+            children,
+          ),
+      ]),
+    ),
   };
-  for (const part of parts) {
-    module[`${Root}${part}`] = ({
-      children,
-      className,
-      ...rest
-    }: OverlayProps & Record<string, unknown>) =>
-      // The overlay primitives take layout props (side, showCloseButton) that
-      // are meaningless on the stub; they are dropped, not spread.
-      createElement(
-        "div",
-        { "data-slot": `${prefix}-${part.toLowerCase()}`, className, ...rest },
-        children,
-      );
-  }
-  return module;
 }
 
 vi.mock("~/components/ui/dialog", () => makeSlotModule("dialog"));

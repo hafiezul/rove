@@ -12,6 +12,9 @@ export type ModelOption = {
   readonly key: string;
   readonly label: string;
   readonly subtitle: string;
+  /** Pi-style source provider label (e.g. "OpenCode Go") when the server
+   * reports one; disambiguates duplicate model names within an instance. */
+  readonly subProvider: string | null;
   readonly providerKey: string;
   readonly providerLabel: string;
   readonly providerDriver: string;
@@ -166,10 +169,12 @@ export function buildModelOptions(
     const providerLabel = providerDisplayLabel(provider);
     for (const model of provider.models) {
       const key = `${provider.instanceId}:${model.slug}`;
+      const subProvider = model.subProvider ?? null;
       options.set(key, {
         key,
         label: model.name,
         subtitle: model.subProvider ?? "",
+        subProvider,
         providerKey: provider.instanceId,
         providerLabel,
         providerDriver: provider.driver,
@@ -217,6 +222,7 @@ export function buildModelOptions(
         key,
         label: model?.name ?? fallbackModelSelection.model,
         subtitle: model?.subProvider ?? "",
+        subProvider: model?.subProvider ?? null,
         providerKey: fallbackModelSelection.instanceId,
         providerLabel,
         providerDriver,

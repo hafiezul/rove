@@ -17,6 +17,7 @@ function modelOption(
     key: `codex:${model}`,
     label: model,
     subtitle: "",
+    subProvider: null,
     providerKey: "codex",
     providerLabel: "Codex",
     providerDriver: "codex",

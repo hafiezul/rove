@@ -110,8 +110,15 @@ export function buildInitialPiProviderSnapshot(
 }
 
 export interface PiProbeClient {
-  /** Models available in the user's Pi catalog. */
-  listModels(): Promise<ReadonlyArray<{ id: string; name: string; provider: string }>>;
+  /**
+   * Models available in the user's Pi catalog. `provider` is the Pi provider
+   * id (slug prefix); `providerName` is its human label when the SDK
+   * registers one (e.g. "OpenCode Go" for `opencode-go`). The label is what
+   * disambiguates duplicate model names across providers in the pickers.
+   */
+  listModels(): Promise<
+    ReadonlyArray<{ id: string; name: string; provider: string; providerName?: string }>
+  >;
   /** Provider display name, used for auth status text. */
   defaultModelProvider(): Promise<string | undefined>;
 }
@@ -180,14 +187,16 @@ export function checkPiProviderStatus(
       });
     }
 
-    const models: ServerProviderModel[] = probed.models.map(
-      (model: { id: string; name: string; provider: string }) => ({
+    const models: ServerProviderModel[] = probed.models.map((model) => {
+      const subProvider = (model.providerName ?? model.provider).trim();
+      return {
         slug: `${model.provider}/${model.id}`,
         name: model.name,
+        ...(subProvider.length > 0 ? { subProvider } : undefined),
         isCustom: false,
         capabilities: piModelCapabilities(piSettings),
-      }),
-    );
+      };
+    });
 
     // Discovery is best-effort: a broken skill/prompt file or loader error
     // must not degrade the provider snapshot — empty pickers instead.

@@ -22,8 +22,27 @@ const decodePiSettings = Schema.decodeSync(PiSettings);
 
 const makeProbeClient = (overrides?: Partial<PiProbeClient>): PiProbeClient => ({
   listModels: async () => [
-    { id: "claude-sonnet-5", name: "Claude Sonnet 5", provider: "anthropic" },
+    {
+      id: "claude-sonnet-5",
+      name: "Claude Sonnet 5",
+      provider: "anthropic",
+      providerName: "Anthropic",
+    },
     { id: "gpt-5.2", name: "GPT-5.2", provider: "openai" },
+    // Same model name on two providers — the picker disambiguates via
+    // the subProvider label.
+    {
+      id: "alpha-free",
+      name: "Alpha Free",
+      provider: "opencode",
+      providerName: "OpenCode Zen",
+    },
+    {
+      id: "alpha-free",
+      name: "Alpha Free",
+      provider: "opencode-go",
+      providerName: "OpenCode Go",
+    },
   ],
   defaultModelProvider: async () => "anthropic",
   ...overrides,
@@ -88,6 +107,22 @@ it.effect("defaults the thinking descriptor to the instance thinkingLevel settin
     if (descriptor?.type === "select") {
       assert.strictEqual(descriptor.currentValue, "high");
     }
+  }),
+);
+
+it.effect("labels each model with its Pi provider so duplicate names stay distinguishable", () =>
+  Effect.gen(function* () {
+    const snapshot = yield* checkPiProviderStatus(
+      decodePiSettings({}),
+      makeProbeClient(),
+      EMPTY_DISCOVERY,
+    );
+
+    const bySlug = new Map(snapshot.models.map((model) => [model.slug, model]));
+    assert.strictEqual(bySlug.get("opencode/alpha-free")?.subProvider, "OpenCode Zen");
+    assert.strictEqual(bySlug.get("opencode-go/alpha-free")?.subProvider, "OpenCode Go");
+    // No registered display name falls back to the provider id.
+    assert.strictEqual(bySlug.get("openai/gpt-5.2")?.subProvider, "openai");
   }),
 );
 
