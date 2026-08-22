@@ -1012,7 +1012,7 @@ describe("deriveWorkLogEntries", () => {
   it("preserves MCP server, tool, arguments, and results for expanded display", () => {
     const item = {
       type: "mcpToolCall",
-      server: "t3-code",
+      server: "rove",
       tool: "preview_status",
       arguments: {},
       status: "completed",
@@ -1022,24 +1022,24 @@ describe("deriveWorkLogEntries", () => {
       makeActivity({
         id: "mcp-tool-done",
         kind: "tool.completed",
-        summary: "t3-code · preview_status",
+        summary: "rove · preview_status",
         payload: {
           itemType: "mcp_tool_call",
-          title: "t3-code · preview_status",
+          title: "rove · preview_status",
           data: { item },
         },
       }),
     ];
 
     const [entry] = deriveWorkLogEntries(activities);
-    expect(entry?.toolTitle).toBe("t3-code · preview_status");
+    expect(entry?.toolTitle).toBe("rove · preview_status");
     expect(entry?.toolData).toEqual(item);
   });
 
   it("keeps MCP payloads while collapsing lifecycle updates", () => {
     const item = {
       type: "mcpToolCall",
-      server: "t3-code",
+      server: "rove",
       tool: "preview_snapshot",
       arguments: { interactiveOnly: true },
       status: "completed",
@@ -1048,7 +1048,7 @@ describe("deriveWorkLogEntries", () => {
       makeActivity({
         id: "mcp-tool-progress",
         kind: "tool.updated",
-        summary: "t3-code · preview_snapshot",
+        summary: "rove · preview_snapshot",
         payload: {
           itemType: "mcp_tool_call",
           toolCallId: "call-1",
@@ -1058,7 +1058,7 @@ describe("deriveWorkLogEntries", () => {
       makeActivity({
         id: "mcp-tool-complete",
         kind: "tool.completed",
-        summary: "t3-code · preview_snapshot",
+        summary: "rove · preview_snapshot",
         payload: {
           itemType: "mcp_tool_call",
           toolCallId: "call-1",

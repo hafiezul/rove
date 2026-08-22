@@ -26,7 +26,7 @@ export const DEFAULT_SANS_FONT_STACK =
 export const DEFAULT_CODE_FONT_STACK =
   '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
-export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "t3code:typography-advanced";
+export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "rove:typography-advanced";
 
 /**
  * Simple typography treats the terminal as another monospace surface. In

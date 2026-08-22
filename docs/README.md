@@ -1,6 +1,6 @@
 # Rove documentation
 
-Rove is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). The runtime and applications currently retain their upstream product names and technical identifiers, so the inherited user and internals documentation continues to use **T3 Code** where that is the label users see.
+Rove is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 ## Using the application
 

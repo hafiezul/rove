@@ -97,7 +97,7 @@ describe("theme files", () => {
     expect(dark.secondaryLabel).toBe(dark.textMuted);
     expect(contrastRatio(light.accentForeground, light.accent)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(dark.accentForeground, dark.accent)).toBeGreaterThanOrEqual(4.5);
-    // Status colors fall back to T3 Code's standard red and amber rather than
+    // Status colors fall back to Rove's standard red and amber rather than
     // the flagship palette's, so no generated theme inherits a brand tint.
     const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       channels = (value: string) =>

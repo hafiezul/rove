@@ -1,12 +1,12 @@
 # Rove
 
-Rove is an independent, open-source fork of [T3 Code](https://github.com/pingdotgg/t3code): a fast, remote-ready control surface for coding agents.
+Rove is an independent, open-source fork of an upstream coding-agent control surface: a fast, remote-ready control surface for coding agents.
 
-The project follows T3 Code closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove is not affiliated with or endorsed by T3 Tools or Ping Labs.
+The project follows the upstream project closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove is not affiliated with or endorsed by the upstream authors.
 
 ## Current status
 
-Rove is at the beginning of its fork. The repository identity and documentation use the Rove name, while the applications, CLI, package names, and storage identifiers still use T3 Code names for upstream compatibility. Expect those technical identifiers to remain unchanged until a migration has a clear user benefit.
+Rove is at the beginning of its fork. The repository identity and documentation use the Rove name. Application identifiers have been renamed to Rove, including environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs, package names, and the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 The inherited application supports Claude Code, Codex, Cursor, Grok Build, and OpenCode across web, desktop, and mobile clients.
 
@@ -23,7 +23,7 @@ The development server prints the local URL and pairing information needed to op
 
 ## Documentation
 
-Start with the [documentation index](./docs). Because Rove currently preserves upstream runtime behavior, much of the product documentation still refers to T3 Code and its existing commands.
+Start with the [documentation index](./docs).
 
 Useful starting points:
 
@@ -35,6 +35,6 @@ Useful starting points:
 
 ## Upstream
 
-Rove is built from [pingdotgg/t3code](https://github.com/pingdotgg/t3code). Upstream retains its original copyright and is distributed under the [MIT License](./LICENSE).
+Rove is built from an upstream open-source project that retains its original copyright and is distributed under the [MIT License](./LICENSE).
 
-When a change is broadly useful and fits T3 Code's direction, contributors should consider proposing it upstream as well.
+When a change is broadly useful, contributors should consider proposing it upstream as well.

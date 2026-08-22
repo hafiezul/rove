@@ -93,7 +93,7 @@ export default defineConfig({
     ],
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
     jsPlugins: [
-      "./oxlint-plugin-t3code/index.ts",
+      "./oxlint-plugin-rove/index.ts",
       { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
     ],
     categories: {
@@ -160,10 +160,10 @@ export default defineConfig({
           ],
         },
       ],
-      "t3code/no-global-process-runtime": "error",
-      "t3code/no-inline-schema-compile": "warn",
-      "t3code/no-manual-effect-runtime-in-tests": "error",
-      "t3code/namespace-node-imports": "error",
+      "rove/no-global-process-runtime": "error",
+      "rove/no-inline-schema-compile": "warn",
+      "rove/no-manual-effect-runtime-in-tests": "error",
+      "rove/namespace-node-imports": "error",
     },
     options: {
       // Revisit once Oxlint's tsgolint path can integrate with @effect/tsgo diagnostics.

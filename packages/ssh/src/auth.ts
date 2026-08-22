@@ -61,7 +61,7 @@ export interface SshChildEnvironmentOptions {
   readonly authSecret?: string | null;
 }
 
-const SSH_ASKPASS_DIR_NAME = "t3code-ssh-askpass";
+const SSH_ASKPASS_DIR_NAME = "rove-ssh-askpass";
 
 function joinSshAskpassPath(
   directory: string,
@@ -73,14 +73,14 @@ function joinSshAskpassPath(
 }
 
 export const ASKPASS_POSIX_SCRIPT = `#!/bin/sh
-# Invoked by ssh via SSH_ASKPASS when T3 Code re-runs ssh with a cached password
+# Invoked by ssh via SSH_ASKPASS when Rove re-runs ssh with a cached password
 # from the renderer's in-app prompt. We never expose a native dialog here - if
 # T3_SSH_AUTH_SECRET is missing, that's a caller bug and we fail loudly.
 if [ "\${T3_SSH_AUTH_SECRET+x}" = "x" ]; then
   printf "%s\\n" "$T3_SSH_AUTH_SECRET"
   exit 0
 fi
-printf 'T3 Code ssh-askpass invoked without T3_SSH_AUTH_SECRET.\\n' >&2
+printf 'Rove ssh-askpass invoked without T3_SSH_AUTH_SECRET.\\n' >&2
 exit 1
 `;
 
@@ -88,7 +88,7 @@ export const ASKPASS_WINDOWS_LAUNCHER_SCRIPT = `@echo off\r
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ssh-askpass.ps1" %*\r
 `;
 
-export const ASKPASS_WINDOWS_SCRIPT = `# Invoked by ssh via SSH_ASKPASS (through ssh-askpass.cmd) when T3 Code re-runs\r
+export const ASKPASS_WINDOWS_SCRIPT = `# Invoked by ssh via SSH_ASKPASS (through ssh-askpass.cmd) when Rove re-runs\r
 # ssh with a cached password from the renderer's in-app prompt. We never expose\r
 # a native dialog here - if T3_SSH_AUTH_SECRET is missing, that's a caller bug\r
 # and we fail loudly.\r
@@ -96,7 +96,7 @@ if ($null -ne $env:T3_SSH_AUTH_SECRET) {\r
   [Console]::Out.WriteLine($env:T3_SSH_AUTH_SECRET)\r
   exit 0\r
 }\r
-[Console]::Error.WriteLine("T3 Code ssh-askpass invoked without T3_SSH_AUTH_SECRET.")\r
+[Console]::Error.WriteLine("Rove ssh-askpass invoked without T3_SSH_AUTH_SECRET.")\r
 exit 1\r
 `;
 
@@ -104,7 +104,7 @@ export const getDefaultSshAskpassDirectory = Effect.fn("ssh/auth.getDefaultSshAs
   function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const parentDirectory = yield* fs.makeTempDirectory({ prefix: "t3code-ssh-runtime-" });
+    const parentDirectory = yield* fs.makeTempDirectory({ prefix: "rove-ssh-runtime-" });
     return path.join(parentDirectory, SSH_ASKPASS_DIR_NAME);
   },
 );
@@ -203,7 +203,7 @@ export const buildSshChildEnvironment = Effect.fn("ssh/auth.buildSshChildEnviron
     ...(input.authSecret === undefined
       ? undefined
       : { T3_SSH_AUTH_SECRET: input.authSecret ?? "" }),
-    ...(platform === "win32" || baseEnv.DISPLAY || hostDisplay ? undefined : { DISPLAY: "t3code" }),
+    ...(platform === "win32" || baseEnv.DISPLAY || hostDisplay ? undefined : { DISPLAY: "rove" }),
   };
 });
 

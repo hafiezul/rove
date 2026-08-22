@@ -34,12 +34,12 @@ const DEFAULT_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 
 const BitbucketApiEnvConfig = Config.all({
-  baseUrl: Config.string("T3CODE_BITBUCKET_API_BASE_URL").pipe(
+  baseUrl: Config.string("ROVE_BITBUCKET_API_BASE_URL").pipe(
     Config.withDefault(DEFAULT_API_BASE_URL),
   ),
-  accessToken: Config.string("T3CODE_BITBUCKET_ACCESS_TOKEN").pipe(Config.option),
-  email: Config.string("T3CODE_BITBUCKET_EMAIL").pipe(Config.option),
-  apiToken: Config.string("T3CODE_BITBUCKET_API_TOKEN").pipe(Config.option),
+  accessToken: Config.string("ROVE_BITBUCKET_ACCESS_TOKEN").pipe(Config.option),
+  email: Config.string("ROVE_BITBUCKET_EMAIL").pipe(Config.option),
+  apiToken: Config.string("ROVE_BITBUCKET_API_TOKEN").pipe(Config.option),
 });
 
 const BitbucketApiOperation = Schema.Literals([
@@ -516,7 +516,7 @@ function checkoutBranchName(input: {
     return input.headBranch;
   }
 
-  return `t3code/pr-${input.pullRequestId}/${sanitizeBranchFragment(input.headBranch)}`;
+  return `rove/pr-${input.pullRequestId}/${sanitizeBranchFragment(input.headBranch)}`;
 }
 
 function repositoryNameWithOwner(
@@ -556,7 +556,7 @@ function authFromConfig(
     account: Option.none(),
     host: Option.some("bitbucket.org"),
     detail: Option.some(
-      "Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN, or T3CODE_BITBUCKET_ACCESS_TOKEN.",
+      "Set ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN, or ROVE_BITBUCKET_ACCESS_TOKEN.",
     ),
   };
 }

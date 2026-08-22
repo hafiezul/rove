@@ -67,7 +67,7 @@ export const makeGrokTextGeneration = Effect.fn("makeGrokTextGeneration")(functi
         environment,
         childProcessSpawner: commandSpawner,
         cwd,
-        clientInfo: { name: "t3-code-git-text", version: "0.0.0" },
+        clientInfo: { name: "rove-git-text", version: "0.0.0" },
       }).pipe(Effect.provideService(Crypto.Crypto, crypto));
 
       yield* runtime.handleSessionUpdate((notification) => {

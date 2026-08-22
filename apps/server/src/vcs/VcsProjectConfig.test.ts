@@ -19,15 +19,15 @@ describe("VcsProjectConfig", () => {
     const error = new VcsProjectConfig.VcsProjectConfigError({
       operation: "read",
       cwd: "/repo/packages/app",
-      configPath: "/repo/.t3code/vcs.json",
+      configPath: "/repo/.rove/vcs.json",
       cause,
     });
 
     assert.equal(error.operation, "read");
     assert.equal(error.cwd, "/repo/packages/app");
-    assert.equal(error.configPath, "/repo/.t3code/vcs.json");
+    assert.equal(error.configPath, "/repo/.rove/vcs.json");
     assert.strictEqual(error.cause, cause);
-    assert.equal(error.message, "Failed to read VCS project config at /repo/.t3code/vcs.json.");
+    assert.equal(error.message, "Failed to read VCS project config at /repo/.rove/vcs.json.");
   });
 
   it.layer(TestLayer)("uses an explicit requested VCS kind before config", (it) => {
@@ -44,7 +44,7 @@ describe("VcsProjectConfig", () => {
     );
   });
 
-  it.layer(TestLayer)("discovers .t3code/vcs.json from nested workspaces", (it) => {
+  it.layer(TestLayer)("discovers .rove/vcs.json from nested workspaces", (it) => {
     it.effect("returns the configured kind", () =>
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
@@ -52,7 +52,7 @@ describe("VcsProjectConfig", () => {
         const root = yield* fileSystem.makeTempDirectoryScoped({
           prefix: "t3-vcs-config-test-",
         });
-        const configDir = path.join(root, ".t3code");
+        const configDir = path.join(root, ".rove");
         const nested = path.join(root, "packages", "app");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });
         yield* fileSystem.makeDirectory(nested, { recursive: true });
@@ -83,7 +83,7 @@ describe("VcsProjectConfig", () => {
         const root = yield* fileSystem.makeTempDirectoryScoped({
           prefix: "t3-vcs-config-test-",
         });
-        const configDir = path.join(root, ".t3code");
+        const configDir = path.join(root, ".rove");
         const cwd = path.join(root, "invalid\0child");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });
         yield* fileSystem.writeFileString(
@@ -96,7 +96,7 @@ describe("VcsProjectConfig", () => {
         const kind = yield* config.resolveKind({ cwd });
 
         assert.equal(kind, "jj");
-        const failedCandidate = path.join(cwd, ".t3code", "vcs.json");
+        const failedCandidate = path.join(cwd, ".rove", "vcs.json");
         const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
           [error] = messages[0] as ReadonlyArray<unknown>;
         assert.instanceOf(error, VcsProjectConfig.VcsProjectConfigError);
@@ -142,7 +142,7 @@ describe("VcsProjectConfig", () => {
         const root = yield* fileSystem.makeTempDirectoryScoped({
           prefix: "t3-vcs-config-test-",
         });
-        const configDir = path.join(root, ".t3code");
+        const configDir = path.join(root, ".rove");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });
         yield* fileSystem.writeFileString(path.join(configDir, "vcs.json"), "{not json");
 
@@ -181,7 +181,7 @@ describe("VcsProjectConfig", () => {
         const root = yield* fileSystem.makeTempDirectoryScoped({
           prefix: "t3-vcs-config-test-",
         });
-        const configPath = path.join(root, ".t3code", "vcs.json");
+        const configPath = path.join(root, ".rove", "vcs.json");
         yield* fileSystem.makeDirectory(configPath, { recursive: true });
 
         const config = yield* VcsProjectConfig.VcsProjectConfig;
@@ -211,7 +211,7 @@ describe("VcsProjectConfig", () => {
         const root = yield* fileSystem.makeTempDirectoryScoped({
           prefix: "t3-vcs-config-test-",
         });
-        const configDir = path.join(root, ".t3code");
+        const configDir = path.join(root, ".rove");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });
         yield* fileSystem.writeFileString(
           path.join(configDir, "vcs.json"),

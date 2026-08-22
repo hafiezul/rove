@@ -117,7 +117,7 @@ const requireRelayUrl = relayUrlConfig.pipe(
   Effect.mapError(
     () =>
       new EnvironmentHttpInternalServerError({
-        message: "T3CODE_RELAY_URL must be configured as a secure absolute HTTPS origin.",
+        message: "ROVE_RELAY_URL must be configured as a secure absolute HTTPS origin.",
       }),
   ),
 );
@@ -706,7 +706,7 @@ export const releaseManagedTunnelOnShutdown = Effect.fn(
     return false;
   }
   // The link belongs to the relay it was installed against, so target the
-  // persisted URL: T3CODE_RELAY_URL may have changed since the link was made.
+  // persisted URL: ROVE_RELAY_URL may have changed since the link was made.
   const relayUrl = yield* dependencies.secrets.get(RELAY_URL_SECRET);
   if (Option.isNone(relayUrl)) {
     return false;

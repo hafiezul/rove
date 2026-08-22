@@ -578,13 +578,13 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
             childProcessSpawner,
             cwd,
             ...(resumeSessionId ? { resumeSessionId } : undefined),
-            clientInfo: { name: "t3-code", version: "0.0.0" },
+            clientInfo: { name: "rove", version: "0.0.0" },
             ...(mcpSession
               ? {
                   mcpServers: [
                     {
                       type: "http" as const,
-                      name: "t3-code",
+                      name: "rove",
                       url: mcpSession.endpoint,
                       headers: [
                         {

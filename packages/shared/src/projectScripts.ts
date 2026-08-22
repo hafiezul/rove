@@ -19,17 +19,17 @@ export function projectScriptCwd(input: {
 
 interface ProjectScriptRuntimeEnv {
   [name: string]: string;
-  readonly T3CODE_PROJECT_ROOT: string;
+  readonly ROVE_PROJECT_ROOT: string;
 }
 
 export function projectScriptRuntimeEnv(
   input: ProjectScriptRuntimeEnvInput,
 ): ProjectScriptRuntimeEnv {
   const env: ProjectScriptRuntimeEnv = {
-    T3CODE_PROJECT_ROOT: input.project.cwd,
+    ROVE_PROJECT_ROOT: input.project.cwd,
   };
   if (input.worktreePath) {
-    env.T3CODE_WORKTREE_PATH = input.worktreePath;
+    env.ROVE_WORKTREE_PATH = input.worktreePath;
   }
   if (input.extraEnv) {
     return { ...env, ...input.extraEnv };

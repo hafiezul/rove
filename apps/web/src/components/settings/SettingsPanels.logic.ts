@@ -30,7 +30,7 @@ export function projectGroupingModeFromToggle(
   return lastEnabledMode === "repository_path" ? "repository_path" : "repository";
 }
 
-const LAST_ENABLED_PROJECT_GROUPING_MODE_KEY = "t3code:last-enabled-project-grouping-mode";
+const LAST_ENABLED_PROJECT_GROUPING_MODE_KEY = "rove:last-enabled-project-grouping-mode";
 
 export function readLastEnabledProjectGroupingMode(): SidebarProjectGroupingMode {
   try {

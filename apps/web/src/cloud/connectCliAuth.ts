@@ -10,7 +10,7 @@ import { clerkFrontendApiUrlFromPublishableKey } from "@t3tools/shared/relayAuth
 import { configuredHostedAppUrl, isHostedStaticApp } from "../hostedPairing";
 import { hasCloudPublicConfig, resolveCloudPublicConfig, trimNonEmpty } from "./publicConfig";
 
-const CONNECT_CLI_AUTH_STATE_STORAGE_KEY = "t3code-connect-cli-auth-state";
+const CONNECT_CLI_AUTH_STATE_STORAGE_KEY = "rove-connect-cli-auth-state";
 
 export function resolveConnectCliOAuthClientId(): string | null {
   // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
