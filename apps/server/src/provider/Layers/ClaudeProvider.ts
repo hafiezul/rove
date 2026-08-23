@@ -821,7 +821,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in Rove settings.",
+        message: "Claude is disabled in Rove Code settings.",
       },
     });
   }
@@ -984,7 +984,7 @@ export const makePendingClaudeProvider = (
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Claude is disabled in Rove settings.",
+          message: "Claude is disabled in Rove Code settings.",
         },
       });
     }

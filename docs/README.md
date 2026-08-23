@@ -1,6 +1,6 @@
-# Rove documentation
+# Rove Code documentation
 
-Rove is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
+Rove Code is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove Code**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 ## Using the application
 
@@ -20,7 +20,7 @@ Mobile app: [apps/mobile/README.md](../apps/mobile/README.md)
 
 ---
 
-## Working on Rove
+## Working on Rove Code
 
 Setup lives in the [root README](../README.md), contribution guidance in [CONTRIBUTING.md](../CONTRIBUTING.md), and agent rules in [AGENTS.md](../AGENTS.md).
 
@@ -34,7 +34,7 @@ Setup lives in the [root README](../README.md), contribution guidance in [CONTRI
 - [Server updates](./internals/server-updates.md)
 - [Resource telemetry](./internals/resource-telemetry.md)
 - [Environment auth](./internals/environment-auth.md)
-- [T3 Connect](./internals/t3-connect.md)
+- [Rove Connect](./internals/rove-connect.md)
 - [CI gates](./internals/ci.md)
 
 ### Runbooks

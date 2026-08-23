@@ -54,7 +54,7 @@ export function renderBootServiceUnit(plan: BootServicePlan): string {
   // The user manager has no reliable network-online target; server networking retries itself.
   return [
     "[Unit]",
-    "Description=Rove server",
+    "Description=Rove Code server",
     "StartLimitIntervalSec=300",
     "StartLimitBurst=5",
     "",
@@ -114,7 +114,7 @@ export class BootServiceInstallError extends Schema.TaggedErrorClass<BootService
   { cause: Schema.Defect() },
 ) {
   override get message(): string {
-    return "Could not set up the Rove background service.";
+    return "Could not set up the Rove Code background service.";
   }
 }
 

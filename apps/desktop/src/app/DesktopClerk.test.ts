@@ -36,7 +36,7 @@ const makeDesktopClerkLayer = (isDevelopment = true, events: string[] = []) => {
     isDevelopment,
     appDataDirectory: "/tmp/app-data",
     userDataDirName: isDevelopment ? "rove-dev" : "rove",
-    legacyUserDataDirName: isDevelopment ? "Rove (Dev)" : "Rove (Alpha)",
+    legacyUserDataDirName: isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)",
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
   } as DesktopEnvironment.DesktopEnvironment["Service"]);
 

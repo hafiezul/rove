@@ -1,8 +1,8 @@
 /**
  * UsageService - scans provider transcripts and returns priced usage buckets.
  *
- * The scan reads the provider CLIs' own session files rather than Rove's
- * orchestration projections, so usage covers turns driven outside Rove too.
+ * The scan reads the provider CLIs' own session files rather than Rove Code's
+ * orchestration projections, so usage covers turns driven outside Rove Code too.
  * This is the approach `ccusage` takes.
  *
  * Transcripts are append-only, so parsed records are memoised per file by

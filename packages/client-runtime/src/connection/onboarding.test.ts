@@ -18,7 +18,7 @@ const CLIENT_PRESENTATION_LAYER = Layer.succeed(
   ClientPresentation,
   ClientPresentation.of({
     metadata: {
-      label: "Rove Test",
+      label: "Rove Code Test",
       deviceType: "desktop",
       os: "Test OS",
     },
@@ -114,7 +114,7 @@ describe("connection onboarding", () => {
       const tokenParams = new URLSearchParams(tokenBody);
       expect(tokenParams.get("subject_token")).toBe("pairing-token");
       expect(tokenParams.get("scope")).toBe(AuthStandardClientScopes.join(" "));
-      expect(tokenParams.get("client_label")).toBe("Rove Test");
+      expect(tokenParams.get("client_label")).toBe("Rove Code Test");
     }),
   );
 

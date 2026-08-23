@@ -39,7 +39,7 @@ export function resolveVersionMismatch(
   return {
     clientVersion: normalizedClientVersion,
     serverVersion: normalizedServerVersion,
-    hint: "Version mismatch. Try syncing the client and server to the same Rove version.",
+    hint: "Version mismatch. Try syncing the client and server to the same Rove Code version.",
   };
 }
 

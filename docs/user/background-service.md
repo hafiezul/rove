@@ -1,11 +1,11 @@
-# Running Rove in the Background
+# Running Rove Code in the Background
 
-On a Linux host, Rove can run as a background service for your user. It starts when the machine
+On a Linux host, Rove Code can run as a background service for your user. It starts when the machine
 boots and keeps running after you log out.
 
 ## Manage the Service
 
-Install it with the latest Rove release:
+Install it with the latest Rove Code release:
 
 ```sh
 npx t3@latest service install
@@ -29,21 +29,21 @@ Stop it and remove it from startup:
 npx t3@latest service uninstall
 ```
 
-Updating restarts Rove briefly. Let active agent work and terminal commands finish first.
+Updating restarts Rove Code briefly. Let active agent work and terminal commands finish first.
 If a remote update is already in progress, wait for it to finish before retrying a local update.
 
-The systemd unit runs a small stable launcher. Exact Rove versions are installed separately, so
+The systemd unit runs a small stable launcher. Exact Rove Code versions are installed separately, so
 a failed remote candidate can return to the previous version without rewriting the unit. The
 launcher snapshots the database before a remote candidate starts, so database updates roll back
 with the server version. An older launcher may require one local `service update` before this is
 available.
 
-## Using It with T3 Connect
+## Using It with Rove Connect
 
-T3 Connect may offer to install the service during setup so the host stays reachable after you log
-out. This is only an onboarding shortcut: the service and T3 Connect are managed separately.
+Rove Connect may offer to install the service during setup so the host stays reachable after you log
+out. This is only an onboarding shortcut: the service and Rove Connect are managed separately.
 
-Signing out of T3 Connect does not remove the service. Use `t3 service uninstall` when you no longer
-want Rove to start in the background.
+Signing out of Rove Connect does not remove the service. Use `t3 service uninstall` when you no longer
+want Rove Code to start in the background.
 
 The background service currently requires Linux with systemd.

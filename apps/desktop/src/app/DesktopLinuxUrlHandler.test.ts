@@ -24,10 +24,10 @@ const makeEnvironment = (
     platform: "linux",
     isPackaged: true,
     isDevelopment: false,
-    displayName: "Rove (Alpha)",
+    displayName: "Rove Code (Alpha)",
     linuxWmClass: "rove",
     linuxApplicationsDir: "/home/alice/.local/share/applications",
-    appImagePath: Option.some("/home/alice/Applications/Rove.AppImage"),
+    appImagePath: Option.some("/home/alice/Applications/Rove Code.AppImage"),
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
     ...overrides,
   } as DesktopEnvironment.DesktopEnvironment["Service"]);
@@ -108,13 +108,13 @@ const emptyRecording = (): RecordedRegistration => ({
 describe("DesktopLinuxUrlHandler", () => {
   it("renders a scheme-handler desktop entry with freedesktop Exec quoting", () => {
     const entry = DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-      displayName: "Rove (Nightly)",
+      displayName: "Rove Code (Nightly)",
       execTarget: '/home/al ice/Apps/T3 "100%" $HOME\\x.AppImage',
       scheme: "rove",
     });
 
     assert.include(entry, "[Desktop Entry]");
-    assert.include(entry, "Name=Rove (Nightly)");
+    assert.include(entry, "Name=Rove Code (Nightly)");
     // Exec composes both escaping layers: a literal backslash becomes four
     // backslashes in the file, a quote three characters, a dollar sign two
     // backslashes plus the sign.
@@ -168,7 +168,7 @@ describe("DesktopLinuxUrlHandler", () => {
       );
       assert.include(
         recorded.files[0]?.content,
-        'Exec="/home/alice/Applications/Rove.AppImage" %U',
+        'Exec="/home/alice/Applications/Rove Code.AppImage" %U',
       );
       assert.include(recorded.files[0]?.content, "MimeType=x-scheme-handler/rove;");
       assert.deepEqual(recorded.commands, [

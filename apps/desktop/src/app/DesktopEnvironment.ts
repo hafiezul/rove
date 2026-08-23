@@ -80,7 +80,7 @@ export class DesktopEnvironment extends Context.Service<
   }
 >()("@t3tools/desktop/app/DesktopEnvironment") {}
 
-const APP_BASE_NAME = "Rove";
+const APP_BASE_NAME = "Rove Code";
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;
@@ -170,7 +170,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
     t3Home: config.t3Home,
   });
   const userDataDirName = isDevelopment ? "rove-dev" : "rove";
-  const legacyUserDataDirName = isDevelopment ? "Rove (Dev)" : "Rove (Alpha)";
+  const legacyUserDataDirName = isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)";
   const linuxApplicationsDir = path.join(
     Option.getOrElse(config.xdgDataHome, () => path.join(homeDirectory, ".local", "share")),
     "applications",

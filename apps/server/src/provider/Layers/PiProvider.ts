@@ -5,7 +5,7 @@
  * model runtime could be created against the user's global config, and the
  * model list is the user's configured Pi catalog (settings/auth/models.json).
  * There is no binary to probe and no per-instance version: the Pi version is
- * the pinned dependency Rove ships.
+ * the pinned dependency Rove Code ships.
  *
  * @module provider/Layers/PiProvider
  */
@@ -103,7 +103,9 @@ export function buildInitialPiProviderSnapshot(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: piSettings.enabled ? "Probing the Pi SDK…" : "Pi is disabled in Rove settings.",
+        message: piSettings.enabled
+          ? "Probing the Pi SDK…"
+          : "Pi is disabled in Rove Code settings.",
       },
     });
   });
@@ -155,7 +157,7 @@ export function checkPiProviderStatus(
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Pi is disabled in Rove settings.",
+          message: "Pi is disabled in Rove Code settings.",
         },
       });
     }

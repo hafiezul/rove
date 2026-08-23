@@ -52,18 +52,18 @@ describe("electron development launcher", () => {
 
   it("keeps the native Electron executable name inside the branded macOS bundle", () => {
     const paths = resolveMacLauncherPaths(
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app",
-      "Rove (Dev)",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app",
+      "Rove Code (Dev)",
     );
 
-    assert.equal(paths.launcherExecutableName, "Rove (Dev) Launcher");
+    assert.equal(paths.launcherExecutableName, "Rove Code (Dev) Launcher");
     assert.equal(
       paths.launcherBinaryPath,
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Rove (Dev) Launcher",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Rove Code (Dev) Launcher",
     );
     assert.equal(
       paths.runtimeElectronBinaryPath,
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Electron",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Electron",
     );
 
     const script = makeDevelopmentLauncherScript({
@@ -74,7 +74,7 @@ describe("electron development launcher", () => {
     });
     assert.include(
       script,
-      "exec '/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Electron'",
+      "exec '/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Electron'",
     );
     assert.notInclude(script, "node_modules/electron");
   });

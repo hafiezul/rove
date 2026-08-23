@@ -1,8 +1,8 @@
 # Architecture
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
-Rove is a server runtime that owns agent sessions, workspaces, and version control, plus clients
+Rove Code is a server runtime that owns agent sessions, workspaces, and version control, plus clients
 (web, desktop, mobile) that talk to it over one authenticated Effect RPC WebSocket. The server is the
 execution boundary: every provider process, terminal, git operation, and filesystem read happens
 there, never in the client.

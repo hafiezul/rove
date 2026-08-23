@@ -98,8 +98,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   });
 
   it("switches desktop packaging product names to nightly for nightly builds", () => {
-    assert.equal(resolveDesktopProductName("0.0.17"), "Rove (Alpha)");
-    assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "Rove (Nightly)");
+    assert.equal(resolveDesktopProductName("0.0.17"), "Rove Code (Alpha)");
+    assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "Rove Code (Nightly)");
   });
 
   it("switches desktop packaging icons to the nightly artwork for nightly versions", () => {
@@ -363,7 +363,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       // entry advertises MimeType=x-scheme-handler/rove; for OAuth deep links.
       // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.deepStrictEqual((linux.linux as Record<string, SchemaJson>).protocols, [
-        { name: "Rove", schemes: ["rove", "rove-dev"] },
+        { name: "Rove Code", schemes: ["rove", "rove-dev"] },
       ]);
       for (const config of [mac, linux, win]) {
         assert.deepStrictEqual(config.electronLanguages, DESKTOP_ELECTRON_LANGUAGES);
@@ -542,7 +542,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.equal(config.appId, "dev.rove.app");
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/rove.provisionprofile");
-      assert.deepStrictEqual(mac.protocols, [{ name: "Rove", schemes: ["rove", "rove-dev"] }]);
+      assert.deepStrictEqual(mac.protocols, [{ name: "Rove Code", schemes: ["rove", "rove-dev"] }]);
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 

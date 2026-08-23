@@ -1,4 +1,4 @@
-// This file mostly exists because we want dev mode to say "Rove (Dev)" instead of "electron"
+// This file mostly exists because we want dev mode to say "Rove Code (Dev)" instead of "electron"
 
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -16,7 +16,7 @@ const repoRoot = NodePath.resolve(desktopDir, "..", "..");
 const devBundleIdSuffix = NodePath.basename(repoRoot)
   .toLowerCase()
   .replaceAll(/[^a-z0-9]+/g, "");
-export const APP_DISPLAY_NAME = isDevelopment ? "Rove (Dev)" : "Rove (Alpha)";
+export const APP_DISPLAY_NAME = isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)";
 export const APP_BUNDLE_ID = isDevelopment
   ? `dev.rove.app.dev.${devBundleIdSuffix || "local"}`
   : "dev.rove.app";
@@ -347,7 +347,7 @@ function buildMacLauncher(electronBinaryPath) {
   if (isDevelopment) {
     // Keep Electron's native executable inside the branded bundle. Launching the
     // node_modules copy makes macOS associate the process (and Dock label) with
-    // Electron.app even though this bundle's Info.plist has the Rove name.
+    // Electron.app even though this bundle's Info.plist has the Rove Code name.
     // Its conventional executable name also keeps Electron's default-app runtime
     // in development mode instead of making app.isPackaged report true.
     writeDevelopmentLauncherScript(launcherBinaryPath, runtimeElectronBinaryPath);

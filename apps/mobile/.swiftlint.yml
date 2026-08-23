@@ -1,5 +1,5 @@
 included:
-  - ios/Rove
+  - ios/Rove Code
   - modules/t3-composer-editor/ios
   - modules/t3-native-controls/ios
   - modules/t3-terminal/ios

@@ -108,7 +108,7 @@ export const resolveNightlyReleaseMetadata = (
     baseVersion,
     version,
     tag: `v${version}`,
-    name: `Rove Nightly ${version} (${shortSha})`,
+    name: `Rove Code Nightly ${version} (${shortSha})`,
     shortSha,
   };
 };

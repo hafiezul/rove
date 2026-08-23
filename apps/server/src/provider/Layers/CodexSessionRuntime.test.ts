@@ -255,7 +255,7 @@ describe("buildCodexDeveloperInstructions", () => {
     });
 
     NodeAssert.ok(instructions.startsWith(CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS));
-    NodeAssert.match(instructions, /Rove/);
+    NodeAssert.match(instructions, /Rove Code/);
     NodeAssert.match(instructions, /Codex harness/);
     NodeAssert.match(instructions, /as gpt-5\.3-codex with high reasoning effort/);
   });

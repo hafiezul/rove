@@ -1,6 +1,6 @@
 # Resource telemetry architecture
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
 Status: implemented
 

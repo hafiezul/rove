@@ -1,10 +1,10 @@
 # Scripts
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
 ## First checkout
 
-Rove uses [Vite+](https://viteplus.dev/guide/). Install the global `vp` command, install
+Rove Code uses [Vite+](https://viteplus.dev/guide/). Install the global `vp` command, install
 dependencies, then start the dev stack:
 
 ```bash

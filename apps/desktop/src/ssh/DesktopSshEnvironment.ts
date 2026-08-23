@@ -96,7 +96,7 @@ export function toSshPasswordPromptError(
       break;
     case "DesktopSshPromptWindowUnavailableError":
     case "DesktopSshPromptPresentationError":
-      message = "Rove window is not available for SSH authentication.";
+      message = "Rove Code window is not available for SSH authentication.";
       break;
     case "DesktopSshPromptTimedOutError":
       message = `SSH authentication timed out for ${cause.destination}.`;

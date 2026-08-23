@@ -117,7 +117,7 @@ function clientMetadata() {
   const desktop = window.desktopBridge !== undefined;
   const platform = navigator.platform.trim();
   return {
-    label: desktop ? "Rove Desktop" : "Rove Web",
+    label: desktop ? "Rove Code Desktop" : "Rove Code Web",
     deviceType: "desktop" as const,
     ...(platform === "" ? undefined : { os: platform }),
   };
@@ -182,7 +182,7 @@ const capabilitiesLayer = Layer.effectContext(
         if (session === null) {
           return yield* new ConnectionBlockedError({
             reason: "authentication",
-            detail: "Sign in to T3 Connect to connect this environment.",
+            detail: "Sign in to Rove Connect to connect this environment.",
           });
         }
         const token = yield* session.readClerkToken().pipe(
@@ -197,7 +197,7 @@ const capabilitiesLayer = Layer.effectContext(
         if (token === null) {
           return yield* new ConnectionBlockedError({
             reason: "authentication",
-            detail: "The T3 Connect session is unavailable.",
+            detail: "The Rove Connect session is unavailable.",
           });
         }
         return token;
