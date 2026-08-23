@@ -10,9 +10,9 @@
 
 This app has three variants:
 
-- `development`: Expo dev client, installable side-by-side as `Rove Dev`
-- `preview`: persistent internal preview build, installable side-by-side as `Rove Preview`
-- `production`: store/release build as `Rove`
+- `development`: Expo dev client, installable side-by-side as `Rove Code Dev`
+- `preview`: persistent internal preview build, installable side-by-side as `Rove Code Preview`
+- `production`: store/release build as `Rove Code`
 
 Run commands from `apps/mobile`.
 

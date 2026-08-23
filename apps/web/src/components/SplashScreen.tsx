@@ -1,8 +1,11 @@
 export function SplashScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="flex size-24 items-center justify-center" aria-label="Rove splash screen">
-        <img alt="Rove" className="size-16 object-contain" src="/apple-touch-icon.png" />
+      <div
+        className="flex size-24 items-center justify-center"
+        aria-label="Rove Code splash screen"
+      >
+        <img alt="Rove Code" className="size-16 object-contain" src="/apple-touch-icon.png" />
       </div>
     </div>
   );

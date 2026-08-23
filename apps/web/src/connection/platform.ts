@@ -117,7 +117,7 @@ function clientMetadata() {
   const desktop = window.desktopBridge !== undefined;
   const platform = navigator.platform.trim();
   return {
-    label: desktop ? "Rove Desktop" : "Rove Web",
+    label: desktop ? "Rove Code Desktop" : "Rove Code Web",
     deviceType: "desktop" as const,
     ...(platform === "" ? undefined : { os: platform }),
   };

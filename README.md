@@ -1,18 +1,24 @@
-# Rove
+# Rove Code
 
-Rove is an independent, open-source fork of an upstream coding-agent control surface: a fast, remote-ready control surface for coding agents.
+Rove Code is an independent, open-source fork of an upstream coding-agent control surface: a fast, remote-ready control surface for coding agents.
 
-The project follows the upstream project closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove is not affiliated with or endorsed by the upstream authors.
+The project follows the upstream project closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove Code is not affiliated with or endorsed by the upstream authors.
 
 ## Current status
 
-Rove is at the beginning of its fork. The repository identity and documentation use the Rove name. Application identifiers have been renamed to Rove, including environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs, package names, and the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
+Rove Code is at the beginning of its fork. The product is named **Rove Code**; development happens under the [`rovecode`](https://github.com/rovecode) GitHub organization.
+
+Naming conventions:
+
+- User-facing identity uses "Rove Code" (app display names, installers, documentation). Companion products keep their family names: Rove Connect, Rove Mobile.
+- Technical identifiers stay at the family level (`rove`): environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs (`dev.rove.app.*`), the `~/.rove` state directory, and the `rove-relay` JWT audience. This keeps one namespace across Rove Code, Rove Connect, and Rove Mobile.
+- A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 The inherited application supports Claude Code, Codex, Cursor, Grok Build, and OpenCode across web, desktop, and mobile clients.
 
 ## Run from source
 
-Rove currently has no separate binary distribution. To run the fork locally, install [Vite+](https://viteplus.dev/guide/) and use Node.js 24.13.1:
+Rove Code currently has no separate binary distribution. To run the fork locally, install [Vite+](https://viteplus.dev/guide/) and use Node.js 24.13.1:
 
 ```bash
 vp i
@@ -35,6 +41,6 @@ Useful starting points:
 
 ## Upstream
 
-Rove is built from an upstream open-source project that retains its original copyright and is distributed under the [MIT License](./LICENSE).
+Rove Code is built from an upstream open-source project that retains its original copyright and is distributed under the [MIT License](./LICENSE).
 
 When a change is broadly useful, contributors should consider proposing it upstream as well.

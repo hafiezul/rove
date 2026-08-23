@@ -1,6 +1,6 @@
 # Connection Runtime
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
 The connection runtime is shared by web and mobile. It owns connectivity,
 authentication, retries, transport lifetime, cached environment data, and

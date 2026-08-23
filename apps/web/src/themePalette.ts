@@ -383,7 +383,7 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 // Foreground pairs deviate where necessary to keep normal text at WCAG AA.
 const T3_CHAT_LIGHT_COLORS = {
   canvas: "#fdf7fd",
-  // Rove's workspace header belongs to the chat panel, so keep it seamless
+  // Rove Code's workspace header belongs to the chat panel, so keep it seamless
   // with the light chat canvas rather than mapping it to T3 Chat's outer shell.
   chrome: "#fdf7fd",
   toolbar: "#fdf7fd",
@@ -428,7 +428,7 @@ const T3_CHAT_LIGHT_COLORS = {
   messageActionForeground: "#ffffff",
   messageActionHover: "#c12269",
   // T3 Chat uses a light lavender code surface in light mode. Keeping the
-  // dark plum pair here also leaked the dark palette into Rove's diffs.
+  // dark plum pair here also leaked the dark palette into Rove Code's diffs.
   codeBackground: "#f5ecf9",
   codeForeground: "#673c8b",
   // The live sidebar is transparent over T3 Chat's outer shell. Use that
@@ -451,7 +451,7 @@ const T3_CHAT_LIGHT_COLORS = {
 
 const T3_CHAT_DARK_COLORS = {
   canvas: "#1f1a24",
-  // Rove's workspace header belongs to the chat panel, so keep it seamless
+  // Rove Code's workspace header belongs to the chat panel, so keep it seamless
   // with the canvas rather than mapping it to T3 Chat's outer shell.
   chrome: "#1f1a24",
   toolbar: "#1f1a24",
@@ -497,7 +497,7 @@ const T3_CHAT_DARK_COLORS = {
   messageAction: "#a3004c",
   messageActionForeground: "#fbd0e8",
   messageActionHover: "#a2004c",
-  // Diffs and file previews are full workspace surfaces in Rove. Keep them
+  // Diffs and file previews are full workspace surfaces in Rove Code. Keep them
   // continuous with the themed canvas instead of dropping to near-black.
   codeBackground: "#1f1a24",
   codeForeground: "#d8c3ef",
@@ -523,7 +523,7 @@ const T3_CHAT_DARK_COLORS = {
 } satisfies ThemeColors;
 
 /**
- * The palette Rove wears with no theme installed, captured from the app's
+ * The palette Rove Code wears with no theme installed, captured from the app's
  * stock tokens (index.css) so a draft seeded from the default look paints the
  * pixels the user is already seeing. Alpha-bearing tokens are flattened over
  * their real backdrops (canvas, or the sidebar for its rows) because theme
@@ -650,7 +650,7 @@ const ROVE_DARK_THEME_COLORS = {
 } satisfies ThemeColors;
 
 /**
- * The standard Rove look as a theme palette, for seeding a new theme when
+ * The standard Rove Code look as a theme palette, for seeding a new theme when
  * no theme is installed. Distinct from {@link getDefaultThemeColors}, which
  * carries the flagship T3 Chat palette used to fill roles omitted by theme
  * files.
@@ -961,7 +961,7 @@ function solveOklchLightness(
 }
 
 /**
- * The status colors Rove shows without a theme, read from the app's own
+ * The status colors Rove Code shows without a theme, read from the app's own
  * tokens (red-500 / amber-500 families). Generated palettes fall back to
  * these instead of the flagship theme's, so an imported or created theme
  * never inherits a brand tint on destructive buttons and warnings.

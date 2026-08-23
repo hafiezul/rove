@@ -1,6 +1,6 @@
-# Contributing to Rove
+# Contributing to Rove Code
 
-Rove is an early fork of an upstream open-source project. Its direction and contribution process are still taking shape.
+Rove Code is an early fork of an upstream open-source project. Its direction and contribution process are still taking shape.
 
 ## Before starting
 
@@ -18,6 +18,6 @@ Do not combine unrelated fixes or broad rewrites in one pull request. Include be
 
 ## Working with upstream
 
-Before implementing a fix, check whether equivalent work already exists upstream. Changes that are broadly useful may be better proposed upstream first, then incorporated into Rove.
+Before implementing a fix, check whether equivalent work already exists upstream. Changes that are broadly useful may be better proposed upstream first, then incorporated into Rove Code.
 
 Preserve upstream copyright and attribution when carrying or adapting upstream work.

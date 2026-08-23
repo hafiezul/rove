@@ -13,9 +13,9 @@ const defaultInput = {
   platform: "darwin",
   processArch: "arm64",
   appVersion: "0.0.22",
-  appPath: "/Applications/Rove.app/Contents/Resources/app.asar",
+  appPath: "/Applications/Rove Code.app/Contents/Resources/app.asar",
   isPackaged: false,
-  resourcesPath: "/Applications/Rove.app/Contents/Resources",
+  resourcesPath: "/Applications/Rove Code.app/Contents/Resources",
   runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 

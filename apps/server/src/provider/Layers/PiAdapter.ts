@@ -4,7 +4,7 @@
  * docs/adr/0001-pi-provider-uses-sdk-in-process.md for why this is not a
  * subprocess adapter.
  *
- * One Pi `AgentSession` per Rove thread. Sessions run with the user's global
+ * One Pi `AgentSession` per Rove Code thread. Sessions run with the user's global
  * Pi config (auth, models, skills, prompt templates) but no extensions — the
  * "sterile Pi" shape from CONTEXT.md — because extension UI dialogs cannot be
  * answered headlessly yet. Rollback is fork-as-rollback: Pi sessions are
@@ -68,7 +68,7 @@ export function translatePiSkillToken(text: string): string {
   return rest.length > 0 ? `/skill:${match[1]} ${rest}` : `/skill:${match[1]}`;
 }
 
-/** Map Pi tool names to Rove's canonical lifecycle item types. */
+/** Map Pi tool names to Rove Code's canonical lifecycle item types. */
 function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
   const normalized = toolName.toLowerCase();
   if (normalized.includes("bash") || normalized.includes("command")) {
@@ -469,7 +469,7 @@ export function makePiAdapter(
 
         switch (event.type) {
           case "turn_start": {
-            // Pi turn ids are positional; Rove mints its own turn id at
+            // Pi turn ids are positional; Rove Code mints its own turn id at
             // turn.started, so nothing to correlate here yet. A retry also
             // emits turn_start — clear any stale deferred error from the
             // previous attempt.

@@ -2,9 +2,9 @@ import type { ProviderInteractionMode } from "@t3tools/contracts";
 
 const ROVE_BROWSER_TOOL_INSTRUCTIONS = `
 
-## Rove collaborative browser
+## Rove Code collaborative browser
 
-You are running inside Rove. The \`rove\` MCP server is the product-native collaborative browser shared with the user. When it exposes \`preview_*\` tools, prefer those tools for browser navigation, inspection, interaction, screenshots, and recordings.
+You are running inside Rove Code. The \`rove\` MCP server is the product-native collaborative browser shared with the user. When it exposes \`preview_*\` tools, prefer those tools for browser navigation, inspection, interaction, screenshots, and recordings.
 
 For browser work, first call \`preview_status\`. If no automation-capable preview is attached, call \`preview_open\` before concluding that the browser is unavailable. Then use \`preview_navigate\`, \`preview_snapshot\`, and the focused interaction tools. Prefer snapshot-provided locators over coordinates.
 
@@ -176,5 +176,5 @@ export function buildCodexDeveloperInstructions(
       : CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS;
   return `${base}
 
-<runtime_info>In case you're asked: you are running in Rove through the Codex harness, as ${toSingleLine(runtime.model)} with ${toSingleLine(runtime.reasoningEffort)} reasoning effort. No need to mention this otherwise.</runtime_info>`;
+<runtime_info>In case you're asked: you are running in Rove Code through the Codex harness, as ${toSingleLine(runtime.model)} with ${toSingleLine(runtime.reasoningEffort)} reasoning effort. No need to mention this otherwise.</runtime_info>`;
 }

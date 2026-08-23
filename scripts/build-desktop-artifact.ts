@@ -49,17 +49,17 @@ const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 export const MACOS_USAGE_DESCRIPTIONS = {
   NSDesktopFolderUsageDescription:
-    "Rove needs access to Desktop folders you select so it can open and manage coding projects.",
+    "Rove Code needs access to Desktop folders you select so it can open and manage coding projects.",
   NSDocumentsFolderUsageDescription:
-    "Rove needs access to Documents folders you select so it can open and manage coding projects.",
+    "Rove Code needs access to Documents folders you select so it can open and manage coding projects.",
   NSDownloadsFolderUsageDescription:
-    "Rove needs access to Downloads folders you select so it can open and manage coding projects.",
+    "Rove Code needs access to Downloads folders you select so it can open and manage coding projects.",
   NSNetworkVolumesUsageDescription:
-    "Rove needs access to network volumes you select so it can open and manage coding projects.",
+    "Rove Code needs access to network volumes you select so it can open and manage coding projects.",
   NSRemovableVolumesUsageDescription:
-    "Rove needs access to removable volumes you select so it can open and manage coding projects.",
+    "Rove Code needs access to removable volumes you select so it can open and manage coding projects.",
   NSLocalNetworkUsageDescription:
-    "Rove uses your local network to connect to development environments when you enable network access.",
+    "Rove Code uses your local network to connect to development environments when you enable network access.",
 } as const;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -727,7 +727,7 @@ interface StagePackageJson {
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
-  // Rove always passes the user's installed Claude executable to the SDK,
+  // Rove Code always passes the user's installed Claude executable to the SDK,
   // so the SDK's optional platform packages (each a ~200MB bundled executable)
   // are dead weight. The trailing dash keeps the SDK's own JS package.
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
@@ -1896,8 +1896,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 
 export function resolveDesktopProductName(version: string): string {
   return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "Rove (Nightly)"
-    : (desktopPackageJson.productName ?? "Rove");
+    ? "Rove Code (Nightly)"
+    : (desktopPackageJson.productName ?? "Rove Code");
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -1917,7 +1917,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: DesktopBuildConfig = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "Rove-${version}-${arch}.${ext}",
+    artifactName: "Rove Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [...DESKTOP_FILE_EXCLUSIONS],
     directories: {
@@ -1950,7 +1950,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       extendInfo: MACOS_USAGE_DESCRIPTIONS,
       protocols: [
         {
-          name: "Rove",
+          name: "Rove Code",
           schemes: ["rove", "rove-dev"],
         },
       ],
@@ -1974,7 +1974,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // rove:// OAuth callbacks to the app.
       protocols: [
         {
-          name: "Rove",
+          name: "Rove Code",
           schemes: ["rove", "rove-dev"],
         },
       ],
@@ -2360,7 +2360,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     roveCommitHash: commitHash,
     private: true,
     packageManager: rootPackageJson.packageManager,
-    description: "Rove desktop build",
+    description: "Rove Code desktop build",
     author: "T3 Tools",
     main: "apps/desktop/dist-electron/main.cjs",
     build: yield* createBuildConfig(
@@ -2599,7 +2599,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
     Flag.optional,
   ),
 }).pipe(
-  Command.withDescription("Build a desktop artifact for Rove."),
+  Command.withDescription("Build a desktop artifact for Rove Code."),
   Command.withHandler((input) => Effect.flatMap(resolveBuildOptions(input), buildDesktopArtifact)),
 );
 

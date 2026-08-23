@@ -314,7 +314,7 @@ export function buildCodexInitializeParams(): CodexSchema.V1InitializeParams {
   return {
     clientInfo: {
       name: "rove_desktop",
-      title: "Rove Desktop",
+      title: "Rove Code Desktop",
       version: packageJson.version,
     },
     capabilities: {
@@ -376,7 +376,7 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
   const initialize = yield* client.request("initialize", {
     clientInfo: {
       name: "rove_desktop",
-      title: "Rove Desktop",
+      title: "Rove Code Desktop",
       version: "0.1.0",
     },
     capabilities: {
@@ -454,7 +454,7 @@ const makePendingCodexProvider = (
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Codex is disabled in Rove settings.",
+          message: "Codex is disabled in Rove Code settings.",
         },
       });
     }
@@ -544,7 +544,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Codex is disabled in Rove settings.",
+        message: "Codex is disabled in Rove Code settings.",
       },
     });
   }

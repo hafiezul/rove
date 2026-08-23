@@ -249,7 +249,7 @@ export function T3ConnectUserProfilePage() {
                 No Rove Connect environments
               </EmptyTitle>
               <EmptyDescription className="text-[0.8125rem] leading-[1.125rem]">
-                Link an environment from its local Settings to make it available through Rove
+                Link an environment from its local Settings to make it available through Rove Code
                 Connect.
               </EmptyDescription>
             </EmptyHeader>

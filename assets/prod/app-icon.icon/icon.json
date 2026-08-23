@@ -6,10 +6,10 @@
     {
       "layers": [
         {
-          "image-name": "text.svg",
-          "name": "Text",
+          "image-name": "logo.png",
+          "name": "Rove Logo",
           "position": {
-            "scale": 8.5,
+            "scale": 0.8676236,
             "translation-in-points": [0, 0]
           }
         }

@@ -343,7 +343,7 @@ export function createDevRunnerEnv({
 
     // A dev-runner server is never launcher-managed. When the shell that runs
     // this script was itself spawned by the machine's managed t3 service (an
-    // agent working inside Rove), these leak through and the child server
+    // agent working inside Rove Code), these leak through and the child server
     // fails startup with "The service launcher started a different t3 version"
     // (serviceLauncherClient.ts resolveStartup).
     delete output.T3_SERVICE_LAUNCHER_CONTEXT;
@@ -858,7 +858,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   t3Home: Flag.string("home-dir").pipe(
     Flag.withDescription(
-      "Explicit Rove data directory; runtime state is stored under userdata (equivalent to ROVE_HOME). Inside a git worktree this defaults to that worktree's own .rove so dev state stays off the shared home.",
+      "Explicit Rove Code data directory; runtime state is stored under userdata (equivalent to ROVE_HOME). Inside a git worktree this defaults to that worktree's own .rove so dev state stays off the shared home.",
     ),
     Flag.optional,
     Flag.map(Option.getOrUndefined),

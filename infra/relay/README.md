@@ -7,7 +7,7 @@ The relay is the hosted control plane for Rove Connect. It helps clients discove
 remote environments, manages the cloud-side records needed for those connections, and delivers
 optional mobile notifications and Live Activities.
 
-The relay is intentionally not in the hot path for normal Rove traffic. After a client connects,
+The relay is intentionally not in the hot path for normal Rove Code traffic. After a client connects,
 regular API and WebSocket traffic goes directly between that client and the selected environment.
 See the [Rove Connect architecture overview](../../docs/internals/rove-connect-auth-flow.html) for the larger system
 design.
@@ -16,7 +16,7 @@ design.
 
 The relay currently owns:
 
-- Linking Rove environments to a cloud account.
+- Linking Rove Code environments to a cloud account.
 - Provisioning and tracking managed environment endpoints.
 - Issuing short-lived credentials used to connect clients to linked environments.
 - Listing linked environments and registered mobile devices for an account.

@@ -1,8 +1,8 @@
 # Glossary
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
-This is a living glossary for Rove. It explains what common terms mean in this codebase.
+This is a living glossary for Rove Code. It explains what common terms mean in this codebase.
 
 ## Table of contents
 

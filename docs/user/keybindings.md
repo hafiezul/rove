@@ -4,7 +4,7 @@ Edit keybindings from **Settings** → **Keybindings**. That page lists every co
 shortcut, whether it is a default or your own, and warns about conflicts.
 
 The same configuration lives in `~/.rove/userdata/keybindings.json` on the machine running the
-server, if you prefer editing it directly. Rove writes the built-in defaults into that file on
+server, if you prefer editing it directly. Rove Code writes the built-in defaults into that file on
 first run, and adds any new defaults on later startups unless a rule of yours already claims the
 command or the shortcut.
 

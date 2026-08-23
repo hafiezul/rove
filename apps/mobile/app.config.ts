@@ -61,7 +61,7 @@ const RELEASE_ASSETS = {
 
 const VARIANT_CONFIG = {
   development: {
-    appName: "Rove Dev",
+    appName: "Rove Code Dev",
     scheme: "rove-dev",
     iosBundleIdentifier: "dev.rove.app.dev",
     androidPackage: "dev.rove.app.dev",
@@ -69,7 +69,7 @@ const VARIANT_CONFIG = {
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
-    appName: "Rove Preview",
+    appName: "Rove Code Preview",
     scheme: "rove-preview",
     iosBundleIdentifier: "dev.rove.app.preview",
     androidPackage: "dev.rove.app.preview",
@@ -77,7 +77,7 @@ const VARIANT_CONFIG = {
     assets: PREVIEW_ASSETS,
   },
   production: {
-    appName: "Rove",
+    appName: "Rove Code",
     scheme: "rove",
     iosBundleIdentifier: "dev.rove.app",
     androidPackage: "dev.rove.app",
@@ -121,7 +121,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "AgentActivity",
         displayName: "Agent Activity",
-        description: "Shows the current state of active Rove agents.",
+        description: "Shows the current state of active Rove Code agents.",
         supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"],
       },
     ],
@@ -198,7 +198,7 @@ const config: ExpoConfig = {
         NSAllowsArbitraryLoads: true,
       },
       NSLocalNetworkUsageDescription:
-        "Allow Rove to connect to Rove servers on your local network or tailnet.",
+        "Allow Rove Code to connect to Rove Code servers on your local network or tailnet.",
       ITSAppUsesNonExemptEncryption: false,
       // The App Store screenshot harness rotates the iPad interface from
       // inside the app (CI denies osascript the Accessibility access that
@@ -292,7 +292,7 @@ const config: ExpoConfig = {
     [
       "expo-camera",
       {
-        cameraPermission: "Allow Rove to access your camera so you can scan pairing QR codes.",
+        cameraPermission: "Allow Rove Code to access your camera so you can scan pairing QR codes.",
         microphonePermission: false,
         barcodeScannerEnabled: true,
         recordAudioAndroid: false,

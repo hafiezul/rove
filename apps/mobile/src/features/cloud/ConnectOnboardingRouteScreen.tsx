@@ -116,7 +116,7 @@ function ConfiguredConnectOnboardingRouteScreen() {
         ) : (
           <View collapsable={false} className="rounded-[24px] bg-card p-5">
             <Text className="text-sm leading-normal text-foreground-muted">
-              Sign in to your Rove account to set up Rove Connect.
+              Sign in to your Rove Code account to set up Rove Connect.
             </Text>
           </View>
         )}

@@ -11,7 +11,7 @@ const projects: ReadonlyArray<EnvironmentProject> = [
   {
     environmentId: EnvironmentId.make("moonbase-terminal"),
     id: ProjectId.make("rove"),
-    title: "Rove",
+    title: "Rove Code",
     workspaceRoot: "/workspace/rove",
     repositoryIdentity: null,
     defaultModelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
@@ -48,7 +48,7 @@ it("builds sendable-looking pending tasks against real showcase projects", () =>
       {
         environmentId: "moonbase-terminal",
         projectId: "rove",
-        title: "Rove",
+        title: "Rove Code",
         branch: "feat/offline-launchpad",
         createdAt: "2026-07-16T08:52:00.000Z",
       },

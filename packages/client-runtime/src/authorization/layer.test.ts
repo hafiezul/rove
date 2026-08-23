@@ -131,7 +131,7 @@ const makeHarness = Effect.fn("TestRemoteAuthorization.makeHarness")(function* (
           ClientCapabilities.ClientPresentation,
           ClientCapabilities.ClientPresentation.of({
             metadata: {
-              label: "Rove Test",
+              label: "Rove Code Test",
               deviceType: "mobile",
               os: "test",
             },

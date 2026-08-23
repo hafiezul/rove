@@ -255,7 +255,7 @@
         <div class="eyebrow">Implemented architecture</div>
         <h1>Rove Connect Control Plane and Managed Endpoint Flow</h1>
         <p class="lede">
-          Rove Connect links a locally authorized Rove environment to a signed-in cloud user,
+          Rove Connect links a locally authorized Rove Code environment to a signed-in cloud user,
           provisions a managed HTTPS/WSS endpoint for that environment, and brokers proof-bound
           remote connections. The local environment remains the authority that issues environment
           access credentials. The hosted relay stores links, reconciles managed endpoint resources,
@@ -353,7 +353,7 @@ flowchart LR
 
   Clerk["Clerk<br/>user identity and OAuth"]
 
-  subgraph Relay["Rove Relay on Cloudflare"]
+  subgraph Relay["Rove Code Relay on Cloudflare"]
     Worker["Relay Worker<br/>HTTP API"]
     Queue["APNs delivery queue<br/>with dead-letter queue"]
     Hyperdrive["Hyperdrive"]
@@ -364,7 +364,7 @@ flowchart LR
   APNs["Apple Push Notification service"]
   Traces["Axiom OTLP traces"]
 
-  subgraph Local["Linked Rove environment"]
+  subgraph Local["Linked Rove Code environment"]
     Env["Environment server<br/>local auth authority"]
     RelayClient["Relay client<br/>cloudflared implementation"]
     Secrets["Server secret store<br/>keys + relay config"]
@@ -601,7 +601,7 @@ sequenceDiagram
   CLI->>Clerk: Browser PKCE authorization-code flow
   Clerk-->>CLI: OAuth access and refresh tokens
   CLI->>CLI: Persist desired cloud-link state
-  U->>S: Start Rove environment server
+  U->>S: Start Rove Code environment server
   S->>R: Create challenge and submit local signed proof
   R-->>S: Managed endpoint config and connector token
   S->>RC: Start relay client
