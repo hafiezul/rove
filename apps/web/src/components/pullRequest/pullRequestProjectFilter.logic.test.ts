@@ -14,7 +14,7 @@ const labels = new Map([
 function project(
   id: string,
   environmentId = nucbox,
-  canonicalKey: string | null = "github.com/rovedev/rove",
+  canonicalKey: string | null = "github.com/rovecode/rove",
 ) {
   return {
     id: ProjectId.make(id),
@@ -89,7 +89,7 @@ describe("pull request project filter choices", () => {
 
   it("keeps repositories on different hosts separate", () => {
     const choices = pullRequestFilterProjects(
-      [project("github"), project("enterprise", nucbox, "git.example.com/rovedev/rove")],
+      [project("github"), project("enterprise", nucbox, "git.example.com/rovecode/rove")],
       labels,
     );
 

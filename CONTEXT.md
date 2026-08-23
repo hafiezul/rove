@@ -1,6 +1,6 @@
-# Rove
+# Rove Code
 
-Rove is a minimal GUI for coding agents: a WebSocket server wraps provider runtimes and serves web, desktop, and mobile clients. This glossary covers terms that are specific to Rove's provider-integration domain.
+Rove Code is a minimal GUI for coding agents: a WebSocket server wraps provider runtimes and serves web, desktop, and mobile clients. This glossary covers terms that are specific to Rove Code's provider-integration domain.
 
 ## Language
 
@@ -16,11 +16,11 @@ A hidden git ref captured at each turn boundary. Reverting a checkpoint resets w
 _Avoid_: snapshot, savepoint
 
 **Sterile Pi**:
-A Pi session running with the user's global Pi configuration (auth, model catalog, skills, prompt templates) but with extensions disabled. The default shape of Pi sessions in Rove until extension UI dialogs are wired.
+A Pi session running with the user's global Pi configuration (auth, model catalog, skills, prompt templates) but with extensions disabled. The default shape of Pi sessions in Rove Code until extension UI dialogs are wired.
 _Avoid_: clean Pi, sandboxed Pi
 
 **Fork-as-rollback**:
-Rove's thread rollback realized as a Pi session-tree fork: the session is forked N turns back and the fork becomes the thread's live session. User-facing copy says "Fork Pi session", not "Rollback", because the semantics differ from other providers' rollback.
+Rove Code's thread rollback realized as a Pi session-tree fork: the session is forked N turns back and the fork becomes the thread's live session. User-facing copy says "Fork Pi session", not "Rollback", because the semantics differ from other providers' rollback.
 _Avoid_: Pi rollback
 
 **Driver**:

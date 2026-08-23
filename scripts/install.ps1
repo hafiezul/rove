@@ -1,4 +1,4 @@
-# Installs the Rove CLI from a GitHub Release archive on Windows. Needs
+# Installs the Rove Code CLI from a GitHub Release archive on Windows. Needs
 # only PowerShell 5.1+; no Node, npm, or compiler.
 #
 #   irm https://t3.codes/install.ps1 | iex
@@ -7,7 +7,7 @@
 #   ROVE_CHANNEL           release train to follow: stable, nightly, or preview
 #                            (default: stable; preview is a maintainers' test train)
 #   ROVE_VERSION           exact version to install (overrides ROVE_CHANNEL)
-#   ROVE_HOME              T3 home directory (default: ~\.t3)
+#   ROVE_HOME              T3 home directory (default: ~\.rove)
 #   ROVE_INSTALL_BIN_DIR   where t3.exe is linked (default: ~\.local\bin)
 #   ROVE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #
@@ -16,7 +16,7 @@
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$repo = "rovedev/rove"
+$repo = "rovecode/rove"
 $baseUrl = if ($env:ROVE_RELEASE_BASE_URL) { $env:ROVE_RELEASE_BASE_URL.TrimEnd("/") } else { "https://github.com/$repo/releases/download" }
 $t3Home = if ($env:ROVE_HOME) { $env:ROVE_HOME } else { Join-Path $HOME ".rove" }
 $binDir = if ($env:ROVE_INSTALL_BIN_DIR) { $env:ROVE_INSTALL_BIN_DIR } else { Join-Path $HOME ".local\bin" }

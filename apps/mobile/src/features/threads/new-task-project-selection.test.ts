@@ -43,7 +43,7 @@ function makeProject(
 function makeScope(projects: ReadonlyArray<EnvironmentProject>): HomeProjectScope {
   return {
     key: "github.com/t3tools/rove",
-    title: "Rove",
+    title: "Rove Code",
     representative: projects[0]!,
     projects,
     projectRefs: projects.map((project) => ({

@@ -339,8 +339,8 @@ export const makePendingOpenCodeProvider = (
           auth: { status: "unknown" },
           message:
             openCodeSettings.serverUrl.trim().length > 0
-              ? "OpenCode is disabled in Rove settings. A server URL is configured."
-              : "OpenCode is disabled in Rove settings.",
+              ? "OpenCode is disabled in Rove Code settings. A server URL is configured."
+              : "OpenCode is disabled in Rove Code settings.",
         },
       });
     }
@@ -414,8 +414,8 @@ export const checkOpenCodeProviderStatus = Effect.fn("checkOpenCodeProviderStatu
         status: "warning",
         auth: { status: "unknown" },
         message: isExternalServer
-          ? "OpenCode is disabled in Rove settings. A server URL is configured."
-          : "OpenCode is disabled in Rove settings.",
+          ? "OpenCode is disabled in Rove Code settings. A server URL is configured."
+          : "OpenCode is disabled in Rove Code settings.",
       },
     });
   }
@@ -452,7 +452,7 @@ export const checkOpenCodeProviderStatus = Effect.fn("checkOpenCodeProviderStatu
     if (!version) {
       return fallback(
         new Error(
-          `Unable to determine OpenCode version from \`opencode --version\` output. Rove requires OpenCode v${MINIMUM_OPENCODE_VERSION} or newer.`,
+          `Unable to determine OpenCode version from \`opencode --version\` output. Rove Code requires OpenCode v${MINIMUM_OPENCODE_VERSION} or newer.`,
         ),
         null,
       );

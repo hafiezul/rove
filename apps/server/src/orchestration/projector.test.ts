@@ -124,7 +124,7 @@ describe("orchestration projector", () => {
           projects: [
             {
               id: ProjectId.make("project-1"),
-              title: "Rove",
+              title: "Rove Code",
               workspaceRoot: "/repo",
               defaultModelSelection: null,
               scripts: [],
@@ -132,13 +132,13 @@ describe("orchestration projector", () => {
               updatedAt: now,
               deletedAt: null,
               repositoryIdentity: {
-                canonicalKey: "github.com/rovedev/rove",
+                canonicalKey: "github.com/rovecode/rove",
                 provider: "github",
-                displayName: "rovedev/rove",
+                displayName: "rovecode/rove",
                 locator: {
                   source: "git-remote",
                   remoteName: "origin",
-                  remoteUrl: "https://github.com/rovedev/rove.git",
+                  remoteUrl: "https://github.com/rovecode/rove.git",
                 },
               },
             },
@@ -163,14 +163,14 @@ describe("orchestration projector", () => {
       );
       const linkedPullRequest = {
         projectId: "project-1",
-        repository: "rovedev/rove",
+        repository: "rovecode/rove",
         number: 42,
-        url: "https://github.com/rovedev/rove/pull/42",
+        url: "https://github.com/rovecode/rove/pull/42",
       };
       const branchPullRequest = {
         ...linkedPullRequest,
         number: 43,
-        url: "https://github.com/rovedev/rove/pull/43",
+        url: "https://github.com/rovecode/rove/pull/43",
       };
       const updates = [
         { payload: { linkedPullRequest, branchPullRequest }, expected: branchPullRequest },

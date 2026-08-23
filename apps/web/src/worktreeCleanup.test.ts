@@ -96,7 +96,7 @@ describe("formatWorktreePathForDisplay", () => {
 
   it("normalizes windows separators before selecting the final segment", () => {
     const result = formatWorktreePathForDisplay(
-      "C:\\Users\\julius\\.t3\\worktrees\\rove-mvp\\rove-4e609bb8",
+      "C:\\Users\\julius\\.rove\\worktrees\\rove-mvp\\rove-4e609bb8",
     );
     expect(result).toBe("rove-4e609bb8");
   });

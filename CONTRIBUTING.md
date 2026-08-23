@@ -1,11 +1,11 @@
-# Contributing to Rove
+# Contributing to Rove Code
 
 ## Developer Setup
 
 See the [development runbook](docs/operations/development.md#first-checkout) for the initial checkout,
 development commands, tests, and platform-specific desktop packaging prerequisites.
 
-Rove is an early fork of [Rove](https://github.com/rovedev/rove). Its direction and contribution process are still taking shape.
+Rove Code is an early fork of [Rove Code](https://github.com/rovecode/rove). Its direction and contribution process are still taking shape.
 
 ## Before starting
 
@@ -23,6 +23,6 @@ Do not combine unrelated fixes or broad rewrites in one pull request. Include be
 
 ## Working with upstream
 
-Before implementing a fix, check whether it already exists in [upstream Rove](https://github.com/rovedev/rove). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove.
+Before implementing a fix, check whether it already exists in [upstream Rove Code](https://github.com/rovecode/rove). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove Code.
 
 Preserve upstream copyright and attribution when carrying or adapting upstream work.

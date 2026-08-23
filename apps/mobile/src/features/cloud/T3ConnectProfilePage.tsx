@@ -44,7 +44,7 @@ function endpointLabel(environment: RelayClientEnvironmentRecord): string {
 
 function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm: () => void) {
   const title = "Deregister server?";
-  const message = `“${environment.label}” will be removed from this account. T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.`;
+  const message = `“${environment.label}” will be removed from this account. Rove Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.`;
   if (process.env.EXPO_OS === "ios") {
     Alert.alert(title, message, [
       { text: "Cancel", style: "cancel" },
@@ -56,7 +56,7 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
 }
 
 /**
- * The "T3 Connect" custom page inside Clerk's native user profile: every
+ * The "Rove Connect" custom page inside Clerk's native user profile: every
  * environment registered to the signed-in account, with account-level
  * deregistration. Mirrors the web UserButton page; connections on this device
  * are managed in Settings instead.
@@ -103,7 +103,7 @@ export function T3ConnectProfilePage() {
     const cause = squashAtomCommandFailure(result);
     const message = cause instanceof Error ? cause.message : "Could not deregister the server.";
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not deregister environment", {
+    console.error("[rove-connect] Could not deregister environment", {
       environmentId: environment.environmentId,
       message,
       traceId,
@@ -153,7 +153,7 @@ export function T3ConnectProfilePage() {
       {environmentsState.error ? (
         <>
           <ClerkRow
-            title="Could not load T3 Connect environments"
+            title="Could not load Rove Connect environments"
             subtitle={environmentsState.error}
           />
           {errorTraceId ? (
@@ -210,7 +210,7 @@ export function T3ConnectProfilePage() {
       ) : (
         <ClerkRow
           title="No servers registered"
-          subtitle="Link a server from its local Settings to reach it through T3 Connect."
+          subtitle="Link a server from its local Settings to reach it through Rove Connect."
         />
       )}
 

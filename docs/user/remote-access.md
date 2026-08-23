@@ -1,13 +1,13 @@
 # Remote access
 
-Connect a phone, browser, or another desktop app to Rove running on a different
+Connect a phone, browser, or another desktop app to Rove Code running on a different
 machine. That machine must stay running and reachable while you work.
 
-## T3 Connect
+## Rove Connect
 
-T3 Connect makes an environment available to your other devices without setting
+Rove Connect makes an environment available to your other devices without setting
 up router forwarding. In the desktop app on the host, open **Settings →
-Connections**, sign in, and enable **T3 Connect** for that environment.
+Connections**, sign in, and enable **Rove Connect** for that environment.
 
 For a command-line host, run:
 
@@ -20,12 +20,12 @@ Follow the sign-in instructions. Setup offers a
 server with `npx t3 serve`. Saving your sign-in alone does not make the machine
 reachable.
 
-On your other device, sign in to the same T3 Connect account and choose the
+On your other device, sign in to the same Rove Connect account and choose the
 environment. Over SSH, the CLI prints a browser link and a short code. Open the
 link on any device, confirm the code matches, and approve. The CLI continues on
 its own, so you do not need to forward an OAuth callback port.
 
-T3 Connect renews access credentials when needed without disconnecting a healthy
+Rove Connect renews access credentials when needed without disconnecting a healthy
 connection. Pull request diffs and provider settings keep working after the
 previous credential expires. A failed renewal affects that request; it does not
 disconnect an otherwise healthy conversation.
@@ -121,7 +121,7 @@ scheme uses HTTP, so include `https://` when your server uses HTTPS.
 ## Desktop-managed SSH
 
 In the desktop app, open **Settings → Connections → Add environment**, choose
-**SSH**, and enter a host or SSH alias such as `user@example.com`. Rove starts
+**SSH**, and enter a host or SSH alias such as `user@example.com`. Rove Code starts
 or reuses a server there and opens the port forward for you. Projects, provider
 credentials, and agent work stay on the remote machine.
 
@@ -138,7 +138,7 @@ your normal terminal. With nvm, setting a compatible default, such as
 `nvm alias default 24`, can resolve the problem.
 
 If SSH reconnecting fails after an app update, retry the launch once. Removing
-the connection stops a server that Rove launched; a server that was already
+the connection stops a server that Rove Code launched; a server that was already
 running is left alone.
 
 For Antigravity's Google callback on a remote host, see
@@ -154,8 +154,8 @@ management is available through `npx t3 auth --help`.
 A session with an open connection stays listed after its access credential
 expires.
 
-To remove an environment from T3 Connect, open your account menu's **T3 Connect**
-page, or **Settings → T3 Connect** on mobile, and choose **Deregister**. This
+To remove an environment from Rove Connect, open your account menu's **Rove Connect**
+page, or **Settings → Rove Connect** on mobile, and choose **Deregister**. This
 revokes its cloud access and frees its host space even when the environment is
 offline or has been wiped.
 
@@ -166,7 +166,7 @@ your login; `t3 connect logout` also clears that login. Background-service
 Treat pairing URLs and authorization codes as passwords. Do not include them in
 screenshots, logs, or bug reports.
 
-## T3 Connect troubleshooting
+## Rove Connect troubleshooting
 
 Run `t3 connect status` on the host to inspect saved authorization and link
 configuration. It is not a live reachability check. If the environment appears
@@ -175,9 +175,9 @@ when SSH closes, see [background-service troubleshooting](./background-service.m
 
 | Error                                                     | Recovery                                                                                                                                    |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `environment_link_limit_exceeded` or managed tunnel limit | Deregister an unused environment, then restart Rove on the host.                                                                         |
+| `environment_link_limit_exceeded` or managed tunnel limit | Deregister an unused environment, then restart Rove Code on the host.                                                                         |
 | `auth_invalid` or `invalid_bearer`                        | Run `t3 connect login`. If credentials were revoked, run `t3 connect logout`, then `t3 connect` again. Restart the server after signing in. |
-| Expired or invalid link proof                             | Check the host's date and time, update Rove, then restart it.                                                                            |
+| Expired or invalid link proof                             | Check the host's date and time, update Rove Code, then restart it.                                                                            |
 | HTTP 403 without a recognized error                       | Check relay access, proxies, and firewall rules. Keep any Cloudflare Ray ID for a bug report.                                               |
 | HTTP 408, 429, or 5xx                                     | Check network and relay availability. Startup retries temporary failures for up to ten minutes.                                             |
 
@@ -187,15 +187,15 @@ foreground server, stop it and run `t3 serve` again with your usual options.
 Include the diagnostic message and trace ID when reporting a persistent failure.
 
 For a connection that still fails after linking, check the date and time on both
-devices. For server version warnings, follow [Updating Rove](./updating.md).
+devices. For server version warnings, follow [Updating Rove Code](./updating.md).
 
 ## Using the Desktop App as a Remote Only
 
 If a computer should only drive work running elsewhere, turn off its local environment. In the
 desktop app, open **Settings → Connections** and switch off **Local
-environment**. Rove restarts without a local server: no local agents or terminals run, WSL
+environment**. Rove Code restarts without a local server: no local agents or terminals run, WSL
 backends stay off, and other devices can no longer connect to this computer. Your projects,
-history, and saved connections are kept, and you keep working through pairing, T3 Connect, or SSH.
+history, and saved connections are kept, and you keep working through pairing, Rove Connect, or SSH.
 
 Switch **Local environment** back on in the same place to restart with your previous local
 settings.

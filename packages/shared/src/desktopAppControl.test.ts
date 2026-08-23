@@ -26,7 +26,7 @@ describe("resolveDesktopAppControlAddress", () => {
 
   it("uses a Windows named pipe", () => {
     const result = resolveDesktopAppControlAddress({
-      stateDir: "C:\\Users\\user\\.t3\\userdata",
+      stateDir: "C:\\Users\\user\\.rove\\userdata",
       platform: "win32",
       tempDir: "C:\\Temp",
       userId: undefined,

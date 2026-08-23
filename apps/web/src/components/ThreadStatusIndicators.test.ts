@@ -39,7 +39,7 @@ function status(overrides: Partial<VcsStatusResult> = {}): VcsStatusResult {
     pr: {
       number: 42,
       title: "PR branch",
-      url: "https://github.com/rovedev/rove/pull/42",
+      url: "https://github.com/rovecode/rove/pull/42",
       baseRef: "main",
       headRef: "feature/current",
       state: "open",
@@ -55,10 +55,10 @@ function pullRequestSummary(
   return {
     provider: "github",
     projectId: ProjectId.make("project-1"),
-    repository: "rovedev/rove",
+    repository: "rovecode/rove",
     number: 42,
     title: "Feature PR",
-    url: "https://github.com/rovedev/rove/pull/42",
+    url: "https://github.com/rovecode/rove/pull/42",
     state,
     headBranch: "feature/current",
     baseBranch: "main",

@@ -1,10 +1,10 @@
-# Rove documentation
+# Rove Code documentation
 
-Rove is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
+Rove Code is an independent fork of an upstream coding-agent control surface. The inherited user and internals documentation has been rebranded to **Rove Code**, including the `~/.rove` state directory. A few deep technical identifiers inherited from upstream (the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
 
 ## Using the application
 
-- [Install Rove](./user/install.md)
+- [Install Rove Code](./user/install.md)
 - [Messages and context](./user/composer.md)
 - [Working with threads](./user/thread-sidebar.md)
 - [Permission modes](./user/permission-modes.md)
@@ -20,12 +20,12 @@ Rove is an independent fork of an upstream coding-agent control surface. The inh
 - [Product usage data](./user/telemetry.md)
 - [Remote access](./user/remote-access.md)
 - [Running in the background](./user/background-service.md)
-- [Updating Rove](./user/updating.md)
+- [Updating Rove Code](./user/updating.md)
 - Provider guides: [Codex](./user/providers-codex.md) · [Claude](./user/providers-claude.md) · [OpenCode](./user/providers-opencode.md) · [Antigravity](./user/providers-antigravity.md)
 
 ---
 
-## Working on Rove
+## Working on Rove Code
 
 Start with the [development runbook](./operations/development.md) and
 [contribution policy](../CONTRIBUTING.md).
@@ -44,7 +44,7 @@ source alone does not explain. Most code changes do not need an internal documen
 - [Resource telemetry](./internals/resource-telemetry.md)
 - [Product analytics](./internals/product-analytics.md)
 - [Environment auth](./internals/environment-auth.md)
-- [T3 Connect](./internals/t3-connect.md)
+- [Rove Connect](./internals/rove-connect.md)
 - [Assistant citations](./internals/assistant-citations.md)
 - [Mobile navigation](./internals/mobile-navigation.md)
 - [Mobile development lifecycle](./internals/mobile-development.md)
@@ -55,7 +55,7 @@ source alone does not explain. Most code changes do not need an internal documen
 ### Runbooks
 
 - [Development and local builds](./operations/development.md)
-- [T3 Connect setup](./operations/connect-setup.md)
+- [Rove Connect setup](./operations/connect-setup.md)
 - [Release](./operations/release.md)
 - [Observability](./operations/observability.md)
 - [Relay observability](./operations/relay-observability.md)

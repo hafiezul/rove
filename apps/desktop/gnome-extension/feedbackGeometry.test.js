@@ -4,9 +4,9 @@ import { captureDestinationFrame, findCaptureDestination } from "./feedbackGeome
 const window = (pid, title) => ({ get_pid: () => pid, get_title: () => title });
 
 it("activates only a window of the process authenticated by D-Bus", () => {
-  const target = window(42, "Rove");
-  expect(findCaptureDestination([window(99, "Rove"), target], 42, "Rove")).toBe(target);
-  expect(findCaptureDestination([window(99, "Rove")], 42, "Rove")).toBeUndefined();
+  const target = window(42, "Rove Code");
+  expect(findCaptureDestination([window(99, "Rove Code"), target], 42, "Rove Code")).toBe(target);
+  expect(findCaptureDestination([window(99, "Rove Code")], 42, "Rove Code")).toBeUndefined();
   expect(findCaptureDestination([target], 42, "Title before navigation")).toBe(target);
 });
 

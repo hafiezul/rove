@@ -35,7 +35,7 @@ const hostFlag = Flag.string("host").pipe(
 );
 export const baseDirFlag = Flag.string("base-dir").pipe(
   Flag.withDescription(
-    "Explicit Rove data directory; runtime state is stored under userdata (equivalent to ROVE_HOME).",
+    "Explicit Rove Code data directory; runtime state is stored under userdata (equivalent to ROVE_HOME).",
   ),
   Flag.optional,
 );

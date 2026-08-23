@@ -137,8 +137,8 @@ export const buildDiscordReleaseAnnouncement = (
       url: options.releaseUrl.href,
       description:
         options.target === "prerelease"
-          ? "A new Rove prerelease is available for nightly testers."
-          : "A new Rove latest release is available.",
+          ? "A new Rove Code prerelease is available for nightly testers."
+          : "A new Rove Code latest release is available.",
       color: targetColors[options.target],
       fields: [
         {
@@ -278,7 +278,7 @@ export const notifyDiscordReleaseCommand = Command.make(
       yield* postDiscordWebhook(webhookUrl, payload, announcement);
       yield* Effect.logInfo("discord release announcement completed");
     }),
-).pipe(Command.withDescription("Post a Rove release announcement to Discord."));
+).pipe(Command.withDescription("Post a Rove Code release announcement to Discord."));
 
 if (import.meta.main) {
   Command.run(notifyDiscordReleaseCommand, { version: "0.0.0" }).pipe(

@@ -163,7 +163,7 @@ describe("searchSettings", () => {
       "provider-health-check-interval",
       "source-control-writer-model",
       "source-control-writing-style",
-      "t3-connect",
+      "rove-connect",
       "tailscale-https",
       "wsl-backend",
       "auto-settle-inactive-threads",
@@ -187,7 +187,7 @@ describe("searchSettings", () => {
       localEnvironmentDisabled: true,
     }).map((item) => item.id);
     expect(remoteOnly).toContain("local-environment");
-    expect(remoteOnly).not.toContain("t3-connect");
+    expect(remoteOnly).not.toContain("rove-connect");
     expect(remoteOnly).not.toContain("publish-agent-activity");
     expect(remoteOnly).not.toContain("wsl-backend");
     // Browsers without access:write still render CloudLinkRow for their host.

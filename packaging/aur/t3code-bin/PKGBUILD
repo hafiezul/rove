@@ -5,7 +5,7 @@ pkgver=0.0.33
 pkgrel=1
 pkgdesc='Desktop control surface for local coding agents'
 arch=('x86_64')
-url='https://github.com/rovedev/rove'
+url='https://github.com/rovecode/rove'
 license=('MIT')
 depends=(
   'alsa-lib'
@@ -43,10 +43,10 @@ provides=("rove=$pkgver")
 conflicts=('rove')
 options=('!debug' '!strip')
 
-_appimage="Rove-${pkgver}-x86_64.AppImage"
+_appimage="Rove Code-${pkgver}-x86_64.AppImage"
 source=(
-  "$_appimage::https://github.com/rovedev/rove/releases/download/v${pkgver}/$_appimage"
-  "${pkgname}-${pkgver}-LICENSE::https://raw.githubusercontent.com/rovedev/rove/v${pkgver}/LICENSE"
+  "$_appimage::https://github.com/rovecode/rove/releases/download/v${pkgver}/$_appimage"
+  "${pkgname}-${pkgver}-LICENSE::https://raw.githubusercontent.com/rovecode/rove/v${pkgver}/LICENSE"
 )
 sha256sums=(
   '415c8648f43c3d22d572f27f2c50fdc8c310ea7fcde9537b903e1e2f1c8775a1' # AppImage
@@ -87,7 +87,7 @@ EOF
 
   install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/rove.desktop" <<'EOF'
 [Desktop Entry]
-Name=Rove
+Name=Rove Code
 Comment=Desktop control surface for local coding agents
 Exec=rove %U
 TryExec=rove

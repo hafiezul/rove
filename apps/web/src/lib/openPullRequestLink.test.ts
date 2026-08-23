@@ -134,20 +134,20 @@ describe("pullRequestCandidateUrlFromReferenceAutolink", () => {
   it("turns GitHub's shared issue route into a pull request candidate", () => {
     expect(
       pullRequestCandidateUrlFromReferenceAutolink(
-        "https://github.com/rovedev/rove/issues/8600#issuecomment-1",
+        "https://github.com/rovecode/rove/issues/8600#issuecomment-1",
       ),
-    ).toBe("https://github.com/rovedev/rove/pull/8600#issuecomment-1");
+    ).toBe("https://github.com/rovecode/rove/pull/8600#issuecomment-1");
   });
 
   it("does not reinterpret other issue hosts or malformed references", () => {
     expect(
       pullRequestCandidateUrlFromReferenceAutolink(
-        "https://gitlab.com/rovedev/rove/-/issues/8600",
+        "https://gitlab.com/rovecode/rove/-/issues/8600",
       ),
     ).toBeNull();
     expect(
       pullRequestCandidateUrlFromReferenceAutolink(
-        "https://github.com/rovedev/rove/issues/not-a-number",
+        "https://github.com/rovecode/rove/issues/not-a-number",
       ),
     ).toBeNull();
   });
@@ -156,9 +156,9 @@ describe("pullRequestCandidateUrlFromReferenceAutolink", () => {
 describe("matchesLinkedPullRequestUrl", () => {
   const linkedPullRequest = {
     projectId: ProjectId.make("project-1"),
-    repository: "rovedev/rove",
+    repository: "rovecode/rove",
     number: 42,
-    url: "https://github.com/rovedev/rove/pull/42",
+    url: "https://github.com/rovecode/rove/pull/42",
   };
 
   it("matches the same pull request without looking up its project", () => {
@@ -187,7 +187,7 @@ describe("matchesLinkedPullRequestUrl", () => {
     expect(
       matchesLinkedPullRequestUrl(
         linkedPullRequest,
-        "https://github.com:8443/rovedev/rove/pull/42",
+        "https://github.com:8443/rovecode/rove/pull/42",
       ),
     ).toBe(true);
   });
@@ -203,12 +203,12 @@ describe("matchesLinkedPullRequestUrl", () => {
 
   it("rejects a different pull request or host", () => {
     expect(
-      matchesLinkedPullRequestUrl(linkedPullRequest, "https://github.com/rovedev/rove/pull/43"),
+      matchesLinkedPullRequestUrl(linkedPullRequest, "https://github.com/rovecode/rove/pull/43"),
     ).toBe(false);
     expect(
       matchesLinkedPullRequestUrl(
         linkedPullRequest,
-        "https://github.example.com/rovedev/rove/pull/42",
+        "https://github.example.com/rovecode/rove/pull/42",
       ),
     ).toBe(false);
   });
@@ -483,7 +483,7 @@ describe("findProjectForChangeRequest", () => {
   it("keeps two hosts apart, so an Enterprise link does not open the public one", () => {
     const projects = [
       project({
-        canonicalKey: "github.com/rovedev/rove",
+        canonicalKey: "github.com/rovecode/rove",
         provider: "github",
         owner: "pingdotgg",
         name: "rove",
@@ -492,7 +492,7 @@ describe("findProjectForChangeRequest", () => {
     expect(
       findProjectForChangeRequest(projects, {
         host: "github.acme.test",
-        repository: "rovedev/rove",
+        repository: "rovecode/rove",
         number: 1,
       }),
     ).toBeUndefined();
@@ -501,7 +501,7 @@ describe("findProjectForChangeRequest", () => {
   it("claims nothing for a lookalike host, which is what keeps a link a link", () => {
     const projects = [
       project({
-        canonicalKey: "github.com/rovedev/rove",
+        canonicalKey: "github.com/rovecode/rove",
         provider: "github",
         owner: "pingdotgg",
         name: "rove",
@@ -510,7 +510,7 @@ describe("findProjectForChangeRequest", () => {
     expect(
       findProjectForChangeRequest(projects, {
         host: "github.com-evil.test",
-        repository: "rovedev/rove",
+        repository: "rovecode/rove",
         number: 1,
       }),
     ).toBeUndefined();

@@ -43,7 +43,7 @@ layer("GitLabCli.layer", (it) => {
             JSON.stringify({
               iid: 42,
               title: "Add MR thread creation",
-              web_url: "https://gitlab.com/rovedev/rove/-/merge_requests/42",
+              web_url: "https://gitlab.com/rovecode/rove/-/merge_requests/42",
               target_branch: "main",
               source_branch: "feature/mr-threads",
               state: "closed",
@@ -69,7 +69,7 @@ layer("GitLabCli.layer", (it) => {
       assert.deepStrictEqual(result, {
         number: 42,
         title: "Add MR thread creation",
-        url: "https://gitlab.com/rovedev/rove/-/merge_requests/42",
+        url: "https://gitlab.com/rovecode/rove/-/merge_requests/42",
         baseRefName: "main",
         headRefName: "feature/mr-threads",
         state: "closed",
@@ -99,14 +99,14 @@ layer("GitLabCli.layer", (it) => {
               {
                 iid: 0,
                 title: "invalid",
-                web_url: "https://gitlab.com/rovedev/rove/-/merge_requests/0",
+                web_url: "https://gitlab.com/rovecode/rove/-/merge_requests/0",
                 target_branch: "main",
                 source_branch: "feature/invalid",
               },
               {
                 iid: 43,
                 title: "  Valid MR  ",
-                web_url: " https://gitlab.com/rovedev/rove/-/merge_requests/43 ",
+                web_url: " https://gitlab.com/rovecode/rove/-/merge_requests/43 ",
                 target_branch: " main ",
                 source_branch: " feature/mr-list ",
                 state: "merged",
@@ -130,7 +130,7 @@ layer("GitLabCli.layer", (it) => {
         {
           number: 43,
           title: "Valid MR",
-          url: "https://gitlab.com/rovedev/rove/-/merge_requests/43",
+          url: "https://gitlab.com/rovecode/rove/-/merge_requests/43",
           baseRefName: "main",
           headRefName: "feature/mr-list",
           state: "merged",

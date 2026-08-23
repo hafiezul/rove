@@ -941,7 +941,7 @@ interface StagePackageJson {
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
-  // Rove always passes the user's installed Claude executable to the SDK,
+  // Rove Code always passes the user's installed Claude executable to the SDK,
   // so the SDK's optional platform packages (each a ~200MB bundled executable)
   // are dead weight. The trailing dash keeps the SDK's own JS package.
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
@@ -2614,8 +2614,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 
 export function resolveDesktopProductName(version: string): string {
   return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "Rove (Nightly)"
-    : (desktopPackageJson.productName ?? "Rove");
+    ? "Rove Code (Nightly)"
+    : (desktopPackageJson.productName ?? "Rove Code");
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -2640,7 +2640,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "Rove-${version}-${arch}.${ext}",
+    artifactName: "Rove Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2691,11 +2691,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       category: "public.app-category.developer-tools",
       extendInfo: {
         NSScreenCaptureUsageDescription:
-          "Rove captures the active window when you use the window capture shortcut.",
+          "Rove Code captures the active window when you use the window capture shortcut.",
       },
       protocols: [
         {
-          name: "Rove",
+          name: "Rove Code",
           schemes: ["rove", "rove-dev"],
         },
       ],
@@ -2742,7 +2742,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // rove:// OAuth callbacks to the app.
       protocols: [
         {
-          name: "Rove",
+          name: "Rove Code",
           schemes: ["rove", "rove-dev"],
         },
       ],
@@ -3650,7 +3650,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     roveCommitHash: commitHash,
     private: true,
     packageManager: rootPackageJson.packageManager,
-    description: "Rove desktop build",
+    description: "Rove Code desktop build",
     author: "T3 Tools",
     main: "apps/desktop/dist-electron/main.cjs",
     build: yield* createBuildConfig(
@@ -3924,7 +3924,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
     Flag.optional,
   ),
 }).pipe(
-  Command.withDescription("Build a desktop artifact for Rove."),
+  Command.withDescription("Build a desktop artifact for Rove Code."),
   Command.withHandler((input) => Effect.flatMap(resolveBuildOptions(input), buildDesktopArtifact)),
 );
 

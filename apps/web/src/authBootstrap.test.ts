@@ -67,7 +67,7 @@ function installTestBrowser(url: string) {
   };
 
   vi.stubGlobal("window", testWindow);
-  vi.stubGlobal("document", { title: "Rove" });
+  vi.stubGlobal("document", { title: "Rove Code" });
 
   return testWindow;
 }

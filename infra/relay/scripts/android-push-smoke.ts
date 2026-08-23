@@ -120,7 +120,7 @@ const main = Effect.gen(function* () {
             ? {
                 alert_id: `smoke-${now}`,
                 alert_title: title,
-                alert_body: "Rove Android push test",
+                alert_body: "Rove Code Android push test",
                 alert_path: device.deepLink ?? "/",
               }
             : {}),

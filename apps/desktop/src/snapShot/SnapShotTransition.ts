@@ -114,7 +114,7 @@ function createWindow(
     resizable: false,
     show: false,
     skipTaskbar: true,
-    title: "Rove Snapshot Animation",
+    title: "Rove Code Snapshot Animation",
     transparent: true,
     webPreferences: {
       backgroundThrottling: false,

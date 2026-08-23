@@ -17,9 +17,9 @@ const environmentLayer = DesktopEnvironment.layer({
   platform: "darwin",
   processArch: "arm64",
   appVersion: "1.2.3",
-  appPath: "/Applications/Rove.app/Contents/Resources/app.asar",
+  appPath: "/Applications/Rove Code.app/Contents/Resources/app.asar",
   isPackaged: true,
-  resourcesPath: "/Applications/Rove.app/Contents/Resources",
+  resourcesPath: "/Applications/Rove Code.app/Contents/Resources",
   runningUnderArm64Translation: false,
 }).pipe(
   Layer.provide(

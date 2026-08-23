@@ -225,7 +225,7 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
       version: null,
       status: "disabled",
       auth: { status: "unknown" },
-      message: "Codex is disabled in Rove settings.",
+      message: "Codex is disabled in Rove Code settings.",
     });
 
     assert.deepStrictEqual(

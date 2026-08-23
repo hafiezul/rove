@@ -135,7 +135,7 @@ describe("ChatMarkdown workspace images", () => {
       {
         _tag: "media-file",
         threadId: threadRef.threadId,
-        path: "C:\\Users\\shawn\\project\\.t3\\workspace-image.svg",
+        path: "C:\\Users\\shawn\\project\\.rove\\workspace-image.svg",
       },
       { _tag: "media-file", threadId: threadRef.threadId, path: imagePath },
       { _tag: "media-file", threadId: threadRef.threadId, path: imagePath },

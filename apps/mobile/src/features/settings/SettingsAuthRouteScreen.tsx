@@ -10,8 +10,8 @@ import { T3ConnectProfilePage } from "../cloud/T3ConnectProfilePage";
 // Custom rows in Clerk's native profile. Mirrors the web UserButton pages.
 const USER_PROFILE_CUSTOM_PAGES = [
   {
-    path: "t3-connect",
-    label: "T3 Connect",
+    path: "rove-connect",
+    label: "Rove Connect",
     icon: "globe",
     content: <T3ConnectProfilePage />,
   },

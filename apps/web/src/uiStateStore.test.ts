@@ -150,10 +150,10 @@ describe("uiStateStore pure functions", () => {
   });
 
   it("stores the sidebar project scope and resets it to all projects", () => {
-    const scoped = setSidebarProjectScopeKey(makeUiState(), "github.com/rovedev/rove");
+    const scoped = setSidebarProjectScopeKey(makeUiState(), "github.com/rovecode/rove");
 
-    expect(scoped.sidebarProjectScopeKey).toBe("github.com/rovedev/rove");
-    expect(setSidebarProjectScopeKey(scoped, "github.com/rovedev/rove")).toBe(scoped);
+    expect(scoped.sidebarProjectScopeKey).toBe("github.com/rovecode/rove");
+    expect(setSidebarProjectScopeKey(scoped, "github.com/rovecode/rove")).toBe(scoped);
     expect(setSidebarProjectScopeKey(scoped, null).sidebarProjectScopeKey).toBeNull();
     expect(setSidebarProjectScopeKey(scoped, "").sidebarProjectScopeKey).toBeNull();
   });
@@ -341,14 +341,14 @@ describe("uiStateStore persistence", () => {
   });
 
   it("restores the sidebar project scope across reloads", () => {
-    persistState(makeUiState({ sidebarProjectScopeKey: "github.com/rovedev/rove" }));
+    persistState(makeUiState({ sidebarProjectScopeKey: "github.com/rovecode/rove" }));
 
     const persisted = JSON.parse(
       localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
     ) as PersistedUiState;
 
     expect(parsePersistedState(persisted).sidebarProjectScopeKey).toBe(
-      "github.com/rovedev/rove",
+      "github.com/rovecode/rove",
     );
   });
 

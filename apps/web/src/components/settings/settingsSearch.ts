@@ -672,9 +672,9 @@ export const SETTINGS_SEARCH_ITEMS = [
     wslAvailableOnly: true,
   },
   {
-    id: "t3-connect",
+    id: "rove-connect",
     localEnvironmentOnly: true,
-    title: "T3 Connect",
+    title: "Rove Connect",
     to: "/settings/connections",
     targetId: "connections-environment",
     searchTerms: ["managed tunnel cloud other devices remote"],

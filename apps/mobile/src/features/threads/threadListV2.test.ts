@@ -67,9 +67,9 @@ function makeThread(
 const NOW = "2026-06-02T00:00:00.000Z";
 const linkedPullRequest = {
   projectId: ProjectId.make("project-1"),
-  repository: "rovedev/rove",
+  repository: "rovecode/rove",
   number: 42,
-  url: "https://github.com/rovedev/rove/pull/42",
+  url: "https://github.com/rovecode/rove/pull/42",
 };
 
 describe("resolveThreadListV2SnoozeMenuSelection", () => {

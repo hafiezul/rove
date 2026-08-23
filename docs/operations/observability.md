@@ -1,8 +1,8 @@
 # Observability
 
-> For maintainers. Using Rove? See [docs/user](../user/).
+> For maintainers. Using Rove Code? See [docs/user](../user/).
 
-Rove has one server-side observability model:
+Rove Code has one server-side observability model:
 
 - pretty logs go to stdout for humans
 - completed spans go to a local NDJSON trace file
@@ -161,7 +161,7 @@ macOS app bundle example:
 ROVE_OTLP_TRACES_URL=http://localhost:4318/v1/traces \
 ROVE_OTLP_METRICS_URL=http://localhost:4318/v1/metrics \
 ROVE_OTLP_SERVICE_NAME=t3-desktop \
-"/Applications/Rove.app/Contents/MacOS/Rove"
+"/Applications/Rove Code.app/Contents/MacOS/Rove Code"
 ```
 
 Direct binary example:
@@ -189,7 +189,7 @@ Resolve the path for the launch mode once. Production and explicitly configured 
 state under the base directory's `userdata` folder:
 
 ```bash
-TRACE_FILE="${ROVE_HOME:-$HOME/.t3}/userdata/logs/server.trace.ndjson"
+TRACE_FILE="${ROVE_HOME:-$HOME/.rove}/userdata/logs/server.trace.ndjson"
 ```
 
 A dev server started from a linked worktree defaults to that worktree's local home:

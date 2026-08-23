@@ -45,7 +45,7 @@ export class DesktopAppActivationBroker {
   request(request: DesktopAppActivationRequest): Promise<DesktopAppActivationResponse> {
     if (this.#closed) {
       return Promise.resolve(
-        failure(request.requestId, "renderer-unavailable", "Rove is shutting down."),
+        failure(request.requestId, "renderer-unavailable", "Rove Code is shutting down."),
       );
     }
     if (this.#pending.has(request.requestId)) {
@@ -90,7 +90,7 @@ export class DesktopAppActivationBroker {
           failure(
             pending.request.requestId,
             "renderer-unavailable",
-            "The Rove window closed before it opened the project.",
+            "The Rove Code window closed before it opened the project.",
           ),
         );
       }
@@ -103,7 +103,7 @@ export class DesktopAppActivationBroker {
 
   cancel(requestId: string): void {
     this.#settle(
-      failure(requestId, "renderer-unavailable", "The command closed before Rove was ready."),
+      failure(requestId, "renderer-unavailable", "The command closed before Rove Code was ready."),
     );
   }
 
@@ -112,7 +112,7 @@ export class DesktopAppActivationBroker {
     this.#renderer = null;
     for (const pending of this.#pending.values()) {
       this.#settle(
-        failure(pending.request.requestId, "renderer-unavailable", "Rove is shutting down."),
+        failure(pending.request.requestId, "renderer-unavailable", "Rove Code is shutting down."),
       );
     }
   }

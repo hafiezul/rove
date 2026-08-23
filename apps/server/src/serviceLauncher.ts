@@ -629,7 +629,7 @@ export class Launcher {
 export async function main(): Promise<void> {
   const baseDir = process.env.ROVE_HOME?.trim();
   if (baseDir === undefined || baseDir === "") {
-    throw new Error("ROVE_HOME is required by the Rove service launcher.");
+    throw new Error("ROVE_HOME is required by the Rove Code service launcher.");
   }
   const statePath = NodePath.join(baseDir, "runtime", SERVICE_STATE_FILE);
   const state = await readServiceState(statePath);

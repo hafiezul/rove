@@ -1,9 +1,9 @@
 # Pi provider embeds the Pi SDK in-process instead of spawning `pi --mode rpc`
 
-Every other Rove provider driver integrates across a process boundary: a spawned CLI
+Every other Rove Code provider driver integrates across a process boundary: a spawned CLI
 or a managed server, with events decoded from JSON lines or a wire protocol. The Pi
 driver instead imports `createAgentSession` from `@earendil-works/pi-coding-agent`
-and runs Pi sessions inside the Rove server process, with the package pinned as a
+and runs Pi sessions inside the Rove Code server process, with the package pinned as a
 normal dependency and updated deliberately through the existing provider-maintenance
 machinery.
 
@@ -18,7 +18,7 @@ isolation and runs the user's exact installed binary. We accepted the loss of
 isolation deliberately: a misbehaving Pi session (or a globally installed extension,
 once extension loading ships) can affect the server process, and mitigations live in
 ordinary adapter error-handling. Version drift is handled in the opposite direction
-from other providers: Rove controls the Pi version rather than discovering whatever
+from other providers: Rove Code controls the Pi version rather than discovering whatever
 the user has installed.
 
 Reversing this decision means rewriting the adapter's transport, but the adapter

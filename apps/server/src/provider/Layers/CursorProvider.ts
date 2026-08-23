@@ -69,7 +69,7 @@ const CURSOR_PARAMETERIZED_MODEL_PICKER_MIN_VERSION_DATE = 2026_04_08;
 const CURSOR_CLI_INSTALLATION_DOCS_URL = "https://cursor.com/docs/cli/installation";
 const CURSOR_ACP_MODEL_DISCOVERY_FAILED_MESSAGE = [
   "Cursor ACP model discovery failed.",
-  "Cursor CLI setup may be incomplete; install or enable the Cursor CLI, restart Rove, and try again.",
+  "Cursor CLI setup may be incomplete; install or enable the Cursor CLI, restart Rove Code, and try again.",
   `See ${CURSOR_CLI_INSTALLATION_DOCS_URL}.`,
   "Check server logs for ACP details.",
 ].join(" ");
@@ -97,7 +97,7 @@ export function buildInitialCursorProviderSnapshot(
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Cursor is disabled in Rove settings.",
+          message: "Cursor is disabled in Rove Code settings.",
         },
       });
     }
@@ -639,7 +639,7 @@ function joinProviderMessages(...messages: ReadonlyArray<string | undefined>): s
 function buildCursorCliCommandMissingMessage(binaryPath: string): string {
   return [
     `Cursor CLI command \`${binaryPath}\` was not found.`,
-    `Install or enable the Cursor CLI, make sure \`${binaryPath}\` is on PATH, then restart Rove.`,
+    `Install or enable the Cursor CLI, make sure \`${binaryPath}\` is on PATH, then restart Rove Code.`,
     `See ${CURSOR_CLI_INSTALLATION_DOCS_URL}.`,
   ].join(" ");
 }
@@ -1037,7 +1037,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Cursor is disabled in Rove settings.",
+        message: "Cursor is disabled in Rove Code settings.",
       },
     });
   }

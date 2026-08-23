@@ -5,8 +5,8 @@ package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 Pod::Spec.new do |s|
   s.name = 'T3TerminalNative'
   s.version = package['version']
-  s.summary = 'Native terminal surface for Rove mobile.'
-  s.description = 'Native terminal surface bridge used by the Rove React Native app.'
+  s.summary = 'Native terminal surface for Rove Code mobile.'
+  s.description = 'Native terminal surface bridge used by the Rove Code React Native app.'
   s.homepage = 'https://t3tools.com'
   s.license = { :type => 'UNLICENSED' }
   s.author = { 'T3 Tools' => 'hello@t3tools.com' }

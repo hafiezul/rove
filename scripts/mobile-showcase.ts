@@ -41,7 +41,7 @@ const SERVER_HOST = "0.0.0.0";
 const IOS_SIMULATOR_ARCH = NodeProcess.arch === "arm64" ? "arm64" : "x86_64";
 const IOS_APP_PATH = NodePath.join(
   MOBILE_ROOT,
-  ".showcase/ios-derived-data/Build/Products/Debug-iphonesimulator/Rove.app",
+  ".showcase/ios-derived-data/Build/Products/Debug-iphonesimulator/Rove Code.app",
 );
 const ANDROID_APK_PATH = NodePath.join(
   MOBILE_ROOT,
@@ -717,9 +717,9 @@ async function buildIos(): Promise<string> {
     "xcodebuild",
     [
       "-workspace",
-      NodePath.join(MOBILE_ROOT, "ios/Rove.xcworkspace"),
+      NodePath.join(MOBILE_ROOT, "ios/Rove Code.xcworkspace"),
       "-scheme",
-      "Rove",
+      "Rove Code",
       "-configuration",
       "Debug",
       "-sdk",

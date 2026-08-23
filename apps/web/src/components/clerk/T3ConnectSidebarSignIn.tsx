@@ -41,9 +41,9 @@ function ConfiguredT3ConnectSidebarAvatar() {
         <MobileClientsUserProfilePage />
       </UserButton.UserProfilePage>
       <UserButton.UserProfilePage
-        label="T3 Connect"
+        label="Rove Connect"
         labelIcon={<ServerIcon className="size-4" />}
-        url="t3-connect"
+        url="rove-connect"
       >
         <T3ConnectUserProfilePage />
       </UserButton.UserProfilePage>
@@ -63,7 +63,7 @@ function ConfiguredT3ConnectSidebarSignIn() {
         <SidebarMenuItem>
           <SidebarMenuButton onClick={openAuthPrompt}>
             <LogInIcon />
-            <span>Sign in to T3 Connect</span>
+            <span>Sign in to Rove Connect</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

@@ -927,7 +927,7 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         yield* fileSystem.makeDirectory(path.join(repo, ".git"));
         yield* fileSystem.writeFileString(
           path.join(repo, ".git", "config"),
-          '[core]\n\tbare = false\n[remote "origin"]\n\turl = git@github.com:rovedev/rove.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n',
+          '[core]\n\tbare = false\n[remote "origin"]\n\turl = git@github.com:rovecode/rove.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n',
         );
         yield* fileSystem.writeFileString(
           path.join(worktree, ".git"),
@@ -968,13 +968,13 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
           { path: plain, git: null },
           {
             path: repo,
-            git: { remoteKey: "github.com/rovedev/rove", repository: "rovedev/rove" },
+            git: { remoteKey: "github.com/rovecode/rove", repository: "rovecode/rove" },
           },
         ]);
       }),
     );
 
-    it.effect("excludes sandboxes under the configured worktrees dir without .t3 in the path", () =>
+    it.effect("excludes sandboxes under the configured worktrees dir without .rove in the path", () =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         const claudeHomePath = yield* makeTempDir("rove-claude-home-");
@@ -983,7 +983,7 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         const fileSystem = yield* FileSystem.FileSystem;
 
         // worktreesDir derives as `<baseDir>/worktrees`, and the temp base
-        // dir contains no `.t3` segment — only the config-based prefix match
+        // dir contains no `.rove` segment — only the config-based prefix match
         // can exclude this one.
         const worktreeCwd = path.join(configBaseDir, "worktrees", "rove", "wt-2");
         yield* fileSystem.makeDirectory(worktreeCwd, { recursive: true });

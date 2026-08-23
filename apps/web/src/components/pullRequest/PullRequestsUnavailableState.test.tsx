@@ -18,12 +18,12 @@ describe("PullRequestsUnavailableState", () => {
     const text = textOf(
       PullRequestsUnavailableState({
         title: "Pull requests unavailable",
-        error: "Update this environment's Rove server to browse pull requests.",
+        error: "Update this environment's Rove Code server to browse pull requests.",
       }),
     );
 
     expect(text).toContain("Pull requests unavailable");
-    expect(text).toContain("Update this environment's Rove server");
+    expect(text).toContain("Update this environment's Rove Code server");
     expect(text).not.toContain("Retry");
   });
 
@@ -32,13 +32,13 @@ describe("PullRequestsUnavailableState", () => {
       <PullRequestsUnavailableState
         error="GitHub did not answer."
         onRetry={() => {}}
-        gitHubUrl="https://github.com/rovedev/rove/pull/42"
+        gitHubUrl="https://github.com/rovecode/rove/pull/42"
       />,
     );
 
     expect(html).toContain("Retry");
     expect(html).toContain("Open on GitHub");
-    expect(html).toContain('href="https://github.com/rovedev/rove/pull/42"');
+    expect(html).toContain('href="https://github.com/rovecode/rove/pull/42"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
   });
@@ -47,7 +47,7 @@ describe("PullRequestsUnavailableState", () => {
     const html = renderToStaticMarkup(
       <PullRequestsUnavailableState
         error="This server cannot read the pull request."
-        gitHubUrl="https://github.com/rovedev/rove/pull/9"
+        gitHubUrl="https://github.com/rovecode/rove/pull/9"
       />,
     );
 

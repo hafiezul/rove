@@ -325,7 +325,7 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 }
 
 /**
- * The palette Rove wears with no theme installed, captured from the app's
+ * The palette Rove Code wears with no theme installed, captured from the app's
  * stock tokens (index.css) so a draft seeded from the default look paints the
  * pixels the user is already seeing. Alpha-bearing tokens are flattened over
  * their real backdrops (canvas, or the sidebar for its rows) because theme
@@ -452,7 +452,7 @@ const ROVE_DARK_THEME_COLORS: ThemeColors = {
 };
 
 /**
- * The standard Rove look as a theme palette, for seeding a new theme when
+ * The standard Rove Code look as a theme palette, for seeding a new theme when
  * no theme is installed. Distinct from {@link getDefaultThemeColors}, which
  * carries the flagship T3 Chat palette used to fill roles omitted by theme
  * files.
@@ -717,7 +717,7 @@ function solveOklchLightness(
 }
 
 /**
- * The status colors Rove shows without a theme, read from the app's own
+ * The status colors Rove Code shows without a theme, read from the app's own
  * tokens (red-500 / amber-500 families). Generated palettes fall back to
  * these instead of the flagship theme's, so an imported or created theme
  * never inherits a brand tint on destructive buttons and warnings.

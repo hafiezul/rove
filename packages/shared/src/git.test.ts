@@ -60,12 +60,12 @@ describe("parseOriginUrlFromGitConfig", () => {
       '[remote "upstream"]',
       "\turl = https://github.com/other/repo.git",
       '[remote "origin"]',
-      "\turl = git@github.com:rovedev/rove.git",
+      "\turl = git@github.com:rovecode/rove.git",
       "\tfetch = +refs/heads/*:refs/remotes/origin/*",
       '[branch "main"]',
       "\tremote = origin",
     ].join("\n");
-    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:rovedev/rove.git");
+    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:rovecode/rove.git");
   });
 
   it("strips inline comments and quotes from the url value", () => {

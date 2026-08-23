@@ -14,7 +14,7 @@ import { retainSettingsScope, validateSettingsRouteSearch } from "./settingsScop
 const checkoutSearch = {
   project: "repository:rove",
   machine: "remote-server",
-  checkout: "remote-server:/home/user/Rove",
+  checkout: "remote-server:/home/user/Rove Code",
 };
 
 function createSettingsRouter(initialEntry = "/settings/general") {

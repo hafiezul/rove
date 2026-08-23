@@ -107,7 +107,7 @@ export function npmPlatformPackageManifest(
   return {
     name: npmPlatformPackageName(platformKey),
     version,
-    description: `Rove CLI executable for ${platformKey}`,
+    description: `Rove Code CLI executable for ${platformKey}`,
     license: serverPackageJson.license,
     repository: serverPackageJson.repository,
     os: [os],
@@ -155,7 +155,7 @@ export function npmPlatformPackageReadme(platformKey: CliArchivePlatformKey): st
   return [
     `# ${npmPlatformPackageName(platformKey)}`,
     "",
-    `The Rove CLI executable for ${platformKey}. Do not install this package directly:`,
+    `The Rove Code CLI executable for ${platformKey}. Do not install this package directly:`,
     `it is an optional dependency of \`${NPM_LAUNCHER_PACKAGE_NAME}\`, which picks the package for the`,
     "current platform and runs the executable inside it.",
     "",
@@ -163,7 +163,7 @@ export function npmPlatformPackageReadme(platformKey: CliArchivePlatformKey): st
     `npx ${NPM_LAUNCHER_PACKAGE_NAME}@latest`,
     "```",
     "",
-    "Source and documentation: https://github.com/rovedev/rove",
+    "Source and documentation: https://github.com/rovecode/rove",
     "",
   ].join("\n");
 }
@@ -176,7 +176,7 @@ export function npmLauncherPackageManifest(
   return {
     name: NPM_LAUNCHER_PACKAGE_NAME,
     version,
-    description: "Rove CLI. Installs the self-contained executable for this platform.",
+    description: "Rove Code CLI. Installs the self-contained executable for this platform.",
     license: serverPackageJson.license,
     repository: serverPackageJson.repository,
     bin: { t3: "./bin/t3.js" },
@@ -207,10 +207,10 @@ try {
 } catch {
   process.stderr.write(
     [
-      "t3: no Rove CLI build is available for this platform (" + key + ").",
+      "t3: no Rove Code CLI build is available for this platform (" + key + ").",
       "Supported platforms: " + SUPPORTED.join(", ") + ".",
       "If yours is listed, reinstall t3 so npm fetches its optional dependency.",
-      "The desktop app and release archives are at https://github.com/rovedev/rove/releases",
+      "The desktop app and release archives are at https://github.com/rovecode/rove/releases",
       "",
     ].join("\\n"),
   );

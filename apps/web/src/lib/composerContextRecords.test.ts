@@ -324,7 +324,7 @@ describe("composerContextRecords", () => {
       pullRequest: {
         number: 42,
         title: "Improve context chips",
-        url: "https://github.com/rovedev/rove/pull/42",
+        url: "https://github.com/rovecode/rove/pull/42",
         headBranch: "feat/context-chips",
         baseBranch: "main",
         state: "open" as const,

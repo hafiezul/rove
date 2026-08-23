@@ -72,7 +72,7 @@ describe("buildCommandPaletteProjectMetadata", () => {
       projects: [
         {
           environmentId: localEnvironmentId,
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/Users/theo/Projects/rove",
         },
         {
@@ -85,7 +85,7 @@ describe("buildCommandPaletteProjectMetadata", () => {
     });
 
     expect(metadata.searchTerms).toEqual([
-      "Rove",
+      "Rove Code",
       "/Users/theo/Projects/rove",
       "Local",
       "rove",
@@ -102,7 +102,7 @@ describe("buildCommandPaletteProjectMetadata", () => {
         {
           kind: "action",
           value: "project:rove",
-          title: "Rove",
+          title: "Rove Code",
           searchTerms: metadata.searchTerms,
           icon: null,
           run: async () => undefined,
@@ -118,12 +118,12 @@ describe("buildCommandPaletteProjectMetadata", () => {
       projects: [
         {
           environmentId: remoteEnvironmentId,
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/srv/rove",
         },
         {
           environmentId: remoteEnvironmentId,
-          title: "Rove worktree",
+          title: "Rove Code worktree",
           workspaceRoot: "/srv/rove-feature",
         },
       ],
@@ -139,12 +139,12 @@ describe("buildCommandPaletteProjectMetadata", () => {
       projects: [
         {
           environmentId: remoteEnvironmentId,
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/srv/rove",
         },
         {
           environmentId: secondRemoteEnvironmentId,
-          title: "Rove mirror",
+          title: "Rove Code mirror",
           workspaceRoot: "/srv/mirror/rove",
         },
       ],
@@ -162,7 +162,7 @@ describe("buildCommandPaletteProjectMetadata", () => {
       projects: [
         {
           environmentId: remoteEnvironmentId,
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/srv/rove",
         },
       ],
@@ -563,7 +563,7 @@ describe("buildThreadActionItems", () => {
   it("keeps message excerpts searchable without replacing thread metadata", () => {
     const [item] = buildThreadActionItems({
       threads: [makeThread({ branch: "feat/search" })],
-      projectTitleById: new Map([[PROJECT_ID, "Rove"]]),
+      projectTitleById: new Map([[PROJECT_ID, "Rove Code"]]),
       sortOrder: "updated_at",
       icon: null,
       getContentMatch: () => ({
@@ -580,13 +580,13 @@ describe("buildThreadActionItems", () => {
       snippet: "The relay reconnect is now bounded.",
       query: "reconnect",
     });
-    expect(item?.description).toBe("Rove · #feat/search");
+    expect(item?.description).toBe("Rove Code · #feat/search");
   });
 
   it("prefers renderDescription when provided", () => {
     const [item] = buildThreadActionItems({
       threads: [makeThread({ branch: "feat/search", worktreePath: "/tmp/wt" })],
-      projectTitleById: new Map([[PROJECT_ID, "Rove"]]),
+      projectTitleById: new Map([[PROJECT_ID, "Rove Code"]]),
       sortOrder: "updated_at",
       icon: null,
       renderDescription: (thread, { projectTitle }) =>
@@ -594,7 +594,7 @@ describe("buildThreadActionItems", () => {
       runThread: async (_thread) => undefined,
     });
 
-    expect(item?.description).toBe("Rove:feat/search:wt");
+    expect(item?.description).toBe("Rove Code:feat/search:wt");
   });
 
   it("filters archived threads out of thread search items", () => {
@@ -700,8 +700,8 @@ describe("filterPinnedBrowseEntries", () => {
 it.each([
   "#10839",
   "10839",
-  "rovedev/rove#10839",
-  "https://github.com/rovedev/rove/pull/10839",
+  "rovecode/rove#10839",
+  "https://github.com/rovecode/rove/pull/10839",
 ])("finds linked threads from PR query %s", (query) => {
   const items = buildThreadActionItems({
     threads: [
@@ -710,9 +710,9 @@ it.each([
         pullRequests: [
           {
             host: "github.com",
-            repository: "rovedev/rove",
+            repository: "rovecode/rove",
             number: 10839,
-            url: "https://github.com/rovedev/rove/pull/10839",
+            url: "https://github.com/rovecode/rove/pull/10839",
             source: "manual",
             linkedAt: "2026-09-08T00:00:00Z",
             snapshot: null,

@@ -61,7 +61,7 @@ vi.mock("electron", async () => {
   }
   return {
     app: {
-      getPath: () => "/Applications/Rove (Nightly).app/Contents/MacOS/Rove",
+      getPath: () => "/Applications/Rove Code (Nightly).app/Contents/MacOS/Rove Code",
     },
     nativeImage: { createFromPath: mocks.createFromPath },
     BrowserWindow: class extends MockWindow {},
@@ -124,11 +124,11 @@ function send(action: string, trusted = true) {
 
 describe("macAppBundlePath", () => {
   it("resolves bundles with spaces and refuses non-bundle executables", () => {
-    expect(macAppBundlePath("/Applications/Rove.app/Contents/MacOS/Rove")).toBe(
-      "/Applications/Rove.app",
+    expect(macAppBundlePath("/Applications/Rove Code.app/Contents/MacOS/Rove Code")).toBe(
+      "/Applications/Rove Code.app",
     );
     expect(macAppBundlePath("/usr/local/bin/electron")).toBeUndefined();
-    expect(macAppBundlePath("/Applications/Rove.app/other/MacOS/Rove")).toBeUndefined();
+    expect(macAppBundlePath("/Applications/Rove Code.app/other/MacOS/Rove Code")).toBeUndefined();
   });
 });
 it("drags the running app bundle only for the helper's own renderer", async () => {
@@ -138,11 +138,11 @@ it("drags the running app bundle only for the helper's own renderer", async () =
   send("drag");
   expect(mocks.createFromPath).toHaveBeenCalledWith("/bundle/prod-resources/icon.png");
   expect(mocks.startDrag).toHaveBeenCalledWith({
-    file: "/Applications/Rove (Nightly).app",
+    file: "/Applications/Rove Code (Nightly).app",
     icon: mocks.createFromPath.mock.results[0]!.value.resize(),
   });
   send("finder");
-  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Rove (Nightly).app");
+  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Rove Code (Nightly).app");
 });
 it("rechecks permissions and releases resources when granted", async () => {
   await open();
@@ -168,7 +168,7 @@ it("does not open for a permission already granted", async () => {
 });
 it("does not show a helper with a missing packaged icon", async () => {
   mocks.createFromPath.mockReturnValueOnce({ isEmpty: () => true });
-  await expect(open()).rejects.toThrow("packaged Rove icon is missing");
+  await expect(open()).rejects.toThrow("packaged Rove Code icon is missing");
   expect(windows).toHaveLength(0);
 });
 it("cleans up when the helper page fails to load", async () => {
@@ -184,7 +184,7 @@ it("offers the Finder fallback when native dragging fails", async () => {
     throw new Error("drag failed");
   });
   send("drag");
-  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Rove (Nightly).app");
+  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Rove Code (Nightly).app");
   expect(windows[0]!.destroyed).toBe(false);
 });
 

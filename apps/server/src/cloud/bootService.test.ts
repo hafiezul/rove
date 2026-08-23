@@ -27,7 +27,7 @@ import {
 const linuxRuntime = "/home/theo/.rove/runtime/versions/1.2.3/t3";
 const linuxPlan = {
   program: [linuxRuntime, "__service-launcher"],
-  baseDir: "/home/theo/.t3",
+  baseDir: "/home/theo/.rove",
   logPath: "/home/theo/.rove/userdata/logs/boot-service.log",
   unitPath: "/home/theo/.config/systemd/user/rove.service",
 };
@@ -49,8 +49,8 @@ it("reads the served T3 home back out of a rendered unit or plist", () => {
   });
 
   expect(
-    BootService.bootServiceBaseDirOf(BootService.renderBootServiceUnit(plan("/home/theo/.t3"))),
-  ).toBe("/home/theo/.t3");
+    BootService.bootServiceBaseDirOf(BootService.renderBootServiceUnit(plan("/home/theo/.rove"))),
+  ).toBe("/home/theo/.rove");
   // Spaces and specifiers are quoted and escaped on the way in.
   expect(
     BootService.bootServiceBaseDirOf(
@@ -77,7 +77,7 @@ it("survives the kernel OOM-killing a greedy agent child", () => {
 const macRuntime = "/Users/theo/.rove/runtime/versions/1.2.3/t3";
 const macPlan = {
   program: [macRuntime, "__service-launcher"],
-  baseDir: "/Users/theo/.t3",
+  baseDir: "/Users/theo/.rove",
   logPath: "/Users/theo/.rove/userdata/logs/boot-service.log",
   unitPath: "/Users/theo/Library/LaunchAgents/dev.rove.app.service.plist",
 };

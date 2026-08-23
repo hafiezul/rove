@@ -4,15 +4,15 @@ import type { ThreadTitleMessage } from "../src/textGeneration/ThreadTitleContex
 export const threadTitleEvaluationCases = [
   {
     id: "linked-reset-credits",
-    source: "https://github.com/rovedev/rove/pull/10462",
+    source: "https://github.com/rovecode/rove/pull/10462",
     request: "Review the reset credit routing change.",
     previousTitle: "Review PR 10462",
-    messages: [{ role: "user", text: "Review https://github.com/rovedev/rove/pull/10462" }],
+    messages: [{ role: "user", text: "Review https://github.com/rovecode/rove/pull/10462" }],
     rubric: "Name reset credit routing. Distinguish it from displaying credit balances.",
   },
   {
     id: "onboarding-merge",
-    source: "https://github.com/rovedev/rove/pull/10465",
+    source: "https://github.com/rovecode/rove/pull/10465",
     request: "Make onboarding one shared wizard across computers, then merge when green.",
     previousTitle: "Finish onboarding PR",
     messages: [
@@ -92,10 +92,10 @@ export const threadTitleEvaluationCases = [
   {
     id: "research",
     source: "Maintainer title generation request",
-    request: "How can we improve title generation in Rove?",
+    request: "How can we improve title generation in Rove Code?",
     previousTitle: "Research title gen improvements",
     messages: [
-      { role: "user", text: "How can we improve title gen further in Rove?" },
+      { role: "user", text: "How can we improve title gen further in Rove Code?" },
       {
         role: "assistant",
         text: "Prioritize user messages, refine vague titles once, and resolve PR subjects.",

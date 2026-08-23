@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the Rove CLI from a GitHub Release archive. Needs only sh, tar,
+# Installs the Rove Code CLI from a GitHub Release archive. Needs only sh, tar,
 # sha256sum or shasum, and curl or wget; no Node, npm, or compiler.
 #
 #   curl -fsSL https://t3.codes/install.sh | sh
@@ -17,9 +17,9 @@
 # instead of fetching the release again.
 set -eu
 
-repo="rovedev/rove"
+repo="rovecode/rove"
 base_url="${ROVE_RELEASE_BASE_URL:-https://github.com/${repo}/releases/download}"
-t3_home="${ROVE_HOME:-$HOME/.t3}"
+t3_home="${ROVE_HOME:-$HOME/.rove}"
 bin_dir="${ROVE_INSTALL_BIN_DIR:-$HOME/.local/bin}"
 
 fail() {

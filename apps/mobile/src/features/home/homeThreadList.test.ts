@@ -77,11 +77,11 @@ describe("buildHomeThreadGroups", () => {
     const localEnvironmentId = EnvironmentId.make("environment-local");
     const remoteEnvironmentId = EnvironmentId.make("environment-remote");
     const repositoryIdentity = {
-      canonicalKey: "github.com/rovedev/rove",
+      canonicalKey: "github.com/rovecode/rove",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:rovedev/rove.git",
+        remoteUrl: "git@github.com:rovecode/rove.git",
       },
     };
     const projects = [
@@ -120,11 +120,11 @@ describe("buildHomeThreadGroups", () => {
     const localEnvironmentId = EnvironmentId.make("environment-local");
     const remoteEnvironmentId = EnvironmentId.make("environment-remote");
     const repositoryIdentity = {
-      canonicalKey: "github.com/rovedev/rove",
+      canonicalKey: "github.com/rovecode/rove",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:rovedev/rove.git",
+        remoteUrl: "git@github.com:rovecode/rove.git",
       },
     };
     const local = makeProject({
@@ -184,11 +184,11 @@ describe("buildHomeThreadGroups", () => {
     const localEnvironmentId = EnvironmentId.make("environment-local");
     const remoteEnvironmentId = EnvironmentId.make("environment-remote");
     const repositoryIdentity = {
-      canonicalKey: "github.com/rovedev/rove",
+      canonicalKey: "github.com/rovecode/rove",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:rovedev/rove.git",
+        remoteUrl: "git@github.com:rovecode/rove.git",
       },
     };
     const projects = [
@@ -306,11 +306,11 @@ describe("buildHomeThreadGroups", () => {
     const localEnvironmentId = EnvironmentId.make("environment-local");
     const remoteEnvironmentId = EnvironmentId.make("environment-remote");
     const repositoryIdentity = {
-      canonicalKey: "github.com/rovedev/rove",
+      canonicalKey: "github.com/rovecode/rove",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:rovedev/rove.git",
+        remoteUrl: "git@github.com:rovecode/rove.git",
       },
     };
     const olderMember = makeProject({
@@ -382,12 +382,12 @@ describe("buildHomeThreadGroups", () => {
       id: ProjectId.make("project-1"),
       title: "local-worktree-name",
       repositoryIdentity: {
-        canonicalKey: "github.com/rovedev/rove",
+        canonicalKey: "github.com/rovecode/rove",
         displayName: "codething-mvp",
         locator: {
           source: "git-remote" as const,
           remoteName: "origin",
-          remoteUrl: "git@github.com:rovedev/rove.git",
+          remoteUrl: "git@github.com:rovecode/rove.git",
         },
       },
     });
@@ -418,7 +418,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const threads = [
       makeThread({
@@ -537,7 +537,7 @@ describe("buildHomeThreadGroups", () => {
       provider: "github",
       owner: "t3tools",
       name: "rove",
-      displayName: "Rove",
+      displayName: "Rove Code",
       rootPath: "/workspaces/rove",
     };
     const projects = [
@@ -583,7 +583,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const threads = [
       makeThread({
@@ -621,7 +621,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const threads = [
       makeThread({
@@ -658,7 +658,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const threads = ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05"].map(
       (day, index) =>
@@ -685,7 +685,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const threads = ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05"].map(
       (day, index) =>
@@ -698,7 +698,7 @@ describe("buildHomeThreadGroups", () => {
         }),
     );
 
-    const group = buildGroups([project], threads, { searchQuery: "Rove" })[0];
+    const group = buildGroups([project], threads, { searchQuery: "Rove Code" })[0];
     // Search reaches the full history rather than the 3-thread fallback.
     expect(group?.recentThreads).toHaveLength(5);
     expect(group?.recentThreads.map((thread) => thread.id)).toEqual(
@@ -711,7 +711,7 @@ describe("buildHomeThreadGroups", () => {
     const project = makeProject({
       environmentId,
       id: ProjectId.make("project-1"),
-      title: "Rove",
+      title: "Rove Code",
     });
     const thread = makeThread({
       environmentId,
@@ -737,11 +737,11 @@ describe("buildHomeThreadGroups", () => {
     const laptopEnv = EnvironmentId.make("environment-laptop");
     const desktopEnv = EnvironmentId.make("environment-desktop");
     const repositoryIdentity = {
-      canonicalKey: "github.com/rovedev/rove",
+      canonicalKey: "github.com/rovecode/rove",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:rovedev/rove.git",
+        remoteUrl: "git@github.com:rovecode/rove.git",
       },
     };
     const laptopProject = makeProject({

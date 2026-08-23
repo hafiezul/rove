@@ -790,7 +790,7 @@ export const PiSettings = makeProviderSettingsSchema(
 ).pipe(
   Schema.annotate({
     description:
-      "Pi runs with your global CLI setup (auth, models, skills). Pi extensions are not loaded in Rove threads yet — your terminal `pi` is unaffected.",
+      "Pi runs with your global CLI setup (auth, models, skills). Pi extensions are not loaded in Rove Code threads yet — your terminal `pi` is unaffected.",
   }),
 );
 export type PiSettings = typeof PiSettings.Type;
@@ -898,7 +898,7 @@ export const OpenCodeSettings = makeProviderSettingsSchema(
       Schema.withDecodingDefault(Effect.succeed("")),
       Schema.annotateKey({
         title: "Server URL",
-        description: "Leave blank to let Rove spawn the server when needed.",
+        description: "Leave blank to let Rove Code spawn the server when needed.",
         providerSettingsForm: {
           placeholder: "http://127.0.0.1:4096",
           clearWhenEmpty: "omit",

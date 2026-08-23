@@ -29,7 +29,7 @@ describe("rove/no-native-title-tooltip", () => {
 
   rule.valid("allows the svg title child element", `const el = <svg><title>QR code</title></svg>;`);
 
-  rule.valid("allows document.title assignments", `document.title = "Thread · Rove";`);
+  rule.valid("allows document.title assignments", `document.title = "Thread · Rove Code";`);
 
   rule.invalid(
     "reports title on a truncating span",

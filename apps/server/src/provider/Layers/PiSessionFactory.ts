@@ -4,7 +4,7 @@
  * Wires `@earendil-works/pi-coding-agent` per the settled provider design:
  *   - Sterile Pi: global config (auth, models, skills, prompt templates) is
  *     loaded, extensions are not (DefaultResourceLoader with noExtensions).
- *   - Always-trust: project-local resources are trusted, matching Rove's
+ *   - Always-trust: project-local resources are trusted, matching Rove Code's
  *     full-access stance and avoiding silent divergence from terminal `pi`.
  *   - Resume: a thread's `resumeCursor` holds the Pi session id; we re-adopt
  *     it with `SessionManager.open` on the session file that id maps to.
@@ -130,7 +130,7 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
   });
 
   const settingsManager = SettingsManager.create(cwd, agentDir);
-  // Always-trust: Rove threads are user-initiated work, and silently ignoring
+  // Always-trust: Rove Code threads are user-initiated work, and silently ignoring
   // project resources would diverge the thread from terminal `pi` behaviour.
   settingsManager.setDefaultProjectTrust("always");
 

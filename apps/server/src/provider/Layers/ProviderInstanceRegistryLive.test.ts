@@ -150,7 +150,7 @@ const makeTildeProviderFixtures = Effect.fn(
   const homePath = expandHomePath("~");
   const fixtureDir = yield* fileSystem.makeTempDirectoryScoped({
     directory: homePath,
-    prefix: ".t3-provider-path-test-",
+    prefix: ".rove-provider-path-test-",
   });
   const codexPath = path.join(fixtureDir, "codex");
   const claudePath = path.join(fixtureDir, "claude");

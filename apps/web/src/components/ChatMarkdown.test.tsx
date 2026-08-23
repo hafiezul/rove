@@ -164,7 +164,7 @@ describe("ChatMarkdown favicon privacy", () => {
       expect(renderer!.root.findAllByType("img")).toHaveLength(1);
       // GitHub links draw the brand mark in currentColor instead of fetching a favicon.
       await act(async () => {
-        renderer!.update(markdown("https://github.com/rovedev/rove/pull/1"));
+        renderer!.update(markdown("https://github.com/rovecode/rove/pull/1"));
       });
       expect(renderer!.root.findAllByType("img")).toHaveLength(0);
       expect(renderer!.root.findAllByType(GitHubIcon)).toHaveLength(1);

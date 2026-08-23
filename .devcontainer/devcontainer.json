@@ -1,8 +1,8 @@
-// Dev container for Rove. Mirrors CI (ubuntu-24.04, Node 24, Rust stable)
+// Dev container for Rove Code. Mirrors CI (ubuntu-24.04, Node 24, Rust stable)
 // and the canonical setup in docs/operations/development.md: global `vp`, `vp i`.
 // Contributor doc: docs/internals/devcontainer.md
 {
-  "name": "Rove",
+  "name": "Rove Code",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
     // nodeGypDependencies (default true) brings python3/make/g++, which Linux
@@ -21,9 +21,9 @@
     "storage": "32gb"
   },
   "containerEnv": {
-    // Keep all runtime state inside the (gitignored) workspace .t3, matching
+    // Keep all runtime state inside the (gitignored) workspace .rove, matching
     // the worktree default. An explicit --home-dir still wins.
-    "ROVE_HOME": "${containerWorkspaceFolder}/.t3"
+    "ROVE_HOME": "${containerWorkspaceFolder}/.rove"
   },
   "mounts": [
     // vp keeps the pnpm content-addressable store and metadata cache under

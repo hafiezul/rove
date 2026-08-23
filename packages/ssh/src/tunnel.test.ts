@@ -118,7 +118,7 @@ describe("ssh tunnel scripts", () => {
     assert.include(script, "T3_NODE_SCRIPT_PATH=''");
     assert.include(
       script,
-      "T3_RELEASE_BASE_URL='https://github.com/rovedev/rove/releases/download'",
+      "T3_RELEASE_BASE_URL='https://github.com/rovecode/rove/releases/download'",
     );
     assert.include(script, 'T3_RUNTIME_DIR="$HOME/.rove/runtime/versions/$T3_ARCHIVE_VERSION"');
     assert.include(script, 'T3_ARCHIVE="t3-$T3_ARCHIVE_VERSION-$T3_PLATFORM-$T3_ARCH.tar.gz"');

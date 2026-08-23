@@ -59,7 +59,7 @@ describe("applyThreadDetailEvent", () => {
         type: "project.created",
         payload: {
           projectId: ProjectId.make("project-1"),
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/repo",
           repositoryIdentity: null,
           defaultModelSelection: null,
@@ -352,16 +352,16 @@ describe("applyThreadDetailEvent", () => {
       (field) => {
         const linkedPullRequest = {
           projectId: ProjectId.make("project-1"),
-          repository: "rovedev/rove",
+          repository: "rovecode/rove",
           number: 42,
-          url: "https://github.com/rovedev/rove/pull/42",
+          url: "https://github.com/rovecode/rove/pull/42",
         };
         const otherField =
           field === "linkedPullRequest" ? "branchPullRequest" : "linkedPullRequest";
         const otherPullRequest = {
           ...linkedPullRequest,
           number: 43,
-          url: "https://github.com/rovedev/rove/pull/43",
+          url: "https://github.com/rovecode/rove/pull/43",
         };
         const linked = applyThreadDetailEvent(
           { ...baseThread, [otherField]: otherPullRequest },
@@ -411,15 +411,15 @@ describe("applyThreadDetailEvent", () => {
   describe("thread pull request links", () => {
     const link = {
       host: "github.com",
-      repository: "rovedev/rove",
+      repository: "rovecode/rove",
       number: 42,
-      url: "https://github.com/rovedev/rove/pull/42",
+      url: "https://github.com/rovecode/rove/pull/42",
       source: "manual" as const,
       linkedAt: "2026-04-01T05:00:00.000Z",
       snapshot: null,
       stack: null,
     };
-    const key = { host: "github.com", repository: "rovedev/rove", number: 42 };
+    const key = { host: "github.com", repository: "rovecode/rove", number: 42 };
     const linkEvent = (sequence: number) =>
       ({
         ...baseEventFields,

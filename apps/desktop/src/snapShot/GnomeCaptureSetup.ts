@@ -56,9 +56,9 @@ export async function installGnomeCaptureBundle({ bundle, dataHome }: SetupPaths
       await NodeFSP.readFile(NodePath.join(target, "metadata.json"), "utf8"),
     );
     if (installed.version > metadata.version)
-      throw new Error("A newer extension is installed. Update Rove instead of replacing it.");
+      throw new Error("A newer extension is installed. Update Rove Code instead of replacing it.");
   }
-  const staged = await NodeFSP.mkdtemp(NodePath.join(parent, ".t3-capture-install-"));
+  const staged = await NodeFSP.mkdtemp(NodePath.join(parent, ".rove-capture-install-"));
   let backup: string | undefined;
   try {
     for (const name of GNOME_CAPTURE_FILES) {
@@ -184,7 +184,7 @@ export class GnomeCaptureSetup {
         return {
           status: "restart-required",
           message:
-            "Installed. Save your work, sign out of GNOME and sign back in, then return here to enable the extension. Restarting Rove alone is not enough.",
+            "Installed. Save your work, sign out of GNOME and sign back in, then return here to enable the extension. Restarting Rove Code alone is not enough.",
         };
       if ((installed?.version ?? info.version?.value ?? 0) < bundled.version)
         return {
@@ -196,12 +196,12 @@ export class GnomeCaptureSetup {
         return {
           status: "extensions-disabled",
           message:
-            "GNOME has disabled user extensions. Turn on Extensions in the GNOME Extensions app, then check again. Rove will not enable your other extensions for you.",
+            "GNOME has disabled user extensions. Turn on Extensions in the GNOME Extensions app, then check again. Rove Code will not enable your other extensions for you.",
         };
       if (info.state?.value === 1)
         return {
           status: "enabled",
-          message: "The Rove extension is running. Active-window snapshots are available.",
+          message: "The Rove Code extension is running. Active-window snapshots are available.",
         };
       if (info.state?.value === 3 || info.state?.value === 4)
         return {
@@ -213,7 +213,7 @@ export class GnomeCaptureSetup {
       return {
         status: "disabled",
         message:
-          "Enable the Rove extension to allow active-window snapshots. You can disable it here at any time.",
+          "Enable the Rove Code extension to allow active-window snapshots. You can disable it here at any time.",
       };
     } catch (error) {
       return {

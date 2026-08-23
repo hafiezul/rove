@@ -36,11 +36,11 @@ For a read-only decision, use `check` in place of `ensure`. Exit 0 means compati
 
 A JavaScript-only diff, bundle identifier, app version, or recent install date does not prove native compatibility. Always check the whole checkout. Expo fingerprints are computed locally with `APP_VARIANT=development`; no EAS credentials or cloud build are required. Generated `ios/` and `android/` directories are excluded by `.fingerprintignore`, so edit native source modules or config plugins rather than generated output.
 
-The development identity is `Rove Dev`, bundle/package `dev.rove.app.dev`, scheme `rove-dev`. If a build fails, investigate the build error and fix the local prerequisites. Report the concrete failure if it cannot be resolved, not “no compatible client.”
+The development identity is `Rove Code Dev`, bundle/package `dev.rove.app.dev`, scheme `rove-dev`. If a build fails, investigate the build error and fix the local prerequisites. Report the concrete failure if it cannot be resolved, not “no compatible client.”
 
 ## Start one disposable T3 environment
 
-Run backend commands from the repository root. Use the ignored, worktree-local `.t3` directory or create a fresh directory with the host OS's temporary-directory mechanism. An explicit base directory stores state in `<base-dir>/userdata`; never point testing at shared `~/.rove` state.
+Run backend commands from the repository root. Use the ignored, worktree-local `.rove` directory or create a fresh directory with the host OS's temporary-directory mechanism. An explicit base directory stores state in `<base-dir>/userdata`; never point testing at shared `~/.rove` state.
 
 Seed a small number of meaningful Git projects before starting the backend:
 
@@ -156,7 +156,7 @@ Pairing credentials are secret, short-lived, and single-use. Create a different 
 
 ### iOS
 
-Use `snapshot_ui` and current element references from XcodeBuildMCP for taps and typing. Stream the same UDID through `ios-simulator-browser` so the user can watch in Rove when the host supports it. Use the stream as a visual feed rather than a reason to switch to fragile browser coordinates.
+Use `snapshot_ui` and current element references from XcodeBuildMCP for taps and typing. Stream the same UDID through `ios-simulator-browser` so the user can watch in Rove Code when the host supports it. Use the stream as a visual feed rather than a reason to switch to fragile browser coordinates.
 
 ### Android
 
@@ -170,7 +170,7 @@ Exercise only the affected flow on one representative device unless the change s
 
 1. Confirm the app connected to the intended disposable environment instead of merely rendering an empty disconnected state.
 2. Capture the relevant final state.
-3. Remove the disposable environment from Rove Dev.
+3. Remove the disposable environment from Rove Code Dev.
 4. Remove any `adb reverse` rule created for this test with `adb -s <emulator-serial> reverse --remove tcp:<metro-port>`.
 5. Stop only the serve-sim, Metro, backend, emulator, and log processes started by this test.
 6. Remove only base directories and temporary Git repositories deliberately created for this test. Preserve them when they contain useful reproduction evidence.

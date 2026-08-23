@@ -59,7 +59,7 @@ export class DesktopAppUnreachableError extends Schema.TaggedError<DesktopAppUnr
   },
 ) {
   override get message(): string {
-    return "Could not reach the Rove desktop app. Start or update the desktop app on this machine, then run `t3 app` again. A running Rove server is not enough.";
+    return "Could not reach the Rove Code desktop app. Start or update the desktop app on this machine, then run `t3 app` again. A running Rove Code server is not enough.";
   }
 }
 
@@ -73,7 +73,7 @@ export class DesktopAppRequestFailedError extends Schema.TaggedError<DesktopAppR
   },
 ) {
   override get message(): string {
-    return `Rove could not open ${this.workspaceRoot} (${this.code}).`;
+    return `Rove Code could not open ${this.workspaceRoot} (${this.code}).`;
   }
 }
 
@@ -246,7 +246,7 @@ const runAppCommand = Effect.fn("cli.app")(function* (flags: {
     });
   }
 
-  yield* Console.log(`Opened ${workspaceRoot} in Rove.`);
+  yield* Console.log(`Opened ${workspaceRoot} in Rove Code.`);
 });
 
 export const appCommand = Command.make("app", {
@@ -256,6 +256,6 @@ export const appCommand = Command.make("app", {
     Argument.optional,
   ),
 }).pipe(
-  Command.withDescription("Open a project in the running Rove desktop app."),
+  Command.withDescription("Open a project in the running Rove Code desktop app."),
   Command.withHandler(runAppCommand),
 );

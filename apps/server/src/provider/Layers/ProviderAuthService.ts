@@ -23,7 +23,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
         instanceId,
         operation,
         detail: instance
-          ? "This provider does not support sign-in in Rove."
+          ? "This provider does not support sign-in in Rove Code."
           : "This provider instance is no longer available.",
       });
     }

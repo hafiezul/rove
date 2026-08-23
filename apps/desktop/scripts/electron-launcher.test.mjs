@@ -76,18 +76,18 @@ describe("electron development launcher", () => {
 
   it("keeps the native Electron executable name inside the branded macOS bundle", () => {
     const paths = resolveMacLauncherPaths(
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app",
-      "Rove (Dev)",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app",
+      "Rove Code (Dev)",
     );
 
-    assert.equal(paths.launcherExecutableName, "Rove (Dev) Launcher");
+    assert.equal(paths.launcherExecutableName, "Rove Code (Dev) Launcher");
     assert.equal(
       paths.launcherBinaryPath,
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Rove (Dev) Launcher",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Rove Code (Dev) Launcher",
     );
     assert.equal(
       paths.runtimeElectronBinaryPath,
-      "/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Electron",
+      "/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Electron",
     );
 
     const script = makeDevelopmentLauncherScript({
@@ -98,32 +98,32 @@ describe("electron development launcher", () => {
     });
     assert.include(
       script,
-      "exec '/repo/apps/desktop/.electron-runtime/Rove (Dev).app/Contents/MacOS/Electron'",
+      "exec '/repo/apps/desktop/.electron-runtime/Rove Code (Dev).app/Contents/MacOS/Electron'",
     );
     assert.notInclude(script, "node_modules/electron");
   });
 
   it("declares why the macOS app needs protected access", () => {
-    const values = resolveMacBundleInfoPlistStrings("Rove (Dev) Launcher");
+    const values = resolveMacBundleInfoPlistStrings("Rove Code (Dev) Launcher");
 
     assert.equal(
       values.NSScreenCaptureUsageDescription,
-      "Rove captures the active window when you use the snapshot shortcut.",
+      "Rove Code captures the active window when you use the snapshot shortcut.",
     );
     assert.equal(
       values.NSDocumentsFolderUsageDescription,
-      "Rove reads project files you open in the desktop app.",
+      "Rove Code reads project files you open in the desktop app.",
     );
   });
 
   it("ad-hoc signs the complete development app bundle", () => {
-    assert.deepEqual(resolveMacCodeSignArguments("/runtime/Rove (Dev).app"), [
+    assert.deepEqual(resolveMacCodeSignArguments("/runtime/Rove Code (Dev).app"), [
       "--force",
       "--deep",
       "--sign",
       "-",
       "--timestamp=none",
-      "/runtime/Rove (Dev).app",
+      "/runtime/Rove Code (Dev).app",
     ]);
   });
 

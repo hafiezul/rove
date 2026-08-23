@@ -119,7 +119,7 @@ describe("pull request filters menu", () => {
         {
           id: projectId,
           environmentId,
-          title: "Rove",
+          title: "Rove Code",
           workspaceRoot: "/work/rove",
         },
       ],
@@ -145,13 +145,13 @@ describe("pull request filters menu", () => {
         {
           id: projectId,
           environmentId: "env-1" as EnvironmentId,
-          title: "Rove · one",
+          title: "Rove Code · one",
           workspaceRoot: "/work/rove-1",
         },
         {
           id: projectId,
           environmentId: "env-2" as EnvironmentId,
-          title: "Rove · two",
+          title: "Rove Code · two",
           workspaceRoot: "/work/rove-2",
         },
       ],
