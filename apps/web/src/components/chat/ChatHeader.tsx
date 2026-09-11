@@ -2,6 +2,7 @@ import {
   type EnvironmentId,
   type EditorId,
   type ProjectScript,
+  type ProviderInstanceId,
   type ResolvedKeybindingsConfig,
   type ThreadId,
 } from "@t3tools/contracts";
@@ -42,6 +43,8 @@ import {
   WorkspaceBreadcrumbSeparator,
 } from "../WorkspaceBreadcrumb";
 import { cn } from "~/lib/utils";
+import { ProviderExtensions } from "./ProviderExtensions";
+import { useProviderResources } from "../../lib/useProviderResources";
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -61,6 +64,8 @@ interface ChatHeaderProps {
   keybindings: ResolvedKeybindingsConfig;
   availableEditors: ReadonlyArray<EditorId>;
   rightPanelOpen: boolean;
+  /** Pi instance bound to this thread, or null. Drives the header catalog button. */
+  piCatalogInstanceId: ProviderInstanceId | null;
   gitCwd: string | null;
   readonly onOpenPullRequest?: ((number: number) => void) | undefined;
   onNewThreadInProject: () => void;
@@ -115,6 +120,7 @@ export const ChatHeader = memo(function ChatHeader({
   keybindings,
   availableEditors,
   rightPanelOpen,
+  piCatalogInstanceId,
   gitCwd,
   onOpenPullRequest,
   onNewThreadInProject,
@@ -184,6 +190,7 @@ export const ChatHeader = memo(function ChatHeader({
     changeRequestState,
     onStartRename: startRename,
   });
+  const piCatalog = useProviderResources(activeThreadEnvironmentId, piCatalogInstanceId);
   const titleButtonRef = useRef<HTMLButtonElement | null>(null);
   const openMenuFromTitle = useCallback(() => {
     const rect = titleButtonRef.current?.getBoundingClientRect();
@@ -329,6 +336,7 @@ export const ChatHeader = memo(function ChatHeader({
             openInCwd={openInCwd}
           />
         )}
+        {piCatalogInstanceId !== null && <ProviderExtensions {...piCatalog} />}
         {activeProjectName && (
           <GitActionsControl
             gitCwd={gitCwd}

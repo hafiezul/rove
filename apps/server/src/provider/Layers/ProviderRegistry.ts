@@ -24,6 +24,7 @@
  */
 import {
   defaultInstanceIdForDriver,
+  PiCatalogError,
   ProviderDriverKind,
   type ProviderInstanceId,
   type ServerProvider,
@@ -708,6 +709,24 @@ export const ProviderRegistryLive = Layer.effect(
 
     return {
       getProviders: Ref.get(providersRef),
+      piCatalog: (input) =>
+        Effect.gen(function* () {
+          const instance = yield* instanceRegistry.getInstance(input.instanceId);
+          if (!instance?.enabled || !instance.piCatalog)
+            return yield* new PiCatalogError({
+              message: "This provider does not expose a catalog.",
+            });
+          return yield* instance.piCatalog.getCatalog();
+        }),
+      refreshPiCatalog: (input) =>
+        Effect.gen(function* () {
+          const instance = yield* instanceRegistry.getInstance(input.instanceId);
+          if (!instance?.enabled || !instance.piCatalog)
+            return yield* new PiCatalogError({
+              message: "This provider does not expose a catalog.",
+            });
+          return yield* instance.piCatalog.refreshCatalog();
+        }),
       refresh: (provider?: ProviderDriverKind) =>
         refresh(provider).pipe(Effect.catchCause(recoverRefreshFailure)),
       refreshInstance: (instanceId: ProviderInstanceId) =>

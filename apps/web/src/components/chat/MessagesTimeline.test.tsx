@@ -235,6 +235,39 @@ function buildUserTimelineEntry(text: string) {
 }
 
 describe("MessagesTimeline", () => {
+  it("marks prompts steered into a running turn until it settles", () => {
+    const steeredId = MessageId.make("message-1");
+    const runningMarkup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        isWorking
+        activeTurnInProgress
+        steeredMessageIds={new Set([steeredId])}
+        timelineEntries={[buildUserTimelineEntry("Hello")]}
+      />,
+    );
+    expect(runningMarkup).toContain("Queued behind the running turn");
+
+    const settledMarkup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        steeredMessageIds={new Set([steeredId])}
+        timelineEntries={[buildUserTimelineEntry("Hello")]}
+      />,
+    );
+    expect(settledMarkup).not.toContain("Queued behind the running turn");
+
+    const unsteeredMarkup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        isWorking
+        activeTurnInProgress
+        timelineEntries={[buildUserTimelineEntry("Hello")]}
+      />,
+    );
+    expect(unsteeredMarkup).not.toContain("Queued behind the running turn");
+  });
+
   it("uses the larger leading inset only when the top fade is enabled", () => {
     const timelineEntries = [buildUserTimelineEntry("Hello")];
 

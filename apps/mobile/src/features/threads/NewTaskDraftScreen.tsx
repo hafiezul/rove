@@ -39,6 +39,7 @@ import {
   type NavigationWithFinishTransitioning,
 } from "./use-thread-settings-sheet-presentation";
 
+import { ProviderExtensions } from "./ProviderExtensions";
 import { makeTurnCommandMetadata } from "../../lib/commandMetadata";
 import { convertPastedImagesToAttachments, pickComposerImages } from "../../lib/composerImages";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
@@ -725,6 +726,7 @@ export function NewTaskDraftScreen(props: {
       interactionMode,
       initialMessageText,
       initialAttachments: draft.attachments,
+      turnMetadata: makeTurnCommandMetadata(),
       ...(editingPendingTask
         ? {
             turnMetadata: {
@@ -982,6 +984,7 @@ export function NewTaskDraftScreen(props: {
               onPress={() => void handlePickImages()}
               showChevron={false}
             />
+            {flow.showPiCatalog && <ProviderExtensions {...flow.piCatalog} />}
             <ComposerInlineControl
               accessibilityLabel="Model and reasoning settings"
               disabled={isIncomingShareTransferPending}

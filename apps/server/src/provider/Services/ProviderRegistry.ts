@@ -8,6 +8,9 @@
  */
 import type {
   ProviderInstanceId,
+  PiCatalogInput,
+  PiCatalogSnapshot,
+  PiCatalogError,
   ProviderDriverKind,
   ServerProvider,
   ServerProviderUpdateState,
@@ -20,6 +23,10 @@ import type { ProviderMaintenanceCapabilities } from "../providerMaintenance.ts"
 export type ProviderMaintenanceActionKind = "update";
 
 export interface ProviderRegistryContract {
+  readonly piCatalog: (input: PiCatalogInput) => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
+  readonly refreshPiCatalog: (
+    input: PiCatalogInput,
+  ) => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
   /**
    * Read the latest provider snapshots for every configured instance.
    * Multiple snapshots may share the same `provider` kind (multiple

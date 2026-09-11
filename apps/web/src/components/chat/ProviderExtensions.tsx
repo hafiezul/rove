@@ -1,0 +1,260 @@
+import type { PiCatalogSnapshot } from "@t3tools/contracts";
+import {
+  ChevronDownIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  PuzzleIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogPopup,
+  DialogTitle,
+  DialogDescription,
+  DialogHeader,
+} from "../ui/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../ui/empty";
+import { Separator } from "../ui/separator";
+import { Spinner } from "../ui/spinner";
+import { cn } from "~/lib/utils";
+
+export interface ProviderExtensionsProps {
+  data: PiCatalogSnapshot | null;
+  error: string | null;
+  isPending: boolean;
+  refresh: () => Promise<void>;
+}
+
+const SCOPE_LABEL = {
+  user: "User",
+  project: "Project",
+  temporary: "Session",
+} as const;
+
+function scopeBadgeVariant(scope: keyof typeof SCOPE_LABEL) {
+  switch (scope) {
+    case "project":
+      return "info" as const;
+    case "user":
+      return "secondary" as const;
+    case "temporary":
+      return "outline" as const;
+  }
+}
+
+function Stat({ value, label, alert }: { value: string; label: string; alert?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div
+        className={cn(
+          "text-2xl font-semibold tabular-nums",
+          alert === true ? "text-warning-foreground" : "text-foreground",
+        )}
+      >
+        {value}
+      </div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+export function ProviderExtensionsContent({
+  data,
+  error,
+  isPending,
+  refresh,
+}: ProviderExtensionsProps) {
+  const modelCount =
+    data?.modelProviders.reduce((total, provider) => total + provider.modelCount, 0) ?? 0;
+  const warningCount = data?.warnings.length ?? 0;
+
+  return (
+    <div className="space-y-5 p-6 text-sm">
+      <div className="flex items-start gap-8" role="status" aria-label="Catalog summary">
+        <Stat value={data ? String(data.extensions.length) : "–"} label="Extensions" />
+        <Stat value={data ? String(modelCount) : "–"} label="Models" />
+        <Stat
+          value={data ? String(warningCount) : "–"}
+          label={warningCount === 1 ? "Issue" : "Issues"}
+          alert={warningCount > 0}
+        />
+      </div>
+
+      <Separator />
+
+      {isPending && data === null && (
+        <div className="flex items-center gap-2 text-muted-foreground" role="status">
+          <Spinner className="size-4" />
+          Loading catalog…
+        </div>
+      )}
+      {error && (
+        <Alert variant="error">
+          <AlertTitle>Catalog failed to load</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {data && warningCount > 0 && (
+        <Alert variant="warning">
+          <AlertTitle>Needs attention</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc space-y-1 ps-4">
+              {data.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {data && (
+        <>
+          <section aria-label="Model providers" className="space-y-1">
+            <h3 className="text-sm font-semibold">Models</h3>
+            {data.modelProviders.length === 0 && (
+              <p className="text-sm text-muted-foreground">No extension providers.</p>
+            )}
+            {data.modelProviders.map((provider) => (
+              <div key={provider.id} className="flex items-center gap-2 py-1">
+                {provider.authenticated ? (
+                  <CircleCheckIcon
+                    aria-label="Authenticated"
+                    className="size-4 shrink-0 text-success"
+                  />
+                ) : (
+                  <CircleAlertIcon
+                    aria-label="Not authenticated"
+                    className="size-4 shrink-0 text-warning"
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate font-medium">{provider.name}</span>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {provider.modelCount} {provider.modelCount === 1 ? "model" : "models"}
+                </span>
+                <Badge variant={provider.authenticated ? "success" : "warning"} size="sm">
+                  {provider.authenticated ? "Authenticated" : "Sign in needed"}
+                </Badge>
+              </div>
+            ))}
+          </section>
+
+          <section aria-label="Extensions" className="space-y-1">
+            <h3 className="text-sm font-semibold">Extensions</h3>
+            {data.extensions.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>No extensions loaded</EmptyTitle>
+                  <EmptyDescription>
+                    Install a Pi extension on the server to see it here.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              data.extensions.map((extension) => (
+                <Collapsible key={extension.path}>
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md py-1.5 text-left hover:bg-accent/50">
+                    <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{extension.name}</span>
+                    <Badge variant={scopeBadgeVariant(extension.scope)} size="sm">
+                      {SCOPE_LABEL[extension.scope]}
+                    </Badge>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <dl className="space-y-1.5 ps-6 pe-1 pt-1 pb-2 text-xs">
+                      <div className="flex gap-2">
+                        <dt className="w-16 shrink-0 text-muted-foreground">Source</dt>
+                        <dd className="min-w-0 flex-1 truncate font-mono">{extension.path}</dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-16 shrink-0 text-muted-foreground">Tools</dt>
+                        <dd className="min-w-0 flex-1">
+                          {extension.tools.length > 0 ? extension.tools.join(", ") : "None"}
+                        </dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-16 shrink-0 text-muted-foreground">Commands</dt>
+                        <dd className="min-w-0 flex-1">
+                          {extension.commands.length > 0
+                            ? extension.commands.map((command) => `/${command}`).join(", ")
+                            : "None"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </CollapsiblePanel>
+                </Collapsible>
+              ))
+            )}
+          </section>
+        </>
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" disabled={isPending} onClick={() => void refresh()}>
+          <RefreshCwIcon className={cn(isPending && "motion-safe:animate-spin")} />
+          {error ? "Retry" : "Refresh catalogue"}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Project extensions apply inside their own threads.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function ProviderExtensions(props: ProviderExtensionsProps) {
+  const warningCount = props.data?.warnings.length ?? 0;
+  return (
+    <div className="flex items-center gap-1">
+      <Dialog>
+        <DialogTrigger
+          render={
+            <Button size="xs" variant="outline" aria-label="Extensions">
+              {warningCount > 0 ? (
+                <TriangleAlertIcon className="size-3.5 text-warning" />
+              ) : (
+                <PuzzleIcon className="size-3.5" />
+              )}
+              <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
+                Extensions
+              </span>
+              {warningCount > 0 && (
+                <Badge variant="warning" size="sm">
+                  {warningCount}
+                </Badge>
+              )}
+            </Button>
+          }
+        >
+          Extensions
+        </DialogTrigger>
+        <DialogPopup className="overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pi provider catalog</DialogTitle>
+            <DialogDescription>
+              Extensions and models loaded for this Pi provider on the server.
+            </DialogDescription>
+          </DialogHeader>
+          <ProviderExtensionsContent {...props} />
+        </DialogPopup>
+      </Dialog>
+      {props.isPending && props.data === null && (
+        <span role="status" className="text-xs text-muted-foreground">
+          Loading catalog…
+        </span>
+      )}
+      {props.error && (
+        <Button size="xs" variant="outline" onClick={() => void props.refresh()}>
+          <RefreshCwIcon className="size-3.5" />
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+}

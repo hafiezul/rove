@@ -53,7 +53,7 @@ const EMPTY_PI_DISCOVERY: PiDiscoveryResult = {
  */
 export const PI_THINKING_DESCRIPTOR_ID = "thinkingLevel";
 
-const THINKING_LEVEL_LABELS = {
+export const PI_THINKING_LEVEL_LABELS = {
   off: "Off",
   minimal: "Minimal",
   low: "Low",
@@ -76,7 +76,7 @@ const piModelCapabilities = (piSettings: Pick<PiSettings, "thinkingLevel">): Mod
         label: "Reasoning",
         options: PI_THINKING_LEVELS.map((level) => ({
           value: level,
-          label: THINKING_LEVEL_LABELS[level],
+          label: PI_THINKING_LEVEL_LABELS[level],
           ...(piSettings.thinkingLevel === level ? { isDefault: true } : undefined),
         })),
       }),

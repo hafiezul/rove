@@ -55,6 +55,7 @@ import {
   EyeIcon,
   GlobeIcon,
   HammerIcon,
+  HistoryIcon,
   MessageCircleIcon,
   MousePointerClickIcon,
   PaintbrushIcon,
@@ -146,6 +147,9 @@ interface TimelineRowSharedState {
   onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
   agentPanelModel: AgentPanelModel;
   onOpenAgents: () => void;
+  /** Prompts sent while a turn was already running (Pi steers them into it).
+   * Renders a "queued" chip on the message until the turn settles. */
+  steeredMessageIds: ReadonlySet<MessageId>;
 }
 
 interface TimelineRowActivityState {
@@ -155,6 +159,8 @@ interface TimelineRowActivityState {
   latestTurnId: TurnId | null;
   /** Current plan step label for the working row, when the turn has a plan. */
   workingStepLabel: string | null;
+  /** Prompts steered into the running turn (drives the working-row count). */
+  steeredCount: number;
 }
 
 const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
@@ -190,6 +196,7 @@ function TimelineLoadEarlierHeader({
 }
 const TIMELINE_LIST_FOOTER = <div className="h-3 sm:h-4" />;
 const EMPTY_TIMELINE_SKILLS: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">> = [];
+const EMPTY_STEERED_MESSAGE_IDS: ReadonlySet<MessageId> = new Set();
 const TIMELINE_MAINTAIN_SCROLL_AT_END = {
   animated: false,
   on: {
@@ -237,6 +244,7 @@ interface MessagesTimelineProps {
    * scroll-mode refs whenever the user drifts near the bottom.
    */
   liveFollowEnabled: boolean;
+  steeredMessageIds?: ReadonlySet<MessageId>;
   onIsAtEndChange: (isAtEnd: boolean) => void;
   onManualNavigation: () => void;
   hideEmptyPlaceholder?: boolean;
@@ -277,6 +285,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onAnchorReady,
   contentInsetEndAdjustment,
   liveFollowEnabled,
+  steeredMessageIds = EMPTY_STEERED_MESSAGE_IDS,
   onIsAtEndChange,
   onManualNavigation,
   hideEmptyPlaceholder = false,
@@ -519,6 +528,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       onToggleWorkGroup,
       agentPanelModel,
       onOpenAgents,
+      steeredMessageIds,
     }),
     [
       timestampFormat,
@@ -535,6 +545,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       onToggleWorkGroup,
       agentPanelModel,
       onOpenAgents,
+      steeredMessageIds,
     ],
   );
   const activityState = useMemo<TimelineRowActivityState>(
@@ -544,8 +555,16 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       activeTurnInProgress,
       latestTurnId: latestTurn?.turnId ?? null,
       workingStepLabel,
+      steeredCount: steeredMessageIds.size,
     }),
-    [activeTurnInProgress, isRevertingCheckpoint, isWorking, latestTurn?.turnId, workingStepLabel],
+    [
+      activeTurnInProgress,
+      isRevertingCheckpoint,
+      isWorking,
+      latestTurn?.turnId,
+      steeredMessageIds,
+      workingStepLabel,
+    ],
   );
 
   // Stable renderItem — no closure deps. Row components read shared state
@@ -956,6 +975,12 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
 
 function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
+  const activity = use(TimelineRowActivityCtx);
+  // Sent while a turn was already running: Pi steered it into that turn
+  // instead of opening a new one. The chip answers "did my send do
+  // anything" until the turn settles (ChatView clears the set then).
+  const showSteeredChip =
+    ctx.steeredMessageIds.has(row.message.id) && activity.activeTurnInProgress;
   const userImages = row.message.attachments ?? [];
   const displayedUserMessage = deriveDisplayedUserMessageState(row.message.text);
   const terminalContexts = displayedUserMessage.contexts;
@@ -1036,6 +1061,14 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           markdownCwd={ctx.markdownCwd}
         />
       </div>
+      {showSteeredChip ? (
+        <div className="flex w-full max-w-[80%] justify-end">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground">
+            <HistoryIcon className="size-3" aria-hidden />
+            Queued behind the running turn
+          </span>
+        </div>
+      ) : null}
       <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
         <div className="flex shrink-0 items-center gap-2">
           <Tooltip>
@@ -1280,7 +1313,7 @@ const TurnPlanTimelineRow = memo(function TurnPlanTimelineRow({
 });
 
 function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
-  const { workingStepLabel } = use(TimelineRowActivityCtx);
+  const { workingStepLabel, steeredCount } = use(TimelineRowActivityCtx);
   return (
     <div className="py-0.5 pl-1.5">
       <div className="flex min-w-0 items-center gap-2 pt-1 text-secondary-label text-[11px] tabular-nums">
@@ -1300,6 +1333,9 @@ function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "workin
         </span>
         {workingStepLabel ? (
           <span className="min-w-0 truncate text-muted-foreground/55">· {workingStepLabel}</span>
+        ) : null}
+        {steeredCount > 0 ? (
+          <span className="shrink-0 text-muted-foreground/55">· {steeredCount} queued</span>
         ) : null}
       </div>
     </div>

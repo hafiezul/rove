@@ -1,5 +1,6 @@
 import { describe, it, assert } from "@effect/vitest";
 import {
+  PiCatalogError,
   ProviderDriverKind,
   ProviderInstanceId,
   type ServerProvider,
@@ -194,6 +195,8 @@ function makeRegistry(
         Effect.succeed(lifecycleFor(provider)),
       setProviderMaintenanceActionState,
       streamChanges: Stream.empty,
+      piCatalog: () => Effect.fail(new PiCatalogError({ message: "Unavailable in tests." })),
+      refreshPiCatalog: () => Effect.fail(new PiCatalogError({ message: "Unavailable in tests." })),
     };
 
     return {

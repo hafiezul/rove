@@ -3,18 +3,25 @@
  *
  * See docs/adr/0001-pi-provider-uses-sdk-in-process.md. The driver's `create()`
  * bundles `snapshot` / `adapter` / `textGeneration` closures over the decoded
- * `PiSettings`. Sessions are built by `createPiSession` (sterile Pi, global
- * config, always-trust); the snapshot probe enumerates the user's Pi model
+ * `PiSettings`. Sessions are built by `createPiSession` with headless extensions
+ * and trusted project resources; the snapshot probe enumerates the user's Pi model
  * catalog through a `ModelRuntime`.
  *
  * @module provider/Drivers/PiDriver
  */
-import { PiSettings, ProviderDriverKind, type ServerProvider } from "@t3tools/contracts";
+import {
+  PiCatalogError,
+  PiSettings,
+  ProviderDriverKind,
+  type ServerProvider,
+} from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
 
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
+import { PiCatalogHost } from "../Layers/PiCatalogHost.ts";
 import { createPiSession } from "../Layers/PiSessionFactory.ts";
 import { registerPiBundledOAuthFlows } from "./PiOAuth.ts";
 import {
@@ -60,45 +67,9 @@ const UPDATE = makeStaticProviderMaintenanceResolver(
 );
 
 /**
- * Probe client backed by the real SDK model catalog. `ModelRuntime.create`
- * resolves the user's auth + models.json against the global agent dir, so the
- * model list is exactly what terminal `pi` would offer.
- */
-const makeSdkProbeClient = (): PiProbeClient => ({
-  listModels: async () => {
-    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
-    const runtime = await ModelRuntime.create({});
-    const models = await runtime.getAvailable();
-    // Provider display names (e.g. "OpenCode Go" for `opencode-go`) ride
-    // along so the model pickers can disambiguate duplicate model names
-    // across Pi providers. Providers missing from the registry fall back
-    // to their id in the snapshot layer.
-    const providerNames = new Map(
-      runtime.getProviders().map((provider) => [provider.id, provider.name]),
-    );
-    return models.map((model) => {
-      const providerId = String(model.provider);
-      const providerName = providerNames.get(providerId);
-      return {
-        id: model.id,
-        name: model.name,
-        provider: providerId,
-        ...(providerName !== undefined ? { providerName } : undefined),
-      };
-    });
-  },
-  defaultModelProvider: async () => {
-    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
-    const runtime = await ModelRuntime.create({});
-    const models = await runtime.getAvailable();
-    return models.length > 0 ? String(models[0]?.provider) : undefined;
-  },
-});
-
-/**
  * Discovery client backed by the SDK's `DefaultResourceLoader` — the same
- * loader sterile Pi sessions use (global config, no extensions), so the `$`
- * and `/` pickers list exactly what the agent can invoke. Skills map 1:1;
+ * loader used for Pi resources, but without executing extensions during probes.
+ * Extension commands can be typed directly. Skills map 1:1;
  * prompt templates become slash commands with the template's argument hint.
  */
 const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
@@ -183,21 +154,43 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         env: process.env,
       });
 
+      // One catalog host per instance: extension models enter the provider
+      // snapshot here, so every picker lists them with no per-thread work.
+      // Thread sessions keep full per-thread loading for tools and hooks.
+      const catalogHost = yield* Effect.acquireRelease(
+        Effect.tryPromise({
+          try: () => PiCatalogHost.create(),
+          catch: (cause) =>
+            new ProviderDriverError({
+              driver: DRIVER_KIND,
+              instanceId,
+              detail: `Failed to load Pi extensions: ${cause instanceof Error ? cause.message : String(cause)}`,
+              cause,
+            }),
+        }),
+        (host) => Effect.promise(() => host.dispose()),
+      );
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
         createSession: createPiSession,
       });
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
         createSession: ({ cwd }) =>
-          createPiSession({
-            cwd,
-            model: undefined,
-            thinkingLevel: undefined,
-            resumeSessionFile: undefined,
-          }),
+          createPiSession(
+            {
+              cwd,
+              model: undefined,
+              thinkingLevel: undefined,
+              resumeSessionFile: undefined,
+            },
+            { extensions: false },
+          ),
       });
 
-      const probeClient = makeSdkProbeClient();
+      const probeClient: PiProbeClient = {
+        listModels: () => catalogHost.listModels(),
+        defaultModelProvider: () => catalogHost.defaultModelProvider(),
+      };
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
         probeClient,
@@ -225,6 +218,20 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         ),
       );
 
+      // Catalog registrations (including background refreshes) republish the
+      // snapshot. The refresh semaphore serializes bursts; the health
+      // interval backstops a missed push.
+      const catalogChanges = yield* Queue.unbounded<void>();
+      const unsubscribeCatalog = catalogHost.onChange(() => {
+        Queue.offerUnsafe(catalogChanges, undefined);
+      });
+      yield* Effect.addFinalizer(() => Effect.sync(unsubscribeCatalog));
+      yield* Queue.take(catalogChanges).pipe(
+        Effect.flatMap(() => snapshot.refresh.pipe(Effect.asVoid)),
+        Effect.forever,
+        Effect.forkScoped,
+      );
+
       return {
         instanceId,
         driverKind: DRIVER_KIND,
@@ -235,6 +242,24 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         snapshot,
         adapter,
         textGeneration,
+        piCatalog: {
+          getCatalog: () =>
+            Effect.tryPromise({
+              try: () => catalogHost.getCatalog(),
+              catch: (cause) =>
+                new PiCatalogError({
+                  message: cause instanceof Error ? cause.message : String(cause),
+                }),
+            }),
+          refreshCatalog: () =>
+            Effect.tryPromise({
+              try: () => catalogHost.refreshCatalog(),
+              catch: (cause) =>
+                new PiCatalogError({
+                  message: cause instanceof Error ? cause.message : String(cause),
+                }),
+            }),
+        },
       } satisfies ProviderInstance;
     }),
 };
