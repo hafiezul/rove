@@ -85,6 +85,8 @@ import {
   groupByProvider,
   isModelSelectionUnavailable,
 } from "../../lib/modelOptions";
+import { useProviderResources } from "../../lib/useProviderResources";
+import { ProviderExtensions } from "./ProviderExtensions";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import type { RemoteClientConnectionState } from "../../lib/connection";
 import { resolveProviderOptionDescriptors } from "../../lib/providerOptions";
@@ -331,6 +333,14 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   const modelUnavailable =
     props.connectionState === "connected" &&
     isModelSelectionUnavailable(props.serverConfig, currentModelSelection);
+  const configuredProvider = props.serverConfig?.providers.find(
+    (provider) => provider.instanceId === currentModelSelection.instanceId,
+  );
+  const showPiCatalog = configuredProvider?.driver === "pi" && configuredProvider.enabled;
+  const piCatalog = useProviderResources(
+    props.environmentId,
+    showPiCatalog ? currentModelSelection.instanceId : null,
+  );
   const selectedProviderStatus = useMemo(() => {
     if (!props.serverConfig) return null;
     return (
@@ -954,7 +964,8 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                       onPickFiles={props.onPickDraftFiles}
                     />
                     <View className="min-w-0 shrink">
-                      <ComposerInlineControl
+                      {showPiCatalog && <ProviderExtensions {...piCatalog} />}
+                  <ComposerInlineControl
                         accessibilityLabel="Model and reasoning settings"
                         emphasized
                         iconNode={

@@ -82,6 +82,7 @@ import {
   type NavigationWithFinishTransitioning,
 } from "./use-thread-settings-sheet-presentation";
 
+import { ProviderExtensions } from "./ProviderExtensions";
 import { makeTurnCommandMetadata } from "../../lib/commandMetadata";
 import {
   convertPastedImagesToAttachments,
@@ -1470,7 +1471,8 @@ export function NewTaskDraftScreen(props: {
         </View>
       </View>
 
-      <ComposerInlineControl
+      {flow.showPiCatalog && <ProviderExtensions {...flow.piCatalog} />}
+                  <ComposerInlineControl
         accessibilityLabel={`Environment: ${selectedEnvironmentLabel}`}
         chevronDirection="right"
         disabled={isComposerInteractionLocked || voiceInput.isBusy}

@@ -17,6 +17,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import type * as PlatformError from "effect/PlatformError";
+import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 import { isTemporaryWorktreeBranch } from "@t3tools/shared/git";
@@ -60,6 +61,25 @@ function sameId(left: string | null | undefined, right: string | null | undefine
     return false;
   }
   return left === right;
+}
+
+/**
+ * Timeout-gated capture retry (issue: cold-index full-tree adds exceed the
+ * 30s git timeout under disk load). Retries once after a delay, gated to
+ * `VcsProcessTimeoutError` so persistent failures still fail fast. Exported
+ * for unit tests; both capture paths (turn completion, placeholder) share it.
+ */
+export function captureCheckpointWithTimeoutRetry(
+  capture: Effect.Effect<void, CheckpointStoreError>,
+  schedule: Schedule.Schedule<number, unknown, never> = Schedule.fixed("10 seconds"),
+): Effect.Effect<void, CheckpointStoreError> {
+  return capture.pipe(
+    Effect.retry({
+      times: 1,
+      while: (error) => error._tag === "VcsProcessTimeoutError",
+      schedule,
+    }),
+  );
 }
 
 function checkpointStatusFromRuntime(status: string | undefined): "ready" | "missing" | "error" {
@@ -249,10 +269,15 @@ const make = Effect.gen(function* () {
       });
     }
 
-    yield* checkpointStore.captureCheckpoint({
-      cwd: input.cwd,
-      checkpointRef: targetCheckpointRef,
-    });
+    // Cold-index full-tree adds can exceed the 30s git timeout under disk
+    // load; one delayed retry heals transient spikes. Gated to timeouts so
+    // persistent failures (missing git, broken repo) still fail fast.
+    yield* captureCheckpointWithTimeoutRetry(
+      checkpointStore.captureCheckpoint({
+        cwd: input.cwd,
+        checkpointRef: targetCheckpointRef,
+      }),
+    );
 
     // Refresh the workspace entry index so the @-mention file picker
     // reflects files created or deleted during this turn.

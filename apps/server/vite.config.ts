@@ -95,6 +95,40 @@ export default mergeConfig(
             },
           }
         : {}),
+      plugins: [
+        {
+          name: "pi-extension-virtual-modules",
+          transform(code, id) {
+            if (
+              !id
+                .replaceAll("\\", "/")
+                .endsWith("/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js")
+            )
+              return;
+            // Disk aliases cannot resolve inside Rove's bundle. Read the circular SDK namespace lazily.
+            const replacements = [
+              ["...(isBunBinary", "...(true"],
+              [
+                '"@earendil-works/pi-coding-agent": _bundledPiCodingAgent,',
+                'get "@earendil-works/pi-coding-agent"() { return _bundledPiCodingAgent; },',
+              ],
+              [
+                '"@mariozechner/pi-coding-agent": _bundledPiCodingAgent,',
+                'get "@mariozechner/pi-coding-agent"() { return _bundledPiCodingAgent; },',
+              ],
+            ] as const;
+            for (const [before, after] of replacements) {
+              if (!code.includes(before)) {
+                throw new Error(
+                  "Pi extension loader changed. Update the bundled-module transform.",
+                );
+              }
+              code = code.replace(before, after);
+            }
+            return code;
+          },
+        },
+      ],
       deps: {
         // Both halves are required. `alwaysBundle` forces the JS dependencies in
         // (declared deps are external by default, which is what this change is

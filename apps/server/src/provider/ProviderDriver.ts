@@ -23,6 +23,8 @@
  */
 import type {
   ProviderConsumeResetCreditOutcome,
+  PiCatalogSnapshot,
+  PiCatalogError,
   ProviderDriverKind,
   ProviderInstanceEnvironment,
   ProviderInstanceId,
@@ -86,6 +88,10 @@ export interface ProviderInstance {
   readonly adapter: ProviderAdapterShape<ProviderAdapterError>;
   readonly textGeneration: TextGeneration.TextGeneration["Service"];
   readonly auth?: ProviderAuthController;
+  readonly piCatalog?: {
+    readonly getCatalog: () => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
+    readonly refreshCatalog: () => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
+  };
 }
 
 export interface ProviderContinuationIdentity {

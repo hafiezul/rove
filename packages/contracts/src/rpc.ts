@@ -105,6 +105,7 @@ import {
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
+import { PiCatalogInput, PiCatalogSnapshot, PiCatalogError } from "./piCatalog.ts";
 import {
   PullRequestActionInput,
   PullRequestActivity,
@@ -358,6 +359,8 @@ export const WS_METHODS = {
   serverProbe: "server.probe",
   serverGetConfig: "server.getConfig",
   serverRefreshProviders: "server.refreshProviders",
+  piGetCatalog: "pi.getCatalog",
+  piRefreshCatalog: "pi.refreshCatalog",
   serverUpdateProvider: "server.updateProvider",
   serverUpdateServer: "server.updateServer",
   serverUpdateServerWithProgress: "server.updateServerWithProgress",
@@ -458,6 +461,18 @@ const WsServerGetConfigRpc = Rpc.make(WS_METHODS.serverGetConfig, {
   payload: Schema.Struct({}),
   success: ServerConfig,
   error: Schema.Union([KeybindingsConfigError, ServerSettingsError, EnvironmentAuthorizationError]),
+});
+
+export const WsPiGetCatalogRpc = Rpc.make(WS_METHODS.piGetCatalog, {
+  payload: PiCatalogInput,
+  success: PiCatalogSnapshot,
+  error: Schema.Union([PiCatalogError, EnvironmentAuthorizationError]),
+});
+
+export const WsPiRefreshCatalogRpc = Rpc.make(WS_METHODS.piRefreshCatalog, {
+  payload: PiCatalogInput,
+  success: PiCatalogSnapshot,
+  error: Schema.Union([PiCatalogError, EnvironmentAuthorizationError]),
 });
 
 const WsServerRefreshProvidersRpc = Rpc.make(WS_METHODS.serverRefreshProviders, {
@@ -1361,6 +1376,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerProbeRpc,
   WsServerGetConfigRpc,
   WsServerRefreshProvidersRpc,
+  WsPiGetCatalogRpc,
+  WsPiRefreshCatalogRpc,
   WsServerUpdateProviderRpc,
   WsProviderConsumeResetCreditRpc,
   WsProviderAuthStartRpc,

@@ -2,8 +2,8 @@
  * PiSessionFactory — builds the real in-process Pi sessions for `PiAdapter`.
  *
  * Wires `@earendil-works/pi-coding-agent` per the settled provider design:
- *   - Sterile Pi: global config (auth, models, skills, prompt templates) is
- *     loaded, extensions are not (DefaultResourceLoader with noExtensions).
+ *   - Headless extensions: tools, commands, and hooks load through the SDK.
+ *     Terminal UI is unavailable.
  *   - Always-trust: project-local resources are trusted, matching Rove Code's
  *     full-access stance and avoiding silent divergence from terminal `pi`.
  *   - Resume: a thread's `resumeCursor` holds the Pi session id; we re-adopt
@@ -21,8 +21,8 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 import {
-  createAgentSession,
-  DefaultResourceLoader,
+  createAgentSessionFromServices,
+  createAgentSessionServices,
   getAgentDir,
   ModelRuntime,
   resolveCliModel,
@@ -33,7 +33,7 @@ import {
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
-import type { PiCreateSessionInput, PiSessionLike } from "./PiAdapter.ts";
+import type { PiCreateSessionInput, PiSessionEventLike, PiSessionLike } from "./PiAdapter.ts";
 
 /**
  * Adapt an SDK `AgentSession` to the narrow `PiSessionLike` surface the
@@ -56,8 +56,56 @@ export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: strin
   return resolved.model;
 }
 
-function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiSessionLike {
-  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+async function toPiSessionLike(
+  session: AgentSession,
+  modelRuntime: ModelRuntime,
+): Promise<PiSessionLike> {
+  const listeners = new Set<(event: PiSessionEventLike) => void>();
+  const startupErrors: PiSessionEventLike[] = [];
+  const emit = (event: PiSessionEventLike) => {
+    for (const listener of listeners) listener(event);
+  };
+  let disposal: Promise<void> | undefined;
+  const dispose = () =>
+    (disposal ??= (async () => {
+      try {
+        await session.abort();
+        await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+      } finally {
+        session.dispose();
+        listeners.clear();
+      }
+    })());
+
+  const unsupportedSessionControl = async (): Promise<never> => {
+    throw new Error(
+      "Pi extension session replacement and reload are not supported in Rove. Use Rove's thread controls.",
+    );
+  };
+  try {
+    await session.bindExtensions({
+      mode: "print",
+      commandContextActions: {
+        waitForIdle: () => session.waitForIdle(),
+        newSession: unsupportedSessionControl,
+        fork: unsupportedSessionControl,
+        navigateTree: unsupportedSessionControl,
+        switchSession: unsupportedSessionControl,
+        reload: unsupportedSessionControl,
+      },
+      onError: (error) => {
+        const event = { type: "extension_error", ...error };
+        if (listeners.size === 0) {
+          startupErrors.push(event);
+          if (startupErrors.length > 50) startupErrors.shift();
+        } else emit(event);
+      },
+    });
+  } catch (error) {
+    await dispose();
+    throw error;
+  }
+
   return {
     get sessionId() {
       return session.sessionId;
@@ -72,16 +120,44 @@ function toPiSessionLike(session: AgentSession, modelRuntime: ModelRuntime): PiS
     get autoCompactionEnabled() {
       return session.autoCompactionEnabled;
     },
-    prompt: (text, options) => session.prompt(text, options),
+    prompt: async (text, options) => {
+      let agentStarted = false;
+      const unsubscribe = session.subscribe((event) => {
+        if (event.type === "agent_start") agentStarted = true;
+      });
+      try {
+        await session.prompt(text, { ...options, source: "rpc" });
+        // Commands and handled input can finish without emitting agent_settled.
+        if (!agentStarted && session.isIdle) emit({ type: "agent_settled" });
+      } catch (error) {
+        emit({
+          type: "prompt_error",
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      } finally {
+        unsubscribe();
+      }
+    },
     steer: (text) => session.steer(text),
     followUp: (text) => session.followUp(text),
     abort: () => session.abort(),
-    dispose: () => session.dispose(),
+    dispose,
     setModel: async (slug) => {
       await session.setModel(resolvePiModelForSession(modelRuntime, slug));
     },
+    // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
-    subscribe: (listener) => session.subscribe((event) => listener(event as never)),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      // SAFETY: The adapter reads only the SDK event's JSON-compatible fields.
+      const unsubscribe = session.subscribe((event) => listener(event as never));
+      for (const event of startupErrors.splice(0)) listener(event);
+      return () => {
+        listeners.delete(listener);
+        unsubscribe();
+      };
+    },
     getEntries: () => session.sessionManager.getEntries(),
     getBranch: () => session.sessionManager.getBranch(),
     getSessionStats: () => session.getSessionStats(),
@@ -116,23 +192,29 @@ export function resolvePiSessionFileForTest(cwd: string, sessionId: string): str
   return match === undefined ? undefined : NodePath.join(sessionDir, match);
 }
 
-export async function createPiSession(input: PiCreateSessionInput): Promise<PiSessionLike> {
+export async function createPiSession(
+  input: PiCreateSessionInput,
+  options: { extensions?: boolean } = {},
+): Promise<PiSessionLike> {
   const cwd = input.cwd;
   const agentDir = getAgentDir();
 
-  // Sterile Pi: load the user's global resources but never extensions. Skills
-  // and prompt templates stay on (they are prompt content, harmless headless);
-  // themes are irrelevant without a UI but cheap to leave on.
-  const resourceLoader = new DefaultResourceLoader({
+  const settingsManager = SettingsManager.create(cwd, agentDir);
+  // Trust applies only to this session, not the user's global Pi settings.
+  settingsManager.setProjectTrusted(true);
+  const services = await createAgentSessionServices({
     cwd,
     agentDir,
-    noExtensions: true,
+    settingsManager,
+    resourceLoaderOptions: { noExtensions: options.extensions === false },
   });
-
-  const settingsManager = SettingsManager.create(cwd, agentDir);
-  // Always-trust: Rove Code threads are user-initiated work, and silently ignoring
-  // project resources would diverge the thread from terminal `pi` behaviour.
-  settingsManager.setDefaultProjectTrust("always");
+  const errors = [
+    ...services.resourceLoader.getExtensions().errors.map(({ path, error }) => `${path}: ${error}`),
+    ...services.diagnostics
+      .filter((diagnostic) => diagnostic.type === "error")
+      .map((diagnostic) => diagnostic.message),
+  ];
+  if (errors.length > 0) throw new Error(`Failed to load Pi extensions:\n${errors.join("\n")}`);
 
   const resumeFile =
     input.resumeSessionFile !== undefined
@@ -143,7 +225,7 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
 
   // Resolve the model/thinking override against the user's catalog. Blank
   // (the default) means Pi's own default from settings wins — pass nothing.
-  const modelRuntime = await ModelRuntime.create({});
+  const { modelRuntime } = services;
   const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     resolved =
       input.model !== undefined
@@ -156,13 +238,9 @@ export async function createPiSession(input: PiCreateSessionInput): Promise<PiSe
           })
         : undefined;
 
-  const { session } = await createAgentSession({
-    cwd,
-    agentDir,
+  const { session } = await createAgentSessionFromServices({
+    services,
     sessionManager,
-    settingsManager,
-    resourceLoader,
-    modelRuntime,
     ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
     ...(resolved?.thinkingLevel !== undefined
       ? { thinkingLevel: resolved.thinkingLevel }
