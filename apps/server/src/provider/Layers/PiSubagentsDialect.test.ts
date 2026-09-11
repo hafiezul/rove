@@ -121,10 +121,10 @@ describe("pi-subagents dialect", () => {
     });
     const started = descriptors.filter((d) => d.type === "task.started");
     assert.strictEqual(started.length, 3);
-    const ids = started.map((d) => (d.type === "task.started" ? String(d.payload.taskId) : ""));
-    assert.ok(ids.includes("a9154cbe-9c7c-4947-ae51-102579e87132"));
-    assert.ok(ids.includes("a9154cbe-9c7c-4947-ae51-102579e87132:wf:scout-dirs"));
-    assert.ok(ids.includes("a9154cbe-9c7c-4947-ae51-102579e87132:wf:delegate-os-date"));
+    const ids = new Set(started.map((d) => String(d.payload.taskId)));
+    assert.ok(ids.has("a9154cbe-9c7c-4947-ae51-102579e87132"));
+    assert.ok(ids.has("a9154cbe-9c7c-4947-ae51-102579e87132:wf:scout-dirs"));
+    assert.ok(ids.has("a9154cbe-9c7c-4947-ae51-102579e87132:wf:delegate-os-date"));
   });
 
   it("fails the leaf on unknown-model launch without a run id", () => {

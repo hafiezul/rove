@@ -669,13 +669,7 @@ export function makePiAdapter(
               if (descriptor.type === "task.started") {
                 // Track open singles for notify correlation: workflow members
                 // carry parentAgentId and settle via their coordinator.
-                const payload = descriptor.payload as {
-                  taskType?: unknown;
-                  parentAgentId?: unknown;
-                  role?: unknown;
-                  title?: unknown;
-                  taskId?: unknown;
-                };
+                const payload = descriptor.payload;
                 if (payload.taskType === "subagent" && payload.parentAgentId === undefined) {
                   const agent = RuntimePredicate.isString(payload.role) ? payload.role : undefined;
                   const taskId = String(payload.taskId ?? "");
@@ -699,7 +693,7 @@ export function makePiAdapter(
                   payload: descriptor.payload,
                 });
               } else {
-                const taskId = String((descriptor.payload as { taskId?: unknown }).taskId ?? "");
+                const taskId = String(descriptor.payload.taskId ?? "");
                 if (taskId)
                   ctx.openSingles = ctx.openSingles.filter((open) => open.taskId !== taskId);
                 yield* offerRuntimeEvent({

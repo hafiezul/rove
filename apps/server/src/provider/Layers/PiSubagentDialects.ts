@@ -80,6 +80,7 @@ export interface PiSubagentDialect {
   /** Roster rows for one tool result. */
   describeToolTasks(input: PiSubagentToolInput): ReadonlyArray<PiSubagentTaskDescriptor>;
   /** Parse one wake-message content into neutral shape (undefined = not ours). */
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This parser is the boundary for untrusted extension message content.
   parseNotifyContent(content: unknown): PiNotifyReading | undefined;
 }
 
