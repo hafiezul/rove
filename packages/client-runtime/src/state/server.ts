@@ -724,6 +724,19 @@ export function createServerEnvironmentAtoms<R, E>(
           Stream.mapAccum(Option.none<ServerLifecycleWelcomePayload>, projectServerWelcome),
         ),
     }),
+    piCatalog: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:pi-catalog",
+      tag: WS_METHODS.piGetCatalog,
+      staleTimeMs: 30_000,
+    }),
+    refreshPiCatalog: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:refresh-pi-catalog",
+      tag: WS_METHODS.piRefreshCatalog,
+      concurrency: {
+        mode: "singleFlight",
+        key: ({ environmentId, input }) => `${environmentId}:${input.instanceId}`,
+      },
+    }),
     refreshProviders: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:refresh-providers",
       tag: WS_METHODS.serverRefreshProviders,

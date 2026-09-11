@@ -1460,6 +1460,14 @@ const makeWsRpcLayer = (
             ).pipe(Effect.map((providers) => ({ providers }))),
             { "rpc.aggregate": "server" },
           ),
+        [WS_METHODS.piGetCatalog]: (input) =>
+          observeRpcEffect(WS_METHODS.piGetCatalog, providerRegistry.piCatalog(input), {
+            "rpc.aggregate": "provider",
+          }),
+        [WS_METHODS.piRefreshCatalog]: (input) =>
+          observeRpcEffect(WS_METHODS.piRefreshCatalog, providerRegistry.refreshPiCatalog(input), {
+            "rpc.aggregate": "provider",
+          }),
         [WS_METHODS.serverUpdateProvider]: (input) =>
           observeRpcEffect(
             WS_METHODS.serverUpdateProvider,

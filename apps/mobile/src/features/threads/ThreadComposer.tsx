@@ -56,6 +56,8 @@ import { ControlPill } from "../../components/ControlPill";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import type { DraftComposerImageAttachment } from "../../lib/composerImages";
 import { buildModelOptions, groupByProvider } from "../../lib/modelOptions";
+import { useProviderResources } from "../../lib/useProviderResources";
+import { ProviderExtensions } from "./ProviderExtensions";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import type { RemoteClientConnectionState } from "../../lib/connection";
 import {
@@ -337,6 +339,14 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   });
   const toolbarFadeOpaque = isDarkMode ? "rgba(0,0,0,0.95)" : "rgba(255,255,255,0.95)";
   const toolbarFadeTransparent = isDarkMode ? "rgba(0,0,0,0)" : "rgba(255,255,255,0)";
+  const configuredProvider = props.serverConfig?.providers.find(
+    (provider) => provider.instanceId === currentModelSelection.instanceId,
+  );
+  const showPiCatalog = configuredProvider?.driver === "pi" && configuredProvider.enabled;
+  const piCatalog = useProviderResources(
+    props.environmentId,
+    showPiCatalog ? currentModelSelection.instanceId : null,
+  );
   const selectedProviderStatus = useMemo(() => {
     if (!props.serverConfig) return null;
     return (
@@ -860,6 +870,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                   onPress={() => void props.onPickDraftImages()}
                   showChevron={false}
                 />
+                {showPiCatalog && <ProviderExtensions {...piCatalog} />}
                 <ComposerInlineControl
                   accessibilityLabel="Model and reasoning settings"
                   emphasized

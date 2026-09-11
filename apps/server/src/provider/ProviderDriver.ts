@@ -22,6 +22,8 @@
  * @module provider/ProviderDriver
  */
 import type {
+  PiCatalogSnapshot,
+  PiCatalogError,
   ProviderDriverKind,
   ProviderInstanceEnvironment,
   ProviderInstanceId,
@@ -71,6 +73,10 @@ export interface ProviderInstance {
   readonly snapshot: ServerProviderContract;
   readonly adapter: ProviderAdapterContract<ProviderAdapterError>;
   readonly textGeneration: TextGeneration.TextGeneration["Service"];
+  readonly piCatalog?: {
+    readonly getCatalog: () => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
+    readonly refreshCatalog: () => Effect.Effect<PiCatalogSnapshot, PiCatalogError>;
+  };
 }
 
 export interface ProviderContinuationIdentity {

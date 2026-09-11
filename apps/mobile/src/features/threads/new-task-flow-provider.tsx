@@ -27,6 +27,7 @@ import { pipe } from "effect/Function";
 
 import { useEnvironmentServerConfig, useProjects, useThreadShells } from "../../state/entities";
 import type { TurnCommandMetadata } from "../../lib/commandMetadata";
+import { useProviderResources } from "../../lib/useProviderResources";
 import type { DraftComposerImageAttachment } from "../../lib/composerImages";
 import type { ModelOption, ProviderGroup } from "../../lib/modelOptions";
 import {
@@ -153,6 +154,8 @@ type NewTaskFlowContextValue = {
   readonly selectedModel: ModelSelection | null;
   readonly selectedModelOption: ModelOption | null;
   readonly selectedProviderSkills: ReadonlyArray<ServerProviderSkill>;
+  readonly piCatalog: ReturnType<typeof useProviderResources>;
+  readonly showPiCatalog: boolean;
   readonly providerGroups: ReadonlyArray<ProviderGroup>;
   readonly filteredBranches: ReadonlyArray<VcsRef>;
   readonly reset: () => void;
@@ -437,6 +440,16 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
     ? `${selectedModel.instanceId}:${selectedModel.model}`
     : null;
 
+  const catalogProvider = selectedEnvironmentServerConfig?.providers.find(
+    (provider) => provider.instanceId === selectedModel?.instanceId,
+  );
+  // Extension models arrive through the provider snapshot. The catalog panel
+  // is instance level and needs no thread.
+  const showPiCatalog = catalogProvider?.driver === "pi" && catalogProvider.enabled === true;
+  const piCatalog = useProviderResources(
+    selectedProject?.environmentId ?? null,
+    showPiCatalog && selectedModel ? selectedModel.instanceId : null,
+  );
   const selectedModelOption =
     modelOptions.find(
       (option) =>
@@ -1020,6 +1033,8 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       selectedModel,
       selectedModelOption,
       selectedProviderSkills,
+      piCatalog,
+      showPiCatalog,
       providerGroups,
       filteredBranches,
       reset,
@@ -1082,6 +1097,8 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       selectedModelOption,
       selectedProjectDraftKey,
       selectedProviderSkills,
+      piCatalog,
+      showPiCatalog,
       setSelectedModelOptions,
       selectedProject,
       selectedProjectKey,

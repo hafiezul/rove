@@ -1,7 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { assert, it } from "@effect/vitest";
+import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Deferred from "effect/Deferred";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
@@ -15,7 +16,9 @@ import {
 } from "@t3tools/contracts";
 
 import {
+  describePiToolCall,
   makePiAdapter,
+  resolvePiToolCallArgs,
   type PiSessionEntryLike,
   type PiSessionEventLike,
   type PiSessionLike,
@@ -150,6 +153,135 @@ const waitFor = (
   }).pipe(TestClock.withLive);
 
 it.layer(testLayer)("PiAdapter", (it) => {
+  it.effect("publishes extension failures as warnings and completes handled commands", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const warning = yield* Deferred.make<ProviderRuntimeEvent>();
+      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          if (event.type === "runtime.warning") return Deferred.succeed(warning, event);
+          if (event.type === "turn.completed") return Deferred.succeed(completion, event);
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "/broken" });
+      fake.emit({
+        type: "extension_error",
+        extensionPath: "command:broken",
+        error: "Command failed",
+      });
+      fake.emit({ type: "agent_settled" });
+      const warningEvent = yield* Deferred.await(warning);
+      assert.strictEqual(warningEvent.type, "runtime.warning");
+      if (warningEvent.type === "runtime.warning")
+        assert.include(warningEvent.payload.message, "Command failed");
+      const completed = yield* Deferred.await(completion);
+      assert.strictEqual(completed.turnId, turn.turnId);
+      if (completed.type === "turn.completed")
+        assert.strictEqual(completed.payload.state, "completed");
+    }),
+  );
+
+  it.effect("fails a rejected prompt instead of leaving the turn running", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "turn.completed" ? Deferred.succeed(completion, event) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.emit({ type: "prompt_error", error: "No model configured" });
+      const completed = yield* Deferred.await(completion);
+      assert.strictEqual(completed.turnId, turn.turnId);
+      if (completed.type === "turn.completed") {
+        assert.strictEqual(completed.payload.state, "failed");
+        assert.strictEqual(completed.payload.errorMessage, "No model configured");
+      }
+    }),
+  );
+
+  for (const delivery of ["message_end", "agent_end"] as const) {
+    it.effect(
+      `completes repeated same-agent notifications via ${delivery} without replaying them`,
+      () =>
+        Effect.gen(function* () {
+          const fake = new FakePiSession();
+          const adapter = yield* makeAdapter(fake);
+          const drained = yield* Deferred.make<void>();
+          const completedTaskIds: string[] = [];
+          let completedAfterReplay: string[] = [];
+          yield* adapter.streamEvents.pipe(
+            Stream.runForEach((event) => {
+              if (event.type === "task.completed") completedTaskIds.push(event.payload.taskId);
+              if (event.type !== "runtime.warning") return Effect.void;
+              if (event.payload.message.includes("replay marker")) {
+                completedAfterReplay = [...completedTaskIds];
+                return Effect.void;
+              }
+              return Deferred.succeed(drained, undefined);
+            }),
+            Effect.forkChild({ startImmediately: true }),
+          );
+          yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+          yield* adapter.sendTurn({ threadId, input: "Run two research tasks" });
+
+          const first = {
+            role: "custom",
+            customType: "subagent-notify",
+            content: "Background task completed: **researcher**",
+            timestamp: 1,
+          };
+          const second = { ...first };
+          const launch = (runId: string) =>
+            fake.emit({
+              type: "tool_execution_end",
+              toolName: "subagent",
+              toolCallId: runId,
+              args: { agent: "researcher" },
+              result: { details: { mode: "single", runId } },
+            });
+          launch("first-run");
+          if (delivery === "message_end") fake.emit({ type: "message_end", message: first });
+          fake.emit({ type: "agent_end", messages: [first] });
+          launch("second-run");
+          fake.emit({ type: "agent_end", messages: [first] });
+          fake.emit({ type: "extension_error", error: "replay marker" });
+          if (delivery === "message_end") fake.emit({ type: "message_end", message: second });
+          fake.emit({ type: "agent_end", messages: [first, second] });
+          fake.emit({ type: "agent_end", messages: [first, second] });
+          fake.emit({ type: "extension_error", error: "drain marker" });
+          yield* Deferred.await(drained);
+
+          assert.deepStrictEqual(completedAfterReplay, ["first-run"]);
+          assert.deepStrictEqual(completedTaskIds, ["first-run", "second-run"]);
+        }),
+    );
+  }
+
+  it.effect("stopAll waits for asynchronous extension shutdown", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.dispose = async () => {
+        await Promise.resolve();
+        fake.disposed = true;
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.stopAll();
+      assert.isTrue(fake.disposed);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+    }),
+  );
+
   it.effect("startSession creates a Pi session, emits started+ready, and lists it", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -422,6 +554,191 @@ it.layer(testLayer)("PiAdapter", (it) => {
         [String(firstItemId), String(secondItemId)],
       );
       assert.isTrue(assistantDeltas.every((event) => event.turnId === turnId));
+    }),
+  );
+
+  it.effect("opens a follow-up turn when Pi resumes after settling", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId: firstTurnId } = yield* adapter.sendTurn({
+        threadId,
+        input: "run subagents",
+      });
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "Working." },
+      });
+      fake.emit({ type: "message_end", message: { role: "assistant", stopReason: "stop" } });
+      fake.emit({ type: "agent_settled" });
+      yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
+
+      // Background subagent completions wake the Pi loop without a new
+      // prompt: the resumed work must surface as a follow-up turn, not
+      // vanish after the first turn completed.
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          contentIndex: 0,
+          delta: "All three subagents completed.",
+        },
+      });
+      fake.emit({ type: "message_end", message: { role: "assistant", stopReason: "stop" } });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(
+        eventsRef,
+        (e) => e.filter((ev) => ev.type === "turn.completed").length === 2,
+      );
+      const started = events.filter((e) => e.type === "turn.started");
+      const completed = events.filter((e) => e.type === "turn.completed");
+      // One turn.started for the initial turn plus one per internal
+      // turn_start; the follow-up turn mints a distinct id.
+      const followUpStarts = started.filter((e) => e.turnId !== firstTurnId);
+      assert.isAtLeast(followUpStarts.length, 1);
+      const followUpTurnId = followUpStarts[0]?.turnId;
+      assert.notStrictEqual(followUpTurnId, undefined);
+      assert.strictEqual(completed[0]?.turnId, firstTurnId);
+      assert.strictEqual(completed[1]?.turnId, followUpTurnId);
+      const followUpDeltas = events.filter(
+        (e) => e.type === "content.delta" && e.turnId === followUpTurnId,
+      );
+      assert.isAtLeast(followUpDeltas.length, 1);
+      const followUpCompletions = events.filter(
+        (e) =>
+          e.type === "item.completed" &&
+          e.payload.itemType === "assistant_message" &&
+          e.turnId === followUpTurnId,
+      );
+      assert.strictEqual(followUpCompletions.length, 1);
+    }),
+  );
+
+  it.effect("attaches late tool events to a follow-up turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId: firstTurnId } = yield* adapter.sendTurn({
+        threadId,
+        input: "run subagents",
+      });
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "agent_settled" });
+      yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
+
+      fake.emit({
+        type: "tool_execution_start",
+        toolCallId: "late-tool-1",
+        toolName: "bash",
+        args: {},
+      });
+      fake.emit({
+        type: "tool_execution_end",
+        toolCallId: "late-tool-1",
+        toolName: "bash",
+        result: {},
+        isError: false,
+      });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(
+        eventsRef,
+        (e) => e.filter((ev) => ev.type === "turn.completed").length === 2,
+      );
+      const toolStarted = events.find(
+        (e) => e.type === "item.started" && e.itemId === "late-tool-1",
+      );
+      const toolCompleted = events.find(
+        (e) => e.type === "item.completed" && e.itemId === "late-tool-1",
+      );
+      assert.notStrictEqual(toolStarted?.turnId, undefined);
+      assert.notStrictEqual(toolStarted?.turnId, firstTurnId);
+      assert.strictEqual(toolCompleted?.turnId, toolStarted?.turnId);
+    }),
+  );
+
+  it.effect("enriches Pi tool rows with resolved call arguments", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.messages = [
+        { role: "user", content: "run tests" },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "tool-bash-1",
+              name: "bash",
+              arguments: `{"command":"pnpm test"}`,
+            },
+          ],
+        },
+      ];
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      yield* adapter.sendTurn({ threadId, input: "run tests" });
+      fake.emit({ type: "turn_start" });
+      fake.emit({ type: "tool_execution_start", toolCallId: "tool-bash-1", toolName: "bash" });
+      fake.emit({
+        type: "tool_execution_end",
+        toolCallId: "tool-bash-1",
+        toolName: "bash",
+        result: { content: [{ type: "text", text: "ok" }] },
+        isError: false,
+      });
+
+      const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "item.completed"));
+      const started = events.find((e) => e.type === "item.started");
+      const completed = events.find((e) => e.type === "item.completed");
+      assert.strictEqual(started?.type, "item.started");
+      if (started?.type !== "item.started") return;
+      assert.deepStrictEqual(started.payload.data, { command: "pnpm test" });
+      assert.strictEqual(completed?.type, "item.completed");
+      if (completed?.type !== "item.completed") return;
+      assert.deepStrictEqual(completed.payload.data, {
+        content: [{ type: "text", text: "ok" }],
+        command: "pnpm test",
+      });
+    }),
+  );
+
+  it.effect("attaches the active turn to extension warnings", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "/broken" });
+      fake.emit({
+        type: "extension_error",
+        extensionPath: "command:broken",
+        error: "Auto-drain failed: 1 complete, 3 failed",
+      });
+      fake.emit({ type: "agent_settled" });
+
+      const events = yield* waitFor(eventsRef, (e) =>
+        e.some((ev) => ev.type === "runtime.warning"),
+      );
+      const warning = events.find((e) => e.type === "runtime.warning");
+      assert.strictEqual(warning?.turnId, turnId);
     }),
   );
 
@@ -930,4 +1247,52 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(snapshot.threadId, threadId);
     }),
   );
+});
+
+describe("pi tool-call arguments", () => {
+  it("resolves tool-call arguments from session messages", () => {
+    const messages = [
+      { role: "user", content: "hi" },
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "call_1", name: "bash", arguments: `{"command":"pnpm test"}` },
+          { type: "toolCall", id: "call_2", name: "read", arguments: { path: "src/a.ts" } },
+        ],
+      },
+    ];
+    assert.deepStrictEqual(resolvePiToolCallArgs(messages, "call_1"), { command: "pnpm test" });
+    assert.deepStrictEqual(resolvePiToolCallArgs(messages, "call_2"), { path: "src/a.ts" });
+    assert.strictEqual(resolvePiToolCallArgs(messages, "call_9"), undefined);
+    assert.strictEqual(resolvePiToolCallArgs(messages, ""), undefined);
+    assert.strictEqual(
+      resolvePiToolCallArgs(
+        [{ role: "assistant", content: [{ type: "toolCall", id: "x", arguments: "not-json" }] }],
+        "x",
+      ),
+      undefined,
+    );
+  });
+
+  it("shapes tool args into timeline fields", () => {
+    assert.deepStrictEqual(describePiToolCall("bash", { command: "pnpm test" }), {
+      data: { command: "pnpm test" },
+    });
+    assert.deepStrictEqual(describePiToolCall("read", { path: "src/a.ts" }), {
+      data: { path: "src/a.ts" },
+    });
+    assert.deepStrictEqual(describePiToolCall("edit", { path: "src/a.ts" }), {
+      data: { path: "src/a.ts" },
+    });
+    assert.deepStrictEqual(describePiToolCall("grep", { pattern: "TODO", path: "src" }), {
+      detail: `"TODO" in src`,
+      data: { path: "src" },
+    });
+    assert.deepStrictEqual(
+      describePiToolCall("subagent", { agent: "delegate", task: "Report shell/OS/date" }),
+      { title: "Subagent delegate", detail: "Report shell/OS/date" },
+    );
+    assert.deepStrictEqual(describePiToolCall("bash", undefined), {});
+    assert.deepStrictEqual(describePiToolCall("bash", {}), {});
+  });
 });

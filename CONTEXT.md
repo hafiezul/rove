@@ -16,7 +16,7 @@ A hidden git ref captured at each turn boundary. Reverting a checkpoint resets w
 _Avoid_: snapshot, savepoint
 
 **Sterile Pi**:
-A Pi session running with the user's global Pi configuration (auth, model catalog, skills, prompt templates) but with extensions disabled. The default shape of Pi sessions in Rove Code until extension UI dialogs are wired.
+A Pi session with extensions disabled. Rove uses this for auxiliary text generation. Thread sessions load headless extensions with tools, commands, and hooks enabled, but no extension UI. A separate catalog host loads global extensions once per Pi instance so extension models reach the provider snapshot.
 _Avoid_: clean Pi, sandboxed Pi
 
 **Fork-as-rollback**:

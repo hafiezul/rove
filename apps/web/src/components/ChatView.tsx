@@ -355,6 +355,7 @@ const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
+const EMPTY_STEERED_MESSAGE_IDS: ReadonlySet<MessageId> = new Set();
 function useDraftHeroLayoutTransition(isDraftHeroState: boolean) {
   const transitionGroupRef = useRef<HTMLDivElement | null>(null);
   const composerAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -2305,6 +2306,22 @@ function ChatViewContent(props: ChatViewProps) {
     threadError,
   });
   const isWorking = phase === "running" || isSendBusy || isConnecting || isRevertingCheckpoint;
+  // Prompts sent while a turn is already running steer into it (Pi) instead
+  // of opening a new turn. The ids render a "queued" chip until the turn
+  // settles so the send never looks ignored. Transient by design: once the
+  // turn settles the message was answered and the chip is meaningless.
+  const [steeredMessageIds, setSteeredMessageIds] =
+    useState<ReadonlySet<MessageId>>(EMPTY_STEERED_MESSAGE_IDS);
+  useEffect(() => {
+    setSteeredMessageIds(EMPTY_STEERED_MESSAGE_IDS);
+  }, [activeThreadId]);
+  useEffect(() => {
+    if (!isWorking) {
+      setSteeredMessageIds((existing) =>
+        existing.size > 0 ? EMPTY_STEERED_MESSAGE_IDS : existing,
+      );
+    }
+  }, [isWorking]);
   const activeWorkStartedAt = deriveActiveWorkStartedAt(
     activeLatestTurn,
     activeThread?.session ?? null,
@@ -2653,6 +2670,17 @@ function ChatViewContent(props: ChatViewProps) {
     const defaultInstanceId = defaultInstanceIdForDriver(selectedProvider);
     return providerStatuses.find((status) => status.instanceId === defaultInstanceId) ?? null;
   }, [activeProviderInstanceId, providerStatuses, selectedProvider]);
+  // Instance level Pi catalog for the header Extensions button. Null for
+  // every other provider, so the button only exists on Pi threads.
+  const piCatalogInstanceId = useMemo(
+    () =>
+      activeProviderStatus !== null &&
+      activeProviderStatus.driver === "pi" &&
+      activeProviderStatus.enabled
+        ? activeProviderStatus.instanceId
+        : null,
+    [activeProviderStatus],
+  );
   const providerStatusBannerKey = getProviderStatusBannerKey(activeProviderStatus);
   const [dismissedProviderStatusBannerKey, setDismissedProviderStatusBannerKey] = useState<
     string | null
@@ -5153,6 +5181,12 @@ function ChatViewContent(props: ChatViewProps) {
         streaming: false,
       },
     ]);
+    // Pi steers mid-run prompts into the running turn instead of opening a
+    // new one, which otherwise reads as an ignored send. Other providers
+    // have different mid-run semantics, so only Pi sends get the chip.
+    if (phase === "running" && ctxSelectedProvider === "pi") {
+      setSteeredMessageIds((existing) => new Set(existing).add(messageIdForSend));
+    }
     setThreadError(threadIdForSend, null);
     if (expiredTerminalContextCount > 0) {
       const toastCopy = buildExpiredTerminalContextToastCopy(
@@ -5310,6 +5344,12 @@ function ChatViewContent(props: ChatViewProps) {
           }
           const next = existing.filter((message) => message.id !== messageIdForSend);
           return next.length === existing.length ? existing : next;
+        });
+        setSteeredMessageIds((existing) => {
+          if (!existing.has(messageIdForSend)) return existing;
+          const next = new Set(existing);
+          next.delete(messageIdForSend);
+          return next;
         });
         promptRef.current = promptForSend;
         const retryComposerImages = composerImagesSnapshot.map(cloneComposerImageForRetry);
@@ -6215,6 +6255,7 @@ function ChatViewContent(props: ChatViewProps) {
             keybindings={keybindings}
             availableEditors={availableEditors}
             rightPanelOpen={rightPanelOpen}
+            piCatalogInstanceId={piCatalogInstanceId}
             gitCwd={gitCwd}
             onNewThreadInProject={handleNewThreadInActiveProject}
             onRunProjectScript={runProjectScript}
@@ -6248,6 +6289,7 @@ function ChatViewContent(props: ChatViewProps) {
               {/* Messages — LegendList handles virtualization and scrolling internally */}
               <MessagesTimeline
                 agentPanelModel={agentPanelModel}
+                steeredMessageIds={steeredMessageIds}
                 onOpenAgents={addAgentsSurface}
                 key={activeThread.id}
                 isWorking={isWorking}

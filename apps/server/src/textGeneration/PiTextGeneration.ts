@@ -121,7 +121,10 @@ export const makePiTextGeneration = (
               );
             }),
           ),
-        (session) => Effect.sync(() => session.dispose()),
+        (session) =>
+          Effect.promise(async () => {
+            await session.dispose();
+          }),
       );
 
     const generateCommitMessage: TextGeneration.TextGeneration["Service"]["generateCommitMessage"] =

@@ -15,8 +15,8 @@ typed session-replacement APIs (`fork`, used for fork-as-rollback).
 
 The rejected alternative — spawning `pi --mode rpc` per thread — offers crash
 isolation and runs the user's exact installed binary. We accepted the loss of
-isolation deliberately: a misbehaving Pi session (or a globally installed extension,
-once extension loading ships) can affect the server process, and mitigations live in
+isolation deliberately. A misbehaving Pi session or loaded extension can affect the
+server process, and mitigations live in
 ordinary adapter error-handling. Version drift is handled in the opposite direction
 from other providers: Rove Code controls the Pi version rather than discovering whatever
 the user has installed.
@@ -24,3 +24,24 @@ the user has installed.
 Reversing this decision means rewriting the adapter's transport, but the adapter
 boundary (driver + adapter conforming to `ProviderAdapterShape`) hides the swap from
 orchestration and clients.
+
+## Catalog host (provider-level extension models)
+
+Thread-scoped extension loading put models behind per-thread preparation:
+open thread, wait for a session, then read its catalog. Pickers, defaults,
+and selection validation all read the static provider snapshot instead, so
+extension models were visible but unselectable there.
+
+Each Pi driver instance now keeps one catalog host: a long-lived session
+that loads global extensions only (neutral cwd at the agent directory, so
+no project resources resolve) and publishes their models into the provider
+snapshot. Registration events republish; the provider health interval
+backstops a missed push. Thread sessions keep full per-thread loading for
+tools, hooks, and project extensions. A broken global extension degrades
+the catalog with a warning instead of failing the driver.
+
+The rejected alternative — full extension loading at provider level — would
+leak project tools, hooks, and trust decisions across projects sharing one
+runtime. The other rejected alternative — keeping thread-owned preparation —
+kept the phantom-session, expiry, and validation-patch machinery this
+removes.

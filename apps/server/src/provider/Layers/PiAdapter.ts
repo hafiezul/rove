@@ -5,9 +5,8 @@
  * subprocess adapter.
  *
  * One Pi `AgentSession` per Rove Code thread. Sessions run with the user's global
- * Pi config (auth, models, skills, prompt templates) but no extensions — the
- * "sterile Pi" shape from CONTEXT.md — because extension UI dialogs cannot be
- * answered headlessly yet. Rollback is fork-as-rollback: Pi sessions are
+ * Pi config and headless extensions. Extension dialogs and terminal rendering
+ * are unavailable. Rollback is fork-as-rollback: Pi sessions are
  * trees, so rolling back N turns forks the session at the entry that precedes
  * them and the fork becomes the thread's live session.
  *
@@ -22,6 +21,7 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   RuntimeItemId,
+  RuntimeTaskId,
   TurnId,
   type ProviderRuntimeEvent,
   type ProviderSendTurnInput,
@@ -42,6 +42,19 @@ import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
+import {
+  describeDialectToolTasks,
+  describeNotifyReading,
+  parseDialectNotify,
+  piBounded,
+  piNotifyTerminalStatus,
+  piRecord,
+  piTrimmed,
+  type PiNotifyReading,
+  type PiSubagentDialect,
+  type PiSubagentTaskDescriptor,
+} from "./PiSubagentDialects.ts";
+import { piSubagentsDialect } from "./PiSubagentsDialect.ts";
 import type {
   ProviderAdapterContract,
   ProviderThreadSnapshot,
@@ -95,6 +108,13 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 }
 
 const PROVIDER = ProviderDriverKind.make("pi");
+
+/**
+ * Registered subagent dialects. pi-subagents is the first (and currently only)
+ * entry; add new extensions here — the synthesis paths below dispatch through
+ * this list and never branch on extension identity.
+ */
+const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [piSubagentsDialect];
 
 function isPromiseWithCatch(
   value: unknown,
@@ -150,7 +170,7 @@ export interface PiSessionLike {
   steer(text: string): Promise<void>;
   followUp(text: string): Promise<void>;
   abort(): Promise<void>;
-  dispose(): void;
+  dispose(): void | Promise<void>;
   setModel?(model: string): Promise<void>;
   setThinkingLevel?(level: string): void;
   subscribe(listener: (event: PiSessionEventLike) => void): () => void;
@@ -201,7 +221,138 @@ interface PiSessionContext {
   nextAssistantMessageIndex: number;
   /** Deferred error from a failed assistant message, held until we know whether Pi will auto-retry. */
   pendingTurnError: string | undefined;
+  /** Resolved tool-call arguments by toolCallId (Pi SDK events omit args). */
+  toolCallArgs: Map<string, Record<string, SchemaJson>>;
+  /** Pi reuses message objects between message_end and agent_end. */
+  seenNotifyMessages: WeakSet<object>;
+  /** Open single subagent runs (no coordinator) for notify correlation. */
+  openSingles: Array<{ agent: string | undefined; taskId: string }>;
   unsubscribe: () => void;
+}
+
+/**
+ * Timeline enrichment for Pi tool rows (issue: bare "Bash/Read/Edit" rows).
+ *
+ * The Pi SDK's tool events carry no arguments — only the session's toolCall
+ * message blocks do — so without a session lookup the timeline can only
+ * render the tool noun. Resolved args are shaped into the payload fields the
+ * existing timeline extraction already reads (`data.command` for the command
+ * subtitle, `path`-ish keys for changed-file subtitles, top-level `detail`
+ * for grep-style summaries, `title` for subagent identity). Additive only:
+ * result content/details are never clobbered.
+ */
+export interface PiToolCallEnrichment {
+  readonly title?: string | undefined;
+  readonly detail?: string | undefined;
+  readonly data?: Record<string, SchemaJson> | undefined;
+}
+
+/** Backwards scan cap: toolCall blocks always sit near the tail (the call precedes its events by moments). */
+const PI_TOOL_CALL_SCAN_LIMIT = 200;
+
+function parsePiToolCallArguments(raw: unknown): Record<string, SchemaJson> | undefined {
+  if (RuntimePredicate.isString(raw)) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return piRecord(parsed);
+    } catch {
+      return undefined;
+    }
+  }
+  return piRecord(raw);
+}
+
+/** Cached session lookup: Pi SDK tool events omit args, so resolve once per call. */
+function resolveCachedPiToolArgs(
+  ctx: PiSessionContext,
+  toolCallId: string,
+): Record<string, SchemaJson> | undefined {
+  if (toolCallId.length === 0) return undefined;
+  const cached = ctx.toolCallArgs.get(toolCallId);
+  if (cached) return cached;
+  const resolved = resolvePiToolCallArgs(ctx.session.messages, toolCallId);
+  if (resolved) ctx.toolCallArgs.set(toolCallId, resolved);
+  return resolved;
+}
+
+export function resolvePiToolCallArgs(
+  messages: ReadonlyArray<unknown>,
+  toolCallId: string,
+): Record<string, SchemaJson> | undefined {
+  let scanned = 0;
+  for (
+    let index = messages.length - 1;
+    index >= 0 && scanned < PI_TOOL_CALL_SCAN_LIMIT;
+    index -= 1
+  ) {
+    scanned += 1;
+    const message = piRecord(messages[index]);
+    const content = message?.message ?? message;
+    const contentBlocks = piRecord(content)?.content;
+    const blocks = Array.isArray(contentBlocks) ? contentBlocks : undefined;
+    const directBlocks = message?.content;
+    const candidates = blocks ?? (Array.isArray(directBlocks) ? directBlocks : []);
+    for (const block of candidates) {
+      const record = piRecord(block);
+      if (record?.type !== "toolCall" || record.id !== toolCallId) continue;
+      const args = parsePiToolCallArguments(record.arguments);
+      if (args) return args;
+    }
+  }
+  return undefined;
+}
+
+export function describePiToolCall(
+  toolName: string,
+  args: Record<string, SchemaJson> | undefined,
+): PiToolCallEnrichment {
+  if (!args) return {};
+  const normalized = toolName.toLowerCase();
+  if (normalized.includes("bash") || normalized.includes("command")) {
+    const command = piTrimmed(args.command);
+    return command ? { data: { command } } : {};
+  }
+  if (normalized.includes("subagent")) {
+    const agent = piTrimmed(args?.agent);
+    const task = piTrimmed(args.task);
+    // Workflow launches carry their children in workflowScript, not a task
+    // string; the Agents tab owns that detail, the row just needs identity.
+    if (agent === undefined && task === undefined) return {};
+    return {
+      ...(agent ? { title: `Subagent ${agent}` } : undefined),
+      ...(task ? { detail: piBounded(task, 120) } : undefined),
+    };
+  }
+  if (normalized.includes("grep") || normalized.includes("find")) {
+    const pattern = piTrimmed(args.pattern);
+    const path = piTrimmed(args.path);
+    if (pattern === undefined && path === undefined) return {};
+    return {
+      ...(pattern && path
+        ? { detail: `"${pattern}" in ${path}` }
+        : pattern
+          ? { detail: pattern }
+          : undefined),
+      ...(path ? { data: { path } } : undefined),
+    };
+  }
+  if (
+    normalized.includes("read") ||
+    normalized.includes("edit") ||
+    normalized.includes("write") ||
+    normalized.includes("ls") ||
+    normalized.includes("patch")
+  ) {
+    const path = piTrimmed(args.path);
+    return path ? { data: { path } } : {};
+  }
+  if (normalized.includes("web") || normalized.includes("fetch")) {
+    const target = piTrimmed(args.url) ?? piTrimmed(args.query);
+    return target ? { detail: piBounded(target, 120) } : {};
+  }
+  return {};
 }
 
 type PiTokenUsagePublishReason = "startup" | "settled" | "model-switch" | "rollback" | "compaction";
@@ -467,6 +618,143 @@ export function makePiAdapter(
           threadId: ctx.threadId,
         } as const;
 
+        // Pi can wake the session after it settled: background subagent
+        // completions re-enter the agent loop without a new prompt, so
+        // turn/message/tool events arrive with no active Rove turn. Mint a
+        // follow-up turn so the resumed work (and its completion) stays
+        // visible instead of being dropped as orphan events. The projection
+        // pipeline upserts provider-initiated turns with no pending user
+        // message, and checkpoints capture on their completion like any turn.
+        const ensureActiveTurn = Effect.fn("ensurePiActiveTurn")(function* () {
+          if (ctx.activeTurnId !== undefined) return ctx.activeTurnId;
+          const turnId = TurnId.make(
+            yield* crypto.randomUUIDv4.pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProviderAdapterRequestError({
+                    provider: PROVIDER,
+                    method: "eventListener",
+                    detail: "Failed to mint a Pi follow-up turn id.",
+                    cause,
+                  }),
+              ),
+            ),
+          );
+          ctx.activeTurnId = turnId;
+          ctx.activeAssistantMessage = undefined;
+          ctx.pendingTurnError = undefined;
+          yield* offerRuntimeEvent({
+            ...base,
+            type: "turn.started",
+            turnId,
+            payload: {},
+          });
+          return turnId;
+        });
+
+        const offerTaskDescriptors = (
+          turnId: TurnId,
+          descriptors: ReadonlyArray<PiSubagentTaskDescriptor>,
+        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+          Effect.gen(function* () {
+            for (const descriptor of descriptors) {
+              const taskStamp = yield* makeEventStamp();
+              const taskBase = {
+                ...taskStamp,
+                provider: PROVIDER,
+                ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+                threadId: ctx.threadId,
+                turnId,
+              } as const;
+              if (descriptor.type === "task.started") {
+                // Track open singles for notify correlation: workflow members
+                // carry parentAgentId and settle via their coordinator.
+                const payload = descriptor.payload as {
+                  taskType?: unknown;
+                  parentAgentId?: unknown;
+                  role?: unknown;
+                  title?: unknown;
+                  taskId?: unknown;
+                };
+                if (payload.taskType === "subagent" && payload.parentAgentId === undefined) {
+                  const agent = RuntimePredicate.isString(payload.role) ? payload.role : undefined;
+                  const taskId = String(payload.taskId ?? "");
+                  if (taskId) ctx.openSingles.push({ agent, taskId });
+                }
+                yield* offerRuntimeEvent({
+                  ...taskBase,
+                  type: "task.started",
+                  payload: descriptor.payload,
+                });
+              } else if (descriptor.type === "task.progress") {
+                yield* offerRuntimeEvent({
+                  ...taskBase,
+                  type: "task.progress",
+                  payload: descriptor.payload,
+                });
+              } else if (descriptor.type === "task.updated") {
+                yield* offerRuntimeEvent({
+                  ...taskBase,
+                  type: "task.updated",
+                  payload: descriptor.payload,
+                });
+              } else {
+                const taskId = String((descriptor.payload as { taskId?: unknown }).taskId ?? "");
+                if (taskId)
+                  ctx.openSingles = ctx.openSingles.filter((open) => open.taskId !== taskId);
+                yield* offerRuntimeEvent({
+                  ...taskBase,
+                  type: "task.completed",
+                  payload: descriptor.payload,
+                });
+              }
+            }
+          });
+
+        // Settle one open single from a parsed notify (workflows carry their
+        // own identity; singles only name their agent). Most-recent match wins.
+        const settleSingleFromNotify = (
+          turnId: TurnId,
+          parsed: PiNotifyReading,
+        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+          Effect.gen(function* () {
+            const terminal = piNotifyTerminalStatus(parsed.status);
+            if (terminal === undefined) return;
+            const wanted = parsed.agent.trim().toLowerCase();
+            for (let index = ctx.openSingles.length - 1; index >= 0; index -= 1) {
+              const open = ctx.openSingles[index];
+              if (!open || (open.agent !== undefined && open.agent.trim().toLowerCase() !== wanted))
+                continue;
+              ctx.openSingles.splice(index, 1);
+              yield* offerTaskDescriptors(turnId, [
+                {
+                  type: "task.completed",
+                  payload: {
+                    taskId: RuntimeTaskId.make(open.taskId),
+                    status: terminal,
+                    taskType: "subagent",
+                    ...(open.agent
+                      ? { role: open.agent, title: open.agent }
+                      : { title: parsed.agent }),
+                  },
+                },
+              ]);
+              return;
+            }
+          });
+
+        const offerParsedNotify = (
+          turnId: TurnId,
+          parsed: PiNotifyReading,
+        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+          Effect.gen(function* () {
+            if (parsed.workflowRunId !== undefined) {
+              yield* offerTaskDescriptors(turnId, describeNotifyReading(parsed));
+            } else {
+              yield* settleSingleFromNotify(turnId, parsed);
+            }
+          });
+
         switch (event.type) {
           case "turn_start": {
             // Pi turn ids are positional; Rove Code mints its own turn id at
@@ -474,14 +762,13 @@ export function makePiAdapter(
             // emits turn_start — clear any stale deferred error from the
             // previous attempt.
             ctx.pendingTurnError = undefined;
-            if (ctx.activeTurnId !== undefined) {
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "turn.started",
-                turnId: ctx.activeTurnId,
-                payload: {},
-              });
-            }
+            const turnId = yield* ensureActiveTurn();
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "turn.started",
+              turnId,
+              payload: {},
+            });
             return;
           }
           case "message_start": {
@@ -490,8 +777,8 @@ export function makePiAdapter(
             // assistant item as the final response.
             const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
               message = event.message as { role?: string } | undefined;
-            if (message?.role === "assistant" && ctx.activeTurnId !== undefined) {
-              const turnId = ctx.activeTurnId;
+            if (message?.role === "assistant") {
+              const turnId = yield* ensureActiveTurn();
               ctx.activeAssistantMessage = {
                 itemId: RuntimeItemId.make(
                   `pi-assistant:${turnId}:${ctx.nextAssistantMessageIndex}`,
@@ -512,15 +799,15 @@ export function makePiAdapter(
               assistantEvent?.type === "text_delta" &&
               RuntimePredicate.isString(assistantEvent.delta)
             ) {
+              const turnId = yield* ensureActiveTurn();
               const assistantMessage = ctx.activeAssistantMessage;
               if (assistantMessage !== undefined) {
                 assistantMessage.hasTextDelta = true;
               }
-              const turnId = assistantMessage?.turnId ?? ctx.activeTurnId;
               yield* offerRuntimeEvent({
                 ...base,
                 type: "content.delta",
-                ...(turnId ? { turnId } : undefined),
+                turnId,
                 ...(assistantMessage ? { itemId: assistantMessage.itemId } : undefined),
                 payload: {
                   streamKind: "assistant_text",
@@ -534,10 +821,11 @@ export function makePiAdapter(
               assistantEvent?.type === "thinking_delta" &&
               RuntimePredicate.isString(assistantEvent.delta)
             ) {
+              const turnId = yield* ensureActiveTurn();
               yield* offerRuntimeEvent({
                 ...base,
                 type: "content.delta",
-                ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+                turnId,
                 payload: {
                   streamKind: "reasoning_text",
                   delta: assistantEvent.delta,
@@ -586,40 +874,110 @@ export function makePiAdapter(
                   ? message.errorMessage
                   : "Pi assistant response failed.";
             }
+            const customMessage = piRecord(event.message);
+            if (
+              customMessage?.role === "custom" &&
+              RuntimePredicate.isString(customMessage.customType)
+            ) {
+              const parsed = parseDialectNotify(
+                PI_SUBAGENT_DIALECTS,
+                customMessage.customType,
+                customMessage.content,
+              );
+              if (parsed && !ctx.seenNotifyMessages.has(customMessage)) {
+                ctx.seenNotifyMessages.add(customMessage);
+                const turnId = yield* ensureActiveTurn();
+                yield* offerParsedNotify(turnId, parsed);
+              }
+            }
             return;
           }
           case "tool_execution_start": {
+            const turnId = yield* ensureActiveTurn();
+            const toolName = String(event.toolName ?? "tool");
+            const toolCallId = String(event.toolCallId ?? "");
+            const toolArgs = piRecord(event.args) ?? resolveCachedPiToolArgs(ctx, toolCallId);
+            const enrichment = describePiToolCall(toolName, toolArgs);
             yield* offerRuntimeEvent({
               ...base,
               type: "item.started",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
-              itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
+              turnId,
+              itemId: RuntimeItemId.make(toolCallId),
               payload: {
-                itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
+                itemType: toToolLifecycleItemType(toolName),
                 status: "inProgress",
-                title: String(event.toolName ?? "tool"),
-                data: event.args,
+                title: enrichment.title ?? toolName,
+                ...(enrichment.detail ? { detail: enrichment.detail } : undefined),
+                data: enrichment.data ?? event.args,
               },
             });
             return;
           }
           case "tool_execution_end": {
+            const turnId = yield* ensureActiveTurn();
+            const toolName = String(event.toolName ?? "tool");
+            const toolCallId = String(event.toolCallId ?? "");
+            const toolArgs = piRecord(event.args) ?? resolveCachedPiToolArgs(ctx, toolCallId);
+            const enrichment = describePiToolCall(toolName, toolArgs);
+            const resultRecord = piRecord(event.result);
             yield* offerRuntimeEvent({
               ...base,
               type: "item.completed",
-              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
-              itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
+              turnId,
+              itemId: RuntimeItemId.make(toolCallId),
               payload: {
-                itemType: toToolLifecycleItemType(String(event.toolName ?? "")),
+                itemType: toToolLifecycleItemType(toolName),
                 status: event.isError === true ? "failed" : "completed",
-                title: String(event.toolName ?? "tool"),
-                data: event.result,
+                title: enrichment.title ?? toolName,
+                ...(enrichment.detail ? { detail: enrichment.detail } : undefined),
+                data:
+                  resultRecord && enrichment.data
+                    ? { ...resultRecord, ...enrichment.data }
+                    : (enrichment.data ?? event.result),
               },
             });
+            // Feed the Agents roster: Pi subagent runs are otherwise visible
+            // only as parent tool rows. Synthesis rides after the tool row so
+            // a malformed payload can never break the row itself (the
+            // descriptor builder is total), and each task event carries the
+            // turn for timeline correlation.
+            const subagentTasks = describeDialectToolTasks(PI_SUBAGENT_DIALECTS, {
+              toolName: String(event.toolName ?? ""),
+              args: toolArgs ?? event.args,
+              result: event.result,
+              toolCallId: event.toolCallId,
+              isError: event.isError,
+            });
+            yield* offerTaskDescriptors(turnId, subagentTasks);
             return;
           }
           case "agent_end": {
             const willRetry = event.willRetry === true;
+            // Auto-drain completions ride the transcript as text-only customs
+            // (structured details do not survive the session round-trip), so
+            // recover structure through the dialect registry. Dedupe by notify
+            // message identity so separate runs with identical text still settle.
+            const transcript = Array.isArray(event.messages) ? event.messages : [];
+            const freshNotifies: Array<PiNotifyReading> = [];
+            for (const entry of transcript) {
+              const transcriptMessage = piRecord(entry);
+              if (!transcriptMessage || transcriptMessage.role !== "custom") continue;
+              const parsed = parseDialectNotify(
+                PI_SUBAGENT_DIALECTS,
+                transcriptMessage.customType,
+                transcriptMessage.content,
+              );
+              if (!parsed) continue;
+              if (ctx.seenNotifyMessages.has(transcriptMessage)) continue;
+              ctx.seenNotifyMessages.add(transcriptMessage);
+              freshNotifies.push(parsed);
+            }
+            if (freshNotifies.length > 0) {
+              const turnId = yield* ensureActiveTurn();
+              for (const parsed of freshNotifies) {
+                yield* offerParsedNotify(turnId, parsed);
+              }
+            }
             if (
               !willRetry &&
               ctx.pendingTurnError !== undefined &&
@@ -653,6 +1011,36 @@ export function makePiAdapter(
             }
             return;
           }
+          case "extension_error": {
+            // Warnings stay warnings even when they arrive mid-turn (e.g. a
+            // subagent auto-drain failure Pi may still recover from) — but
+            // attach the active turn so the UI can correlate them instead of
+            // showing a floating error on a "finished" thread.
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.warning",
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+              payload: {
+                message: `Pi extension ${String(event.extensionPath ?? "<runtime>")}: ${String(event.error ?? "Unknown error")}`,
+                detail: event,
+              },
+            });
+            return;
+          }
+          case "prompt_error": {
+            if (ctx.activeTurnId === undefined) return;
+            const turnId = ctx.activeTurnId;
+            ctx.activeTurnId = undefined;
+            ctx.activeAssistantMessage = undefined;
+            ctx.pendingTurnError = undefined;
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "turn.completed",
+              turnId,
+              payload: { state: "failed", errorMessage: String(event.error ?? "Pi prompt failed") },
+            });
+            return;
+          }
           case "agent_settled": {
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
@@ -671,7 +1059,7 @@ export function makePiAdapter(
           }
           default:
             // Deferred Pi events (compaction_start, auto_retry_*, queue_update,
-            // extension_error, …) are intentionally dropped for v1. See the
+            // …) are intentionally dropped for v1. See the
             // carry-forward list in the provider design notes.
             return;
         }
@@ -727,6 +1115,9 @@ export function makePiAdapter(
           activeAssistantMessage: undefined,
           nextAssistantMessageIndex: 0,
           pendingTurnError: undefined,
+          toolCallArgs: new Map(),
+          seenNotifyMessages: new WeakSet(),
+          openSingles: [],
           unsubscribe: () => {},
         };
         ctx.pendingTurnError = undefined;
@@ -910,8 +1301,10 @@ export function makePiAdapter(
         if (!ctx) return Effect.void;
         sessions.delete(threadId);
         ctx.unsubscribe();
-        return Effect.try({
-          try: () => ctx.session.dispose(),
+        return Effect.tryPromise({
+          try: async () => {
+            await ctx.session.dispose();
+          },
           catch: (cause) =>
             new ProviderAdapterRequestError({
               provider: PROVIDER,
@@ -1003,17 +1396,7 @@ export function makePiAdapter(
 
     const stopAll: PiAdapterContract["stopAll"] = () =>
       Effect.suspend(() => {
-        const contexts = [...sessions.values()];
-        sessions.clear();
-        for (const ctx of contexts) {
-          ctx.unsubscribe();
-          try {
-            ctx.session.dispose();
-          } catch {
-            // best effort — a wedged Pi session must not block shutdown
-          }
-        }
-        return Effect.void;
+        return Effect.forEach([...sessions.keys()], stopSession, { discard: true });
       });
 
     return {
