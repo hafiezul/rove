@@ -11,21 +11,15 @@
  */
 import {
   PI_THINKING_LEVELS,
-  type ModelCapabilities,
   type PiSettings,
   type ServerProviderModel,
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
-import {
-  buildSelectOptionDescriptor,
-  buildServerProvider,
-  type ServerProviderDraft,
-} from "../providerSnapshot.ts";
+import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
 
 const PI_PRESENTATION = {
   displayName: "Pi",
@@ -63,26 +57,6 @@ export const PI_THINKING_LEVEL_LABELS = {
   max: "Max",
 } satisfies Record<(typeof PI_THINKING_LEVELS)[number], string>;
 
-/**
- * Pi thinking levels are clamped to model capabilities by the SDK at apply
- * time, so every model carries the full set — the composer renders one
- * "Reasoning" tier picker per model.
- */
-const piModelCapabilities = (piSettings: Pick<PiSettings, "thinkingLevel">): ModelCapabilities =>
-  createModelCapabilities({
-    optionDescriptors: [
-      buildSelectOptionDescriptor({
-        id: PI_THINKING_DESCRIPTOR_ID,
-        label: "Reasoning",
-        options: PI_THINKING_LEVELS.map((level) => ({
-          value: level,
-          label: PI_THINKING_LEVEL_LABELS[level],
-          ...(piSettings.thinkingLevel === level ? { isDefault: true } : undefined),
-        })),
-      }),
-    ],
-  });
-
 export function buildInitialPiProviderSnapshot(
   piSettings: PiSettings,
 ): Effect.Effect<ServerProviderDraft> {
@@ -96,7 +70,7 @@ export function buildInitialPiProviderSnapshot(
         slug,
         name: slug,
         isCustom: true,
-        capabilities: piModelCapabilities(piSettings),
+        capabilities: null,
       })),
       probe: {
         installed: false,
@@ -112,17 +86,9 @@ export function buildInitialPiProviderSnapshot(
 }
 
 export interface PiProbeClient {
-  /**
-   * Models available in the user's Pi catalog. `provider` is the Pi provider
-   * id (slug prefix); `providerName` is its human label when the SDK
-   * registers one (e.g. "OpenCode Go" for `opencode-go`). The label is what
-   * disambiguates duplicate model names across providers in the pickers.
-   */
-  listModels(): Promise<
-    ReadonlyArray<{ id: string; name: string; provider: string; providerName?: string }>
-  >;
-  /** Provider display name, used for auth status text. */
-  defaultModelProvider(): Promise<string | undefined>;
+  getCatalogModels(
+    thinkingLevel: PiSettings["thinkingLevel"],
+  ): Promise<ReadonlyArray<ServerProviderModel>>;
 }
 
 /**
@@ -164,9 +130,8 @@ export function checkPiProviderStatus(
 
     const probed = yield* Effect.promise(async () => {
       try {
-        const models = await probeClient.listModels();
-        const provider = await probeClient.defaultModelProvider();
-        return { ok: true as const, models, provider };
+        const models = await probeClient.getCatalogModels(piSettings.thinkingLevel);
+        return { ok: true as const, models };
       } catch (error) {
         return { ok: false as const, error };
       }
@@ -189,16 +154,7 @@ export function checkPiProviderStatus(
       });
     }
 
-    const models: ServerProviderModel[] = probed.models.map((model) => {
-      const subProvider = (model.providerName ?? model.provider).trim();
-      return {
-        slug: `${model.provider}/${model.id}`,
-        name: model.name,
-        ...(subProvider.length > 0 ? { subProvider } : undefined),
-        isCustom: false,
-        capabilities: piModelCapabilities(piSettings),
-      };
-    });
+    const models = probed.models;
 
     // Discovery is best-effort: a broken skill/prompt file or loader error
     // must not degrade the provider snapshot — empty pickers instead.
@@ -221,7 +177,7 @@ export function checkPiProviderStatus(
         installed: true,
         version: null,
         status: models.length > 0 ? "ready" : "warning",
-        auth: { status: probed.provider !== undefined ? "authenticated" : "unknown" },
+        auth: { status: models.length > 0 ? "authenticated" : "unknown" },
         ...(models.length === 0
           ? { message: "Pi SDK loaded but no models are configured in your Pi catalog." }
           : undefined),
