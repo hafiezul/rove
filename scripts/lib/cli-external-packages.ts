@@ -1,3 +1,7 @@
+import * as NodeURL from "node:url";
+
+import { runtimePackageClosure } from "./runtime-package-closure.ts";
+
 /**
  * The single source of truth for packages the server CLI bundle must NOT inline.
  *
@@ -52,6 +56,20 @@ export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "utf-8-validate",
 ] as const;
 
+// Pi extensions launch Node children and resolve SDK files and themes from disk.
+// Keep the host and children on the same SDK, including its runtime dependencies.
+const piRuntime = runtimePackageClosure(
+  NodeURL.fileURLToPath(
+    new URL("../../apps/server/node_modules/@earendil-works/pi-coding-agent", import.meta.url),
+  ),
+);
+export const CLI_PI_RUNTIME_PACKAGES = [
+  ...new Set(
+    [...piRuntime.values()].flatMap(({ name, dependencies }) => [name, ...dependencies.keys()]),
+  ),
+].sort();
+const piRuntimePackages = new Set(CLI_PI_RUNTIME_PACKAGES);
+
 /**
  * External only so the bundler never has to resolve them.
  *
@@ -81,7 +99,11 @@ export const CLI_EXTERNAL_PACKAGE_PREFIXES = [
  * inlined while node-pty (a declared dependency) stayed external.
  */
 export function isExternalCliDependency(id: string): boolean {
-  return CLI_EXTERNAL_PACKAGE_PREFIXES.some((prefix) => id.startsWith(prefix));
+  const packageName = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+  return (
+    piRuntimePackages.has(packageName ?? "") ||
+    CLI_EXTERNAL_PACKAGE_PREFIXES.some((prefix) => id.startsWith(prefix))
+  );
 }
 
 /** True when the CLI bundle should inline `id` rather than leave it external. */
@@ -100,10 +122,16 @@ export function shouldBundleCliDependency(id: string): boolean {
  * pnpm stores real files under `.pnpm` and symlinks the top-level names, so both
  * paths are unpacked for the link target to exist on disk.
  */
-export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = CLI_EXTERNAL_PACKAGE_PREFIXES.flatMap(
-  (prefix) =>
-    [`node_modules/${prefix}*/**/*`, `node_modules/.pnpm/**/node_modules/${prefix}*/**/*`] as const,
-);
+export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = [
+  ...CLI_EXTERNAL_PACKAGE_PREFIXES.flatMap((prefix) => [
+    `node_modules/${prefix}*/**/*`,
+    `node_modules/.pnpm/**/node_modules/${prefix}*/**/*`,
+  ]),
+  ...CLI_PI_RUNTIME_PACKAGES.flatMap((name) => [
+    `node_modules/${name}/**/*`,
+    `node_modules/.pnpm/**/node_modules/${name}/**/*`,
+  ]),
+];
 
 /**
  * Scan an emitted bundle chunk for runtime-external packages that were inlined.

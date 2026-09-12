@@ -6,6 +6,8 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 
+import { stageRuntimePackageFixture } from "../../../../../scripts/lib/runtime-package-fixture.ts";
+
 const serverRoot = NodePath.resolve(import.meta.dirname, "../../..");
 
 it("resolves OpenAI Codex OAuth from the bundled Pi runtime", () => {
@@ -25,6 +27,10 @@ it("resolves OpenAI Codex OAuth from the bundled Pi runtime", () => {
   );
 
   try {
+    stageRuntimePackageFixture(
+      NodePath.join(serverRoot, "node_modules/@earendil-works/pi-coding-agent"),
+      tempDir,
+    );
     const packed = NodeChildProcess.spawnSync(
       "vp",
       ["pack", "scripts/pi-oauth-bundle-smoke.ts", "--out-dir", distDir, "--clean"],
@@ -36,9 +42,16 @@ it("resolves OpenAI Codex OAuth from the bundled Pi runtime", () => {
       process.execPath,
       [NodePath.join(distDir, "pi-oauth-bundle-smoke.mjs")],
       {
-        cwd: serverRoot,
+        cwd: tempDir,
         encoding: "utf8",
-        env: { ...process.env, PI_CODING_AGENT_DIR: tempDir },
+        env: {
+          ...process.env,
+          HOME: tempDir,
+          USERPROFILE: tempDir,
+          NODE_PATH: "",
+          PI_PACKAGE_DIR: "",
+          PI_CODING_AGENT_DIR: tempDir,
+        },
       },
     );
     assert.strictEqual(executed.status, 0, executed.stderr || executed.stdout);

@@ -1,3 +1,8 @@
+// @effect-diagnostics nodeBuiltinImport:off - Build assertions stage and bundle real server output.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -11,6 +16,7 @@ import {
   CLI_EXTERNAL_PACKAGE_PREFIXES,
   CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS,
   CLI_RUNTIME_EXTERNAL_PREFIXES,
+  CLI_PI_RUNTIME_PACKAGES,
   findInlinedExternalPackages,
   shouldBundleCliDependency,
 } from "./cli-external-packages.ts";
@@ -23,15 +29,24 @@ import {
 const PackageManifest = Schema.Struct({
   dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
   optionalDependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
-  peerDependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
 type PackageManifest = typeof PackageManifest.Type;
+interface InstalledPackage {
+  readonly manifest: PackageManifest;
+  readonly directory: string;
+  readonly storeEntry: string;
+}
 
 const decodeManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PackageManifest));
 
+const serverRoot = NodePath.resolve(
+  NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)),
+  "../../apps/server",
+);
+
 describe("shouldBundleCliDependency", () => {
   it("bundles ordinary runtime dependencies", () => {
-    for (const id of ["effect", "@effect/platform", "hono", "@t3tools/shared/hostProcess"]) {
+    for (const id of ["effect", "@effect/platform", "@t3tools/shared/hostProcess"]) {
       assert.strictEqual(shouldBundleCliDependency(id), true, id);
     }
   });
@@ -52,6 +67,20 @@ describe("shouldBundleCliDependency", () => {
     ]) {
       assert.strictEqual(shouldBundleCliDependency(id), false, id);
     }
+  });
+
+  it("keeps Pi's SDK and child runtime dependencies on disk", () => {
+    for (const name of [
+      "@earendil-works/pi-coding-agent",
+      "@earendil-works/pi-coding-agent/rpc-entry",
+      "@earendil-works/pi-ai",
+      "@earendil-works/chord/context",
+      "jiti",
+      "typebox/compile",
+    ]) {
+      assert.strictEqual(shouldBundleCliDependency(name), false, name);
+    }
+    assert.strictEqual(shouldBundleCliDependency("jiti-unrelated"), true);
   });
 
   it("leaves bun-only entry points external", () => {
@@ -75,6 +104,16 @@ describe("CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS", () => {
         CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS,
         `node_modules/.pnpm/**/node_modules/${prefix}*/**/*`,
         prefix,
+      );
+    }
+  });
+
+  it("unpacks the complete Pi runtime for plain Node children and WSL", () => {
+    for (const name of CLI_PI_RUNTIME_PACKAGES) {
+      assert.include(CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS, `node_modules/${name}/**/*`);
+      assert.include(
+        CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS,
+        `node_modules/.pnpm/**/node_modules/${name}/**/*`,
       );
     }
   });
@@ -120,7 +159,7 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
     const isPresent = (candidate: string) =>
       fileSystem.exists(candidate).pipe(Effect.orElseSucceed(() => false));
 
-    const installed = new Map<string, PackageManifest>();
+    const installed = new Map<string, InstalledPackage>();
     if (!(yield* isPresent(storeDir))) return installed;
 
     for (const entry of yield* fileSystem.readDirectory(storeDir)) {
@@ -138,7 +177,11 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
           if (installed.has(name)) continue;
           const manifestPath = path.join(modulesDir, name, "package.json");
           if (!(yield* isPresent(manifestPath))) continue;
-          installed.set(name, decodeManifest(yield* fileSystem.readFileString(manifestPath)));
+          installed.set(name, {
+            manifest: decodeManifest(yield* fileSystem.readFileString(manifestPath)),
+            directory: path.join(modulesDir, name),
+            storeEntry: entry,
+          });
         }
       }
     }
@@ -148,7 +191,8 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
   // Runtime-external only. The build-only entries resolve `bun:*` and are never
   // loaded by Node, so their closure genuinely does not need to be external.
   const isRuntimeExternal = (name: string) =>
-    CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => name.startsWith(prefix));
+    CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => name.startsWith(prefix)) ||
+    CLI_PI_RUNTIME_PACKAGES.includes(name);
 
   it.effect("finds the runtime-external packages on disk", () =>
     Effect.gen(function* () {
@@ -167,9 +211,27 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
     }),
   );
 
-  it.effect("keeps every runtime dependency of an external package external too", () =>
+  it.effect("keeps every resolvable runtime dependency of an external package external too", () =>
     Effect.gen(function* () {
+      const path = yield* Path.Path;
       const installed = yield* readInstalledPackages;
+      const storeDir = path.resolve(
+        path.dirname(NodeURL.fileURLToPath(import.meta.url)),
+        "../../node_modules/.pnpm",
+      );
+      const resolveFrom = (entry: InstalledPackage, name: string) => {
+        // pnpm links one package directory per dependent; a manifest that names
+        // an unlinked dependency cannot load it. The installed map is keyed by
+        // name, so resolve from the dependent's own store entry instead.
+        const scoped = name.split("/");
+        const owner =
+          scoped.length > 1 && scoped[0]?.startsWith("@")
+            ? [scoped[0], scoped[1]].join("/")
+            : scoped[0];
+        if (owner === undefined) return undefined;
+        const candidate = path.join(storeDir, entry.storeEntry, "node_modules", owner);
+        return NodeFS.existsSync(path.join(candidate, "package.json")) ? candidate : undefined;
+      };
       const violations: string[] = [];
       const seen = new Set<string>();
       // Seeded from what is actually installed and matches a prefix, so scoped
@@ -182,15 +244,23 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
         if (seen.has(name)) continue;
         seen.add(name);
 
-        const manifest = installed.get(name);
-        if (!manifest) continue;
+        const entry = installed.get(name);
+        if (!entry) continue;
 
         const declared = {
-          ...manifest.dependencies,
-          ...manifest.optionalDependencies,
-          ...manifest.peerDependencies,
+          ...entry.manifest.dependencies,
+          ...entry.manifest.optionalDependencies,
         };
         for (const dependency of Object.keys(declared)) {
+          // Only violations from an external package have the WSL loader
+          // meaning this test guards. Pi's own copies stay external by the Pi
+          // list, but their transitive needs ship inside the Pi runtime
+          // instead; checking the legacy closure there cannot fail a machine.
+          if (CLI_PI_RUNTIME_PACKAGES.includes(name)) continue;
+          // Manifests name fallbacks and rename targets that the dependent
+          // package cannot load in the deployed externas layout. Only a name
+          // resolvable from the dependent copy itself can fail at runtime.
+          if (resolveFrom(entry, dependency) === undefined) continue;
           if (!isRuntimeExternal(dependency)) {
             violations.push(`${name} -> ${dependency}`);
           }
@@ -252,11 +322,11 @@ var x = 1;
   it("reports the packages that were inlined, not just the violations", () => {
     const source =
       region("../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/index.js") +
-      region("../../node_modules/.pnpm/yaml@2.4.0/node_modules/yaml/dist/index.js") +
+      region("../../node_modules/.pnpm/nanoid@5.0.0/node_modules/nanoid/index.js") +
       region("../../src/server/main.ts");
     const result = findInlinedExternalPackages(source);
 
-    assert.deepStrictEqual(result.inlinedPackages, ["effect", "yaml"]);
+    assert.deepStrictEqual(result.inlinedPackages, ["effect", "nanoid"]);
     assert.deepStrictEqual(result.inlined, []);
   });
 
@@ -272,4 +342,28 @@ var x = 1;
     assert.strictEqual(result.regionCount, 0);
     assert.deepStrictEqual(result.inlined, []);
   });
+});
+
+it("bundles the server CLI without inlining Pi SDK sources", { timeout: 240000 }, async () => {
+  const dist = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-cli-pi-bundle-check-"));
+  try {
+    const packed = NodeChildProcess.spawnSync("vp", ["run", "--filter", "t3", "build"], {
+      cwd: NodePath.resolve(serverRoot, "..", ".."),
+      encoding: "utf8",
+      timeout: 180_000,
+    });
+    NodeFS.cpSync(NodePath.join(serverRoot, "dist"), dist, { recursive: true });
+    assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
+    for (const file of NodeFS.readdirSync(dist).filter((name) => name.endsWith(".mjs"))) {
+      const result = findInlinedExternalPackages(
+        NodeFS.readFileSync(NodePath.join(dist, file), "utf8"),
+      );
+      assert.isAtLeast(result.regionCount, 1, file);
+      // SAFETY: findInlinedExternalPackages returns string names; the filter only narrows to the Pi scope.
+      const piPackages = result.inlined.filter((name) => name.startsWith("@earendil-works/"));
+      assert.deepStrictEqual(piPackages, [], file);
+    }
+  } finally {
+    NodeFS.rmSync(dist, { recursive: true, force: true });
+  }
 });
