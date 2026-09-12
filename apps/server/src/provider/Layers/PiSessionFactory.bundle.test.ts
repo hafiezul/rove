@@ -6,7 +6,9 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 
-it("runs extensions from a bundled server without Pi packages installed alongside it", () => {
+import { stageRuntimePackageFixture } from "../../../../../scripts/lib/runtime-package-fixture.ts";
+
+it("boots foreground and background Pi runtimes from a relocated Rove installation", () => {
   const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-extension-bundle-test-"));
   const serverRoot = NodePath.resolve(import.meta.dirname, "../../..");
   const distDir = NodePath.join(root, "dist");
@@ -17,7 +19,15 @@ it("runs extensions from a bundled server without Pi packages installed alongsid
     new URL("./fixtures/pi-extension.ts", import.meta.url),
     NodePath.join(extensions, "fixture.ts"),
   );
+  NodeFS.copyFileSync(
+    new URL("./fixtures/pi-runtime-probe.ts", import.meta.url),
+    NodePath.join(extensions, "runtime-probe.ts"),
+  );
   try {
+    stageRuntimePackageFixture(
+      NodePath.join(serverRoot, "node_modules/@earendil-works/pi-coding-agent"),
+      root,
+    );
     const packed = NodeChildProcess.spawnSync(
       "vp",
       ["pack", "scripts/pi-extensions-bundle-smoke.ts", "--out-dir", distDir, "--clean"],
@@ -37,6 +47,11 @@ it("runs extensions from a bundled server without Pi packages installed alongsid
         timeout: 30000,
         env: {
           ...process.env,
+          HOME: root,
+          USERPROFILE: root,
+          NODE_PATH: "",
+          PI_PACKAGE_DIR: "",
+          PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT: "",
           PI_CODING_AGENT_DIR: NodePath.join(root, "agent"),
           PI_CODING_AGENT_SESSION_DIR: NodePath.join(root, "sessions"),
           PI_OFFLINE: "1",

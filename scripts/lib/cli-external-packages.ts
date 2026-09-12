@@ -1,5 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeModule from "node:module";
+import * as NodeURL from "node:url";
+
+import { runtimePackageClosure } from "./runtime-package-closure.ts";
 
 /**
  * The single source of truth for packages the server CLI bundle must NOT inline.
@@ -53,8 +56,40 @@ export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "utf-8-validate",
 ] as const;
 
+// Pi extensions launch Node children and resolve SDK files and themes from disk.
+// Keep the host and children on the same SDK, including its runtime dependencies.
+const piRuntime = runtimePackageClosure(
+  NodeURL.fileURLToPath(
+    new URL("../../apps/server/node_modules/@earendil-works/pi-coding-agent", import.meta.url),
+  ),
+);
+export const CLI_PI_RUNTIME_PACKAGES = [
+  ...new Set(
+    [...piRuntime.values()].flatMap(({ name, dependencies }) => [name, ...dependencies.keys()]),
+  ),
+].sort();
+const piRuntimePackages = new Set(CLI_PI_RUNTIME_PACKAGES);
+
+/**
+ * External only so the bundler never has to resolve them.
+ *
+ * These are reached through a runtime-conditional dynamic import that Node
+ * never takes, and they resolve `bun:*` specifiers that do not exist when
+ * bundling for Node. Because Node never loads them, their dependency closure
+ * does not need to be external — only the entry point must stay unbundled.
+ */
+export const CLI_BUILD_ONLY_EXTERNAL_PREFIXES = [
+  "@effect/platform-bun",
+  "@effect/sql-sqlite-bun",
+] as const;
+
+export const CLI_EXTERNAL_PACKAGE_PREFIXES = [
+  ...CLI_RUNTIME_EXTERNAL_PREFIXES,
+  ...CLI_BUILD_ONLY_EXTERNAL_PREFIXES,
+] as const;
 export function isRuntimeExternalCliDependency(id: string): boolean {
-  return CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
+  const packageName = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+  return piRuntimePackages.has(packageName ?? "") || CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
 }
 
 /**
@@ -68,7 +103,11 @@ export function isRuntimeExternalCliDependency(id: string): boolean {
  * inlined while node-pty (a declared dependency) stayed external.
  */
 export function isExternalCliDependency(id: string): boolean {
-  return isRuntimeExternalCliDependency(id);
+  const packageName = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+  return (
+    piRuntimePackages.has(packageName ?? "") ||
+    CLI_EXTERNAL_PACKAGE_PREFIXES.some((prefix) => id.startsWith(prefix))
+  );
 }
 
 /** True when the CLI bundle should inline `id` rather than leave it external. */
@@ -119,6 +158,16 @@ export function findEsmImportsOfExternalPackages(source: string): ReadonlyArray<
   }
   return [...specifiers].sort();
 }
+export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = [
+  ...CLI_EXTERNAL_PACKAGE_PREFIXES.flatMap((prefix) => [
+    `node_modules/${prefix}*/**/*`,
+    `node_modules/.pnpm/**/node_modules/${prefix}*/**/*`,
+  ]),
+  ...CLI_PI_RUNTIME_PACKAGES.flatMap((name) => [
+    `node_modules/${name}/**/*`,
+    `node_modules/.pnpm/**/node_modules/${name}/**/*`,
+  ]),
+];
 
 /**
  * Scan an emitted bundle chunk for runtime-external packages that were inlined.
