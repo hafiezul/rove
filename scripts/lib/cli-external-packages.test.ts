@@ -83,6 +83,34 @@ describe("shouldBundleCliDependency", () => {
     assert.strictEqual(shouldBundleCliDependency("jiti-unrelated"), true);
   });
 
+  // An external bare import must resolve from the repo checkout, or dev
+  // `start:desktop` crashes the backend with ERR_MODULE_NOT_FOUND. The
+  // packaged app stages every external next to the bundle, but dev runs
+  // the bundle straight from the repo, where transitive-only packages have
+  // no top-level link. Regression: `ws` (via @effect/platform-node-shared)
+  // went external with the Pi runtime closure while nothing declared it,
+  // so the desktop backend exited code=1 in a restart loop.
+  it("resolves every external bare import of the server bundle from the repo", () => {
+    const externals = ["ws", "jose", "cross-spawn"];
+    for (const name of externals) {
+      assert.strictEqual(shouldBundleCliDependency(name), false, name);
+      assert.ok(
+        CLI_PI_RUNTIME_PACKAGES.includes(name),
+        `expected ${name} in the Pi runtime closure`,
+      );
+    }
+    const serverManifest = JSON.parse(
+      NodeFS.readFileSync(NodePath.join(serverRoot, "package.json"), "utf8"),
+    ) as { dependencies?: Record<string, string> };
+    for (const name of externals) {
+      assert.ok(
+        serverManifest.dependencies?.[name] !== undefined,
+        `expected apps/server dependency "${name}" so pnpm links it for dev; ` +
+          `external bundle imports only resolve from the real filesystem`,
+      );
+    }
+  });
+
   it("leaves bun-only entry points external", () => {
     assert.strictEqual(shouldBundleCliDependency("@effect/platform-bun"), false);
     assert.strictEqual(shouldBundleCliDependency("@effect/sql-sqlite-bun"), false);
