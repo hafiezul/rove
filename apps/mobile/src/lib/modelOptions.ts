@@ -62,10 +62,22 @@ function normalizeSelectionOptions(
       };
 }
 
+export function normalizePiModelSelection(
+  config: T3ServerConfig | null | undefined,
+  selection: ModelSelection,
+): ModelSelection {
+  const provider = config?.providers.find(
+    (candidate) => candidate.instanceId === selection.instanceId,
+  );
+  if (provider?.driver !== "pi") return selection;
+  const model = provider.models.find((candidate) => candidate.slug === selection.model);
+  return normalizeSelectionOptions(selection, model?.capabilities ?? { optionDescriptors: [] });
+}
+
 /**
  * A stored model selection is only usable when its provider instance is
  * currently enabled, installed, and authenticated on the server. Returns the
- * selection unchanged when usable, otherwise `null` so callers fall through to
+ * selection with Pi options normalized when usable, otherwise `null` so callers fall through to
  * the server's default model. A missing config (environment offline) cannot be
  * validated, so stored selections pass through untouched.
  */
@@ -83,7 +95,7 @@ export function resolveSelectableModelSelection(
     provider.enabled &&
     provider.installed &&
     provider.auth.status !== "unauthenticated"
-    ? selection
+    ? normalizePiModelSelection(config, selection)
     : null;
 }
 

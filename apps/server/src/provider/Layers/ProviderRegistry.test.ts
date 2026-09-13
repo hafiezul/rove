@@ -563,6 +563,56 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
         assert.strictEqual(haveProvidersChanged(providers, [...providers]), false);
       });
 
+      it("does not resurrect removed Pi models or reasoning capabilities", () => {
+        const previousProvider = {
+          instanceId: ProviderInstanceId.make("pi"),
+          driver: ProviderDriverKind.make("pi"),
+          status: "ready",
+          enabled: true,
+          installed: true,
+          auth: { status: "authenticated" },
+          checkedAt: "2026-09-12T00:00:00.000Z",
+          version: null,
+          slashCommands: [],
+          skills: [],
+          models: [
+            {
+              slug: "local/model",
+              name: "Model",
+              isCustom: false,
+              capabilities: createModelCapabilities({
+                optionDescriptors: [
+                  selectDescriptor("thinkingLevel", "Reasoning", [
+                    { id: "max", label: "Max", isDefault: true },
+                  ]),
+                ],
+              }),
+            },
+          ],
+        } as const satisfies ServerProvider;
+        const noReasoning = {
+          ...previousProvider,
+          models: [
+            {
+              ...previousProvider.models[0],
+              capabilities: createModelCapabilities({ optionDescriptors: [] }),
+            },
+          ],
+        } satisfies ServerProvider;
+        assert.deepStrictEqual(
+          mergeProviderSnapshot(previousProvider, noReasoning).models,
+          noReasoning.models,
+        );
+        const empty = { ...previousProvider, models: [] } satisfies ServerProvider;
+        assert.deepStrictEqual(mergeProviderSnapshot(previousProvider, empty).models, []);
+        const failed = {
+          ...empty,
+          installed: false,
+          status: "error",
+        } as const satisfies ServerProvider;
+        assert.deepStrictEqual(mergeProviderSnapshot(previousProvider, failed).models, []);
+      });
+
       it("preserves previously discovered provider models when a refresh returns none", () => {
         const previousProvider = {
           instanceId: ProviderInstanceId.make("cursor"),

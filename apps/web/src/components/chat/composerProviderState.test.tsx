@@ -62,6 +62,58 @@ const ULTRATHINK_FRAME_CLASSES = {
 } as const;
 
 describe("getComposerProviderState", () => {
+  it("normalizes stale Pi tiers on model switches and hides unknown-model overrides", () => {
+    const provider = ProviderDriverKind.make("pi");
+    const models: ReadonlyArray<ServerProviderModel> = [
+      {
+        slug: "local/reasoning",
+        name: "Reasoning",
+        isCustom: false,
+        capabilities: {
+          optionDescriptors: [
+            selectDescriptor("thinkingLevel", [
+              { id: "low", label: "Low", isDefault: true },
+              { id: "max", label: "Max" },
+            ]),
+          ],
+        },
+      },
+      {
+        slug: "local/plain",
+        name: "Plain",
+        isCustom: false,
+        capabilities: {
+          optionDescriptors: [
+            selectDescriptor("thinkingLevel", [{ id: "off", label: "Off", isDefault: true }]),
+          ],
+        },
+      },
+      { slug: "local/unknown", name: "Unknown", isCustom: true, capabilities: null },
+    ];
+    for (const [model, expected] of [
+      ["local/reasoning", "max"],
+      ["local/plain", "off"],
+      ["local/reasoning", "max"],
+    ]) {
+      const state = getComposerProviderState({
+        provider,
+        model: model!,
+        models,
+        modelOptions: selections(["thinkingLevel", "max"]),
+      });
+      expect(state.promptEffort).toBe(expected);
+      expect(state.modelOptionsForDispatch).toEqual(selections(["thinkingLevel", expected!]));
+    }
+    const unknown = getComposerProviderState({
+      provider,
+      model: "local/unknown",
+      models,
+      modelOptions: selections(["thinkingLevel", "max"]),
+    });
+    expect(unknown.modelOptionsForDispatch).toBeUndefined();
+    expect(unknown.promptEffort).toBeNull();
+  });
+
   it("derives a stable prompt injection state for ordinary prompt edits", () => {
     expect(getComposerPromptInjectionState("Investigate this failure")).toBe("none");
     expect(getComposerPromptInjectionState("Ultrathink:\nInvestigate this failure")).toBe(

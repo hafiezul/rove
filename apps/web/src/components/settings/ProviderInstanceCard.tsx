@@ -779,6 +779,7 @@ export function ProviderInstanceCard({
             {driverOption ? (
               <ProviderSettingsForm
                 definition={driverOption}
+                models={liveProvider?.models}
                 value={instance.config}
                 idPrefix={`provider-instance-${instanceId}`}
                 variant="card"

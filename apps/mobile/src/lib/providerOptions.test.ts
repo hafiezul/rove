@@ -34,6 +34,30 @@ const CODEX_CAPABILITIES: ModelCapabilities = {
 };
 
 describe("mobile provider options", () => {
+  it("rejects unsupported Pi tiers and keeps the non-reasoning label visible", () => {
+    const descriptors = resolveProviderOptionDescriptors({
+      capabilities: {
+        optionDescriptors: [
+          {
+            id: "thinkingLevel",
+            label: "Reasoning",
+            type: "select",
+            options: [{ id: "off", label: "Off", isDefault: true }],
+            currentValue: "off",
+          },
+        ],
+      },
+      selections: [{ id: "thinkingLevel", value: "max" }],
+    });
+    expect(providerOptionValueLabels(descriptors)).toEqual(["Off"]);
+    expect(
+      applyProviderOptionSelection(descriptors, { id: "thinkingLevel", value: "max" }),
+    ).toBeNull();
+    expect(
+      applyProviderOptionSelection(descriptors, { id: "thinkingLevel", value: "off" }),
+    ).toEqual([{ id: "thinkingLevel", value: "off" }]);
+  });
+
   it("summarizes the option values currently in effect", () => {
     const descriptors = resolveProviderOptionDescriptors({
       capabilities: CODEX_CAPABILITIES,

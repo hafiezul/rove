@@ -38,6 +38,16 @@ The panel needs no thread. It shows whenever a Pi provider instance is selected,
 
 Extension models behave like any other Pi model. Clicking one saves it to the thread. If the extension is later removed, the thread falls back to a model the runtime still lists instead of keeping a stale slug.
 
+## Reasoning levels
+
+The Reasoning picker offers the levels declared by each model in Pi's catalog. Models without reasoning offer only **Off**. Models can omit individual levels, including **Off**, **Extra High**, or **Max**. Rove does not offer reasoning overrides for models whose capabilities are not yet known.
+
+The default follows the Rove provider's thinking override, then Pi's per-model preference, then Pi's global default. Pi adjusts unsupported defaults to a supported level. Switching models keeps a supported selection or falls back to the new model's default.
+
+In provider Settings, thinking choices follow the configured model. An old unsupported override is marked unavailable. **Use Pi default** clears it.
+
+Rove reads these capabilities from the server's loaded Pi catalog. This adds no inference requests, token charges, or network refreshes. Custom providers must declare accurate `reasoning` and `thinkingLevelMap` metadata in Pi. Rove does not send paid requests to test whether an endpoint honors that metadata.
+
 ## Supported behavior
 
 - Extension tools run through Pi and appear as tool calls in Rove.
