@@ -4,6 +4,7 @@ import { ProviderInstanceId, type ModelSelection, type ServerConfig } from "@t3t
 
 import {
   buildModelOptions,
+  normalizePiModelSelection,
   groupByProvider,
   isModelSelectionUnavailable,
   resolveDefaultableModelSelection,
@@ -13,6 +14,55 @@ import {
 } from "./modelOptions";
 
 describe("mobile model options", () => {
+  it("uses supported Pi defaults for display and dispatch without changing other providers", () => {
+    const config = testDouble<ServerConfig>({
+      providers: [
+        {
+          instanceId: "pi-work",
+          driver: "pi",
+          enabled: true,
+          installed: true,
+          auth: { status: "authenticated" },
+          models: [
+            {
+              slug: "local/plain",
+              name: "Plain",
+              isCustom: false,
+              capabilities: {
+                optionDescriptors: [
+                  {
+                    id: "thinkingLevel",
+                    label: "Reasoning",
+                    type: "select",
+                    options: [{ id: "off", label: "Off", isDefault: true }],
+                    currentValue: "off",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const stale = {
+      instanceId: ProviderInstanceId.make("pi-work"),
+      model: "local/plain",
+      options: [{ id: "thinkingLevel", value: "max" }],
+    };
+    expect(normalizePiModelSelection(config, stale).options).toEqual([
+      { id: "thinkingLevel", value: "off" },
+    ]);
+    expect(
+      normalizePiModelSelection(config, { ...stale, model: "missing" }).options,
+    ).toBeUndefined();
+    expect(normalizePiModelSelection(null, stale)).toBe(stale);
+    const other = { ...stale, instanceId: ProviderInstanceId.make("codex") };
+    expect(normalizePiModelSelection(config, other)).toBe(other);
+    expect(buildModelOptions(config, stale)[0]?.selection).toEqual(
+      normalizePiModelSelection(config, stale),
+    );
+  });
+
   it("groups models by provider and flags legacy entries", () => {
     const config = {
       providers: [

@@ -31,6 +31,8 @@ import { uuidv4 } from "../lib/uuid";
 import { makeQueuedMessageMetadata } from "../lib/commandMetadata";
 import { isModelSelectionUnavailable } from "../lib/modelOptions";
 import { resolveProviderInteractionMode } from "../features/threads/legacy-plan-mode";
+import { normalizePiModelSelection } from "../lib/modelOptions";
+import { useEnvironmentServerConfig } from "./entities";
 import {
   convertPastedImagesToAttachments,
   createPastedTextComposerAttachment,
@@ -130,6 +132,7 @@ export function useThreadComposerState() {
     selectedEnvironmentRuntime,
   } = useThreadSelection();
   const selectedThreadDetail = useSelectedThreadDetail();
+  const serverConfig = useEnvironmentServerConfig(selectedThreadShell?.environmentId ?? null);
   const composerDrafts = useAtomValue(composerDraftsAtom);
   const acknowledgedMessages = useAtomValue(acknowledgedThreadMessagesAtom);
   const queuedMessagesByThreadKey = useThreadOutboxMessages();
@@ -244,7 +247,11 @@ export function useThreadComposerState() {
   const draftAttachments = selectedDraft?.attachments ?? [];
   const selectedThreadQueueCount = selectedThreadQueuedMessages.length;
   const selectedThread = selectedThreadDetail ?? selectedThreadShell;
-  const modelSelection = selectedDraft?.modelSelection ?? selectedThread?.modelSelection ?? null;
+  const rawModelSelection = selectedDraft?.modelSelection ?? selectedThread?.modelSelection ?? null;
+  const modelSelection = useMemo(
+    () => (rawModelSelection ? normalizePiModelSelection(serverConfig, rawModelSelection) : null),
+    [rawModelSelection, serverConfig],
+  );
   const runtimeMode = selectedDraft?.runtimeMode ?? selectedThread?.runtimeMode ?? null;
   const selectedProvider = selectedEnvironmentRuntime?.serverConfig?.providers.find(
     (provider) => provider.instanceId === modelSelection?.instanceId,
@@ -444,7 +451,10 @@ export function useThreadComposerState() {
       text,
       attachments,
       context: draft.context,
-      modelSelection,
+      modelSelection: normalizePiModelSelection(
+        serverConfig,
+        draft.modelSelection ?? thread.modelSelection,
+      ),
       runtimeMode: draft.runtimeMode ?? thread.runtimeMode,
       interactionMode: resolveProviderInteractionMode(
         provider,
@@ -484,6 +494,7 @@ export function useThreadComposerState() {
     selectedThreadDetail,
     selectedThreadShell,
     uploadThreadFeedback,
+    serverConfig,
   ]);
 
   const onChangeDraftMessage = useCallback(

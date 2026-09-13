@@ -64,6 +64,18 @@ function normalizeSelectionOptions(
       };
 }
 
+export function normalizePiModelSelection(
+  config: T3ServerConfig | null | undefined,
+  selection: ModelSelection,
+): ModelSelection {
+  const provider = config?.providers.find(
+    (candidate) => candidate.instanceId === selection.instanceId,
+  );
+  if (provider?.driver !== "pi") return selection;
+  const model = provider.models.find((candidate) => candidate.slug === selection.model);
+  return normalizeSelectionOptions(selection, model?.capabilities ?? { optionDescriptors: [] });
+}
+
 /** Whether a known Antigravity selection needs setup or a different model. */
 export function isModelSelectionUnavailable(
   config: T3ServerConfig | null | undefined,
@@ -112,7 +124,7 @@ export function resolveSelectableModelSelection(
     provider.enabled &&
     provider.installed &&
     provider.auth.status !== "unauthenticated"
-    ? selection
+    ? normalizePiModelSelection(config, selection)
     : null;
 }
 

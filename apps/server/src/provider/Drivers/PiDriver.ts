@@ -188,8 +188,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       });
 
       const probeClient: PiProbeClient = {
-        listModels: () => catalogHost.listModels(),
-        defaultModelProvider: () => catalogHost.defaultModelProvider(),
+        getCatalogModels: (thinkingLevel) => catalogHost.getCatalogModels(thinkingLevel),
       };
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,

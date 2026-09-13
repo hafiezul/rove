@@ -20,8 +20,8 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodePath from "node:path";
 
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import type { PiCatalogSnapshot, ServerProviderModel } from "@t3tools/contracts";
+import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import type { PiCatalogSnapshot, PiThinkingLevel, ServerProviderModel } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 
 import {
@@ -156,56 +156,53 @@ export class PiCatalogHost {
     };
   }
 
-  /** Models for the provider snapshot probe. Matches `PiProbeClient`. */
-  async listModels(): Promise<
-    ReadonlyArray<{ id: string; name: string; provider: string; providerName?: string }>
-  > {
-    const models = await this.modelRuntime.getAvailable();
-    const providerNames = new Map(
-      this.modelRuntime.getProviders().map((provider) => [String(provider.id), provider.name]),
-    );
-    return models.map((model) => {
-      const providerId = String(model.provider);
-      const providerName = providerNames.get(providerId);
-      return {
-        id: model.id,
-        name: model.name,
-        provider: providerId,
-        ...(providerName !== undefined ? { providerName } : undefined),
-      };
-    });
-  }
-
-  async defaultModelProvider(): Promise<string | undefined> {
-    const models = await this.modelRuntime.getAvailable();
-    return models.length > 0 ? String(models[0]?.provider) : undefined;
-  }
-
   /** Snapshot-shaped models with per-model reasoning capabilities. */
-  async getCatalogModels(): Promise<ReadonlyArray<ServerProviderModel>> {
+  async getCatalogModels(
+    thinkingLevel?: PiThinkingLevel | null,
+  ): Promise<ReadonlyArray<ServerProviderModel>> {
     const available = await this.modelRuntime.getAvailable();
     const providerNames = new Map(
       this.modelRuntime.getProviders().map((provider) => [String(provider.id), provider.name]),
     );
-    return available.map((model) => ({
-      slug: `${model.provider}/${model.id}`,
-      name: model.name,
-      subProvider: providerNames.get(String(model.provider)) ?? String(model.provider),
-      isCustom: false,
-      capabilities: createModelCapabilities({
-        optionDescriptors: [
-          buildSelectOptionDescriptor({
-            id: PI_THINKING_DESCRIPTOR_ID,
-            label: "Reasoning",
-            options: getSupportedThinkingLevels(model).map((level) => ({
-              value: level,
-              // SAFETY: Pi thinking levels are a subset of the provider label keys; unknown levels fall back to the raw value.
-              label: (PI_THINKING_LEVEL_LABELS as Record<string, string>)[level] ?? level,
-            })),
-          }),
-        ],
-      }),
-    }));
+    const settings = this.session.settingsManager;
+    return available.map((model) => {
+      const levels = getSupportedThinkingLevels(model);
+      const defaultLevel = clampThinkingLevel(
+        model,
+        thinkingLevel ??
+          settings.getModelThinkingLevel(model.provider, model.id) ??
+          settings.getDefaultThinkingLevel() ??
+          "medium",
+      );
+      const subProvider = (
+        providerNames.get(String(model.provider)) ?? String(model.provider)
+      ).trim();
+      return {
+        slug: `${model.provider}/${model.id}`,
+        name: model.name,
+        ...(subProvider ? { subProvider } : undefined),
+        isCustom: false,
+        ...(this.session.model?.provider === model.provider && this.session.model.id === model.id
+          ? { isDefault: true }
+          : undefined),
+        capabilities: createModelCapabilities({
+          optionDescriptors:
+            levels.length === 0
+              ? []
+              : [
+                  buildSelectOptionDescriptor({
+                    id: PI_THINKING_DESCRIPTOR_ID,
+                    label: "Reasoning",
+                    options: levels.map((level) => ({
+                      value: level,
+                      label: PI_THINKING_LEVEL_LABELS[level],
+                      ...(level === defaultLevel ? { isDefault: true } : undefined),
+                    })),
+                  }),
+                ],
+        }),
+      };
+    });
   }
 
   async getCatalog(): Promise<PiCatalogSnapshot> {

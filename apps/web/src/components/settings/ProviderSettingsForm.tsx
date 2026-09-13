@@ -8,6 +8,7 @@ import type {
   ProviderSettingsFormControl,
   ProviderSettingsFormOption,
   ProviderSettingsFormSchemaAnnotation,
+  ServerProviderModel,
 } from "@t3tools/contracts";
 
 import { cn } from "../../lib/utils";
@@ -16,6 +17,7 @@ import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
+import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "../ui/select";
 import type { ProviderClientDefinition } from "./providerDriverMeta";
 import { SettingsRow } from "./settingsLayout";
 
@@ -161,6 +163,7 @@ export function nextProviderConfigWithFieldValue(
 interface ProviderSettingsFormProps {
   readonly definition: ProviderClientDefinition;
   readonly value: unknown;
+  readonly models?: ReadonlyArray<ServerProviderModel> | undefined;
   readonly idPrefix: string;
   /**
    * `card` stacks label over control, `dialog` is the compact wizard layout,
@@ -405,9 +408,89 @@ function ProviderSettingsFieldRow({
   );
 }
 
+export function resolvePiThinkingSetting(
+  value: unknown,
+  models: ReadonlyArray<ServerProviderModel>,
+) {
+  const slug = readProviderConfigString(value, "model").trim();
+  const model = slug
+    ? models.find((candidate) => candidate.slug === slug)
+    : models.find((candidate) => candidate.isDefault);
+  const descriptor = model?.capabilities?.optionDescriptors?.find(
+    (candidate) => candidate.id === "thinkingLevel" && candidate.type === "select",
+  );
+  const options = descriptor?.type === "select" ? descriptor.options : [];
+  const selected = readProviderConfigString(value, "thinkingLevel").trim();
+  return {
+    options,
+    selected,
+    unavailable: selected !== "" && !options.some((option) => option.id === selected),
+  };
+}
+
+const EMPTY_MODELS: ReadonlyArray<ServerProviderModel> = [];
+
+function PiThinkingSettingsField({
+  field,
+  value,
+  models = EMPTY_MODELS,
+  idPrefix,
+  variant,
+  onChange,
+}: ProviderSettingsFieldRowProps & { models?: ReadonlyArray<ServerProviderModel> | undefined }) {
+  const { options, selected, unavailable } = resolvePiThinkingSetting(value, models);
+  const id = `${idPrefix}-${field.key}`;
+  return (
+    <FieldFrame variant={variant}>
+      <label htmlFor={id} className="text-xs font-medium text-foreground">
+        {field.label}
+      </label>
+      <Select
+        value={selected}
+        onValueChange={(next) => {
+          if (next !== null && (next === "" || options.some((option) => option.id === next))) {
+            onChange(nextProviderConfigWithFieldValue(value, field, next));
+          }
+        }}
+      >
+        <SelectTrigger id={id} className="mt-1.5 w-full">
+          <SelectValue>
+            {selected === ""
+              ? "Use Pi default"
+              : unavailable
+                ? `${selected} (unavailable)`
+                : options.find((option) => option.id === selected)?.label}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectPopup>
+          <SelectItem value="">Use Pi default</SelectItem>
+          {unavailable ? (
+            <SelectItem value={selected} disabled>
+              {selected} (unavailable)
+            </SelectItem>
+          ) : null}
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectPopup>
+      </Select>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {options.length === 0
+          ? "Reasoning choices are available once the selected model is in this provider's catalog."
+          : unavailable
+            ? "The saved override is not supported by this model. Choose a supported level or use Pi default."
+            : "Choices follow the selected model. Use Pi default to clear the override."}
+      </p>
+    </FieldFrame>
+  );
+}
+
 export function ProviderSettingsForm({
   definition,
   value,
+  models,
   idPrefix,
   variant,
   onChange,
@@ -420,16 +503,28 @@ export function ProviderSettingsForm({
 
   return (
     <>
-      {fields.map((field) => (
-        <ProviderSettingsFieldRow
-          key={field.key}
-          field={field}
-          value={value}
-          idPrefix={idPrefix}
-          variant={variant}
-          onChange={onChange}
-        />
-      ))}
+      {fields.map((field) =>
+        definition.value === "pi" && field.key === "thinkingLevel" ? (
+          <PiThinkingSettingsField
+            key={field.key}
+            field={field}
+            value={value}
+            models={models}
+            idPrefix={idPrefix}
+            variant={variant}
+            onChange={onChange}
+          />
+        ) : (
+          <ProviderSettingsFieldRow
+            key={field.key}
+            field={field}
+            value={value}
+            idPrefix={idPrefix}
+            variant={variant}
+            onChange={onChange}
+          />
+        ),
+      )}
     </>
   );
 }
