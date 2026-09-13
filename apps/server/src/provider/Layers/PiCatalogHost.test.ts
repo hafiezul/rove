@@ -152,10 +152,10 @@ describe("Pi catalog host", () => {
         const settingsPath = NodePath.join(agentDir, "settings.json");
         NodeFS.writeFileSync(
           settingsPath,
-          JSON.stringify({
-            defaultThinkingLevel: "low",
-            modelThinkingLevels: { "local/standard": "high" },
-          }),
+          `{
+            "defaultThinkingLevel": "low",
+            "modelThinkingLevels": { "local/standard": "high" }
+          }`,
         );
         const host = yield* Effect.promise(() => create());
         const settingsBefore = NodeFS.readFileSync(settingsPath, "utf8");
