@@ -10,8 +10,8 @@ it("registers the Pi driver", () => {
   assert.strictEqual(pi?.metadata.displayName, "Pi");
   assert.strictEqual(pi?.metadata.supportsMultipleInstances, true);
   assert.strictEqual(pi?.defaultConfig().enabled, true);
-  // Extensions are hard-disabled in v1.
-  assert.strictEqual(pi?.defaultConfig().loadExtensions, false);
+  // Extensions follow the user's Pi config; nothing is disabled by default.
+  assert.deepEqual(pi?.defaultConfig().disabledExtensions, []);
 });
 
 it("every built-in driver kind is unique", () => {

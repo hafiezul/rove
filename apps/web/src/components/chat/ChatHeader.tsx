@@ -50,6 +50,13 @@ import {
 import { cn } from "~/lib/utils";
 import { ProviderExtensions } from "./ProviderExtensions";
 import { useProviderResources } from "../../lib/useProviderResources";
+import { useEnvironmentSettings, useUpdateEnvironmentSettings } from "~/hooks/useSettings";
+import {
+  readPiInstanceSettings,
+  togglePiExtensionDisabled,
+} from "@t3tools/client-runtime/state/providerSettings";
+
+const EMPTY_STRING_LIST: ReadonlyArray<string> = [];
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -226,6 +233,26 @@ export const ChatHeader = memo(function ChatHeader({
     onStartRename: startRename,
   });
   const piCatalog = useProviderResources(activeThreadEnvironmentId, piCatalogInstanceId);
+  const environmentSettings = useEnvironmentSettings(activeThreadEnvironmentId);
+  const updateEnvironmentSettings = useUpdateEnvironmentSettings(activeThreadEnvironmentId);
+  const piDisabledExtensions = useMemo(() => {
+    if (piCatalogInstanceId === null) return EMPTY_STRING_LIST;
+    return readPiInstanceSettings(environmentSettings, piCatalogInstanceId).disabledExtensions;
+  }, [environmentSettings, piCatalogInstanceId]);
+  const togglePiExtension = useCallback(
+    (path: string, disabled: boolean) => {
+      if (piCatalogInstanceId === null) return;
+      updateEnvironmentSettings(
+        togglePiExtensionDisabled({
+          settings: environmentSettings,
+          instanceId: piCatalogInstanceId,
+          path,
+          disabled,
+        }),
+      );
+    },
+    [environmentSettings, piCatalogInstanceId, updateEnvironmentSettings],
+  );
   const titleButtonRef = useRef<HTMLButtonElement | null>(null);
   const titleMenuTimerRef = useRef<number | null>(null);
   const cancelPendingTitleMenu = useCallback(() => {
@@ -436,7 +463,13 @@ export const ChatHeader = memo(function ChatHeader({
             openInCwd={openInCwd}
           />
         )}
-        {piCatalogInstanceId !== null && <ProviderExtensions {...piCatalog} />}
+        {piCatalogInstanceId !== null && (
+          <ProviderExtensions
+            {...piCatalog}
+            disabledExtensions={piDisabledExtensions}
+            onToggleExtension={togglePiExtension}
+          />
+        )}
         {activeProjectName && (
           <GitActionsControl
             gitCwd={gitCwd}

@@ -889,14 +889,22 @@ it("validates remote device hosts and rejects ambiguous host ids", () => {
   expect(() => decodeDeviceHostSettings({ deviceHosts: [{ ...host, port: 0 }] })).toThrow();
 });
 describe("PiSettings", () => {
-  it("defaults to enabled with extensions disabled and Pi defaults for model and thinking", () => {
+  it("defaults to enabled with no disabled extensions and Pi defaults for model and thinking", () => {
     const settings = decodePiSettings({});
 
     expect(settings.enabled).toBe(true);
-    expect(settings.loadExtensions).toBe(false);
+    expect(settings.disabledExtensions).toEqual([]);
     expect(settings.model).toBe("");
     expect(settings.thinkingLevel).toBeNull();
     expect(settings.customModels).toEqual([]);
+  });
+
+  it("round-trips disabled and re-enabled extension paths", () => {
+    const settings = decodePiSettings({
+      disabledExtensions: ["/home/dev/.pi/agent/extensions/noisy.ts"],
+    });
+
+    expect(settings.disabledExtensions).toEqual(["/home/dev/.pi/agent/extensions/noisy.ts"]);
   });
 
   it("round-trips an explicit model and thinking level", () => {
@@ -917,7 +925,7 @@ describe("PiSettings", () => {
     const settings = decodeServerSettings({});
 
     expect(settings.providers.pi.enabled).toBe(true);
-    expect(settings.providers.pi.loadExtensions).toBe(false);
+    expect(settings.providers.pi.disabledExtensions).toEqual([]);
   });
 
   it("accepts a provider patch", () => {

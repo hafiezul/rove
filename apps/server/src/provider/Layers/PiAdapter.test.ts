@@ -19,6 +19,7 @@ import {
   describePiToolCall,
   makePiAdapter,
   resolvePiToolCallArgs,
+  type PiCreateSessionInput,
   type PiSessionEntryLike,
   type PiSessionEventLike,
   type PiSessionLike,
@@ -1216,6 +1217,29 @@ it.layer(testLayer)("PiAdapter", (it) => {
       });
 
       assert.deepStrictEqual(createCalls, [{ resumeSessionFile: "pi-session-xyz" }]);
+    }),
+  );
+
+  it.effect("startSession forwards the settings' disabled extensions to the session", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const createCalls: Array<PiCreateSessionInput> = [];
+      const adapter = yield* makePiAdapter(
+        decodePiSettings({ disabledExtensions: ["/home/dev/.pi/agent/extensions/noisy.ts"] }),
+        {
+          createSession: (input) => {
+            createCalls.push(input);
+            return Promise.resolve(fake);
+          },
+        },
+      ).pipe(Effect.orDie);
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      assert.lengthOf(createCalls, 1);
+      assert.deepStrictEqual(createCalls[0]?.disabledExtensions, [
+        "/home/dev/.pi/agent/extensions/noisy.ts",
+      ]);
     }),
   );
 

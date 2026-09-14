@@ -101,6 +101,8 @@ describe("shouldBundleCliDependency", () => {
         `expected ${name} in the Pi runtime closure`,
       );
     }
+    // SAFETY: apps/server/package.json is repo-controlled and always parses
+    // to an object; only its optional dependencies map is read.
     const serverManifest = JSON.parse(
       NodeFS.readFileSync(NodePath.join(serverRoot, "package.json"), "utf8"),
     ) as { dependencies?: Record<string, string> };

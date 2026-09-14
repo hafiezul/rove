@@ -193,6 +193,8 @@ export interface PiCreateSessionInput {
   readonly model: string | undefined;
   readonly thinkingLevel: string | undefined;
   readonly resumeSessionFile: string | undefined;
+  /** Pi extension paths blocked from loading; matched against the loader's discovered paths. */
+  readonly disabledExtensions?: ReadonlyArray<string> | undefined;
 }
 
 export interface PiAdapterLiveOptions {
@@ -1089,6 +1091,10 @@ export function makePiAdapter(
                 piSettings.thinkingLevel ??
                 undefined,
               resumeSessionFile: resumeCursor?.sessionId,
+              // The registry rebuilds the adapter when Pi settings change, so
+              // this closure always reflects the current disabled set; the
+              // next turn's resumed session applies it.
+              disabledExtensions: piSettings.disabledExtensions,
             }),
           catch: (cause) =>
             new ProviderAdapterRequestError({
