@@ -460,12 +460,10 @@ export const PiSettings = makeProviderSettingsSchema(
         providerSettingsForm: { clearWhenEmpty: "omit" },
       }),
     ),
-    // Hidden while extension loading is unsupported: the setting exists so
-    // persisted configs round-trip, but users cannot flip it until the
-    // dialog wiring ships. The extensions note is carried on the schema's
-    // top-level description so the settings UI shows it without a control.
-    loadExtensions: Schema.Boolean.pipe(
-      Schema.withDecodingDefault(Effect.succeed(false)),
+    // Extension paths blocked from loading in new Pi sessions. Toggled from
+    // the provider extensions panel and applied at session creation.
+    disabledExtensions: Schema.Array(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed([])),
       Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
     ),
     customModels: Schema.Array(Schema.String).pipe(
@@ -479,7 +477,7 @@ export const PiSettings = makeProviderSettingsSchema(
 ).pipe(
   Schema.annotate({
     description:
-      "Pi runs with your global CLI setup (auth, models, skills). Pi extensions are not loaded in Rove Code threads yet — your terminal `pi` is unaffected.",
+      "Pi runs with your global CLI setup (auth, models, skills). Pi threads load your Pi extensions; disable individual extensions from the provider extensions panel. Your terminal `pi` is unaffected.",
   }),
 );
 export type PiSettings = typeof PiSettings.Type;
@@ -764,7 +762,7 @@ const PiSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
   model: Schema.optionalKey(TrimmedString),
   thinkingLevel: Schema.optionalKey(Schema.NullOr(PiThinkingLevel)),
-  loadExtensions: Schema.optionalKey(Schema.Boolean),
+  disabledExtensions: Schema.optionalKey(Schema.Array(Schema.String)),
   customModels: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 

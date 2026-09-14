@@ -233,6 +233,26 @@ describe("Pi catalog host", () => {
     assert.isTrue(catalog.warnings.some((warning) => warning.includes("catalog load failed")));
   });
 
+  it("rescans extension files on refresh", async () => {
+    const host = await create({ additionalExtensionPaths: [fixturePath] });
+    NodeFS.mkdirSync(NodePath.join(agentDir, "extensions"), { recursive: true });
+    NodeFS.writeFileSync(
+      NodePath.join(agentDir, "extensions", "late.ts"),
+      `export default function (pi) { pi.registerTool({ name: "late_tool", description: "added after start", parameters: {}, execute: async () => ({ content: ["ok"], display: "ok" }) }); }`,
+    );
+    const catalog = await host.refreshCatalog();
+    assert.isTrue(
+      catalog.extensions.some((extension) => extension.tools.includes("late_tool")),
+      "refresh should pick up the newly installed extension",
+    );
+    // Refreshing twice must not stack duplicate warnings or entries.
+    const again = await host.refreshCatalog();
+    assert.strictEqual(
+      again.extensions.filter((extension) => extension.tools.includes("late_tool")).length,
+      1,
+    );
+  });
+
   it("ignores project extensions structurally", async () => {
     const project = NodePath.join(root, "project");
     NodeFS.mkdirSync(NodePath.join(project, ".pi", "extensions"), { recursive: true });

@@ -44,9 +44,10 @@ export interface PiCatalogHostOptions {
 const MAX_WARNINGS = 50;
 
 function pushWarning(warnings: Array<string>, warning: string): void {
-  warnings.push(warning);
-  if (warnings.length > MAX_WARNINGS) {
-    warnings.splice(0, warnings.length - MAX_WARNINGS);
+  // Repeated refreshes would otherwise stack the same message.
+  if (!warnings.includes(warning)) {
+    warnings.push(warning);
+    if (warnings.length > MAX_WARNINGS) warnings.splice(0, warnings.length - MAX_WARNINGS);
   }
 }
 
@@ -240,6 +241,20 @@ export class PiCatalogHost {
    * inventory. Explicit user action only; background paths never call this.
    */
   async refreshCatalog(): Promise<PiCatalogSnapshot> {
+    // Re-scan extension files so newly installed or removed extensions show
+    // up; the runner rebinds with the fresh set, which re-registers any
+    // extension providers.
+    try {
+      await this.session.reload({});
+      for (const { path, error } of this.session.resourceLoader.getExtensions().errors) {
+        pushWarning(this.warnings, `${path}: ${error}`);
+      }
+    } catch (error) {
+      pushWarning(
+        this.warnings,
+        `Catalog reload failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     const result = await this.modelRuntime.refresh({
       allowNetwork: true,
       force: true,

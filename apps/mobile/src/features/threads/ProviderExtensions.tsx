@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import type { useProviderResources } from "../../lib/useProviderResources";
 
 const SCOPE_LABEL = {
@@ -129,8 +129,16 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
                       onPress={() => setExpanded(isOpen ? null : extension.path)}
                       style={{ paddingVertical: 8 }}
                     >
-                      <Text style={{ fontWeight: "600" }}>
+                      <Text
+                        style={{
+                          fontWeight: "600",
+                          color: props.disabledExtensions.includes(extension.path)
+                            ? "#888"
+                            : undefined,
+                        }}
+                      >
                         {isOpen ? "▾" : "▸"} {extension.name}
+                        {props.disabledExtensions.includes(extension.path) ? " (disabled)" : ""}
                       </Text>
                       <Text style={{ fontSize: 13, color: "#888" }}>
                         {SCOPE_LABEL[extension.scope]} · {extension.tools.length}{" "}
@@ -153,6 +161,21 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
                             ? extension.commands.map((command) => `/${command}`).join(", ")
                             : "None"}
                         </Text>
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                          accessibilityLabel={`Toggle extension ${extension.name}`}
+                        >
+                          <Text style={{ fontSize: 13, color: "#888" }}>
+                            Loaded in new sessions
+                          </Text>
+                          <Switch
+                            value={!props.disabledExtensions.includes(extension.path)}
+                            disabled={!props.settingsReady}
+                            onValueChange={(loaded) =>
+                              props.toggleExtension(extension.path, !loaded)
+                            }
+                          />
+                        </View>
                       </View>
                     )}
                   </View>
@@ -170,7 +193,8 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
             <Text style={{ fontWeight: "600" }}>{props.error ? "Retry" : "Refresh catalogue"}</Text>
           </Pressable>
           <Text style={{ fontSize: 13, color: "#888" }}>
-            Project extensions apply inside their own threads.
+            Project extensions apply inside their own threads. Disabling an extension stops loading
+            it in new Pi sessions; existing sessions reload on their next turn.
           </Text>
         </ScrollView>
       </Modal>

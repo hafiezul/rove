@@ -20,8 +20,8 @@ import {
   DialogHeader,
 } from "../ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../ui/empty";
-import { Separator } from "../ui/separator";
 import { Spinner } from "../ui/spinner";
+import { Switch } from "../ui/switch";
 import { cn } from "~/lib/utils";
 
 export interface ProviderExtensionsProps {
@@ -29,6 +29,9 @@ export interface ProviderExtensionsProps {
   error: string | null;
   isPending: boolean;
   refresh: () => Promise<void>;
+  /** Extension paths the Pi instance blocks from loading. */
+  disabledExtensions: ReadonlyArray<string>;
+  onToggleExtension: (path: string, disabled: boolean) => void;
 }
 
 const SCOPE_LABEL = {
@@ -48,19 +51,68 @@ function scopeBadgeVariant(scope: keyof typeof SCOPE_LABEL) {
   }
 }
 
-function Stat({ value, label, alert }: { value: string; label: string; alert?: boolean }) {
+function ExtensionRow({
+  extension,
+  disabled,
+  onToggle,
+}: {
+  extension: PiCatalogSnapshot["extensions"][number];
+  disabled: boolean;
+  onToggle: (path: string, disabled: boolean) => void;
+}) {
+  const switchId = `extension-loaded-${extension.path.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   return (
-    <div className="min-w-0">
-      <div
-        className={cn(
-          "text-2xl font-semibold tabular-nums",
-          alert === true ? "text-warning-foreground" : "text-foreground",
+    <Collapsible>
+      <div className="flex w-full items-center gap-2 rounded-md py-1.5">
+        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left hover:bg-accent/50">
+          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate font-medium",
+              disabled && "text-muted-foreground line-through",
+            )}
+          >
+            {extension.name}
+          </span>
+        </CollapsibleTrigger>
+        {disabled && (
+          <Badge variant="warning" size="sm">
+            Disabled
+          </Badge>
         )}
-      >
-        {value}
+        <Badge variant={scopeBadgeVariant(extension.scope)} size="sm">
+          {SCOPE_LABEL[extension.scope]}
+        </Badge>
+        <Switch
+          id={switchId}
+          checked={!disabled}
+          onCheckedChange={(checked) => onToggle(extension.path, !checked)}
+          aria-label={`Load ${extension.name} in new sessions`}
+        />
       </div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
+      <CollapsiblePanel>
+        <dl className="space-y-1.5 ps-6 pe-1 pt-1 pb-2 text-xs">
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Source</dt>
+            <dd className="min-w-0 flex-1 truncate font-mono">{extension.path}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Tools</dt>
+            <dd className="min-w-0 flex-1">
+              {extension.tools.length > 0 ? extension.tools.join(", ") : "None"}
+            </dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Commands</dt>
+            <dd className="min-w-0 flex-1">
+              {extension.commands.length > 0
+                ? extension.commands.map((command) => `/${command}`).join(", ")
+                : "None"}
+            </dd>
+          </div>
+        </dl>
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }
 
@@ -69,25 +121,15 @@ export function ProviderExtensionsContent({
   error,
   isPending,
   refresh,
+  disabledExtensions,
+  onToggleExtension,
 }: ProviderExtensionsProps) {
   const modelCount =
     data?.modelProviders.reduce((total, provider) => total + provider.modelCount, 0) ?? 0;
   const warningCount = data?.warnings.length ?? 0;
 
   return (
-    <div className="space-y-5 p-6 text-sm">
-      <div className="flex items-start gap-8" role="status" aria-label="Catalog summary">
-        <Stat value={data ? String(data.extensions.length) : "–"} label="Extensions" />
-        <Stat value={data ? String(modelCount) : "–"} label="Models" />
-        <Stat
-          value={data ? String(warningCount) : "–"}
-          label={warningCount === 1 ? "Issue" : "Issues"}
-          alert={warningCount > 0}
-        />
-      </div>
-
-      <Separator />
-
+    <div className="space-y-3 p-4 text-sm">
       {isPending && data === null && (
         <div className="flex items-center gap-2 text-muted-foreground" role="status">
           <Spinner className="size-4" />
@@ -117,7 +159,9 @@ export function ProviderExtensionsContent({
       {data && (
         <>
           <section aria-label="Model providers" className="space-y-1">
-            <h3 className="text-sm font-semibold">Models</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">
+              Models<span className="tabular-nums"> ({modelCount})</span>
+            </h3>
             {data.modelProviders.length === 0 && (
               <p className="text-sm text-muted-foreground">No extension providers.</p>
             )}
@@ -146,7 +190,9 @@ export function ProviderExtensionsContent({
           </section>
 
           <section aria-label="Extensions" className="space-y-1">
-            <h3 className="text-sm font-semibold">Extensions</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">
+              Extensions<span className="tabular-nums"> ({data.extensions.length})</span>
+            </h3>
             {data.extensions.length === 0 ? (
               <Empty>
                 <EmptyHeader>
@@ -158,51 +204,27 @@ export function ProviderExtensionsContent({
               </Empty>
             ) : (
               data.extensions.map((extension) => (
-                <Collapsible key={extension.path}>
-                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md py-1.5 text-left hover:bg-accent/50">
-                    <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{extension.name}</span>
-                    <Badge variant={scopeBadgeVariant(extension.scope)} size="sm">
-                      {SCOPE_LABEL[extension.scope]}
-                    </Badge>
-                  </CollapsibleTrigger>
-                  <CollapsiblePanel>
-                    <dl className="space-y-1.5 ps-6 pe-1 pt-1 pb-2 text-xs">
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Source</dt>
-                        <dd className="min-w-0 flex-1 truncate font-mono">{extension.path}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Tools</dt>
-                        <dd className="min-w-0 flex-1">
-                          {extension.tools.length > 0 ? extension.tools.join(", ") : "None"}
-                        </dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Commands</dt>
-                        <dd className="min-w-0 flex-1">
-                          {extension.commands.length > 0
-                            ? extension.commands.map((command) => `/${command}`).join(", ")
-                            : "None"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </CollapsiblePanel>
-                </Collapsible>
+                <ExtensionRow
+                  key={extension.path}
+                  extension={extension}
+                  disabled={disabledExtensions.includes(extension.path)}
+                  onToggle={onToggleExtension}
+                />
               ))
             )}
           </section>
         </>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="space-y-2 pt-1">
         <Button size="sm" variant="outline" disabled={isPending} onClick={() => void refresh()}>
           <RefreshCwIcon className={cn(isPending && "motion-safe:animate-spin")} />
-          {error ? "Retry" : "Refresh catalogue"}
+          {error ? "Retry" : "Refresh"}
         </Button>
-        <span className="text-xs text-muted-foreground">
-          Project extensions apply inside their own threads.
-        </span>
+        <ul className="space-y-1 text-xs text-muted-foreground">
+          <li>Refresh re-reads extensions and model catalogs from the server's Pi config.</li>
+          <li>Switches apply to new sessions. Live threads reload on their next turn.</li>
+        </ul>
       </div>
     </div>
   );
