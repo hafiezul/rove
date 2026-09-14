@@ -29,11 +29,11 @@ Refresh re-reads extension files and model catalogs from the server's Pi config,
 The Extensions button beside the Pi provider selector opens the provider catalog:
 
 - Loaded extension names, scope, source, tools, and commands.
-- A per-extension switch. Turning one off stops Rove from loading it in Pi sessions.
+- A per-extension switch on each row. Off removes that extension from Pi sessions.
 - Model providers with authentication and model counts.
 - Load warnings and catalog refresh errors.
 
-A disabled extension stays listed so it can be turned back on. Disabling rebuilds the Pi provider instance, so each thread's session applies the change on its next turn. Toggle while the thread is idle: rebuilding mid-turn disrupts streaming the way any provider settings edit does. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
+A disabled extension stays listed so it can be turned back on. Disabling rebuilds the Pi provider instance, so each thread's session applies the change on its next turn. Toggle while the thread is idle: rebuilding mid-turn disrupts streaming the way any provider settings edit does. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. Loaded means initialization succeeded. It does not mean every feature works headlessly. See Limitations.
 
