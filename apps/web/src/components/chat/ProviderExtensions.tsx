@@ -22,6 +22,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../ui/empty";
 import { Separator } from "../ui/separator";
 import { Spinner } from "../ui/spinner";
+import { Switch } from "../ui/switch";
 import { cn } from "~/lib/utils";
 
 export interface ProviderExtensionsProps {
@@ -29,6 +30,9 @@ export interface ProviderExtensionsProps {
   error: string | null;
   isPending: boolean;
   refresh: () => Promise<void>;
+  /** Extension paths the Pi instance blocks from loading. */
+  disabledExtensions: ReadonlyArray<string>;
+  onToggleExtension: (path: string, disabled: boolean) => void;
 }
 
 const SCOPE_LABEL = {
@@ -46,6 +50,79 @@ function scopeBadgeVariant(scope: keyof typeof SCOPE_LABEL) {
     case "temporary":
       return "outline" as const;
   }
+}
+
+function ExtensionRow({
+  extension,
+  disabled,
+  onToggle,
+}: {
+  extension: PiCatalogSnapshot["extensions"][number];
+  disabled: boolean;
+  onToggle: (path: string, disabled: boolean) => void;
+}) {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md py-1.5 text-left hover:bg-accent/50">
+        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate font-medium",
+            disabled && "text-muted-foreground line-through",
+          )}
+        >
+          {extension.name}
+        </span>
+        {disabled && (
+          <Badge variant="warning" size="sm">
+            Disabled
+          </Badge>
+        )}
+        <Badge variant={scopeBadgeVariant(extension.scope)} size="sm">
+          {SCOPE_LABEL[extension.scope]}
+        </Badge>
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <dl className="space-y-1.5 ps-6 pe-1 pt-1 pb-2 text-xs">
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Source</dt>
+            <dd className="min-w-0 flex-1 truncate font-mono">{extension.path}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Tools</dt>
+            <dd className="min-w-0 flex-1">
+              {extension.tools.length > 0 ? extension.tools.join(", ") : "None"}
+            </dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-muted-foreground">Commands</dt>
+            <dd className="min-w-0 flex-1">
+              {extension.commands.length > 0
+                ? extension.commands.map((command) => `/${command}`).join(", ")
+                : "None"}
+            </dd>
+          </div>
+        </dl>
+      </CollapsiblePanel>
+      <div
+        className="flex items-center justify-end gap-2 px-2 pb-1 text-xs text-muted-foreground"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <label
+          className="cursor-pointer select-none"
+          htmlFor={`extension-loaded-${extension.path.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
+        >
+          Loaded in new sessions
+        </label>
+        <Switch
+          id={`extension-loaded-${extension.path.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
+          checked={!disabled}
+          onCheckedChange={(checked) => onToggle(extension.path, !checked)}
+          aria-label={`Toggle extension ${extension.name}`}
+        />
+      </div>
+    </Collapsible>
+  );
 }
 
 function Stat({ value, label, alert }: { value: string; label: string; alert?: boolean }) {
@@ -69,6 +146,8 @@ export function ProviderExtensionsContent({
   error,
   isPending,
   refresh,
+  disabledExtensions,
+  onToggleExtension,
 }: ProviderExtensionsProps) {
   const modelCount =
     data?.modelProviders.reduce((total, provider) => total + provider.modelCount, 0) ?? 0;
@@ -158,37 +237,12 @@ export function ProviderExtensionsContent({
               </Empty>
             ) : (
               data.extensions.map((extension) => (
-                <Collapsible key={extension.path}>
-                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md py-1.5 text-left hover:bg-accent/50">
-                    <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{extension.name}</span>
-                    <Badge variant={scopeBadgeVariant(extension.scope)} size="sm">
-                      {SCOPE_LABEL[extension.scope]}
-                    </Badge>
-                  </CollapsibleTrigger>
-                  <CollapsiblePanel>
-                    <dl className="space-y-1.5 ps-6 pe-1 pt-1 pb-2 text-xs">
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Source</dt>
-                        <dd className="min-w-0 flex-1 truncate font-mono">{extension.path}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Tools</dt>
-                        <dd className="min-w-0 flex-1">
-                          {extension.tools.length > 0 ? extension.tools.join(", ") : "None"}
-                        </dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-muted-foreground">Commands</dt>
-                        <dd className="min-w-0 flex-1">
-                          {extension.commands.length > 0
-                            ? extension.commands.map((command) => `/${command}`).join(", ")
-                            : "None"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </CollapsiblePanel>
-                </Collapsible>
+                <ExtensionRow
+                  key={extension.path}
+                  extension={extension}
+                  disabled={disabledExtensions.includes(extension.path)}
+                  onToggle={onToggleExtension}
+                />
               ))
             )}
           </section>
@@ -201,7 +255,8 @@ export function ProviderExtensionsContent({
           {error ? "Retry" : "Refresh catalogue"}
         </Button>
         <span className="text-xs text-muted-foreground">
-          Project extensions apply inside their own threads.
+          Disabled extensions stop loading in new Pi sessions. Existing sessions reload on their
+          next turn.
         </span>
       </div>
     </div>

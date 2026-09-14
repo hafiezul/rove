@@ -29,6 +29,7 @@ import {
   SessionManager,
   SettingsManager,
   type AgentSession,
+  type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -202,11 +203,27 @@ export async function createPiSession(
   const settingsManager = SettingsManager.create(cwd, agentDir);
   // Trust applies only to this session, not the user's global Pi settings.
   settingsManager.setProjectTrusted(true);
+  // Disabled extensions stay in the loader's discovery (the catalog panel
+  // lists them so they can be re-enabled) but never execute in this session.
+  const disabledExtensions = input.disabledExtensions ?? [];
+  const resourceLoaderOptions =
+    options.extensions === false
+      ? { noExtensions: true }
+      : disabledExtensions.length > 0
+        ? {
+            extensionsOverride: (base: LoadExtensionsResult): LoadExtensionsResult => ({
+              ...base,
+              extensions: base.extensions.filter(
+                (extension) => !disabledExtensions.includes(extension.path),
+              ),
+            }),
+          }
+        : undefined;
   const services = await createAgentSessionServices({
     cwd,
     agentDir,
     settingsManager,
-    resourceLoaderOptions: { noExtensions: options.extensions === false },
+    ...(resourceLoaderOptions !== undefined ? { resourceLoaderOptions } : undefined),
   });
   const errors = [
     ...services.resourceLoader.getExtensions().errors.map(({ path, error }) => `${path}: ${error}`),

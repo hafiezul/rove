@@ -178,6 +178,25 @@ describe("headless Pi extensions", () => {
     assert.include(log(), "command:1:false\n");
   });
 
+  it("skips extensions listed in disabledExtensions", async () => {
+    const fixturePath = NodePath.join(cwd, ".pi", "extensions", "fixture.ts");
+    const disabledSession = await createPiSession({
+      cwd,
+      model: undefined,
+      thinkingLevel: undefined,
+      resumeSessionFile: undefined,
+      disabledExtensions: [fixturePath],
+    });
+    sessions.push(disabledSession);
+    // The fixture logs on session_start, so an empty log means it never ran.
+    assert.isFalse(NodeFS.existsSync(NodePath.join(cwd, "extension.log")));
+
+    // An untouched discovery set keeps loading the same extension.
+    const enabledSession = await create();
+    await enabledSession.prompt("handled");
+    assert.include(log(), "start:false:print\ninput:rpc\n");
+  });
+
   it("loads global extensions and keeps each session's extension state separate", async () => {
     NodeFS.mkdirSync(NodePath.join(agentDir, "extensions"));
     NodeFS.renameSync(

@@ -10,7 +10,7 @@ Rove uses Pi's standard resource loader for these sources:
 - Project extensions in `.pi/extensions/` under the thread's working directory.
 - Extension paths and Pi packages configured in global or project `settings.json`.
 
-`PI_CODING_AGENT_DIR` overrides the global Pi directory. Pi's resource filters still apply. Extension changes take effect when Rove creates the next Pi session. Existing sessions keep their loaded extensions.
+`PI_CODING_AGENT_DIR` overrides the global Pi directory. Pi's resource filters still apply. Extension changes take effect when Rove creates the next Pi session. Existing sessions keep their loaded extensions until their next turn after a settings change, such as disabling an extension in the extensions panel.
 
 Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute inside the Rove server with its permissions. A faulty extension can affect other threads or the server itself.
 
@@ -29,8 +29,11 @@ Refresh catalogue asks the shared runtime for fresh models over the network. Ope
 The Extensions button beside the Pi provider selector opens the provider catalog:
 
 - Loaded extension names, scope, source, tools, and commands.
+- A per-extension switch. Turning one off stops Rove from loading it in Pi sessions.
 - Model providers with authentication and model counts.
 - Load warnings and catalog refresh errors.
+
+A disabled extension stays listed so it can be turned back on. Disabling rebuilds the Pi provider instance, so each thread's session applies the change on its next turn. Toggle while the thread is idle: rebuilding mid-turn disrupts streaming the way any provider settings edit does. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. Loaded means initialization succeeded. It does not mean every feature works headlessly. See Limitations.
 
