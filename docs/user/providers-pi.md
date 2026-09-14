@@ -58,6 +58,7 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 - Extension commands run when typed as `/command arguments` while the thread is idle.
 - Session startup and shutdown hooks run when Rove creates and disposes sessions.
 - Extension state can persist in Pi's session history.
+- When extensions are disabled in the extensions panel, the session's system prompt lists them. Ask the thread agent about its loaded extensions and it can answer from its own session instead of Pi's settings file.
 
 A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the session from starting. Runtime extension errors appear as warnings.
 

@@ -178,8 +178,27 @@ describe("headless Pi extensions", () => {
     assert.include(log(), "command:1:false\n");
   });
 
-  it("skips extensions listed in disabledExtensions", async () => {
+  it("skips extensions listed in disabledExtensions and tells the model about it", async () => {
     const fixturePath = NodePath.join(cwd, ".pi", "extensions", "fixture.ts");
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "spy.ts"),
+      `import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
+export default function (pi) {
+  pi.on("before_agent_start", (event, ctx) => {
+    NodeFS.appendFileSync(
+      NodePath.join(ctx.cwd, "disabled-note-probe.log"),
+      event.systemPrompt.includes("Rove Code disables") ? "note:present" : "note:absent",
+    );
+  });
+}`,
+    );
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "dummy.ts"),
+      "export default () => {};",
+    );
+
+    // A session that blocks the fixture never runs it.
     const disabledSession = await createPiSession({
       cwd,
       model: undefined,
@@ -188,8 +207,24 @@ describe("headless Pi extensions", () => {
       disabledExtensions: [fixturePath],
     });
     sessions.push(disabledSession);
-    // The fixture logs on session_start, so an empty log means it never ran.
     assert.isFalse(NodeFS.existsSync(NodePath.join(cwd, "extension.log")));
+
+    // A session keeping the fixture but blocking another extension still
+    // tells the model, in its system prompt, which extension Rove removed.
+    const noteSession = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionFile: undefined,
+      disabledExtensions: [NodePath.join(cwd, ".pi", "extensions", "dummy.ts")],
+    });
+    sessions.push(noteSession);
+    await noteSession.prompt("anything at all");
+    assert.include(log(), "start:false:print\n");
+    assert.strictEqual(
+      NodeFS.readFileSync(NodePath.join(cwd, "disabled-note-probe.log"), "utf8"),
+      "note:present",
+    );
 
     // An untouched discovery set keeps loading the same extension.
     const enabledSession = await create();

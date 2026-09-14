@@ -57,6 +57,20 @@ export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: strin
   return resolved.model;
 }
 
+/**
+ * System-prompt note telling the model which Pi extensions Rove blocks in
+ * this session. The model otherwise answers "which extensions are loaded"
+ * from Pi's settings.json filters and reports extensions that are not
+ * actually bound in the session.
+ */
+export function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
+  return [
+    "Rove Code disables these Pi extensions for this session, so they are NOT loaded:",
+    ...disabled.map((path) => `- ${path}`),
+    "Every other extension from the user's Pi configuration is loaded normally.",
+  ].join("\n");
+}
+
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
@@ -217,6 +231,7 @@ export async function createPiSession(
                 (extension) => !disabledExtensions.includes(extension.path),
               ),
             }),
+            appendSystemPrompt: [disabledExtensionsPromptNote(disabledExtensions)],
           }
         : undefined;
   const services = await createAgentSessionServices({
