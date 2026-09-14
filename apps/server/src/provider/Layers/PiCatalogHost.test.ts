@@ -238,8 +238,7 @@ describe("Pi catalog host", () => {
     NodeFS.mkdirSync(NodePath.join(agentDir, "extensions"), { recursive: true });
     NodeFS.writeFileSync(
       NodePath.join(agentDir, "extensions", "late.ts"),
-      `import { defineTool } from "@earendil-works/pi-coding-agent";
-      export default function (pi) { pi.registerTool({ name: "late_tool", description: "added after start", parameters: {}, execute: async () => ({ content: ["ok"], display: "ok" }) }); }`,
+      `export default function (pi) { pi.registerTool({ name: "late_tool", description: "added after start", parameters: {}, execute: async () => ({ content: ["ok"], display: "ok" }) }); }`,
     );
     const catalog = await host.refreshCatalog();
     assert.isTrue(

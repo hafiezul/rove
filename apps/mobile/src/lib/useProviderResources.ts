@@ -3,7 +3,7 @@ import {
   readPiInstanceSettings,
   togglePiExtensionDisabled,
 } from "@t3tools/client-runtime/state/providerSettings";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import * as Cause from "effect/Cause";
 import { serverEnvironment } from "../state/server";
 import { useEnvironmentQuery } from "../state/query";
@@ -49,22 +49,30 @@ export function useProviderResources(
     if (!settingsReady || instanceId === null) return EMPTY_STRING_LIST;
     return readPiInstanceSettings(serverConfig?.settings ?? {}, instanceId).disabledExtensions;
   }, [settingsReady, instanceId, serverConfig?.settings]);
-  const toggleExtension = (path: string, disabled: boolean) => {
-    if (!settingsReady) {
-      return;
-    }
-    void updateSettingsCommand({
-      environmentId,
-      input: {
-        patch: togglePiExtensionDisabled({
-          settings: serverConfig.settings,
-          instanceId,
-          path,
-          disabled,
-        }),
-      },
-    });
-  };
+  const toggleExtension = useCallback(
+    (path: string, disabled: boolean) => {
+      if (
+        !settingsReady ||
+        serverConfig?.settings === undefined ||
+        instanceId === null ||
+        environmentId === null
+      ) {
+        return;
+      }
+      void updateSettingsCommand({
+        environmentId,
+        input: {
+          patch: togglePiExtensionDisabled({
+            settings: serverConfig.settings,
+            instanceId,
+            path,
+            disabled,
+          }),
+        },
+      });
+    },
+    [environmentId, instanceId, serverConfig, settingsReady, updateSettingsCommand],
+  );
   return {
     data: query.data,
     error: (refreshState?.key === key ? refreshState.error : null) ?? query.error,

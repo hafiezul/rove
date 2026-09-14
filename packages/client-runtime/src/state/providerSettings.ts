@@ -43,9 +43,11 @@ export function readPiInstanceSettings(
   return decodePiInstanceSettings(settings.providers.pi);
 }
 
-type ProviderSettingsPatch = Partial<Pick<UnifiedSettings, "providers" | "providerInstances">>;
-type ProviderSettingsPatchMutable = {
-  -readonly [K in keyof ProviderSettingsPatch]?: ProviderSettingsPatch[K];
+type ProviderSettingsPatch = {
+  -readonly [K in keyof Pick<
+    UnifiedSettings,
+    "providers" | "providerInstances"
+  >]?: UnifiedSettings[K];
 };
 
 /**
@@ -70,7 +72,7 @@ export function togglePiExtensionDisabled(input: {
     ? [...new Set([...currentDisabled, input.path])]
     : currentDisabled.filter((path) => path !== input.path);
 
-  const patch: ProviderSettingsPatchMutable = {};
+  const patch: ProviderSettingsPatch = {};
   const instance = input.settings.providerInstances[input.instanceId];
   if (instance !== undefined && String(instance.driver) === PI_DRIVER) {
     patch.providerInstances = {

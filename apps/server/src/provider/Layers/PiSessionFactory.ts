@@ -63,7 +63,7 @@ export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: strin
  * from Pi's settings.json filters and reports extensions that are not
  * actually bound in the session.
  */
-export function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
+function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
   return [
     "Rove Code disables these Pi extensions for this session, so they are NOT loaded:",
     ...disabled.map((path) => `- ${path}`),
