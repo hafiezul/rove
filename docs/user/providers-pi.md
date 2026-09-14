@@ -22,7 +22,7 @@ Extension models stay in the Pi provider. Other providers are unchanged. A proje
 
 Some extensions register cached models first and refresh in the background. The snapshot republishes when registrations land, and the regular provider health check backstops a missed push. If a provider needs login, its models stay hidden until authentication succeeds, and the catalog panel labels the provider Not authenticated. Use Pi on the server machine to authenticate, then use Refresh catalogue in Rove.
 
-Refresh catalogue asks the shared runtime for fresh models over the network. Opening threads or panel never triggers network refreshes on its own.
+Refresh re-reads extension files and model catalogs from the server's Pi config, so newly installed or removed extensions appear in the panel with their models. New and reloaded sessions always read the config fresh, and an existing thread adopts changes on its next turn after a settings update, such as toggling an extension. Typing Pi's `/reload` inside a Rove thread does nothing: Rove rejects session replacement from extensions and owns reloading. Use the panel refresh and the extension switches instead.
 
 ## Extensions panel
 
@@ -68,6 +68,6 @@ Extensions run headlessly with `ctx.mode` set to `"print"` and `ctx.hasUI` set t
 
 Dialogs are unavailable. Confirmations return `false`; selection and text-input dialogs return no value. Notifications, widgets, keyboard shortcuts, custom message renderers, and terminal components are not displayed in Rove. Extensions that require these features need a headless fallback.
 
-Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. Refresh catalogue is not Pi's `/reload`: it updates the model catalog without reloading extension files or restarting sessions.
+Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 
 Background text generation, including thread titles, does not load extensions. Other providers are unchanged.
