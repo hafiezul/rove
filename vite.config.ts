@@ -164,8 +164,8 @@ export default defineConfig({
         rules: { "rove/no-mobile-uniwind-theme-escape-hatches": "error" },
       },
       {
-        // Code that runs on Hermes. It has no ES2023 change-array-by-copy methods, and
-        // tsconfig targets ESNext, so only lint stands between a call and a fatal launch.
+        // Shared client code must not call APIs missing from Hermes. Our ESNext
+        // TypeScript target accepts them even when they would crash mobile at launch.
         // Tests run on Node and are exempt.
         files: [
           "apps/mobile/src/**",
@@ -174,7 +174,7 @@ export default defineConfig({
           "packages/shared/src/**",
         ],
         excludeFiles: ["**/*.test.ts", "**/*.test.tsx"],
-        rules: { "rove/no-hermes-unsupported-array-methods": "error" },
+        rules: { "rove/no-hermes-unsupported-apis": "error" },
       },
       {
         // Reviewed native and third-party interop boundaries that cannot consume a className.
