@@ -32,6 +32,7 @@ function statusDotTone(state: ConnectionStatusDotState) {
         haloColor: "rgba(245,158,11,0.5)",
       };
     case "offline":
+    case "unsupported":
     case "error":
       return {
         dotColor: "#ef4444",
