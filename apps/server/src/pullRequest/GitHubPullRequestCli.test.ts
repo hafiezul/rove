@@ -9,6 +9,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 
 import * as GitHubCli from "../sourceControl/GitHubCli.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
+import * as SourceControlRateLimit from "../sourceControl/SourceControlRateLimit.ts";
 import * as GitHubGraphQlBudget from "../sourceControl/githubGraphQlBudget.ts";
 import * as GitHubPullRequestCli from "./GitHubPullRequestCli.ts";
 import { BASE_COMPARISON_GRAPHQL_QUERY } from "./gitHubPullRequestJson.ts";
@@ -204,6 +205,7 @@ it.effect(
       let activeToken = "broad-credential";
       const commands: VcsProcess.VcsProcessInput[] = [];
       const github = yield* GitHubCli.make.pipe(
+        Effect.provide(Layer.merge(GitHubGraphQlBudget.layer, SourceControlRateLimit.layer)),
         Effect.provideService(VcsProcess.VcsProcess, {
           run: (input) =>
             Effect.sync(() => {
@@ -297,7 +299,7 @@ it.effect("verifies the identity of the project's selected GitHub account", () =
       GH_TOKEN: "selected-credential",
       GH_HOST: "github.com",
     });
-  }),
+  }).pipe(Effect.provide(Layer.merge(GitHubGraphQlBudget.layer, SourceControlRateLimit.layer))),
 );
 
 it.effect("refuses a selected account whose host is not the repository's", () =>
@@ -320,7 +322,7 @@ it.effect("refuses a selected account whose host is not the repository's", () =>
       ),
     );
     expect(failure._tag).toBe("GitHubViewerLoginUnavailableError");
-  }),
+  }).pipe(Effect.provide(Layer.merge(GitHubGraphQlBudget.layer, SourceControlRateLimit.layer))),
 );
 
 layer("GitHubPullRequestCli.layer", (it) => {
