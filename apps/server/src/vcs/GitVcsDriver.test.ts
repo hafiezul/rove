@@ -65,6 +65,60 @@ runVcsDriverContractSuite<GitVcsDriver.GitVcsDriver, GitContractError>({
   },
 });
 
+const makeCheckpointFixture = Effect.fn("makeCheckpointFixture")(function* (
+  driver: Effect.Success<ReturnType<typeof GitVcsDriver.makeVcsDriverShape>>,
+  cwd: string,
+) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const git = (args: ReadonlyArray<string>) =>
+    driver.execute({ operation: "checkpoint-test", cwd, args });
+  yield* git(["init"]);
+  yield* git(["config", "user.name", "Test"]);
+  yield* git(["config", "user.email", "test@test.com"]);
+  yield* fileSystem.writeFileString(path.join(cwd, "file.txt"), "initial\n");
+  yield* git(["add", "."]);
+  yield* git(["commit", "-m", "initial"]);
+  const checkpointRef = CheckpointRef.make("refs/t3/checkpoints/test");
+  yield* fileSystem.writeFileString(path.join(cwd, "file.txt"), "staged\n");
+  yield* git(["add", "."]);
+  yield* fileSystem.writeFileString(path.join(cwd, "file.txt"), "unstaged\n");
+  return { git, checkpointRef };
+});
+
+it.effect("checkpoint capture does not rerun clean filters for unchanged indexed files", () =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const driver = yield* GitVcsDriver.makeVcsDriverShape();
+    const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "rove-checkpoint-cache-" });
+    const { git, checkpointRef } = yield* makeCheckpointFixture(driver, cwd);
+    yield* fileSystem.writeFileString(
+      path.join(cwd, ".gitattributes"),
+      "stable.txt filter=probe\n",
+    );
+    yield* fileSystem.writeFileString(path.join(cwd, "stable.txt"), "unchanged\n");
+    yield* fileSystem.writeFileString(
+      path.join(cwd, ".git", "filter.cjs"),
+      'require("node:fs").appendFileSync(".git/filter-runs", "read\\n"); process.stdin.pipe(process.stdout);',
+    );
+    yield* git(["config", "filter.probe.clean", "node .git/filter.cjs"]);
+    yield* fileSystem.utimes(path.join(cwd, "stable.txt"), 1_700_000_000, 1_700_000_000);
+    yield* git(["add", "."]);
+    yield* git(["commit", "-m", "record stable file"]);
+    yield* fileSystem.writeFileString(path.join(cwd, ".git", "filter-runs"), "");
+    yield* fileSystem.writeFileString(path.join(cwd, "file.txt"), "changed\n");
+    const originalIndex = yield* fileSystem.readFile(path.join(cwd, ".git", "index"));
+
+    yield* driver.checkpoints.captureCheckpoint({ cwd, checkpointRef });
+
+    assert.strictEqual(yield* fileSystem.readFileString(path.join(cwd, ".git", "filter-runs")), "");
+    assert.strictEqual((yield* git(["show", `${checkpointRef}:file.txt`])).stdout, "changed\n");
+    assert.strictEqual((yield* git(["show", `${checkpointRef}:stable.txt`])).stdout, "unchanged\n");
+    assert.deepEqual(yield* fileSystem.readFile(path.join(cwd, ".git", "index")), originalIndex);
+  }).pipe(Effect.scoped, Effect.provide(GitContractLayer)),
+);
+
 it.effect("captures same-size edits when the source index has racy timestamps", () =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
