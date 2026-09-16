@@ -1,6 +1,10 @@
 import { withAgentDeviceEnvironment } from "../../mcp/McpProviderSession.ts";
 import { AntigravitySettings, ProviderDriverKind, ProviderSetupError } from "@t3tools/contracts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import {
+  NodeRuntimeUnavailableError,
+  nodeRuntimeUnavailableMessage,
+} from "@t3tools/shared/nodeRuntime";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -55,6 +59,7 @@ import { discoverAntigravitySkills, resolveAntigravityUserHome } from "./Antigra
 
 const DRIVER = ProviderDriverKind.make("antigravity");
 const decodeSettings = Schema.decodeSync(AntigravitySettings);
+const isNodeRuntimeUnavailableError = Schema.is(NodeRuntimeUnavailableError);
 
 export type AntigravityDriverEnv =
   | AntigravityInstallation
@@ -154,6 +159,16 @@ export const AntigravityDriver: ProviderDriver<AntigravitySettings, AntigravityD
           Effect.provideService(FileSystem.FileSystem, fileSystem),
           Effect.provideService(Path.Path, path),
           Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+          Effect.mapError((cause) =>
+            isNodeRuntimeUnavailableError(cause.cause)
+              ? new ProviderSetupError({
+                  instanceId,
+                  operation: "start",
+                  detail: nodeRuntimeUnavailableMessage("Antigravity sign-in"),
+                  cause,
+                })
+              : cause,
+          ),
         );
         const runtime = yield* makeAntigravityAcpRuntime({
           ...input,
@@ -361,7 +376,8 @@ export const AntigravityDriver: ProviderDriver<AntigravitySettings, AntigravityD
                 instanceId,
                 detail: isAntigravitySignInRequiredError(cause)
                   ? "Sign in to Antigravity in provider settings before refreshing models."
-                  : cause._tag === "ProviderSetupError" && cause.operation === "configure"
+                  : cause._tag === "ProviderSetupError" &&
+                      (cause.operation === "configure" || cause.operation === "start")
                     ? cause.detail
                     : "Could not refresh Antigravity models. The previous model list is unchanged.",
                 cause,
