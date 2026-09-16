@@ -130,6 +130,8 @@ interface PreparedNativeReviewFileRows {
   readonly filePath: string;
   readonly lineCount: number;
   readonly rows: ReadonlyArray<NativeReviewDiffRow>;
+  readonly commentTargetsByRowId: ReadonlyMap<string, NativeReviewDiffCommentTarget>;
+  readonly rowIdByCommentLineId: ReadonlyMap<string, string>;
   commentedRows: {
     readonly commentsKey: string;
     readonly rows: ReadonlyArray<NativeReviewDiffRow>;
@@ -141,6 +143,7 @@ interface PreparedNativeReviewDiffData extends Omit<NativeReviewDiffData, "rows"
 }
 
 const nativeReviewDiffDataCache = new WeakMap<ReviewParsedDiff, CachedNativeReviewDiffData>();
+const nativeReviewFileRowsCache = new WeakMap<ReviewRenderableFile, PreparedNativeReviewFileRows>();
 
 function buildReviewCommentsCacheKey(comments: ReadonlyArray<ReviewInlineComment>): string {
   if (comments.length === 0) {
@@ -266,6 +269,7 @@ function createNoticeRow(fileId: string, suffix: string, text: string): NativeRe
 }
 
 function noticeRowsForFile(file: ReviewRenderableFile): ReadonlyArray<NativeReviewDiffRow> {
+  if (file.notice) return [createNoticeRow(file.id, "loading", file.notice)];
   if (file.rows.length > 0) {
     return [];
   }
@@ -411,11 +415,11 @@ function mapLineRow(
   };
 }
 
-function prepareFileRows(
-  file: ReviewRenderableFile,
-  commentTargetsByRowId: Map<string, NativeReviewDiffCommentTarget>,
-  rowIdByCommentLineId: Map<string, string>,
-): PreparedNativeReviewFileRows {
+function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRows {
+  const cached = nativeReviewFileRowsCache.get(file);
+  if (cached) return cached;
+  const commentTargetsByRowId = new Map<string, NativeReviewDiffCommentTarget>();
+  const rowIdByCommentLineId = new Map<string, string>();
   const rows: NativeReviewDiffRow[] = [
     {
       kind: "file",
@@ -454,14 +458,18 @@ function prepareFileRows(
   });
 
   rows.push(...noticeRowsForFile(file));
-  return {
+  const prepared: PreparedNativeReviewFileRows = {
     fileId: file.id,
     filePath: file.path,
     lineCount: lineRows.length,
     // Comments must not split the source deletion/addition runs used for word matching.
     rows: addNativeWordDiffRanges(rows),
+    commentTargetsByRowId,
+    rowIdByCommentLineId,
     commentedRows: null,
   };
+  nativeReviewFileRowsCache.set(file, prepared);
+  return prepared;
 }
 
 function insertFileComments(
@@ -531,9 +539,15 @@ function prepareNativeReviewDiffData(parsedDiff: ReviewParsedDiff): PreparedNati
   }));
   const commentTargetsByRowId = new Map<string, NativeReviewDiffCommentTarget>();
   const rowIdByCommentLineId = new Map<string, string>();
-  const fileRows = parsedDiff.files.map((file) =>
-    prepareFileRows(file, commentTargetsByRowId, rowIdByCommentLineId),
-  );
+  const fileRows = parsedDiff.files.map(prepareFileRows);
+  for (const file of fileRows) {
+    for (const [rowId, target] of file.commentTargetsByRowId) {
+      commentTargetsByRowId.set(rowId, target);
+    }
+    for (const [lineId, rowId] of file.rowIdByCommentLineId) {
+      rowIdByCommentLineId.set(lineId, rowId);
+    }
+  }
 
   return {
     fileRows,
