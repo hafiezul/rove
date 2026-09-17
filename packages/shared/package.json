@@ -338,6 +338,10 @@
     "./runtimeValueKind": {
       "types": "./src/runtimeValueKind.ts",
       "import": "./src/runtimeValueKind.ts"
+    },
+    "./gitPatchPath": {
+      "types": "./src/gitPatchPath.ts",
+      "import": "./src/gitPatchPath.ts"
     }
   },
   "scripts": {
