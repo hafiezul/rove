@@ -1091,7 +1091,7 @@ const make = Effect.gen(function* () {
       Effect.andThen(statusRefreshWorker.drain),
       Effect.andThen(entryRefreshWorker.drain),
     ),
-  } satisfies CheckpointReactorShape;
+  } satisfies CheckpointReactorContract;
 });
 
 export const CheckpointReactorLive = Layer.effect(CheckpointReactor, make);
