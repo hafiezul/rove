@@ -2,6 +2,14 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
+## Session recovery
+
+Rove saves each Pi session's identity and absolute file location on the server. Sessions remain recoverable when a thread's working directory changes, provided the saved file remains accessible. Older sessions without a saved file location use Pi's working-directory lookup.
+
+If history is missing, unreadable, empty, or belongs to another session, startup fails instead of silently starting an empty conversation. Restore the session file or storage access on the server, then retry the turn. To continue without that history, create a new thread. The original thread keeps its saved session reference for recovery.
+
+New sessions are saved before the first prompt, so restarting before the first assistant response does not invalidate their session reference.
+
 ## Extension sources
 
 Rove uses Pi's standard resource loader for these sources:

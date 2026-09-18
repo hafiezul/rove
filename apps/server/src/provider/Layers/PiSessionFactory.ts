@@ -6,8 +6,8 @@
  *     Terminal UI is unavailable.
  *   - Always-trust: project-local resources are trusted, matching Rove Code's
  *     full-access stance and avoiding silent divergence from terminal `pi`.
- *   - Resume: a thread's `resumeCursor` holds the Pi session id; we re-adopt
- *     it with `SessionManager.open` on the session file that id maps to.
+ *   - Resume: the cursor holds the session id and absolute file path.
+ *     ID-only cursors from older versions use cwd-based lookup.
  *   - Fork-as-rollback: exposed via `session.navigateTree` (same-file fork)
  *     through the `PiSessionLike.fork` shim the adapter calls.
  *
@@ -131,6 +131,9 @@ async function toPiSessionLike(
     get sessionId() {
       return session.sessionId;
     },
+    get sessionFile() {
+      return session.sessionFile;
+    },
     ...(resumeOutcome !== undefined ? { resumeOutcome } : undefined),
     get isStreaming() {
       return session.isStreaming;
@@ -193,36 +196,43 @@ async function toPiSessionLike(
   };
 }
 
-/**
- * Resolve the on-disk session file for a persisted Pi session id so a resumed
- * thread re-adopts its conversation. Returns the miss explicitly so the
- * caller can report it instead of masking a fresh session as a resume.
- */
 export function resolvePiSessionResume(
   cwd: string,
   sessionId: string | undefined,
+  sessionFile?: string,
 ): PiSessionResumeOutcome {
   if (sessionId === undefined) return { resumed: false, reason: "no-cursor" };
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  let entries: string[];
   try {
-    entries = NodeFS.readdirSync(sessionDir);
-  } catch {
-    return { resumed: false, reason: "missing-file", sessionId };
+    if (sessionFile === undefined) {
+      const sessionDir = SessionManager.create(cwd).getSessionDir();
+      const matches = NodeFS.readdirSync(sessionDir).filter((entry) =>
+        entry.endsWith(`_${sessionId}.jsonl`),
+      );
+      if (matches.length === 0) throw new Error("Session history is missing.");
+      if (matches.length > 1) throw new Error("Multiple session files match this identity.");
+      sessionFile = NodePath.join(sessionDir, matches[0]!);
+    }
+    if (!NodePath.isAbsolute(sessionFile))
+      throw new Error("Session file locator must be absolute.");
+    const stat = NodeFS.statSync(sessionFile);
+    // Pi initializes empty files with a new identity, which is not recovery.
+    if (!stat.isFile() || stat.size === 0) throw new Error("Session history is empty or invalid.");
+    NodeFS.accessSync(sessionFile, NodeFS.constants.R_OK);
+    return { resumed: true, sessionFile };
+  } catch (cause) {
+    const detail =
+      cause instanceof Error && "code" in cause
+        ? cause.code === "ENOENT"
+          ? "Session history is missing."
+          : `Session storage is unreadable. ${cause.message}`
+        : cause instanceof Error
+          ? cause.message
+          : String(cause);
+    throw new Error(
+      `Cannot recover Pi session '${sessionId}'. ${detail} Restore the session file or storage access and retry, or create a new thread to start fresh.`,
+      { cause },
+    );
   }
-  const suffix = `_${sessionId}.jsonl`;
-  const match = entries.find((entry) => entry.endsWith(suffix));
-  return match === undefined
-    ? { resumed: false, reason: "missing-file", sessionId }
-    : { resumed: true, sessionFile: NodePath.join(sessionDir, match) };
-}
-
-/**
- * Legacy lookup kept for the existing factory test. Prefer `resolvePiSessionResume`.
- */
-export function resolvePiSessionFileForTest(cwd: string, sessionId: string): string | undefined {
-  const outcome = resolvePiSessionResume(cwd, sessionId);
-  return outcome.resumed ? outcome.sessionFile : undefined;
 }
 
 export async function createPiSession(
@@ -231,6 +241,23 @@ export async function createPiSession(
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
   const agentDir = getAgentDir();
+  const outcome = resolvePiSessionResume(cwd, input.resumeSessionId, input.resumeSessionFile);
+  const sessionManager = outcome.resumed
+    ? SessionManager.open(outcome.sessionFile, undefined, cwd)
+    : SessionManager.create(cwd);
+  if (outcome.resumed && sessionManager.getSessionId() !== input.resumeSessionId) {
+    throw new Error(
+      "Pi session identity does not match the saved cursor. Restore the correct session file and retry, or create a new thread to start fresh.",
+    );
+  }
+  if (!outcome.resumed) {
+    // Pi defers persistence until an assistant response. Rove saves a cursor at startup.
+    const sessionFile = sessionManager.getSessionFile()!;
+    NodeFS.writeFileSync(sessionFile, `${JSON.stringify(sessionManager.getHeader())}\n`, {
+      flag: "wx",
+    });
+    sessionManager.setSessionFile(sessionFile);
+  }
 
   const settingsManager = SettingsManager.create(cwd, agentDir);
   // Trust applies only to this session, not the user's global Pi settings.
@@ -265,12 +292,6 @@ export async function createPiSession(
       .map((diagnostic) => diagnostic.message),
   ];
   if (errors.length > 0) throw new Error(`Failed to load Pi extensions:\n${errors.join("\n")}`);
-
-  const outcome = resolvePiSessionResume(cwd, input.resumeSessionId);
-  const sessionManager =
-    outcome.resumed === true
-      ? SessionManager.open(outcome.sessionFile)
-      : SessionManager.create(cwd);
 
   // Resolve the model/thinking override against the user's catalog. Blank
   // (the default) means Pi's own default from settings wins — pass nothing.

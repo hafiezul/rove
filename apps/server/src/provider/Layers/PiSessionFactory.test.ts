@@ -16,10 +16,14 @@ import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";
 import {
   createPiSession,
   resolvePiModelForSession,
-  resolvePiSessionFileForTest,
   resolvePiSessionResume,
 } from "./PiSessionFactory.ts";
-import { makePiAdapter, type PiSessionEventLike, type PiSessionLike } from "./PiAdapter.ts";
+import {
+  makePiAdapter,
+  parsePiResumeCursor,
+  type PiSessionEventLike,
+  type PiSessionLike,
+} from "./PiAdapter.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 
@@ -38,7 +42,6 @@ describe("headless Pi extensions", () => {
     NodeFS.mkdirSync(NodePath.join(cwd, ".pi", "extensions"), { recursive: true });
     NodeFS.mkdirSync(agentDir);
     vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
-    vi.stubEnv("PI_CODING_AGENT_SESSION_DIR", NodePath.join(root, "sessions"));
     vi.stubEnv("PI_OFFLINE", "1");
     NodeFS.copyFileSync(
       new URL("./fixtures/pi-extension.ts", import.meta.url),
@@ -156,6 +159,54 @@ describe("headless Pi extensions", () => {
       if (completed.type === "turn.completed")
         assert.strictEqual(completed.payload.state, "completed");
       assert.include(log(), "command:1:false\n");
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("recovers the same conversation after a missing-file failure and restoration", () =>
+    Effect.gen(function* () {
+      const adapter = yield* makePiAdapter(
+        decodePiSettings({ model: "rove-extension-test/fixture" }),
+        { createSession: createPiSession },
+      );
+      yield* Effect.addFinalizer(() => adapter.stopAll().pipe(Effect.orDie));
+      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "turn.completed" ? Deferred.succeed(completion, event) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      const threadId = ThreadId.make("pi-recovery-integration");
+      const session = yield* adapter.startSession({ threadId, cwd, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "Remember this conversation" });
+      const completed = yield* Deferred.await(completion);
+      assert.strictEqual(completed.type, "turn.completed");
+      if (completed.type === "turn.completed")
+        assert.strictEqual(completed.payload.state, "completed");
+      const before = yield* adapter.readThread(threadId);
+      yield* adapter.stopSession(threadId);
+      const cursor = parsePiResumeCursor(session.resumeCursor)!;
+      const path = cursor.sessionFile!;
+      const history = NodeFS.readFileSync(path, "utf8");
+      NodeFS.unlinkSync(path);
+      const error = yield* adapter
+        .startSession({ threadId, cwd, runtimeMode: "full-access", resumeCursor: cursor })
+        .pipe(Effect.flip);
+      assert.include(error.message, "missing");
+      assert.include(error.message, "create a new thread");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isFalse(NodeFS.existsSync(path));
+      NodeFS.writeFileSync(path, history);
+      const recovered = yield* adapter.startSession({
+        threadId,
+        cwd,
+        runtimeMode: "full-access",
+        resumeCursor: cursor,
+      });
+      assert.deepStrictEqual(recovered.resumeCursor, cursor);
+      const after = yield* adapter.readThread(threadId);
+      const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+      assert.strictEqual(yield* encodeJson(after.turns), yield* encodeJson(before.turns));
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 
@@ -302,6 +353,107 @@ export default function (pi) {
     await expect(create()).rejects.toThrow("fixture load failed");
   });
 
+  it("persists a fresh session before its first prompt so startup cursors survive restart", async () => {
+    const fresh = await create();
+    assert.isDefined(fresh.sessionFile);
+    assert.isTrue(NodeFS.existsSync(fresh.sessionFile!));
+    await fresh.dispose();
+    const resumed = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: fresh.sessionId,
+    });
+    sessions.push(resumed);
+    assert.strictEqual(resumed.sessionId, fresh.sessionId);
+    assert.strictEqual(resumed.resumeOutcome?.resumed, true);
+    await resumed.prompt("First prompt after restart");
+    assert.isAbove(resumed.messages.length, 0);
+  });
+
+  it("recovers history by its durable locator after cwd and session storage settings change", async () => {
+    const fresh = await create();
+    await fresh.prompt("Remember this conversation");
+    const messages = [...fresh.messages];
+    await fresh.dispose();
+    const movedCwd = NodePath.join(root, "moved-project");
+    NodeFS.renameSync(cwd, movedCwd);
+    const movedAgentDir = NodePath.join(root, "other-agent");
+    NodeFS.mkdirSync(movedAgentDir);
+    vi.stubEnv("PI_CODING_AGENT_DIR", movedAgentDir);
+    const resumed = await createPiSession({
+      cwd: movedCwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: fresh.sessionId,
+      resumeSessionFile: fresh.sessionFile,
+    });
+    sessions.push(resumed);
+    assert.strictEqual(resumed.sessionId, fresh.sessionId);
+    assert.strictEqual(JSON.stringify(resumed.messages), JSON.stringify(messages));
+    assert.strictEqual(resumed.sessionFile, fresh.sessionFile);
+    await resumed.prompt("Continue after moving");
+    assert.isAbove(resumed.messages.length, messages.length);
+    await resumed.prompt("handled");
+    assert.include(
+      NodeFS.readFileSync(NodePath.join(movedCwd, "extension.log"), "utf8"),
+      "input:rpc",
+    );
+  });
+
+  it("rejects empty, malformed, mismatched, and missing session files without replacing them", async () => {
+    const fresh = await create();
+    const path = fresh.sessionFile!;
+    await fresh.dispose();
+    const header = NodeFS.readFileSync(path, "utf8");
+    for (const content of ["", "not JSON\n", header.replace(fresh.sessionId, "another-session")]) {
+      NodeFS.writeFileSync(path, content);
+      await expect(
+        createPiSession({
+          cwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: fresh.sessionId,
+          resumeSessionFile: path,
+        }),
+      ).rejects.toThrow();
+      assert.strictEqual(NodeFS.readFileSync(path, "utf8"), content);
+    }
+    NodeFS.unlinkSync(path);
+    await expect(
+      createPiSession({
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: fresh.sessionId,
+        resumeSessionFile: path,
+      }),
+    ).rejects.toThrow("missing");
+    assert.isFalse(NodeFS.existsSync(path));
+  });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "distinguishes unreadable session storage from missing history",
+    async () => {
+      const fresh = await create();
+      await fresh.dispose();
+      NodeFS.chmodSync(fresh.sessionFile!, 0);
+      try {
+        await expect(
+          createPiSession({
+            cwd,
+            model: undefined,
+            thinkingLevel: undefined,
+            resumeSessionId: fresh.sessionId,
+            resumeSessionFile: fresh.sessionFile,
+          }),
+        ).rejects.toThrow("unreadable");
+      } finally {
+        NodeFS.chmodSync(fresh.sessionFile!, 0o600);
+      }
+    },
+  );
+
   it("keeps extensions disabled for auxiliary text generation", async () => {
     NodeFS.writeFileSync(
       NodePath.join(cwd, ".pi", "extensions", "broken.ts"),
@@ -355,109 +507,110 @@ it("resolves a valid custom model for an in-session switch", async () => {
   }
 });
 
-it("resolveSessionFile finds the persisted file for a session id", () => {
-  const cwd = NodeFS.realpathSync(
-    NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-")),
-  );
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  const sessionId = "01a00000-1111-2222-3333-444455556666";
+describe("Pi session recovery", () => {
+  let storageRoot: string;
+  beforeEach(() => {
+    storageRoot = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-recovery-storage-"));
+    vi.stubEnv("PI_CODING_AGENT_DIR", storageRoot);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    NodeFS.rmSync(storageRoot, { recursive: true, force: true });
+  });
 
-  // resolveSessionFile only depends on the `<timestamp>_<id>.jsonl` naming
-  // contract, so create that file directly rather than racing the SDK's
-  // deferred write/flush.
-  const fileName = `2026-08-16T00-00-00-000Z_${sessionId}.jsonl`;
-  NodeFS.writeFileSync(NodePath.join(sessionDir, fileName), "{}\n");
-
-  try {
-    const resolved = resolvePiSessionFileForTest(cwd, sessionId);
-    assert.isDefined(resolved);
-    assert.isTrue(resolved!.endsWith(`_${sessionId}.jsonl`));
-    assert.strictEqual(NodePath.dirname(resolved!), sessionDir);
-    assert.isTrue(NodeFS.existsSync(resolved!));
-  } finally {
-    // Clean up the session dir we created in the global Pi sessions root.
-    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
-    NodeFS.rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-it("resolvePiSessionResume reports a missing file instead of masking a fresh session", () => {
-  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  try {
-    const outcome = resolvePiSessionResume(cwd, "00000000-0000-0000-0000-000000000000");
-    assert.strictEqual(outcome.resumed, false);
-    if (outcome.resumed !== false || outcome.reason !== "missing-file") return;
-    assert.strictEqual(outcome.sessionId, "00000000-0000-0000-0000-000000000000");
-    assert.strictEqual(resolvePiSessionResume(cwd, undefined).resumed, false);
-  } finally {
-    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
-    NodeFS.rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-it("createPiSession starts fresh on a missed resume and resumes a live session", async () => {
-  const tmp = NodeFS.realpathSync(
-    NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-resume-")),
-  );
-  const resumeCwd = NodePath.join(tmp, "project");
-  const resumeAgentDir = NodePath.join(tmp, "agent");
-  NodeFS.mkdirSync(NodePath.join(resumeCwd, ".pi", "extensions"), { recursive: true });
-  NodeFS.mkdirSync(resumeAgentDir);
-  const outerAgentDir = process.env.PI_CODING_AGENT_DIR;
-  vi.stubEnv("PI_CODING_AGENT_DIR", resumeAgentDir);
-  vi.stubEnv("PI_OFFLINE", "1");
-  const owned: PiSessionLike[] = [];
-  try {
-    const missingId = "00000000-0000-0000-0000-000000000000";
-    const fresh = await createPiSession({
-      cwd: resumeCwd,
-      model: undefined,
-      thinkingLevel: undefined,
-      resumeSessionId: missingId,
-    });
-    owned.push(fresh);
-    assert.strictEqual(fresh.resumeOutcome?.resumed, false);
-    if (fresh.resumeOutcome?.resumed === false && fresh.resumeOutcome.reason === "missing-file") {
-      assert.strictEqual(fresh.resumeOutcome.sessionId, missingId);
-    } else {
-      assert.fail("expected a missing-file resume outcome");
-    }
-
-    // Seed a session file directly. The SDK defers its own write until the
-    // first assistant message, so a live id is not resolvable on its own.
-    const liveId = "11a00000-1111-2222-3333-444455556666";
-    const liveDir = SessionManager.create(resumeCwd).getSessionDir();
-    const liveFile = NodePath.join(liveDir, `2026-08-16T00-00-00-000Z_${liveId}.jsonl`);
-    NodeFS.writeFileSync(
-      liveFile,
-      `${JSON.stringify({ type: "session", version: 3, id: liveId, timestamp: "2026-08-16T00:00:00.000Z", cwd: resumeCwd })}\n`,
+  it("resolvePiSessionResume finds the persisted file for a session id", () => {
+    const cwd = NodeFS.realpathSync(
+      NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-")),
     );
+    const sessionDir = SessionManager.create(cwd).getSessionDir();
+    const sessionId = "01a00000-1111-2222-3333-444455556666";
 
-    const resumed = await createPiSession({
-      cwd: resumeCwd,
-      model: undefined,
-      thinkingLevel: undefined,
-      resumeSessionId: liveId,
-    });
-    owned.push(resumed);
-    assert.strictEqual(resumed.resumeOutcome?.resumed, true);
-    assert.strictEqual(resumed.sessionId, liveId);
-  } finally {
-    for (const session of owned.splice(0)) await session.dispose();
-    if (outerAgentDir !== undefined) vi.stubEnv("PI_CODING_AGENT_DIR", outerAgentDir);
-    NodeFS.rmSync(tmp, { recursive: true, force: true });
-  }
-});
+    const fileName = `2026-08-16T00-00-00-000Z_${sessionId}.jsonl`;
+    NodeFS.writeFileSync(NodePath.join(sessionDir, fileName), "{}\n");
 
-it("resolveSessionFile returns undefined for an unknown session id", () => {
-  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  try {
-    const resolved = resolvePiSessionFileForTest(cwd, "00000000-0000-0000-0000-000000000000");
-    assert.isUndefined(resolved);
-  } finally {
-    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
-    NodeFS.rmSync(cwd, { recursive: true, force: true });
-  }
+    try {
+      assert.deepStrictEqual(resolvePiSessionResume(cwd, sessionId), {
+        resumed: true,
+        sessionFile: NodePath.join(sessionDir, fileName),
+      });
+    } finally {
+      NodeFS.rmSync(sessionDir, { recursive: true, force: true });
+      NodeFS.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("resolvePiSessionResume reports a missing file instead of masking a fresh session", () => {
+    const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
+    const sessionDir = SessionManager.create(cwd).getSessionDir();
+    try {
+      assert.throws(
+        () => resolvePiSessionResume(cwd, "00000000-0000-0000-0000-000000000000"),
+        "missing",
+      );
+      assert.strictEqual(resolvePiSessionResume(cwd, undefined).resumed, false);
+    } finally {
+      NodeFS.rmSync(sessionDir, { recursive: true, force: true });
+      NodeFS.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects ambiguous legacy IDs rather than choosing arbitrary history", () => {
+    const sessionId = "01a00000-1111-2222-3333-444455556666";
+    const sessionDir = SessionManager.create(storageRoot).getSessionDir();
+    NodeFS.writeFileSync(NodePath.join(sessionDir, `first_${sessionId}.jsonl`), "{}\n");
+    NodeFS.writeFileSync(NodePath.join(sessionDir, `second_${sessionId}.jsonl`), "{}\n");
+    assert.throws(() => resolvePiSessionResume(storageRoot, sessionId), "Multiple session files");
+  });
+
+  it("does not classify directory read errors as missing history", () => {
+    const sessionDir = SessionManager.create(storageRoot).getSessionDir();
+    NodeFS.rmdirSync(sessionDir);
+    NodeFS.writeFileSync(sessionDir, "not a directory");
+    assert.throws(() => resolvePiSessionResume(storageRoot, "saved-session"), "unreadable");
+  });
+
+  it("createPiSession rejects a missed resume and resumes a live session", async () => {
+    const tmp = NodeFS.realpathSync(
+      NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-resume-")),
+    );
+    const resumeCwd = NodePath.join(tmp, "project");
+    const resumeAgentDir = NodePath.join(tmp, "agent");
+    NodeFS.mkdirSync(NodePath.join(resumeCwd, ".pi", "extensions"), { recursive: true });
+    NodeFS.mkdirSync(resumeAgentDir);
+    vi.stubEnv("PI_CODING_AGENT_DIR", resumeAgentDir);
+    vi.stubEnv("PI_OFFLINE", "1");
+    const owned: PiSessionLike[] = [];
+    try {
+      const missingId = "00000000-0000-0000-0000-000000000000";
+      await expect(
+        createPiSession({
+          cwd: resumeCwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: missingId,
+        }),
+      ).rejects.toThrow("missing");
+
+      const liveId = "11a00000-1111-2222-3333-444455556666";
+      const liveDir = SessionManager.create(resumeCwd).getSessionDir();
+      const liveFile = NodePath.join(liveDir, `2026-08-16T00-00-00-000Z_${liveId}.jsonl`);
+      NodeFS.writeFileSync(
+        liveFile,
+        `${JSON.stringify({ type: "session", version: 3, id: liveId, timestamp: "2026-08-16T00:00:00.000Z", cwd: resumeCwd })}\n`,
+      );
+
+      const resumed = await createPiSession({
+        cwd: resumeCwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: liveId,
+      });
+      owned.push(resumed);
+      assert.strictEqual(resumed.resumeOutcome?.resumed, true);
+      assert.strictEqual(resumed.sessionId, liveId);
+    } finally {
+      for (const session of owned.splice(0)) await session.dispose();
+      NodeFS.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

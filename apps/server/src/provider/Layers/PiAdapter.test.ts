@@ -1224,36 +1224,70 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect("reports a missing Pi session file instead of a silent resume", () =>
+  it.effect("keeps recovery failures actionable and does not register a replacement session", () =>
+    Effect.gen(function* () {
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: () =>
+          Promise.reject(
+            new Error(
+              "Session storage is unreadable. Restore access and retry, or create a new thread to start fresh.",
+            ),
+          ),
+      });
+      const error = yield* adapter
+        .startSession({
+          threadId,
+          runtimeMode: "full-access",
+          resumeCursor: { sessionId: "gone-pi-session" },
+        })
+        .pipe(Effect.flip);
+      assert.include(error.message, "unreadable");
+      assert.include(error.message, "create a new thread");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.deepStrictEqual(yield* adapter.listSessions(), []);
+    }),
+  );
+
+  it.effect("forwards and preserves the durable locator through startup and turns", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
-      fake.resumeOutcome = {
-        resumed: false,
-        reason: "missing-file",
-        sessionId: "gone-pi-session",
-      };
-      const adapter = yield* makeAdapter(fake);
-      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
-      yield* collectEvents(adapter, eventsRef);
-
+      const sessionFile = "/saved/pi/session.jsonl";
+      const cursor = { sessionId: fake.sessionId, sessionFile };
+      const calls: PiCreateSessionInput[] = [];
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: (input) => {
+          calls.push(input);
+          return Promise.resolve(Object.assign(fake, { sessionFile }));
+        },
+      });
       const session = yield* adapter.startSession({
         threadId,
         runtimeMode: "full-access",
-        resumeCursor: { sessionId: "gone-pi-session" },
+        resumeCursor: cursor,
       });
+      assert.strictEqual(calls[0]?.resumeSessionFile, sessionFile);
+      assert.deepStrictEqual(session.resumeCursor, cursor);
+      const turn = yield* adapter.sendTurn({ threadId, input: "Continue" });
+      assert.deepStrictEqual(turn.resumeCursor, cursor);
+      assert.deepStrictEqual((yield* adapter.listSessions())[0]?.resumeCursor, cursor);
+      yield* adapter.stopAll();
+    }),
+  );
 
-      assert.deepStrictEqual(session.resumeCursor, { sessionId: fake.sessionId });
-      const events = yield* waitFor(eventsRef, (received) =>
-        received.some((event) => event.type === "runtime.warning"),
-      );
-      const started = events.find((event) => event.type === "session.started");
-      const warning = events.find((event) => event.type === "runtime.warning");
-      assert.strictEqual(started?.type, "session.started");
-      if (started?.type !== "session.started") return;
-      assert.strictEqual(started.payload.resume, false);
-      assert.strictEqual(warning?.type, "runtime.warning");
-      if (warning?.type !== "runtime.warning") return;
-      assert.include(warning.payload.message, "gone-pi-session");
+  it.effect("rejects malformed cursors before calling the factory", () =>
+    Effect.gen(function* () {
+      let calls = 0;
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: () => {
+          calls++;
+          return Promise.resolve(new FakePiSession());
+        },
+      });
+      const error = yield* adapter
+        .startSession({ threadId, runtimeMode: "full-access", resumeCursor: {} })
+        .pipe(Effect.flip);
+      assert.include(error.message, "Invalid Pi resume cursor");
+      assert.strictEqual(calls, 0);
     }),
   );
 
@@ -1311,13 +1345,27 @@ it.layer(testLayer)("PiAdapter", (it) => {
 });
 
 describe("parsePiResumeCursor", () => {
-  it("decodes the persisted session id and ignores foreign shapes", () => {
+  it("decodes legacy and durable cursors but rejects malformed saved state", () => {
     assert.deepStrictEqual(parsePiResumeCursor({ sessionId: "pi-session-xyz" }), {
       sessionId: "pi-session-xyz",
     });
     assert.strictEqual(parsePiResumeCursor(undefined), undefined);
-    assert.strictEqual(parsePiResumeCursor("pi-session-xyz"), undefined);
-    assert.strictEqual(parsePiResumeCursor({ sessionId: "  " }), undefined);
+    assert.strictEqual(parsePiResumeCursor(null), undefined);
+    assert.deepStrictEqual(
+      parsePiResumeCursor({ sessionId: "pi-session-xyz", sessionFile: "/saved/session.jsonl" }),
+      {
+        sessionId: "pi-session-xyz",
+        sessionFile: "/saved/session.jsonl",
+      },
+    );
+    for (const cursor of [
+      "pi-session-xyz",
+      {},
+      { sessionId: "  " },
+      { sessionId: "pi-session-xyz", sessionFile: 12 },
+    ]) {
+      assert.throws(() => parsePiResumeCursor(cursor), "Invalid Pi resume cursor");
+    }
   });
 });
 
