@@ -33,13 +33,12 @@
         "src/provider/testFixtures/*.mjs",
       ],
       // Keep the transitive Effect runtime pinned for standalone npm installs.
-      // Native msgpack acceleration and the Vite+ web build prerequisite.
+      // The Vite+ web build prerequisite.
       // cross-spawn, jose and ws are declared so relocated installs keep a
       // top-level link for packages the externalized Pi runtime closure
       // resolves at runtime; see scripts/lib/cli-external-packages.test.ts.
       "ignoreDependencies": [
         "@effect/platform-node-shared",
-        "msgpackr-extract",
         "@t3tools/web",
         "cross-spawn",
         "jose",

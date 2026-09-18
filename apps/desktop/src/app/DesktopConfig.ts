@@ -9,10 +9,10 @@ const trimNonEmptyOption = (value: string): Option.Option<string> => {
 };
 
 const trimmedString = (name: string) =>
-  Config.string(name).pipe(Config.option, Config.map(Option.flatMap(trimNonEmptyOption)));
+  Config.String(name).pipe(Config.option, Config.map(Option.flatMap(trimNonEmptyOption)));
 
 const optionalBoolean = (name: string) =>
-  Config.boolean(name).pipe(Config.option, Config.map(Option.getOrElse(() => false)));
+  Config.Boolean(name).pipe(Config.option, Config.map(Option.getOrElse(() => false)));
 
 const commaSeparatedStrings = (name: string) =>
   trimmedString(name).pipe(
@@ -38,15 +38,15 @@ export const DesktopConfig = Config.all({
   xdgConfigHome: trimmedString("XDG_CONFIG_HOME"),
   xdgDataHome: trimmedString("XDG_DATA_HOME"),
   t3Home: trimmedString("ROVE_HOME"),
-  devServerUrl: Config.url("VITE_DEV_SERVER_URL").pipe(Config.option),
+  devServerUrl: Config.URL("VITE_DEV_SERVER_URL").pipe(Config.option),
   appUserModelIdOverride: trimmedString("ROVE_DESKTOP_APP_USER_MODEL_ID"),
   devRemoteT3ServerEntryPath: trimmedString("ROVE_DEV_REMOTE_T3_SERVER_ENTRY_PATH"),
-  configuredBackendPort: Config.port("ROVE_PORT").pipe(Config.option),
+  configuredBackendPort: Config.Port("ROVE_PORT").pipe(Config.option),
   commitHashOverride: trimmedString("ROVE_COMMIT_HASH"),
   desktopLanHostOverride: trimmedString("ROVE_DESKTOP_LAN_HOST"),
   desktopHttpsEndpointUrls: commaSeparatedStrings("ROVE_DESKTOP_HTTPS_ENDPOINTS"),
   otlpTracesUrl: trimmedString("ROVE_OTLP_TRACES_URL"),
-  otlpExportIntervalMs: Config.int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(Config.withDefault(10_000)),
+  otlpExportIntervalMs: Config.Int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(Config.withDefault(10_000)),
   otlpHeaders: Config.schema(OtlpHeadersFromString, "ROVE_OTLP_HEADERS").pipe(Config.option),
   otlpProtocol: Config.schema(OtlpProtocol, "ROVE_OTLP_PROTOCOL").pipe(
     Config.withDefault("http/json"),
@@ -54,7 +54,7 @@ export const DesktopConfig = Config.all({
   appImagePath: trimmedString("APPIMAGE"),
   disableAutoUpdate: optionalBoolean("ROVE_DISABLE_AUTO_UPDATE"),
   mockUpdates: optionalBoolean("ROVE_DESKTOP_MOCK_UPDATES"),
-  mockUpdateServerPort: Config.port("ROVE_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(
+  mockUpdateServerPort: Config.Port("ROVE_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(
     Config.withDefault(3000),
   ),
 });
