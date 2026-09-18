@@ -561,7 +561,10 @@ export function describeCheckoutFailure(stderr: string): string | null {
   if (existing?.[1]) {
     return `A local branch named ${existing[1]} already exists.`;
   }
-  const missing = /pathspec '([^']+)' did not match/i.exec(stderr);
+  // `git checkout <ref> --` reports a missing ref as an invalid reference.
+  const missing =
+    /pathspec '([^']+)' did not match/i.exec(stderr) ??
+    /fatal: invalid reference: (\S+)/i.exec(stderr);
   if (missing?.[1]) {
     return `No branch or ref named ${missing[1]} was found.`;
   }
@@ -3667,10 +3670,12 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
               ? ["checkout", localTrackingBranch]
               : ["checkout", input.refName];
 
+      // A stale ref must not turn into a path checkout that discards local edits.
+      const checkoutCommandArgs = [...checkoutArgs, "--"];
       const checkout = yield* executeGit(
         "GitVcsDriver.switchRef.checkout",
         input.cwd,
-        checkoutArgs,
+        checkoutCommandArgs,
         { timeoutMs: 10_000, allowNonZeroExit: true },
       );
       if (checkout.exitCode !== 0) {
@@ -3678,7 +3683,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           ...gitCommandContext({
             operation: "GitVcsDriver.switchRef.checkout",
             cwd: input.cwd,
-            args: checkoutArgs,
+            args: checkoutCommandArgs,
           }),
           detail: describeCheckoutFailure(checkout.stderr) ?? "git checkout failed",
           exitCode: checkout.exitCode,
