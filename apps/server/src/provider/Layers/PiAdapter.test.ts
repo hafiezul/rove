@@ -344,6 +344,34 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("sendTurn waits for preflight but not prompt settlement", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const preflight = yield* Deferred.make<(accepted: boolean) => void>();
+      const accepted = yield* Deferred.make<void>();
+      const settlement = Promise.withResolvers<void>();
+      fake.prompt = (_text, options) => {
+        const callback = options?.preflightResult;
+        assert(callback !== undefined);
+        Deferred.doneUnsafe(preflight, Effect.succeed(callback));
+        return settlement.promise;
+      };
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter
+        .sendTurn({ threadId, input: "hello" })
+        .pipe(
+          Effect.andThen(Deferred.succeed(accepted, undefined)),
+          Effect.forkChild({ startImmediately: true }),
+        );
+      const accept = yield* Deferred.await(preflight);
+      assert.isFalse(yield* Deferred.isDone(accepted));
+      accept(true);
+      yield* Deferred.await(accepted);
+      settlement.resolve();
+    }),
+  );
+
   it.effect("a rejected steering request preserves the active turn", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();

@@ -239,7 +239,6 @@ interface PiSessionContext {
   readonly session: PiSessionLike;
   readonly cwd: string;
   readonly resumed: boolean;
-  abortedTurnId: TurnId | undefined;
   currentModelSlug: string | undefined;
   activeTurnId: TurnId | undefined;
   activeAssistantMessage: PiAssistantMessageItem | undefined;
@@ -1090,10 +1089,6 @@ export function makePiAdapter(
           case "agent_settled": {
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
-              if (ctx.abortedTurnId === turnId) {
-                ctx.abortedTurnId = undefined;
-                return;
-              }
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
               ctx.activeAssistantMessage = undefined;
@@ -1176,7 +1171,6 @@ export function makePiAdapter(
             session,
             cwd,
             resumed,
-            abortedTurnId: undefined,
             currentModelSlug: initialModelSlug,
             activeTurnId: undefined,
             activeAssistantMessage: undefined,
@@ -1249,127 +1243,118 @@ export function makePiAdapter(
             );
             const turnId = steeringTurnId ?? freshTurnId;
             ctx.activeTurnId = turnId;
-            ctx.abortedTurnId = undefined;
             return { ctx, turnId, steeringTurnId, text: translatePiSkillToken(rawText) };
           }),
         );
         const { ctx, turnId, steeringTurnId, text } = prepared;
 
-        // Apply the composer's per-thread model options before prompting.
-        // Pi sessions support in-session model switches, so a changed picker
-        // value takes effect on the very next turn of the same thread.
-        // A superseded turn (steered or aborted while awaiting the model
-        // switch) leaves its turn id behind: answering for a dead turn would
-        // reopen it after the live turn already moved on.
-        const modelSelection = ownModelSelection(input, boundInstanceId);
-        let modelChanged = false;
-        if (modelSelection !== undefined) {
-          const modelSlug = selectedModelSlug(modelSelection);
-          const thinkingLevel = getModelSelectionStringOptionValue(
-            modelSelection,
-            PI_THINKING_DESCRIPTOR_ID,
-          );
-          const switchOutcome = yield* Effect.tryPromise({
-            try: async () => {
-              let changed = false;
-              if (ctx.session.setModel !== undefined && modelSlug !== undefined) {
-                changed = modelSlug !== ctx.currentModelSlug;
-                await ctx.session.setModel(modelSlug);
-                ctx.currentModelSlug = modelSlug;
-              }
-              if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
-                ctx.session.setThinkingLevel(thinkingLevel);
-              }
-              return changed;
-            },
-            catch: (cause) =>
-              new ProviderAdapterRequestError({
-                provider: PROVIDER,
-                method: "sendTurn",
-                detail: `Failed to apply model selection to Pi session ${ctx.session.sessionId}.`,
-                cause,
-              }),
-          });
-          const live = sessions.get(input.threadId);
-          if (live === undefined || live.activeTurnId !== turnId) {
-            return {
-              threadId: input.threadId,
-              turnId,
-              resumeCursor: {
-                sessionId: ctx.session.sessionId,
-                ...(ctx.session.sessionFile !== undefined
-                  ? { sessionFile: ctx.session.sessionFile }
-                  : undefined),
+        return yield* Effect.gen(function* () {
+          // Apply the composer's per-thread model options before prompting.
+          // Pi sessions support in-session model switches, so a changed picker
+          // value takes effect on the very next turn of the same thread.
+          const modelSelection = ownModelSelection(input, boundInstanceId);
+          let modelChanged = false;
+          if (modelSelection !== undefined) {
+            const modelSlug = selectedModelSlug(modelSelection);
+            const thinkingLevel = getModelSelectionStringOptionValue(
+              modelSelection,
+              PI_THINKING_DESCRIPTOR_ID,
+            );
+            const switchOutcome = yield* Effect.tryPromise({
+              try: async () => {
+                let changed = false;
+                if (ctx.session.setModel !== undefined && modelSlug !== undefined) {
+                  changed = modelSlug !== ctx.currentModelSlug;
+                  await ctx.session.setModel(modelSlug);
+                  ctx.currentModelSlug = modelSlug;
+                }
+                if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
+                  ctx.session.setThinkingLevel(thinkingLevel);
+                }
+                return changed;
               },
-            } satisfies ProviderTurnStartResult;
-          }
-          modelChanged = switchOutcome;
-        }
-        if (modelChanged) {
-          yield* publishPiTokenUsage(ctx, "model-switch");
-        }
-
-        // Acceptance wins over settlement: the prompt promise settles only
-        // when the run ends, which can land after interruptTurn already
-        // closed the turn. A preflight rejection is the only prompt error
-        // that opens a failed turn; a late settlement error for a turn that
-        // is no longer active must not reopen it.
-        const acceptance = yield* Deferred.make<boolean>();
-        runFork(
-          Effect.promise(async () => {
-            try {
-              await ctx.session.prompt(text, {
-                ...(steeringTurnId !== undefined ? { streamingBehavior: "steer" } : undefined),
-                preflightResult: (success) => {
-                  Deferred.doneUnsafe(acceptance, Effect.succeed(success));
+              catch: (cause) =>
+                new ProviderAdapterRequestError({
+                  provider: PROVIDER,
+                  method: "sendTurn",
+                  detail: `Failed to apply model selection to Pi session ${ctx.session.sessionId}.`,
+                  cause,
+                }),
+            });
+            const live = sessions.get(input.threadId);
+            if (live === undefined || live.activeTurnId !== turnId) {
+              return {
+                threadId: input.threadId,
+                turnId,
+                resumeCursor: {
+                  sessionId: ctx.session.sessionId,
+                  ...(ctx.session.sessionFile !== undefined
+                    ? { sessionFile: ctx.session.sessionFile }
+                    : undefined),
                 },
-              });
-              Deferred.doneUnsafe(acceptance, Effect.succeed(true));
-            } catch {
-              Deferred.doneUnsafe(acceptance, Effect.succeed(false));
+              } satisfies ProviderTurnStartResult;
             }
-          }),
-        );
-        const promptAccepted = yield* Deferred.await(acceptance);
-        if (!promptAccepted) {
-          return yield* withThreadLock(
-            input.threadId,
-            Effect.gen(function* () {
-              const live = sessions.get(input.threadId);
-              if (live === undefined || live.activeTurnId !== turnId) {
-                return {
-                  threadId: input.threadId,
-                  turnId,
-                  resumeCursor: {
-                    sessionId: ctx.session.sessionId,
-                    ...(ctx.session.sessionFile !== undefined
-                      ? { sessionFile: ctx.session.sessionFile }
-                      : undefined),
+            modelChanged = switchOutcome;
+          }
+          if (modelChanged) {
+            yield* publishPiTokenUsage(ctx, "model-switch");
+          }
+
+          // The SDK prompt promise waits for the whole run, not just acceptance.
+          const acceptance = yield* Deferred.make<boolean>();
+          runFork(
+            Effect.promise(async () => {
+              try {
+                await ctx.session.prompt(text, {
+                  ...(steeringTurnId !== undefined ? { streamingBehavior: "steer" } : undefined),
+                  preflightResult: (success) => {
+                    Deferred.doneUnsafe(acceptance, Effect.succeed(success));
                   },
-                } satisfies ProviderTurnStartResult;
+                });
+                Deferred.doneUnsafe(acceptance, Effect.succeed(true));
+              } catch {
+                Deferred.doneUnsafe(acceptance, Effect.succeed(false));
               }
-              ctx.activeTurnId = undefined;
-              ctx.activeAssistantMessage = undefined;
-              ctx.pendingTurnError = undefined;
-              return yield* new ProviderAdapterRequestError({
-                provider: PROVIDER,
-                method: "sendTurn",
-                detail: `Pi rejected the turn for session ${ctx.session.sessionId}.`,
-              });
             }),
           );
-        }
+          const promptAccepted = yield* Deferred.await(acceptance);
+          if (!promptAccepted) {
+            return yield* new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "sendTurn",
+              detail: `Pi rejected the turn for session ${ctx.session.sessionId}.`,
+            });
+          }
 
-        return {
-          threadId: input.threadId,
-          turnId,
-          resumeCursor: {
-            sessionId: ctx.session.sessionId,
-            ...(ctx.session.sessionFile !== undefined
-              ? { sessionFile: ctx.session.sessionFile }
-              : undefined),
-          },
-        } satisfies ProviderTurnStartResult;
+          return {
+            threadId: input.threadId,
+            turnId,
+            resumeCursor: {
+              sessionId: ctx.session.sessionId,
+              ...(ctx.session.sessionFile !== undefined
+                ? { sessionFile: ctx.session.sessionFile }
+                : undefined),
+            },
+          } satisfies ProviderTurnStartResult;
+        }).pipe(
+          Effect.catch((error) =>
+            withThreadLock(
+              input.threadId,
+              Effect.gen(function* () {
+                if (
+                  steeringTurnId === undefined &&
+                  sessions.get(input.threadId) === ctx &&
+                  ctx.activeTurnId === turnId
+                ) {
+                  ctx.activeTurnId = undefined;
+                  ctx.activeAssistantMessage = undefined;
+                  ctx.pendingTurnError = undefined;
+                }
+                return yield* error;
+              }),
+            ),
+          ),
+        );
       });
 
     const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId, turnId) =>
@@ -1382,9 +1367,6 @@ export function makePiAdapter(
             return;
           }
           const abortedId = turnId ?? liveTurnId;
-          if (abortedId !== undefined) {
-            ctx.abortedTurnId = abortedId;
-          }
           yield* Effect.tryPromise({
             try: () => ctx.session.abort(),
             catch: (cause) =>
@@ -1395,9 +1377,7 @@ export function makePiAdapter(
                 cause,
               }),
           });
-          // Abort settles the Pi run, and agent_settled closes the turn. The
-          // aborted event only fires when the settlement has not already
-          // closed it, so a settlement racing abort cannot emit twice.
+          // SDK settlement waits on this lock and observes the cleared turn.
           if (
             ctx.activeTurnId !== undefined &&
             (abortedId === undefined || ctx.activeTurnId === abortedId)
