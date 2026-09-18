@@ -30,6 +30,7 @@
         // Packed and executed by the Pi bundle regression tests.
         "scripts/pi-extensions-bundle-smoke.ts",
         "scripts/pi-oauth-bundle-smoke.ts",
+        "scripts/measure-pr-preview.ts",
         "src/provider/testFixtures/*.mjs",
       ],
       // Keep the transitive Effect runtime pinned for standalone npm installs.
