@@ -97,6 +97,20 @@ describe("headless Pi extensions", () => {
     assert.strictEqual(log().split("shutdown\n").length - 1, 1);
   });
 
+  it("keeps rejected SDK prompts on the request error channel", async () => {
+    const session = await create(false);
+    const events: PiSessionEventLike[] = [];
+    const preflight: boolean[] = [];
+    session.subscribe((event) => events.push(event));
+    await expect(
+      session.prompt("hello", {
+        preflightResult: (accepted) => preflight.push(accepted),
+      }),
+    ).rejects.toThrow();
+    assert.deepStrictEqual(preflight, [false]);
+    assert.isFalse(events.some((event) => event.type === "prompt_error"));
+  });
+
   it("preserves notification message identity through SDK transcript replay", async () => {
     NodeFS.writeFileSync(
       NodePath.join(cwd, ".pi", "extensions", "notify.ts"),

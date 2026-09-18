@@ -344,6 +344,71 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("a rejected steering request preserves the active turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const first = yield* adapter.sendTurn({ threadId, input: "hello" });
+      const prompt = fake.prompt.bind(fake);
+      fake.prompt = (_text, options) => {
+        options?.preflightResult?.(false);
+        return Promise.reject(new Error("Compaction in progress"));
+      };
+      const rejected = yield* adapter.sendTurn({ threadId, input: "steer" }).pipe(Effect.exit);
+      assert.strictEqual(rejected._tag, "Failure");
+      fake.prompt = prompt;
+      const next = yield* adapter.sendTurn({ threadId, input: "retry steering" });
+      assert.strictEqual(next.turnId, first.turnId);
+    }),
+  );
+
+  it.effect("a failed model switch releases a newly reserved turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      fake.setModel = () => Promise.reject(new Error("Unknown model"));
+      const rejected = yield* adapter
+        .sendTurn({
+          threadId,
+          input: "hello",
+          modelSelection: { instanceId: ProviderInstanceId.make("pi"), model: "unknown/model" },
+        })
+        .pipe(Effect.exit);
+      assert.strictEqual(rejected._tag, "Failure");
+      yield* adapter.sendTurn({ threadId, input: "retry" });
+      assert.isUndefined(fake.promptCalls[0]?.options?.streamingBehavior);
+    }),
+  );
+
+  it.effect("failed abort does not suppress subsequent settlement", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      const barrier = yield* Deferred.make<void>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          if (event.type === "turn.completed") return Deferred.succeed(completion, event);
+          if (event.type === "runtime.warning") return Deferred.succeed(barrier, undefined);
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.abort = () => Promise.reject(new Error("Abort failed"));
+      const rejected = yield* adapter.interruptTurn(threadId).pipe(Effect.exit);
+      assert.strictEqual(rejected._tag, "Failure");
+      fake.emit({ type: "agent_settled" });
+      fake.emit({ type: "extension_error", extensionPath: "test", error: "barrier" });
+      yield* Deferred.await(barrier);
+      assert.isTrue(yield* Deferred.isDone(completion));
+      assert.strictEqual((yield* Deferred.await(completion)).turnId, turn.turnId);
+    }),
+  );
+
   it.effect("sendTurn surfaces a rejected prompt as a failed sendTurn", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
