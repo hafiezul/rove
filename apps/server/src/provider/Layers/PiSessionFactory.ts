@@ -147,24 +147,36 @@ async function toPiSessionLike(
     },
     prompt: async (text, options) => {
       let agentStarted = false;
+      let accepted: boolean | undefined;
       const unsubscribe = session.subscribe((event) => {
         if (event.type === "agent_start") agentStarted = true;
       });
       try {
-        await session.prompt(text, { ...options, source: "rpc" });
+        await session.prompt(text, {
+          ...options,
+          source: "rpc",
+          preflightResult: (success) => {
+            accepted = success;
+            options?.preflightResult?.(success);
+          },
+        });
         // Commands and handled input can finish without emitting agent_settled.
         if (!agentStarted && session.isIdle) emit({ type: "agent_settled" });
       } catch (error) {
-        emit({
-          type: "prompt_error",
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // Preflight rejections already report through prompt_error below.
+        // Settlement errors after an accepted prompt belong to the run the
+        // adapter tracks through agent events, not to this call.
+        if (accepted === false) {
+          emit({
+            type: "prompt_error",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         throw error;
       } finally {
         unsubscribe();
       }
     },
-    steer: (text) => session.steer(text),
     followUp: (text) => session.followUp(text),
     abort: () => session.abort(),
     dispose,

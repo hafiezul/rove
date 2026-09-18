@@ -17,7 +17,6 @@ const makeSessionReplying = (replyText: string): PiSessionLike => ({
     { role: "assistant", content: replyText },
   ],
   prompt: () => Promise.resolve(),
-  steer: () => Promise.resolve(),
   followUp: () => Promise.resolve(),
   abort: () => Promise.resolve(),
   dispose: () => {},

@@ -12,6 +12,7 @@ import {
   PiSettings,
   ProviderInstanceId,
   ThreadId,
+  TurnId,
   type ProviderRuntimeEvent,
 } from "@t3tools/contracts";
 
@@ -32,6 +33,8 @@ const testLayer = Layer.mergeAll(NodeServices.layer);
 
 class FakePiSession implements PiSessionLike {
   readonly sessionId = "fake-pi-session-1";
+  /** When set, abort() emits agent_settled before resolving, like the real SDK. */
+  emitSettledOnAbort = false;
   resumeOutcome: PiSessionLike["resumeOutcome"] = { resumed: false, reason: "no-cursor" };
   isStreaming = false;
   messages: ReadonlyArray<unknown> = [
@@ -47,8 +50,13 @@ class FakePiSession implements PiSessionLike {
   leafId = "entry-4";
   sessionStats: PiSessionStatsLike | undefined;
   autoCompactionEnabled = true;
-  readonly promptCalls: Array<{ text: string }> = [];
-  readonly steerCalls: Array<{ text: string }> = [];
+  readonly promptCalls: Array<{
+    text: string;
+    options?: {
+      readonly streamingBehavior?: "steer" | "followUp";
+      readonly preflightResult?: (success: boolean) => void;
+    };
+  }> = [];
   readonly forkCalls: Array<{ entryId: string }> = [];
   readonly setModelCalls: Array<{ model: string }> = [];
   readonly setThinkingLevelCalls: Array<{ level: string }> = [];
@@ -93,12 +101,14 @@ class FakePiSession implements PiSessionLike {
     this.setThinkingLevelCalls.push({ level });
   }
 
-  prompt(text: string): Promise<void> {
-    this.promptCalls.push({ text });
-    return Promise.resolve();
-  }
-  steer(text: string): Promise<void> {
-    this.steerCalls.push({ text });
+  prompt(
+    text: string,
+    options?: PiSessionLike["prompt"] extends (text: string, options?: infer O) => Promise<void>
+      ? O
+      : never,
+  ): Promise<void> {
+    this.promptCalls.push({ text, ...(options !== undefined ? { options } : undefined) });
+    options?.preflightResult?.(true);
     return Promise.resolve();
   }
   followUp(): Promise<void> {
@@ -106,6 +116,9 @@ class FakePiSession implements PiSessionLike {
   }
   abort(): Promise<void> {
     this.aborted = true;
+    if (this.emitSettledOnAbort) {
+      this.emit({ type: "agent_settled" });
+    }
     return Promise.resolve();
   }
   dispose(): void {
@@ -310,7 +323,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect("sendTurn prompts when idle and steers while streaming", () =>
+  it.effect("sendTurn reuses the active turn when steering into a running Pi session", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
@@ -322,10 +335,44 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(first.threadId, threadId);
 
       fake.isStreaming = true;
-      yield* adapter.sendTurn({ threadId, input: "actually do this" });
-      assert.strictEqual(fake.steerCalls.length, 1);
-      assert.strictEqual(fake.steerCalls[0]?.text, "actually do this");
-      assert.strictEqual(fake.promptCalls.length, 1);
+      const second = yield* adapter.sendTurn({ threadId, input: "actually do this" });
+      assert.strictEqual(second.turnId, first.turnId);
+      assert.strictEqual(fake.promptCalls.length, 2);
+      assert.strictEqual(fake.promptCalls[1]?.text, "actually do this");
+      assert.strictEqual(fake.promptCalls[1]?.options?.streamingBehavior, "steer");
+      assert.isFunction(fake.promptCalls[1]?.options?.preflightResult);
+    }),
+  );
+
+  it.effect("sendTurn surfaces a rejected prompt as a failed sendTurn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      fake.prompt = () => Promise.reject(new Error("No model configured"));
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      const exit = yield* adapter.sendTurn({ threadId, input: "hello" }).pipe(Effect.exit);
+
+      assert.strictEqual(exit._tag, "Failure");
+      const events = yield* Ref.get(eventsRef);
+      assert.isFalse(events.some((event) => event.type === "turn.completed"));
+    }),
+  );
+
+  it.effect("sendTurn surfaces a synchronously throwing prompt as a failed sendTurn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      fake.prompt = () => {
+        throw new Error("sync preflight failure");
+      };
+      const exit = yield* adapter.sendTurn({ threadId, input: "hello" }).pipe(Effect.exit);
+
+      assert.strictEqual(exit._tag, "Failure");
     }),
   );
 
@@ -1169,6 +1216,48 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "item.completed"));
       assert.strictEqual(events.find((e) => e.type === "item.started")?.itemId, "tc-1");
       assert.strictEqual(events.find((e) => e.type === "item.completed")?.itemId, "tc-1");
+    }),
+  );
+
+  it.effect("interruptTurn settles an aborted turn exactly once when settlement races abort", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.emitSettledOnAbort = true;
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "long task" });
+      yield* adapter.interruptTurn(threadId, turnId);
+      const events = yield* waitFor(eventsRef, (e) =>
+        e.some((ev) => ev.type === "turn.aborted" || ev.type === "turn.completed"),
+      );
+      const terminals = events.filter(
+        (e) => e.type === "turn.completed" || e.type === "turn.aborted",
+      );
+      assert.strictEqual(terminals.length, 1);
+      assert.strictEqual(terminals[0]?.type, "turn.aborted");
+      assert.strictEqual(terminals[0]?.turnId, turnId);
+    }),
+  );
+
+  it.effect("interruptTurn ignores a stale turn id", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* collectEvents(adapter, eventsRef);
+
+      const { turnId } = yield* adapter.sendTurn({ threadId, input: "long task" });
+      yield* adapter.interruptTurn(threadId, TurnId.make("00000000-0000-0000-0000-000000000000"));
+      yield* TestClock.withLive(Effect.sleep("20 millis"));
+      assert.isFalse(fake.aborted);
+      const events = yield* Ref.get(eventsRef);
+      assert.isFalse(events.some((e) => e.type === "turn.aborted"));
+      assert.isTrue(yield* adapter.hasSession(threadId));
+      assert.isDefined(turnId);
     }),
   );
 

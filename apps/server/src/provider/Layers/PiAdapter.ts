@@ -34,9 +34,13 @@ import {
 } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
+import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
+import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
@@ -116,15 +120,6 @@ const PROVIDER = ProviderDriverKind.make("pi");
  */
 const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [piSubagentsDialect];
 
-function isPromiseWithCatch(
-  value: unknown,
-): value is { catch: (onRejected: () => void) => unknown } {
-  if (!RuntimePredicate.isObjectOrArray(value) || Array.isArray(value) || !("catch" in value)) {
-    return false;
-  }
-  return RuntimePredicate.isFunction(value.catch);
-}
-
 /**
  * Narrow slice of the Pi SDK session the adapter relies on. `setModel` takes
  * the composer slug (`provider/model-id`) and resolves it against the user's
@@ -168,8 +163,13 @@ export interface PiSessionLike {
   readonly sessionFile?: string | undefined;
   readonly resumeOutcome?: PiSessionResumeOutcome | undefined;
   readonly autoCompactionEnabled?: boolean | undefined;
-  prompt(text: string, options?: { streamingBehavior?: "steer" | "followUp" }): Promise<void>;
-  steer(text: string): Promise<void>;
+  prompt(
+    text: string,
+    options?: {
+      readonly streamingBehavior?: "steer" | "followUp";
+      readonly preflightResult?: (success: boolean) => void;
+    },
+  ): Promise<void>;
   followUp(text: string): Promise<void>;
   abort(): Promise<void>;
   dispose(): void | Promise<void>;
@@ -239,6 +239,7 @@ interface PiSessionContext {
   readonly session: PiSessionLike;
   readonly cwd: string;
   readonly resumed: boolean;
+  abortedTurnId: TurnId | undefined;
   currentModelSlug: string | undefined;
   activeTurnId: TurnId | undefined;
   activeAssistantMessage: PiAssistantMessageItem | undefined;
@@ -463,6 +464,7 @@ export function makePiAdapter(
     const createSession = options.createSession;
 
     const sessions = new Map<ThreadId, PiSessionContext>();
+    const threadLocksRef = yield* SynchronizedRef.make(new Map<string, Semaphore.Semaphore>());
     const runtimeEventPubSub = yield* PubSub.unbounded<ProviderRuntimeEvent>();
 
     const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
@@ -479,6 +481,27 @@ export function makePiAdapter(
       ),
     );
     const makeEventStamp = () => Effect.all({ eventId: nextEventId, createdAt: nowIso });
+
+    const getThreadSemaphore = (threadId: string) =>
+      SynchronizedRef.modifyEffect(threadLocksRef, (current) => {
+        const existing: Option.Option<Semaphore.Semaphore> = Option.fromNullishOr(
+          current.get(threadId),
+        );
+        return Option.match(existing, {
+          onNone: () =>
+            Semaphore.make(1).pipe(
+              Effect.map((semaphore) => {
+                const next = new Map(current);
+                next.set(threadId, semaphore);
+                return [semaphore, next] as const;
+              }),
+            ),
+          onSome: (semaphore) => Effect.succeed([semaphore, current] as const),
+        });
+      });
+
+    const withThreadLock = <A, E, R>(threadId: string, effect: Effect.Effect<A, E, R>) =>
+      Effect.flatMap(getThreadSemaphore(threadId), (semaphore) => semaphore.withPermit(effect));
 
     const offerRuntimeEvent = (event: ProviderRuntimeEvent) =>
       PubSub.publish(runtimeEventPubSub, event).pipe(Effect.asVoid);
@@ -637,7 +660,7 @@ export function makePiAdapter(
     const handleSdkEvent = (
       ctx: PiSessionContext,
       event: PiSessionEventLike,
-    ): Effect.Effect<void, never, Crypto.Crypto> =>
+    ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
       Effect.gen(function* () {
         const stamp = yield* makeEventStamp();
         const base = {
@@ -1067,6 +1090,10 @@ export function makePiAdapter(
           case "agent_settled": {
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
+              if (ctx.abortedTurnId === turnId) {
+                ctx.abortedTurnId = undefined;
+                return;
+              }
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
               ctx.activeAssistantMessage = undefined;
@@ -1087,127 +1114,153 @@ export function makePiAdapter(
             return;
         }
       }).pipe(
-        // A listener that throws would tear down the SDK's event dispatch;
-        // swallow translation failures — the stream must stay alive.
-        Effect.orElseSucceed(() => undefined),
+        // A listener that throws would tear down the SDK's event dispatch.
+        // Keep the stream alive, but log the failure instead of swallowing
+        // it: silent translation drops are invisible broken turns.
+        Effect.catchCause((cause) =>
+          Effect.logWarning("Pi runtime event translation failed.", {
+            threadId: ctx.threadId,
+            eventType: event.type,
+            cause,
+          }),
+        ),
       );
 
     const startSession: PiAdapterContract["startSession"] = (input: ProviderSessionStartInput) =>
-      Effect.gen(function* () {
-        const existing = sessions.get(input.threadId);
-        if (existing) {
-          return yield* providerSessionFor(existing, "ready");
-        }
+      withThreadLock(
+        input.threadId,
+        Effect.gen(function* () {
+          const existing = sessions.get(input.threadId);
+          if (existing) {
+            return yield* providerSessionFor(existing, "ready");
+          }
 
-        const cwd = input.cwd ?? process.cwd();
-        // A thread-scoped model selection (the composer's pick at thread
-        // creation) wins over the instance-level settings defaults.
-        const modelSelection = ownModelSelection(input, boundInstanceId);
-        const initialModelSlug =
-          selectedModelSlug(modelSelection) ??
-          (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
-        const session = yield* Effect.tryPromise({
-          try: () => {
-            const cursor = parsePiResumeCursor(input.resumeCursor);
-            return createSession({
-              cwd,
-              model: initialModelSlug,
-              thinkingLevel:
-                getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
-                piSettings.thinkingLevel ??
-                undefined,
-              resumeSessionId: cursor?.sessionId,
-              resumeSessionFile: cursor?.sessionFile,
-              // The registry rebuilds the adapter when Pi settings change, so
-              // this closure always reflects the current disabled set; the
-              // next turn's resumed session applies it.
-              disabledExtensions: piSettings.disabledExtensions,
-            });
-          },
-          catch: (cause) =>
-            new ProviderAdapterRequestError({
-              provider: PROVIDER,
-              method: "startSession",
-              detail: `Failed to create Pi session in ${cwd}. ${cause instanceof Error ? cause.message : String(cause)}`,
-              cause,
-            }),
-        });
+          const cwd = input.cwd ?? process.cwd();
+          // A thread-scoped model selection (the composer's pick at thread
+          // creation) wins over the instance-level settings defaults.
+          const modelSelection = ownModelSelection(input, boundInstanceId);
+          const initialModelSlug =
+            selectedModelSlug(modelSelection) ??
+            (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
+          const session = yield* Effect.tryPromise({
+            try: () => {
+              const cursor = parsePiResumeCursor(input.resumeCursor);
+              return createSession({
+                cwd,
+                model: initialModelSlug,
+                thinkingLevel:
+                  getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
+                  piSettings.thinkingLevel ??
+                  undefined,
+                resumeSessionId: cursor?.sessionId,
+                resumeSessionFile: cursor?.sessionFile,
+                // The registry rebuilds the adapter when Pi settings change, so
+                // this closure always reflects the current disabled set; the
+                // next turn's resumed session applies it.
+                disabledExtensions: piSettings.disabledExtensions,
+              });
+            },
+            catch: (cause) =>
+              new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "startSession",
+                detail: `Failed to create Pi session in ${cwd}. ${cause instanceof Error ? cause.message : String(cause)}`,
+                cause,
+              }),
+          });
 
-        const outcome = session.resumeOutcome;
-        const resumed = outcome?.resumed === true;
-        const ctx: PiSessionContext = {
-          threadId: input.threadId,
-          session,
-          cwd,
-          resumed,
-          currentModelSlug: initialModelSlug,
-          activeTurnId: undefined,
-          activeAssistantMessage: undefined,
-          nextAssistantMessageIndex: 0,
-          pendingTurnError: undefined,
-          toolCallArgs: new Map(),
-          seenNotifyMessages: new WeakSet(),
-          openSingles: [],
-          unsubscribe: () => {},
-        };
-        ctx.pendingTurnError = undefined;
-        ctx.unsubscribe = session.subscribe((event) => {
-          runFork(handleSdkEvent(ctx, event));
-        });
-        sessions.set(input.threadId, ctx);
+          const outcome = session.resumeOutcome;
+          const resumed = outcome?.resumed === true;
+          const ctx: PiSessionContext = {
+            threadId: input.threadId,
+            session,
+            cwd,
+            resumed,
+            abortedTurnId: undefined,
+            currentModelSlug: initialModelSlug,
+            activeTurnId: undefined,
+            activeAssistantMessage: undefined,
+            nextAssistantMessageIndex: 0,
+            pendingTurnError: undefined,
+            toolCallArgs: new Map(),
+            seenNotifyMessages: new WeakSet(),
+            openSingles: [],
+            unsubscribe: () => {},
+          };
+          ctx.pendingTurnError = undefined;
+          ctx.unsubscribe = session.subscribe((event) => {
+            runFork(withThreadLock(input.threadId, handleSdkEvent(ctx, event)));
+          });
+          sessions.set(input.threadId, ctx);
 
-        yield* offerRuntimeEvent({
-          ...(yield* makeEventStamp()),
-          provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
-          threadId: input.threadId,
-          type: "session.started",
-          payload: { resume: resumed },
-        });
-        yield* offerRuntimeEvent({
-          ...(yield* makeEventStamp()),
-          provider: PROVIDER,
-          ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
-          threadId: input.threadId,
-          type: "session.state.changed",
-          payload: { state: "ready", reason: "Pi session ready" },
-        });
-        yield* publishPiTokenUsage(ctx, "startup");
+          yield* offerRuntimeEvent({
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+            threadId: input.threadId,
+            type: "session.started",
+            payload: { resume: resumed },
+          });
+          yield* offerRuntimeEvent({
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+            threadId: input.threadId,
+            type: "session.state.changed",
+            payload: { state: "ready", reason: "Pi session ready" },
+          });
+          yield* publishPiTokenUsage(ctx, "startup");
 
-        return yield* providerSessionFor(ctx, "ready");
-      });
+          return yield* providerSessionFor(ctx, "ready");
+        }),
+      );
 
     const sendTurn: PiAdapterContract["sendTurn"] = (input: ProviderSendTurnInput) =>
       Effect.gen(function* () {
-        const ctx = yield* getSession(input.threadId, "sendTurn");
-        const rawText = input.input?.trim();
-        if (rawText === undefined || rawText.length === 0) {
-          return yield* new ProviderAdapterRequestError({
-            provider: PROVIDER,
-            method: "sendTurn",
-            detail: "Pi turns require text input.",
-          });
-        }
+        const prepared = yield* withThreadLock(
+          input.threadId,
+          Effect.gen(function* () {
+            const ctx = yield* getSession(input.threadId, "sendTurn");
+            const rawText = input.input?.trim();
+            if (rawText === undefined || rawText.length === 0) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail: "Pi turns require text input.",
+              });
+            }
 
-        const turnId = TurnId.make(
-          yield* crypto.randomUUIDv4.pipe(
-            Effect.mapError(
-              (cause) =>
-                new ProviderAdapterRequestError({
-                  provider: PROVIDER,
-                  method: "sendTurn",
-                  detail: "Failed to mint a Pi turn id.",
-                  cause,
-                }),
-            ),
-          ),
+            // Steering reuses the running turn: Pi folds the new text into
+            // the live agent loop and closes it once, so the composer keeps
+            // one open turn instead of orphaning the running one.
+            const steeringTurnId = ctx.activeTurnId;
+            const freshTurnId = TurnId.make(
+              yield* crypto.randomUUIDv4.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapterRequestError({
+                      provider: PROVIDER,
+                      method: "sendTurn",
+                      detail: "Failed to mint a Pi turn id.",
+                      cause,
+                    }),
+                ),
+              ),
+            );
+            const turnId = steeringTurnId ?? freshTurnId;
+            ctx.activeTurnId = turnId;
+            ctx.abortedTurnId = undefined;
+            return { ctx, turnId, steeringTurnId, text: translatePiSkillToken(rawText) };
+          }),
         );
-        ctx.activeTurnId = turnId;
-        const text = translatePiSkillToken(rawText);
+        const { ctx, turnId, steeringTurnId, text } = prepared;
 
         // Apply the composer's per-thread model options before prompting.
         // Pi sessions support in-session model switches, so a changed picker
         // value takes effect on the very next turn of the same thread.
+        // A superseded turn (steered or aborted while awaiting the model
+        // switch) leaves its turn id behind: answering for a dead turn would
+        // reopen it after the live turn already moved on.
         const modelSelection = ownModelSelection(input, boundInstanceId);
         let modelChanged = false;
         if (modelSelection !== undefined) {
@@ -1216,16 +1269,18 @@ export function makePiAdapter(
             modelSelection,
             PI_THINKING_DESCRIPTOR_ID,
           );
-          yield* Effect.tryPromise({
+          const switchOutcome = yield* Effect.tryPromise({
             try: async () => {
+              let changed = false;
               if (ctx.session.setModel !== undefined && modelSlug !== undefined) {
-                modelChanged = modelSlug !== ctx.currentModelSlug;
+                changed = modelSlug !== ctx.currentModelSlug;
                 await ctx.session.setModel(modelSlug);
                 ctx.currentModelSlug = modelSlug;
               }
               if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
                 ctx.session.setThinkingLevel(thinkingLevel);
               }
+              return changed;
             },
             catch: (cause) =>
               new ProviderAdapterRequestError({
@@ -1235,42 +1290,74 @@ export function makePiAdapter(
                 cause,
               }),
           });
+          const live = sessions.get(input.threadId);
+          if (live === undefined || live.activeTurnId !== turnId) {
+            return {
+              threadId: input.threadId,
+              turnId,
+              resumeCursor: {
+                sessionId: ctx.session.sessionId,
+                ...(ctx.session.sessionFile !== undefined
+                  ? { sessionFile: ctx.session.sessionFile }
+                  : undefined),
+              },
+            } satisfies ProviderTurnStartResult;
+          }
+          modelChanged = switchOutcome;
         }
         if (modelChanged) {
           yield* publishPiTokenUsage(ctx, "model-switch");
         }
 
-        if (ctx.session.isStreaming) {
-          yield* Effect.tryPromise({
-            try: () => ctx.session.steer(text),
-            catch: (cause) =>
-              new ProviderAdapterRequestError({
-                provider: PROVIDER,
-                method: "sendTurn",
-                detail: `Failed to steer Pi session ${ctx.session.sessionId}.`,
-                cause,
-              }),
-          });
-        } else {
-          // prompt() resolves only after the full run settles; turn lifecycle
-          // flows through SDK events, so only preflight rejection is an error
-          // worth surfacing. Invoke synchronously and swallow the settlement.
-          // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-          yield* Effect.try({
-            try: () => {
-              const maybePromise = ctx.session.prompt(text);
-              if (isPromiseWithCatch(maybePromise)) {
-                maybePromise.catch(() => {});
+        // Acceptance wins over settlement: the prompt promise settles only
+        // when the run ends, which can land after interruptTurn already
+        // closed the turn. A preflight rejection is the only prompt error
+        // that opens a failed turn; a late settlement error for a turn that
+        // is no longer active must not reopen it.
+        const acceptance = yield* Deferred.make<boolean>();
+        runFork(
+          Effect.promise(async () => {
+            try {
+              await ctx.session.prompt(text, {
+                ...(steeringTurnId !== undefined ? { streamingBehavior: "steer" } : undefined),
+                preflightResult: (success) => {
+                  Deferred.doneUnsafe(acceptance, Effect.succeed(success));
+                },
+              });
+              Deferred.doneUnsafe(acceptance, Effect.succeed(true));
+            } catch {
+              Deferred.doneUnsafe(acceptance, Effect.succeed(false));
+            }
+          }),
+        );
+        const promptAccepted = yield* Deferred.await(acceptance);
+        if (!promptAccepted) {
+          return yield* withThreadLock(
+            input.threadId,
+            Effect.gen(function* () {
+              const live = sessions.get(input.threadId);
+              if (live === undefined || live.activeTurnId !== turnId) {
+                return {
+                  threadId: input.threadId,
+                  turnId,
+                  resumeCursor: {
+                    sessionId: ctx.session.sessionId,
+                    ...(ctx.session.sessionFile !== undefined
+                      ? { sessionFile: ctx.session.sessionFile }
+                      : undefined),
+                  },
+                } satisfies ProviderTurnStartResult;
               }
-            },
-            catch: (cause) =>
-              new ProviderAdapterRequestError({
+              ctx.activeTurnId = undefined;
+              ctx.activeAssistantMessage = undefined;
+              ctx.pendingTurnError = undefined;
+              return yield* new ProviderAdapterRequestError({
                 provider: PROVIDER,
                 method: "sendTurn",
-                detail: `Failed to prompt Pi session ${ctx.session.sessionId}.`,
-                cause,
-              }),
-          });
+                detail: `Pi rejected the turn for session ${ctx.session.sessionId}.`,
+              });
+            }),
+          );
         }
 
         return {
@@ -1285,35 +1372,54 @@ export function makePiAdapter(
         } satisfies ProviderTurnStartResult;
       });
 
-    const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId) =>
-      Effect.gen(function* () {
-        const ctx = yield* getSession(threadId, "interruptTurn");
-        yield* Effect.tryPromise({
-          try: () => ctx.session.abort(),
-          catch: (cause) =>
-            new ProviderAdapterRequestError({
-              provider: PROVIDER,
-              method: "interruptTurn",
-              detail: `Failed to abort Pi session ${ctx.session.sessionId}.`,
-              cause,
-            }),
-        });
-        if (ctx.activeTurnId !== undefined) {
-          const turnId = ctx.activeTurnId;
-          ctx.activeTurnId = undefined;
-          ctx.activeAssistantMessage = undefined;
-          ctx.pendingTurnError = undefined;
-          yield* offerRuntimeEvent({
-            ...(yield* makeEventStamp()),
-            provider: PROVIDER,
-            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
-            threadId,
-            type: "turn.aborted",
-            turnId,
-            payload: { reason: "Interrupted by user" },
+    const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId, turnId) =>
+      withThreadLock(
+        threadId,
+        Effect.gen(function* () {
+          const ctx = yield* getSession(threadId, "interruptTurn");
+          const liveTurnId = ctx.activeTurnId;
+          if (turnId !== undefined && liveTurnId !== undefined && liveTurnId !== turnId) {
+            return;
+          }
+          const abortedId = turnId ?? liveTurnId;
+          if (abortedId !== undefined) {
+            ctx.abortedTurnId = abortedId;
+          }
+          yield* Effect.tryPromise({
+            try: () => ctx.session.abort(),
+            catch: (cause) =>
+              new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "interruptTurn",
+                detail: `Failed to abort Pi session ${ctx.session.sessionId}.`,
+                cause,
+              }),
           });
-        }
-      });
+          // Abort settles the Pi run, and agent_settled closes the turn. The
+          // aborted event only fires when the settlement has not already
+          // closed it, so a settlement racing abort cannot emit twice.
+          if (
+            ctx.activeTurnId !== undefined &&
+            (abortedId === undefined || ctx.activeTurnId === abortedId)
+          ) {
+            const settledId = abortedId ?? ctx.activeTurnId;
+            if (settledId !== undefined) {
+              ctx.activeTurnId = undefined;
+              ctx.activeAssistantMessage = undefined;
+              ctx.pendingTurnError = undefined;
+              yield* offerRuntimeEvent({
+                ...(yield* makeEventStamp()),
+                provider: PROVIDER,
+                ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+                threadId,
+                type: "turn.aborted",
+                turnId: settledId,
+                payload: { reason: "Interrupted by user" },
+              });
+            }
+          }
+        }),
+      );
 
     const respondToRequest: PiAdapterContract["respondToRequest"] = (
       _threadId,
