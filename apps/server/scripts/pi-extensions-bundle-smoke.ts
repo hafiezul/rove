@@ -12,7 +12,7 @@ const session = await createPiSession({
   cwd,
   model: "rove-extension-test/fixture",
   thinkingLevel: undefined,
-  resumeSessionFile: undefined,
+  resumeSessionId: undefined,
 });
 try {
   const results: unknown[] = [];

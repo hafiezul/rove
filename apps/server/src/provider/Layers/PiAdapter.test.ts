@@ -18,6 +18,7 @@ import {
 import {
   describePiToolCall,
   makePiAdapter,
+  parsePiResumeCursor,
   resolvePiToolCallArgs,
   type PiCreateSessionInput,
   type PiSessionEntryLike,
@@ -31,6 +32,7 @@ const testLayer = Layer.mergeAll(NodeServices.layer);
 
 class FakePiSession implements PiSessionLike {
   readonly sessionId = "fake-pi-session-1";
+  resumeOutcome: PiSessionLike["resumeOutcome"] = { resumed: false, reason: "no-cursor" };
   isStreaming = false;
   messages: ReadonlyArray<unknown> = [
     { role: "user", content: "earlier question" },
@@ -806,6 +808,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
   it.effect("publishes available context usage as soon as a persisted Pi session resumes", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
+      fake.resumeOutcome = { resumed: true, sessionFile: "fake-file" };
       fake.sessionStats = {
         assistantMessages: 2,
         contextUsage: { tokens: 24_000, contextWindow: 400_000, percent: 6 },
@@ -839,6 +842,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
   it.effect("clears stale Pi context usage when a resumed session has no usable metadata", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
+      fake.resumeOutcome = { resumed: true, sessionFile: "fake-file" };
       fake.sessionStats = undefined;
 
       const adapter = yield* makeAdapter(fake);
@@ -1202,10 +1206,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
   it.effect("startSession resumes from a persisted Pi session id in resumeCursor", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
-      const createCalls: Array<{ resumeSessionFile: string | undefined }> = [];
+      const createCalls: Array<{ resumeSessionId: string | undefined }> = [];
       const adapter = yield* makePiAdapter(decodePiSettings({}), {
         createSession: (input) => {
-          createCalls.push({ resumeSessionFile: input.resumeSessionFile });
+          createCalls.push({ resumeSessionId: input.resumeSessionId });
           return Promise.resolve(fake);
         },
       }).pipe(Effect.orDie);
@@ -1216,7 +1220,40 @@ it.layer(testLayer)("PiAdapter", (it) => {
         resumeCursor: { sessionId: "pi-session-xyz" },
       });
 
-      assert.deepStrictEqual(createCalls, [{ resumeSessionFile: "pi-session-xyz" }]);
+      assert.deepStrictEqual(createCalls, [{ resumeSessionId: "pi-session-xyz" }]);
+    }),
+  );
+
+  it.effect("reports a missing Pi session file instead of a silent resume", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.resumeOutcome = {
+        resumed: false,
+        reason: "missing-file",
+        sessionId: "gone-pi-session",
+      };
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+
+      const session = yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: { sessionId: "gone-pi-session" },
+      });
+
+      assert.deepStrictEqual(session.resumeCursor, { sessionId: fake.sessionId });
+      const events = yield* waitFor(eventsRef, (received) =>
+        received.some((event) => event.type === "runtime.warning"),
+      );
+      const started = events.find((event) => event.type === "session.started");
+      const warning = events.find((event) => event.type === "runtime.warning");
+      assert.strictEqual(started?.type, "session.started");
+      if (started?.type !== "session.started") return;
+      assert.strictEqual(started.payload.resume, false);
+      assert.strictEqual(warning?.type, "runtime.warning");
+      if (warning?.type !== "runtime.warning") return;
+      assert.include(warning.payload.message, "gone-pi-session");
     }),
   );
 
@@ -1271,6 +1308,17 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(snapshot.threadId, threadId);
     }),
   );
+});
+
+describe("parsePiResumeCursor", () => {
+  it("decodes the persisted session id and ignores foreign shapes", () => {
+    assert.deepStrictEqual(parsePiResumeCursor({ sessionId: "pi-session-xyz" }), {
+      sessionId: "pi-session-xyz",
+    });
+    assert.strictEqual(parsePiResumeCursor(undefined), undefined);
+    assert.strictEqual(parsePiResumeCursor("pi-session-xyz"), undefined);
+    assert.strictEqual(parsePiResumeCursor({ sessionId: "  " }), undefined);
+  });
 });
 
 describe("pi tool-call arguments", () => {

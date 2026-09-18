@@ -181,7 +181,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
               cwd,
               model: undefined,
               thinkingLevel: undefined,
-              resumeSessionFile: undefined,
+              resumeSessionId: undefined,
             },
             { extensions: false },
           ),

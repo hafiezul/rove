@@ -34,7 +34,12 @@ import {
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
-import type { PiCreateSessionInput, PiSessionEventLike, PiSessionLike } from "./PiAdapter.ts";
+import type {
+  PiCreateSessionInput,
+  PiSessionEventLike,
+  PiSessionLike,
+  PiSessionResumeOutcome,
+} from "./PiAdapter.ts";
 
 /**
  * Adapt an SDK `AgentSession` to the narrow `PiSessionLike` surface the
@@ -74,6 +79,7 @@ function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
+  resumeOutcome?: PiSessionResumeOutcome,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [];
@@ -125,6 +131,7 @@ async function toPiSessionLike(
     get sessionId() {
       return session.sessionId;
     },
+    ...(resumeOutcome !== undefined ? { resumeOutcome } : undefined),
     get isStreaming() {
       return session.isStreaming;
     },
@@ -188,23 +195,34 @@ async function toPiSessionLike(
 
 /**
  * Resolve the on-disk session file for a persisted Pi session id so a resumed
- * thread re-adopts its conversation. Pi names session files
- * `<fileTimestamp>_<sessionId>.jsonl` in the cwd-derived session dir, so the
- * id maps to the single file ending in `_<sessionId>.jsonl`. Returns
- * undefined when no such file exists (e.g. an in-memory session that was
- * never persisted), in which case the caller starts a fresh session.
+ * thread re-adopts its conversation. Returns the miss explicitly so the
+ * caller can report it instead of masking a fresh session as a resume.
  */
-export function resolvePiSessionFileForTest(cwd: string, sessionId: string): string | undefined {
+export function resolvePiSessionResume(
+  cwd: string,
+  sessionId: string | undefined,
+): PiSessionResumeOutcome {
+  if (sessionId === undefined) return { resumed: false, reason: "no-cursor" };
   const sessionDir = SessionManager.create(cwd).getSessionDir();
   let entries: string[];
   try {
     entries = NodeFS.readdirSync(sessionDir);
   } catch {
-    return undefined;
+    return { resumed: false, reason: "missing-file", sessionId };
   }
   const suffix = `_${sessionId}.jsonl`;
   const match = entries.find((entry) => entry.endsWith(suffix));
-  return match === undefined ? undefined : NodePath.join(sessionDir, match);
+  return match === undefined
+    ? { resumed: false, reason: "missing-file", sessionId }
+    : { resumed: true, sessionFile: NodePath.join(sessionDir, match) };
+}
+
+/**
+ * Legacy lookup kept for the existing factory test. Prefer `resolvePiSessionResume`.
+ */
+export function resolvePiSessionFileForTest(cwd: string, sessionId: string): string | undefined {
+  const outcome = resolvePiSessionResume(cwd, sessionId);
+  return outcome.resumed ? outcome.sessionFile : undefined;
 }
 
 export async function createPiSession(
@@ -248,12 +266,11 @@ export async function createPiSession(
   ];
   if (errors.length > 0) throw new Error(`Failed to load Pi extensions:\n${errors.join("\n")}`);
 
-  const resumeFile =
-    input.resumeSessionFile !== undefined
-      ? resolvePiSessionFileForTest(cwd, input.resumeSessionFile)
-      : undefined;
+  const outcome = resolvePiSessionResume(cwd, input.resumeSessionId);
   const sessionManager =
-    resumeFile !== undefined ? SessionManager.open(resumeFile) : SessionManager.create(cwd);
+    outcome.resumed === true
+      ? SessionManager.open(outcome.sessionFile)
+      : SessionManager.create(cwd);
 
   // Resolve the model/thinking override against the user's catalog. Blank
   // (the default) means Pi's own default from settings wins — pass nothing.
@@ -279,5 +296,5 @@ export async function createPiSession(
       : undefined),
   });
 
-  return toPiSessionLike(session, modelRuntime);
+  return toPiSessionLike(session, modelRuntime, outcome);
 }

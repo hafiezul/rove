@@ -17,6 +17,7 @@ import {
   createPiSession,
   resolvePiModelForSession,
   resolvePiSessionFileForTest,
+  resolvePiSessionResume,
 } from "./PiSessionFactory.ts";
 import { makePiAdapter, type PiSessionEventLike, type PiSessionLike } from "./PiAdapter.ts";
 
@@ -57,7 +58,7 @@ describe("headless Pi extensions", () => {
         cwd,
         model: extensions ? "rove-extension-test/fixture" : undefined,
         thinkingLevel: undefined,
-        resumeSessionFile: undefined,
+        resumeSessionId: undefined,
       },
       { extensions },
     );
@@ -203,7 +204,7 @@ export default function (pi) {
       cwd,
       model: undefined,
       thinkingLevel: undefined,
-      resumeSessionFile: undefined,
+      resumeSessionId: undefined,
       disabledExtensions: [fixturePath],
     });
     sessions.push(disabledSession);
@@ -215,7 +216,7 @@ export default function (pi) {
       cwd,
       model: "rove-extension-test/fixture",
       thinkingLevel: undefined,
-      resumeSessionFile: undefined,
+      resumeSessionId: undefined,
       disabledExtensions: [NodePath.join(cwd, ".pi", "extensions", "dummy.ts")],
     });
     sessions.push(noteSession);
@@ -377,6 +378,75 @@ it("resolveSessionFile finds the persisted file for a session id", () => {
     // Clean up the session dir we created in the global Pi sessions root.
     NodeFS.rmSync(sessionDir, { recursive: true, force: true });
     NodeFS.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+it("resolvePiSessionResume reports a missing file instead of masking a fresh session", () => {
+  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
+  const sessionDir = SessionManager.create(cwd).getSessionDir();
+  try {
+    const outcome = resolvePiSessionResume(cwd, "00000000-0000-0000-0000-000000000000");
+    assert.strictEqual(outcome.resumed, false);
+    if (outcome.resumed !== false || outcome.reason !== "missing-file") return;
+    assert.strictEqual(outcome.sessionId, "00000000-0000-0000-0000-000000000000");
+    assert.strictEqual(resolvePiSessionResume(cwd, undefined).resumed, false);
+  } finally {
+    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
+    NodeFS.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+it("createPiSession starts fresh on a missed resume and resumes a live session", async () => {
+  const tmp = NodeFS.realpathSync(
+    NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-resume-")),
+  );
+  const resumeCwd = NodePath.join(tmp, "project");
+  const resumeAgentDir = NodePath.join(tmp, "agent");
+  NodeFS.mkdirSync(NodePath.join(resumeCwd, ".pi", "extensions"), { recursive: true });
+  NodeFS.mkdirSync(resumeAgentDir);
+  const outerAgentDir = process.env.PI_CODING_AGENT_DIR;
+  vi.stubEnv("PI_CODING_AGENT_DIR", resumeAgentDir);
+  vi.stubEnv("PI_OFFLINE", "1");
+  const owned: PiSessionLike[] = [];
+  try {
+    const missingId = "00000000-0000-0000-0000-000000000000";
+    const fresh = await createPiSession({
+      cwd: resumeCwd,
+      model: undefined,
+      thinkingLevel: undefined,
+      resumeSessionId: missingId,
+    });
+    owned.push(fresh);
+    assert.strictEqual(fresh.resumeOutcome?.resumed, false);
+    if (fresh.resumeOutcome?.resumed === false && fresh.resumeOutcome.reason === "missing-file") {
+      assert.strictEqual(fresh.resumeOutcome.sessionId, missingId);
+    } else {
+      assert.fail("expected a missing-file resume outcome");
+    }
+
+    // Seed a session file directly. The SDK defers its own write until the
+    // first assistant message, so a live id is not resolvable on its own.
+    const liveId = "11a00000-1111-2222-3333-444455556666";
+    const liveDir = SessionManager.create(resumeCwd).getSessionDir();
+    const liveFile = NodePath.join(liveDir, `2026-08-16T00-00-00-000Z_${liveId}.jsonl`);
+    NodeFS.writeFileSync(
+      liveFile,
+      `${JSON.stringify({ type: "session", version: 3, id: liveId, timestamp: "2026-08-16T00:00:00.000Z", cwd: resumeCwd })}\n`,
+    );
+
+    const resumed = await createPiSession({
+      cwd: resumeCwd,
+      model: undefined,
+      thinkingLevel: undefined,
+      resumeSessionId: liveId,
+    });
+    owned.push(resumed);
+    assert.strictEqual(resumed.resumeOutcome?.resumed, true);
+    assert.strictEqual(resumed.sessionId, liveId);
+  } finally {
+    for (const session of owned.splice(0)) await session.dispose();
+    if (outerAgentDir !== undefined) vi.stubEnv("PI_CODING_AGENT_DIR", outerAgentDir);
+    NodeFS.rmSync(tmp, { recursive: true, force: true });
   }
 });
 

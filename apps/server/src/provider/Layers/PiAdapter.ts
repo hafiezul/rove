@@ -165,6 +165,8 @@ export interface PiSessionLike {
   readonly sessionId: string;
   readonly isStreaming: boolean;
   readonly messages: ReadonlyArray<unknown>;
+  /** Outcome of the resume lookup; lets the adapter report a missed resume. */
+  readonly resumeOutcome?: PiSessionResumeOutcome | undefined;
   readonly autoCompactionEnabled?: boolean | undefined;
   prompt(text: string, options?: { streamingBehavior?: "steer" | "followUp" }): Promise<void>;
   steer(text: string): Promise<void>;
@@ -188,11 +190,33 @@ export interface PiSessionEventLike {
   readonly [key: string]: SchemaJson;
 }
 
+/**
+ * How the requested Pi conversation was opened. Pi session files are
+ * append-only JSONL named `<timestamp>_<sessionId>.jsonl` in the cwd-derived
+ * session dir. A resume cursor can name an id whose file is gone (pruned,
+ * deleted, never persisted). The factory reports the miss. The adapter
+ * announces it. OpenCode follows the same shape and logs a warning (#3604).
+ */
+export type PiSessionResumeOutcome =
+  | { readonly resumed: true; readonly sessionFile: string }
+  | { readonly resumed: false; readonly reason: "no-cursor" }
+  | { readonly resumed: false; readonly reason: "missing-file"; readonly sessionId: string };
+
+/**
+ * Decode the persisted resume cursor into the Pi session id. A foreign shape
+ * means no resume rather than an error. Exported for unit testing.
+ */
+export function parsePiResumeCursor(raw: unknown): { readonly sessionId: string } | undefined {
+  const record = piRecord(raw);
+  const sessionId = record !== undefined ? piTrimmed(record.sessionId) : undefined;
+  return sessionId === undefined ? undefined : { sessionId };
+}
+
 export interface PiCreateSessionInput {
   readonly cwd: string;
   readonly model: string | undefined;
   readonly thinkingLevel: string | undefined;
-  readonly resumeSessionFile: string | undefined;
+  readonly resumeSessionId: string | undefined;
   /** Pi extension paths blocked from loading; matched against the loader's discovered paths. */
   readonly disabledExtensions?: ReadonlyArray<string> | undefined;
 }
@@ -1073,8 +1097,7 @@ export function makePiAdapter(
         }
 
         const cwd = input.cwd ?? process.cwd();
-        const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-          resumeCursor = input.resumeCursor as { sessionId?: string } | undefined;
+        const resumeSessionId = parsePiResumeCursor(input.resumeCursor)?.sessionId;
         // A thread-scoped model selection (the composer's pick at thread
         // creation) wins over the instance-level settings defaults.
         const modelSelection = ownModelSelection(input, boundInstanceId);
@@ -1090,7 +1113,7 @@ export function makePiAdapter(
                 getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
                 piSettings.thinkingLevel ??
                 undefined,
-              resumeSessionFile: resumeCursor?.sessionId,
+              resumeSessionId,
               // The registry rebuilds the adapter when Pi settings change, so
               // this closure always reflects the current disabled set; the
               // next turn's resumed session applies it.
@@ -1105,11 +1128,13 @@ export function makePiAdapter(
             }),
         });
 
+        const outcome = session.resumeOutcome;
+        const resumed = outcome?.resumed === true;
         const ctx: PiSessionContext = {
           threadId: input.threadId,
           session,
           cwd,
-          resumed: resumeCursor?.sessionId !== undefined,
+          resumed,
           currentModelSlug: initialModelSlug,
           activeTurnId: undefined,
           activeAssistantMessage: undefined,
@@ -1132,8 +1157,23 @@ export function makePiAdapter(
           ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
           threadId: input.threadId,
           type: "session.started",
-          payload: { resume: resumeCursor?.sessionId !== undefined },
+          payload: { resume: resumed },
         });
+        if (outcome?.resumed === false && outcome.reason === "missing-file") {
+          yield* offerRuntimeEvent({
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+            threadId: input.threadId,
+            type: "runtime.warning",
+            payload: {
+              message: `Pi session '${outcome.sessionId}' no longer exists; starting a fresh session.`,
+            },
+          });
+          yield* Effect.logWarning(
+            `Pi session '${outcome.sessionId}' no longer exists; starting a fresh session.`,
+          );
+        }
         yield* offerRuntimeEvent({
           ...(yield* makeEventStamp()),
           provider: PROVIDER,
