@@ -949,6 +949,7 @@ export function deriveMessagesTimelineRows(input: {
       entry.kind !== "work" ||
       entry.entry.questionAnswer !== undefined ||
       entry.entry.sourceActivityKind === "context-compaction" ||
+      entry.entry.sourceActivityKind === "turn.reasoning" ||
       entry.entry.tone === "error"
     ) {
       break;
@@ -1083,6 +1084,7 @@ export function deriveMessagesTimelineRows(input: {
       if (
         timelineEntry.entry.agentSpawn !== undefined ||
         timelineEntry.entry.questionAnswer !== undefined ||
+        timelineEntry.entry.sourceActivityKind === "turn.reasoning" ||
         timelineEntry.entry.tone === "error"
       ) {
         const spawn = timelineEntry.entry.agentSpawn;

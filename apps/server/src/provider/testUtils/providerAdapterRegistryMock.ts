@@ -1,5 +1,5 @@
 /**
- * Test helpers for constructing a `ProviderAdapterRegistryShape` mock from a
+ * Test helpers for constructing a `ProviderAdapterRegistryContract` mock from a
  * kind-keyed adapter map.
  *
  * @module provider/testUtils/providerAdapterRegistryMock
@@ -21,7 +21,7 @@ export type KindAdapterMap = Partial<
 >;
 
 /**
- * Build a `ProviderAdapterRegistryShape` from a kind-keyed adapter map.
+ * Build a `ProviderAdapterRegistryContract` from a kind-keyed adapter map.
  * Every adapter present in the map is addressable through its default
  * provider instance id.
  */

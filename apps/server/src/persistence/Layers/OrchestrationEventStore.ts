@@ -26,7 +26,7 @@ import {
 } from "../Errors.ts";
 import {
   OrchestrationEventStore,
-  type OrchestrationEventStoreShape,
+  type OrchestrationEventStoreContract,
 } from "../Services/OrchestrationEventStore.ts";
 
 const decodeEvent = Schema.decodeUnknownEffect(OrchestrationEvent);
@@ -252,7 +252,7 @@ const makeEventStore = Effect.gen(function* () {
       `,
   });
 
-  const append: OrchestrationEventStoreShape["append"] = (event) =>
+  const append: OrchestrationEventStoreContract["append"] = (event) =>
     appendEventRow({
       eventId: event.eventId,
       aggregateKind: event.aggregateKind,
@@ -279,7 +279,7 @@ const makeEventStore = Effect.gen(function* () {
       ),
     );
 
-  const readFromSequence: OrchestrationEventStoreShape["readFromSequence"] = (
+  const readFromSequence: OrchestrationEventStoreContract["readFromSequence"] = (
     sequenceExclusive,
     limit = DEFAULT_READ_FROM_SEQUENCE_LIMIT,
   ) => {
@@ -339,7 +339,7 @@ const makeEventStore = Effect.gen(function* () {
         `,
   });
 
-  const hasEventAfter: OrchestrationEventStoreShape["hasEventAfter"] = (input) =>
+  const hasEventAfter: OrchestrationEventStoreContract["hasEventAfter"] = (input) =>
     findEventAfter(input).pipe(
       Effect.map(Option.isSome),
       Effect.mapError(
@@ -350,7 +350,7 @@ const makeEventStore = Effect.gen(function* () {
       ),
     );
 
-  const readAggregateRange: OrchestrationEventStoreShape["readAggregateRange"] = (input) => {
+  const readAggregateRange: OrchestrationEventStoreContract["readAggregateRange"] = (input) => {
     const limit = Math.max(0, Math.floor(input.limit ?? DEFAULT_READ_FROM_SEQUENCE_LIMIT));
     if (limit === 0 || input.fromSequenceExclusive >= input.toSequenceInclusive) {
       return Stream.empty;
@@ -395,7 +395,7 @@ const makeEventStore = Effect.gen(function* () {
     );
   };
 
-  const getAggregateReplayStats: OrchestrationEventStoreShape["getAggregateReplayStats"] = (
+  const getAggregateReplayStats: OrchestrationEventStoreContract["getAggregateReplayStats"] = (
     input,
   ) =>
     readAggregateReplayStats({
@@ -418,7 +418,7 @@ const makeEventStore = Effect.gen(function* () {
     getAggregateReplayStats,
     readAll: () => readFromSequence(0, Number.MAX_SAFE_INTEGER),
     hasEventAfter,
-  } satisfies OrchestrationEventStoreShape;
+  } satisfies OrchestrationEventStoreContract;
 });
 
 export const OrchestrationEventStoreLive = Layer.effect(OrchestrationEventStore, makeEventStore);

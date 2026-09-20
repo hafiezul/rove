@@ -3,7 +3,7 @@ import type * as Effect from "effect/Effect";
 import type * as Stream from "effect/Stream";
 import type { ProviderMaintenanceCapabilities } from "../providerMaintenance.ts";
 
-export interface ServerProviderShape {
+export interface ServerProviderContract {
   /**
    * Ownership-derived update capabilities. Cached between reads; pass
    * `{ fresh: true }` before executing an update so it never trusts a

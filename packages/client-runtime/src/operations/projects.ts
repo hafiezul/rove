@@ -43,6 +43,7 @@ interface AddProjectRemoteSourceStatus {
 export interface AddProjectRemoteSourceReadiness {
   url: AddProjectRemoteSourceStatus;
   github: AddProjectRemoteSourceStatus;
+  forgejo: AddProjectRemoteSourceStatus;
   gitlab: AddProjectRemoteSourceStatus;
   bitbucket: AddProjectRemoteSourceStatus;
   "azure-devops": AddProjectRemoteSourceStatus;

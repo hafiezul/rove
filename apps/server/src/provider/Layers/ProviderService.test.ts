@@ -60,7 +60,7 @@ import {
   ProviderWorkspaceMissingError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
 import * as ProviderService from "../Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "../Services/ProviderSessionDirectory.ts";
@@ -270,7 +270,7 @@ function makeFakeCodexAdapter(
     }),
   );
 
-  const adapter: ProviderAdapterShape<ProviderAdapterError> = {
+  const adapter: ProviderAdapterContract<ProviderAdapterError> = {
     provider,
     capabilities: {
       sessionModelSwitch: "in-session",
@@ -364,7 +364,9 @@ function makeRecordingAnalytics() {
 }
 
 function makeStaticInstanceRegistry(
-  entries: ReadonlyArray<readonly [ProviderInstanceId, ProviderAdapterShape<ProviderAdapterError>]>,
+  entries: ReadonlyArray<
+    readonly [ProviderInstanceId, ProviderAdapterContract<ProviderAdapterError>]
+  >,
 ): ProviderAdapterRegistry.ProviderAdapterRegistry["Service"] {
   const adapters = new Map(entries);
   const unsupported = (instanceId: ProviderInstanceId) =>

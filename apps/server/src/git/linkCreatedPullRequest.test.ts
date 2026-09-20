@@ -18,7 +18,7 @@ import * as Stream from "effect/Stream";
 import { OrchestrationCommandInvariantError } from "../orchestration/Errors.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../orchestration/Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import { createdPullRequestKey, linkCreatedPullRequest } from "./linkCreatedPullRequest.ts";
@@ -77,7 +77,7 @@ function prResult(pr: GitRunStackedActionResult["pr"]): Pick<GitRunStackedAction
 }
 
 const makeDependencies = (
-  dispatch: OrchestrationEngineShape["dispatch"],
+  dispatch: OrchestrationEngineContract["dispatch"],
   threadShell: OrchestrationThreadShell | null = thread,
 ) =>
   Layer.mergeAll(
@@ -95,7 +95,7 @@ const makeDependencies = (
 
 const recordingDispatch = Effect.fn("recordingDispatch")(function* () {
   const commands = yield* Ref.make<ReadonlyArray<OrchestrationCommand>>([]);
-  const dispatch: OrchestrationEngineShape["dispatch"] = (command) =>
+  const dispatch: OrchestrationEngineContract["dispatch"] = (command) =>
     Ref.update(commands, (recorded) => [...recorded, command]).pipe(Effect.as({ sequence: 1 }));
   return { commands, dispatch };
 });
@@ -203,7 +203,7 @@ describe("linkCreatedPullRequest", () => {
 
   it.effect("swallows an already-linked rejection and other dispatch failures", () =>
     Effect.gen(function* () {
-      const rejecting: OrchestrationEngineShape["dispatch"] = (command) =>
+      const rejecting: OrchestrationEngineContract["dispatch"] = (command) =>
         Effect.fail(
           new OrchestrationCommandInvariantError({
             commandType: command.type,

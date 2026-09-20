@@ -370,6 +370,7 @@ interface AddProjectRemoteSourceReadinessEntry {
 interface AddProjectRemoteSourceReadiness {
   url: AddProjectRemoteSourceReadinessEntry;
   github: AddProjectRemoteSourceReadinessEntry;
+  forgejo: AddProjectRemoteSourceReadinessEntry;
   gitlab: AddProjectRemoteSourceReadinessEntry;
   bitbucket: AddProjectRemoteSourceReadinessEntry;
   "azure-devops": AddProjectRemoteSourceReadinessEntry;

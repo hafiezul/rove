@@ -1,3 +1,4 @@
+import { testDouble } from "../testDouble";
 import { describe, expect, it } from "vite-plus/test";
 
 import { ProviderInstanceId, type ModelSelection, type ServerConfig } from "@t3tools/contracts";

@@ -146,7 +146,17 @@ describe("selectCliRuntimeExternalDependencies", () => {
   it("selects every external root declared by the server", () => {
     assert.deepStrictEqual(
       Object.keys(selectCliRuntimeExternalDependencies(serverPackageJson.dependencies)).sort(),
-      ["@earendil-works/pi-ai", "@earendil-works/pi-coding-agent", "@ff-labs/fff-node", "msgpackr-extract", "node-pty"],
+      [
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-coding-agent",
+        "@ff-labs/fff-node",
+        "cross-spawn",
+        "jose",
+        "msgpackr-extract",
+        "node-pty",
+        "ws",
+        "yaml",
+      ],
     );
   });
 });
@@ -413,12 +423,11 @@ describe("findEsmImportsOfExternalPackages", () => {
 it("bundles the server CLI without inlining Pi SDK sources", { timeout: 240000 }, async () => {
   const dist = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-cli-pi-bundle-check-"));
   try {
-    const packed = NodeChildProcess.spawnSync("vp", ["run", "--filter", "t3", "build"], {
-      cwd: NodePath.resolve(serverRoot, "..", ".."),
+    const packed = NodeChildProcess.spawnSync("vp", ["pack", "--out-dir", dist], {
+      cwd: serverRoot,
       encoding: "utf8",
       timeout: 180_000,
     });
-    NodeFS.cpSync(NodePath.join(serverRoot, "dist"), dist, { recursive: true });
     assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
     for (const file of NodeFS.readdirSync(dist).filter((name) => name.endsWith(".mjs"))) {
       const result = findInlinedExternalPackages(

@@ -1,5 +1,5 @@
 /**
- * PiAdapter — `ProviderAdapterShape` implementation backed by the Pi SDK
+ * PiAdapter — `ProviderAdapterContract` implementation backed by the Pi SDK
  * (`@earendil-works/pi-coding-agent`) running in-process. See
  * docs/adr/0001-pi-provider-uses-sdk-in-process.md for why this is not a
  * subprocess adapter.

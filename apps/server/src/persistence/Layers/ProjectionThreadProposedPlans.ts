@@ -12,7 +12,7 @@ import {
   ListProjectionThreadProposedPlansInput,
   ProjectionThreadProposedPlan,
   ProjectionThreadProposedPlanRepository,
-  type ProjectionThreadProposedPlanRepositoryShape,
+  type ProjectionThreadProposedPlanRepositoryContract,
 } from "../Services/ProjectionThreadProposedPlans.ts";
 
 const makeProjectionThreadProposedPlanRepository = Effect.gen(function* () {
@@ -147,26 +147,28 @@ const makeProjectionThreadProposedPlanRepository = Effect.gen(function* () {
     ),
   );
 
-  const upsert: ProjectionThreadProposedPlanRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadProposedPlanRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadProposedPlanRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadProposedPlanRepository.upsert:query")),
     );
 
-  const getByPlanId: ProjectionThreadProposedPlanRepositoryShape["getByPlanId"] = (input) =>
+  const getByPlanId: ProjectionThreadProposedPlanRepositoryContract["getByPlanId"] = (input) =>
     getProjectionThreadProposedPlanRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadProposedPlanRepository.getByPlanId:query"),
       ),
     );
 
-  const listByThreadId: ProjectionThreadProposedPlanRepositoryShape["listByThreadId"] = (input) =>
+  const listByThreadId: ProjectionThreadProposedPlanRepositoryContract["listByThreadId"] = (
+    input,
+  ) =>
     listProjectionThreadProposedPlanRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadProposedPlanRepository.listByThreadId:query"),
       ),
     );
 
-  const deleteByThreadId: ProjectionThreadProposedPlanRepositoryShape["deleteByThreadId"] = (
+  const deleteByThreadId: ProjectionThreadProposedPlanRepositoryContract["deleteByThreadId"] = (
     input,
   ) =>
     deleteProjectionThreadProposedPlanRows(input).pipe(
@@ -181,7 +183,7 @@ const makeProjectionThreadProposedPlanRepository = Effect.gen(function* () {
     hasActionableByThreadId,
     getByPlanId,
     deleteByThreadId,
-  } satisfies ProjectionThreadProposedPlanRepositoryShape;
+  } satisfies ProjectionThreadProposedPlanRepositoryContract;
 });
 
 export const ProjectionThreadProposedPlanRepositoryLive = Layer.effect(

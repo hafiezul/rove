@@ -9,7 +9,6 @@ import * as Stream from "effect/Stream";
 
 import { outcomeFromExit } from "./Attributes.ts";
 import { metricAttributes, rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const RPC_SPAN_PREFIX = "ws.rpc";
 const DEFAULT_RPC_SPAN_ATTRIBUTES = {
@@ -28,12 +27,12 @@ function shouldTraceRpc(method: string): boolean {
 }
 
 interface RpcSpanAttributes {
-  readonly [attributeName: string]: SchemaJson;
+  readonly [attributeName: string]: unknown;
 }
 
 const rpcSpanAttributes = (
   method: string,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): RpcSpanAttributes => ({
   ...DEFAULT_RPC_SPAN_ATTRIBUTES,
   "rpc.method": method,
@@ -43,7 +42,7 @@ const rpcSpanAttributes = (
 const withRpcEffectTracing = <A, E, R>(
   method: string,
   effect: Effect.Effect<A, E, R>,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): Effect.Effect<A, E, R> =>
   shouldTraceRpc(method)
     ? effect.pipe(
@@ -56,7 +55,7 @@ const withRpcEffectTracing = <A, E, R>(
 const withRpcStreamTracing = <A, E, R>(
   method: string,
   stream: Stream.Stream<A, E, R>,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): Stream.Stream<A, E, R> =>
   shouldTraceRpc(method)
     ? stream.pipe(
@@ -94,7 +93,7 @@ const recordRpcStreamMetrics = <E>(
 export const observeRpcEffect = <A, E, R>(
   method: string,
   effect: Effect.Effect<A, E, R>,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): Effect.Effect<A, E, R> => {
   const instrumented = effect.pipe(
     withMetrics({
@@ -112,7 +111,7 @@ export const observeRpcEffect = <A, E, R>(
 export const observeRpcStream = <A, E, R>(
   method: string,
   stream: Stream.Stream<A, E, R>,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): Stream.Stream<A, E, R> => {
   const instrumented = Stream.unwrap(
     Effect.gen(function* () {
@@ -127,7 +126,7 @@ export const observeRpcStream = <A, E, R>(
 export const observeRpcStreamEffect = <A, StreamError, StreamContext, EffectError, EffectContext>(
   method: string,
   effect: Effect.Effect<Stream.Stream<A, StreamError, StreamContext>, EffectError, EffectContext>,
-  traceAttributes?: Readonly<Record<string, SchemaJson>>,
+  traceAttributes?: Readonly<Record<string, unknown>>,
 ): Stream.Stream<A, StreamError | EffectError, StreamContext | EffectContext> => {
   const instrumented = Stream.unwrap(
     Effect.gen(function* () {

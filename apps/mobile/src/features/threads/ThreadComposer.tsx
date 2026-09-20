@@ -965,7 +965,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                     />
                     <View className="min-w-0 shrink">
                       {showPiCatalog && <ProviderExtensions {...piCatalog} />}
-                  <ComposerInlineControl
+                      <ComposerInlineControl
                         accessibilityLabel="Model and reasoning settings"
                         emphasized
                         iconNode={

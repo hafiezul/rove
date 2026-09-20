@@ -37,7 +37,7 @@ import type { EnvironmentId, ToolActivityIcon } from "@t3tools/contracts";
 import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
 
 import { AppText as Text } from "../../components/AppText";
-import { T3Wordmark } from "../../components/T3Wordmark";
+import { RoveLogo } from "../../components/RoveLogo";
 import { cn } from "../../lib/cn";
 import { THREAD_WORK_ROW_MIN_HEIGHT, type deriveThreadWorkLogSizing } from "../../lib/layout";
 import {
@@ -91,9 +91,7 @@ function WorkLogIcon(props: {
 }) {
   const colorClassName = props.highlighted ? "accent-foreground" : props.colorClassName;
   if (props.icon === "rove") {
-    return (
-      <T3Wordmark height={10} {...(colorClassName ? { colorClassName } : { color: props.color })} />
-    );
+    return <RoveLogo height={15} />;
   }
   return (
     <SymbolView
@@ -416,7 +414,7 @@ const RenderedReasoningDetail = memo(function RenderedReasoningDetail({ text }: 
   }
 
   return (
-    <View className="ml-7 border-l border-neutral-300/60 pb-1 pl-3 pt-0.5 dark:border-white/[0.12]">
+    <View className="ml-7 border-l border-adaptive-neutral-300-a60-white-a12 pb-1 pl-3 pt-0.5">
       <ScrollView
         nestedScrollEnabled
         directionalLockEnabled
@@ -461,7 +459,7 @@ function ReasoningWorkLogRow(props: {
         hitSlop={4}
         onPress={() => {
           if (hasDetail) {
-            triggerDisclosureFeedback();
+            void Haptics.selectionAsync();
             props.onToggle();
           }
         }}
@@ -486,7 +484,7 @@ function ReasoningWorkLogRow(props: {
           </Text>
           <View className="shrink-0 flex-row items-center gap-px">
             {props.copied ? (
-              <Text className="pr-1 font-t3-medium text-3xs text-emerald-600 dark:text-emerald-400">
+              <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
                 Copied
               </Text>
             ) : null}
@@ -537,27 +535,40 @@ interface ThreadWorkLogProps {
   readonly edgeFadeColor: string;
   readonly themeAppearance: "light" | "dark";
   readonly onCopyRow: (rowId: string, value: string) => void;
-  readonly onToggleRow: (rowId: string, anchorKey: string) => void;
+  readonly onToggleRow: (rowId: string, anchorKey: string, defaultExpanded?: boolean) => void;
   readonly renderImage: MarkdownImageRenderer;
 }
 
 export function ThreadWorkLog(props: ThreadWorkLogProps) {
   const renderRow = useCallback(
-    (row: ThreadFeedActivity) => (
-      <ThreadWorkLogRow
-        key={row.id}
-        row={row}
-        anchorKey={props.anchorKey}
-        copied={props.copiedRowId === row.id}
-        expanded={props.expandedRows[row.id] ?? false}
-        environmentId={props.environmentId}
-        iconSubtleColor={props.iconSubtleColor}
-        onCopyRow={props.onCopyRow}
-        onToggleRow={props.onToggleRow}
-        renderImage={props.renderImage}
-        themeAppearance={props.themeAppearance}
-      />
-    ),
+    (row: ThreadFeedActivity) =>
+      row.reasoning ? (
+        <ReasoningWorkLogRow
+          key={row.id}
+          activity={row}
+          copied={props.copiedRowId === row.id}
+          expanded={workLogActivityIsExpanded(row, props.expandedRows)}
+          iconSubtleColor={props.iconSubtleColor}
+          onCopy={() => props.onCopyRow(row.id, row.getCopyText())}
+          onToggle={() =>
+            props.onToggleRow(row.id, props.anchorKey, row.reasoningStreaming === true)
+          }
+        />
+      ) : (
+        <ThreadWorkLogRow
+          key={row.id}
+          row={row}
+          anchorKey={props.anchorKey}
+          copied={props.copiedRowId === row.id}
+          expanded={props.expandedRows[row.id] ?? false}
+          environmentId={props.environmentId}
+          iconSubtleColor={props.iconSubtleColor}
+          onCopyRow={props.onCopyRow}
+          onToggleRow={props.onToggleRow}
+          renderImage={props.renderImage}
+          themeAppearance={props.themeAppearance}
+        />
+      ),
     [
       props.anchorKey,
       props.copiedRowId,

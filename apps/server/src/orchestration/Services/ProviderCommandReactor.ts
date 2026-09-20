@@ -11,7 +11,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
 /**
- * ProviderCommandReactorShape - Service API for provider command reactors.
+ * ProviderCommandReactorContract - Service API for provider command reactors.
  */
 export interface ProviderCommandReactorContract {
   /**

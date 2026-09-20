@@ -67,7 +67,7 @@ export const DeleteProjectionThreadMessagesInput = Schema.Struct({
 export type DeleteProjectionThreadMessagesInput = typeof DeleteProjectionThreadMessagesInput.Type;
 
 /**
- * ProjectionThreadMessageRepositoryShape - Service API for projected thread messages.
+ * ProjectionThreadMessageRepositoryContract - Service API for projected thread messages.
  */
 export interface ProjectionThreadMessageRepositoryContract {
   /**

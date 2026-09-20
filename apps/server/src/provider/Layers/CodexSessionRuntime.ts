@@ -205,7 +205,7 @@ export interface CodexThreadSnapshot {
   readonly turns: ReadonlyArray<CodexThreadTurnSnapshot>;
 }
 
-export interface CodexSessionRuntimeShape {
+export interface CodexSessionRuntimeContract {
   readonly start: () => Effect.Effect<ProviderSession, CodexSessionRuntimeError>;
   readonly getSession: Effect.Effect<ProviderSession>;
   readonly sendTurn: (
@@ -1286,7 +1286,7 @@ export const rollbackCodexThread = Effect.fn("rollbackCodexThread")(function* (
 export const makeCodexSessionRuntime = (
   options: CodexSessionRuntimeOptions,
 ): Effect.Effect<
-  CodexSessionRuntimeShape,
+  CodexSessionRuntimeContract,
   CodexErrors.CodexAppServerError,
   ChildProcessSpawner.ChildProcessSpawner | Crypto.Crypto | Scope.Scope
 > =>
@@ -2606,5 +2606,5 @@ export const makeCodexSessionRuntime = (
         }),
       events: Stream.fromQueue(events),
       close,
-    } satisfies CodexSessionRuntimeShape;
+    } satisfies CodexSessionRuntimeContract;
   });

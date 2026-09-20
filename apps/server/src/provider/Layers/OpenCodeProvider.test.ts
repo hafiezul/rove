@@ -29,7 +29,7 @@ const DEFAULT_VERSION_STDOUT = "opencode 1.14.19\n";
  * are deleted. The snapshot-producing logic they wrapped now lives in the
  * standalone `checkOpenCodeProviderStatus(settings, cwd)` Effect, which
  * drivers call directly when building their per-instance snapshot
- * `ServerProviderShape`. Tests mirror that shape: build a settings payload,
+ * `ServerProviderContract`. Tests mirror that shape: build a settings payload,
  * invoke the check, assert on the returned snapshot.
  */
 

@@ -27,7 +27,7 @@ export const GetProjectionStateInput = Schema.Struct({
 export type GetProjectionStateInput = typeof GetProjectionStateInput.Type;
 
 /**
- * ProjectionStateRepositoryShape - Service API for projector state records.
+ * ProjectionStateRepositoryContract - Service API for projector state records.
  */
 export interface ProjectionStateRepositoryContract {
   /**

@@ -47,14 +47,14 @@ import {
   SYNTHETIC_CLAUDE_THINKING_MODEL,
 } from "../ClaudeModelCatalog.testFixtures.ts";
 import { ProviderAdapterProcessError, ProviderAdapterValidationError } from "../Errors.ts";
-import type { ClaudeAdapterShape } from "../Services/ClaudeAdapter.ts";
+import type { ClaudeAdapterContract } from "../Services/ClaudeAdapter.ts";
 import type { ClaudeScopedLimitNames } from "./claudeUsageLimits.ts";
 import { makeClaudeAdapter, type ClaudeAdapterLiveOptions } from "./ClaudeAdapter.ts";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 const encodeUnknownJsonString = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 // Test-local service tag so the rest of the file can keep using `yield* ClaudeAdapter`.
-class ClaudeAdapter extends Context.Service<ClaudeAdapter, ClaudeAdapterShape>()(
+class ClaudeAdapter extends Context.Service<ClaudeAdapter, ClaudeAdapterContract>()(
   "t3/provider/Layers/ClaudeAdapter.test/ClaudeAdapter",
 ) {}
 
@@ -4320,7 +4320,7 @@ describe("ClaudeAdapterLive", () => {
     );
   });
 
-  const observeUsageLimitEvents = (adapter: ClaudeAdapterShape, query: FakeClaudeQuery) =>
+  const observeUsageLimitEvents = (adapter: ClaudeAdapterContract, query: FakeClaudeQuery) =>
     Effect.gen(function* () {
       const runtimeEvents: Array<ProviderRuntimeEvent> = [];
       let receipt: Deferred.Deferred<void> | undefined;

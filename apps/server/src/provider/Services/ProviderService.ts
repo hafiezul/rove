@@ -36,7 +36,7 @@ import type { ProviderAdapterCapabilities } from "./ProviderAdapter.ts";
 import type { ProviderInstanceRoutingInfo } from "./ProviderAdapterRegistry.ts";
 
 /**
- * ProviderServiceShape - Service API for provider session and turn orchestration.
+ * ProviderServiceContract - Service API for provider session and turn orchestration.
  */
 export interface ProviderServiceContract {
   /**

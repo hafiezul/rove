@@ -83,7 +83,7 @@ import {
   XAiAskUserQuestionRequest,
   XAiExitPlanModeRequest,
 } from "../acp/XAiAcpExtension.ts";
-import { type GrokAdapterShape } from "../Services/GrokAdapter.ts";
+import { type GrokAdapterContract } from "../Services/GrokAdapter.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
@@ -949,7 +949,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         });
       });
 
-    const startSession: GrokAdapterShape["startSession"] = (input) =>
+    const startSession: GrokAdapterContract["startSession"] = (input) =>
       withThreadLock(
         input.threadId,
         Effect.gen(function* () {
@@ -1503,7 +1503,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         }).pipe(Effect.scoped),
       );
 
-    const sendTurn: GrokAdapterShape["sendTurn"] = (input) =>
+    const sendTurn: GrokAdapterContract["sendTurn"] = (input) =>
       Effect.gen(function* () {
         const prepared = yield* withThreadLock(
           input.threadId,
@@ -1984,7 +1984,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         );
       });
 
-    const interruptTurn: GrokAdapterShape["interruptTurn"] = (threadId, turnId) =>
+    const interruptTurn: GrokAdapterContract["interruptTurn"] = (threadId, turnId) =>
       Effect.gen(function* () {
         const observed = yield* Effect.sync(() => {
           const ctx = sessions.get(threadId);
@@ -2068,7 +2068,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         );
       });
 
-    const respondToRequest: GrokAdapterShape["respondToRequest"] = (
+    const respondToRequest: GrokAdapterContract["respondToRequest"] = (
       threadId,
       requestId,
       decision,
@@ -2086,7 +2086,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         yield* Deferred.succeed(pending.decision, decision);
       });
 
-    const respondToUserInput: GrokAdapterShape["respondToUserInput"] = (
+    const respondToUserInput: GrokAdapterContract["respondToUserInput"] = (
       threadId,
       requestId,
       answers,
@@ -2104,13 +2104,13 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         yield* Deferred.succeed(pending.resolution, { _tag: "answered", answers });
       });
 
-    const readThread: GrokAdapterShape["readThread"] = (threadId) =>
+    const readThread: GrokAdapterContract["readThread"] = (threadId) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(threadId);
         return { threadId, turns: ctx.turns };
       });
 
-    const rollbackThread: GrokAdapterShape["rollbackThread"] = (threadId, numTurns) =>
+    const rollbackThread: GrokAdapterContract["rollbackThread"] = (threadId, numTurns) =>
       Effect.gen(function* () {
         yield* requireSession(threadId);
         if (!Number.isInteger(numTurns) || numTurns < 1) {
@@ -2127,7 +2127,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         });
       });
 
-    const stopSession: GrokAdapterShape["stopSession"] = (threadId) =>
+    const stopSession: GrokAdapterContract["stopSession"] = (threadId) =>
       withThreadLock(
         threadId,
         Effect.gen(function* () {
@@ -2136,16 +2136,16 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         }),
       );
 
-    const listSessions: GrokAdapterShape["listSessions"] = () =>
+    const listSessions: GrokAdapterContract["listSessions"] = () =>
       Effect.sync(() => Array.from(sessions.values(), (c) => ({ ...c.session })));
 
-    const hasSession: GrokAdapterShape["hasSession"] = (threadId) =>
+    const hasSession: GrokAdapterContract["hasSession"] = (threadId) =>
       Effect.sync(() => {
         const c = sessions.get(threadId);
         return c !== undefined && !c.stopped;
       });
 
-    const stopAll: GrokAdapterShape["stopAll"] = () =>
+    const stopAll: GrokAdapterContract["stopAll"] = () =>
       Effect.forEach(Array.from(sessions.values()), stopSessionInternal, { discard: true });
 
     yield* Effect.addFinalizer(() =>
@@ -2173,6 +2173,6 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
       hasSession,
       stopAll,
       streamEvents,
-    } satisfies GrokAdapterShape;
+    } satisfies GrokAdapterContract;
   });
 }

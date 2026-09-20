@@ -48,7 +48,7 @@ export const DeleteProjectionPendingApprovalInput = Schema.Struct({
 export type DeleteProjectionPendingApprovalInput = typeof DeleteProjectionPendingApprovalInput.Type;
 
 /**
- * ProjectionPendingApprovalRepositoryShape - Service API for pending approvals.
+ * ProjectionPendingApprovalRepositoryContract - Service API for pending approvals.
  */
 export interface ProjectionPendingApprovalRepositoryContract {
   /**

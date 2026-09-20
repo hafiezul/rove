@@ -11,6 +11,6 @@ import type { ProviderAdapterError } from "../Errors.ts";
 import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
- * GrokAdapterShape — per-instance Grok adapter contract.
+ * GrokAdapterContract — per-instance Grok adapter contract.
  */
 export interface GrokAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

@@ -18,12 +18,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import * as TerminalManager from "../../terminal/Manager.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../Services/OrchestrationEngine.ts";
 import { ThreadDeletionReactor } from "../Services/ThreadDeletionReactor.ts";
 import {
@@ -95,7 +95,7 @@ describe("ThreadDeletionReactor drain", () => {
             Stream.map(() => deletedEvent(2)),
           ),
         ),
-      } as unknown as OrchestrationEngineShape;
+      } as unknown as OrchestrationEngineContract;
       const providerService = {
         stopSession: () =>
           Effect.gen(function* () {
@@ -104,7 +104,7 @@ describe("ThreadDeletionReactor drain", () => {
               yield* Deferred.succeed(firstCleanupDone, undefined);
             }
           }),
-      } as unknown as ProviderServiceShape;
+      } as unknown as ProviderServiceContract;
       const terminalManager = {
         close: () => Effect.void,
       } as unknown as TerminalManager.TerminalManager["Service"];

@@ -13,7 +13,7 @@ import type * as Effect from "effect/Effect";
 import type { ProjectionRepositoryError } from "../../persistence/Errors.ts";
 
 /**
- * OrchestrationProjectionPipelineShape - Service API for projection execution.
+ * OrchestrationProjectionPipelineContract - Service API for projection execution.
  */
 export interface OrchestrationProjectionPipelineContract {
   /**

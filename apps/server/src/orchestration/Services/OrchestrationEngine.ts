@@ -32,7 +32,7 @@ export interface OrchestrationThreadReplayRange {
 }
 
 /**
- * OrchestrationEngineShape - Service API for orchestration command and event flow.
+ * OrchestrationEngineContract - Service API for orchestration command and event flow.
  */
 export interface OrchestrationEngineContract {
   /**

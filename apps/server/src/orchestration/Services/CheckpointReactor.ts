@@ -11,7 +11,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
 /**
- * CheckpointReactorShape - Service API for checkpoint reactor lifecycle.
+ * CheckpointReactorContract - Service API for checkpoint reactor lifecycle.
  */
 export interface CheckpointReactorContract {
   /**

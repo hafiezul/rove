@@ -35,7 +35,7 @@ import { ServerSettingsService } from "../serverSettings.ts";
 import { OrchestrationCommandInvariantError } from "./Errors.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "./Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "./Services/ProjectionSnapshotQuery.ts";
 import * as ThreadSettlementReactor from "./ThreadSettlementReactor.ts";
@@ -215,7 +215,7 @@ const makeHarness = Effect.fn("makeThreadSettlementHarness")(function* (options:
       );
     });
 
-  const dispatch: OrchestrationEngineShape["dispatch"] = (command) => {
+  const dispatch: OrchestrationEngineContract["dispatch"] = (command) => {
     if (command.type !== "thread.auto-settle") {
       return Effect.die(new Error(`Unexpected command: ${command.type}`));
     }

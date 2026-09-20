@@ -7,7 +7,7 @@
  * adapters are now bundled on the `ProviderInstance` that the
  * `ProviderInstanceRegistry` owns.
  *
- * This facade fulfills the `ProviderAdapterRegistryShape` contract by doing
+ * This facade fulfills the `ProviderAdapterRegistryContract` contract by doing
  * dynamic look-ups against `ProviderInstanceRegistry` on every call. That
  * means settings-driven hot-reload shows up here automatically — adding a
  * new instance via settings makes `getByInstance` resolve immediately
@@ -23,13 +23,13 @@ import { ProviderUnsupportedError } from "../Errors.ts";
 import { ProviderInstanceRegistry } from "../Services/ProviderInstanceRegistry.ts";
 import {
   ProviderAdapterRegistry,
-  type ProviderAdapterRegistryShape,
+  type ProviderAdapterRegistryContract,
 } from "../Services/ProviderAdapterRegistry.ts";
 
 const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(function* () {
   const registry = yield* ProviderInstanceRegistry;
 
-  const getByInstance: ProviderAdapterRegistryShape["getByInstance"] = (instanceId) =>
+  const getByInstance: ProviderAdapterRegistryContract["getByInstance"] = (instanceId) =>
     registry.getInstance(instanceId).pipe(
       Effect.flatMap((instance) =>
         instance === undefined
@@ -42,7 +42,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       ),
     );
 
-  const getInstanceInfo: ProviderAdapterRegistryShape["getInstanceInfo"] = (instanceId) =>
+  const getInstanceInfo: ProviderAdapterRegistryContract["getInstanceInfo"] = (instanceId) =>
     registry.getInstance(instanceId).pipe(
       Effect.flatMap((instance) =>
         instance === undefined
@@ -62,7 +62,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       ),
     );
 
-  const listInstances: ProviderAdapterRegistryShape["listInstances"] = () =>
+  const listInstances: ProviderAdapterRegistryContract["listInstances"] = () =>
     registry.listInstances.pipe(
       Effect.map((instances) => instances.map((instance) => instance.instanceId)),
     );
@@ -72,7 +72,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
     getInstanceInfo,
     listInstances,
     subscribeChanges: registry.subscribeChanges,
-  } satisfies ProviderAdapterRegistryShape;
+  } satisfies ProviderAdapterRegistryContract;
 });
 
 export const ProviderAdapterRegistryLive = Layer.effect(

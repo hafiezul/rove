@@ -1161,6 +1161,7 @@ interface ProviderRequirement {
 
 interface ProviderRequirements {
   readonly github?: ProviderRequirement;
+  readonly forgejo?: ProviderRequirement;
   readonly gitlab?: ProviderRequirement;
   readonly "azure-devops"?: ProviderRequirement;
   readonly bitbucket?: ProviderRequirement;

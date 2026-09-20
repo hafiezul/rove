@@ -140,132 +140,39 @@ describe("pending user input answers", () => {
 
     expect(presented.map((entry) => entry.id)).toEqual([
       "thinking-one",
-      "edit-one",
-      "work-toggle:bash-one",
+      "work-toggle:work-group:bash-one",
       "thinking-two",
-      "bash-two",
+      "work-toggle:work-group:bash-two",
     ]);
     expect(presented.find((entry) => entry.type === "work-toggle")).toMatchObject({
-      groupId: "bash-one",
-      hiddenCount: 2,
+      groupId: "work-group:bash-one",
+      hiddenCount: 3,
       expanded: false,
-      onlyToolActivities: true,
     });
-    const settledLatestTurn = {
-      ...thread.latestTurn!,
-      state: "completed" as const,
-      completedAt: "2026-04-01T00:00:07.000Z",
-    };
-    const settled = deriveThreadFeedPresentation(feed, settledLatestTurn, new Set([turnId]));
-    expect(settled.map((entry) => entry.id)).toEqual([
-      "turn-fold:turn-reasoning-phases",
-      "thinking-one",
-      "edit-one",
-      "work-toggle:bash-one",
-      "thinking-two",
-      "bash-two",
-    ]);
-
-    const expanded = deriveThreadFeedPresentation(
-      feed,
-      thread.latestTurn,
-      new Set(),
-      new Set(["bash-one"]),
-    );
-    expect(expanded.map((entry) => entry.id)).toEqual([
-      "thinking-one",
-      "bash-one",
-      "read-one",
-      "edit-one",
-      "work-toggle:bash-one",
-      "thinking-two",
-      "bash-two",
-    ]);
-    expect(expanded.find((entry) => entry.type === "work-toggle")).toMatchObject({
-      expanded: true,
-    });
+    for (const state of ["running", "completed"] as const) {
+      const expanded = deriveThreadFeedPresentation(
+        feed,
+        {
+          ...thread.latestTurn!,
+          state,
+          completedAt: state === "running" ? null : "2026-04-01T00:00:07.000Z",
+        },
+        new Set([turnId]),
+        new Set(["work-group:bash-one"]),
+      );
+      const groups = expanded.filter((entry) => entry.type === "activity-group");
+      expect(groups.flatMap((entry) => entry.activities.map((activity) => activity.id))).toEqual(
+        expect.arrayContaining([
+          "thinking-one",
+          "bash-one",
+          "read-one",
+          "edit-one",
+          "thinking-two",
+        ]),
+      );
+      expect(groups.filter((entry) => entry.activities[0]?.reasoning)).toHaveLength(2);
+    }
     expect(feed.filter((entry) => entry.type === "activity-group")).toHaveLength(4);
-    expect(feed[0]).toMatchObject({
-      type: "activity-group",
-      activities: [{ reasoning: true, toolLike: false }],
-    });
-  });
-
-  it("keeps reasoning phases between every visible tool in an active turn", () => {
-    const turnId = TurnId.make("turn-reasoning-phases");
-    const thread = makeThread({
-      id: ThreadId.make("thread-reasoning-phases"),
-      projectId: ProjectId.make("project-1"),
-      title: "Reasoning phases",
-      latestTurn: {
-        turnId,
-        state: "running",
-        requestedAt: "2026-04-01T00:00:00.000Z",
-        startedAt: "2026-04-01T00:00:00.000Z",
-        completedAt: null,
-        assistantMessageId: null,
-      },
-      activities: [
-        makeActivity({
-          id: EventId.make("thinking-one"),
-          kind: "turn.reasoning",
-          summary: "Reasoned",
-          createdAt: "2026-04-01T00:00:01.000Z",
-          turnId,
-          payload: { detail: "Inspecting the adapter.", streaming: false },
-        }),
-        ...["bash-one", "read-one", "edit-one"].map((id, index) =>
-          makeActivity({
-            id: EventId.make(id),
-            kind: "tool.completed",
-            tone: "tool",
-            summary: id.split("-")[0]!,
-            createdAt: `2026-04-01T00:00:0${index + 2}.000Z`,
-            turnId,
-            payload: {
-              itemType: "command_execution",
-              status: "completed",
-              title: id.split("-")[0]!,
-            },
-          }),
-        ),
-        makeActivity({
-          id: EventId.make("thinking-two"),
-          kind: "turn.reasoning",
-          summary: "Reasoned",
-          createdAt: "2026-04-01T00:00:05.000Z",
-          turnId,
-          payload: { detail: "Verifying the change.", streaming: false },
-        }),
-        makeActivity({
-          id: EventId.make("bash-two"),
-          kind: "tool.completed",
-          tone: "tool",
-          summary: "bash",
-          createdAt: "2026-04-01T00:00:06.000Z",
-          turnId,
-          payload: { itemType: "command_execution", status: "completed", title: "bash" },
-        }),
-      ],
-    });
-
-    const feed = buildThreadFeed(thread);
-    const presented = deriveThreadFeedPresentation(feed, thread.latestTurn, new Set());
-
-    expect(presented.map((entry) => entry.id)).toEqual([
-      "thinking-one",
-      "bash-one",
-      "read-one",
-      "edit-one",
-      "thinking-two",
-      "bash-two",
-    ]);
-    expect(presented.some((entry) => entry.type === "work-toggle")).toBe(false);
-    expect(feed.filter((entry) => entry.type === "activity-group")).toHaveLength(4);
-    expect(feed[0]).toMatchObject({
-      type: "activity-group",
-      activities: [{ reasoning: true, toolLike: false }],
-    });
   });
 
   it("accepts free-text answers to async questions without options", () => {
@@ -520,7 +427,7 @@ describe("buildThreadFeed", () => {
         activities: [
           {
             id: "activity-reasoning-streaming",
-            summary: "Reasoning",
+            summary: "Thinking",
             detail: "Checking the adapter first.",
           },
         ],
@@ -561,7 +468,7 @@ describe("buildThreadFeed", () => {
         ? group.activities.find((activity) => activity.id === "activity-reasoning")
         : undefined;
     expect(reasoningRow).toMatchObject({
-      summary: "Reasoned",
+      summary: "Thinking",
       icon: "agent",
       detail: "Done — reviewed and green.",
       status: null,

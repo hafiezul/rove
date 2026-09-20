@@ -28,14 +28,14 @@ import {
 import { ServerConfig } from "../../config.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
-import type { CursorAdapterShape } from "../Services/CursorAdapter.ts";
+import type { CursorAdapterContract } from "../Services/CursorAdapter.ts";
 import { makeCursorAdapter } from "./CursorAdapter.ts";
 import { execScriptSource, writeFakeCli } from "../../testUtils/fakeCli.ts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 const decodeCursorSettings = Schema.decodeSync(CursorSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* CursorAdapter`.
-class CursorAdapter extends Context.Service<CursorAdapter, CursorAdapterShape>()(
+class CursorAdapter extends Context.Service<CursorAdapter, CursorAdapterContract>()(
   "t3/provider/Layers/CursorAdapter.test/CursorAdapter",
 ) {}
 

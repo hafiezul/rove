@@ -30,7 +30,7 @@ rl.on("line", (line) => {
   const { id, method } = message;
   if (method === undefined && script.serverRequests?.some((request) => request.id === id)) {
     NodeFS.appendFileSync(
-      `${process.env.ROVEX_COLLAB_SCRIPT}.responses`,
+      `${process.env.ROVE_CODEX_COLLAB_SCRIPT}.responses`,
       `${JSON.stringify({ id, result: message.result, error: message.error })}\n`,
     );
     if (script.completeTurnOnServerResponse && activeTurn) {
@@ -72,7 +72,7 @@ rl.on("line", (line) => {
   if (method === "thread/resume") {
     if (script.recordRequests) {
       NodeFS.appendFileSync(
-        `${process.env.ROVEX_COLLAB_SCRIPT}.requests`,
+        `${process.env.ROVE_CODEX_COLLAB_SCRIPT}.requests`,
         `${JSON.stringify({ method, params: message.params })}\n`,
       );
     }

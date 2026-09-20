@@ -4,7 +4,7 @@
  *
  * Adapters normalise their native payloads before emitting, so this layer
  * never sees a driver shape: it routes the typed update to the instance and
- * lets `ServerProviderShape.applyUsageLimits` merge and republish on the
+ * lets `ServerProviderContract.applyUsageLimits` merge and republish on the
  * instance's own change stream, which `ProviderRegistry` already aggregates.
  *
  * @module provider/Layers/ProviderUsageLimitsIngestion

@@ -18,7 +18,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { applyUsageLimitsUpdate, resolveUsageLimitsAfterProbe } from "./providerUsageLimits.ts";
-import type { ServerProviderShape } from "./Services/ServerProvider.ts";
+import type { ServerProviderContract } from "./Services/ServerProvider.ts";
 
 interface ProviderSnapshotState {
   readonly snapshot: ServerProvider;
@@ -39,7 +39,7 @@ function withUsageLimits(
 export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(function* <
   Settings,
 >(input: {
-  readonly resolveMaintenance: ServerProviderShape["resolveMaintenance"];
+  readonly resolveMaintenance: ServerProviderContract["resolveMaintenance"];
   readonly getSettings: Effect.Effect<Settings, ServerSettingsError>;
   readonly streamSettings: Stream.Stream<Settings>;
   readonly haveSettingsChanged: (previous: Settings, next: Settings) => boolean;
@@ -55,7 +55,7 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
   readonly refreshOnInterval?: boolean;
   readonly checkProviderOnSettingsChange?: (previous: Settings, next: Settings) => boolean;
 }): Effect.fn.Return<
-  ServerProviderShape,
+  ServerProviderContract,
   ServerSettingsError,
   Scope.Scope | BackgroundPolicy.BackgroundPolicy | ServerSettingsService
 > {
@@ -183,7 +183,7 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
    * `usageLimits` on whatever snapshot is published and leave the enrichment
    * generation alone, so an in-flight enrichment still lands.
    */
-  const applyUsageLimits: ServerProviderShape["applyUsageLimits"] = (update) =>
+  const applyUsageLimits: ServerProviderContract["applyUsageLimits"] = (update) =>
     Effect.gen(function* () {
       const snapshotToPublish = yield* Ref.modify(snapshotStateRef, (state) => {
         const usageLimits = applyUsageLimitsUpdate({
@@ -290,5 +290,5 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
     get streamChanges() {
       return Stream.fromPubSub(changesPubSub);
     },
-  } satisfies ServerProviderShape;
+  } satisfies ServerProviderContract;
 });

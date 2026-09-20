@@ -55,7 +55,7 @@ export type DeleteProjectionThreadActivitiesInput =
   typeof DeleteProjectionThreadActivitiesInput.Type;
 
 /**
- * ProjectionThreadActivityRepositoryShape - Service API for projected thread activity.
+ * ProjectionThreadActivityRepositoryContract - Service API for projected thread activity.
  */
 export interface ProjectionThreadActivityRepositoryContract {
   /**

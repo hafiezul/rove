@@ -521,7 +521,7 @@ const makeWsRpcLayer = (
       // the client's request caused them.
       const hasClientOrigin =
         clientOrigin.surface !== undefined || clientOrigin.appVersion !== undefined;
-      const dispatchFromClient: OrchestrationEngine.OrchestrationEngineShape["dispatch"] = (
+      const dispatchFromClient: OrchestrationEngine.OrchestrationEngineContract["dispatch"] = (
         command,
       ) =>
         orchestrationEngine.dispatch(

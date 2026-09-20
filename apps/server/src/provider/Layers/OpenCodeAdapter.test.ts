@@ -36,7 +36,7 @@ import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { ProviderSessionDirectory } from "../Services/ProviderSessionDirectory.ts";
-import type { OpenCodeAdapterShape } from "../Services/OpenCodeAdapter.ts";
+import type { OpenCodeAdapterContract } from "../Services/OpenCodeAdapter.ts";
 import {
   OpenCodeRuntime,
   OpenCodeRuntimeError,
@@ -51,7 +51,7 @@ import {
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 
 // Test-local service tag so the rest of the file can keep using `yield* OpenCodeAdapter`.
-class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterShape>()(
+class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterContract>()(
   "t3/provider/Layers/OpenCodeAdapter.test/OpenCodeAdapter",
 ) {}
 

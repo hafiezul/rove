@@ -332,7 +332,7 @@ export const ClientRequest__ConversationTextRole = Schema.Literals([
 export type ClientRequest__DynamicToolNamespaceTool = {
   readonly deferLoading?: boolean;
   readonly description: string;
-  readonly inputSchema: Schema.Json;
+  readonly inputSchema: unknown;
   readonly name: string;
   readonly type: "function";
 };
@@ -779,8 +779,8 @@ export type ClientRequest__McpServerStatusDetail = "full" | "toolsAndAuthOnly";
 export const ClientRequest__McpServerStatusDetail = Schema.Literals(["full", "toolsAndAuthOnly"]);
 
 export type ClientRequest__McpServerToolCallParams = {
-  readonly _meta?: Schema.Json;
-  readonly arguments?: Schema.Json;
+  readonly _meta?: unknown;
+  readonly arguments?: unknown;
   readonly server: string;
   readonly threadId: string;
   readonly tool: string;
@@ -1178,7 +1178,7 @@ export const ClientRequest__TextElement = Schema.Struct({
 });
 
 export type ClientRequest__ThreadApproveGuardianDeniedActionParams = {
-  readonly event: Schema.Json;
+  readonly event: unknown;
   readonly threadId: string;
 };
 export const ClientRequest__ThreadApproveGuardianDeniedActionParams = Schema.Struct({
@@ -1556,7 +1556,7 @@ export const FuzzyFileSearchSessionUpdatedNotification__FuzzyFileSearchMatchType
 
 export type JSONRPCError__JSONRPCErrorError = {
   readonly code: number;
-  readonly data?: Schema.Json;
+  readonly data?: unknown;
   readonly message: string;
 };
 export const JSONRPCError__JSONRPCErrorError = Schema.Struct({
@@ -1573,7 +1573,7 @@ export const JSONRPCError__RequestId = Schema.Union([
 
 export type JSONRPCMessage__JSONRPCErrorError = {
   readonly code: number;
-  readonly data?: Schema.Json;
+  readonly data?: unknown;
   readonly message: string;
 };
 export const JSONRPCMessage__JSONRPCErrorError = Schema.Struct({
@@ -1584,7 +1584,7 @@ export const JSONRPCMessage__JSONRPCErrorError = Schema.Struct({
 
 export type JSONRPCMessage__JSONRPCNotification = {
   readonly method: string;
-  readonly params?: Schema.Json;
+  readonly params?: unknown;
 };
 export const JSONRPCMessage__JSONRPCNotification = Schema.Struct({
   method: Schema.String,
@@ -2265,9 +2265,9 @@ export const ServerNotification__McpToolCallProgressNotification = Schema.Struct
 });
 
 export type ServerNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const ServerNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -2790,7 +2790,7 @@ export const ServerNotification__ThreadRealtimeErrorNotification = Schema.Struct
 }).annotate({ description: "EXPERIMENTAL - emitted when thread realtime encounters an error." });
 
 export type ServerNotification__ThreadRealtimeItemAddedNotification = {
-  readonly item: Schema.Json;
+  readonly item: unknown;
   readonly threadId: string;
 };
 export const ServerNotification__ThreadRealtimeItemAddedNotification = Schema.Struct({
@@ -2881,7 +2881,7 @@ export const ServerNotification__TurnDiffUpdatedNotification = Schema.Struct({
 });
 
 export type ServerNotification__TurnModerationMetadataNotification = {
-  readonly metadata: Schema.Json;
+  readonly metadata: unknown;
   readonly threadId: string;
   readonly turnId: string;
 };
@@ -2991,7 +2991,7 @@ export type ServerRequest__ChatgptAuthTokensRefreshReason = "unauthorized";
 export const ServerRequest__ChatgptAuthTokensRefreshReason = Schema.Literal("unauthorized");
 
 export type ServerRequest__DynamicToolCallParams = {
-  readonly arguments: Schema.Json;
+  readonly arguments: unknown;
   readonly callId: string;
   readonly namespace?: string | null;
   readonly threadId: string;
@@ -3529,7 +3529,7 @@ export const V2ConfigReadResponse__AbsolutePathBuf = Schema.String.annotate({
 
 export type V2ConfigReadResponse__AnalyticsConfig = {
   readonly enabled?: boolean | null;
-  readonly [x: string]: Schema.Json;
+  readonly [x: string]: unknown;
 };
 export const V2ConfigReadResponse__AnalyticsConfig = Schema.StructWithRest(
   Schema.Struct({ enabled: Schema.optionalKey(Schema.Union([Schema.Boolean, Schema.Null])) }),
@@ -4685,9 +4685,9 @@ export const V2ItemCompletedNotification__McpToolCallError = Schema.Struct({
 });
 
 export type V2ItemCompletedNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ItemCompletedNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -5092,9 +5092,9 @@ export const V2ItemStartedNotification__McpToolCallError = Schema.Struct({
 });
 
 export type V2ItemStartedNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ItemStartedNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -5277,8 +5277,8 @@ export const V2ListMcpServerStatusResponse__McpServerInfo = Schema.Struct({
 }).annotate({ description: "Presentation metadata advertised by an initialized MCP server." });
 
 export type V2ListMcpServerStatusResponse__Resource = {
-  readonly _meta?: Schema.Json;
-  readonly annotations?: Schema.Json;
+  readonly _meta?: unknown;
+  readonly annotations?: unknown;
   readonly description?: string | null;
   readonly icons?: ReadonlyArray<unknown> | null;
   readonly mimeType?: string | null;
@@ -5302,7 +5302,7 @@ export const V2ListMcpServerStatusResponse__Resource = Schema.Struct({
 }).annotate({ description: "A known resource that the server is capable of reading." });
 
 export type V2ListMcpServerStatusResponse__ResourceTemplate = {
-  readonly annotations?: Schema.Json;
+  readonly annotations?: unknown;
   readonly description?: string | null;
   readonly mimeType?: string | null;
   readonly name: string;
@@ -5319,13 +5319,13 @@ export const V2ListMcpServerStatusResponse__ResourceTemplate = Schema.Struct({
 }).annotate({ description: "A template description for resources available on the server." });
 
 export type V2ListMcpServerStatusResponse__Tool = {
-  readonly _meta?: Schema.Json;
-  readonly annotations?: Schema.Json;
+  readonly _meta?: unknown;
+  readonly annotations?: unknown;
   readonly description?: string | null;
   readonly icons?: ReadonlyArray<unknown> | null;
-  readonly inputSchema: Schema.Json;
+  readonly inputSchema: unknown;
   readonly name: string;
-  readonly outputSchema?: Schema.Json;
+  readonly outputSchema?: unknown;
   readonly title?: string | null;
 };
 export const V2ListMcpServerStatusResponse__Tool = Schema.Struct({
@@ -5371,13 +5371,13 @@ export const V2MarketplaceUpgradeResponse__MarketplaceUpgradeErrorInfo = Schema.
 
 export type V2McpResourceReadResponse__ResourceContent =
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly mimeType?: string | null;
       readonly text: string;
       readonly uri: string;
     }
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly blob: string;
       readonly mimeType?: string | null;
       readonly uri: string;
@@ -6263,9 +6263,9 @@ export type V2ReviewStartResponse__McpToolCallError = { readonly message: string
 export const V2ReviewStartResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ReviewStartResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ReviewStartResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -6704,9 +6704,9 @@ export type V2ThreadForkResponse__McpToolCallError = { readonly message: string 
 export const V2ThreadForkResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadForkResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadForkResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -7108,9 +7108,9 @@ export type V2ThreadListResponse__McpToolCallError = { readonly message: string 
 export const V2ThreadListResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadListResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadListResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -7448,9 +7448,9 @@ export const V2ThreadMetadataUpdateResponse__McpToolCallError = Schema.Struct({
 });
 
 export type V2ThreadMetadataUpdateResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadMetadataUpdateResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -7756,9 +7756,9 @@ export type V2ThreadReadResponse__McpToolCallError = { readonly message: string 
 export const V2ThreadReadResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadReadResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadReadResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -8343,9 +8343,9 @@ export type V2ThreadResumeResponse__McpToolCallError = { readonly message: strin
 export const V2ThreadResumeResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadResumeResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadResumeResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -8643,9 +8643,9 @@ export type V2ThreadRollbackResponse__McpToolCallError = { readonly message: str
 export const V2ThreadRollbackResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadRollbackResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadRollbackResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -9053,9 +9053,9 @@ export const V2ThreadStartedNotification__McpToolCallError = Schema.Struct({
 });
 
 export type V2ThreadStartedNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadStartedNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -9276,7 +9276,7 @@ export const V2ThreadStartParams__AskForApproval = Schema.Union(
 export type V2ThreadStartParams__DynamicToolNamespaceTool = {
   readonly deferLoading?: boolean;
   readonly description: string;
-  readonly inputSchema: Schema.Json;
+  readonly inputSchema: unknown;
   readonly name: string;
   readonly type: "function";
 };
@@ -9468,9 +9468,9 @@ export type V2ThreadStartResponse__McpToolCallError = { readonly message: string
 export const V2ThreadStartResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2ThreadStartResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadStartResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -9800,9 +9800,9 @@ export const V2ThreadUnarchiveResponse__McpToolCallError = Schema.Struct({
 });
 
 export type V2ThreadUnarchiveResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2ThreadUnarchiveResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -10106,9 +10106,9 @@ export const V2TurnCompletedNotification__McpToolCallError = Schema.Struct({
 });
 
 export type V2TurnCompletedNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2TurnCompletedNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -10398,9 +10398,9 @@ export const V2TurnStartedNotification__McpToolCallError = Schema.Struct({
 });
 
 export type V2TurnStartedNotification__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2TurnStartedNotification__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -10782,9 +10782,9 @@ export type V2TurnStartResponse__McpToolCallError = { readonly message: string }
 export const V2TurnStartResponse__McpToolCallError = Schema.Struct({ message: Schema.String });
 
 export type V2TurnStartResponse__McpToolCallResult = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2TurnStartResponse__McpToolCallResult = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -11331,7 +11331,7 @@ export const ClientRequest__ListMcpServerStatusParams = Schema.Struct({
 export type ClientRequest__ConfigEdit = {
   readonly keyPath: string;
   readonly mergeStrategy: ClientRequest__MergeStrategy;
-  readonly value: Schema.Json;
+  readonly value: unknown;
 };
 export const ClientRequest__ConfigEdit = Schema.Struct({
   keyPath: Schema.String,
@@ -11344,7 +11344,7 @@ export type ClientRequest__ConfigValueWriteParams = {
   readonly filePath?: string | null;
   readonly keyPath: string;
   readonly mergeStrategy: ClientRequest__MergeStrategy;
-  readonly value: Schema.Json;
+  readonly value: unknown;
 };
 export const ClientRequest__ConfigValueWriteParams = Schema.Struct({
   expectedVersion: Schema.optionalKey(Schema.Union([Schema.String, Schema.Null])),
@@ -11429,7 +11429,7 @@ export type ClientRequest__ThreadResumeParams = {
   readonly approvalPolicy?: ClientRequest__AskForApproval | null;
   readonly approvalsReviewer?: ClientRequest__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly model?: string | null;
@@ -11599,7 +11599,7 @@ export type ClientRequest__ThreadForkParams = {
   readonly approvalPolicy?: ClientRequest__AskForApproval | null;
   readonly approvalsReviewer?: ClientRequest__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly ephemeral?: boolean;
@@ -11753,7 +11753,7 @@ export type ClientRequest__ThreadStartParams = {
   readonly approvalPolicy?: ClientRequest__AskForApproval | null;
   readonly approvalsReviewer?: ClientRequest__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly ephemeral?: boolean | null;
@@ -11996,7 +11996,7 @@ export const JSONRPCMessage__JSONRPCError = Schema.Struct({
 
 export type JSONRPCMessage__JSONRPCResponse = {
   readonly id: JSONRPCMessage__RequestId;
-  readonly result: Schema.Json;
+  readonly result: unknown;
 };
 export const JSONRPCMessage__JSONRPCResponse = Schema.Struct({
   id: JSONRPCMessage__RequestId,
@@ -12006,7 +12006,7 @@ export const JSONRPCMessage__JSONRPCResponse = Schema.Struct({
 export type JSONRPCMessage__JSONRPCRequest = {
   readonly id: JSONRPCMessage__RequestId;
   readonly method: string;
-  readonly params?: Schema.Json;
+  readonly params?: unknown;
   readonly trace?: JSONRPCMessage__W3cTraceContext | null;
 };
 export const JSONRPCMessage__JSONRPCRequest = Schema.Struct({
@@ -13516,7 +13516,7 @@ export const V2CommandExecParams__SandboxPolicy = Schema.Union(
 export type V2ConfigBatchWriteParams__ConfigEdit = {
   readonly keyPath: string;
   readonly mergeStrategy: V2ConfigBatchWriteParams__MergeStrategy;
-  readonly value: Schema.Json;
+  readonly value: unknown;
 };
 export const V2ConfigBatchWriteParams__ConfigEdit = Schema.Struct({
   keyPath: Schema.String,
@@ -19853,7 +19853,7 @@ export type ClientRequest__TurnStartParams = {
   readonly effort?: ClientRequest__ReasoningEffort | null;
   readonly input: ReadonlyArray<ClientRequest__UserInput>;
   readonly model?: string | null;
-  readonly outputSchema?: Schema.Json;
+  readonly outputSchema?: unknown;
   readonly personality?: ClientRequest__Personality | null;
   readonly sandboxPolicy?: ClientRequest__SandboxPolicy | null;
   readonly serviceTier?: string | null;
@@ -20460,7 +20460,7 @@ export type ServerNotification__ThreadItem =
     }
   | {
       readonly appContext?: ServerNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: ServerNotification__McpToolCallError | null;
       readonly id: string;
@@ -20473,7 +20473,7 @@ export type ServerNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<ServerNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -21206,7 +21206,7 @@ export const V2AppsListResponse__AppInfo = Schema.Struct({
 }).annotate({ description: "EXPERIMENTAL - app metadata returned by app-list APIs." });
 
 export type V2ConfigReadResponse__ConfigLayer = {
-  readonly config: Schema.Json;
+  readonly config: unknown;
   readonly disabledReason?: string | null;
   readonly name: V2ConfigReadResponse__ConfigLayerSource;
   readonly version: string;
@@ -21571,7 +21571,7 @@ export type V2ItemCompletedNotification__ThreadItem =
     }
   | {
       readonly appContext?: V2ItemCompletedNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ItemCompletedNotification__McpToolCallError | null;
       readonly id: string;
@@ -21584,7 +21584,7 @@ export type V2ItemCompletedNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ItemCompletedNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -22054,7 +22054,7 @@ export type V2ItemStartedNotification__ThreadItem =
     }
   | {
       readonly appContext?: V2ItemStartedNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ItemStartedNotification__McpToolCallError | null;
       readonly id: string;
@@ -22067,7 +22067,7 @@ export type V2ItemStartedNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ItemStartedNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -22707,7 +22707,7 @@ export type V2ReviewStartResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ReviewStartResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ReviewStartResponse__McpToolCallError | null;
       readonly id: string;
@@ -22720,7 +22720,7 @@ export type V2ReviewStartResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ReviewStartResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -23173,7 +23173,7 @@ export type V2ThreadForkResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadForkResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadForkResponse__McpToolCallError | null;
       readonly id: string;
@@ -23186,7 +23186,7 @@ export type V2ThreadForkResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadForkResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -23608,7 +23608,7 @@ export type V2ThreadListResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadListResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadListResponse__McpToolCallError | null;
       readonly id: string;
@@ -23621,7 +23621,7 @@ export type V2ThreadListResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadListResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -24043,7 +24043,7 @@ export type V2ThreadMetadataUpdateResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadMetadataUpdateResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadMetadataUpdateResponse__McpToolCallError | null;
       readonly id: string;
@@ -24056,7 +24056,7 @@ export type V2ThreadMetadataUpdateResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadMetadataUpdateResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -24483,7 +24483,7 @@ export type V2ThreadReadResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadReadResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadReadResponse__McpToolCallError | null;
       readonly id: string;
@@ -24496,7 +24496,7 @@ export type V2ThreadReadResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadReadResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -24926,7 +24926,7 @@ export type V2ThreadResumeResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadResumeResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadResumeResponse__McpToolCallError | null;
       readonly id: string;
@@ -24939,7 +24939,7 @@ export type V2ThreadResumeResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadResumeResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -25361,7 +25361,7 @@ export type V2ThreadRollbackResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadRollbackResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadRollbackResponse__McpToolCallError | null;
       readonly id: string;
@@ -25374,7 +25374,7 @@ export type V2ThreadRollbackResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadRollbackResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -25808,7 +25808,7 @@ export type V2ThreadStartedNotification__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadStartedNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadStartedNotification__McpToolCallError | null;
       readonly id: string;
@@ -25821,7 +25821,7 @@ export type V2ThreadStartedNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadStartedNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -26248,7 +26248,7 @@ export type V2ThreadStartResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadStartResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadStartResponse__McpToolCallError | null;
       readonly id: string;
@@ -26261,7 +26261,7 @@ export type V2ThreadStartResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadStartResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -26683,7 +26683,7 @@ export type V2ThreadUnarchiveResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2ThreadUnarchiveResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2ThreadUnarchiveResponse__McpToolCallError | null;
       readonly id: string;
@@ -26696,7 +26696,7 @@ export type V2ThreadUnarchiveResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2ThreadUnarchiveResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -27121,7 +27121,7 @@ export type V2TurnCompletedNotification__ThreadItem =
     }
   | {
       readonly appContext?: V2TurnCompletedNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2TurnCompletedNotification__McpToolCallError | null;
       readonly id: string;
@@ -27134,7 +27134,7 @@ export type V2TurnCompletedNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2TurnCompletedNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -27561,7 +27561,7 @@ export type V2TurnStartedNotification__ThreadItem =
     }
   | {
       readonly appContext?: V2TurnStartedNotification__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2TurnStartedNotification__McpToolCallError | null;
       readonly id: string;
@@ -27574,7 +27574,7 @@ export type V2TurnStartedNotification__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2TurnStartedNotification__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -27999,7 +27999,7 @@ export type V2TurnStartResponse__ThreadItem =
     }
   | {
       readonly appContext?: V2TurnStartResponse__McpToolCallAppContext | null;
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly durationMs?: number | null;
       readonly error?: V2TurnStartResponse__McpToolCallError | null;
       readonly id: string;
@@ -28012,7 +28012,7 @@ export type V2TurnStartResponse__ThreadItem =
       readonly type: "mcpToolCall";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly contentItems?: ReadonlyArray<V2TurnStartResponse__DynamicToolCallOutputContentItem> | null;
       readonly durationMs?: number | null;
       readonly id: string;
@@ -28638,7 +28638,7 @@ export type V2ConfigReadResponse__Config = {
   readonly approval_policy?: V2ConfigReadResponse__AskForApproval | null;
   readonly approvals_reviewer?: V2ConfigReadResponse__ApprovalsReviewer | null;
   readonly compact_prompt?: string | null;
-  readonly desktop?: { readonly [x: string]: Schema.Json } | null;
+  readonly desktop?: { readonly [x: string]: unknown } | null;
   readonly developer_instructions?: string | null;
   readonly forced_chatgpt_workspace_id?: V2ConfigReadResponse__ForcedChatgptWorkspaceIds | null;
   readonly forced_login_method?: V2ConfigReadResponse__ForcedLoginMethod | null;
@@ -28657,7 +28657,7 @@ export type V2ConfigReadResponse__Config = {
   readonly service_tier?: string | null;
   readonly tools?: V2ConfigReadResponse__ToolsV2 | null;
   readonly web_search?: V2ConfigReadResponse__WebSearchMode | null;
-  readonly [x: string]: Schema.Json;
+  readonly [x: string]: unknown;
 };
 export const V2ConfigReadResponse__Config = Schema.StructWithRest(
   Schema.Struct({
@@ -28780,7 +28780,7 @@ export const V2ConfigRequirementsReadResponse__ConfigRequirements = Schema.Struc
 });
 
 export type V2ConfigWriteResponse__OverriddenMetadata = {
-  readonly effectiveValue: Schema.Json;
+  readonly effectiveValue: unknown;
   readonly message: string;
   readonly overridingLayer: V2ConfigWriteResponse__ConfigLayerMetadata;
 };
@@ -29125,7 +29125,7 @@ export type V2RawResponseItemCompletedNotification__ResponseItem =
       readonly type: "function_call";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly call_id?: string | null;
       readonly execution: string;
       readonly id?: string | null;
@@ -32707,7 +32707,7 @@ export const ServerNotification__ItemGuardianApprovalReviewStartedNotification =
 
 export type ServerRequest__McpServerElicitationRequestParams =
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly message: string;
       readonly mode: "form";
       readonly requestedSchema: ServerRequest__McpElicitationSchema;
@@ -32716,16 +32716,16 @@ export type ServerRequest__McpServerElicitationRequestParams =
       readonly turnId?: string | null;
     }
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly message: string;
       readonly mode: "openai/form";
-      readonly requestedSchema: Schema.Json;
+      readonly requestedSchema: unknown;
       readonly serverName: string;
       readonly threadId: string;
       readonly turnId?: string | null;
     }
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly elicitationId: string;
       readonly message: string;
       readonly mode: "url";
@@ -33956,7 +33956,7 @@ export type ClientRequest__DynamicToolSpec =
   | {
       readonly deferLoading?: boolean;
       readonly description: string;
-      readonly inputSchema: Schema.Json;
+      readonly inputSchema: unknown;
       readonly name: string;
       readonly type: "function";
     }
@@ -34120,7 +34120,7 @@ export type ClientRequest__ResponseItem =
       readonly type: "function_call";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly call_id?: string | null;
       readonly execution: string;
       readonly id?: string | null;
@@ -34685,7 +34685,7 @@ export const CommandExecutionRequestApprovalResponse = Schema.Struct({
 }).annotate({ title: "CommandExecutionRequestApprovalResponse" });
 
 export type DynamicToolCallParams = {
-  readonly arguments: Schema.Json;
+  readonly arguments: unknown;
   readonly callId: string;
   readonly namespace?: string | null;
   readonly threadId: string;
@@ -34830,7 +34830,7 @@ export const GetAuthStatusParams = Schema.Struct({
 }).annotate({ title: "GetAuthStatusParams" });
 
 export type GetAuthStatusResponse = {
-  readonly authMethod: Schema.Json | null;
+  readonly authMethod: unknown | null;
   readonly authToken: string | null;
   readonly requiresOpenaiAuth: boolean | null;
 };
@@ -34848,7 +34848,7 @@ export const GetConversationSummaryParams = Schema.Union(
   { mode: "oneOf" },
 ).annotate({ title: "GetConversationSummaryParams" });
 
-export type GetConversationSummaryResponse = { readonly summary: Schema.Json };
+export type GetConversationSummaryResponse = { readonly summary: unknown };
 export const GetConversationSummaryResponse = Schema.Struct({ summary: Schema.Unknown }).annotate({
   title: "GetConversationSummaryResponse",
 });
@@ -34878,7 +34878,7 @@ export const JSONRPCError = Schema.Struct({
 
 export type JSONRPCErrorError = {
   readonly code: number;
-  readonly data?: Schema.Json;
+  readonly data?: unknown;
   readonly message: string;
 };
 export const JSONRPCErrorError = Schema.Struct({
@@ -34903,7 +34903,7 @@ export const JSONRPCMessage = Schema.Union([
     "Refers to any valid JSON-RPC object that can be decoded off the wire, or encoded to be sent.",
 });
 
-export type JSONRPCNotification = { readonly method: string; readonly params?: Schema.Json };
+export type JSONRPCNotification = { readonly method: string; readonly params?: unknown };
 export const JSONRPCNotification = Schema.Struct({
   method: Schema.String,
   params: Schema.optionalKey(Schema.Unknown),
@@ -34915,7 +34915,7 @@ export const JSONRPCNotification = Schema.Struct({
 export type JSONRPCRequest = {
   readonly id: JSONRPCRequest__RequestId;
   readonly method: string;
-  readonly params?: Schema.Json;
+  readonly params?: unknown;
   readonly trace?: JSONRPCRequest__W3cTraceContext | null;
 };
 export const JSONRPCRequest = Schema.Struct({
@@ -34929,10 +34929,7 @@ export const JSONRPCRequest = Schema.Struct({
   ),
 }).annotate({ title: "JSONRPCRequest", description: "A request that expects a response." });
 
-export type JSONRPCResponse = {
-  readonly id: JSONRPCResponse__RequestId;
-  readonly result: Schema.Json;
-};
+export type JSONRPCResponse = { readonly id: JSONRPCResponse__RequestId; readonly result: unknown };
 export const JSONRPCResponse = Schema.Struct({
   id: JSONRPCResponse__RequestId,
   result: Schema.Unknown,
@@ -34943,7 +34940,7 @@ export const JSONRPCResponse = Schema.Struct({
 
 export type McpServerElicitationRequestParams =
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly message: string;
       readonly mode: "form";
       readonly requestedSchema: McpServerElicitationRequestParams__McpElicitationSchema;
@@ -34952,16 +34949,16 @@ export type McpServerElicitationRequestParams =
       readonly turnId?: string | null;
     }
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly message: string;
       readonly mode: "openai/form";
-      readonly requestedSchema: Schema.Json;
+      readonly requestedSchema: unknown;
       readonly serverName: string;
       readonly threadId: string;
       readonly turnId?: string | null;
     }
   | {
-      readonly _meta?: Schema.Json;
+      readonly _meta?: unknown;
       readonly elicitationId: string;
       readonly message: string;
       readonly mode: "url";
@@ -35029,9 +35026,9 @@ export const McpServerElicitationRequestParams = Schema.Union(
 );
 
 export type McpServerElicitationRequestResponse = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly action: McpServerElicitationRequestResponse__McpServerElicitationAction;
-  readonly content?: Schema.Json;
+  readonly content?: unknown;
 };
 export const McpServerElicitationRequestResponse = Schema.Struct({
   _meta: Schema.optionalKey(
@@ -37741,7 +37738,7 @@ export type V2ConfigValueWriteParams = {
   readonly filePath?: string | null;
   readonly keyPath: string;
   readonly mergeStrategy: V2ConfigValueWriteParams__MergeStrategy;
-  readonly value: Schema.Json;
+  readonly value: unknown;
 };
 export const V2ConfigValueWriteParams = Schema.Struct({
   expectedVersion: Schema.optionalKey(Schema.Union([Schema.String, Schema.Null])),
@@ -39171,8 +39168,8 @@ export const V2McpServerStatusUpdatedNotification = Schema.Struct({
 }).annotate({ title: "McpServerStatusUpdatedNotification" });
 
 export type V2McpServerToolCallParams = {
-  readonly _meta?: Schema.Json;
-  readonly arguments?: Schema.Json;
+  readonly _meta?: unknown;
+  readonly arguments?: unknown;
   readonly server: string;
   readonly threadId: string;
   readonly tool: string;
@@ -39186,10 +39183,10 @@ export const V2McpServerToolCallParams = Schema.Struct({
 }).annotate({ title: "McpServerToolCallParams" });
 
 export type V2McpServerToolCallResponse = {
-  readonly _meta?: Schema.Json;
+  readonly _meta?: unknown;
   readonly content: ReadonlyArray<unknown>;
   readonly isError?: boolean | null;
-  readonly structuredContent?: Schema.Json;
+  readonly structuredContent?: unknown;
 };
 export const V2McpServerToolCallResponse = Schema.Struct({
   _meta: Schema.optionalKey(Schema.Unknown),
@@ -39997,7 +39994,7 @@ export const V2TerminalInteractionNotification = Schema.Struct({
 }).annotate({ title: "TerminalInteractionNotification" });
 
 export type V2ThreadApproveGuardianDeniedActionParams = {
-  readonly event: Schema.Json;
+  readonly event: unknown;
   readonly threadId: string;
 };
 export const V2ThreadApproveGuardianDeniedActionParams = Schema.Struct({
@@ -40059,7 +40056,7 @@ export type V2ThreadForkParams = {
   readonly approvalPolicy?: V2ThreadForkParams__AskForApproval | null;
   readonly approvalsReviewer?: V2ThreadForkParams__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly ephemeral?: boolean;
@@ -41083,7 +41080,7 @@ export const V2ThreadRealtimeErrorNotification = Schema.Struct({
 });
 
 export type V2ThreadRealtimeItemAddedNotification = {
-  readonly item: Schema.Json;
+  readonly item: unknown;
   readonly threadId: string;
 };
 export const V2ThreadRealtimeItemAddedNotification = Schema.Struct({
@@ -41163,7 +41160,7 @@ export type V2ThreadResumeParams = {
   readonly approvalPolicy?: V2ThreadResumeParams__AskForApproval | null;
   readonly approvalsReviewer?: V2ThreadResumeParams__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly model?: string | null;
@@ -41257,7 +41254,7 @@ export type V2ThreadResumeParams__ResponseItem =
       readonly type: "function_call";
     }
   | {
-      readonly arguments: Schema.Json;
+      readonly arguments: unknown;
       readonly call_id?: string | null;
       readonly execution: string;
       readonly id?: string | null;
@@ -42506,7 +42503,7 @@ export type V2ThreadStartParams = {
   readonly approvalPolicy?: V2ThreadStartParams__AskForApproval | null;
   readonly approvalsReviewer?: V2ThreadStartParams__ApprovalsReviewer | null;
   readonly baseInstructions?: string | null;
-  readonly config?: { readonly [x: string]: Schema.Json } | null;
+  readonly config?: { readonly [x: string]: unknown } | null;
   readonly cwd?: string | null;
   readonly developerInstructions?: string | null;
   readonly ephemeral?: boolean | null;
@@ -42585,7 +42582,7 @@ export type V2ThreadStartParams__DynamicToolSpec =
   | {
       readonly deferLoading?: boolean;
       readonly description: string;
-      readonly inputSchema: Schema.Json;
+      readonly inputSchema: unknown;
       readonly name: string;
       readonly type: "function";
     }
@@ -43241,7 +43238,7 @@ export const V2TurnInterruptResponse = Schema.Struct({}).annotate({
 });
 
 export type V2TurnModerationMetadataNotification = {
-  readonly metadata: Schema.Json;
+  readonly metadata: unknown;
   readonly threadId: string;
   readonly turnId: string;
 };
@@ -43344,7 +43341,7 @@ export type V2TurnStartParams = {
   readonly effort?: V2TurnStartParams__ReasoningEffort | null;
   readonly input: ReadonlyArray<V2TurnStartParams__UserInput>;
   readonly model?: string | null;
-  readonly outputSchema?: Schema.Json;
+  readonly outputSchema?: unknown;
   readonly personality?: V2TurnStartParams__Personality | null;
   readonly sandboxPolicy?: V2TurnStartParams__SandboxPolicy | null;
   readonly serviceTier?: string | null;

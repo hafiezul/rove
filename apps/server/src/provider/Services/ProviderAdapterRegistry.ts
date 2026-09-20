@@ -27,7 +27,7 @@ export interface ProviderInstanceRoutingInfo {
 }
 
 /**
- * ProviderAdapterRegistryShape - Service API for adapter lookup.
+ * ProviderAdapterRegistryContract - Service API for adapter lookup.
  */
 export interface ProviderAdapterRegistryContract {
   /**

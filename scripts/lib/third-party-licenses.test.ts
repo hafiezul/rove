@@ -88,7 +88,7 @@ describe("third-party license generation", () => {
 
     expect(config).toContain(revision.trim());
     expect(config).toContain(
-      "https://github.com/Yash-Singh1/ghostty/tree/rove/custom-io-ordered-feed",
+      "https://github.com/Yash-Singh1/ghostty/tree/t3code/custom-io-ordered-feed",
     );
   });
 

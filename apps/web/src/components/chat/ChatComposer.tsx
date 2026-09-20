@@ -1104,7 +1104,9 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
           onOpenChange={setOpen}
           disabled={!props.runtimeModeSelectable}
           value={displayedRuntimeMode}
-          onValueChange={(value) => { if (props.runtimeModeSelectable && value) props.onRuntimeModeChange(value); }}
+          onValueChange={(value) => {
+            if (props.runtimeModeSelectable && value) props.onRuntimeModeChange(value);
+          }}
         >
           <TooltipTrigger
             render={
@@ -1888,7 +1890,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     [selectedProviderEntry],
   );
   const compactCommandAvailable = providerSupportsManualCompaction(selectedProviderEntry);
-  const runtimeModeSelectable = selectedProviderStatus?.runtimeModeSelectable ?? selectedProvider !== "pi";
+  const runtimeModeSelectable =
+    selectedProviderStatus?.runtimeModeSelectable ?? selectedProvider !== "pi";
   const selectedProviderSkills = selectedProviderStatus
     ? resolveProviderSkillsForCwd(selectedProviderStatus, gitCwd)
     : [];
@@ -4995,7 +4998,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               )}
             >
               <CompactComposerControlsMenu
-          runtimeModeSelectable={runtimeModeSelectable}
+                runtimeModeSelectable={runtimeModeSelectable}
                 interactionMode={interactionMode}
                 runtimeMode={runtimeMode}
                 size="xs"

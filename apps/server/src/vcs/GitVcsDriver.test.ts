@@ -135,7 +135,7 @@ it.effect("GitVcsDriver forwards execute env to the VCS process", () => {
   let observedOutputMode: VcsProcess.VcsProcessInput["outputMode"];
 
   return Effect.gen(function* () {
-    const driver = yield* GitVcsDriver.makeVcsDriverContract();
+    const driver = yield* GitVcsDriver.makeVcsDriverShape();
 
     yield* driver.execute({
       operation: "GitVcsDriver.test.env",

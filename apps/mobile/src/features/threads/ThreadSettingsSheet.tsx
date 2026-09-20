@@ -109,7 +109,9 @@ function ModelRow(props: {
   const selectedMaterialRow = materialYouStyleLayoutActive && props.selected;
   return (
     <Pressable
-      accessibilityLabel={[props.option.label, props.option.subtitle].filter(Boolean).join(", ")}
+      accessibilityLabel={[props.option.label, props.option.subProvider, props.option.subtitle]
+        .filter(Boolean)
+        .join(", ")}
       accessibilityRole="radio"
       accessibilityState={{
         checked: props.selected,
@@ -132,6 +134,11 @@ function ModelRow(props: {
           >
             {props.option.label}
           </Text>
+          {props.option.subProvider ? (
+            <Text className="shrink text-sm text-foreground-muted" numberOfLines={1}>
+              {props.option.subProvider}
+            </Text>
+          ) : null}
           {props.option.isDefault ? (
             <View className="rounded-md bg-subtle-strong px-1.5 py-0.5">
               <Text className="text-3xs font-t3-bold text-foreground-muted">Default</Text>
@@ -251,12 +258,12 @@ function DisclosureRow(props: {
         </Text>
       ) : null}
       {!props.disabled ? (
-      <SymbolView
-        name="chevron.right"
-        size={12}
-        tintColorClassName={"accent-icon-subtle"}
-        type="monochrome"
-      />
+        <SymbolView
+          name="chevron.right"
+          size={12}
+          tintColorClassName={"accent-icon-subtle"}
+          type="monochrome"
+        />
       ) : null}
     </Pressable>
   );

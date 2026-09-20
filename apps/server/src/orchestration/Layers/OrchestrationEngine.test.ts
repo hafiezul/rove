@@ -39,7 +39,7 @@ import {
 } from "../../persistence/Layers/Sqlite.ts";
 import {
   OrchestrationEventStore,
-  type OrchestrationEventStoreShape,
+  type OrchestrationEventStoreContract,
 } from "../../persistence/Services/OrchestrationEventStore.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
@@ -50,7 +50,7 @@ import * as ThreadPlanProgress from "../ThreadPlanProgress.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   OrchestrationProjectionPipeline,
-  type OrchestrationProjectionPipelineShape,
+  type OrchestrationProjectionPipelineContract,
 } from "../Services/ProjectionPipeline.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import { ServerConfig } from "../../config.ts";
@@ -334,7 +334,7 @@ describe("OrchestrationEngine", () => {
 
   it("bootstraps command handling from persisted projections without reading the full snapshot", async () => {
     let nextSequence = 8;
-    const eventStore: OrchestrationEventStoreShape = {
+    const eventStore: OrchestrationEventStoreContract = {
       append: (event) =>
         Effect.sync(() => {
           const savedEvent = {
@@ -465,7 +465,7 @@ describe("OrchestrationEngine", () => {
           bootstrap: Effect.void,
           projectEvent: () => Effect.void,
           projectEventDeferred: () => Effect.succeed(Effect.void),
-        } satisfies OrchestrationProjectionPipelineShape),
+        } satisfies OrchestrationProjectionPipelineContract),
       ),
       Layer.provide(Layer.succeed(OrchestrationEventStore, eventStore)),
       Layer.provide(ThreadBackgroundLiveness.layer),
@@ -1467,14 +1467,14 @@ describe("OrchestrationEngine", () => {
 
   it("keeps processing queued commands after a storage failure", async () => {
     type StoredEvent =
-      ReturnType<OrchestrationEventStoreShape["append"]> extends Effect.Effect<infer A, any, any>
+      ReturnType<OrchestrationEventStoreContract["append"]> extends Effect.Effect<infer A, any, any>
         ? A
         : never;
     const events: StoredEvent[] = [];
     let nextSequence = 1;
     let shouldFailFirstAppend = true;
 
-    const flakyStore: OrchestrationEventStoreShape = {
+    const flakyStore: OrchestrationEventStoreContract = {
       append(event) {
         if (shouldFailFirstAppend && event.commandId === CommandId.make("cmd-flaky-1")) {
           shouldFailFirstAppend = false;
@@ -1595,7 +1595,7 @@ describe("OrchestrationEngine", () => {
 
   it("rolls back all events for a multi-event command when projection fails mid-dispatch", async () => {
     let shouldFailRequestedProjection = true;
-    const flakyProjectionPipeline: OrchestrationProjectionPipelineShape = {
+    const flakyProjectionPipeline: OrchestrationProjectionPipelineContract = {
       bootstrap: Effect.void,
       projectEvent: () => Effect.void,
       projectEventDeferred: (event) => {
@@ -1717,13 +1717,13 @@ describe("OrchestrationEngine", () => {
 
   it("reconciles command state when append persists but projection fails", async () => {
     type StoredEvent =
-      ReturnType<OrchestrationEventStoreShape["append"]> extends Effect.Effect<infer A, any, any>
+      ReturnType<OrchestrationEventStoreContract["append"]> extends Effect.Effect<infer A, any, any>
         ? A
         : never;
     const events: StoredEvent[] = [];
     let nextSequence = 1;
 
-    const nonTransactionalStore: OrchestrationEventStoreShape = {
+    const nonTransactionalStore: OrchestrationEventStoreContract = {
       append(event) {
         const savedEvent = {
           ...event,
@@ -1745,7 +1745,7 @@ describe("OrchestrationEngine", () => {
     };
 
     let shouldFailProjection = true;
-    const flakyProjectionPipeline: OrchestrationProjectionPipelineShape = {
+    const flakyProjectionPipeline: OrchestrationProjectionPipelineContract = {
       bootstrap: Effect.void,
       projectEvent: () => Effect.void,
       projectEventDeferred: (event) => {

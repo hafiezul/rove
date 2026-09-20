@@ -25,7 +25,6 @@ import { OtlpExporter, OtlpTracer } from "effect/unstable/observability";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const DESKTOP_LOG_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const DESKTOP_LOG_FILE_MAX_FILES = 10;
@@ -69,7 +68,7 @@ export class DesktopBackendOutputLogFactory extends Context.Service<
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-export type DesktopLogAnnotations = Record<string, SchemaJson>;
+export type DesktopLogAnnotations = Record<string, unknown>;
 
 export interface DesktopComponentLogger {
   readonly annotate: <A, E, R>(
@@ -367,7 +366,7 @@ const writeBackendChildLogRecord = Effect.fn("desktop.observability.writeBackend
     input: {
       readonly message: string;
       readonly level: "INFO" | "ERROR";
-      readonly annotations: Record<string, SchemaJson>;
+      readonly annotations: DesktopLogAnnotations;
     },
   ): Effect.fn.Return<void> {
     return yield* Effect.gen(function* () {

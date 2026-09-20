@@ -45,7 +45,7 @@ describe("mobile provider options", () => {
       },
       selections: [{ id: "thinkingLevel", value: "max" }],
     });
-    expect(providerOptionValueLabels(descriptors)).toEqual(["Off"]);
+    expect(descriptors).toMatchObject([{ currentValue: "off", options: [{ label: "Off" }] }]);
     expect(
       applyProviderOptionSelection(descriptors, { id: "thinkingLevel", value: "max" }),
     ).toBeNull();
@@ -60,7 +60,7 @@ describe("mobile provider options", () => {
       selections: undefined,
     });
 
-    expect(providerOptionValueLabels(descriptors)).toEqual(["Medium", "Standard"]);
+    expect(descriptors).toMatchObject([{ currentValue: "medium" }, { currentValue: "default" }]);
   });
 
   it("updates generic select options without knowing provider-specific ids", () => {

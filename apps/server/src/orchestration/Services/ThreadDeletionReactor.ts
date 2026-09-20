@@ -11,7 +11,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
 /**
- * ThreadDeletionReactorShape - Service API for thread deletion cleanup.
+ * ThreadDeletionReactorContract - Service API for thread deletion cleanup.
  */
 export interface ThreadDeletionReactorContract {
   /**

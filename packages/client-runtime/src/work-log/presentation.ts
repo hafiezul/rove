@@ -138,7 +138,7 @@ function resolveT3McpToolPresentation(
 ) {
   if (!value) return null;
   const name = normalizeCompactToolLabel(value).replace(
-    /^(?:mcp__(?:rove|t3_code|rove)__|(?:rove|t3_code|rove)(?:[.:/]|\s*·\s*))/i,
+    /^(?:mcp__(?:rove|t3-code|t3_code|t3code)__|(?:rove|t3-code|t3_code|t3code)(?:[.:/]|\s*·\s*))/i,
     "",
   );
   if (!Object.hasOwn(T3_MCP_TOOL_LABELS, name)) return null;

@@ -83,7 +83,7 @@ import {
   sanitizeAntigravityToolPayload,
   selectAntigravityPermissionOptionId,
 } from "../acp/AntigravityProtocol.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const PROVIDER = ProviderDriverKind.make("antigravity");
@@ -94,7 +94,7 @@ const ResumeCursor = Schema.Struct({
 const decodeResumeCursor = Schema.decodeUnknownOption(ResumeCursor);
 const isAcpError = Schema.is(EffectAcpErrors.AcpError);
 
-type Adapter = ProviderAdapterShape<ProviderAdapterError>;
+type Adapter = ProviderAdapterContract<ProviderAdapterError>;
 type Runtime = Pick<
   AcpSessionRuntime.AcpSessionRuntime["Service"],
   | "handleRequestPermission"
@@ -230,11 +230,27 @@ const resolveClientFilePath = Effect.fn("AntigravityAdapter.resolveClientFilePat
   }) {
     const { path } = input;
     const resolved = path.resolve(input.requestPath);
-    // Follow symlinks on the parent so a link out of the workspace cannot escape it.
-    const parent = yield* input.fileSystem
-      .realPath(path.dirname(resolved))
-      .pipe(Effect.orElseSucceed(() => path.dirname(resolved)));
-    const real = path.join(parent, path.basename(resolved));
+    // A write can create nested directories. Resolve the nearest existing
+    // ancestor so symlinked roots (including macOS /var) stay canonical even
+    // when the immediate parent does not exist yet.
+    let ancestor = path.dirname(resolved);
+    let suffix = path.basename(resolved);
+    let real: string;
+    while (true) {
+      const canonical = yield* input.fileSystem.realPath(ancestor).pipe(Effect.option);
+      if (Option.isSome(canonical)) {
+        real = path.join(canonical.value, suffix);
+        break;
+      }
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) {
+        return yield* EffectAcpErrors.AcpRequestError.invalidParams(
+          `Could not resolve '${input.requestPath}'.`,
+        );
+      }
+      suffix = path.join(path.basename(ancestor), suffix);
+      ancestor = parent;
+    }
     const roots = yield* Effect.forEach(input.allowedRoots, (root) =>
       input.fileSystem.realPath(root).pipe(Effect.orElseSucceed(() => root)),
     );

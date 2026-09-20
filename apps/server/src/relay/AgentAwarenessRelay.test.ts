@@ -32,7 +32,7 @@ import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import {
   OrchestrationEngineService,
-  type OrchestrationEngineShape,
+  type OrchestrationEngineContract,
 } from "../orchestration/Services/OrchestrationEngine.ts";
 import {
   ProjectionSnapshotQuery,
@@ -515,7 +515,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
           streamDomainEvents: Stream.fromQueue(events),
           subscribeDomainEvents: Effect.succeed(Stream.fromQueue(events)),
           latestSequence: Effect.succeed(0),
-        } satisfies OrchestrationEngineShape;
+        } satisfies OrchestrationEngineContract;
 
         const snapshotQuery = {
           getShellSnapshot: () =>
@@ -741,7 +741,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
             streamDomainEvents: Stream.fromQueue(events),
             subscribeDomainEvents: Effect.succeed(Stream.fromQueue(events)),
             latestSequence: Effect.succeed(0),
-          } satisfies OrchestrationEngineShape),
+          } satisfies OrchestrationEngineContract),
           Layer.succeed(ProjectionSnapshotQuery, {
             getShellSnapshot: () =>
               Effect.succeed({

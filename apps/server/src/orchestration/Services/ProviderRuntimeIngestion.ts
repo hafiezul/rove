@@ -11,7 +11,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
 /**
- * ProviderRuntimeIngestionShape - Service API for runtime ingestion lifecycle.
+ * ProviderRuntimeIngestionContract - Service API for runtime ingestion lifecycle.
  */
 export interface ProviderRuntimeIngestionContract {
   /**

@@ -31,7 +31,7 @@ export interface OrchestrationAggregateReplayStats {
 }
 
 /**
- * OrchestrationEventStoreShape - Service API for orchestration event persistence.
+ * OrchestrationEventStoreContract - Service API for orchestration event persistence.
  */
 export interface OrchestrationEventStoreContract {
   /**

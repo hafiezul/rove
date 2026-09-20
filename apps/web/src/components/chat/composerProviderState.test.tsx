@@ -108,6 +108,7 @@ describe("getComposerProviderState", () => {
     ]) {
       const state = getComposerProviderState({
         provider,
+        planModeEnabled: false,
         model: model!,
         models,
         modelOptions: selections(["thinkingLevel", "max"]),
@@ -117,6 +118,7 @@ describe("getComposerProviderState", () => {
     }
     const unknown = getComposerProviderState({
       provider,
+      planModeEnabled: false,
       model: "local/unknown",
       models,
       modelOptions: selections(["thinkingLevel", "max"]),

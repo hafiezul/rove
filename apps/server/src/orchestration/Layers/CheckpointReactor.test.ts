@@ -97,7 +97,7 @@ function createProviderServiceHarness(
     (_input: { readonly threadId: ThreadId; readonly numTurns: number }) => Effect.void,
   );
   const assertConversationRollbackSupported = vi.fn<
-    ProviderServiceShape["assertConversationRollbackSupported"]
+    ProviderServiceContract["assertConversationRollbackSupported"]
   >(() => Effect.void);
 
   const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.

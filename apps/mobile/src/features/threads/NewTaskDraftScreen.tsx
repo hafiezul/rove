@@ -1472,7 +1472,7 @@ export function NewTaskDraftScreen(props: {
       </View>
 
       {flow.showPiCatalog && <ProviderExtensions {...flow.piCatalog} />}
-                  <ComposerInlineControl
+      <ComposerInlineControl
         accessibilityLabel={`Environment: ${selectedEnvironmentLabel}`}
         chevronDirection="right"
         disabled={isComposerInteractionLocked || voiceInput.isBusy}

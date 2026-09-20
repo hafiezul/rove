@@ -13,7 +13,7 @@ import {
   GetProjectionThreadMessageInput,
   HasProjectionThreadAssistantMessageInput,
   ProjectionThreadMessageRepository,
-  type ProjectionThreadMessageRepositoryShape,
+  type ProjectionThreadMessageRepositoryContract,
   DeleteProjectionThreadMessagesInput,
   ListProjectionThreadMessagesInput,
   ProjectionThreadMessage,
@@ -248,19 +248,19 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       `,
   });
 
-  const upsert: ProjectionThreadMessageRepositoryShape["upsert"] = (row) =>
+  const upsert: ProjectionThreadMessageRepositoryContract["upsert"] = (row) =>
     upsertProjectionThreadMessageRow(row).pipe(
       Effect.mapError(toPersistenceSqlError("ProjectionThreadMessageRepository.upsert:query")),
     );
 
-  const appendStreaming: ProjectionThreadMessageRepositoryShape["appendStreaming"] = (row) =>
+  const appendStreaming: ProjectionThreadMessageRepositoryContract["appendStreaming"] = (row) =>
     appendStreamingProjectionThreadMessageRow(row).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.appendStreaming:query"),
       ),
     );
 
-  const getByMessageId: ProjectionThreadMessageRepositoryShape["getByMessageId"] = (input) =>
+  const getByMessageId: ProjectionThreadMessageRepositoryContract["getByMessageId"] = (input) =>
     getProjectionThreadMessageRow(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.getByMessageId:query"),
@@ -268,7 +268,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       Effect.map(Option.map(toProjectionThreadMessage)),
     );
 
-  const hasAssistantMessageForTurn: ProjectionThreadMessageRepositoryShape["hasAssistantMessageForTurn"] =
+  const hasAssistantMessageForTurn: ProjectionThreadMessageRepositoryContract["hasAssistantMessageForTurn"] =
     (input) =>
       hasProjectionThreadAssistantMessageRow(input).pipe(
         Effect.mapError(
@@ -279,7 +279,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
         Effect.map((row) => row.exists === 1),
       );
 
-  const listByThreadId: ProjectionThreadMessageRepositoryShape["listByThreadId"] = (input) =>
+  const listByThreadId: ProjectionThreadMessageRepositoryContract["listByThreadId"] = (input) =>
     listProjectionThreadMessageRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.listByThreadId:query"),
@@ -287,17 +287,16 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       Effect.map((rows) => rows.map(toProjectionThreadMessage)),
     );
 
-  const getLatestUserMessageAt: ProjectionThreadMessageRepositoryShape["getLatestUserMessageAt"] = (
-    input,
-  ) =>
-    getLatestUserMessageAtRow(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlError("ProjectionThreadMessageRepository.getLatestUserMessageAt:query"),
-      ),
-      Effect.map((row) => row.latestUserMessageAt),
-    );
+  const getLatestUserMessageAt: ProjectionThreadMessageRepositoryContract["getLatestUserMessageAt"] =
+    (input) =>
+      getLatestUserMessageAtRow(input).pipe(
+        Effect.mapError(
+          toPersistenceSqlError("ProjectionThreadMessageRepository.getLatestUserMessageAt:query"),
+        ),
+        Effect.map((row) => row.latestUserMessageAt),
+      );
 
-  const deleteByThreadId: ProjectionThreadMessageRepositoryShape["deleteByThreadId"] = (input) =>
+  const deleteByThreadId: ProjectionThreadMessageRepositoryContract["deleteByThreadId"] = (input) =>
     deleteProjectionThreadMessageRows(input).pipe(
       Effect.mapError(
         toPersistenceSqlError("ProjectionThreadMessageRepository.deleteByThreadId:query"),
@@ -312,7 +311,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
     listByThreadId,
     getLatestUserMessageAt,
     deleteByThreadId,
-  } satisfies ProjectionThreadMessageRepositoryShape;
+  } satisfies ProjectionThreadMessageRepositoryContract;
 });
 
 export const ProjectionThreadMessageRepositoryLive = Layer.effect(

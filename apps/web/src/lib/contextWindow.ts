@@ -39,6 +39,7 @@ export type ContextWindowSnapshot = {
   readonly toolUses: number | null;
   readonly durationMs: number | null;
   readonly compactsAutomatically: boolean;
+  readonly autoCompactThreshold: number | null;
   readonly updatedAt: string;
 };
 
@@ -87,6 +88,7 @@ export function deriveLatestContextWindowSnapshot(
         toolUses: null,
         durationMs: null,
         compactsAutomatically: asBoolean(payload?.compactsAutomatically) ?? false,
+        autoCompactThreshold: null,
         updatedAt: activity.createdAt,
       };
     }

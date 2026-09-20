@@ -75,7 +75,7 @@ import {
   ProviderValidationError,
   ProviderWorkspaceMissingError,
 } from "../Errors.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
 import * as ProviderService from "../Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "../Services/ProviderSessionDirectory.ts";
@@ -1178,7 +1178,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   // instances become visible to those call sites as soon as settings edits
   // land.
   const subscribedAdapters = yield* Ref.make(
-    new Map<ProviderInstanceId, ProviderAdapterShape<ProviderAdapterError>>(),
+    new Map<ProviderInstanceId, ProviderAdapterContract<ProviderAdapterError>>(),
   );
 
   const getAdapterEntries = Ref.get(subscribedAdapters).pipe(
@@ -1194,7 +1194,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   const reconcileInstanceSubscriptions = Effect.gen(function* () {
     const previous = yield* Ref.get(subscribedAdapters);
     const currentIds = yield* registry.listInstances();
-    const next = new Map<ProviderInstanceId, ProviderAdapterShape<ProviderAdapterError>>();
+    const next = new Map<ProviderInstanceId, ProviderAdapterContract<ProviderAdapterError>>();
     for (const id of currentIds) {
       const adapterOption = yield* registry
         .getByInstance(id)

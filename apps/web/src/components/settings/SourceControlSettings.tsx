@@ -73,6 +73,7 @@ const EMPTY_DISCOVERY_RESULT: SourceControlDiscoveryResult = {
 
 interface SourceControlProviderIcons {
   readonly github?: Icon;
+  readonly forgejo?: Icon;
   readonly gitlab?: Icon;
   readonly "azure-devops"?: Icon;
   readonly bitbucket?: Icon;

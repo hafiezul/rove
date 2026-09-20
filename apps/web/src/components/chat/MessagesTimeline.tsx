@@ -2301,7 +2301,7 @@ function WorkingTimer({ createdAt }: { createdAt: string }) {
 // ---------------------------------------------------------------------------
 
 /** Renders standalone activity or one bounded, virtualized expanded tool group. */
-function ThinkingTimelineRow({
+function ReasoningPhaseTimelineRow({
   text: rawText,
   streaming,
   autoExpand = streaming,
@@ -2354,7 +2354,7 @@ function ThinkingTimelineRow({
 
 function ReasoningTimelineRow({ workEntry }: { workEntry: TimelineWorkEntry }) {
   return (
-    <ThinkingTimelineRow
+    <ReasoningPhaseTimelineRow
       text={workEntry.detail ?? ""}
       streaming={workEntry.reasoningStreaming === true}
     />
@@ -2389,7 +2389,6 @@ const WorkGroupSection = memo(function WorkGroupSection({
   if (reasoningEntry) {
     return <ReasoningTimelineRow workEntry={reasoningEntry} />;
   }
-
 
   if (nonEmptyEntries.length === 0) return null;
   if (isExpandedToolGroup) {

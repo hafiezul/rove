@@ -11,7 +11,7 @@ import * as TerminalManager from "../../terminal/Manager.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ThreadDeletionReactor,
-  type ThreadDeletionReactorShape,
+  type ThreadDeletionReactorContract,
 } from "../Services/ThreadDeletionReactor.ts";
 import { forkParked } from "../../serverActivation.ts";
 
@@ -89,7 +89,7 @@ const make = Effect.gen(function* () {
   const noteSeen = (sequence: number) =>
     SubscriptionRef.update(seenSequence, (seen) => Math.max(seen, sequence));
 
-  const start: ThreadDeletionReactorShape["start"] = Effect.fn("start")(function* () {
+  const start: ThreadDeletionReactorContract["start"] = Effect.fn("start")(function* () {
     yield* forkParked(
       Stream.runForEach(
         orchestrationEngine.streamDomainEvents.pipe(
@@ -105,7 +105,7 @@ const make = Effect.gen(function* () {
     );
   });
 
-  const drainThrough: ThreadDeletionReactorShape["drainThrough"] = Effect.fn(
+  const drainThrough: ThreadDeletionReactorContract["drainThrough"] = Effect.fn(
     "ThreadDeletionReactor.drainThrough",
   )(function* (target) {
     yield* SubscriptionRef.changes(seenSequence).pipe(
@@ -118,7 +118,7 @@ const make = Effect.gen(function* () {
   return {
     start,
     drainThrough,
-  } satisfies ThreadDeletionReactorShape;
+  } satisfies ThreadDeletionReactorContract;
 });
 
 export const ThreadDeletionReactorLive = Layer.effect(ThreadDeletionReactor, make);

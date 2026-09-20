@@ -44,7 +44,7 @@ import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Lay
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
 import {
   ProviderService,
-  type ProviderServiceShape,
+  type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
 import * as CheckpointStore from "../../checkpointing/CheckpointStore.ts";
@@ -119,7 +119,7 @@ function createProviderServiceHarness() {
   const runtimeSessions: ProviderSession[] = [];
 
   const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
-  const service: ProviderServiceShape = {
+  const service: ProviderServiceContract = {
     startSession: () => unsupported(),
     sendTurn: () => unsupported(),
     compactThread: () => unsupported(),
@@ -1345,7 +1345,7 @@ describe("ProviderRuntimeIngestion", () => {
     const harness = await createHarness();
     const initial = await harness.readModel();
 
-    for (const streamKind of ["reasoning_text", "command_output", "file_change_output"] as const) {
+    for (const streamKind of ["command_output", "file_change_output"] as const) {
       harness.emit({
         type: "content.delta",
         eventId: asEventId(`evt-ignored-${streamKind}`),
@@ -1450,17 +1450,17 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) =>
-          activity.kind === "turn.reasoning" &&
-          typeof activity.payload === "object" &&
-          activity.payload !== null &&
-          String((activity.payload as { detail?: unknown }).detail ?? "").includes(
-            "Then I write the red test.",
-          ),
-      ),
-    );
+    harness.emit({
+      type: "turn.completed",
+      eventId: asEventId("evt-coalesced-reasoning-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reasoning"),
+      payload: { state: "completed" },
+    });
+    await harness.drain();
+    const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1")!;
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
@@ -1596,10 +1596,14 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
-      ),
+    await harness.drain();
+    expect((await harness.readModel()).threads[0]?.activities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "turn.reasoning",
+          payload: { detail: "Done — reviewed and green.", streaming: true },
+        }),
+      ]),
     );
 
     harness.emit({
@@ -1614,17 +1618,9 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(
-      harness.readModel,
-      (entry) =>
-        entry.activities.some(
-          (activity: ProviderRuntimeTestActivity) =>
-            activity.kind === "turn.reasoning" &&
-            typeof activity.payload === "object" &&
-            activity.payload !== null &&
-            (activity.payload as { streaming?: unknown }).streaming === false,
-        ) && entry.session?.status === "ready",
-    );
+    await harness.drain();
+    const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1")!;
+    expect(thread.session?.status).toBe("ready");
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
@@ -1653,10 +1649,14 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",
-      ),
+    await harness.drain();
+    expect((await harness.readModel()).threads[0]?.activities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "turn.reasoning",
+          payload: { detail: "Interrupted mid-thought.", streaming: true },
+        }),
+      ]),
     );
 
     harness.emit({
@@ -1671,15 +1671,8 @@ describe("ProviderRuntimeIngestion", () => {
       },
     });
 
-    const thread = await waitForThread(harness.readModel, (entry) =>
-      entry.activities.some(
-        (activity: ProviderRuntimeTestActivity) =>
-          activity.kind === "turn.reasoning" &&
-          typeof activity.payload === "object" &&
-          activity.payload !== null &&
-          (activity.payload as { streaming?: unknown }).streaming === false,
-      ),
-    );
+    await harness.drain();
+    const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1")!;
 
     const reasoningActivities = thread.activities.filter(
       (activity: ProviderRuntimeTestActivity) => activity.kind === "turn.reasoning",

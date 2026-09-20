@@ -946,7 +946,7 @@ function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | un
 }
 
 function workEntryStatus(entry: DerivedWorkLogEntry): ThreadFeedActivity["status"] {
-  if (entry.activityKind === "turn.reasoning") {
+  if (entry.sourceActivityKind === "turn.reasoning") {
     return null;
   }
   if (entry.agentSpawn) {
@@ -1691,6 +1691,7 @@ function deriveThreadFeedTurnFolds(
     group.entries.push(entry);
   }
 
+  const unsettledTurnId = deriveUnsettledTurnId(latestTurn);
   const foldsByAnchorId = new Map<string, ThreadFeedTurnFold>();
   for (const [turnId, group] of groupsByTurnId) {
     const { entries } = group;
@@ -1960,7 +1961,7 @@ function appendActivityGroupRows(
   };
   for (const activity of activities) {
     const spawn = activity.workEntry.agentSpawn;
-    if (activity.workEntry.tone !== "error" && spawn === undefined) {
+    if (activity.workEntry.tone !== "error" && spawn === undefined && !activity.reasoning) {
       groupableRun.push(activity);
       continue;
     }
@@ -2304,7 +2305,7 @@ function toThreadFeedActivityEntry(
       getFullDetail,
       getCopyText,
       icon: workEntryIcon(entry),
-      reasoning: entry.activityKind === "turn.reasoning",
+      reasoning: entry.sourceActivityKind === "turn.reasoning",
       reasoningStreaming: entry.reasoningStreaming,
       toolLike: workLogEntryIsToolLike(entry),
       status: workEntryStatus(entry),

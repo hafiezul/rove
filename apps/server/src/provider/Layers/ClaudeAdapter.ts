@@ -113,7 +113,7 @@ import {
   ProviderAdapterValidationError,
   type ProviderAdapterError,
 } from "../Errors.ts";
-import { type ClaudeAdapterShape } from "../Services/ClaudeAdapter.ts";
+import { type ClaudeAdapterContract } from "../Services/ClaudeAdapter.ts";
 import { spawnAndCollect } from "../providerSnapshot.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
@@ -314,7 +314,7 @@ function rememberPendingTaskModel(
 
 interface ClaudeSessionContext {
   session: ProviderSession;
-  startInput: Parameters<ClaudeAdapterShape["startSession"]>[0];
+  startInput: Parameters<ClaudeAdapterContract["startSession"]>[0];
   readonly turnStartMessageIds: Array<string | null>;
   readonly promptQueue: Queue.Queue<PromptQueueItem>;
   readonly query: ClaudeQueryRuntime;
@@ -4207,7 +4207,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     return Effect.succeed(context);
   };
 
-  const startSession: ClaudeAdapterShape["startSession"] = Effect.fn("startSession")(
+  const startSession: ClaudeAdapterContract["startSession"] = Effect.fn("startSession")(
     function* (input) {
       const modelCatalog = yield* modelCatalogEffect;
       if (input.provider !== undefined && input.provider !== PROVIDER) {
@@ -4752,7 +4752,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         ...(mcpSession
           ? {
               mcpServers: {
-                "rove": {
+                rove: {
                   type: "http",
                   url: mcpSession.endpoint,
                   headers: {
@@ -4935,7 +4935,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     },
   );
 
-  const sendTurn: ClaudeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
+  const sendTurn: ClaudeAdapterContract["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
     const context = yield* requireSession(input.threadId);
     const modelCatalog = yield* modelCatalogEffect;
     const selectedModel =
@@ -5083,7 +5083,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     };
   });
 
-  const interruptTurn: ClaudeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
+  const interruptTurn: ClaudeAdapterContract["interruptTurn"] = Effect.fn("interruptTurn")(
     function* (threadId, _turnId) {
       const context = yield* requireSession(threadId);
       // interrupt() can acknowledge while resumed background tasks keep the
@@ -5093,14 +5093,14 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     },
   );
 
-  const readThread: ClaudeAdapterShape["readThread"] = Effect.fn("readThread")(
+  const readThread: ClaudeAdapterContract["readThread"] = Effect.fn("readThread")(
     function* (threadId) {
       const context = yield* requireSession(threadId);
       return yield* snapshotThread(context);
     },
   );
 
-  const rollbackThread: ClaudeAdapterShape["rollbackThread"] = Effect.fn("rollbackThread")(
+  const rollbackThread: ClaudeAdapterContract["rollbackThread"] = Effect.fn("rollbackThread")(
     function* (threadId, numTurns) {
       const context = yield* requireSession(threadId);
       if (!Number.isInteger(numTurns) || numTurns < 1) {
@@ -5296,7 +5296,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     },
   );
 
-  const respondToRequest: ClaudeAdapterShape["respondToRequest"] = Effect.fn("respondToRequest")(
+  const respondToRequest: ClaudeAdapterContract["respondToRequest"] = Effect.fn("respondToRequest")(
     function* (threadId, requestId, decision) {
       const context = yield* requireSession(threadId);
       const pending = context.pendingApprovals.get(requestId);
@@ -5313,7 +5313,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     },
   );
 
-  const respondToUserInput: ClaudeAdapterShape["respondToUserInput"] = Effect.fn(
+  const respondToUserInput: ClaudeAdapterContract["respondToUserInput"] = Effect.fn(
     "respondToUserInput",
   )(function* (threadId, requestId, answers) {
     const context = yield* requireSession(threadId);
@@ -5330,7 +5330,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     yield* Deferred.succeed(pending.answers, answers);
   });
 
-  const stopSession: ClaudeAdapterShape["stopSession"] = Effect.fn("stopSession")(
+  const stopSession: ClaudeAdapterContract["stopSession"] = Effect.fn("stopSession")(
     function* (threadId) {
       const context = yield* requireSession(threadId);
       yield* stopSessionInternal(context, {
@@ -5339,10 +5339,10 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     },
   );
 
-  const listSessions: ClaudeAdapterShape["listSessions"] = () =>
+  const listSessions: ClaudeAdapterContract["listSessions"] = () =>
     Effect.sync(() => Array.from(sessions.values(), ({ session }) => ({ ...session })));
 
-  const hasSession: ClaudeAdapterShape["hasSession"] = (threadId) =>
+  const hasSession: ClaudeAdapterContract["hasSession"] = (threadId) =>
     Effect.sync(() => {
       const context = sessions.get(threadId);
       return context !== undefined && !context.stopped;
@@ -5363,7 +5363,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     }
   });
 
-  const stopAll: ClaudeAdapterShape["stopAll"] = () =>
+  const stopAll: ClaudeAdapterContract["stopAll"] = () =>
     stopSessions(Array.from(sessions.values()), true);
 
   yield* Effect.addFinalizer(() =>
@@ -5396,5 +5396,5 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     get streamEvents() {
       return Stream.fromQueue(runtimeEventQueue);
     },
-  } satisfies ClaudeAdapterShape;
+  } satisfies ClaudeAdapterContract;
 });

@@ -951,7 +951,7 @@ it.effect.each(["win32", "darwin", "linux"] as const)(
     });
     const images: Uint8Array[] = [];
     activeWindowMock.mockReset().mockResolvedValue({
-      ...rove,
+      ...t3,
       platform: platform === "darwin" ? "macos" : "windows",
     });
     regionCaptureMock.mockReset().mockResolvedValue({
