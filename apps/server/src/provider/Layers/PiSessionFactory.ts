@@ -65,7 +65,7 @@ export { PiExtensionLoadError } from "./PiAdapter.ts";
 /** Resolve a composer slug to the SDK model required by an in-session switch. */
 export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: string) {
   const resolved = resolveCliModel({ cliModel: slug, modelRuntime });
-  if (resolved.model === undefined) {
+  if (resolved.error !== undefined || resolved.model === undefined) {
     throw new Error(resolved.error ?? `Unknown Pi model "${slug}".`);
   }
   return resolved.model;
@@ -183,7 +183,7 @@ async function toPiSessionLike(
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     getModel: () => {
       const model = session.model;
-      return model ? { id: model.id, input: model.input } : undefined;
+      return model ? { id: model.id, provider: model.provider, input: model.input } : undefined;
     },
     subscribe: (listener) => {
       listeners.add(listener);
@@ -654,8 +654,8 @@ export async function createPiSession(
   // An unresolvable requested model must fail the session — matching the
   // in-session switch path (`resolvePiModelForSession`) — instead of silently
   // prompting with a different model than the composer displays.
-  if (resolved?.error !== undefined) {
-    throw new Error(resolved.error);
+  if (resolved !== undefined && (resolved.error !== undefined || resolved.model === undefined)) {
+    throw new Error(resolved.error ?? `Unknown Pi model "${input.model}".`);
   }
   // The requested reasoning selection wins over a `<model>:<level>` suffix in
   // the slug. `resolveCliModel` never applies `cliThinking` itself, so without

@@ -107,6 +107,28 @@ describe("headless Pi extensions", () => {
     ).rejects.toThrow(/not found/i);
   });
 
+  it("preserves the provider-qualified effective model across live switches", async () => {
+    const session = await create();
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "fixture",
+    });
+
+    await session.setModel?.("rove-extension-test/custom-model");
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "custom-model",
+    });
+
+    await expect(session.setModel?.("unknown-provider/missing-model")).rejects.toThrow(
+      /not found/i,
+    );
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "custom-model",
+    });
+  });
+
   it("reports a custom model id fallback for a known provider", async () => {
     // A stale slug under a still-registered provider resolves to a fabricated
     // custom model id. The session runs it (user-configured custom slugs rely
