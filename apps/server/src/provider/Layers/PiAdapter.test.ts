@@ -3,6 +3,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
@@ -27,12 +28,14 @@ import {
   type PiSessionLike,
   type PiSessionStatsLike,
 } from "./PiAdapter.ts";
+import { PiExtensionLoadError } from "./PiSessionFactory.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 const testLayer = Layer.mergeAll(NodeServices.layer);
 
 class FakePiSession implements PiSessionLike {
-  readonly sessionId = "fake-pi-session-1";
+  sessionId = "fake-pi-session-1";
+  sessionFile?: string | undefined = undefined;
   /** When set, abort() emits agent_settled before resolving, like the real SDK. */
   emitSettledOnAbort = false;
   resumeOutcome: PiSessionLike["resumeOutcome"] = { resumed: false, reason: "no-cursor" };
@@ -1493,6 +1496,106 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.deepStrictEqual(createCalls[0]?.disabledExtensions, [
         "/home/dev/.pi/agent/extensions/noisy.ts",
       ]);
+    }),
+  );
+
+  it.effect("startSession recovers by retrying without failing extensions", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const createCalls: Array<PiCreateSessionInput> = [];
+      let callCount = 0;
+      const adapter = yield* makePiAdapter(decodePiSettings({ disabledExtensions: [] }), {
+        createSession: (input) => {
+          createCalls.push(input);
+          callCount++;
+          if (callCount === 1) {
+            return Promise.reject(
+              new PiExtensionLoadError("Extension load failure", [
+                "/home/dev/.pi/agent/extensions/broken.ts",
+              ]),
+            );
+          }
+          return Promise.resolve(fake);
+        },
+      }).pipe(Effect.orDie);
+
+      const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      assert.strictEqual(session.status, "ready");
+      assert.lengthOf(createCalls, 2);
+      assert.deepStrictEqual(createCalls[1]?.disabledExtensions, [
+        "/home/dev/.pi/agent/extensions/broken.ts",
+      ]);
+    }),
+  );
+
+  it.effect(
+    "waitForActiveTurnsToSettle waits for active turn to settle rather than disrupting streams",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+        yield* collectEvents(adapter, eventsRef);
+
+        // No active turns: resolves immediately
+        const settleNoTurns = adapter.waitForActiveTurnsToSettle
+          ? adapter.waitForActiveTurnsToSettle(1000)
+          : Effect.void;
+        yield* settleNoTurns;
+
+        // Send turn: active turn in progress
+        yield* adapter.sendTurn({ threadId, input: "streaming" });
+        fake.emit({ type: "turn_start" });
+
+        // Fork waiting fiber
+        const settleTurn = adapter.waitForActiveTurnsToSettle
+          ? adapter.waitForActiveTurnsToSettle(5000)
+          : Effect.void;
+        const settleFiber = yield* settleTurn.pipe(Effect.forkScoped);
+
+        // Settle turn
+        fake.emit({ type: "agent_settled" });
+        yield* Fiber.join(settleFiber);
+      }),
+  );
+
+  it.effect("re-creates idle session cleanly when disabledExtensions changed between turns", () =>
+    Effect.gen(function* () {
+      const fake1 = new FakePiSession();
+      fake1.sessionId = "session-1";
+      fake1.sessionFile = "/tmp/session-1.jsonl";
+      const fake2 = new FakePiSession();
+      fake2.sessionId = "session-2";
+      fake2.sessionFile = "/tmp/session-1.jsonl";
+
+      const createCalls: Array<PiCreateSessionInput> = [];
+      const currentDisabledRef = yield* Ref.make<ReadonlyArray<string>>([]);
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        getSettings: Ref.get(currentDisabledRef).pipe(
+          Effect.map((disabledExtensions) => ({ ...decodePiSettings({}), disabledExtensions })),
+        ),
+        createSession: (input) => {
+          createCalls.push(input);
+          return Promise.resolve(createCalls.length === 1 ? fake1 : fake2);
+        },
+      }).pipe(Effect.orDie);
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      assert.lengthOf(createCalls, 1);
+
+      // First turn runs and completes
+      yield* adapter.sendTurn({ threadId, input: "first turn" });
+      fake1.emit({ type: "agent_settled" });
+
+      // Settings change disabledExtensions while session is idle
+      yield* Ref.set(currentDisabledRef, ["/path/to/disabled.ts"]);
+
+      // Second turn sends: session re-creates cleanly at cursor with updated disabledExtensions
+      yield* adapter.sendTurn({ threadId, input: "second turn" });
+      assert.lengthOf(createCalls, 2);
+      assert.strictEqual(createCalls[1]?.resumeSessionId, "session-1");
+      assert.deepStrictEqual(createCalls[1]?.disabledExtensions, ["/path/to/disabled.ts"]);
     }),
   );
 

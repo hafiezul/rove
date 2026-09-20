@@ -227,8 +227,14 @@ describe("Pi catalog host", () => {
     );
     const host = await create({ additionalExtensionPaths: [fixturePath, brokenPath] });
     const catalog = await host.getCatalog();
-    assert.strictEqual(catalog.extensions.length, 1);
-    assert.strictEqual(catalog.extensions[0]?.tools.includes("fixture_tool"), true);
+    // Discovered inventory retains both extensions so broken ones can be managed/disabled.
+    assert.strictEqual(catalog.extensions.length, 2);
+    const loaded = catalog.extensions.find((ext) => ext.path === fixturePath);
+    assert.isDefined(loaded);
+    assert.strictEqual(loaded?.tools.includes("fixture_tool"), true);
+    const broken = catalog.extensions.find((ext) => ext.path === brokenPath);
+    assert.isDefined(broken);
+    assert.deepStrictEqual(broken?.tools, []);
     assert.isTrue(catalog.modelProviders.some((provider) => provider.id === "rove-extension-test"));
     assert.isTrue(catalog.warnings.some((warning) => warning.includes("catalog load failed")));
   });
@@ -279,5 +285,57 @@ describe("Pi catalog host", () => {
     } finally {
       unsubscribe();
     }
+  });
+
+  it("filters disabled extensions before factory execution and excludes their models from the catalog", async () => {
+    const logPath = NodePath.join(root, "factory-side-effect.log");
+    const customExtPath = NodePath.join(root, "custom-ext.ts");
+    NodeFS.writeFileSync(
+      customExtPath,
+      `import * as NodeFS from "node:fs";
+export default function (pi) {
+  NodeFS.writeFileSync("${logPath}", "custom factory executed");
+  pi.registerProvider("custom-ext-provider", {
+    baseUrl: "https://example.invalid",
+    apiKey: "test",
+    api: "openai-completions",
+    models: [{ id: "custom-model", name: "Custom Model", reasoning: false }],
+  });
+}`,
+    );
+
+    // Host created with customExtPath disabled:
+    const host = await PiCatalogHost.create({
+      agentDir,
+      additionalExtensionPaths: [fixturePath, customExtPath],
+      disabledExtensions: [customExtPath],
+    });
+    hosts.push(host);
+
+    // Factory should NOT have executed!
+    assert.isFalse(NodeFS.existsSync(logPath), "disabled extension factory must not execute");
+
+    // Models from disabled extension must NOT be advertised:
+    const models = await host.getCatalogModels();
+    assert.isFalse(
+      models.some((model) => model.slug === "custom-ext-provider/custom-model"),
+      "disabled extension models must not be advertised in catalog models",
+    );
+
+    // Discovered inventory still includes the disabled extension:
+    const catalog = await host.getCatalog();
+    const customInCatalog = catalog.extensions.find((ext) => ext.path === customExtPath);
+    assert.isDefined(customInCatalog, "disabled extension must remain in discovered catalog");
+    assert.deepStrictEqual(customInCatalog?.tools, []);
+    assert.isFalse(catalog.modelProviders.some((p) => p.id === "custom-ext-provider"));
+
+    // Enabling it via setDisabledExtensions activates it and executes the factory:
+    await host.setDisabledExtensions([]);
+    assert.isTrue(NodeFS.existsSync(logPath), "factory executes once extension is enabled");
+    const enabledModels = await host.getCatalogModels();
+    assert.isTrue(
+      enabledModels.some((model) => model.slug === "custom-ext-provider/custom-model"),
+      "models are advertised once extension is enabled",
+    );
   });
 });

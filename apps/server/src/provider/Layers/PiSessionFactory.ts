@@ -19,27 +19,36 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
+import * as RuntimePredicate from "effect/Predicate";
 
 import {
   createAgentSessionFromServices,
-  createAgentSessionServices,
+  DefaultResourceLoader,
   getAgentDir,
   ModelRuntime,
   resolveCliModel,
   SessionManager,
   SettingsManager,
   type AgentSession,
+  type AgentSessionRuntimeDiagnostic,
+  type AgentSessionServices,
+  type Extension,
+  type ExtensionRuntime,
+  type InlineExtension,
   type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
-import type {
-  PiCreateSessionInput,
-  PiSessionEventLike,
-  PiSessionLike,
-  PiSessionResumeOutcome,
+import {
+  PiExtensionLoadError,
+  type PiCreateSessionInput,
+  type PiSessionEventLike,
+  type PiSessionLike,
+  type PiSessionResumeOutcome,
 } from "./PiAdapter.ts";
+
+export { PiExtensionLoadError } from "./PiAdapter.ts";
 
 /**
  * Adapt an SDK `AgentSession` to the narrow `PiSessionLike` surface the
@@ -80,9 +89,10 @@ async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
   resumeOutcome?: PiSessionResumeOutcome,
+  initialStartupErrors: ReadonlyArray<PiSessionEventLike> = [],
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
-  const startupErrors: PiSessionEventLike[] = [];
+  const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
   const emit = (event: PiSessionEventLike) => {
     for (const listener of listeners) listener(event);
   };
@@ -231,9 +241,301 @@ export function resolvePiSessionResume(
   }
 }
 
+export function isExtensionPathDisabled(
+  extensionPath: string,
+  disabledExtensions: ReadonlyArray<string>,
+  cwd?: string,
+): boolean {
+  if (disabledExtensions.length === 0) return false;
+  const currentCwd = cwd ?? process.cwd();
+  const normalizedTarget = NodePath.resolve(currentCwd, extensionPath);
+  let realTarget: string | undefined;
+  try {
+    realTarget = NodeFS.realpathSync(normalizedTarget);
+  } catch {
+    // Path might not exist on disk
+  }
+
+  for (const disabled of disabledExtensions) {
+    if (disabled === extensionPath) return true;
+    const normalizedDisabled = NodePath.resolve(currentCwd, disabled);
+    if (normalizedTarget === normalizedDisabled) return true;
+    if (realTarget !== undefined) {
+      try {
+        if (realTarget === NodeFS.realpathSync(normalizedDisabled)) {
+          return true;
+        }
+      } catch {
+        // Path might not exist
+      }
+    }
+    if (NodePath.basename(extensionPath) === disabled) return true;
+  }
+  return false;
+}
+
+export interface PiDiscoveredExtension {
+  readonly name: string;
+  readonly path: string;
+  readonly source: string;
+  readonly scope: "user" | "project" | "temporary";
+  readonly enabled: boolean;
+  readonly tools: ReadonlyArray<string>;
+  readonly commands: ReadonlyArray<string>;
+  readonly error?: string | undefined;
+}
+
+interface DefaultResourceLoaderInternalAccess {
+  loadFinalExtensionSet: (
+    paths: string[],
+    preTrust?: LoadExtensionsResult,
+  ) => Promise<LoadExtensionsResult>;
+  loadExtensionFactories: (
+    runtime: ExtensionRuntime,
+  ) => Promise<{ extensions: Extension[]; errors: Array<{ path: string; error: string }> }>;
+  extensionFactories?: InlineExtension[] | undefined;
+  packageManager: {
+    resolve: () => Promise<{
+      extensions: ReadonlyArray<{ path: string; metadata: { source?: string; scope?: string } }>;
+    }>;
+    resolveExtensionSources: (
+      paths: ReadonlyArray<string>,
+      opts: { temporary: boolean },
+    ) => Promise<{
+      extensions: ReadonlyArray<{ path: string; metadata: { source?: string; scope?: string } }>;
+    }>;
+  };
+  additionalExtensionPaths: ReadonlyArray<string>;
+  resourceMetadataByPath?: Map<string, { source?: string; scope?: string }> | undefined;
+}
+
+function getLoaderInternals(loader: DefaultResourceLoader): DefaultResourceLoaderInternalAccess {
+  const // SAFETY: DefaultResourceLoader runtime instance contains unexported methods and state.
+    internals = loader as never;
+  return internals;
+}
+
+export class PiResourceLoader extends DefaultResourceLoader {
+  readonly sessionCwd: string;
+  private disabledExtensionsSet: ReadonlyArray<string>;
+
+  constructor(
+    options: ConstructorParameters<typeof DefaultResourceLoader>[0],
+    disabledExtensions: ReadonlyArray<string> = [],
+  ) {
+    super(options);
+    this.sessionCwd = options.cwd;
+    this.disabledExtensionsSet = disabledExtensions;
+
+    // Filter extension paths before loadFinalExtensionSet executes factories
+    const internals = getLoaderInternals(this);
+    const originalLoadFinal = internals.loadFinalExtensionSet.bind(this);
+    internals.loadFinalExtensionSet = (paths: string[], preTrust?: LoadExtensionsResult) => {
+      const activePaths = paths.filter(
+        (path) => !isExtensionPathDisabled(path, this.disabledExtensionsSet, this.sessionCwd),
+      );
+      return originalLoadFinal(activePaths, preTrust);
+    };
+
+    const originalLoadFactories = internals.loadExtensionFactories.bind(this);
+    internals.loadExtensionFactories = (runtime: ExtensionRuntime) => {
+      const allFactories = internals.extensionFactories ?? [];
+      const activeFactories = allFactories.filter((factory, index) => {
+        const isNamed = !RuntimePredicate.isFunction(factory);
+        const name = isNamed ? factory.name : String(index + 1);
+        const path = `<inline:${name}>`;
+        return (
+          !isExtensionPathDisabled(path, this.disabledExtensionsSet, this.sessionCwd) &&
+          !isExtensionPathDisabled(name, this.disabledExtensionsSet, this.sessionCwd)
+        );
+      });
+      const saved = internals.extensionFactories;
+      internals.extensionFactories = activeFactories;
+      return originalLoadFactories(runtime).finally(() => {
+        internals.extensionFactories = saved;
+      });
+    };
+  }
+
+  setDisabledExtensions(disabled: ReadonlyArray<string>): void {
+    this.disabledExtensionsSet = disabled;
+  }
+
+  getDisabledExtensions(): ReadonlyArray<string> {
+    return this.disabledExtensionsSet;
+  }
+
+  async getDiscoveredExtensions(): Promise<ReadonlyArray<PiDiscoveredExtension>> {
+    const internals = getLoaderInternals(this);
+    const packageManager = internals.packageManager;
+    const additionalExtensionPaths = internals.additionalExtensionPaths ?? [];
+    const resourceMetadataByPath = internals.resourceMetadataByPath;
+    const extensionFactories = internals.extensionFactories ?? [];
+
+    const resolvedPaths = await packageManager.resolve();
+    const cliExtensionPaths = await packageManager.resolveExtensionSources(
+      additionalExtensionPaths,
+      { temporary: true },
+    );
+    const activeExtensions = this.getExtensions().extensions;
+    const loadErrors = new Map(this.getExtensions().errors.map(({ path, error }) => [path, error]));
+
+    const discovered = new Map<string, PiDiscoveredExtension>();
+
+    const allResources = [...resolvedPaths.extensions, ...cliExtensionPaths.extensions];
+    for (const r of allResources) {
+      const canonical = NodePath.resolve(this.sessionCwd, r.path);
+      if (discovered.has(canonical)) continue;
+
+      const isDisabled = isExtensionPathDisabled(
+        r.path,
+        this.disabledExtensionsSet,
+        this.sessionCwd,
+      );
+      const active = activeExtensions.find(
+        (ext) =>
+          ext.path === r.path || ext.resolvedPath === r.path || ext.resolvedPath === canonical,
+      );
+
+      const metadata = resourceMetadataByPath?.get(r.path) ?? r.metadata;
+      const source = metadata?.source ?? "local";
+      const // SAFETY: Pi package manager contracts restrict resource scopes to these literals.
+        scope = (metadata?.scope ?? "user") as "user" | "project" | "temporary";
+      const name =
+        source.startsWith("npm:") || source.startsWith("git:") ? source : NodePath.basename(r.path);
+
+      discovered.set(canonical, {
+        name,
+        path: r.path,
+        source,
+        scope,
+        enabled: !isDisabled,
+        tools: active ? [...active.tools.keys()] : [],
+        commands: active ? [...active.commands.keys()] : [],
+        ...(loadErrors.has(r.path) ? { error: loadErrors.get(r.path) } : undefined),
+      });
+    }
+
+    for (const [index, input] of extensionFactories.entries()) {
+      const isNamed = !RuntimePredicate.isFunction(input);
+      const name = isNamed ? input.name : `inline-${index + 1}`;
+      const path = `<inline:${name}>`;
+      if (discovered.has(path)) continue;
+
+      const isDisabled =
+        isExtensionPathDisabled(path, this.disabledExtensionsSet, this.sessionCwd) ||
+        isExtensionPathDisabled(name, this.disabledExtensionsSet, this.sessionCwd);
+      const active = activeExtensions.find((ext) => ext.path === path);
+
+      discovered.set(path, {
+        name,
+        path,
+        source: "inline",
+        scope: "temporary",
+        enabled: !isDisabled,
+        tools: active ? [...active.tools.keys()] : [],
+        commands: active ? [...active.commands.keys()] : [],
+      });
+    }
+
+    return Array.from(discovered.values());
+  }
+}
+
+export interface CreatePiSessionServicesOptions {
+  readonly cwd: string;
+  readonly agentDir?: string | undefined;
+  readonly settingsManager?: SettingsManager | undefined;
+  readonly modelRuntime?: ModelRuntime | undefined;
+  readonly modelRuntimeSignal?: AbortSignal | undefined;
+  readonly disabledExtensions?: ReadonlyArray<string> | undefined;
+  readonly additionalExtensionPaths?: ReadonlyArray<string> | undefined;
+  readonly noExtensions?: boolean | undefined;
+}
+
+export async function createPiSessionServices(
+  options: CreatePiSessionServicesOptions,
+): Promise<AgentSessionServices & { resourceLoader: PiResourceLoader }> {
+  const cwd = NodePath.resolve(options.cwd);
+  const agentDir = options.agentDir ? NodePath.resolve(options.agentDir) : getAgentDir();
+  const modelRuntime =
+    options.modelRuntime ??
+    (await ModelRuntime.create({
+      authPath: NodePath.join(agentDir, "auth.json"),
+      modelsPath: NodePath.join(agentDir, "models.json"),
+      ...(options.modelRuntimeSignal !== undefined
+        ? { signal: options.modelRuntimeSignal }
+        : undefined),
+    }));
+  const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
+  const disabledExtensions = options.disabledExtensions ?? [];
+  const appendSystemPrompt =
+    disabledExtensions.length > 0 ? [disabledExtensionsPromptNote(disabledExtensions)] : undefined;
+
+  const resourceLoader = new PiResourceLoader(
+    {
+      cwd,
+      agentDir,
+      settingsManager,
+      noExtensions: options.noExtensions ?? false,
+      ...(options.additionalExtensionPaths !== undefined
+        ? { additionalExtensionPaths: [...options.additionalExtensionPaths] }
+        : undefined),
+      ...(appendSystemPrompt !== undefined ? { appendSystemPrompt } : undefined),
+    },
+    disabledExtensions,
+  );
+
+  await resourceLoader.reload();
+
+  const diagnostics: AgentSessionRuntimeDiagnostic[] = [];
+  const extensionsResult = resourceLoader.getExtensions();
+  for (const { name, config, extensionPath } of extensionsResult.runtime
+    .pendingProviderRegistrations) {
+    try {
+      modelRuntime.registerProvider(name, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      diagnostics.push({
+        type: "error",
+        message: `Extension "${extensionPath}" error: ${message}`,
+      });
+    }
+  }
+  extensionsResult.runtime.pendingProviderRegistrations = [];
+  for (const { provider, extensionPath } of extensionsResult.runtime
+    .pendingNativeProviderRegistrations) {
+    try {
+      modelRuntime.registerNativeProvider(provider);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      diagnostics.push({
+        type: "error",
+        message: `Extension "${extensionPath}" error: ${message}`,
+      });
+    }
+  }
+  extensionsResult.runtime.pendingNativeProviderRegistrations = [];
+  await modelRuntime.refresh({ allowNetwork: false });
+
+  return {
+    cwd,
+    agentDir,
+    modelRuntime,
+    settingsManager,
+    resourceLoader,
+    diagnostics,
+  };
+}
+
+// Exported from ./PiAdapter.ts and re-exported above
+
 export async function createPiSession(
   input: PiCreateSessionInput,
-  options: { extensions?: boolean } = {},
+  options: {
+    extensions?: boolean;
+    retryWithoutFailedExtensions?: boolean;
+  } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
   const agentDir = getAgentDir();
@@ -258,36 +560,66 @@ export async function createPiSession(
   const settingsManager = SettingsManager.create(cwd, agentDir);
   // Trust applies only to this session, not the user's global Pi settings.
   settingsManager.setProjectTrusted(true);
-  // Disabled extensions stay in the loader's discovery (the catalog panel
-  // lists them so they can be re-enabled) but never execute in this session.
-  const disabledExtensions = input.disabledExtensions ?? [];
-  const resourceLoaderOptions =
-    options.extensions === false
-      ? { noExtensions: true }
-      : disabledExtensions.length > 0
-        ? {
-            extensionsOverride: (base: LoadExtensionsResult): LoadExtensionsResult => ({
-              ...base,
-              extensions: base.extensions.filter(
-                (extension) => !disabledExtensions.includes(extension.path),
-              ),
-            }),
-            appendSystemPrompt: [disabledExtensionsPromptNote(disabledExtensions)],
-          }
-        : undefined;
-  const services = await createAgentSessionServices({
+
+  const disabledExtensions = [...(input.disabledExtensions ?? [])];
+  const startupErrors: PiSessionEventLike[] = [];
+
+  let services = await createPiSessionServices({
     cwd,
     agentDir,
     settingsManager,
-    ...(resourceLoaderOptions !== undefined ? { resourceLoaderOptions } : undefined),
+    disabledExtensions,
+    noExtensions: options.extensions === false,
   });
-  const errors = [
-    ...services.resourceLoader.getExtensions().errors.map(({ path, error }) => `${path}: ${error}`),
-    ...services.diagnostics
+
+  const getErrors = (s: AgentSessionServices) => [
+    ...s.resourceLoader
+      .getExtensions()
+      .errors.map(({ path, error }) => ({ path, error: `${path}: ${error}` })),
+    ...s.diagnostics
       .filter((diagnostic) => diagnostic.type === "error")
-      .map((diagnostic) => diagnostic.message),
+      .map((diagnostic) => ({ path: "", error: diagnostic.message })),
   ];
-  if (errors.length > 0) throw new Error(`Failed to load Pi extensions:\n${errors.join("\n")}`);
+
+  let errors = getErrors(services);
+
+  if (errors.length > 0 && options.extensions !== false) {
+    const failedPaths = [
+      ...new Set(services.resourceLoader.getExtensions().errors.map(({ path }) => path)),
+    ];
+    if (options.retryWithoutFailedExtensions === true && failedPaths.length > 0) {
+      const recoveredDisabled = [
+        ...disabledExtensions,
+        ...failedPaths.filter((p) => !isExtensionPathDisabled(p, disabledExtensions, cwd)),
+      ];
+      try {
+        const recoveredServices = await createPiSessionServices({
+          cwd,
+          agentDir,
+          settingsManager,
+          disabledExtensions: recoveredDisabled,
+          noExtensions: false,
+        });
+        for (const { path, error } of services.resourceLoader.getExtensions().errors) {
+          startupErrors.push({
+            type: "extension_error",
+            extensionPath: path,
+            error: `Failed to load Pi extension (${error}). Session retried without this extension.`,
+          });
+        }
+        services = recoveredServices;
+        errors = getErrors(services);
+      } catch {
+        // Recovery failed, fall through to throw below
+      }
+    }
+    if (errors.length > 0) {
+      throw new PiExtensionLoadError(
+        `Failed to load Pi extensions:\n${errors.map((e) => e.error).join("\n")}`,
+        failedPaths,
+      );
+    }
+  }
 
   // Resolve the model/thinking override against the user's catalog. Blank
   // (the default) means Pi's own default from settings wins — pass nothing.
@@ -313,5 +645,5 @@ export async function createPiSession(
       : undefined),
   });
 
-  return toPiSessionLike(session, modelRuntime, outcome);
+  return toPiSessionLike(session, modelRuntime, outcome, startupErrors);
 }

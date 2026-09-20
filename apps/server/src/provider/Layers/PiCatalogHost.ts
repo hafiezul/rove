@@ -18,15 +18,12 @@
  * @module provider/Layers/PiCatalogHost
  */
 // @effect-diagnostics nodeBuiltinImport:off
-import * as NodePath from "node:path";
-
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { PiCatalogSnapshot, PiThinkingLevel, ServerProviderModel } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 
 import {
   createAgentSessionFromServices,
-  createAgentSessionServices,
   getAgentDir,
   SessionManager,
   SettingsManager,
@@ -35,10 +32,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { buildSelectOptionDescriptor } from "../providerSnapshot.ts";
 import { PI_THINKING_DESCRIPTOR_ID, PI_THINKING_LEVEL_LABELS } from "./PiProvider.ts";
+import { createPiSessionServices, type PiResourceLoader } from "./PiSessionFactory.ts";
 
 export interface PiCatalogHostOptions {
   readonly agentDir?: string | undefined;
   readonly additionalExtensionPaths?: ReadonlyArray<string> | undefined;
+  readonly disabledExtensions?: ReadonlyArray<string> | undefined;
 }
 
 const MAX_WARNINGS = 50;
@@ -58,10 +57,19 @@ export class PiCatalogHost {
 
   private readonly session: AgentSession;
   private readonly modelRuntime: ModelRuntime;
+  private readonly resourceLoader: PiResourceLoader;
+  private disabledExtensions: ReadonlyArray<string>;
 
-  private constructor(session: AgentSession, modelRuntime: ModelRuntime) {
+  private constructor(
+    session: AgentSession,
+    modelRuntime: ModelRuntime,
+    resourceLoader: PiResourceLoader,
+    disabledExtensions: ReadonlyArray<string>,
+  ) {
     this.session = session;
     this.modelRuntime = modelRuntime;
+    this.resourceLoader = resourceLoader;
+    this.disabledExtensions = disabledExtensions;
   }
 
   static async create(options: PiCatalogHostOptions = {}): Promise<PiCatalogHost> {
@@ -71,17 +79,13 @@ export class PiCatalogHost {
     // means only global resources load. Project extensions stay invisible
     // here and keep working inside their own threads.
     const settingsManager = SettingsManager.create(agentDir, agentDir);
-    const services = await createAgentSessionServices({
+    const disabledExtensions = options.disabledExtensions ?? [];
+    const services = await createPiSessionServices({
       cwd: agentDir,
       agentDir,
       settingsManager,
-      ...(options.additionalExtensionPaths !== undefined
-        ? {
-            resourceLoaderOptions: {
-              additionalExtensionPaths: [...options.additionalExtensionPaths],
-            },
-          }
-        : undefined),
+      disabledExtensions,
+      additionalExtensionPaths: options.additionalExtensionPaths,
     });
     // Extension load failures degrade the catalog, they must not prevent
     // the provider from starting.
@@ -89,7 +93,12 @@ export class PiCatalogHost {
       services,
       sessionManager: SessionManager.inMemory(),
     });
-    const host = new PiCatalogHost(session, services.modelRuntime);
+    const host = new PiCatalogHost(
+      session,
+      services.modelRuntime,
+      services.resourceLoader,
+      disabledExtensions,
+    );
     for (const { path, error } of services.resourceLoader.getExtensions().errors) {
       pushWarning(host.warnings, `${path}: ${error}`);
     }
@@ -207,19 +216,15 @@ export class PiCatalogHost {
   }
 
   async getCatalog(): Promise<PiCatalogSnapshot> {
-    const extensions = this.session.resourceLoader.getExtensions().extensions;
+    const discovered = await this.resourceLoader.getDiscoveredExtensions();
     return {
-      extensions: extensions.map((extension) => ({
-        name:
-          extension.sourceInfo.source.startsWith("npm:") ||
-          extension.sourceInfo.source.startsWith("git:")
-            ? extension.sourceInfo.source
-            : NodePath.basename(extension.path),
+      extensions: discovered.map((extension) => ({
+        name: extension.name,
         path: extension.path,
-        source: extension.sourceInfo.source,
-        scope: extension.sourceInfo.scope,
-        tools: [...extension.tools.keys()],
-        commands: [...extension.commands.keys()],
+        source: extension.source,
+        scope: extension.scope,
+        tools: [...extension.tools],
+        commands: [...extension.commands],
       })),
       modelProviders: this.modelRuntime
         .getProviders()
@@ -236,6 +241,12 @@ export class PiCatalogHost {
     };
   }
 
+  async setDisabledExtensions(disabledExtensions: ReadonlyArray<string>): Promise<void> {
+    this.disabledExtensions = [...disabledExtensions];
+    this.resourceLoader.setDisabledExtensions(this.disabledExtensions);
+    await this.refreshCatalog();
+  }
+
   /**
    * Network catalog refresh on the shared runtime, then the fresh
    * inventory. Explicit user action only; background paths never call this.
@@ -245,10 +256,35 @@ export class PiCatalogHost {
     // up; the runner rebinds with the fresh set, which re-registers any
     // extension providers.
     try {
-      await this.session.reload({});
-      for (const { path, error } of this.session.resourceLoader.getExtensions().errors) {
+      await this.resourceLoader.reload();
+      for (const { path, error } of this.resourceLoader.getExtensions().errors) {
         pushWarning(this.warnings, `${path}: ${error}`);
       }
+      const extensionsResult = this.resourceLoader.getExtensions();
+      for (const { name, config, extensionPath } of extensionsResult.runtime
+        .pendingProviderRegistrations) {
+        try {
+          this.modelRuntime.registerProvider(name, config);
+        } catch (error) {
+          pushWarning(
+            this.warnings,
+            `Extension "${extensionPath}" error: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+      extensionsResult.runtime.pendingProviderRegistrations = [];
+      for (const { provider, extensionPath } of extensionsResult.runtime
+        .pendingNativeProviderRegistrations) {
+        try {
+          this.modelRuntime.registerNativeProvider(provider);
+        } catch (error) {
+          pushWarning(
+            this.warnings,
+            `Extension "${extensionPath}" error: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+      extensionsResult.runtime.pendingNativeProviderRegistrations = [];
     } catch (error) {
       pushWarning(
         this.warnings,

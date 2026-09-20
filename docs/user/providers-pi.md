@@ -41,7 +41,7 @@ The Extensions button beside the Pi provider selector opens the provider catalog
 - Model providers with authentication and model counts.
 - Load warnings and catalog refresh errors.
 
-A disabled extension stays listed so it can be turned back on. Disabling rebuilds the Pi provider instance, so each thread's session applies the change on its next turn. Toggle while the thread is idle: rebuilding mid-turn disrupts streaming the way any provider settings edit does. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
+A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. Loaded means initialization succeeded. It does not mean every feature works headlessly. See Limitations.
 

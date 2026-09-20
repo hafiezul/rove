@@ -36,6 +36,7 @@ import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Semaphore from "effect/Semaphore";
@@ -219,8 +220,18 @@ export interface PiCreateSessionInput {
   readonly disabledExtensions?: ReadonlyArray<string> | undefined;
 }
 
+export class PiExtensionLoadError extends Error {
+  readonly failedExtensionPaths: ReadonlyArray<string>;
+  constructor(message: string, failedExtensionPaths: ReadonlyArray<string>) {
+    super(message);
+    this.name = "PiExtensionLoadError";
+    this.failedExtensionPaths = failedExtensionPaths;
+  }
+}
+
 export interface PiAdapterLiveOptions {
   readonly instanceId?: ProviderInstanceId | undefined;
+  readonly getSettings?: Effect.Effect<PiSettings> | undefined;
   /**
    * Builds a Pi session (real SDK in the driver, a fake in tests). Required:
    * the adapter never talks to the SDK directly.
@@ -252,6 +263,7 @@ interface PiSessionContext {
   /** Open single subagent runs (no coordinator) for notify correlation. */
   openSingles: Array<{ agent: string | undefined; taskId: string }>;
   unsubscribe: () => void;
+  loadedDisabledExtensions: ReadonlyArray<string>;
 }
 
 /**
@@ -430,7 +442,9 @@ function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>) {
   };
 }
 
-export interface PiAdapterContract extends ProviderAdapterContract<ProviderAdapterRequestError> {}
+export interface PiAdapterContract extends ProviderAdapterContract<ProviderAdapterRequestError> {
+  readonly waitForActiveTurnsToSettle?: (timeoutMs?: number) => Effect.Effect<void>;
+}
 
 /**
  * The composer dispatches the thread's model selection on every turn, but it
@@ -1138,22 +1152,48 @@ export function makePiAdapter(
             selectedModelSlug(modelSelection) ??
             (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
           const session = yield* Effect.tryPromise({
-            try: () => {
+            try: async () => {
               const cursor = parsePiResumeCursor(input.resumeCursor);
-              return createSession({
-                cwd,
-                model: initialModelSlug,
-                thinkingLevel:
-                  getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
-                  piSettings.thinkingLevel ??
-                  undefined,
-                resumeSessionId: cursor?.sessionId,
-                resumeSessionFile: cursor?.sessionFile,
-                // The registry rebuilds the adapter when Pi settings change, so
-                // this closure always reflects the current disabled set; the
-                // next turn's resumed session applies it.
-                disabledExtensions: piSettings.disabledExtensions,
-              });
+              try {
+                return await createSession({
+                  cwd,
+                  model: initialModelSlug,
+                  thinkingLevel:
+                    getModelSelectionStringOptionValue(modelSelection, PI_THINKING_DESCRIPTOR_ID) ??
+                    piSettings.thinkingLevel ??
+                    undefined,
+                  resumeSessionId: cursor?.sessionId,
+                  resumeSessionFile: cursor?.sessionFile,
+                  // The registry rebuilds the adapter when Pi settings change, so
+                  // this closure always reflects the current disabled set; the
+                  // next turn's resumed session applies it.
+                  disabledExtensions: piSettings.disabledExtensions,
+                });
+              } catch (cause) {
+                if (
+                  cause instanceof PiExtensionLoadError &&
+                  cause.failedExtensionPaths.length > 0
+                ) {
+                  return await createSession({
+                    cwd,
+                    model: initialModelSlug,
+                    thinkingLevel:
+                      getModelSelectionStringOptionValue(
+                        modelSelection,
+                        PI_THINKING_DESCRIPTOR_ID,
+                      ) ??
+                      piSettings.thinkingLevel ??
+                      undefined,
+                    resumeSessionId: cursor?.sessionId,
+                    resumeSessionFile: cursor?.sessionFile,
+                    disabledExtensions: [
+                      ...(piSettings.disabledExtensions ?? []),
+                      ...cause.failedExtensionPaths,
+                    ],
+                  });
+                }
+                throw cause;
+              }
             },
             catch: (cause) =>
               new ProviderAdapterRequestError({
@@ -1180,6 +1220,7 @@ export function makePiAdapter(
             seenNotifyMessages: new WeakSet(),
             openSingles: [],
             unsubscribe: () => {},
+            loadedDisabledExtensions: piSettings.disabledExtensions ?? [],
           };
           ctx.pendingTurnError = undefined;
           ctx.unsubscribe = session.subscribe((event) => {
@@ -1249,6 +1290,55 @@ export function makePiAdapter(
         const { ctx, turnId, steeringTurnId, text } = prepared;
 
         return yield* Effect.gen(function* () {
+          // If disabled extensions changed while idle between turns, refresh the session
+          // cleanly at the cursor before prompting, applying changes after active turns settle.
+          const activePiSettings = options.getSettings ? yield* options.getSettings : piSettings;
+          const currentDisabled = activePiSettings.disabledExtensions ?? [];
+          const disabledChanged =
+            currentDisabled.length !== ctx.loadedDisabledExtensions.length ||
+            currentDisabled.some((p) => !ctx.loadedDisabledExtensions.includes(p)) ||
+            ctx.loadedDisabledExtensions.some((p) => !currentDisabled.includes(p));
+
+          if (disabledChanged && steeringTurnId === undefined) {
+            const cursor = {
+              sessionId: ctx.session.sessionId,
+              sessionFile: ctx.session.sessionFile,
+            };
+            yield* Effect.tryPromise({
+              try: async () => {
+                await ctx.session.dispose();
+                ctx.unsubscribe();
+                const newSession = await createSession({
+                  cwd: ctx.cwd,
+                  model: ctx.currentModelSlug,
+                  thinkingLevel:
+                    getModelSelectionStringOptionValue(
+                      ownModelSelection(input, boundInstanceId),
+                      PI_THINKING_DESCRIPTOR_ID,
+                    ) ??
+                    activePiSettings.thinkingLevel ??
+                    undefined,
+                  resumeSessionId: cursor.sessionId,
+                  resumeSessionFile: cursor.sessionFile,
+                  disabledExtensions: currentDisabled,
+                });
+                const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+                  mutableCtx = ctx as { session: PiSessionLike };
+                mutableCtx.session = newSession;
+                ctx.loadedDisabledExtensions = currentDisabled;
+                ctx.unsubscribe = newSession.subscribe((event) => {
+                  runFork(withThreadLock(input.threadId, handleSdkEvent(ctx, event)));
+                });
+              },
+              catch: (cause) =>
+                new ProviderAdapterRequestError({
+                  provider: PROVIDER,
+                  method: "sendTurn",
+                  detail: `Failed to reload Pi session with updated extensions in ${ctx.cwd}. ${cause instanceof Error ? cause.message : String(cause)}`,
+                  cause,
+                }),
+            });
+          }
           // Apply the composer's per-thread model options before prompting.
           // Pi sessions support in-session model switches, so a changed picker
           // value takes effect on the very next turn of the same thread.
@@ -1520,6 +1610,48 @@ export function makePiAdapter(
         return Effect.forEach([...sessions.keys()], stopSession, { discard: true });
       });
 
+    const waitForActiveTurnsToSettle: NonNullable<
+      PiAdapterContract["waitForActiveTurnsToSettle"]
+    > = (timeoutMs = 30_000) =>
+      Effect.gen(function* () {
+        const activeSessions = [...sessions.values()].filter(
+          (ctx) => ctx.activeTurnId !== undefined || ctx.session.isStreaming,
+        );
+        if (activeSessions.length === 0) return;
+
+        const allSettled = yield* Deferred.make<void>();
+        let settledCount = 0;
+        const targetCount = activeSessions.length;
+
+        const checkSettled = () => {
+          if (++settledCount >= targetCount) {
+            Deferred.doneUnsafe(allSettled, Exit.void);
+          }
+        };
+
+        for (const ctx of activeSessions) {
+          if (ctx.activeTurnId === undefined && !ctx.session.isStreaming) {
+            checkSettled();
+            continue;
+          }
+          const unsub = ctx.session.subscribe((event) => {
+            if (
+              event.type === "agent_settled" ||
+              event.type === "turn_complete" ||
+              !ctx.session.isStreaming
+            ) {
+              unsub();
+              checkSettled();
+            }
+          });
+        }
+
+        yield* Deferred.await(allSettled).pipe(
+          Effect.timeout(`${timeoutMs} millis`),
+          Effect.ignore,
+        );
+      });
+
     return {
       provider: PROVIDER,
       capabilities: { sessionModelSwitch: "in-session" },
@@ -1534,6 +1666,7 @@ export function makePiAdapter(
       readThread,
       rollbackThread,
       stopAll,
+      waitForActiveTurnsToSettle,
       streamEvents: Stream.fromPubSub(runtimeEventPubSub),
     } satisfies PiAdapterContract;
   });

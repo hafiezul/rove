@@ -298,6 +298,68 @@ export default function (pi) {
     assert.include(log(), "start:false:print\ninput:rpc\n");
   });
 
+  it("filters disabled extensions before factory execution, preventing top-level crashes", async () => {
+    const brokenPath = NodePath.join(cwd, ".pi", "extensions", "crash.ts");
+    NodeFS.writeFileSync(brokenPath, 'throw new Error("TOP_LEVEL_CRASH_SHOULD_NOT_RUN");');
+
+    // With brokenPath disabled, it should NEVER execute or crash session creation:
+    const session = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+      disabledExtensions: [brokenPath],
+    });
+    sessions.push(session);
+
+    // Prompt works normally:
+    await session.prompt("/count");
+    assert.include(log(), "command:1:false\n");
+  });
+
+  it("supports explicit recovery via retryWithoutFailedExtensions when an extension fails to load", async () => {
+    const brokenPath = NodePath.join(cwd, ".pi", "extensions", "broken-load.ts");
+    NodeFS.writeFileSync(
+      brokenPath,
+      'export default () => { throw new Error("broken extension init"); };',
+    );
+
+    // Without recovery option, it throws PiExtensionLoadError:
+    await expect(
+      createPiSession({
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      }),
+    ).rejects.toThrow("broken extension init");
+
+    // With explicit recovery, it recovers by retrying without the broken extension:
+    const recovered = await createPiSession(
+      {
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { retryWithoutFailedExtensions: true },
+    );
+    sessions.push(recovered);
+
+    // It recorded the startup extension error:
+    const events: PiSessionEventLike[] = [];
+    recovered.subscribe((e) => events.push(e));
+    const extensionError = events.find((e) => e.type === "extension_error");
+    assert.isDefined(extensionError);
+    const // SAFETY: The extension_error event structure carries the error payload from the SDK onError callback.
+      errorPayload = (extensionError as { error?: string })?.error;
+    assert.include(String(errorPayload), "broken extension init");
+
+    // And the working extension is still functional:
+    await recovered.prompt("/count");
+    assert.include(log(), "command:1:false\n");
+  });
+
   it("loads global extensions and keeps each session's extension state separate", async () => {
     NodeFS.mkdirSync(NodePath.join(agentDir, "extensions"));
     NodeFS.renameSync(

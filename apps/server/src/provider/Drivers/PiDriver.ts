@@ -16,8 +16,10 @@ import {
   type ServerProvider,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
+import type { ServerSettings } from "@t3tools/contracts";
 
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
@@ -57,6 +59,7 @@ import * as Path from "effect/Path";
 registerPiBundledOAuthFlows();
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
+const decodePiSettingsOption = Schema.decodeUnknownOption(PiSettings);
 
 const DRIVER_KIND = ProviderDriverKind.make("pi");
 const UPDATE = makeStaticProviderMaintenanceResolver(
@@ -159,7 +162,10 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // Thread sessions keep full per-thread loading for tools and hooks.
       const catalogHost = yield* Effect.acquireRelease(
         Effect.tryPromise({
-          try: () => PiCatalogHost.create(),
+          try: () =>
+            PiCatalogHost.create({
+              disabledExtensions: effectiveConfig.disabledExtensions,
+            }),
           catch: (cause) =>
             new ProviderDriverError({
               driver: DRIVER_KIND,
@@ -170,10 +176,31 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         }),
         (host) => Effect.promise(() => host.dispose()),
       );
+      const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
+      const readCurrentPiSettings = (settings: ServerSettings): PiSettings => {
+        const instance = settings.providerInstances[instanceId];
+        if (instance !== undefined && String(instance.driver) === DRIVER_KIND) {
+          const decoded = decodePiSettingsOption(instance.config);
+          if (Option.isSome(decoded)) return decoded.value;
+        }
+        const decoded = decodePiSettingsOption(settings.providers.pi);
+        return Option.isSome(decoded) ? decoded.value : decodePiSettings({});
+      };
+
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
         createSession: createPiSession,
+        getSettings: serverSettings.getSettings.pipe(
+          Effect.map(readCurrentPiSettings),
+          Effect.orElseSucceed(() => effectiveConfig),
+        ),
       });
+
+      // When the driver scope closes (e.g. config update), wait for any active
+      // streaming turns to settle before teardown, rather than disrupting live streams.
+      yield* Effect.addFinalizer(() =>
+        (adapter.waitForActiveTurnsToSettle?.() ?? Effect.void).pipe(Effect.ignore),
+      );
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
         createSession: ({ cwd }) =>
           createPiSession(
@@ -196,7 +223,6 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         makeSdkDiscoveryClient(),
       ).pipe(Effect.map(stampIdentity));
 
-      const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const snapshot = yield* makeManagedServerProvider<ProviderSnapshotSettings<PiSettings>>({
         maintenanceCapabilities,
         getSettings: snapshotSettings.getSettings,
