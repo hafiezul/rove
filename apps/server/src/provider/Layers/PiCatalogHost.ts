@@ -59,6 +59,7 @@ export class PiCatalogHost {
   private readonly modelRuntime: ModelRuntime;
   private readonly resourceLoader: PiResourceLoader;
   private disabledExtensions: ReadonlyArray<string>;
+  private readonly extensionProviderIds = new Set<string>();
 
   private constructor(
     session: AgentSession,
@@ -107,20 +108,24 @@ export class PiCatalogHost {
         pushWarning(host.warnings, diagnostic.message);
       }
     }
+    for (const id of services.extensionProviderIds) host.extensionProviderIds.add(id);
     const notify = () => host.emit();
     const registerProvider = host.modelRuntime.registerProvider.bind(host.modelRuntime);
     host.modelRuntime.registerProvider = (...args) => {
       registerProvider(...args);
+      host.extensionProviderIds.add(args[0]);
       notify();
     };
     const registerNativeProvider = host.modelRuntime.registerNativeProvider.bind(host.modelRuntime);
     host.modelRuntime.registerNativeProvider = (...args) => {
       registerNativeProvider(...args);
+      host.extensionProviderIds.add(args[0].id);
       notify();
     };
     const unregisterProvider = host.modelRuntime.unregisterProvider.bind(host.modelRuntime);
     host.modelRuntime.unregisterProvider = (...args) => {
       unregisterProvider(...args);
+      host.extensionProviderIds.delete(args[0]);
       notify();
     };
     const refresh = host.modelRuntime.refresh.bind(host.modelRuntime);
@@ -256,35 +261,13 @@ export class PiCatalogHost {
     // up; the runner rebinds with the fresh set, which re-registers any
     // extension providers.
     try {
-      await this.resourceLoader.reload();
+      // Remove prior contributions, including providers registered by session_start
+      // hooks. Rebinding the runner also retires old hooks and activates new ones.
+      for (const id of this.extensionProviderIds) this.modelRuntime.unregisterProvider(id);
+      await this.session.reload({});
       for (const { path, error } of this.resourceLoader.getExtensions().errors) {
         pushWarning(this.warnings, `${path}: ${error}`);
       }
-      const extensionsResult = this.resourceLoader.getExtensions();
-      for (const { name, config, extensionPath } of extensionsResult.runtime
-        .pendingProviderRegistrations) {
-        try {
-          this.modelRuntime.registerProvider(name, config);
-        } catch (error) {
-          pushWarning(
-            this.warnings,
-            `Extension "${extensionPath}" error: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }
-      extensionsResult.runtime.pendingProviderRegistrations = [];
-      for (const { provider, extensionPath } of extensionsResult.runtime
-        .pendingNativeProviderRegistrations) {
-        try {
-          this.modelRuntime.registerNativeProvider(provider);
-        } catch (error) {
-          pushWarning(
-            this.warnings,
-            `Extension "${extensionPath}" error: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }
-      extensionsResult.runtime.pendingNativeProviderRegistrations = [];
     } catch (error) {
       pushWarning(
         this.warnings,

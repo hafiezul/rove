@@ -1629,26 +1629,33 @@ export function makePiAdapter(
           }
         };
 
+        const subscriptions: Array<() => void> = [];
         for (const ctx of activeSessions) {
           if (ctx.activeTurnId === undefined && !ctx.session.isStreaming) {
             checkSettled();
             continue;
           }
-          const unsub = ctx.session.subscribe((event) => {
-            if (
-              event.type === "agent_settled" ||
-              event.type === "turn_complete" ||
-              !ctx.session.isStreaming
-            ) {
-              unsub();
-              checkSettled();
-            }
-          });
+          let settled = false;
+          subscriptions.push(
+            ctx.session.subscribe((event) => {
+              // Streaming can pause during retries or compaction; only settlement
+              // means the accepted prompt is finished.
+              if (event.type === "agent_settled" && !settled) {
+                settled = true;
+                checkSettled();
+              }
+            }),
+          );
         }
 
         yield* Deferred.await(allSettled).pipe(
           Effect.timeout(`${timeoutMs} millis`),
           Effect.ignore,
+          Effect.ensuring(
+            Effect.sync(() => {
+              for (const unsubscribe of subscriptions) unsubscribe();
+            }),
+          ),
         );
       });
 

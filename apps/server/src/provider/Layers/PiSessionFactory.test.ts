@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";
 
 import {
   createPiSession,
+  PiResourceLoader,
   resolvePiModelForSession,
   resolvePiSessionResume,
 } from "./PiSessionFactory.ts";
@@ -69,6 +70,28 @@ describe("headless Pi extensions", () => {
     return session;
   };
   const log = () => NodeFS.readFileSync(NodePath.join(cwd, "extension.log"), "utf8");
+
+  it("keeps unnamed inline identities stable when earlier factories are disabled", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const loader = new PiResourceLoader(
+      {
+        cwd,
+        agentDir,
+        extensionFactories: [first, second],
+      },
+      ["<inline:1>"],
+    );
+    await loader.reload();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+    expect(loader.getExtensions().extensions.map((extension) => extension.path)).toContain(
+      "<inline:2>",
+    );
+    const inventory = await loader.getDiscoveredExtensions();
+    expect(inventory.find((extension) => extension.path === "<inline:1>")?.enabled).toBe(false);
+    expect(inventory.find((extension) => extension.path === "<inline:2>")?.enabled).toBe(true);
+  });
 
   it("loads project hooks, commands, tools, and provider models without changing global trust", async () => {
     const settingsPath = NodePath.join(agentDir, "settings.json");

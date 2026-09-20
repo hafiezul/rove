@@ -1548,15 +1548,34 @@ it.layer(testLayer)("PiAdapter", (it) => {
         yield* adapter.sendTurn({ threadId, input: "streaming" });
         fake.emit({ type: "turn_start" });
 
+        const subscribed = yield* Deferred.make<void>();
+        const subscribe = fake.subscribe.bind(fake);
+        let unsubscribed = false;
+        fake.subscribe = (listener) => {
+          const unsubscribe = subscribe(listener);
+          Deferred.doneUnsafe(subscribed, Effect.void);
+          return () => {
+            unsubscribed = true;
+            unsubscribe();
+          };
+        };
+
         // Fork waiting fiber
         const settleTurn = adapter.waitForActiveTurnsToSettle
           ? adapter.waitForActiveTurnsToSettle(5000)
           : Effect.void;
         const settleFiber = yield* settleTurn.pipe(Effect.forkScoped);
 
+        yield* Deferred.await(subscribed);
+        // Pi may not be streaming while waiting to retry. That is not completion.
+        fake.isStreaming = false;
+        fake.emit({ type: "auto_retry_start", attempt: 1 });
+        assert.isFalse(unsubscribed);
+
         // Settle turn
         fake.emit({ type: "agent_settled" });
         yield* Fiber.join(settleFiber);
+        assert.isTrue(unsubscribed);
       }),
   );
 

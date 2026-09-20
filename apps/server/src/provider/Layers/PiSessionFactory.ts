@@ -340,16 +340,20 @@ export class PiResourceLoader extends DefaultResourceLoader {
     const originalLoadFactories = internals.loadExtensionFactories.bind(this);
     internals.loadExtensionFactories = (runtime: ExtensionRuntime) => {
       const allFactories = internals.extensionFactories ?? [];
-      const activeFactories = allFactories.filter((factory, index) => {
-        const isNamed = !RuntimePredicate.isFunction(factory);
-        const name = isNamed ? factory.name : String(index + 1);
-        const path = `<inline:${name}>`;
-        return (
-          !isExtensionPathDisabled(path, this.disabledExtensionsSet, this.sessionCwd) &&
-          !isExtensionPathDisabled(name, this.disabledExtensionsSet, this.sessionCwd)
-        );
-      });
+      const activeFactories = allFactories
+        .map((factory, index) =>
+          RuntimePredicate.isFunction(factory) ? { name: String(index + 1), factory } : factory,
+        )
+        .filter((factory) => {
+          const name = factory.name;
+          const path = `<inline:${name}>`;
+          return (
+            !isExtensionPathDisabled(path, this.disabledExtensionsSet, this.sessionCwd) &&
+            !isExtensionPathDisabled(name, this.disabledExtensionsSet, this.sessionCwd)
+          );
+        });
       const saved = internals.extensionFactories;
+      // Preserve SDK identities when filtering earlier unnamed factories.
       internals.extensionFactories = activeFactories;
       return originalLoadFactories(runtime).finally(() => {
         internals.extensionFactories = saved;
@@ -418,7 +422,7 @@ export class PiResourceLoader extends DefaultResourceLoader {
 
     for (const [index, input] of extensionFactories.entries()) {
       const isNamed = !RuntimePredicate.isFunction(input);
-      const name = isNamed ? input.name : `inline-${index + 1}`;
+      const name = isNamed ? input.name : String(index + 1);
       const path = `<inline:${name}>`;
       if (discovered.has(path)) continue;
 
@@ -455,7 +459,9 @@ export interface CreatePiSessionServicesOptions {
 
 export async function createPiSessionServices(
   options: CreatePiSessionServicesOptions,
-): Promise<AgentSessionServices & { resourceLoader: PiResourceLoader }> {
+): Promise<
+  AgentSessionServices & { resourceLoader: PiResourceLoader; extensionProviderIds: Set<string> }
+> {
   const cwd = NodePath.resolve(options.cwd);
   const agentDir = options.agentDir ? NodePath.resolve(options.agentDir) : getAgentDir();
   const modelRuntime =
@@ -489,11 +495,13 @@ export async function createPiSessionServices(
   await resourceLoader.reload();
 
   const diagnostics: AgentSessionRuntimeDiagnostic[] = [];
+  const extensionProviderIds = new Set<string>();
   const extensionsResult = resourceLoader.getExtensions();
   for (const { name, config, extensionPath } of extensionsResult.runtime
     .pendingProviderRegistrations) {
     try {
       modelRuntime.registerProvider(name, config);
+      extensionProviderIds.add(name);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       diagnostics.push({
@@ -507,6 +515,7 @@ export async function createPiSessionServices(
     .pendingNativeProviderRegistrations) {
     try {
       modelRuntime.registerNativeProvider(provider);
+      extensionProviderIds.add(provider.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       diagnostics.push({
@@ -525,6 +534,7 @@ export async function createPiSessionServices(
     settingsManager,
     resourceLoader,
     diagnostics,
+    extensionProviderIds,
   };
 }
 

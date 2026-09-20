@@ -301,6 +301,12 @@ export default function (pi) {
     api: "openai-completions",
     models: [{ id: "custom-model", name: "Custom Model", reasoning: false }],
   });
+  pi.on("session_start", () => pi.registerProvider("hook-provider", {
+    baseUrl: "https://example.invalid",
+    apiKey: "test",
+    api: "openai-completions",
+    models: [{ id: "hook-model", name: "Hook Model", reasoning: false }],
+  }));
 }`,
     );
 
@@ -336,6 +342,20 @@ export default function (pi) {
     assert.isTrue(
       enabledModels.some((model) => model.slug === "custom-ext-provider/custom-model"),
       "models are advertised once extension is enabled",
+    );
+
+    assert.isTrue(enabledModels.some((model) => model.slug === "hook-provider/hook-model"));
+
+    await host.setDisabledExtensions([customExtPath]);
+    assert.isFalse(
+      (await host.getCatalogModels()).some(
+        (model) => model.slug === "custom-ext-provider/custom-model",
+      ),
+    );
+    assert.isFalse(
+      (await host.getCatalog()).modelProviders.some(
+        (provider) => provider.id === "custom-ext-provider" || provider.id === "hook-provider",
+      ),
     );
   });
 });
