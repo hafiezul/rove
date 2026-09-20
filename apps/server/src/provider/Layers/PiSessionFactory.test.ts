@@ -96,6 +96,109 @@ describe("headless Pi extensions", () => {
     expect(inventory.find((extension) => extension.path === "<inline:2>")?.enabled).toBe(true);
   });
 
+  it("rejects an unresolvable initial model instead of silently falling back", async () => {
+    await expect(
+      createPiSession({
+        cwd,
+        model: "unknown-provider/missing-model",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      }),
+    ).rejects.toThrow(/not found/i);
+  });
+
+  it("reports a custom model id fallback for a known provider", async () => {
+    // A stale slug under a still-registered provider resolves to a fabricated
+    // custom model id. The session runs it (user-configured custom slugs rely
+    // on this), but the mismatch must be visible.
+    const custom = await createPiSession({
+      cwd,
+      model: "rove-extension-test/missing-model",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+    });
+    sessions.push(custom);
+    assert.include(
+      custom.modelFallbackMessage ?? "",
+      'Model "missing-model" not found for provider "rove-extension-test". Using custom model id.',
+    );
+  });
+
+  it("applies the requested reasoning level and reports when the model clamps it", async () => {
+    // The fixture model declares `reasoning: false`, so "high" must clamp to "off".
+    const clamped = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: "high",
+      resumeSessionId: undefined,
+    });
+    sessions.push(clamped);
+    assert.include(
+      clamped.modelFallbackMessage ?? "",
+      'Reasoning level "high" is not supported by rove-extension-test/fixture; using "off".',
+    );
+
+    // A level the model supports stays silent — there is no mismatch to report.
+    const supported = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: "off",
+      resumeSessionId: undefined,
+    });
+    sessions.push(supported);
+    assert.isUndefined(supported.modelFallbackMessage);
+  });
+
+  it("surfaces the SDK's model fallback when a saved model cannot be restored", async () => {
+    // A second provider gives the SDK somewhere to fall back to when the
+    // session's saved model (the fixture extension's) is no longer loadable.
+    NodeFS.writeFileSync(
+      NodePath.join(agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          "rootsys.cloud": {
+            baseUrl: "https://example.test/v1",
+            apiKey: "test-key",
+            api: "openai-completions",
+            models: [
+              {
+                id: "kimi-k3",
+                name: "Kimi K3",
+                reasoning: false,
+                input: ["text"],
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: 128_000,
+                maxTokens: 8_192,
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const first = await create();
+    await first.prompt("Remember this conversation");
+    assert.isAbove(first.messages.length, 0);
+    await first.dispose();
+
+    // Resuming without extensions makes the saved fixture model unresolvable.
+    const resumed = await createPiSession(
+      {
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: first.sessionId,
+        resumeSessionFile: first.sessionFile,
+      },
+      { extensions: false },
+    );
+    sessions.push(resumed);
+    assert.include(
+      resumed.modelFallbackMessage ?? "",
+      "Could not restore model rove-extension-test/fixture",
+    );
+    assert.include(resumed.modelFallbackMessage ?? "", "Using rootsys.cloud/kimi-k3");
+  });
+
   it("loads project hooks, commands, tools, and provider models without changing global trust", async () => {
     const settingsPath = NodePath.join(agentDir, "settings.json");
     NodeFS.writeFileSync(settingsPath, '{"defaultProjectTrust":"never"}');

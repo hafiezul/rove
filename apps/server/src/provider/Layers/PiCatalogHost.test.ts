@@ -68,6 +68,16 @@ describe("Pi catalog host", () => {
     assert.strictEqual(thinking?.currentValue, "off");
   });
 
+  it("lists slash commands registered by loaded extensions", async () => {
+    const host = await create({ additionalExtensionPaths: [fixturePath] });
+    const commands = host.getExtensionSlashCommands();
+    assert.deepEqual(commands.map((command) => command.name).sort(), [
+      "broken",
+      "count",
+      "replace-session",
+    ]);
+  });
+
   function thinkingDescriptor(models: ReadonlyArray<ServerProviderModel>, id: string) {
     const descriptor = models.find((model) => model.slug === `local/${id}`)?.capabilities
       ?.optionDescriptors?.[0];

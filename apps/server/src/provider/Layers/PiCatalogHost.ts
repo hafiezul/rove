@@ -19,7 +19,12 @@
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import type { PiCatalogSnapshot, PiThinkingLevel, ServerProviderModel } from "@t3tools/contracts";
+import type {
+  PiCatalogSnapshot,
+  PiThinkingLevel,
+  ServerProviderModel,
+  ServerProviderSlashCommand,
+} from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 
 import {
@@ -218,6 +223,20 @@ export class PiCatalogHost {
         }),
       };
     });
+  }
+
+  /**
+   * Slash commands registered by the loaded global extensions. The provider
+   * snapshot merges these into the composer's `/` menu alongside prompt
+   * templates, so the picker describes what a session actually accepts.
+   */
+  getExtensionSlashCommands(): ReadonlyArray<ServerProviderSlashCommand> {
+    return this.session.extensionRunner.getRegisteredCommands().map((command) => ({
+      name: command.invocationName,
+      ...(command.description !== undefined && command.description.trim().length > 0
+        ? { description: command.description }
+        : undefined),
+    }));
   }
 
   async getCatalog(): Promise<PiCatalogSnapshot> {

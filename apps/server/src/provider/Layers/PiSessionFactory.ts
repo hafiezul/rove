@@ -90,6 +90,7 @@ async function toPiSessionLike(
   modelRuntime: ModelRuntime,
   resumeOutcome?: PiSessionResumeOutcome,
   initialStartupErrors: ReadonlyArray<PiSessionEventLike> = [],
+  modelFallbackMessage?: string | undefined,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -145,6 +146,7 @@ async function toPiSessionLike(
       return session.sessionFile;
     },
     ...(resumeOutcome !== undefined ? { resumeOutcome } : undefined),
+    ...(modelFallbackMessage !== undefined ? { modelFallbackMessage } : undefined),
     get isStreaming() {
       return session.isStreaming;
     },
@@ -649,15 +651,53 @@ export async function createPiSession(
             modelRuntime,
           })
         : undefined;
+  // An unresolvable requested model must fail the session — matching the
+  // in-session switch path (`resolvePiModelForSession`) — instead of silently
+  // prompting with a different model than the composer displays.
+  if (resolved?.error !== undefined) {
+    throw new Error(resolved.error);
+  }
+  // The requested reasoning selection wins over a `<model>:<level>` suffix in
+  // the slug. `resolveCliModel` never applies `cliThinking` itself, so without
+  // this pass-through the composer's level would be dropped at creation and
+  // the session would run Pi's settings default instead.
+  const // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
+    requestedThinkingLevel = (input.thinkingLevel ?? resolved?.thinkingLevel) as
+      | PiThinkingLevel
+      | undefined;
 
-  const { session } = await createAgentSessionFromServices({
-    services,
-    sessionManager,
-    ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
-    ...(resolved?.thinkingLevel !== undefined
-      ? { thinkingLevel: resolved.thinkingLevel }
-      : undefined),
-  });
+  const { session, modelFallbackMessage: sdkModelFallbackMessage } =
+    await createAgentSessionFromServices({
+      services,
+      sessionManager,
+      ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
+      ...(requestedThinkingLevel !== undefined
+        ? { thinkingLevel: requestedThinkingLevel }
+        : undefined),
+    });
 
-  return toPiSessionLike(session, modelRuntime, outcome, startupErrors);
+  // Collect every way the effective model/reasoning selection differs from the
+  // requested one: fuzzy-match warnings, the SDK's restore fallback, and
+  // reasoning clamped to the model's capabilities. The adapter publishes the
+  // combined message as a runtime warning so the thread shows the mismatch.
+  const fallbackNotices = [resolved?.warning, sdkModelFallbackMessage];
+  if (requestedThinkingLevel !== undefined && session.thinkingLevel !== requestedThinkingLevel) {
+    const effectiveModel = session.model;
+    fallbackNotices.push(
+      `Reasoning level "${requestedThinkingLevel}" is not supported by ${
+        effectiveModel ? `${effectiveModel.provider}/${effectiveModel.id}` : "this model"
+      }; using "${session.thinkingLevel}".`,
+    );
+  }
+  const modelFallbackMessage = fallbackNotices
+    .filter((notice): notice is string => notice !== undefined && notice.trim().length > 0)
+    .join(" ");
+
+  return toPiSessionLike(
+    session,
+    modelRuntime,
+    outcome,
+    startupErrors,
+    modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
+  );
 }

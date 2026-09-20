@@ -49,6 +49,12 @@ The panel needs no thread. It shows whenever a Pi provider instance is selected,
 
 Extension models behave like any other Pi model. Clicking one saves it to the thread. If the extension is later removed, the thread falls back to a model the runtime still lists instead of keeping a stale slug.
 
+The composer's slash menu lists prompt templates from Pi's configuration plus the commands registered by loaded global extensions, so every entry can actually be typed in the thread. Skills and prompt templates follow Pi's user scope; a project's own resources appear inside that project's threads.
+
+## Model fallback
+
+A thread always shows the model and reasoning level the session actually runs. When Pi cannot restore a session's saved model, falls back to a custom model id, or clamps a reasoning level the model does not support, the thread shows a warning describing the effective selection. A model slug that cannot be resolved at all fails thread startup with that reason instead of silently running a different model.
+
 ## Reasoning levels
 
 The Reasoning picker offers the levels declared by each model in Pi's catalog. Models without reasoning offer only **Off**. Models can omit individual levels, including **Off**, **Extra High**, or **Max**. Rove does not offer reasoning overrides for models whose capabilities are not yet known.
@@ -64,10 +70,11 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 - Extension tools run through Pi and appear as tool calls in Rove.
 - Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Input, agent, tool, context, and compaction hooks run through Pi.
-- Extension commands run when typed as `/command arguments` while the thread is idle.
+- Extension commands run when typed as `/command arguments` while the thread is idle, and loaded extension commands appear in the composer's slash menu alongside prompt templates.
 - Session startup and shutdown hooks run when Rove creates and disposes sessions.
 - Extension state can persist in Pi's session history.
 - When extensions are disabled in the extensions panel, the session's system prompt lists them. Ask the thread agent about its loaded extensions and it can answer from its own session instead of Pi's settings file.
+- When the session's effective model or reasoning level differs from the request, the thread shows a warning with the effective selection.
 
 A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the session from starting. Runtime extension errors appear as warnings.
 

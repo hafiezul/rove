@@ -139,9 +139,12 @@ export interface PiImageContentLike {
 /**
  * Narrow model descriptor for capability checks: the SDK `Model` fields the
  * adapter reads to decide whether image attachments can reach the model.
+ * `provider` is present on SDK models and composes the effective slug for
+ * session records; test fakes may omit it.
  */
 export interface PiSessionModelLike {
   readonly id: string;
+  readonly provider?: string | undefined;
   readonly input: ReadonlyArray<string>;
 }
 
@@ -188,6 +191,13 @@ export interface PiSessionLike {
   readonly sessionFile?: string | undefined;
   readonly resumeOutcome?: PiSessionResumeOutcome | undefined;
   readonly autoCompactionEnabled?: boolean | undefined;
+  /**
+   * Set when the effective model/reasoning selection differs from the
+   * requested one (SDK restore fallback, resolver warnings, clamped
+   * reasoning). The adapter publishes it as a runtime warning at session
+   * start so the mismatch is visible instead of silent.
+   */
+  readonly modelFallbackMessage?: string | undefined;
   prompt(
     text: string,
     options?: {
@@ -742,12 +752,22 @@ export function makePiAdapter(
     ): Effect.Effect<ProviderSession> =>
       Effect.map(DateTime.now, (now) => {
         const createdAt = DateTime.formatIso(now);
+        // The session's effective model, not the requested slug: fallbacks and
+        // defaults make the two differ, and session records must not lie.
+        const model = ctx.session.getModel?.();
+        const effectiveModelSlug =
+          model === undefined
+            ? undefined
+            : model.provider !== undefined && model.provider.trim().length > 0
+              ? `${model.provider}/${model.id}`
+              : model.id;
         return {
           provider: PROVIDER,
           ...(boundInstanceId !== undefined ? { providerInstanceId: boundInstanceId } : undefined),
           status,
           runtimeMode: "full-access",
           cwd: ctx.cwd,
+          ...(effectiveModelSlug !== undefined ? { model: effectiveModelSlug } : undefined),
           threadId: ctx.threadId,
           resumeCursor: {
             sessionId: ctx.session.sessionId,
@@ -1349,6 +1369,20 @@ export function makePiAdapter(
             type: "session.state.changed",
             payload: { state: "ready", reason: "Pi session ready" },
           });
+          // Model fallback must always be visible: Pi restores a session's
+          // saved model (or picks a default) without a request, so surface the
+          // effective selection as a warning the thread timeline renders.
+          const modelFallbackMessage = session.modelFallbackMessage;
+          if (modelFallbackMessage !== undefined && modelFallbackMessage.trim().length > 0) {
+            yield* offerRuntimeEvent({
+              ...(yield* makeEventStamp()),
+              provider: PROVIDER,
+              ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+              threadId: input.threadId,
+              type: "runtime.warning",
+              payload: { message: modelFallbackMessage },
+            });
+          }
           yield* publishPiTokenUsage(ctx, "startup");
 
           return yield* providerSessionFor(ctx, "ready");

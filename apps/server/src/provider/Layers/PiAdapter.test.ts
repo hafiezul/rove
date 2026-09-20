@@ -66,6 +66,7 @@ class FakePiSession implements PiSessionLike {
   leafId = "entry-4";
   sessionStats: PiSessionStatsLike | undefined;
   autoCompactionEnabled = true;
+  modelFallbackMessage: string | undefined = undefined;
   readonly promptCalls: Array<{
     text: string;
     options?: {
@@ -637,6 +638,37 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(rejected._tag, "Failure");
       yield* adapter.sendTurn({ threadId, input: "retry" });
       assert.isUndefined(fake.promptCalls[0]?.options?.streamingBehavior);
+    }),
+  );
+
+  it.effect("startSession publishes the model fallback and reports the effective model", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.model = { id: "claude-sonnet-5", provider: "anthropic", input: ["text"] };
+      fake.modelFallbackMessage = "Could not restore model a/old. Using anthropic/claude-sonnet-5";
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      assert.strictEqual(session.model, "anthropic/claude-sonnet-5");
+      yield* waitFor(eventsRef, (events) =>
+        events.some((event) => event.type === "runtime.warning"),
+      );
+      const warning = (yield* Ref.get(eventsRef)).find((event) => event.type === "runtime.warning");
+      assert.include(
+        warning !== undefined && warning.type === "runtime.warning" ? warning.payload.message : "",
+        "Could not restore model a/old",
+      );
+    }),
+  );
+
+  it.effect("a model without a provider id still reports its effective model", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.model = { id: "bare-model", input: ["text"] };
+      const adapter = yield* makeAdapter(fake);
+      const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      assert.strictEqual(session.model, "bare-model");
     }),
   );
 
