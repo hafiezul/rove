@@ -353,57 +353,60 @@ describe("buildThreadFeed", () => {
     });
   });
 
-  it("keeps historic work entries attributed to their turns", () => {
-    const thread = makeThread({
-      id: ThreadId.make("thread-1"),
-      projectId: ProjectId.make("project-1"),
-      title: "Runtime warning thread",
-      latestTurn: {
-        turnId: TurnId.make("turn-latest"),
-        state: "running",
-        requestedAt: "2026-04-01T00:00:00.000Z",
-        startedAt: "2026-04-01T00:00:01.000Z",
-        completedAt: null,
-        assistantMessageId: null,
-      },
-      activities: [
-        makeActivity({
-          id: EventId.make("activity-old"),
-          kind: "runtime.warning",
-          summary: "Runtime warning",
-          createdAt: "2026-04-01T00:00:02.000Z",
-          turnId: TurnId.make("turn-old"),
-          payload: {
-            message: "Old warning",
-          },
-        }),
-        makeActivity({
-          id: EventId.make("activity-latest"),
-          kind: "runtime.warning",
-          summary: "Runtime warning",
-          createdAt: "2026-04-01T00:00:03.000Z",
+  it.each(["runtime.warning", "runtime.info"])(
+    "keeps historic %s entries attributed to their turns",
+    (kind) => {
+      const thread = makeThread({
+        id: ThreadId.make("thread-1"),
+        projectId: ProjectId.make("project-1"),
+        title: "Runtime warning thread",
+        latestTurn: {
           turnId: TurnId.make("turn-latest"),
-          payload: {
-            message: "Latest warning",
-          },
-        }),
-      ],
-    });
+          state: "running",
+          requestedAt: "2026-04-01T00:00:00.000Z",
+          startedAt: "2026-04-01T00:00:01.000Z",
+          completedAt: null,
+          assistantMessageId: null,
+        },
+        activities: [
+          makeActivity({
+            id: EventId.make("activity-old"),
+            kind,
+            summary: "Runtime warning",
+            createdAt: "2026-04-01T00:00:02.000Z",
+            turnId: TurnId.make("turn-old"),
+            payload: {
+              message: "Old warning",
+            },
+          }),
+          makeActivity({
+            id: EventId.make("activity-latest"),
+            kind,
+            summary: "Runtime warning",
+            createdAt: "2026-04-01T00:00:03.000Z",
+            turnId: TurnId.make("turn-latest"),
+            payload: {
+              message: "Latest warning",
+            },
+          }),
+        ],
+      });
 
-    const feed = buildThreadFeed(thread);
-    expect(feed).toMatchObject([
-      {
-        type: "activity-group",
-        turnId: "turn-old",
-        activities: [{ id: "activity-old", turnId: "turn-old" }],
-      },
-      {
-        type: "activity-group",
-        turnId: "turn-latest",
-        activities: [{ id: "activity-latest", turnId: "turn-latest" }],
-      },
-    ]);
-  });
+      const feed = buildThreadFeed(thread);
+      expect(feed).toMatchObject([
+        {
+          type: "activity-group",
+          turnId: "turn-old",
+          activities: [{ id: "activity-old", turnId: "turn-old" }],
+        },
+        {
+          type: "activity-group",
+          turnId: "turn-latest",
+          activities: [{ id: "activity-latest", turnId: "turn-latest" }],
+        },
+      ]);
+    },
+  );
 
   it("collapses matching tool lifecycle rows like desktop", () => {
     const thread = makeThread({

@@ -16,6 +16,20 @@ If history is missing, unreadable, empty, or belongs to another session, startup
 
 New sessions are saved before the first prompt, so restarting before the first assistant response does not invalidate their session reference.
 
+## Progress and diagnostics
+
+The thread activity timeline shows when Pi is retrying or compacting context,
+and when that work finishes or stops. These notices do not complete the turn.
+Streaming tools show short, rate-limited progress previews; the completed tool
+result remains the authoritative output. The same activity reaches local and
+remote clients.
+
+Provider diagnostics report the Pi version bundled with Rove, not a separately
+installed Pi CLI. Session and catalog startup waits are limited to 60 seconds;
+cleanup waits are limited to 5 seconds. A startup timeout is reported as a failure,
+not a successful empty session. These limits cannot protect against an extension
+that blocks or exits the server process.
+
 ## Extension sources
 
 Rove uses Pi's standard resource loader for these sources:

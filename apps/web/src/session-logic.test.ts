@@ -872,6 +872,21 @@ describe("deriveWorkLogEntries", () => {
     ]);
   });
 
+  it("keeps Pi liveness notices in the work log", () => {
+    const entries = deriveWorkLogEntries([
+      makeActivity({
+        id: "pi-retry",
+        turnId: "turn-1",
+        kind: "runtime.info",
+        tone: "info",
+        summary: "Retrying (attempt 1)…",
+        payload: { message: "Retrying (attempt 1)…" },
+      }),
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ id: "pi-retry", turnId: TurnId.make("turn-1") });
+  });
+
   it("omits checkpoint captured info entries", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({

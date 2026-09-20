@@ -34,6 +34,7 @@ import {
   type ToolLifecycleItemType,
 } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -50,6 +51,7 @@ import { ServerConfig } from "../../config.ts";
 
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
+import { acquirePiResource, disposePiResource } from "./PiLifecycle.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import {
@@ -288,7 +290,7 @@ interface PiAssistantMessageItem {
 
 interface PiSessionContext {
   readonly threadId: ThreadId;
-  readonly session: PiSessionLike;
+  session: PiSessionLike;
   readonly cwd: string;
   readonly resumed: boolean;
   currentModelSlug: string | undefined;
@@ -299,6 +301,8 @@ interface PiSessionContext {
   pendingTurnError: string | undefined;
   /** Resolved tool-call arguments by toolCallId (Pi SDK events omit args). */
   toolCallArgs: Map<string, Record<string, SchemaJson>>;
+  /** Progress is sampled before queueing work, so bursts cannot build a fiber backlog. */
+  lastToolProgressAt: number;
   /** Pi reuses message objects between message_end and agent_end. */
   seenNotifyMessages: WeakSet<object>;
   /** Open single subagent runs (no coordinator) for notify correlation. */
@@ -587,6 +591,7 @@ export function makePiAdapter(
   return Effect.gen(function* () {
     const boundInstanceId = options.instanceId;
     const crypto = yield* Crypto.Crypto;
+    const clock = yield* Clock.Clock;
     const fileSystem = yield* FileSystem.FileSystem;
     const serverConfig = yield* ServerConfig;
     const runFork = Effect.runForkWith(yield* Effect.context<Crypto.Crypto>());
@@ -801,6 +806,7 @@ export function makePiAdapter(
       event: PiSessionEventLike,
     ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
       Effect.gen(function* () {
+        if (sessions.get(ctx.threadId) !== ctx) return;
         const stamp = yield* makeEventStamp();
         const base = {
           ...stamp,
@@ -1098,12 +1104,29 @@ export function makePiAdapter(
             });
             return;
           }
+          case "tool_execution_update": {
+            if (ctx.activeTurnId === undefined) return;
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "item.updated",
+              turnId: ctx.activeTurnId,
+              itemId: RuntimeItemId.make(String(event.toolCallId ?? "")),
+              payload: {
+                itemType: toToolLifecycleItemType(String(event.toolName ?? "tool")),
+                status: "inProgress",
+                title: String(event.toolName ?? "tool"),
+                detail: String(event.progress ?? "Tool running"),
+              },
+            });
+            return;
+          }
           case "tool_execution_end": {
             const turnId = yield* ensureActiveTurn();
             const toolName = String(event.toolName ?? "tool");
             const toolCallId = String(event.toolCallId ?? "");
             const toolArgs = piRecord(event.args) ?? resolveCachedPiToolArgs(ctx, toolCallId);
             const enrichment = describePiToolCall(toolName, toolArgs);
+            ctx.toolCallArgs.delete(toolCallId);
             const resultRecord = piRecord(event.result);
             yield* offerRuntimeEvent({
               ...base,
@@ -1183,7 +1206,28 @@ export function makePiAdapter(
             }
             return;
           }
+          case "auto_retry_start":
+          case "compaction_start": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.info",
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+              payload: {
+                message:
+                  event.type === "compaction_start"
+                    ? "Compacting context…"
+                    : `Retrying${RuntimePredicate.isNumber(event.attempt) ? ` (attempt ${event.attempt})` : ""}…`,
+              },
+            });
+            return;
+          }
           case "auto_retry_end": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.info",
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+              payload: { message: event.success === true ? "Retry succeeded" : "Retry stopped" },
+            });
             // A successful retry means the pending error is stale — clear it.
             if (event.success === true) {
               ctx.pendingTurnError = undefined;
@@ -1191,6 +1235,14 @@ export function makePiAdapter(
             return;
           }
           case "compaction_end": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.info",
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+              payload: {
+                message: event.aborted === true ? "Compaction stopped" : "Compaction finished",
+              },
+            });
             if (event.aborted !== true) {
               yield* publishPiTokenUsage(ctx, "compaction");
             }
@@ -1227,6 +1279,7 @@ export function makePiAdapter(
             return;
           }
           case "agent_settled": {
+            ctx.toolCallArgs.clear();
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               yield* publishPiTokenUsage(ctx, "settled");
@@ -1243,9 +1296,7 @@ export function makePiAdapter(
             return;
           }
           default:
-            // Deferred Pi events (compaction_start, auto_retry_*, queue_update,
-            // …) are intentionally dropped for v1. See the
-            // carry-forward list in the provider design notes.
+            // Queue and SDK-internal events have no timeline representation.
             return;
         }
       }).pipe(
@@ -1260,6 +1311,36 @@ export function makePiAdapter(
           }),
         ),
       );
+
+    const subscribeToSession = (ctx: PiSessionContext) =>
+      ctx.session.subscribe((event) => {
+        if (sessions.get(ctx.threadId) !== ctx) return;
+        let queued = event;
+        if (event.type === "tool_execution_update") {
+          // At most two small progress snapshots per second per session, including
+          // parallel tools. Never queue the SDK's potentially huge partial result.
+          const now = clock.currentTimeMillisUnsafe();
+          if (now - ctx.lastToolProgressAt < 500) return;
+          ctx.lastToolProgressAt = now;
+          const content = piRecord(event.partialResult)?.content;
+          let progress = "";
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              const text = piRecord(block);
+              if (text?.type !== "text" || !RuntimePredicate.isString(text.text)) continue;
+              progress += text.text.slice(0, 1024 - progress.length);
+              if (progress.length >= 1024) break;
+            }
+          }
+          queued = {
+            type: event.type,
+            toolCallId: String(event.toolCallId ?? ""),
+            toolName: piBounded(String(event.toolName ?? "tool"), 120),
+            progress: progress.trim() || "Tool running",
+          };
+        }
+        runFork(withThreadLock(ctx.threadId, handleSdkEvent(ctx, queued)));
+      });
 
     const startSession: PiAdapterContract["startSession"] = (input: ProviderSessionStartInput) =>
       withThreadLock(
@@ -1277,8 +1358,8 @@ export function makePiAdapter(
           const initialModelSlug =
             selectedModelSlug(modelSelection) ??
             (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
-          const session = yield* Effect.tryPromise({
-            try: async () => {
+          const session = yield* acquirePiResource(
+            async () => {
               const cursor = parsePiResumeCursor(input.resumeCursor);
               try {
                 return await createSession({
@@ -1323,14 +1404,18 @@ export function makePiAdapter(
                 throw cause;
               }
             },
-            catch: (cause) =>
-              new ProviderAdapterRequestError({
-                provider: PROVIDER,
-                method: "startSession",
-                detail: `Failed to create Pi session in ${cwd}. ${cause instanceof Error ? cause.message : String(cause)}`,
-                cause,
-              }),
-          });
+            (session) => session.dispose(),
+          ).pipe(
+            Effect.mapError(
+              (cause) =>
+                new ProviderAdapterRequestError({
+                  provider: PROVIDER,
+                  method: "startSession",
+                  detail: `Failed to create Pi session in ${cwd}. ${cause.message}`,
+                  cause,
+                }),
+            ),
+          );
 
           const outcome = session.resumeOutcome;
           const resumed = outcome?.resumed === true;
@@ -1345,15 +1430,14 @@ export function makePiAdapter(
             nextAssistantMessageIndex: 0,
             pendingTurnError: undefined,
             toolCallArgs: new Map(),
+            lastToolProgressAt: -Infinity,
             seenNotifyMessages: new WeakSet(),
             openSingles: [],
             unsubscribe: () => {},
             loadedDisabledExtensions: piSettings.disabledExtensions ?? [],
           };
           ctx.pendingTurnError = undefined;
-          ctx.unsubscribe = session.subscribe((event) => {
-            runFork(withThreadLock(input.threadId, handleSdkEvent(ctx, event)));
-          });
+          ctx.unsubscribe = subscribeToSession(ctx);
           sessions.set(input.threadId, ctx);
 
           yield* offerRuntimeEvent({
@@ -1452,11 +1536,11 @@ export function makePiAdapter(
               sessionId: ctx.session.sessionId,
               sessionFile: ctx.session.sessionFile,
             };
-            yield* Effect.tryPromise({
-              try: async () => {
-                await ctx.session.dispose();
-                ctx.unsubscribe();
-                const newSession = await createSession({
+            ctx.unsubscribe();
+            yield* disposePiResource(() => ctx.session.dispose());
+            const newSession = yield* acquirePiResource(
+              () =>
+                createSession({
                   threadId: input.threadId,
                   cwd: ctx.cwd,
                   model: ctx.currentModelSlug,
@@ -1470,23 +1554,32 @@ export function makePiAdapter(
                   resumeSessionId: cursor.sessionId,
                   resumeSessionFile: cursor.sessionFile,
                   disabledExtensions: currentDisabled,
-                });
-                const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-                  mutableCtx = ctx as { session: PiSessionLike };
-                mutableCtx.session = newSession;
-                ctx.loadedDisabledExtensions = currentDisabled;
-                ctx.unsubscribe = newSession.subscribe((event) => {
-                  runFork(withThreadLock(input.threadId, handleSdkEvent(ctx, event)));
-                });
-              },
-              catch: (cause) =>
-                new ProviderAdapterRequestError({
+                }),
+              (session) => session.dispose(),
+            ).pipe(
+              Effect.mapError((cause) => {
+                // A failed reload must not leave a disposed session available for reuse.
+                if (sessions.get(input.threadId) === ctx) sessions.delete(input.threadId);
+                return new ProviderAdapterRequestError({
                   provider: PROVIDER,
                   method: "sendTurn",
-                  detail: `Failed to reload Pi session with updated extensions in ${ctx.cwd}. ${cause instanceof Error ? cause.message : String(cause)}`,
+                  detail: `Failed to reload Pi session with updated extensions in ${ctx.cwd}. ${cause.message}`,
                   cause,
-                }),
-            });
+                });
+              }),
+            );
+            if (sessions.get(input.threadId) !== ctx) {
+              yield* disposePiResource(() => newSession.dispose());
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail: "Pi session stopped during reload.",
+              });
+            }
+            ctx.session = newSession;
+            ctx.loadedDisabledExtensions = currentDisabled;
+            ctx.toolCallArgs.clear();
+            ctx.unsubscribe = subscribeToSession(ctx);
           }
           // Apply the composer's per-thread model options before prompting.
           // Pi sessions support in-session model switches, so a changed picker
@@ -1679,18 +1772,8 @@ export function makePiAdapter(
         if (!ctx) return Effect.void;
         sessions.delete(threadId);
         ctx.unsubscribe();
-        return Effect.tryPromise({
-          try: async () => {
-            await ctx.session.dispose();
-          },
-          catch: (cause) =>
-            new ProviderAdapterRequestError({
-              provider: PROVIDER,
-              method: "stopSession",
-              detail: `Failed to dispose Pi session ${ctx.session.sessionId}.`,
-              cause,
-            }),
-        }).pipe(Effect.ignore);
+        ctx.toolCallArgs.clear();
+        return disposePiResource(() => ctx.session.dispose());
       });
 
     const listSessions: PiAdapterContract["listSessions"] = () =>
@@ -1774,7 +1857,10 @@ export function makePiAdapter(
 
     const stopAll: PiAdapterContract["stopAll"] = () =>
       Effect.suspend(() => {
-        return Effect.forEach([...sessions.keys()], stopSession, { discard: true });
+        return Effect.forEach([...sessions.keys()], stopSession, {
+          discard: true,
+          concurrency: "unbounded",
+        });
       });
 
     const waitForActiveTurnsToSettle: NonNullable<

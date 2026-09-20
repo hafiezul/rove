@@ -214,6 +214,126 @@ const waitFor = (
   }).pipe(TestClock.withLive);
 
 it.layer(testLayer)("PiAdapter", (it) => {
+  it.effect("releases the startup lock after timeout and never installs a late session", () =>
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const disposed = yield* Deferred.make<void>();
+      const late = new FakePiSession();
+      late.dispose = () => {
+        Deferred.doneUnsafe(disposed, Effect.void);
+      };
+      let resolve: (session: PiSessionLike) => void = () => {};
+      const pending = new Promise<PiSessionLike>((done) => {
+        resolve = done;
+      });
+      let calls = 0;
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: () => {
+          if (++calls > 1) return Promise.resolve(new FakePiSession());
+          Deferred.doneUnsafe(started, Effect.void);
+          return pending;
+        },
+      });
+      const startup = yield* adapter
+        .startSession({ threadId, runtimeMode: "full-access" })
+        .pipe(Effect.result, Effect.forkChild({ startImmediately: true }));
+      yield* Deferred.await(started);
+      yield* TestClock.adjust(60_000);
+      assert.strictEqual((yield* Fiber.join(startup))._tag, "Failure");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      resolve(late);
+      yield* Deferred.await(disposed);
+      assert.strictEqual((yield* adapter.listSessions()).length, 1);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("publishes retry and compaction notices without settling the turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const completed = yield* Deferred.make<void>();
+      const events: Array<ProviderRuntimeEvent> = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "turn.completed"
+            ? Deferred.succeed(completed, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.emit({ type: "auto_retry_start", attempt: 1, maxAttempts: 3, delayMs: 1000 });
+      fake.emit({ type: "auto_retry_end", success: true });
+      fake.emit({ type: "compaction_start" });
+      fake.emit({ type: "compaction_end", aborted: true });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(completed);
+      const notices = events.filter((event) => event.type === "runtime.info");
+      assert.deepStrictEqual(
+        notices.map((event) => event.payload.message),
+        ["Retrying (attempt 1)…", "Retry succeeded", "Compacting context…", "Compaction stopped"],
+      );
+      assert.isTrue(notices.every((event) => event.turnId === turn.turnId));
+      assert.strictEqual(events.filter((event) => event.type === "turn.completed").length, 1);
+    }),
+  );
+
+  it.effect("bounds burst tool progress and releases completed argument cache entries", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const toolDone = yield* Deferred.make<void>();
+      const settled = yield* Deferred.make<void>();
+      const events: Array<ProviderRuntimeEvent> = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          if (event.type === "item.completed") return Deferred.succeed(toolDone, undefined);
+          if (event.type === "turn.completed") return Deferred.succeed(settled, undefined);
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.messages = [
+        { content: [{ type: "toolCall", id: "call", arguments: { command: "first" } }] },
+      ];
+      fake.emit({ type: "tool_execution_start", toolCallId: "call", toolName: "bash" });
+      for (let i = 0; i < 1000; i++) {
+        fake.emit({
+          type: "tool_execution_update",
+          toolCallId: "call",
+          toolName: "bash",
+          partialResult: {
+            content: [{ type: "text", text: "x".repeat(10_000) }],
+            details: { secret: "not forwarded" },
+          },
+        });
+      }
+      fake.emit({ type: "tool_execution_end", toolCallId: "call", toolName: "bash", result: {} });
+      yield* Deferred.await(toolDone);
+      fake.messages = [
+        { content: [{ type: "toolCall", id: "call", arguments: { command: "second" } }] },
+      ];
+      fake.emit({ type: "tool_execution_start", toolCallId: "call", toolName: "bash" });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(settled);
+      const progress = events.filter((event) => event.type === "item.updated");
+      assert.strictEqual(progress.length, 1);
+      assert.strictEqual(progress[0]?.payload.detail?.length, 1024);
+      assert.isUndefined(progress[0]?.payload.data);
+      const starts = events.filter((event) => event.type === "item.started");
+      assert.deepStrictEqual(
+        starts.map((event) => event.payload.data),
+        [{ command: "first" }, { command: "second" }],
+      );
+    }),
+  );
   it.effect("publishes extension failures as warnings and completes handled commands", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();

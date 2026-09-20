@@ -17,6 +17,7 @@ import { extractJsonObject } from "@t3tools/shared/schemaJson";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@t3tools/shared/git";
 
 import type { PiSessionLike } from "../provider/Layers/PiAdapter.ts";
+import { acquirePiResource, disposePiResource } from "../provider/Layers/PiLifecycle.ts";
 import type * as TextGeneration from "./TextGeneration.ts";
 import {
   buildBranchNamePrompt,
@@ -62,15 +63,19 @@ export const makePiTextGeneration = (
     }): Effect.Effect<S["Type"], TextGenerationError, S["DecodingServices"]> =>
       // Hoisted per lint: compile the JSON decoder once per schema, not per call.
       Effect.acquireUseRelease(
-        Effect.tryPromise({
-          try: () => createSession({ cwd: input.cwd }),
-          catch: (cause) =>
-            new TextGenerationError({
-              operation: input.operation,
-              detail: "Failed to start a Pi text-generation session.",
-              cause,
-            }),
-        }),
+        acquirePiResource(
+          () => createSession({ cwd: input.cwd }),
+          (session) => session.dispose(),
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new TextGenerationError({
+                operation: input.operation,
+                detail: `Failed to start a Pi text-generation session. ${cause.message}`,
+                cause,
+              }),
+          ),
+        ),
         (session) =>
           Effect.tryPromise({
             try: async () => {
@@ -121,10 +126,7 @@ export const makePiTextGeneration = (
               );
             }),
           ),
-        (session) =>
-          Effect.promise(async () => {
-            await session.dispose();
-          }),
+        (session) => disposePiResource(() => session.dispose()),
       );
 
     const generateCommitMessage: TextGeneration.TextGeneration["Service"]["generateCommitMessage"] =

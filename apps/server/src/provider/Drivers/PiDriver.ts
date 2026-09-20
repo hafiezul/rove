@@ -22,6 +22,7 @@ import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
 import type { ServerSettings } from "@t3tools/contracts";
 
+import { acquirePiResource, disposePiResource } from "../Layers/PiLifecycle.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
@@ -187,20 +188,21 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // snapshot here, so every picker lists them with no per-thread work.
       // Thread sessions keep full per-thread loading for tools and hooks.
       const catalogHost = yield* Effect.acquireRelease(
-        Effect.tryPromise({
-          try: () =>
-            PiCatalogHost.create({
-              disabledExtensions: effectiveConfig.disabledExtensions,
-            }),
-          catch: (cause) =>
-            new ProviderDriverError({
-              driver: DRIVER_KIND,
-              instanceId,
-              detail: `Failed to load Pi extensions: ${cause instanceof Error ? cause.message : String(cause)}`,
-              cause,
-            }),
-        }),
-        (host) => Effect.promise(() => host.dispose()),
+        acquirePiResource(
+          () => PiCatalogHost.create({ disabledExtensions: effectiveConfig.disabledExtensions }),
+          (host) => host.dispose(),
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new ProviderDriverError({
+                driver: DRIVER_KIND,
+                instanceId,
+                detail: `Failed to load Pi extensions: ${cause.message}`,
+                cause,
+              }),
+          ),
+        ),
+        (host) => disposePiResource(() => host.dispose()),
       );
       const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const readCurrentPiSettings = (settings: ServerSettings): PiSettings => {

@@ -1,5 +1,6 @@
 import { PiSettings, type ServerProviderModel } from "@t3tools/contracts";
 import { assert, it } from "@effect/vitest";
+import { VERSION } from "@earendil-works/pi-coding-agent";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
@@ -75,6 +76,7 @@ it.effect("preserves catalog capabilities and defaults without adding tiers", ()
     );
     assert.deepEqual(snapshot.models, catalogModels);
     assert.strictEqual(calls, 1);
+    assert.strictEqual(snapshot.version, VERSION);
     assert.strictEqual(snapshot.status, "ready");
     assert.strictEqual(snapshot.auth.status, "authenticated");
     assert.strictEqual(snapshot.runtimeModeSelectable, false);
@@ -87,6 +89,7 @@ it.effect("does not advertise reasoning for unknown custom models before discove
       decodePiSettings({ customModels: ["unknown/model"], thinkingLevel: "max" }),
     );
     assert.strictEqual(snapshot.models[0]?.capabilities, null);
+    assert.strictEqual(snapshot.version, VERSION);
     assert.strictEqual(snapshot.runtimeModeSelectable, false);
   }),
 );
