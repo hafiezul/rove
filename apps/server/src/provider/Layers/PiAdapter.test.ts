@@ -388,6 +388,21 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("rejects empty turns without reserving an active turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      for (const input of [undefined, "", "  "]) {
+        const error = yield* adapter.sendTurn({ threadId, input }).pipe(Effect.flip);
+        assert.include(error.detail, "require text input or image attachments");
+      }
+      assert.strictEqual(fake.promptCalls.length, 0);
+      yield* adapter.sendTurn({ threadId, input: "hello" });
+      assert.isUndefined(fake.promptCalls[0]?.options?.streamingBehavior);
+    }),
+  );
+
   it.effect("inlines image attachments into the Pi prompt", () => {
     const baseDir = NodeFS.mkdtempSync(
       NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-attachments-"),
@@ -399,7 +414,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
       const { attachmentsDir } = yield* ServerConfig;
-      const attachment = makeImageAttachment();
+      const attachment = makeImageAttachment({ mimeType: "IMAGE/PNG" });
       writeAttachment(attachmentsDir, attachment, Uint8Array.from([1, 2, 3, 4]));
 
       yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
@@ -417,7 +432,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
   });
 
-  it.effect("carries an image-only message (attachment note as the only text)", () => {
+  it.effect("carries image-only messages without relying on attachment path notes", () => {
     const baseDir = NodeFS.mkdtempSync(
       NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-image-only-"),
     );
@@ -429,19 +444,19 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const adapter = yield* makeAdapter(fake);
       const { attachmentsDir } = yield* ServerConfig;
       const attachment = makeImageAttachment();
-      const attachmentPath = writeAttachment(attachmentsDir, attachment, Uint8Array.from([9, 9]));
+      writeAttachment(attachmentsDir, attachment, Uint8Array.from([9, 9]));
 
       yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
-      // ProviderService appends the on-disk path to the text when the user
-      // sends no typed message, so an image-only turn still carries text.
-      yield* adapter.sendTurn({
-        threadId,
-        input: `[Attached image "${attachment.name}" is saved at: ${attachmentPath}]`,
-        attachments: [attachment],
-      });
+      yield* adapter.sendTurn({ threadId, attachments: [attachment] });
+      yield* adapter.sendTurn({ threadId, input: "  ", attachments: [attachment] });
 
-      assert.strictEqual(fake.promptCalls.length, 1);
-      assert.include(fake.promptCalls[0]?.text, "is saved at:");
+      assert.strictEqual(fake.promptCalls.length, 2);
+      assert.strictEqual(fake.promptCalls[0]?.text, "");
+      assert.strictEqual(fake.promptCalls[1]?.text, "");
+      assert.strictEqual(fake.promptCalls[1]?.options?.streamingBehavior, "steer");
+      assert.deepEqual(fake.promptCalls[1]?.options?.images, [
+        { type: "image", data: "CQk=", mimeType: "image/png" },
+      ]);
       assert.deepEqual(fake.promptCalls[0]?.options?.images, [
         { type: "image", data: "CQk=", mimeType: "image/png" },
       ]);
@@ -505,6 +520,14 @@ it.layer(testLayer)("PiAdapter", (it) => {
       yield* adapter.sendTurn({ threadId, input: "plain follow-up" });
       assert.strictEqual(fake.promptCalls.length, 1);
       assert.isUndefined(fake.promptCalls[0]?.options?.images);
+      assert.isUndefined(fake.promptCalls[0]?.options?.streamingBehavior);
+
+      const steeringError = yield* adapter
+        .sendTurn({ threadId, attachments: [attachment] })
+        .pipe(Effect.flip);
+      assert.include(steeringError.detail, "does not support image input");
+      yield* adapter.sendTurn({ threadId, input: "plain steering after rejection" });
+      assert.strictEqual(fake.promptCalls[1]?.options?.streamingBehavior, "steer");
     }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
   });
 

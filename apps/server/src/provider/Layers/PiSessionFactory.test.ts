@@ -123,26 +123,29 @@ describe("headless Pi extensions", () => {
     assert.strictEqual(log().split("shutdown\n").length - 1, 1);
   });
 
-  it("forwards prompt images into the session's user message", async () => {
-    const session = await create();
-    await session.prompt("what is this", {
-      images: [{ type: "image", data: "AQ==", mimeType: "image/png" }],
-    });
-    // SAFETY: The PiSessionLike surface types messages loosely; the last user
-    // message is the one this test just prompted with, and its final content
-    // block is the image the SDK appended after the text block.
-    const userMessage = [...session.messages]
-      .toReversed()
-      .find((message) => (message as { role?: string }).role === "user") as
-      | { content?: Array<{ type: string; data?: string; mimeType?: string }> }
-      | undefined;
-    assert.isDefined(userMessage);
-    assert.deepEqual(userMessage?.content?.at(-1), {
-      type: "image",
-      data: "AQ==",
-      mimeType: "image/png",
-    });
-  });
+  it.each(["what is this", ""])(
+    "forwards prompt images with text %j into the session's user message",
+    async (text) => {
+      const session = await create();
+      await session.prompt(text, {
+        images: [{ type: "image", data: "AQ==", mimeType: "image/png" }],
+      });
+      // SAFETY: The PiSessionLike surface types messages loosely; the last user
+      // message is the one this test just prompted with, and its final content
+      // block is the image the SDK appended after the text block.
+      const userMessage = [...session.messages]
+        .toReversed()
+        .find((message) => (message as { role?: string }).role === "user") as
+        | { content?: Array<{ type: string; data?: string; mimeType?: string }> }
+        | undefined;
+      assert.isDefined(userMessage);
+      assert.deepEqual(userMessage?.content?.at(-1), {
+        type: "image",
+        data: "AQ==",
+        mimeType: "image/png",
+      });
+    },
+  );
 
   it("keeps rejected SDK prompts on the request error channel", async () => {
     const session = await create(false);

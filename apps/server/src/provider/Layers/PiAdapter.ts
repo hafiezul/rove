@@ -530,7 +530,8 @@ const buildPiImageAttachments = Effect.fn("buildPiImageAttachments")(function* (
         detail: `Unsupported Pi attachment type '${attachment.type}'. Pi supports image attachments only.`,
       });
     }
-    if (!PI_IMAGE_MIME_TYPES.includes(attachment.mimeType.toLowerCase())) {
+    const mimeType = attachment.mimeType.toLowerCase();
+    if (!PI_IMAGE_MIME_TYPES.includes(mimeType)) {
       return yield* new ProviderAdapterRequestError({
         provider: PROVIDER,
         method: "sendTurn",
@@ -562,7 +563,7 @@ const buildPiImageAttachments = Effect.fn("buildPiImageAttachments")(function* (
     images.push({
       type: "image",
       data: Buffer.from(bytes).toString("base64"),
-      mimeType: attachment.mimeType,
+      mimeType,
     });
   }
   return images;
@@ -1366,12 +1367,12 @@ export function makePiAdapter(
           input.threadId,
           Effect.gen(function* () {
             const ctx = yield* getSession(input.threadId, "sendTurn");
-            const rawText = input.input?.trim();
-            if (rawText === undefined || rawText.length === 0) {
+            const rawText = input.input?.trim() ?? "";
+            if (rawText.length === 0 && images.length === 0) {
               return yield* new ProviderAdapterRequestError({
                 provider: PROVIDER,
                 method: "sendTurn",
-                detail: "Pi turns require text input.",
+                detail: "Pi turns require text input or image attachments.",
               });
             }
 
