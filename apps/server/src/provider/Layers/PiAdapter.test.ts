@@ -270,13 +270,23 @@ it.layer(testLayer)("PiAdapter", (it) => {
       fake.emit({ type: "auto_retry_end", success: true });
       fake.emit({ type: "compaction_start" });
       fake.emit({ type: "compaction_end", aborted: true });
+      fake.emit({ type: "compaction_start" });
+      fake.emit({ type: "compaction_end", aborted: false, errorMessage: "quota exceeded" });
       fake.emit({ type: "agent_settled" });
       yield* Deferred.await(completed);
       const notices = events.filter((event) => event.type === "runtime.info");
       assert.deepStrictEqual(
         notices.map((event) => event.payload.message),
-        ["Retrying (attempt 1)…", "Retry succeeded", "Compacting context…", "Compaction stopped"],
+        [
+          "Retrying (attempt 1)…",
+          "Retry succeeded",
+          "Compacting context…",
+          "Compaction stopped",
+          "Compacting context…",
+          "Compaction failed",
+        ],
       );
+      assert.strictEqual(notices.at(-1)?.payload.detail, "quota exceeded");
       assert.isTrue(notices.every((event) => event.turnId === turn.turnId));
       assert.strictEqual(events.filter((event) => event.type === "turn.completed").length, 1);
     }),
@@ -287,12 +297,14 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
       const toolDone = yield* Deferred.make<void>();
+      const progressReceived = yield* Deferred.make<void>();
       const settled = yield* Deferred.make<void>();
       const events: Array<ProviderRuntimeEvent> = [];
       yield* adapter.streamEvents.pipe(
         Stream.runForEach((event) => {
           events.push(event);
           if (event.type === "item.completed") return Deferred.succeed(toolDone, undefined);
+          if (event.type === "item.updated") return Deferred.succeed(progressReceived, undefined);
           if (event.type === "turn.completed") return Deferred.succeed(settled, undefined);
           return Effect.void;
         }),
@@ -310,11 +322,23 @@ it.layer(testLayer)("PiAdapter", (it) => {
           toolCallId: "call",
           toolName: "bash",
           partialResult: {
-            content: [{ type: "text", text: "x".repeat(10_000) }],
+            content: [
+              { type: "text", text: "x".repeat(10_000) },
+              { type: "text", text: "newest output" },
+              { type: "image", data: "ignored" },
+            ],
             details: { secret: "not forwarded" },
           },
         });
       }
+      yield* Deferred.await(progressReceived);
+      yield* TestClock.adjust(500);
+      fake.emit({
+        type: "tool_execution_update",
+        toolCallId: "call",
+        toolName: "bash",
+        partialResult: { content: [{ type: "text", text: "x".repeat(10_000) + "later output" }] },
+      });
       fake.emit({ type: "tool_execution_end", toolCallId: "call", toolName: "bash", result: {} });
       yield* Deferred.await(toolDone);
       fake.messages = [
@@ -324,8 +348,9 @@ it.layer(testLayer)("PiAdapter", (it) => {
       fake.emit({ type: "agent_settled" });
       yield* Deferred.await(settled);
       const progress = events.filter((event) => event.type === "item.updated");
-      assert.strictEqual(progress.length, 1);
-      assert.strictEqual(progress[0]?.payload.detail?.length, 1024);
+      assert.strictEqual(progress.length, 2);
+      assert.strictEqual(progress[0]?.payload.detail, "x".repeat(1011) + "newest output");
+      assert.strictEqual(progress[1]?.payload.detail, "x".repeat(1012) + "later output");
       assert.isUndefined(progress[0]?.payload.data);
       const starts = events.filter((event) => event.type === "item.started");
       assert.deepStrictEqual(

@@ -19,9 +19,10 @@ New sessions are saved before the first prompt, so restarting before the first a
 ## Progress and diagnostics
 
 The thread activity timeline shows when Pi is retrying or compacting context,
-and when that work finishes or stops. These notices do not complete the turn.
-Streaming tools show short, rate-limited progress previews; the completed tool
-result remains the authoritative output. The same activity reaches local and
+and when that work finishes or stops. Failed compaction is labeled as a failure
+with its error details. These notices do not complete the turn.
+Streaming tools show short, rate-limited previews of their latest output; the
+completed tool result remains the authoritative output. The same activity reaches local and
 remote clients.
 
 Provider diagnostics report the Pi version bundled with Rove, not a separately

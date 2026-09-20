@@ -1240,7 +1240,15 @@ export function makePiAdapter(
               type: "runtime.info",
               ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
               payload: {
-                message: event.aborted === true ? "Compaction stopped" : "Compaction finished",
+                message:
+                  event.aborted === true
+                    ? "Compaction stopped"
+                    : event.errorMessage
+                      ? "Compaction failed"
+                      : "Compaction finished",
+                ...(RuntimePredicate.isString(event.errorMessage)
+                  ? { detail: piBounded(event.errorMessage, 1024) }
+                  : undefined),
               },
             });
             if (event.aborted !== true) {
@@ -1325,10 +1333,12 @@ export function makePiAdapter(
           const content = piRecord(event.partialResult)?.content;
           let progress = "";
           if (Array.isArray(content)) {
-            for (const block of content) {
-              const text = piRecord(block);
+            // SDK updates can contain cumulative output. Keep the newest text,
+            // otherwise every snapshot looks identical once output exceeds the cap.
+            for (let index = content.length - 1; index >= 0; index--) {
+              const text = piRecord(content[index]);
               if (text?.type !== "text" || !RuntimePredicate.isString(text.text)) continue;
-              progress += text.text.slice(0, 1024 - progress.length);
+              progress = text.text.slice(-(1024 - progress.length)) + progress;
               if (progress.length >= 1024) break;
             }
           }
