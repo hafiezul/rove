@@ -48,6 +48,9 @@ import {
   type PiSessionResumeOutcome,
 } from "./PiAdapter.ts";
 
+import { readMcpProviderSession } from "../../mcp/McpProviderSession.ts";
+import { createPiRoveTools } from "./PiRoveTools.ts";
+
 export { PiExtensionLoadError } from "./PiAdapter.ts";
 
 /**
@@ -91,6 +94,7 @@ async function toPiSessionLike(
   resumeOutcome?: PiSessionResumeOutcome,
   initialStartupErrors: ReadonlyArray<PiSessionEventLike> = [],
   modelFallbackMessage?: string | undefined,
+  disposeRoveTools: () => Promise<void> = async () => {},
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -104,8 +108,12 @@ async function toPiSessionLike(
         await session.abort();
         await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
       } finally {
-        session.dispose();
-        listeners.clear();
+        try {
+          session.dispose();
+          listeners.clear();
+        } finally {
+          await disposeRoveTools();
+        }
       }
     })());
 
@@ -666,14 +674,21 @@ export async function createPiSession(
       | PiThinkingLevel
       | undefined;
 
+  const roveTools = await createPiRoveTools(
+    input.threadId === undefined ? undefined : readMcpProviderSession(input.threadId),
+  );
   const { session, modelFallbackMessage: sdkModelFallbackMessage } =
     await createAgentSessionFromServices({
       services,
       sessionManager,
+      customTools: roveTools.tools,
       ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
       ...(requestedThinkingLevel !== undefined
         ? { thinkingLevel: requestedThinkingLevel }
         : undefined),
+    }).catch(async (error: unknown) => {
+      await roveTools.dispose();
+      throw error;
     });
 
   // Collect every way the effective model/reasoning selection differs from the
@@ -699,5 +714,6 @@ export async function createPiSession(
     outcome,
     startupErrors,
     modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
+    roveTools.dispose,
   );
 }

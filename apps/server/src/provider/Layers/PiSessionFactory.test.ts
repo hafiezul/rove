@@ -14,6 +14,10 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
 import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
+import * as PiSdk from "@earendil-works/pi-coding-agent";
+import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
+import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
+import * as PiRoveTools from "./PiRoveTools.ts";
 import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";
 
 import {
@@ -28,6 +32,8 @@ import {
   type PiSessionEventLike,
   type PiSessionLike,
 } from "./PiAdapter.ts";
+
+vi.mock("@earendil-works/pi-coding-agent", { spy: true });
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 
@@ -55,6 +61,8 @@ describe("headless Pi extensions", () => {
 
   afterEach(async () => {
     for (const session of sessions.splice(0)) await session.dispose();
+    vi.restoreAllMocks();
+    McpProviderSession.clearAllMcpProviderSessions();
     vi.unstubAllEnvs();
     NodeFS.rmSync(root, { recursive: true, force: true });
   });
@@ -73,6 +81,69 @@ describe("headless Pi extensions", () => {
     return session;
   };
   const log = () => NodeFS.readFileSync(NodePath.join(cwd, "extension.log"), "utf8");
+
+  it("installs thread-authorized Rove tools even with user extensions disabled", async () => {
+    const threadId = ThreadId.make("pi-rove-tools");
+    const config = {
+      threadId,
+      environmentId: EnvironmentId.make("test-env"),
+      providerInstanceId: ProviderInstanceId.make("pi"),
+      providerSessionId: "test-session",
+      endpoint: "http://127.0.0.1:12345/mcp",
+      authorizationHeader: "Bearer test-secret",
+    };
+    McpProviderSession.setMcpProviderSession(config);
+    const dispose = vi.fn(async () => {});
+    const bridge = vi.spyOn(PiRoveTools, "createPiRoveTools").mockResolvedValue({
+      tools: [
+        {
+          name: "mcp__rove__preview_status",
+          label: "Preview status",
+          description: "Inspect preview",
+          parameters: { type: "object", properties: {} },
+          execute: async () => ({ content: [{ type: "text", text: "ready" }], details: {} }),
+        },
+      ],
+      dispose,
+    });
+    const createSdkSession = vi.spyOn(PiSdk, "createAgentSessionFromServices");
+    const session = await createPiSession(
+      {
+        threadId,
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { extensions: false },
+    );
+    sessions.push(session);
+    expect(bridge).toHaveBeenCalledWith(config);
+    const result = createSdkSession.mock.results[0]!;
+    if (result.type !== "return") throw new Error("SDK session creation failed");
+    const { session: sdkSession } = await result.value;
+    expect(sdkSession.getActiveToolNames()).toContain("mcp__rove__preview_status");
+    expect(sdkSession.getAllTools().map((tool) => tool.name)).not.toContain("fixture_tool");
+    await session.dispose();
+    await session.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+
+    dispose.mockClear();
+    createSdkSession.mockRejectedValueOnce(new Error("SDK startup failed"));
+    await expect(
+      createPiSession(
+        {
+          threadId,
+          cwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { extensions: false },
+      ),
+    ).rejects.toThrow("SDK startup failed");
+    expect(dispose).toHaveBeenCalledOnce();
+  });
 
   it("keeps unnamed inline identities stable when earlier factories are disabled", async () => {
     const first = vi.fn();

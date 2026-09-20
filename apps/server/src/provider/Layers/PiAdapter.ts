@@ -251,6 +251,7 @@ export function parsePiResumeCursor(
 }
 
 export interface PiCreateSessionInput {
+  readonly threadId?: ThreadId | undefined;
   readonly cwd: string;
   readonly model: string | undefined;
   readonly thinkingLevel: string | undefined;
@@ -1281,6 +1282,7 @@ export function makePiAdapter(
               const cursor = parsePiResumeCursor(input.resumeCursor);
               try {
                 return await createSession({
+                  threadId: input.threadId,
                   cwd,
                   model: initialModelSlug,
                   thinkingLevel:
@@ -1300,6 +1302,7 @@ export function makePiAdapter(
                   cause.failedExtensionPaths.length > 0
                 ) {
                   return await createSession({
+                    threadId: input.threadId,
                     cwd,
                     model: initialModelSlug,
                     thinkingLevel:
@@ -1454,6 +1457,7 @@ export function makePiAdapter(
                 await ctx.session.dispose();
                 ctx.unsubscribe();
                 const newSession = await createSession({
+                  threadId: input.threadId,
                   cwd: ctx.cwd,
                   model: ctx.currentModelSlug,
                   thinkingLevel:

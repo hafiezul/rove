@@ -1752,6 +1752,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
       yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
 
       assert.lengthOf(createCalls, 1);
+      assert.strictEqual(createCalls[0]?.threadId, threadId);
       assert.deepStrictEqual(createCalls[0]?.disabledExtensions, [
         "/home/dev/.pi/agent/extensions/noisy.ts",
       ]);
@@ -1781,6 +1782,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
       assert.strictEqual(session.status, "ready");
       assert.lengthOf(createCalls, 2);
+      assert.deepStrictEqual(
+        createCalls.map((call) => call.threadId),
+        [threadId, threadId],
+      );
       assert.deepStrictEqual(createCalls[1]?.disabledExtensions, [
         "/home/dev/.pi/agent/extensions/broken.ts",
       ]);
@@ -1872,6 +1877,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
       // Second turn sends: session re-creates cleanly at cursor with updated disabledExtensions
       yield* adapter.sendTurn({ threadId, input: "second turn" });
       assert.lengthOf(createCalls, 2);
+      assert.deepStrictEqual(
+        createCalls.map((call) => call.threadId),
+        [threadId, threadId],
+      );
       assert.strictEqual(createCalls[1]?.resumeSessionId, "session-1");
       assert.deepStrictEqual(createCalls[1]?.disabledExtensions, ["/path/to/disabled.ts"]);
     }),

@@ -2,6 +2,12 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
+## Built-in Rove tools
+
+Pi threads automatically receive Rove's browser-preview tools, including navigation, page inspection with screenshots, interaction, and recording. No Pi extension or MCP configuration is required. These tools use the thread's authorization and remain available when user extensions are disabled.
+
+Tools run through the connected Rove server, including when you control a thread remotely. Browser automation still requires an automation-capable preview client. This built-in connection does not load arbitrary MCP servers from Pi settings.
+
 ## Session recovery
 
 Rove saves each Pi session's identity and absolute file location on the server. Sessions remain recoverable when a thread's working directory changes, provided the saved file remains accessible. Older sessions without a saved file location use Pi's working-directory lookup.
