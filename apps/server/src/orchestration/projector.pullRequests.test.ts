@@ -275,7 +275,7 @@ it.effect("mirrors legacy meta-updated links into pullRequests using the project
           threadId: THREAD_ID,
           linkedPullRequest: {
             projectId: PROJECT_ID,
-            repository: "T3Tools/T3Code",
+            repository: "T3Tools/Rove",
             number: 42,
             url: "https://github.com/t3tools/rove/pull/42",
           },

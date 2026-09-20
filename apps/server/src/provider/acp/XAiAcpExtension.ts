@@ -179,8 +179,8 @@ function findQuestionAnswer(
     return answer;
   }
   if (Array.isArray(answer)) {
-    return answer.flatMap(
-      (entry): ReadonlyArray<string> => (RuntimePredicate.isString(entry) ? [entry] : []),
+    return answer.flatMap((entry): ReadonlyArray<string> =>
+      RuntimePredicate.isString(entry) ? [entry] : [],
     );
   }
   return undefined;

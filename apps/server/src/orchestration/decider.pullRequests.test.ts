@@ -319,7 +319,7 @@ it.layer(NodeServices.layer)("pull request link decider", (it) => {
           commandId: CommandId.make("cmd-link"),
           threadId: THREAD_ID,
           host: " GitHub.com ",
-          repository: "T3Tools/T3Code",
+          repository: "T3Tools/Rove",
           number: 42,
           url: "https://github.com/t3tools/rove/pull/42",
           source: "manual",

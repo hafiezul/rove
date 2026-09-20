@@ -89,7 +89,10 @@ export const CLI_EXTERNAL_PACKAGE_PREFIXES = [
 ] as const;
 export function isRuntimeExternalCliDependency(id: string): boolean {
   const packageName = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
-  return piRuntimePackages.has(packageName ?? "") || CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
+  return (
+    piRuntimePackages.has(packageName ?? "") ||
+    CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix))
+  );
 }
 
 /**

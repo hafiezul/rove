@@ -778,10 +778,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
           // The app is reached from the tailnet origin. Vite already allows
           // *.ts.net hosts; the backend needs the origin for credentialed
           // requests that bypass the proxy (desktop renderer, direct calls).
-          env.ROVE_DEV_ALLOWED_ORIGINS = [
-            env.ROVE_DEV_ALLOWED_ORIGINS,
-            new URL(shared.url).origin,
-          ]
+          env.ROVE_DEV_ALLOWED_ORIGINS = [env.ROVE_DEV_ALLOWED_ORIGINS, new URL(shared.url).origin]
             .filter((entry) => entry && entry.length > 0)
             .join(",");
           // The server builds its pairing URL from this, so the URL printed at

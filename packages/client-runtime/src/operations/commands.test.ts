@@ -57,10 +57,11 @@ const makeSupervisor = Effect.fn("TestEnvironmentCommands.makeSupervisor")(funct
         return { sequence: dispatched.length };
       }),
   };
+  const rpcClient = testDouble<WsRpcProtocolClient>(client);
   const session: RpcSession.RpcSession = {
-    client: testDouble<WsRpcProtocolClient>(client),
+    client: rpcClient,
     initialConfig: Effect.never,
-    subscribeServerConfig: (input) => client.subscribeServerConfig(input),
+    subscribeServerConfig: (input) => rpcClient.subscribeServerConfig(input),
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,

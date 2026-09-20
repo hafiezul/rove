@@ -1166,7 +1166,7 @@ describe("DesktopWindow", () => {
           record.message[0] === "failed to read connected displays; using defaults",
       );
       assert.isDefined(warning);
-      assert.strictEqual(warning.annotations.cause, displayLookupFailure.message);
+      assert.strictEqual(warning.annotations.cause, displayLookupFailure);
       assert.equal(createdWindowOptions[0]?.width, 1100);
       assert.equal(createdWindowOptions[0]?.height, 780);
       assert.isUndefined(createdWindowOptions[0]?.x);
@@ -1287,10 +1287,7 @@ describe("DesktopWindow", () => {
         assert.equal(fakeWindow.loadURL.mock.calls.length, 1);
 
         yield* TestClock.adjust(100);
-        assert.deepEqual(fakeWindow.loadURL.mock.calls, [
-          ["rove-dev://app/"],
-          ["rove-dev://app/"],
-        ]);
+        assert.deepEqual(fakeWindow.loadURL.mock.calls, [["rove-dev://app/"], ["rove-dev://app/"]]);
         assert.equal(fakeWindow.reload.mock.calls.length, 0);
 
         didFailLoad({}, -9, "ERR_UNEXPECTED", "rove-dev://app/", true);

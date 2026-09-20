@@ -111,14 +111,15 @@ function testSession(
   client: unknown,
   options?: { readonly completionMarker?: boolean },
 ): RpcSession.RpcSession {
+  const rpcClient = testDouble<WsRpcProtocolClient>(client);
   return {
-    client: testDouble<WsRpcProtocolClient>(client),
+    client: rpcClient,
     initialConfig: Effect.succeed(
       options?.completionMarker === true
         ? ({ threadResumeCompletionMarker: true } as never)
         : ({} as never),
     ),
-    subscribeServerConfig: (input) => client.subscribeServerConfig(input),
+    subscribeServerConfig: (input) => rpcClient.subscribeServerConfig(input),
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,

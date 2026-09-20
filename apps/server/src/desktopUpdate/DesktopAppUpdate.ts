@@ -200,7 +200,9 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
         });
         yield* Effect.uninterruptible(
           receiver.commitDesktopUpdate(requestId).pipe(
-            Effect.mapError((error) => failWith("Could not reach the Rove Code desktop app.", error)),
+            Effect.mapError((error) =>
+              failWith("Could not reach the Rove Code desktop app.", error),
+            ),
             Effect.tap(() => onHandoffAccepted()),
           ),
         );

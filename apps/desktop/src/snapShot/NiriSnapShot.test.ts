@@ -148,7 +148,9 @@ it("waits for the restored T3 window to map instead of polling", async () => {
     await original(request, socket);
     if (request === "EventStream")
       send(socket, {
-        WindowOpenedOrChanged: { window: { ...window, id: 4, pid: process.pid, title: "Rove Code" } },
+        WindowOpenedOrChanged: {
+          window: { ...window, id: 4, pid: process.pid, title: "Rove Code" },
+        },
       });
   };
   await snapshot.feedback!.activate("Rove Code");

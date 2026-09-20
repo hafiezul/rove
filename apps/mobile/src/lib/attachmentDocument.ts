@@ -74,7 +74,7 @@ export function useAttachmentDocument(input: {
     if (attachment) return;
     let cancelled = false;
     // Await a fresh signed URL: cached links can expire while the client is suspended.
-    // oxlint-disable-next-line react/set-state-in-effect -- A new preview request clears its previous URL and error.
+    // A new preview request clears its previous URL and error.
     setRemoteUri(null);
     setError(null);
     textReadUrl.current = null;
@@ -92,13 +92,13 @@ export function useAttachmentDocument(input: {
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Retry must reauthorize the remote file.
+    // Retry must reauthorize the remote file.
   }, [attachment, refresh, revision]);
   useEffect(() => {
     if (!attachment) return;
     // A new attachment must not keep the previous file behind it: `share()` would otherwise
     // send the old bytes under the new name if this load fails.
-    // oxlint-disable-next-line react/set-state-in-effect -- A new attachment invalidates the last one.
+    // A new attachment invalidates the last one.
     setLocalUri(null);
     setContent(null);
     setContentError(null);
@@ -120,14 +120,14 @@ export function useAttachmentDocument(input: {
       controller.abort();
       release?.();
     };
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Retry must reacquire a local file lease after a failed load.
+    // Retry must reacquire a local file lease after a failed load.
   }, [attachment, revision]);
   const needsText = kind === "text" || kind === "markdown" || (kind === "html" && !rendered);
   const sizeBytes = input.sizeBytes;
   useEffect(() => {
     if (!uri || !needsText) return;
     const controller = new AbortController();
-    // oxlint-disable-next-line react/set-state-in-effect -- A new external resource must clear the previous response before loading.
+    // A new external resource must clear the previous response before loading.
     setContent(null);
     setContentError(null);
     const response = isLocalUri(uri)

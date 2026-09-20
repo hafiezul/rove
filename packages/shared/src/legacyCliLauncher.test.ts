@@ -19,10 +19,7 @@ it.skipIf(hostPlatform === "win32")(
   async () => {
     const root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-legacy-launcher-"));
     const entry = NodePath.join(root, "node_modules/t3/dist/bin.mjs");
-    const executable = NodePath.join(
-      root,
-      `node_modules/@rove/t3-${hostPlatform}-${hostArch}/t3`,
-    );
+    const executable = NodePath.join(root, `node_modules/@rove/t3-${hostPlatform}-${hostArch}/t3`);
     await NodeFSP.mkdir(NodePath.dirname(entry), { recursive: true });
     await NodeFSP.mkdir(NodePath.dirname(executable), { recursive: true });
     await NodeFSP.writeFile(

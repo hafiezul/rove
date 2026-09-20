@@ -155,12 +155,13 @@ const makeHarness = Effect.fn("TestThreadPagination.makeHarness")(function* (opt
     [ORCHESTRATION_WS_METHODS.subscribeThread]: (input: Record<string, SchemaJson>) =>
       Stream.unwrap(Ref.set(lastSubscribeInput, input).pipe(Effect.as(Stream.fromQueue(inputs)))),
   };
+  const rpcClient = testDouble<WsRpcProtocolClient>(client);
   const session: RpcSession.RpcSession = {
-    client: testDouble<WsRpcProtocolClient>(client),
+    client: rpcClient,
     initialConfig: Effect.succeed({
       threadSnapshotPagination: options?.paginationCapability !== false,
     } as never),
-    subscribeServerConfig: (input) => client.subscribeServerConfig(input),
+    subscribeServerConfig: (input) => rpcClient.subscribeServerConfig(input),
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,

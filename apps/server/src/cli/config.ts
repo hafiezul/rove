@@ -97,9 +97,7 @@ const EnvServerConfig = Config.all({
     Config.option,
     Config.map(Option.getOrUndefined),
   ),
-  otlpExportIntervalMs: Config.int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(
-    Config.withDefault(10_000),
-  ),
+  otlpExportIntervalMs: Config.int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(Config.withDefault(10_000)),
   otlpServiceName: Config.string("ROVE_OTLP_SERVICE_NAME").pipe(Config.withDefault("t3-server")),
   otlpHeaders: Config.schema(OtlpHeadersFromString, "ROVE_OTLP_HEADERS").pipe(
     Config.option,

@@ -670,10 +670,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           commands.filter(
             (command) => command.startsWith("systemctl ") && !command.includes("show-environment"),
           ),
-        ).toEqual([
-          "systemctl --user stop rove.service",
-          "systemctl --user restart rove.service",
-        ]);
+        ).toEqual(["systemctl --user stop rove.service", "systemctl --user restart rove.service"]);
       }
     }),
   );
@@ -693,9 +690,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       const plan = yield* service.install();
 
       expect(
-        plan.unitPath.endsWith(
-          path.join("Library", "LaunchAgents", "dev.rove.app.service.plist"),
-        ),
+        plan.unitPath.endsWith(path.join("Library", "LaunchAgents", "dev.rove.app.service.plist")),
       ).toBe(true);
       expect(yield* fs.readFileString(plan.unitPath)).toContain(
         `    <key>PATH</key>\n    <string>${macInstallerPath}:/usr/local/bin:/usr/sbin:/sbin</string>`,

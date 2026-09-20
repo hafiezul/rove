@@ -553,7 +553,8 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
   const interactionMode = planModeEnabled
     ? (selectedProjectDraft.interactionMode ?? DEFAULT_PROVIDER_INTERACTION_MODE)
     : DEFAULT_PROVIDER_INTERACTION_MODE;
-  const runtimeModeSelectable = selectedProviderStatus?.runtimeModeSelectable ?? selectedModelOption?.providerDriver !== "pi";
+  const runtimeModeSelectable =
+    selectedProviderStatus?.runtimeModeSelectable ?? selectedModelOption?.providerDriver !== "pi";
   const setSelectedModelKey = useCallback(
     // Options ride along in the same write: a follow-up setSelectedModelOptions
     // call would rebuild the selection from the stale pre-switch model.

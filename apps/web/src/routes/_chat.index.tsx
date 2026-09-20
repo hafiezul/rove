@@ -143,8 +143,8 @@ function HostedStaticOnboardingState() {
                 Connect to a computer running Rove Code
               </EmptyTitle>
               <EmptyDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/78">
-                This app connects to Rove Code running on your computer or a server. Start the Rove Code
-                desktop app or command-line server on that machine and keep it running.
+                This app connects to Rove Code running on your computer or a server. Start the Rove
+                Code desktop app or command-line server on that machine and keep it running.
               </EmptyDescription>
               <EmptyDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/78">
                 {description}

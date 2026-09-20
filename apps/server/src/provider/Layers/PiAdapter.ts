@@ -72,7 +72,7 @@ import * as RuntimePredicate from "effect/Predicate";
  */
 const PI_SKILL_TOKEN_PATTERN = /^\$([^\s]+)(?:\s+|$)/;
 
-export function translatePiSkillToken(text: string): string {
+function translatePiSkillToken(text: string): string {
   const match = PI_SKILL_TOKEN_PATTERN.exec(text);
   if (match === null) {
     return text;

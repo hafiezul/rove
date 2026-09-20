@@ -46,9 +46,7 @@ export const DesktopConfig = Config.all({
   desktopLanHostOverride: trimmedString("ROVE_DESKTOP_LAN_HOST"),
   desktopHttpsEndpointUrls: commaSeparatedStrings("ROVE_DESKTOP_HTTPS_ENDPOINTS"),
   otlpTracesUrl: trimmedString("ROVE_OTLP_TRACES_URL"),
-  otlpExportIntervalMs: Config.int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(
-    Config.withDefault(10_000),
-  ),
+  otlpExportIntervalMs: Config.int("ROVE_OTLP_EXPORT_INTERVAL_MS").pipe(Config.withDefault(10_000)),
   otlpHeaders: Config.schema(OtlpHeadersFromString, "ROVE_OTLP_HEADERS").pipe(Config.option),
   otlpProtocol: Config.schema(OtlpProtocol, "ROVE_OTLP_PROTOCOL").pipe(
     Config.withDefault("http/json"),

@@ -463,13 +463,13 @@ const WsServerGetConfigRpc = Rpc.make(WS_METHODS.serverGetConfig, {
   error: Schema.Union([KeybindingsConfigError, ServerSettingsError, EnvironmentAuthorizationError]),
 });
 
-export const WsPiGetCatalogRpc = Rpc.make(WS_METHODS.piGetCatalog, {
+const WsPiGetCatalogRpc = Rpc.make(WS_METHODS.piGetCatalog, {
   payload: PiCatalogInput,
   success: PiCatalogSnapshot,
   error: Schema.Union([PiCatalogError, EnvironmentAuthorizationError]),
 });
 
-export const WsPiRefreshCatalogRpc = Rpc.make(WS_METHODS.piRefreshCatalog, {
+const WsPiRefreshCatalogRpc = Rpc.make(WS_METHODS.piRefreshCatalog, {
   payload: PiCatalogInput,
   success: PiCatalogSnapshot,
   error: Schema.Union([PiCatalogError, EnvironmentAuthorizationError]),

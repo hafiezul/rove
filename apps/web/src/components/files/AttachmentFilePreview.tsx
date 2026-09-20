@@ -114,7 +114,7 @@ export function AttachmentFilePreview(props: {
   useEffect(() => {
     if (!props.file) return;
     const url = URL.createObjectURL(props.file);
-    // oxlint-disable-next-line react/set-state-in-effect -- Publish an object URL only after its cleanup is registered for this Blob.
+    // Publish an object URL only after its cleanup is registered for this Blob.
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [props.file]);
@@ -122,7 +122,7 @@ export function AttachmentFilePreview(props: {
     if (props.file) return;
     let cancelled = false;
     // Await a fresh signed URL: cached links can expire while the client is suspended.
-    // oxlint-disable-next-line react/set-state-in-effect -- A new preview request clears its previous URL and error.
+    // A new preview request clears its previous URL and error.
     setRemoteUrl(null);
     setError(null);
     void refresh()
@@ -139,14 +139,14 @@ export function AttachmentFilePreview(props: {
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Retry must reauthorize the remote file.
+    // Retry must reauthorize the remote file.
   }, [props.file, refresh, revision]);
   const url = props.file ? localUrl : remoteUrl;
   const needsText = kind === "text" || kind === "markdown" || (kind === "html" && !rendered);
   useEffect(() => {
     if (!needsText || !url) return;
     const controller = new AbortController();
-    // oxlint-disable-next-line react/set-state-in-effect -- A new external resource must clear the previous response before loading.
+    // A new external resource must clear the previous response before loading.
     setContent(null);
     setContentError(null);
     const file = props.file;

@@ -304,13 +304,13 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
       assert.deepStrictEqual(latestConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "rovecode",
         repo: "rove",
         releaseType: "release",
       });
       assert.deepStrictEqual(nightlyConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "rovecode",
         repo: "rove",
         releaseType: "prerelease",
         channel: "nightly",
@@ -354,7 +354,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.deepStrictEqual(release.publish, [
         {
           provider: "github",
-          owner: "pingdotgg",
+          owner: "rovecode",
           repo: "rove",
           releaseType: "release",
         },
@@ -1875,9 +1875,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/rove.provisionprofile");
       assert.match(String(mac.sign), /[\\/]scripts[\\/]sign-macos\.ts$/);
-      assert.deepStrictEqual(mac.protocols, [
-        { name: "Rove Code", schemes: ["rove", "rove-dev"] },
-      ]);
+      assert.deepStrictEqual(mac.protocols, [{ name: "Rove Code", schemes: ["rove", "rove-dev"] }]);
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 

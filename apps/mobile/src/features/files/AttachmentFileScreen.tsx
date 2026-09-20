@@ -212,7 +212,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
   const { uri, resource } = document;
   useEffect(() => {
     if (nativeViewer !== "pending" || !uri) return;
-    // oxlint-disable-next-line react/set-state-in-effect -- Presenting the viewer waits on the resolved file.
+    // Presenting the viewer waits on the resolved file.
     setNativeViewer("open");
     setNativeOpen(true);
   }, [nativeViewer, uri]);

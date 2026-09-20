@@ -198,9 +198,7 @@ describe("desktop update UI helpers", () => {
   });
 
   it("builds the release history URL", () => {
-    expect(getDesktopUpdateReleaseHistoryUrl()).toBe(
-      "https://github.com/rovecode/rove/releases",
-    );
+    expect(getDesktopUpdateReleaseHistoryUrl()).toBe("https://github.com/rovecode/rove/releases");
   });
 
   it("toasts only for actionable updater errors", () => {

@@ -46,9 +46,9 @@ or use a package manager:
 | Platform           | Install                         |
 | ------------------ | ------------------------------- |
 | Windows            | `winget install T3Tools.T3Code` |
-| macOS              | `brew install --cask rove`   |
-| Arch Linux         | `yay -S rove-bin`             |
-| Arch Linux nightly | `yay -S rove-nightly-bin`     |
+| macOS              | `brew install --cask rove`      |
+| Arch Linux         | `yay -S rove-bin`               |
+| Arch Linux nightly | `yay -S rove-nightly-bin`       |
 
 ### Windows Subsystem for Linux
 
@@ -98,7 +98,7 @@ computer.
 | Cursor      | Install [Cursor CLI](https://cursor.com/cli), then run `agent login`.                        |
 | Grok Build  | Install [Grok Build CLI](https://x.ai/cli), then run `grok login`.                           |
 | OpenCode    | Install [OpenCode](https://opencode.ai), then run `opencode auth login`.                     |
-| Antigravity | Install and sign in with Google from Rove Code's provider settings.                            |
+| Antigravity | Install and sign in with Google from Rove Code's provider settings.                          |
 
 Provider CLIs must be on the server's `PATH`. If Rove Code cannot find one, set its
 **Binary path** in provider settings, especially when using a version manager.

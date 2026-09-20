@@ -50,10 +50,11 @@ const LIVE_SHELL_SNAPSHOT: OrchestrationShellSnapshot = {
 };
 
 function session(client: unknown): RpcSession.RpcSession {
+  const rpcClient = testDouble<WsRpcProtocolClient>(client);
   return {
-    client: testDouble<WsRpcProtocolClient>(client),
+    client: rpcClient,
     initialConfig: Effect.succeed({ shellResumeCompletionMarker: true } as never),
-    subscribeServerConfig: (input) => client.subscribeServerConfig(input),
+    subscribeServerConfig: (input) => rpcClient.subscribeServerConfig(input),
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,

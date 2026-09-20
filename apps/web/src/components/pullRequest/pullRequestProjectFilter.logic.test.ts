@@ -130,10 +130,7 @@ describe("pull request project filter choices", () => {
       new Map(),
     );
 
-    expect(choices.map((choice) => choice.title)).toEqual([
-      "rove · env-cups",
-      "rove · env-nucbox",
-    ]);
+    expect(choices.map((choice) => choice.title)).toEqual(["rove · env-cups", "rove · env-nucbox"]);
   });
 
   it("can distinguish unresolved project records that also share a checkout path", () => {

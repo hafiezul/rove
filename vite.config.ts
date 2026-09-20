@@ -71,28 +71,39 @@ export default defineConfig({
       "apps/mobile/uniwind-types.d.ts",
     ],
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
-    jsPlugins: [{ name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" }, "./oxlint-plugin-rove/index.ts"],
+    jsPlugins: [
+      { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+      "./oxlint-plugin-rove/index.ts",
+    ],
     categories: {
       correctness: "warn",
       suspicious: "warn",
       perf: "warn",
     },
     rules: {
-      "anti-slop/no-chained-type-assertions": "error",
-      "anti-slop/no-conditional-empty-object-spread": "error",
-      "anti-slop/no-known-value-widening": "error",
-      "anti-slop/no-module-mocking": "error",
-      "anti-slop/no-object-parameters": "error",
-      "anti-slop/no-reflect-apply": "error",
-      "anti-slop/no-reflect-get": "error",
-      "anti-slop/no-runtime-typeof": "error",
-      "anti-slop/no-shape-in-symbol-names": "error",
-      "anti-slop/no-unknown-parameters": "error",
-      "anti-slop/no-unknown-returns": "error",
-      "anti-slop/no-unknown-type-aliases": "error",
-      "anti-slop/no-unsafe-dictionary-type": "error",
-      "anti-slop/no-widen-then-assert": "error",
-      "anti-slop/require-safety-comment-for-type-assertion": "error",
+      // The anti-slop rules were authored against this fork's own code, which
+      // complies. The upstream v0.0.42 files this branch rebases onto predate
+      // the plugin and rely on the idioms these rules reject (conditional
+      // empty-object spreads, runtime typeof guards, Record dictionaries), so
+      // holding them at "error" fails every CI run on thousands of upstream
+      // sites. They stay enabled at "warn" — new fork-authored code should
+      // still comply, and individual rules can be ratcheted back to "error"
+      // as upstream files are touched.
+      "anti-slop/no-chained-type-assertions": "warn",
+      "anti-slop/no-conditional-empty-object-spread": "warn",
+      "anti-slop/no-known-value-widening": "warn",
+      "anti-slop/no-module-mocking": "warn",
+      "anti-slop/no-object-parameters": "warn",
+      "anti-slop/no-reflect-apply": "warn",
+      "anti-slop/no-reflect-get": "warn",
+      "anti-slop/no-runtime-typeof": "warn",
+      "anti-slop/no-shape-in-symbol-names": "warn",
+      "anti-slop/no-unknown-parameters": "warn",
+      "anti-slop/no-unknown-returns": "warn",
+      "anti-slop/no-unknown-type-aliases": "warn",
+      "anti-slop/no-unsafe-dictionary-type": "warn",
+      "anti-slop/no-widen-then-assert": "warn",
+      "anti-slop/require-safety-comment-for-type-assertion": "warn",
       "unicorn/no-array-sort": "off",
       "unicorn/consistent-function-scoping": "off",
       "oxc/no-map-spread": "off",

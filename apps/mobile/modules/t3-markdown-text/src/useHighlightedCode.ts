@@ -139,7 +139,7 @@ export function useHighlightedCode(
   }, [code, highlightCode, key, language, theme, ready, session]);
 
   if (ready) return ready;
-  // oxlint-disable-next-line react/refs -- Written only after commit; a discarded render never advances it.
+  // Written only after commit; a discarded render never advances it.
   const baseline = latestRead.current ?? highlighted;
   if (baseline.key === key) return baseline.tokens;
   if (baseline.tokens && baseline.language === language && baseline.theme === theme) {

@@ -697,44 +697,42 @@ describe("filterPinnedBrowseEntries", () => {
   });
 });
 
-it.each([
-  "#10839",
-  "10839",
-  "rovecode/rove#10839",
-  "https://github.com/rovecode/rove/pull/10839",
-])("finds linked threads from PR query %s", (query) => {
-  const items = buildThreadActionItems({
-    threads: [
-      makeThread({
-        title: "Implementation",
-        pullRequests: [
-          {
-            host: "github.com",
-            repository: "rovecode/rove",
-            number: 10839,
-            url: "https://github.com/rovecode/rove/pull/10839",
-            source: "manual",
-            linkedAt: "2026-09-08T00:00:00Z",
-            snapshot: null,
-            stack: null,
-          },
-        ],
-      }),
-      makeThread({ id: ThreadId.make("unrelated"), title: "Other work" }),
-    ],
-    projectTitleById: new Map(),
-    sortOrder: "updated_at",
-    icon: null,
-    runThread: async () => undefined,
-  });
-  const groups = filterCommandPaletteGroups({
-    activeGroups: [],
-    query,
-    isInSubmenu: false,
-    projectSearchItems: [],
-    threadSearchItems: items,
-  });
-  expect(groups.flatMap((group) => group.items.map((item) => item.title))).toEqual([
-    "Implementation",
-  ]);
-});
+it.each(["#10839", "10839", "rovecode/rove#10839", "https://github.com/rovecode/rove/pull/10839"])(
+  "finds linked threads from PR query %s",
+  (query) => {
+    const items = buildThreadActionItems({
+      threads: [
+        makeThread({
+          title: "Implementation",
+          pullRequests: [
+            {
+              host: "github.com",
+              repository: "rovecode/rove",
+              number: 10839,
+              url: "https://github.com/rovecode/rove/pull/10839",
+              source: "manual",
+              linkedAt: "2026-09-08T00:00:00Z",
+              snapshot: null,
+              stack: null,
+            },
+          ],
+        }),
+        makeThread({ id: ThreadId.make("unrelated"), title: "Other work" }),
+      ],
+      projectTitleById: new Map(),
+      sortOrder: "updated_at",
+      icon: null,
+      runThread: async () => undefined,
+    });
+    const groups = filterCommandPaletteGroups({
+      activeGroups: [],
+      query,
+      isInSubmenu: false,
+      projectSearchItems: [],
+      threadSearchItems: items,
+    });
+    expect(groups.flatMap((group) => group.items.map((item) => item.title))).toEqual([
+      "Implementation",
+    ]);
+  },
+);
