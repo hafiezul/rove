@@ -1,4 +1,5 @@
 import "vite-plus/test/config";
+import * as NodeURL from "node:url";
 import { defineConfig, mergeConfig } from "vite-plus";
 
 import baseConfig from "../../vite.config.ts";
@@ -15,6 +16,7 @@ import packageJson from "./package.json" with { type: "json" };
 // inlined. See scripts/lib/cli-external-packages.ts for what earns an exemption.
 import {
   isExternalCliDependency,
+  isRuntimeExternalCliDependency,
   shouldBundleCliDependency,
 } from "../../scripts/lib/cli-external-packages.ts";
 
@@ -95,6 +97,27 @@ export default mergeConfig(
             },
           }
         : {}),
+      // SEA cannot import file-backed ESM modules. Small CommonJS facades
+      // preserve named/default imports while loading the same on-disk sidecars.
+      plugins: packExecutable
+        ? [
+            {
+              name: "rove:sea-external-packages",
+              resolveId(id: string) {
+                return isRuntimeExternalCliDependency(id) ? `\0rove-sea-external:${id}.cjs` : null;
+              },
+              load(id: string) {
+                const prefix = "\0rove-sea-external:";
+                if (!id.startsWith(prefix)) return null;
+                const specifier = id.slice(prefix.length, -4);
+                const loader = NodeURL.fileURLToPath(
+                  new URL("./src/cli/requireExternal.ts", import.meta.url),
+                );
+                return `module.exports = require(${JSON.stringify(loader)}).requireCliExternal(${JSON.stringify(specifier)});`;
+              },
+            },
+          ]
+        : [],
       deps: {
         // Both halves are required. `alwaysBundle` forces the JS dependencies in
         // (declared deps are external by default, which is what this change is
@@ -102,8 +125,10 @@ export default mergeConfig(
         // false from `alwaysBundle` only means "no opinion", so a transitive
         // dependency would still be bundled — which silently inlined
         // msgpackr-extract and its loader, losing native acceleration.
-        alwaysBundle: shouldBundleCliDependency,
-        neverBundle: (id: string) => isExternalCliDependency(id),
+        alwaysBundle: (id: string) =>
+          shouldBundleCliDependency(id) || (packExecutable && isRuntimeExternalCliDependency(id)),
+        neverBundle: (id: string) =>
+          isExternalCliDependency(id) && !(packExecutable && isRuntimeExternalCliDependency(id)),
         onlyBundle: false,
       },
       banner: {
