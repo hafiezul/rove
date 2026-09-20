@@ -16,6 +16,7 @@
  * @module provider/Layers/PiAdapter
  */
 import {
+  type ChatAttachment,
   EventId,
   PiSettings,
   ProviderDriverKind,
@@ -37,11 +38,15 @@ import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as SynchronizedRef from "effect/SynchronizedRef";
+
+import { resolveAttachmentPath } from "../../attachmentStore.ts";
+import { ServerConfig } from "../../config.ts";
 
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
@@ -122,6 +127,25 @@ const PROVIDER = ProviderDriverKind.make("pi");
 const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [piSubagentsDialect];
 
 /**
+ * Pi SDK `ImageContent` — a base64-encoded image inlined into a user message
+ * (the same `{ type, data, mimeType }` shape ACP adapters build).
+ */
+export interface PiImageContentLike {
+  readonly type: "image";
+  readonly data: string;
+  readonly mimeType: string;
+}
+
+/**
+ * Narrow model descriptor for capability checks: the SDK `Model` fields the
+ * adapter reads to decide whether image attachments can reach the model.
+ */
+export interface PiSessionModelLike {
+  readonly id: string;
+  readonly input: ReadonlyArray<string>;
+}
+
+/**
  * Narrow slice of the Pi SDK session the adapter relies on. `setModel` takes
  * the composer slug (`provider/model-id`) and resolves it against the user's
  * catalog; `setThinkingLevel` clamps to model capabilities inside the SDK.
@@ -167,6 +191,7 @@ export interface PiSessionLike {
   prompt(
     text: string,
     options?: {
+      readonly images?: Array<PiImageContentLike>;
       readonly streamingBehavior?: "steer" | "followUp";
       readonly preflightResult?: (success: boolean) => void;
     },
@@ -176,6 +201,11 @@ export interface PiSessionLike {
   dispose(): void | Promise<void>;
   setModel?(model: string): Promise<void>;
   setThinkingLevel?(level: string): void;
+  /**
+   * Current model for image-input capability checks; undefined when no model
+   * is selected yet. Sessions without the accessor (test fakes) skip checks.
+   */
+  getModel?(): PiSessionModelLike | undefined;
   subscribe(listener: (event: PiSessionEventLike) => void): () => void;
   getEntries?(): ReadonlyArray<PiSessionEntryLike>;
   getBranch?(): ReadonlyArray<PiSessionEntryLike>;
@@ -466,13 +496,87 @@ function selectedModelSlug(
   return RuntimePredicate.isString(model) && model.trim().length > 0 ? model : undefined;
 }
 
+/**
+ * Image mime types Pi itself accepts for pasted images. pi-ai forwards the
+ * declared type verbatim to the model's API, so an exotic type here would
+ * surface as an opaque upstream error instead of this preflight rejection.
+ */
+const PI_IMAGE_MIME_TYPES: ReadonlyArray<string> = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+];
+
+/**
+ * Inline attachment pixels into Pi `ImageContent` blocks so the model receives
+ * the image itself, matching Codex and Claude. Attachment id and read failures
+ * surface here as clear turn errors; ProviderService appends the on-disk paths
+ * to the text separately, so the agent can still dereference the file with tools.
+ */
+const buildPiImageAttachments = Effect.fn("buildPiImageAttachments")(function* (
+  attachments: ReadonlyArray<ChatAttachment>,
+  dependencies: {
+    readonly fileSystem: FileSystem.FileSystem;
+    readonly attachmentsDir: string;
+  },
+) {
+  const images: Array<PiImageContentLike> = [];
+  for (const attachment of attachments) {
+    if (attachment.type !== "image") {
+      return yield* new ProviderAdapterRequestError({
+        provider: PROVIDER,
+        method: "sendTurn",
+        detail: `Unsupported Pi attachment type '${attachment.type}'. Pi supports image attachments only.`,
+      });
+    }
+    if (!PI_IMAGE_MIME_TYPES.includes(attachment.mimeType.toLowerCase())) {
+      return yield* new ProviderAdapterRequestError({
+        provider: PROVIDER,
+        method: "sendTurn",
+        detail: `Unsupported Pi image attachment type '${attachment.mimeType}' for '${attachment.name}'. Supported types: ${PI_IMAGE_MIME_TYPES.join(", ")}.`,
+      });
+    }
+    const attachmentPath = resolveAttachmentPath({
+      attachmentsDir: dependencies.attachmentsDir,
+      attachment,
+    });
+    if (attachmentPath === null) {
+      return yield* new ProviderAdapterRequestError({
+        provider: PROVIDER,
+        method: "sendTurn",
+        detail: `Invalid attachment id '${attachment.id}'.`,
+      });
+    }
+    const bytes = yield* dependencies.fileSystem.readFile(attachmentPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: "sendTurn",
+            detail: `Failed to read attachment file '${attachment.name}'. ${cause.message}`,
+            cause,
+          }),
+      ),
+    );
+    images.push({
+      type: "image",
+      data: Buffer.from(bytes).toString("base64"),
+      mimeType: attachment.mimeType,
+    });
+  }
+  return images;
+});
+
 export function makePiAdapter(
   piSettings: PiSettings,
   options: PiAdapterLiveOptions,
-): Effect.Effect<PiAdapterContract, never, Crypto.Crypto> {
+): Effect.Effect<PiAdapterContract, never, Crypto.Crypto | FileSystem.FileSystem | ServerConfig> {
   return Effect.gen(function* () {
     const boundInstanceId = options.instanceId;
     const crypto = yield* Crypto.Crypto;
+    const fileSystem = yield* FileSystem.FileSystem;
+    const serverConfig = yield* ServerConfig;
     const runFork = Effect.runForkWith(yield* Effect.context<Crypto.Crypto>());
     const createSession = options.createSession;
 
@@ -1252,6 +1356,12 @@ export function makePiAdapter(
 
     const sendTurn: PiAdapterContract["sendTurn"] = (input: ProviderSendTurnInput) =>
       Effect.gen(function* () {
+        // Image inlining reads attachment files up front, outside the thread
+        // lock, so a slow disk never stalls other turns on the same thread.
+        const images = yield* buildPiImageAttachments(input.attachments ?? [], {
+          fileSystem,
+          attachmentsDir: serverConfig.attachmentsDir,
+        });
         const prepared = yield* withThreadLock(
           input.threadId,
           Effect.gen(function* () {
@@ -1390,12 +1500,30 @@ export function makePiAdapter(
             yield* publishPiTokenUsage(ctx, "model-switch");
           }
 
+          // A non-vision model silently receives "(image omitted)" placeholder
+          // text instead of pixels (pi-ai downgrades images), so reject up front
+          // where the user gets a clear error instead of a blind answer. Checked
+          // after the model switch above so the composer's model is the one that
+          // gets judged. Failing here lands in the catch below, which releases
+          // the reserved turn.
+          if (images.length > 0) {
+            const model = ctx.session.getModel?.();
+            if (model !== undefined && !model.input.includes("image")) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail: `The Pi model "${model.id}" does not support image input. Attach images to a thread on a vision model.`,
+              });
+            }
+          }
+
           // The SDK prompt promise waits for the whole run, not just acceptance.
           const acceptance = yield* Deferred.make<boolean>();
           runFork(
             Effect.promise(async () => {
               try {
                 await ctx.session.prompt(text, {
+                  ...(images.length > 0 ? { images } : undefined),
                   ...(steeringTurnId !== undefined ? { streamingBehavior: "steer" } : undefined),
                   preflightResult: (success) => {
                     Deferred.doneUnsafe(acceptance, Effect.succeed(success));

@@ -22,6 +22,7 @@ import * as Schema from "effect/Schema";
 import type { ServerSettings } from "@t3tools/contracts";
 
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
+import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { PiCatalogHost } from "../Layers/PiCatalogHost.ts";
 import { createPiSession } from "../Layers/PiSessionFactory.ts";
@@ -129,6 +130,7 @@ export type PiDriverEnv =
   | Crypto.Crypto
   | FileSystem.FileSystem
   | Path.Path
+  | ServerConfig
   | ServerSettingsService;
 
 export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {

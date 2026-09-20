@@ -179,6 +179,10 @@ async function toPiSessionLike(
     },
     // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
+    getModel: () => {
+      const model = session.model;
+      return model ? { id: model.id, input: model.input } : undefined;
+    },
     subscribe: (listener) => {
       listeners.add(listener);
       // SAFETY: The adapter reads only the SDK event's JSON-compatible fields.

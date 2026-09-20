@@ -1,4 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -14,24 +17,34 @@ import {
   ProviderInstanceId,
   ThreadId,
   TurnId,
+  type ChatImageAttachment,
   type ProviderRuntimeEvent,
 } from "@t3tools/contracts";
 
+import { attachmentRelativePath } from "../../attachmentStore.ts";
+import { ServerConfig } from "../../config.ts";
 import {
   describePiToolCall,
   makePiAdapter,
   parsePiResumeCursor,
   resolvePiToolCallArgs,
   type PiCreateSessionInput,
+  type PiImageContentLike,
   type PiSessionEntryLike,
   type PiSessionEventLike,
   type PiSessionLike,
+  type PiSessionModelLike,
   type PiSessionStatsLike,
 } from "./PiAdapter.ts";
 import { PiExtensionLoadError } from "./PiSessionFactory.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
-const testLayer = Layer.mergeAll(NodeServices.layer);
+const testLayer = Layer.mergeAll(
+  ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-adapter-" }),
+).pipe(
+  // Throwaway base dir keeps adapter tests from deriving state dirs in the repo.
+  Layer.provideMerge(NodeServices.layer),
+);
 
 class FakePiSession implements PiSessionLike {
   sessionId = "fake-pi-session-1";
@@ -56,6 +69,7 @@ class FakePiSession implements PiSessionLike {
   readonly promptCalls: Array<{
     text: string;
     options?: {
+      readonly images?: ReadonlyArray<PiImageContentLike>;
       readonly streamingBehavior?: "steer" | "followUp";
       readonly preflightResult?: (success: boolean) => void;
     };
@@ -103,6 +117,11 @@ class FakePiSession implements PiSessionLike {
   setThinkingLevel(level: string): void {
     this.setThinkingLevelCalls.push({ level });
   }
+  /** Vision-capable by default; tests override to exercise capability rejections. */
+  model: PiSessionModelLike | undefined = { id: "fake-vision-model", input: ["text", "image"] };
+  getModel(): PiSessionModelLike | undefined {
+    return this.model;
+  }
 
   prompt(
     text: string,
@@ -143,6 +162,28 @@ const makeAdapter = (fake: FakePiSession) =>
     instanceId: ProviderInstanceId.make("pi"),
     createSession: () => Promise.resolve(fake),
   }).pipe(Effect.orDie);
+
+const makeImageAttachment = (
+  overrides?: Partial<Omit<ChatImageAttachment, "type">>,
+): ChatImageAttachment => ({
+  type: "image",
+  id: "thread-pi-attachment-12345678-1234-1234-1234-123456789abc",
+  name: "screenshot.png",
+  mimeType: "image/png",
+  sizeBytes: 4,
+  ...overrides,
+});
+
+const writeAttachment = (
+  attachmentsDir: string,
+  attachment: ChatImageAttachment,
+  bytes: Uint8Array,
+) => {
+  const attachmentPath = NodePath.join(attachmentsDir, attachmentRelativePath(attachment));
+  NodeFS.mkdirSync(NodePath.dirname(attachmentPath), { recursive: true });
+  NodeFS.writeFileSync(attachmentPath, bytes);
+  return attachmentPath;
+};
 
 /**
  * Collect streamEvents into a ref, then yield once on the live clock so the
@@ -346,6 +387,169 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.isFunction(fake.promptCalls[1]?.options?.preflightResult);
     }),
   );
+
+  it.effect("inlines image attachments into the Pi prompt", () => {
+    const baseDir = NodeFS.mkdtempSync(
+      NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-attachments-"),
+    );
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const { attachmentsDir } = yield* ServerConfig;
+      const attachment = makeImageAttachment();
+      writeAttachment(attachmentsDir, attachment, Uint8Array.from([1, 2, 3, 4]));
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({
+        threadId,
+        input: "What's in this image?",
+        attachments: [attachment],
+      });
+
+      assert.strictEqual(fake.promptCalls.length, 1);
+      assert.strictEqual(fake.promptCalls[0]?.text, "What's in this image?");
+      assert.deepEqual(fake.promptCalls[0]?.options?.images, [
+        { type: "image", data: "AQIDBA==", mimeType: "image/png" },
+      ]);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
+
+  it.effect("carries an image-only message (attachment note as the only text)", () => {
+    const baseDir = NodeFS.mkdtempSync(
+      NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-image-only-"),
+    );
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const { attachmentsDir } = yield* ServerConfig;
+      const attachment = makeImageAttachment();
+      const attachmentPath = writeAttachment(attachmentsDir, attachment, Uint8Array.from([9, 9]));
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      // ProviderService appends the on-disk path to the text when the user
+      // sends no typed message, so an image-only turn still carries text.
+      yield* adapter.sendTurn({
+        threadId,
+        input: `[Attached image "${attachment.name}" is saved at: ${attachmentPath}]`,
+        attachments: [attachment],
+      });
+
+      assert.strictEqual(fake.promptCalls.length, 1);
+      assert.include(fake.promptCalls[0]?.text, "is saved at:");
+      assert.deepEqual(fake.promptCalls[0]?.options?.images, [
+        { type: "image", data: "CQk=", mimeType: "image/png" },
+      ]);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
+
+  it.effect("steers with images into a running Pi session", () => {
+    const baseDir = NodeFS.mkdtempSync(
+      NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-steer-images-"),
+    );
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const { attachmentsDir } = yield* ServerConfig;
+      const attachment = makeImageAttachment();
+      writeAttachment(attachmentsDir, attachment, Uint8Array.from([1]));
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const first = yield* adapter.sendTurn({ threadId, input: "start" });
+      fake.isStreaming = true;
+      const second = yield* adapter.sendTurn({
+        threadId,
+        input: "look at this too",
+        attachments: [attachment],
+      });
+
+      assert.strictEqual(second.turnId, first.turnId);
+      assert.strictEqual(fake.promptCalls[1]?.options?.streamingBehavior, "steer");
+      assert.deepEqual(fake.promptCalls[1]?.options?.images, [
+        { type: "image", data: "AQ==", mimeType: "image/png" },
+      ]);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
+
+  it.effect("rejects image attachments when the session model has no image input", () => {
+    const baseDir = NodeFS.mkdtempSync(
+      NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-no-vision-"),
+    );
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      fake.model = { id: "fake-text-only", input: ["text"] };
+      const adapter = yield* makeAdapter(fake);
+      const { attachmentsDir } = yield* ServerConfig;
+      const attachment = makeImageAttachment();
+      writeAttachment(attachmentsDir, attachment, Uint8Array.from([1, 2, 3, 4]));
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const error = yield* adapter
+        .sendTurn({ threadId, input: "describe this", attachments: [attachment] })
+        .pipe(Effect.flip);
+      assert.include(error.detail, "does not support image input");
+      assert.strictEqual(fake.promptCalls.length, 0);
+
+      // The rejected turn must not wedge the session: a plain turn still runs.
+      yield* adapter.sendTurn({ threadId, input: "plain follow-up" });
+      assert.strictEqual(fake.promptCalls.length, 1);
+      assert.isUndefined(fake.promptCalls[0]?.options?.images);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
+
+  it.effect("rejects unsupported image mime types before prompting", () => {
+    const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-mime-"));
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const { attachmentsDir } = yield* ServerConfig;
+      const attachment = makeImageAttachment({
+        name: "scan.heic",
+        mimeType: "image/heic",
+      });
+      writeAttachment(attachmentsDir, attachment, Uint8Array.from([1, 2, 3, 4]));
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const error = yield* adapter
+        .sendTurn({ threadId, input: "describe this", attachments: [attachment] })
+        .pipe(Effect.flip);
+      assert.include(error.detail, "Unsupported Pi image attachment type 'image/heic'");
+      assert.strictEqual(fake.promptCalls.length, 0);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
+
+  it.effect("rejects unreadable attachment files before prompting", () => {
+    const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-adapter-missing-"));
+    return Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => NodeFS.rmSync(baseDir, { recursive: true, force: true })),
+      );
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const attachment = makeImageAttachment();
+
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const error = yield* adapter
+        .sendTurn({ threadId, input: "describe this", attachments: [attachment] })
+        .pipe(Effect.flip);
+      assert.include(error.detail, "Failed to read attachment file 'screenshot.png'");
+      assert.strictEqual(fake.promptCalls.length, 0);
+    }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
+  });
 
   it.effect("sendTurn waits for preflight but not prompt settlement", () =>
     Effect.gen(function* () {

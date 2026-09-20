@@ -5,8 +5,11 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+
+import { ServerConfig } from "../../config.ts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
@@ -120,6 +123,27 @@ describe("headless Pi extensions", () => {
     assert.strictEqual(log().split("shutdown\n").length - 1, 1);
   });
 
+  it("forwards prompt images into the session's user message", async () => {
+    const session = await create();
+    await session.prompt("what is this", {
+      images: [{ type: "image", data: "AQ==", mimeType: "image/png" }],
+    });
+    // SAFETY: The PiSessionLike surface types messages loosely; the last user
+    // message is the one this test just prompted with, and its final content
+    // block is the image the SDK appended after the text block.
+    const userMessage = [...session.messages]
+      .toReversed()
+      .find((message) => (message as { role?: string }).role === "user") as
+      | { content?: Array<{ type: string; data?: string; mimeType?: string }> }
+      | undefined;
+    assert.isDefined(userMessage);
+    assert.deepEqual(userMessage?.content?.at(-1), {
+      type: "image",
+      data: "AQ==",
+      mimeType: "image/png",
+    });
+  });
+
   it("keeps rejected SDK prompts on the request error channel", async () => {
     const session = await create(false);
     const events: PiSessionEventLike[] = [];
@@ -196,7 +220,14 @@ describe("headless Pi extensions", () => {
       if (completed.type === "turn.completed")
         assert.strictEqual(completed.payload.state, "completed");
       assert.include(log(), "command:1:false\n");
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-factory-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
   );
 
   it.effect("recovers the same conversation after a missing-file failure and restoration", () =>
@@ -244,7 +275,14 @@ describe("headless Pi extensions", () => {
       const after = yield* adapter.readThread(threadId);
       const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
       assert.strictEqual(yield* encodeJson(after.turns), yield* encodeJson(before.turns));
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-factory-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
   );
 
   it("loads a local Pi package configured in project settings", async () => {

@@ -62,6 +62,7 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 ## Supported behavior
 
 - Extension tools run through Pi and appear as tool calls in Rove.
+- Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Input, agent, tool, context, and compaction hooks run through Pi.
 - Extension commands run when typed as `/command arguments` while the thread is idle.
 - Session startup and shutdown hooks run when Rove creates and disposes sessions.
