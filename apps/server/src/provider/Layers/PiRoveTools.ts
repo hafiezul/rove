@@ -38,6 +38,17 @@ export async function createPiRoveTools(config: McpProviderSessionConfig | undef
   const client = new Client({ name: "rove-pi", version: "1.0.0" });
   const transport = new StreamableHTTPClientTransport(new URL(config.endpoint), {
     requestInit: { headers: { Authorization: config.authorizationHeader } },
+    fetch: (url, init) => {
+      // terminateSession has no request timeout; a stalled DELETE must not block recovery.
+      // @effect-diagnostics-next-line globalFetch:off - MCP SDK transport requires a FetchLike callback.
+      if (init?.method !== "DELETE") return fetch(url, init);
+      const deadline = AbortSignal.timeout(5_000);
+      // @effect-diagnostics-next-line globalFetch:off - Preserve SDK transport behavior with a shutdown deadline.
+      return fetch(url, {
+        ...init,
+        signal: init.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
+      });
+    },
   });
   let disposal: Promise<void> | undefined;
   const dispose = () =>

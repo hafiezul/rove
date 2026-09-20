@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -84,7 +85,10 @@ function mockEndpoint() {
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("Pi's built-in Rove tools", () => {
   it("does nothing without a thread credential", async () => {
@@ -149,6 +153,38 @@ describe("Pi's built-in Rove tools", () => {
     endpoint.failListing();
     await expect(createPiRoveTools(config)).rejects.toThrow();
     expect(endpoint.methods).toContain("DELETE");
+  });
+
+  it("bounds shutdown when the endpoint never answers DELETE", async () => {
+    mockEndpoint();
+    const bridge = await createPiRoveTools(config);
+    const close = vi.spyOn(Client.prototype, "close");
+    const deadline = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    let notifyDelete!: () => void;
+    const deleteStarted = new Promise<void>((resolve) => {
+      notifyDelete = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: unknown, init?: RequestInit) => {
+        expect(init?.method).toBe("DELETE");
+        return new Promise<Response>((_resolve, reject) => {
+          init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), {
+            once: true,
+          });
+          notifyDelete();
+        });
+      }),
+    );
+
+    const disposal = bridge.dispose();
+    await deleteStarted;
+    expect(timeout).toHaveBeenCalledWith(5_000);
+    deadline.abort(new Error("Shutdown deadline exceeded"));
+    await expect(disposal).resolves.toBeUndefined();
+    await expect(bridge.dispose()).resolves.toBeUndefined();
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("turns MCP error results into Pi tool failures", () => {
