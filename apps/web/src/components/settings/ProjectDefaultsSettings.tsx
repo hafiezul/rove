@@ -4,6 +4,7 @@ import {
   type ModelSelection,
   type ProviderInstanceId,
 } from "@t3tools/contracts";
+import * as Option from "effect/Option";
 import { createModelSelection } from "@t3tools/shared/model";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -16,6 +17,8 @@ import {
   sortProviderInstanceEntries,
 } from "../../providerInstances";
 import { useEnvironments } from "../../state/environments";
+import { useEnvironmentQuery } from "../../state/query";
+import { sourceControlEnvironment } from "../../state/sourceControl";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { resolveEnvModeLabel } from "../BranchToolbar.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
@@ -35,6 +38,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import {
+  useClearScopedSettings,
   useScopedSettings,
   useScopedSettingsMixed,
   useScopedSettingSource,
@@ -74,6 +78,8 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const mixedBrowser = useScopedSettingsMixed(["enableAgentBrowserAccess"]);
   const mixedAutoPull = useScopedSettingsMixed(["defaultAutoPull"]);
   const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
+  const mixedGithubAccount = useScopedSettingsMixed(["githubAccount"]);
+  const clearScopedSettings = useClearScopedSettings();
   const modelSource = useScopedSettingSource(["defaultModelSelection"]);
   const workspaceSource = useScopedSettingSource(["defaultThreadEnvMode"]);
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
@@ -131,6 +137,35 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
     }
     updateSettings({ defaultModelSelection: value });
   };
+
+  // The GitHub account picker only renders for a project or checkout, so the
+  // discovery query is only live when the row exists.
+  const discovery = useEnvironmentQuery(
+    isProjectScope && category === "source-control" && representative
+      ? sourceControlEnvironment.discovery({
+          environmentId: representative.environmentId,
+          input: {},
+        })
+      : null,
+  );
+  const githubDiscovery =
+    discovery.data?.sourceControlProviders.find((provider) => provider.kind === "github") ?? null;
+  const githubAccounts = Option.getOrNull(githubDiscovery?.auth.accounts ?? Option.none()) ?? [];
+  const serverAccount = Option.getOrNull(githubDiscovery?.auth.account ?? Option.none());
+  const knownSelection = settings.githubAccount
+    ? `${settings.githubAccount.host}/${settings.githubAccount.login}`
+    : null;
+  const githubAccountItems = [
+    ...(settings.githubAccount &&
+    !githubAccounts.some(
+      (account) =>
+        account.host === settings.githubAccount?.host &&
+        account.login === settings.githubAccount?.login,
+    )
+      ? [settings.githubAccount]
+      : []),
+    ...githubAccounts,
+  ];
 
   return (
     <SettingsSection
@@ -416,6 +451,76 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
               </Select>
             }
           />
+          {isProjectScope ? (
+            <SettingsRow
+              serverScoped
+              settingKeys={["githubAccount"]}
+              mixed={mixedGithubAccount}
+              id={searchableSetting("github-account").id}
+              title="GitHub account"
+              description="Pull requests here read and merge as this account. Agent-run gh and git commands use their own sign-in."
+              resetAction={
+                settings.githubAccount ? (
+                  <SettingResetButton
+                    label="GitHub account"
+                    onClick={() => clearScopedSettings(["githubAccount"])}
+                  />
+                ) : null
+              }
+              control={
+                <Select
+                  value={mixedGithubAccount ? null : (knownSelection ?? "default")}
+                  onValueChange={(value) => {
+                    if (value === null || value === "default") {
+                      if (value === "default") clearScopedSettings(["githubAccount"]);
+                      return;
+                    }
+                    const [host, login] = value.split("/");
+                    if (host && login) updateSettings({ githubAccount: { host, login } });
+                  }}
+                >
+                  <SelectTrigger size="sm" aria-label="GitHub account">
+                    <SelectValue>
+                      {(value: string | null) => {
+                        if (mixedGithubAccount) return "Mixed";
+                        if (value === null || value === "default") {
+                          return serverAccount ? `Default (${serverAccount})` : "Default";
+                        }
+                        const login = value.split("/").slice(1).join("/");
+                        return login || value;
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup align="end" alignItemWithTrigger={false}>
+                    <SelectItem value="default" className="min-w-64 py-2">
+                      <div className="grid gap-0.5">
+                        <span className="font-medium">Default</span>
+                        <span className="text-xs leading-4 text-muted-foreground">
+                          {serverAccount
+                            ? `Server sign-in: ${serverAccount}`
+                            : "The server's active GitHub sign-in"}
+                        </span>
+                      </div>
+                    </SelectItem>
+                    {githubAccountItems.map((account) => (
+                      <SelectItem
+                        key={`${account.host}/${account.login}`}
+                        value={`${account.host}/${account.login}`}
+                        className="min-w-64 py-2"
+                      >
+                        <div className="grid gap-0.5">
+                          <span className="font-medium">{account.login}</span>
+                          <span className="text-xs leading-4 text-muted-foreground">
+                            {account.host}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              }
+            />
+          ) : null}
         </>
       ) : (
         <>

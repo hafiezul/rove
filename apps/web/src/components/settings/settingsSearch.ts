@@ -595,6 +595,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     scope: "environment-defaults",
   },
   {
+    id: "github-account",
+    title: "GitHub account",
+    to: "/settings/source-control",
+    scope: "project-defaults",
+    searchTerms: ["github account gh login host identity pull request permissions personal work"],
+  },
+  {
     id: "source-control-writing-style",
     title: "Source control writing style",
     to: "/settings/source-control",
