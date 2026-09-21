@@ -488,6 +488,35 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect(
+    "driver teardown sequence: settlement timeout still ends with all sessions disposed",
+    () =>
+      Effect.gen(function* () {
+        // Mirrors the Pi driver's scope finalizer: settle (which may time out
+        // while a turn is still streaming) followed by stopAll. Sessions and
+        // their extension resources must never outlive the driver.
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        yield* adapter.sendTurn({ threadId, input: "streaming" });
+        fake.emit({ type: "turn_start" });
+
+        // The settle wait times out against the test clock, like a real
+        // 30s timeout elapsing while the turn is still streaming.
+        const settleTurn = adapter.waitForActiveTurnsToSettle
+          ? adapter.waitForActiveTurnsToSettle(30_000)
+          : Effect.void;
+        const settleFiber = yield* settleTurn.pipe(Effect.forkChild({ startImmediately: true }));
+        yield* TestClock.adjust(60_000);
+        yield* Fiber.join(settleFiber);
+        assert.isTrue(yield* adapter.hasSession(threadId));
+
+        yield* adapter.stopAll();
+        assert.isTrue(fake.disposed);
+        assert.isFalse(yield* adapter.hasSession(threadId));
+      }),
+  );
+
   it.effect("startSession creates a Pi session, emits started+ready, and lists it", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -1934,6 +1963,88 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.deepStrictEqual(createCalls[1]?.disabledExtensions, [
         "/home/dev/.pi/agent/extensions/broken.ts",
       ]);
+    }),
+  );
+
+  it.effect(
+    "startSession reports recovered extension failures as a warning and records the actual disabled set",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const createCalls: Array<PiCreateSessionInput> = [];
+        let callCount = 0;
+        const adapter = yield* makePiAdapter(
+          decodePiSettings({ disabledExtensions: ["/home/dev/.pi/agent/extensions/noisy.ts"] }),
+          {
+            createSession: (input) => {
+              createCalls.push(input);
+              callCount++;
+              if (callCount === 1) {
+                return Promise.reject(
+                  new PiExtensionLoadError("Extension load failure", [
+                    "/home/dev/.pi/agent/extensions/broken.ts",
+                  ]),
+                );
+              }
+              return Promise.resolve(fake);
+            },
+          },
+        ).pipe(Effect.orDie);
+
+        const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+        yield* collectEvents(adapter, eventsRef);
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+        // The retry must not be silent: the thread sees which extension was skipped.
+        const events = yield* Ref.get(eventsRef);
+        const warning = events.find((event) => event.type === "runtime.warning");
+        assert.isDefined(warning);
+        if (warning?.type === "runtime.warning") {
+          assert.include(warning.payload.message, "/home/dev/.pi/agent/extensions/broken.ts");
+        }
+
+        // The recorded disabled set includes the recovered failure, so the next
+        // turn must not reload the session hunting for a settings change.
+        yield* adapter.sendTurn({ threadId, input: "hello" });
+        assert.lengthOf(createCalls, 2);
+        yield* adapter.stopAll();
+      }),
+  );
+
+  it.effect("startSession does not drop buffered startup events replayed during subscribe", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      // The real factory replays startup extension errors synchronously the
+      // first time subscribe runs; a context registered after subscribing
+      // would fail the membership guard and silently drop them.
+      const buffered: PiSessionEventLike[] = [
+        {
+          type: "extension_error",
+          extensionPath: "/home/dev/.pi/agent/extensions/flaky.ts",
+          error: "threw during startup",
+        },
+      ];
+      const originalSubscribe = fake.subscribe.bind(fake);
+      fake.subscribe = (listener) => {
+        const unsubscribe = originalSubscribe(listener);
+        for (const event of buffered) listener(event);
+        return unsubscribe;
+      };
+      const adapter = yield* makeAdapter(fake);
+
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* collectEvents(adapter, eventsRef);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      const events = yield* waitFor(eventsRef, (current) =>
+        current.some((event) => event.type === "runtime.warning"),
+      );
+      const warning = events.find((event) => event.type === "runtime.warning");
+      assert.isDefined(warning);
+      if (warning?.type === "runtime.warning") {
+        assert.include(warning.payload.message, "/home/dev/.pi/agent/extensions/flaky.ts");
+      }
+      yield* adapter.stopAll();
     }),
   );
 

@@ -309,6 +309,8 @@ interface PiSessionContext {
   openSingles: Array<{ agent: string | undefined; taskId: string }>;
   unsubscribe: () => void;
   loadedDisabledExtensions: ReadonlyArray<string>;
+  /** Failed extensions this session auto-skipped at startup, beyond the settings-disabled set. */
+  recoveredFailedExtensions: ReadonlyArray<string>;
 }
 
 /**
@@ -1368,6 +1370,10 @@ export function makePiAdapter(
           const initialModelSlug =
             selectedModelSlug(modelSelection) ??
             (piSettings.model.trim().length > 0 ? piSettings.model : undefined);
+          // Extensions that failed to load are auto-skipped with a recovery
+          // retry below; the failed set is reported to the thread and recorded
+          // on the session context so the actual disabled set stays accurate.
+          let recoveredFailures: ReadonlyArray<string> = [];
           const session = yield* acquirePiResource(
             async () => {
               const cursor = parsePiResumeCursor(input.resumeCursor);
@@ -1392,6 +1398,7 @@ export function makePiAdapter(
                   cause instanceof PiExtensionLoadError &&
                   cause.failedExtensionPaths.length > 0
                 ) {
+                  recoveredFailures = cause.failedExtensionPaths;
                   return await createSession({
                     threadId: input.threadId,
                     cwd,
@@ -1427,6 +1434,12 @@ export function makePiAdapter(
             ),
           );
 
+          const failedExtensions = recoveredFailures;
+          const settingsDisabled = piSettings.disabledExtensions ?? [];
+          const effectiveDisabledExtensions = [
+            ...new Set([...settingsDisabled, ...failedExtensions]),
+          ];
+
           const outcome = session.resumeOutcome;
           const resumed = outcome?.resumed === true;
           const ctx: PiSessionContext = {
@@ -1444,12 +1457,36 @@ export function makePiAdapter(
             seenNotifyMessages: new WeakSet(),
             openSingles: [],
             unsubscribe: () => {},
-            loadedDisabledExtensions: piSettings.disabledExtensions ?? [],
+            loadedDisabledExtensions: effectiveDisabledExtensions,
+            recoveredFailedExtensions: failedExtensions,
           };
           ctx.pendingTurnError = undefined;
-          ctx.unsubscribe = subscribeToSession(ctx);
+          // Register before subscribing: buffered startup events replay
+          // synchronously inside subscribeToSession, and its membership guard
+          // would drop them for a context that is not in the map yet.
           sessions.set(input.threadId, ctx);
+          ctx.unsubscribe = subscribeToSession(ctx);
 
+          // Load failures must never disappear: startup retried without the
+          // failed extensions, so name each skipped path before the session
+          // is announced. The user cannot otherwise tell why an extension's
+          // tools or commands are missing.
+          if (failedExtensions.length > 0) {
+            const plural = failedExtensions.length === 1 ? "extension" : "extensions";
+            yield* offerRuntimeEvent({
+              ...(yield* makeEventStamp()),
+              provider: PROVIDER,
+              ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+              threadId: input.threadId,
+              type: "runtime.warning",
+              payload: {
+                message:
+                  `Skipped ${failedExtensions.length} Pi ${plural} that failed to load: ` +
+                  `${failedExtensions.join(", ")}. ` +
+                  "Fix or disable them in settings; the next turn reloads extensions.",
+              },
+            });
+          }
           yield* offerRuntimeEvent({
             ...(yield* makeEventStamp()),
             provider: PROVIDER,
@@ -1536,10 +1573,19 @@ export function makePiAdapter(
           // cleanly at the cursor before prompting, applying changes after active turns settle.
           const activePiSettings = options.getSettings ? yield* options.getSettings : piSettings;
           const currentDisabled = activePiSettings.disabledExtensions ?? [];
+          // Recovery-skipped extensions are part of the loaded set but not of
+          // the user's settings, so exclude them when detecting settings
+          // changes; otherwise every turn would needlessly reload the session.
+          const recovered = ctx.recoveredFailedExtensions;
+          const settingsLoadedDisabled = recovered.some((p) =>
+            ctx.loadedDisabledExtensions.includes(p),
+          )
+            ? ctx.loadedDisabledExtensions.filter((p) => !recovered.includes(p))
+            : ctx.loadedDisabledExtensions;
           const disabledChanged =
-            currentDisabled.length !== ctx.loadedDisabledExtensions.length ||
-            currentDisabled.some((p) => !ctx.loadedDisabledExtensions.includes(p)) ||
-            ctx.loadedDisabledExtensions.some((p) => !currentDisabled.includes(p));
+            settingsLoadedDisabled.length !== currentDisabled.length ||
+            currentDisabled.some((p) => !settingsLoadedDisabled.includes(p)) ||
+            settingsLoadedDisabled.some((p) => !currentDisabled.includes(p));
 
           if (disabledChanged && steeringTurnId === undefined) {
             const cursor = {
@@ -1588,6 +1634,9 @@ export function makePiAdapter(
             }
             ctx.session = newSession;
             ctx.loadedDisabledExtensions = currentDisabled;
+            // The reloaded session has no auto-skipped extensions: any load
+            // failure here fails the turn instead of recovering.
+            ctx.recoveredFailedExtensions = [];
             ctx.toolCallArgs.clear();
             ctx.unsubscribe = subscribeToSession(ctx);
           }

@@ -97,7 +97,7 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 - When extensions are disabled in the extensions panel, the session's system prompt lists them. Ask the thread agent about its loaded extensions and it can answer from its own session instead of Pi's settings file.
 - When the session's effective model or reasoning level differs from the request, the thread shows a warning with the effective selection.
 
-A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the session from starting. Runtime extension errors appear as warnings.
+A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the failing extensions from loading: the session starts without them and the thread shows a warning naming each skipped extension. Runtime extension errors appear as warnings.
 
 ## Limitations
 
