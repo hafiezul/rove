@@ -12,6 +12,7 @@ const config = {
   providerSessionId: "pi-tools-session",
   endpoint: "http://127.0.0.1:12345/mcp",
   authorizationHeader: "Bearer thread-scoped-secret",
+  capabilities: new Set<string>(),
 };
 const snapshot = {
   content: [

@@ -180,7 +180,7 @@ const writeAttachment = (
   attachment: ChatImageAttachment,
   bytes: Uint8Array,
 ) => {
-  const attachmentPath = NodePath.join(attachmentsDir, attachmentRelativePath(attachment));
+  const attachmentPath = NodePath.join(attachmentsDir, attachmentRelativePath(attachment)!);
   NodeFS.mkdirSync(NodePath.dirname(attachmentPath), { recursive: true });
   NodeFS.writeFileSync(attachmentPath, bytes);
   return attachmentPath;

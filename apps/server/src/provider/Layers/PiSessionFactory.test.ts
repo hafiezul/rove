@@ -91,6 +91,7 @@ describe("headless Pi extensions", () => {
       providerSessionId: "test-session",
       endpoint: "http://127.0.0.1:12345/mcp",
       authorizationHeader: "Bearer test-secret",
+      capabilities: new Set<string>(),
     };
     McpProviderSession.setMcpProviderSession(config);
     const dispose = vi.fn(async () => {});

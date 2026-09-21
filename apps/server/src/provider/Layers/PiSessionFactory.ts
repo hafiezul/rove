@@ -255,7 +255,7 @@ export function resolvePiSessionResume(
   }
 }
 
-export function isExtensionPathDisabled(
+function isExtensionPathDisabled(
   extensionPath: string,
   disabledExtensions: ReadonlyArray<string>,
   cwd?: string,
