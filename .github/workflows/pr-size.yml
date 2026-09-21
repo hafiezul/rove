@@ -259,6 +259,15 @@ jobs:
                 "Could not resolve to a node with the global id",
               );
 
+            // Forks and restricted installations can enforce a read-only
+            // GITHUB_TOKEN that no workflow permissions block can widen, in
+            // which case label writes 403 on every run. Sizing already
+            // happened; the label is cosmetic, so degrade to a warning
+            // instead of failing every PR.
+            const isPermissionDeniedLabelError = (error) =>
+              error?.status === 403 &&
+              String(error?.message ?? "").includes("Resource not accessible by integration");
+
             try {
               const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
@@ -295,8 +304,15 @@ jobs:
                 });
               }
             } catch (error) {
-              if (!isUnresolvableLabelableError(error)) {
+              if (!isUnresolvableLabelableError(error) && !isPermissionDeniedLabelError(error)) {
                 throw error;
+              }
+
+              if (isPermissionDeniedLabelError(error)) {
+                core.warning(
+                  `GITHUB_TOKEN lacks write access to manage labels on this repository; skipping PR size labeling for PR #${issueNumber}.`,
+                );
+                return;
               }
 
               core.warning(

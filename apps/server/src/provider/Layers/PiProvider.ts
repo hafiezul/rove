@@ -16,6 +16,7 @@ import {
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
+import { VERSION as PI_SDK_VERSION } from "@earendil-works/pi-coding-agent";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
@@ -74,7 +75,7 @@ export function buildInitialPiProviderSnapshot(
       })),
       probe: {
         installed: false,
-        version: null,
+        version: PI_SDK_VERSION,
         status: "warning",
         auth: { status: "unknown" },
         message: piSettings.enabled
@@ -120,7 +121,7 @@ export function checkPiProviderStatus(
         models: [],
         probe: {
           installed: false,
-          version: null,
+          version: PI_SDK_VERSION,
           status: "warning",
           auth: { status: "unknown" },
           message: "Pi is disabled in Rove Code settings.",
@@ -146,7 +147,7 @@ export function checkPiProviderStatus(
         models: [],
         probe: {
           installed: false,
-          version: null,
+          version: PI_SDK_VERSION,
           status: "error",
           auth: { status: "unknown" },
           message: `Pi SDK failed to load: ${detail}`,
@@ -175,7 +176,7 @@ export function checkPiProviderStatus(
       skills: discovered.skills,
       probe: {
         installed: true,
-        version: null,
+        version: PI_SDK_VERSION,
         status: models.length > 0 ? "ready" : "warning",
         auth: { status: models.length > 0 ? "authenticated" : "unknown" },
         ...(models.length === 0

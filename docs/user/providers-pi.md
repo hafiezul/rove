@@ -2,6 +2,35 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
+## Built-in Rove tools
+
+Pi threads automatically receive Rove's browser-preview tools, including navigation, page inspection with screenshots, interaction, and recording. No Pi extension or MCP configuration is required. These tools use the thread's authorization and remain available when user extensions are disabled.
+
+Tools run through the connected Rove server, including when you control a thread remotely. Browser automation still requires an automation-capable preview client. This built-in connection does not load arbitrary MCP servers from Pi settings.
+
+## Session recovery
+
+Rove saves each Pi session's identity and absolute file location on the server. Sessions remain recoverable when a thread's working directory changes, provided the saved file remains accessible. Older sessions without a saved file location use Pi's working-directory lookup.
+
+If history is missing, unreadable, empty, or belongs to another session, startup fails instead of silently starting an empty conversation. Restore the session file or storage access on the server, then retry the turn. To continue without that history, create a new thread. The original thread keeps its saved session reference for recovery.
+
+New sessions are saved before the first prompt, so restarting before the first assistant response does not invalidate their session reference.
+
+## Progress and diagnostics
+
+The thread activity timeline shows when Pi is retrying or compacting context,
+and when that work finishes or stops. Failed compaction is labeled as a failure
+with its error details. These notices do not complete the turn.
+Streaming tools show short, rate-limited previews of their latest output; the
+completed tool result remains the authoritative output. The same activity reaches local and
+remote clients.
+
+Provider diagnostics report the Pi version bundled with Rove, not a separately
+installed Pi CLI. Session and catalog startup waits are limited to 60 seconds;
+cleanup waits are limited to 5 seconds. A startup timeout is reported as a failure,
+not a successful empty session. These limits cannot protect against an extension
+that blocks or exits the server process.
+
 ## Extension sources
 
 Rove uses Pi's standard resource loader for these sources:
@@ -33,13 +62,19 @@ The Extensions button beside the Pi provider selector opens the provider catalog
 - Model providers with authentication and model counts.
 - Load warnings and catalog refresh errors.
 
-A disabled extension stays listed so it can be turned back on. Disabling rebuilds the Pi provider instance, so each thread's session applies the change on its next turn. Toggle while the thread is idle: rebuilding mid-turn disrupts streaming the way any provider settings edit does. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
+A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. Loaded means initialization succeeded. It does not mean every feature works headlessly. See Limitations.
 
 ## Selecting extension models
 
 Extension models behave like any other Pi model. Clicking one saves it to the thread. If the extension is later removed, the thread falls back to a model the runtime still lists instead of keeping a stale slug.
+
+The composer's slash menu lists prompt templates from Pi's configuration plus the commands registered by loaded global extensions, so every entry can actually be typed in the thread. Skills and prompt templates follow Pi's user scope; a project's own resources appear inside that project's threads.
+
+## Model fallback
+
+A thread always shows the model and reasoning level the session actually runs. When Pi cannot restore a session's saved model, falls back to a custom model id, or clamps a reasoning level the model does not support, the thread shows a warning describing the effective selection. A model slug that cannot be resolved at all fails thread startup with that reason instead of silently running a different model.
 
 ## Reasoning levels
 
@@ -54,13 +89,15 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 ## Supported behavior
 
 - Extension tools run through Pi and appear as tool calls in Rove.
+- Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Input, agent, tool, context, and compaction hooks run through Pi.
-- Extension commands run when typed as `/command arguments` while the thread is idle.
+- Extension commands run when typed as `/command arguments` while the thread is idle, and loaded extension commands appear in the composer's slash menu alongside prompt templates.
 - Session startup and shutdown hooks run when Rove creates and disposes sessions.
 - Extension state can persist in Pi's session history.
 - When extensions are disabled in the extensions panel, the session's system prompt lists them. Ask the thread agent about its loaded extensions and it can answer from its own session instead of Pi's settings file.
+- When the session's effective model or reasoning level differs from the request, the thread shows a warning with the effective selection.
 
-A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the session from starting. Runtime extension errors appear as warnings.
+A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the failing extensions from loading: the session starts without them and the thread shows a warning naming each skipped extension. Runtime extension errors appear as warnings.
 
 ## Limitations
 

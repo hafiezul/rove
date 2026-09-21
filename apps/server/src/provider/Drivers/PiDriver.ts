@@ -14,12 +14,17 @@ import {
   PiSettings,
   ProviderDriverKind,
   type ServerProvider,
+  type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
+import type { ServerSettings } from "@t3tools/contracts";
 
+import { acquirePiResource, disposePiResource } from "../Layers/PiLifecycle.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
+import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { PiCatalogHost } from "../Layers/PiCatalogHost.ts";
 import { createPiSession } from "../Layers/PiSessionFactory.ts";
@@ -53,6 +58,7 @@ import * as Path from "effect/Path";
 registerPiBundledOAuthFlows();
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
+const decodePiSettingsOption = Schema.decodeUnknownOption(PiSettings);
 
 const DRIVER_KIND = ProviderDriverKind.make("pi");
 const MAINTENANCE = makeManualOnlyProviderMaintenanceCapabilities({
@@ -62,22 +68,51 @@ const MAINTENANCE = makeManualOnlyProviderMaintenanceCapabilities({
 
 /**
  * Discovery client backed by the SDK's `DefaultResourceLoader` — the same
- * loader used for Pi resources, but without executing extensions during probes.
- * Extension commands can be typed directly. Skills map 1:1;
- * prompt templates become slash commands with the template's argument hint.
+ * loader sessions use, but without executing extensions during probes. Slash
+ * commands come from two sources: prompt templates from the loader, and
+ * commands registered by the instance's loaded global extensions (the catalog
+ * host is the only place extensions load outside a thread). The loader runs
+ * from the agent directory by default — the same neutral working directory the
+ * catalog host uses — so the instance-global snapshot describes user-scope
+ * resources only and never leaks the server process's cwd into the pickers.
+ * Project resources are thread-scoped and keep living in their own sessions.
  */
-const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
+export const makeSdkDiscoveryClient = (
+  getExtensionCommands?: () => ReadonlyArray<ServerProviderSlashCommand>,
+): PiDiscoveryClient => ({
   discover: async ({ cwd }) => {
     const { DefaultResourceLoader, getAgentDir } = await import("@earendil-works/pi-coding-agent");
+    const agentDir = getAgentDir();
     const loader = new DefaultResourceLoader({
-      cwd: cwd ?? process.cwd(),
-      agentDir: getAgentDir(),
+      cwd: cwd ?? agentDir,
+      agentDir,
       noExtensions: true,
     });
     // Resources populate lazily: getSkills()/getPrompts() return empty until
     // reload() has scanned the configured roots.
     await loader.reload();
     const [{ skills }, { prompts }] = [loader.getSkills(), loader.getPrompts()];
+    // Extension commands win name collisions, mirroring the session's own
+    // command resolution order (extension commands come first).
+    let extensionCommands: ReadonlyArray<ServerProviderSlashCommand> = [];
+    try {
+      extensionCommands = getExtensionCommands?.() ?? [];
+    } catch {
+      // Discovery is best-effort; a catalog host hiccup must not drop templates.
+    }
+    const slashCommandsByName = new Map<string, ServerProviderSlashCommand>();
+    for (const command of [
+      ...extensionCommands,
+      ...prompts.map((prompt) => ({
+        name: prompt.name,
+        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : undefined),
+        ...(prompt.argumentHint !== undefined && prompt.argumentHint.trim().length > 0
+          ? { input: { hint: prompt.argumentHint } }
+          : undefined),
+      })),
+    ]) {
+      if (!slashCommandsByName.has(command.name)) slashCommandsByName.set(command.name, command);
+    }
     return {
       skills: skills.map((skill) => ({
         name: skill.name,
@@ -88,13 +123,7 @@ const makeSdkDiscoveryClient = (): PiDiscoveryClient => ({
         scope: skill.sourceInfo.scope === "project" ? "project" : "user",
         enabled: true,
       })),
-      slashCommands: prompts.map((prompt) => ({
-        name: prompt.name,
-        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : undefined),
-        ...(prompt.argumentHint !== undefined && prompt.argumentHint.trim().length > 0
-          ? { input: { hint: prompt.argumentHint } }
-          : undefined),
-      })),
+      slashCommands: [...slashCommandsByName.values()],
     };
   },
 });
@@ -120,6 +149,7 @@ export type PiDriverEnv =
   | Crypto.Crypto
   | FileSystem.FileSystem
   | Path.Path
+  | ServerConfig
   | ServerSettingsService;
 
 export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
@@ -149,30 +179,53 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // snapshot here, so every picker lists them with no per-thread work.
       // Thread sessions keep full per-thread loading for tools and hooks.
       const catalogHost = yield* Effect.acquireRelease(
-        Effect.tryPromise({
-          try: () => PiCatalogHost.create(),
-          catch: (cause) =>
-            new ProviderDriverError({
-              driver: DRIVER_KIND,
-              instanceId,
-              detail: `Failed to load Pi extensions: ${cause instanceof Error ? cause.message : String(cause)}`,
-              cause,
-            }),
-        }),
-        (host) => Effect.promise(() => host.dispose()),
+        acquirePiResource(
+          () => PiCatalogHost.create({ disabledExtensions: effectiveConfig.disabledExtensions }),
+          (host) => host.dispose(),
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new ProviderDriverError({
+                driver: DRIVER_KIND,
+                instanceId,
+                detail: `Failed to load Pi extensions: ${cause.message}`,
+                cause,
+              }),
+          ),
+        ),
+        (host) => disposePiResource(() => host.dispose()),
       );
+      const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
+      const readCurrentPiSettings = (settings: ServerSettings): PiSettings => {
+        const instance = settings.providerInstances[instanceId];
+        if (instance !== undefined && String(instance.driver) === DRIVER_KIND) {
+          const decoded = decodePiSettingsOption(instance.config);
+          if (Option.isSome(decoded)) return decoded.value;
+        }
+        const decoded = decodePiSettingsOption(settings.providers.pi);
+        return Option.isSome(decoded) ? decoded.value : decodePiSettings({});
+      };
+
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
         createSession: createPiSession,
+        getSettings: serverSettings.getSettings.pipe(
+          Effect.map(readCurrentPiSettings),
+          Effect.orElseSucceed(() => effectiveConfig),
+        ),
       });
+
+      // Retire the adapter before replacement: stop accepting work, drain active
+      // turns, dispose sessions, and terminate the old runtime event subscription.
+      yield* Effect.addFinalizer(() => adapter.shutdown());
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
-        createSession: ({ cwd }) =>
+        createSession: ({ cwd, model, thinkingLevel }) =>
           createPiSession(
             {
               cwd,
-              model: undefined,
-              thinkingLevel: undefined,
-              resumeSessionFile: undefined,
+              model,
+              thinkingLevel,
+              resumeSessionId: undefined,
             },
             { extensions: false },
           ),
@@ -184,10 +237,9 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
         probeClient,
-        makeSdkDiscoveryClient(),
+        makeSdkDiscoveryClient(() => catalogHost.getExtensionSlashCommands()),
       ).pipe(Effect.map(stampIdentity));
 
-      const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const snapshot = yield* makeManagedServerProvider<ProviderSnapshotSettings<PiSettings>>({
         resolveMaintenance: () => Effect.succeed(MAINTENANCE),
         getSettings: snapshotSettings.getSettings,

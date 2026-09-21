@@ -57,6 +57,7 @@ import * as ThreadBackgroundLiveness from "../ThreadBackgroundLiveness.ts";
 import * as ThreadPlanProgress from "../ThreadPlanProgress.ts";
 import {
   ProviderRuntimeIngestionLive,
+  runtimeEventToActivities,
   splitBufferedAssistantText,
 } from "./ProviderRuntimeIngestion.ts";
 import { DEFAULT_THREAD_TITLE } from "../threadTitles.ts";
@@ -4024,6 +4025,25 @@ describe("ProviderRuntimeIngestion", () => {
 
     expect(activity?.kind).toBe("runtime.error");
     expect(activityPayload?.message).toBe("runtime activity exploded");
+  });
+
+  it("projects informational Pi liveness notices into the shared timeline", () => {
+    const activities = runtimeEventToActivities({
+      type: "runtime.info",
+      eventId: asEventId("pi-compacting"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-1"),
+      payload: { message: "Compacting context…" },
+    });
+    expect(activities).toHaveLength(1);
+    expect(activities[0]).toMatchObject({
+      kind: "runtime.info",
+      tone: "info",
+      summary: "Compacting context…",
+      turnId: "turn-1",
+    });
   });
 
   it("keeps the session running when a runtime.warning arrives during an active turn", async () => {

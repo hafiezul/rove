@@ -150,6 +150,7 @@ describe("selectCliRuntimeExternalDependencies", () => {
         "@earendil-works/pi-ai",
         "@earendil-works/pi-coding-agent",
         "@ff-labs/fff-node",
+        "@modelcontextprotocol/sdk",
         "cross-spawn",
         "jose",
         "msgpackr-extract",

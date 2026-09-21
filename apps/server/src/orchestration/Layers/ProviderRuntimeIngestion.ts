@@ -578,13 +578,14 @@ export function runtimeEventToActivities(
       ];
     }
 
+    case "runtime.info":
     case "runtime.warning": {
       return [
         {
           id: event.eventId,
           createdAt: event.createdAt,
           tone: "info",
-          kind: "runtime.warning",
+          kind: event.type,
           // Use the adapter-supplied message as the row label so the work log
           // shows what the warning was about, not a generic "Runtime warning".
           summary: truncateDetail(event.payload.message, 120),

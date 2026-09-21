@@ -5,20 +5,35 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+
+import { ServerConfig } from "../../config.ts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
 import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
+import * as PiSdk from "@earendil-works/pi-coding-agent";
+import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
+import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
+import * as PiRoveTools from "./PiRoveTools.ts";
 import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";
 
 import {
   createPiSession,
+  PiResourceLoader,
   resolvePiModelForSession,
-  resolvePiSessionFileForTest,
+  resolvePiSessionResume,
 } from "./PiSessionFactory.ts";
-import { makePiAdapter, type PiSessionEventLike, type PiSessionLike } from "./PiAdapter.ts";
+import {
+  makePiAdapter,
+  parsePiResumeCursor,
+  type PiSessionEventLike,
+  type PiSessionLike,
+} from "./PiAdapter.ts";
+
+vi.mock("@earendil-works/pi-coding-agent", { spy: true });
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 
@@ -37,7 +52,6 @@ describe("headless Pi extensions", () => {
     NodeFS.mkdirSync(NodePath.join(cwd, ".pi", "extensions"), { recursive: true });
     NodeFS.mkdirSync(agentDir);
     vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
-    vi.stubEnv("PI_CODING_AGENT_SESSION_DIR", NodePath.join(root, "sessions"));
     vi.stubEnv("PI_OFFLINE", "1");
     NodeFS.copyFileSync(
       new URL("./fixtures/pi-extension.ts", import.meta.url),
@@ -47,6 +61,8 @@ describe("headless Pi extensions", () => {
 
   afterEach(async () => {
     for (const session of sessions.splice(0)) await session.dispose();
+    vi.restoreAllMocks();
+    McpProviderSession.clearAllMcpProviderSessions();
     vi.unstubAllEnvs();
     NodeFS.rmSync(root, { recursive: true, force: true });
   });
@@ -57,7 +73,7 @@ describe("headless Pi extensions", () => {
         cwd,
         model: extensions ? "rove-extension-test/fixture" : undefined,
         thinkingLevel: undefined,
-        resumeSessionFile: undefined,
+        resumeSessionId: undefined,
       },
       { extensions },
     );
@@ -65,6 +81,217 @@ describe("headless Pi extensions", () => {
     return session;
   };
   const log = () => NodeFS.readFileSync(NodePath.join(cwd, "extension.log"), "utf8");
+
+  it("installs thread-authorized Rove tools even with user extensions disabled", async () => {
+    const threadId = ThreadId.make("pi-rove-tools");
+    const config = {
+      threadId,
+      environmentId: EnvironmentId.make("test-env"),
+      providerInstanceId: ProviderInstanceId.make("pi"),
+      providerSessionId: "test-session",
+      endpoint: "http://127.0.0.1:12345/mcp",
+      authorizationHeader: "Bearer test-secret",
+      capabilities: new Set<string>(),
+    };
+    McpProviderSession.setMcpProviderSession(config);
+    const dispose = vi.fn(async () => {});
+    const bridge = vi.spyOn(PiRoveTools, "createPiRoveTools").mockResolvedValue({
+      tools: [
+        {
+          name: "mcp__rove__preview_status",
+          label: "Preview status",
+          description: "Inspect preview",
+          parameters: { type: "object", properties: {} },
+          execute: async () => ({ content: [{ type: "text", text: "ready" }], details: {} }),
+        },
+      ],
+      dispose,
+    });
+    const createSdkSession = vi.spyOn(PiSdk, "createAgentSessionFromServices");
+    const session = await createPiSession(
+      {
+        threadId,
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { extensions: false },
+    );
+    sessions.push(session);
+    expect(bridge).toHaveBeenCalledWith(config);
+    const result = createSdkSession.mock.results[0]!;
+    if (result.type !== "return") throw new Error("SDK session creation failed");
+    const { session: sdkSession } = await result.value;
+    expect(sdkSession.getActiveToolNames()).toContain("mcp__rove__preview_status");
+    expect(sdkSession.getAllTools().map((tool) => tool.name)).not.toContain("fixture_tool");
+    await session.dispose();
+    await session.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+
+    dispose.mockClear();
+    createSdkSession.mockRejectedValueOnce(new Error("SDK startup failed"));
+    await expect(
+      createPiSession(
+        {
+          threadId,
+          cwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { extensions: false },
+      ),
+    ).rejects.toThrow("SDK startup failed");
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps unnamed inline identities stable when earlier factories are disabled", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const loader = new PiResourceLoader(
+      {
+        cwd,
+        agentDir,
+        extensionFactories: [first, second],
+      },
+      ["<inline:1>"],
+    );
+    await loader.reload();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+    expect(loader.getExtensions().extensions.map((extension) => extension.path)).toContain(
+      "<inline:2>",
+    );
+    const inventory = await loader.getDiscoveredExtensions();
+    expect(inventory.find((extension) => extension.path === "<inline:1>")?.enabled).toBe(false);
+    expect(inventory.find((extension) => extension.path === "<inline:2>")?.enabled).toBe(true);
+  });
+
+  it("rejects an unresolvable initial model instead of silently falling back", async () => {
+    await expect(
+      createPiSession({
+        cwd,
+        model: "unknown-provider/missing-model",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      }),
+    ).rejects.toThrow(/not found/i);
+  });
+
+  it("preserves the provider-qualified effective model across live switches", async () => {
+    const session = await create();
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "fixture",
+    });
+
+    await session.setModel?.("rove-extension-test/custom-model");
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "custom-model",
+    });
+
+    await expect(session.setModel?.("unknown-provider/missing-model")).rejects.toThrow(
+      /not found/i,
+    );
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "custom-model",
+    });
+  });
+
+  it("reports a custom model id fallback for a known provider", async () => {
+    // A stale slug under a still-registered provider resolves to a fabricated
+    // custom model id. The session runs it (user-configured custom slugs rely
+    // on this), but the mismatch must be visible.
+    const custom = await createPiSession({
+      cwd,
+      model: "rove-extension-test/missing-model",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+    });
+    sessions.push(custom);
+    assert.include(
+      custom.modelFallbackMessage ?? "",
+      'Model "missing-model" not found for provider "rove-extension-test". Using custom model id.',
+    );
+  });
+
+  it("applies the requested reasoning level and reports when the model clamps it", async () => {
+    // The fixture model declares `reasoning: false`, so "high" must clamp to "off".
+    const clamped = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: "high",
+      resumeSessionId: undefined,
+    });
+    sessions.push(clamped);
+    assert.include(
+      clamped.modelFallbackMessage ?? "",
+      'Reasoning level "high" is not supported by rove-extension-test/fixture; using "off".',
+    );
+
+    // A level the model supports stays silent — there is no mismatch to report.
+    const supported = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: "off",
+      resumeSessionId: undefined,
+    });
+    sessions.push(supported);
+    assert.isUndefined(supported.modelFallbackMessage);
+  });
+
+  it("surfaces the SDK's model fallback when a saved model cannot be restored", async () => {
+    // A second provider gives the SDK somewhere to fall back to when the
+    // session's saved model (the fixture extension's) is no longer loadable.
+    NodeFS.writeFileSync(
+      NodePath.join(agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          "rootsys.cloud": {
+            baseUrl: "https://example.test/v1",
+            apiKey: "test-key",
+            api: "openai-completions",
+            models: [
+              {
+                id: "kimi-k3",
+                name: "Kimi K3",
+                reasoning: false,
+                input: ["text"],
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: 128_000,
+                maxTokens: 8_192,
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const first = await create();
+    await first.prompt("Remember this conversation");
+    assert.isAbove(first.messages.length, 0);
+    await first.dispose();
+
+    // Resuming without extensions makes the saved fixture model unresolvable.
+    const resumed = await createPiSession(
+      {
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: first.sessionId,
+        resumeSessionFile: first.sessionFile,
+      },
+      { extensions: false },
+    );
+    sessions.push(resumed);
+    assert.include(
+      resumed.modelFallbackMessage ?? "",
+      "Could not restore model rove-extension-test/fixture",
+    );
+    assert.include(resumed.modelFallbackMessage ?? "", "Using rootsys.cloud/kimi-k3");
+  });
 
   it("loads project hooks, commands, tools, and provider models without changing global trust", async () => {
     const settingsPath = NodePath.join(agentDir, "settings.json");
@@ -91,6 +318,44 @@ describe("headless Pi extensions", () => {
 
     await Promise.all([session.dispose(), session.dispose()]);
     assert.strictEqual(log().split("shutdown\n").length - 1, 1);
+  });
+
+  it.each(["what is this", ""])(
+    "forwards prompt images with text %j into the session's user message",
+    async (text) => {
+      const session = await create();
+      await session.prompt(text, {
+        images: [{ type: "image", data: "AQ==", mimeType: "image/png" }],
+      });
+      // SAFETY: The PiSessionLike surface types messages loosely; the last user
+      // message is the one this test just prompted with, and its final content
+      // block is the image the SDK appended after the text block.
+      const userMessage = [...session.messages]
+        .toReversed()
+        .find((message) => (message as { role?: string }).role === "user") as
+        | { content?: Array<{ type: string; data?: string; mimeType?: string }> }
+        | undefined;
+      assert.isDefined(userMessage);
+      assert.deepEqual(userMessage?.content?.at(-1), {
+        type: "image",
+        data: "AQ==",
+        mimeType: "image/png",
+      });
+    },
+  );
+
+  it("keeps rejected SDK prompts on the request error channel", async () => {
+    const session = await create(false);
+    const events: PiSessionEventLike[] = [];
+    const preflight: boolean[] = [];
+    session.subscribe((event) => events.push(event));
+    await expect(
+      session.prompt("hello", {
+        preflightResult: (accepted) => preflight.push(accepted),
+      }),
+    ).rejects.toThrow();
+    assert.deepStrictEqual(preflight, [false]);
+    assert.isFalse(events.some((event) => event.type === "prompt_error"));
   });
 
   it("preserves notification message identity through SDK transcript replay", async () => {
@@ -155,7 +420,69 @@ describe("headless Pi extensions", () => {
       if (completed.type === "turn.completed")
         assert.strictEqual(completed.payload.state, "completed");
       assert.include(log(), "command:1:false\n");
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-factory-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("recovers the same conversation after a missing-file failure and restoration", () =>
+    Effect.gen(function* () {
+      const adapter = yield* makePiAdapter(
+        decodePiSettings({ model: "rove-extension-test/fixture" }),
+        { createSession: createPiSession },
+      );
+      yield* Effect.addFinalizer(() => adapter.stopAll().pipe(Effect.orDie));
+      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "turn.completed" ? Deferred.succeed(completion, event) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      const threadId = ThreadId.make("pi-recovery-integration");
+      const session = yield* adapter.startSession({ threadId, cwd, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "Remember this conversation" });
+      const completed = yield* Deferred.await(completion);
+      assert.strictEqual(completed.type, "turn.completed");
+      if (completed.type === "turn.completed")
+        assert.strictEqual(completed.payload.state, "completed");
+      const before = yield* adapter.readThread(threadId);
+      yield* adapter.stopSession(threadId);
+      const cursor = parsePiResumeCursor(session.resumeCursor)!;
+      const path = cursor.sessionFile!;
+      const history = NodeFS.readFileSync(path, "utf8");
+      NodeFS.unlinkSync(path);
+      const error = yield* adapter
+        .startSession({ threadId, cwd, runtimeMode: "full-access", resumeCursor: cursor })
+        .pipe(Effect.flip);
+      assert.include(error.message, "missing");
+      assert.include(error.message, "create a new thread");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isFalse(NodeFS.existsSync(path));
+      NodeFS.writeFileSync(path, history);
+      const recovered = yield* adapter.startSession({
+        threadId,
+        cwd,
+        runtimeMode: "full-access",
+        resumeCursor: cursor,
+      });
+      assert.deepStrictEqual(recovered.resumeCursor, cursor);
+      const after = yield* adapter.readThread(threadId);
+      const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+      assert.strictEqual(yield* encodeJson(after.turns), yield* encodeJson(before.turns));
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-factory-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
   );
 
   it("loads a local Pi package configured in project settings", async () => {
@@ -203,7 +530,7 @@ export default function (pi) {
       cwd,
       model: undefined,
       thinkingLevel: undefined,
-      resumeSessionFile: undefined,
+      resumeSessionId: undefined,
       disabledExtensions: [fixturePath],
     });
     sessions.push(disabledSession);
@@ -215,7 +542,7 @@ export default function (pi) {
       cwd,
       model: "rove-extension-test/fixture",
       thinkingLevel: undefined,
-      resumeSessionFile: undefined,
+      resumeSessionId: undefined,
       disabledExtensions: [NodePath.join(cwd, ".pi", "extensions", "dummy.ts")],
     });
     sessions.push(noteSession);
@@ -230,6 +557,68 @@ export default function (pi) {
     const enabledSession = await create();
     await enabledSession.prompt("handled");
     assert.include(log(), "start:false:print\ninput:rpc\n");
+  });
+
+  it("filters disabled extensions before factory execution, preventing top-level crashes", async () => {
+    const brokenPath = NodePath.join(cwd, ".pi", "extensions", "crash.ts");
+    NodeFS.writeFileSync(brokenPath, 'throw new Error("TOP_LEVEL_CRASH_SHOULD_NOT_RUN");');
+
+    // With brokenPath disabled, it should NEVER execute or crash session creation:
+    const session = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+      disabledExtensions: [brokenPath],
+    });
+    sessions.push(session);
+
+    // Prompt works normally:
+    await session.prompt("/count");
+    assert.include(log(), "command:1:false\n");
+  });
+
+  it("supports explicit recovery via retryWithoutFailedExtensions when an extension fails to load", async () => {
+    const brokenPath = NodePath.join(cwd, ".pi", "extensions", "broken-load.ts");
+    NodeFS.writeFileSync(
+      brokenPath,
+      'export default () => { throw new Error("broken extension init"); };',
+    );
+
+    // Without recovery option, it throws PiExtensionLoadError:
+    await expect(
+      createPiSession({
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      }),
+    ).rejects.toThrow("broken extension init");
+
+    // With explicit recovery, it recovers by retrying without the broken extension:
+    const recovered = await createPiSession(
+      {
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { retryWithoutFailedExtensions: true },
+    );
+    sessions.push(recovered);
+
+    // It recorded the startup extension error:
+    const events: PiSessionEventLike[] = [];
+    recovered.subscribe((e) => events.push(e));
+    const extensionError = events.find((e) => e.type === "extension_error");
+    assert.isDefined(extensionError);
+    const // SAFETY: The extension_error event structure carries the error payload from the SDK onError callback.
+      errorPayload = (extensionError as { error?: string })?.error;
+    assert.include(String(errorPayload), "broken extension init");
+
+    // And the working extension is still functional:
+    await recovered.prompt("/count");
+    assert.include(log(), "command:1:false\n");
   });
 
   it("loads global extensions and keeps each session's extension state separate", async () => {
@@ -301,6 +690,107 @@ export default function (pi) {
     await expect(create()).rejects.toThrow("fixture load failed");
   });
 
+  it("persists a fresh session before its first prompt so startup cursors survive restart", async () => {
+    const fresh = await create();
+    assert.isDefined(fresh.sessionFile);
+    assert.isTrue(NodeFS.existsSync(fresh.sessionFile!));
+    await fresh.dispose();
+    const resumed = await createPiSession({
+      cwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: fresh.sessionId,
+    });
+    sessions.push(resumed);
+    assert.strictEqual(resumed.sessionId, fresh.sessionId);
+    assert.strictEqual(resumed.resumeOutcome?.resumed, true);
+    await resumed.prompt("First prompt after restart");
+    assert.isAbove(resumed.messages.length, 0);
+  });
+
+  it("recovers history by its durable locator after cwd and session storage settings change", async () => {
+    const fresh = await create();
+    await fresh.prompt("Remember this conversation");
+    const messages = [...fresh.messages];
+    await fresh.dispose();
+    const movedCwd = NodePath.join(root, "moved-project");
+    NodeFS.renameSync(cwd, movedCwd);
+    const movedAgentDir = NodePath.join(root, "other-agent");
+    NodeFS.mkdirSync(movedAgentDir);
+    vi.stubEnv("PI_CODING_AGENT_DIR", movedAgentDir);
+    const resumed = await createPiSession({
+      cwd: movedCwd,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: fresh.sessionId,
+      resumeSessionFile: fresh.sessionFile,
+    });
+    sessions.push(resumed);
+    assert.strictEqual(resumed.sessionId, fresh.sessionId);
+    assert.strictEqual(JSON.stringify(resumed.messages), JSON.stringify(messages));
+    assert.strictEqual(resumed.sessionFile, fresh.sessionFile);
+    await resumed.prompt("Continue after moving");
+    assert.isAbove(resumed.messages.length, messages.length);
+    await resumed.prompt("handled");
+    assert.include(
+      NodeFS.readFileSync(NodePath.join(movedCwd, "extension.log"), "utf8"),
+      "input:rpc",
+    );
+  });
+
+  it("rejects empty, malformed, mismatched, and missing session files without replacing them", async () => {
+    const fresh = await create();
+    const path = fresh.sessionFile!;
+    await fresh.dispose();
+    const header = NodeFS.readFileSync(path, "utf8");
+    for (const content of ["", "not JSON\n", header.replace(fresh.sessionId, "another-session")]) {
+      NodeFS.writeFileSync(path, content);
+      await expect(
+        createPiSession({
+          cwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: fresh.sessionId,
+          resumeSessionFile: path,
+        }),
+      ).rejects.toThrow();
+      assert.strictEqual(NodeFS.readFileSync(path, "utf8"), content);
+    }
+    NodeFS.unlinkSync(path);
+    await expect(
+      createPiSession({
+        cwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: fresh.sessionId,
+        resumeSessionFile: path,
+      }),
+    ).rejects.toThrow("missing");
+    assert.isFalse(NodeFS.existsSync(path));
+  });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "distinguishes unreadable session storage from missing history",
+    async () => {
+      const fresh = await create();
+      await fresh.dispose();
+      NodeFS.chmodSync(fresh.sessionFile!, 0);
+      try {
+        await expect(
+          createPiSession({
+            cwd,
+            model: undefined,
+            thinkingLevel: undefined,
+            resumeSessionId: fresh.sessionId,
+            resumeSessionFile: fresh.sessionFile,
+          }),
+        ).rejects.toThrow("unreadable");
+      } finally {
+        NodeFS.chmodSync(fresh.sessionFile!, 0o600);
+      }
+    },
+  );
+
   it("keeps extensions disabled for auxiliary text generation", async () => {
     NodeFS.writeFileSync(
       NodePath.join(cwd, ".pi", "extensions", "broken.ts"),
@@ -354,40 +844,110 @@ it("resolves a valid custom model for an in-session switch", async () => {
   }
 });
 
-it("resolveSessionFile finds the persisted file for a session id", () => {
-  const cwd = NodeFS.realpathSync(
-    NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-")),
-  );
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  const sessionId = "01a00000-1111-2222-3333-444455556666";
+describe("Pi session recovery", () => {
+  let storageRoot: string;
+  beforeEach(() => {
+    storageRoot = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-recovery-storage-"));
+    vi.stubEnv("PI_CODING_AGENT_DIR", storageRoot);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    NodeFS.rmSync(storageRoot, { recursive: true, force: true });
+  });
 
-  // resolveSessionFile only depends on the `<timestamp>_<id>.jsonl` naming
-  // contract, so create that file directly rather than racing the SDK's
-  // deferred write/flush.
-  const fileName = `2026-08-16T00-00-00-000Z_${sessionId}.jsonl`;
-  NodeFS.writeFileSync(NodePath.join(sessionDir, fileName), "{}\n");
+  it("resolvePiSessionResume finds the persisted file for a session id", () => {
+    const cwd = NodeFS.realpathSync(
+      NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-")),
+    );
+    const sessionDir = SessionManager.create(cwd).getSessionDir();
+    const sessionId = "01a00000-1111-2222-3333-444455556666";
 
-  try {
-    const resolved = resolvePiSessionFileForTest(cwd, sessionId);
-    assert.isDefined(resolved);
-    assert.isTrue(resolved!.endsWith(`_${sessionId}.jsonl`));
-    assert.strictEqual(NodePath.dirname(resolved!), sessionDir);
-    assert.isTrue(NodeFS.existsSync(resolved!));
-  } finally {
-    // Clean up the session dir we created in the global Pi sessions root.
-    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
-    NodeFS.rmSync(cwd, { recursive: true, force: true });
-  }
-});
+    const fileName = `2026-08-16T00-00-00-000Z_${sessionId}.jsonl`;
+    NodeFS.writeFileSync(NodePath.join(sessionDir, fileName), "{}\n");
 
-it("resolveSessionFile returns undefined for an unknown session id", () => {
-  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
-  const sessionDir = SessionManager.create(cwd).getSessionDir();
-  try {
-    const resolved = resolvePiSessionFileForTest(cwd, "00000000-0000-0000-0000-000000000000");
-    assert.isUndefined(resolved);
-  } finally {
-    NodeFS.rmSync(sessionDir, { recursive: true, force: true });
-    NodeFS.rmSync(cwd, { recursive: true, force: true });
-  }
+    try {
+      assert.deepStrictEqual(resolvePiSessionResume(cwd, sessionId), {
+        resumed: true,
+        sessionFile: NodePath.join(sessionDir, fileName),
+      });
+    } finally {
+      NodeFS.rmSync(sessionDir, { recursive: true, force: true });
+      NodeFS.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("resolvePiSessionResume reports a missing file instead of masking a fresh session", () => {
+    const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-factory-test-"));
+    const sessionDir = SessionManager.create(cwd).getSessionDir();
+    try {
+      assert.throws(
+        () => resolvePiSessionResume(cwd, "00000000-0000-0000-0000-000000000000"),
+        "missing",
+      );
+      assert.strictEqual(resolvePiSessionResume(cwd, undefined).resumed, false);
+    } finally {
+      NodeFS.rmSync(sessionDir, { recursive: true, force: true });
+      NodeFS.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects ambiguous legacy IDs rather than choosing arbitrary history", () => {
+    const sessionId = "01a00000-1111-2222-3333-444455556666";
+    const sessionDir = SessionManager.create(storageRoot).getSessionDir();
+    NodeFS.writeFileSync(NodePath.join(sessionDir, `first_${sessionId}.jsonl`), "{}\n");
+    NodeFS.writeFileSync(NodePath.join(sessionDir, `second_${sessionId}.jsonl`), "{}\n");
+    assert.throws(() => resolvePiSessionResume(storageRoot, sessionId), "Multiple session files");
+  });
+
+  it("does not classify directory read errors as missing history", () => {
+    const sessionDir = SessionManager.create(storageRoot).getSessionDir();
+    NodeFS.rmdirSync(sessionDir);
+    NodeFS.writeFileSync(sessionDir, "not a directory");
+    assert.throws(() => resolvePiSessionResume(storageRoot, "saved-session"), "unreadable");
+  });
+
+  it("createPiSession rejects a missed resume and resumes a live session", async () => {
+    const tmp = NodeFS.realpathSync(
+      NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-resume-")),
+    );
+    const resumeCwd = NodePath.join(tmp, "project");
+    const resumeAgentDir = NodePath.join(tmp, "agent");
+    NodeFS.mkdirSync(NodePath.join(resumeCwd, ".pi", "extensions"), { recursive: true });
+    NodeFS.mkdirSync(resumeAgentDir);
+    vi.stubEnv("PI_CODING_AGENT_DIR", resumeAgentDir);
+    vi.stubEnv("PI_OFFLINE", "1");
+    const owned: PiSessionLike[] = [];
+    try {
+      const missingId = "00000000-0000-0000-0000-000000000000";
+      await expect(
+        createPiSession({
+          cwd: resumeCwd,
+          model: undefined,
+          thinkingLevel: undefined,
+          resumeSessionId: missingId,
+        }),
+      ).rejects.toThrow("missing");
+
+      const liveId = "11a00000-1111-2222-3333-444455556666";
+      const liveDir = SessionManager.create(resumeCwd).getSessionDir();
+      const liveFile = NodePath.join(liveDir, `2026-08-16T00-00-00-000Z_${liveId}.jsonl`);
+      NodeFS.writeFileSync(
+        liveFile,
+        `${JSON.stringify({ type: "session", version: 3, id: liveId, timestamp: "2026-08-16T00:00:00.000Z", cwd: resumeCwd })}\n`,
+      );
+
+      const resumed = await createPiSession({
+        cwd: resumeCwd,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: liveId,
+      });
+      owned.push(resumed);
+      assert.strictEqual(resumed.resumeOutcome?.resumed, true);
+      assert.strictEqual(resumed.sessionId, liveId);
+    } finally {
+      for (const session of owned.splice(0)) await session.dispose();
+      NodeFS.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

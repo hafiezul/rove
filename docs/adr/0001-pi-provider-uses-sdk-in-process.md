@@ -16,14 +16,48 @@ typed session-replacement APIs (`fork`, used for fork-as-rollback).
 The rejected alternative — spawning `pi --mode rpc` per thread — offers crash
 isolation and runs the user's exact installed binary. We accepted the loss of
 isolation deliberately. A misbehaving Pi session or loaded extension can affect the
-server process, and mitigations live in
-ordinary adapter error-handling. Version drift is handled in the opposite direction
+server process. Adapter exception handling only covers thrown/rejected failures;
+it cannot contain an infinite loop, `process.exit`, or native crashes. Version drift is handled in the opposite direction
 from other providers: Rove Code controls the Pi version rather than discovering whatever
 the user has installed.
 
 Reversing this decision means rewriting the adapter's transport, but the adapter
 boundary (driver + adapter conforming to `ProviderAdapterShape`) hides the swap from
 orchestration and clients.
+
+## Containment review: SDK-backed child process
+
+The in-process decision remains in force. A stronger alternative is a **Rove-owned
+child process using the bundled SDK**, not the user's CLI or `pi --mode rpc`.
+This retains deliberate SDK upgrades and the adapter contract while moving
+extension execution out of the server process.
+
+A useful first boundary is one child per thread session, with a separate child
+for the provider catalog host. A single shared child is cheaper but lets one
+extension take down all Pi threads. Isolating only thread sessions leaves global
+catalog extensions able to take down the server. Background text-generation
+sessions also need an explicit placement decision.
+
+Before adopting this design, prototype and measure:
+
+- Startup latency and resident memory with many idle threads.
+- Typed request/response IPC for prompts, model changes, snapshots, fork, and
+  disposal; ordered runtime events with bounded progress and backpressure.
+- Remote Rove tool calls routed back to the server with the existing thread
+  authorization, rather than exposing server internals in the child.
+- Parent-owned deadlines and termination of only the spawned child; classify
+  child exit as a recoverable session failure, preserving the persisted cursor.
+  Never automatically replay an accepted prompt: its tools may already have run.
+- Credential/config sharing, extension registrations, headless hooks, and
+  packaging on all supported server/desktop platforms.
+
+Current hardening bounds resource startup to 60 seconds and asynchronous disposal
+to 5 seconds, disposes resources that arrive after cancellation, and samples tool
+progress before queueing it (two 1,024-character snapshots per second per session).
+Final tool results remain authoritative and are not truncated by this sampling.
+These are responsiveness safeguards, **not fault isolation**. A blocked event loop
+also blocks deadlines. A child-process migration should supersede this ADR only
+after validating the above lifecycle and performance trade-offs.
 
 ## Catalog host (provider-level extension models)
 
