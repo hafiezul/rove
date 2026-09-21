@@ -509,6 +509,22 @@
         "licenseId": "MIT",
         "copyrights": ["Copyright (c) 2025 opencode"]
       }
+    },
+    {
+      "name": "@nodable/entities",
+      "sourceUrl": "https://github.com/nodable/val-parsers",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2026 Nodable"]
+      }
+    },
+    {
+      "name": "xml-naming",
+      "sourceUrl": "https://github.com/NaturalIntelligence/xml-naming",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2026 Natural Intelligence"]
+      }
     }
   ]
 }
