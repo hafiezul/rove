@@ -33,7 +33,7 @@
  * @module provider/Layers/ProviderInstanceRegistryLive
  */
 import {
-  defaultInstanceIdForDriver,
+  providerInstanceConfigEnabledFlag,
   ProviderInstanceId,
   type ProviderInstanceConfig,
   type ProviderInstanceConfigMap,
@@ -61,7 +61,6 @@ import {
   type ProviderInstanceRegistryMutatorContract,
 } from "../Services/ProviderInstanceRegistryMutator.ts";
 import type { AnyProviderDriver, ProviderInstance } from "../ProviderDriver.ts";
-import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * Live registry entry: the materialized `ProviderInstance` + the fresh
@@ -94,17 +93,20 @@ interface RegistryState {
 const entryEqual = (a: ProviderInstanceConfig, b: ProviderInstanceConfig): boolean =>
   Equal.equals(a, b);
 
-const decodedConfigEnabled = (config: unknown): boolean | undefined => {
-  if (
-    !config ||
-    !(RuntimePredicate.isObjectOrArray(config) || config === null) ||
-    globalThis.Array.isArray(config)
-  ) {
-    return undefined;
+/**
+ * Resolve an entry's enabled state. An explicit false on either the
+ * envelope or the raw config blob wins (most restrictive) — old settings
+ * files can carry both flags with conflicting values, and a user's disable
+ * must never be silently undone. Otherwise the envelope flag wins, then the
+ * decoded config's flag (which carries the driver schema's default for
+ * built-ins and forks alike), then enabled by default.
+ */
+const resolveEntryEnabled = (entry: ProviderInstanceConfig, typedConfig: unknown): boolean => {
+  const rawConfigEnabled = providerInstanceConfigEnabledFlag(entry.config);
+  if (entry.enabled === false || rawConfigEnabled === false) {
+    return false;
   }
-  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    enabled = (config as { readonly enabled?: unknown }).enabled;
-  return RuntimePredicate.isBoolean(enabled) ? enabled : undefined;
+  return entry.enabled ?? providerInstanceConfigEnabledFlag(typedConfig) ?? true;
 };
 
 /**
@@ -177,7 +179,7 @@ const buildEntry = <R>(input: {
         displayName: entry.displayName,
         accentColor: entry.accentColor,
         environment: entry.environment ?? [],
-        enabled: entry.enabled ?? decodedConfigEnabled(typedConfig) ?? true,
+        enabled: resolveEntryEnabled(entry, typedConfig),
         config: typedConfig,
       })
       .pipe(Effect.provideService(Scope.Scope, childScope), Effect.result);
@@ -321,9 +323,9 @@ const makeReconcile = <R>(input: {
  * Build the registry's runtime state from a concrete configMap. Returns a
  * record containing:
  *
- *   - `registry`: the read-only `ProviderInstanceRegistryShape` to expose
+ *   - `registry`: the read-only `ProviderInstanceRegistryContract` to expose
  *     under `ProviderInstanceRegistry`.
- *   - `mutator`: the `ProviderInstanceRegistryMutatorShape` to expose
+ *   - `mutator`: the `ProviderInstanceRegistryMutatorContract` to expose
  *     under `ProviderInstanceRegistryMutator`.
  *   - `reconcile`: the raw reconcile function, provided for convenience so
  *     boot-time layers can hydrate an initial map before publishing the
@@ -375,34 +377,33 @@ export const makeProviderInstanceRegistry = <R>(input: {
     // `listInstances` immediately after this effect completes.
     yield* reconcile(input.configMap);
 
-    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      registry: ProviderInstanceRegistryContract = {
-        getInstance: (id) => Ref.get(entries).pipe(Effect.map((map) => map.get(id)?.instance)),
-        listInstances: Ref.get(entries).pipe(
-          Effect.map(
-            (map) =>
-              Array.from(map.values(), (live) => live.instance) as ReadonlyArray<ProviderInstance>,
-          ),
+    const registry: ProviderInstanceRegistryContract = {
+      getInstance: (id) => Ref.get(entries).pipe(Effect.map((map) => map.get(id)?.instance)),
+      listInstances: Ref.get(entries).pipe(
+        Effect.map(
+          (map) =>
+            Array.from(map.values(), (live) => live.instance) as ReadonlyArray<ProviderInstance>,
         ),
-        listUnavailable: Ref.get(unavailable).pipe(
-          Effect.map((map) => Array.from(map.values()) as ReadonlyArray<ServerProvider>),
-        ),
-        // Getters: each read constructs a fresh Stream / Effect descriptor
-        // so multiple consumers don't share a single already-started
-        // Channel or subscription. Matches the pattern `ProviderRegistry`
-        // uses for its own `streamChanges`.
-        get streamChanges() {
-          return Stream.fromPubSub(changes);
-        },
-        // Synchronous subscribe — callers that need to consume changes
-        // from a forked fibre must acquire the subscription in their own
-        // fibre first (via `yield* registry.subscribeChanges`) and only
-        // then fork a consumer loop on `Stream.fromSubscription(...)` /
-        // `PubSub.take(...)`. See the shape docs for the race this avoids.
-        get subscribeChanges() {
-          return PubSub.subscribe(changes);
-        },
-      };
+      ),
+      listUnavailable: Ref.get(unavailable).pipe(
+        Effect.map((map) => Array.from(map.values()) as ReadonlyArray<ServerProvider>),
+      ),
+      // Getters: each read constructs a fresh Stream / Effect descriptor
+      // so multiple consumers don't share a single already-started
+      // Channel or subscription. Matches the pattern `ProviderRegistry`
+      // uses for its own `streamChanges`.
+      get streamChanges() {
+        return Stream.fromPubSub(changes);
+      },
+      // Synchronous subscribe — callers that need to consume changes
+      // from a forked fibre must acquire the subscription in their own
+      // fibre first (via `yield* registry.subscribeChanges`) and only
+      // then fork a consumer loop on `Stream.fromSubscription(...)` /
+      // `PubSub.take(...)`. See the shape docs for the race this avoids.
+      get subscribeChanges() {
+        return PubSub.subscribe(changes);
+      },
+    };
 
     const mutator: ProviderInstanceRegistryMutatorContract = { reconcile };
 
@@ -410,43 +411,21 @@ export const makeProviderInstanceRegistry = <R>(input: {
   });
 
 /**
- * Assemble a `ProviderInstanceRegistry` Layer bound to a fixed set of
- * drivers and a pre-resolved `ProviderInstanceConfigMap`. Used by tests
- * that want explicit control over the registry's source-of-truth without
- * wiring up the settings watcher.
- *
- * Only exposes the public registry tag — hot-reload consumers should use
- * `ProviderInstanceRegistryMutableLayer` (below) or the hydration layer.
- */
-export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  ProviderInstanceRegistryLayer = <R>(input: {
-    readonly drivers: ReadonlyArray<AnyProviderDriver<R>>;
-    readonly configMap: ProviderInstanceConfigMap;
-  }): Layer.Layer<ProviderInstanceRegistry, never, R> =>
-    Layer.effect(
-      ProviderInstanceRegistry,
-      makeProviderInstanceRegistry(input).pipe(Effect.map((built) => built.registry)),
-    ) as Layer.Layer<ProviderInstanceRegistry, never, R>;
-
-/**
  * Layer variant that also exposes the mutator tag. Consumed by
  * `ProviderInstanceRegistryHydrationLive` to reconcile on settings
  * changes. Tests that exercise the mutator directly can pair this Layer
  * with a test-local `ServerSettingsService`.
  */
-export const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  ProviderInstanceRegistryMutableLayer = <R>(input: {
-    readonly drivers: ReadonlyArray<AnyProviderDriver<R>>;
-    readonly configMap: ProviderInstanceConfigMap;
-  }): Layer.Layer<ProviderInstanceRegistry | ProviderInstanceRegistryMutator, never, R> =>
-    Layer.effectContext(
-      makeProviderInstanceRegistry(input).pipe(
-        Effect.map(({ registry, mutator }) =>
-          Context.make(ProviderInstanceRegistry, registry).pipe(
-            Context.add(ProviderInstanceRegistryMutator, mutator),
-          ),
+export const ProviderInstanceRegistryMutableLayer = <R>(input: {
+  readonly drivers: ReadonlyArray<AnyProviderDriver<R>>;
+  readonly configMap: ProviderInstanceConfigMap;
+}): Layer.Layer<ProviderInstanceRegistry | ProviderInstanceRegistryMutator, never, R> =>
+  Layer.effectContext(
+    makeProviderInstanceRegistry(input).pipe(
+      Effect.map(({ registry, mutator }) =>
+        Context.make(ProviderInstanceRegistry, registry).pipe(
+          Context.add(ProviderInstanceRegistryMutator, mutator),
         ),
       ),
-    ) as Layer.Layer<ProviderInstanceRegistry | ProviderInstanceRegistryMutator, never, R>;
-
-export { defaultInstanceIdForDriver };
+    ),
+  ) as Layer.Layer<ProviderInstanceRegistry | ProviderInstanceRegistryMutator, never, R>;

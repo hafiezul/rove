@@ -16,40 +16,26 @@ import { GrokSettings, ProviderInstanceId } from "@t3tools/contracts";
 import * as ServerConfig from "../config.ts";
 import * as TextGeneration from "./TextGeneration.ts";
 import { makeGrokTextGeneration } from "./GrokTextGeneration.ts";
-import type { Json as SchemaJson } from "effect/Schema";
+import { execScriptSource, writeFakeCli } from "../testUtils/fakeCli.ts";
 const decodeGrokSettings = Schema.decodeSync(GrokSettings);
 
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
 const mockAgentPath = NodePath.join(__dirname, "../../scripts/acp-mock-agent.ts");
-
-function shellSingleQuote(value: string): string {
-  return `'${value.replaceAll("'", `'"'"'`)}'`;
-}
 
 const GrokTextGenerationTestLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
   prefix: "rove-grok-text-generation-test-",
 }).pipe(Layer.provideMerge(NodeServices.layer));
 
 function makeAcpGrokWrapper(dir: string, env: Record<string, string>): string {
-  const binDir = NodePath.join(dir, "bin");
-  const grokPath = NodePath.join(binDir, "grok");
-  NodeFS.mkdirSync(binDir, { recursive: true });
-  NodeFS.writeFileSync(
-    grokPath,
-    [
-      "#!/bin/sh",
-      ...Object.entries(env).map(([key, value]) => `export ${key}=${shellSingleQuote(value)}`),
-      'if [ "$1" != "agent" ] || [ "$2" != "stdio" ]; then',
-      '  printf "%s\\n" "unexpected args: $*" >&2',
-      "  exit 11",
-      "fi",
-      `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(mockAgentPath)}`,
-      "",
-    ].join("\n"),
-    "utf8",
-  );
-  NodeFS.chmodSync(grokPath, 0o755);
-  return grokPath;
+  return writeFakeCli({
+    directory: NodePath.join(dir, "bin"),
+    name: "grok",
+    env,
+    source: execScriptSource({
+      scriptPath: mockAgentPath,
+      expectedArgs: ["agent", "stdio"],
+    }),
+  });
 }
 
 function withFakeAcpGrok<A, E, R>(
@@ -72,13 +58,12 @@ function withFakeAcpGrok<A, E, R>(
 
 function readJsonRpcRequests(
   filePath: string,
-): ReadonlyArray<{ readonly method?: string; readonly params?: Record<string, SchemaJson> }> {
-  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
+): ReadonlyArray<{ readonly method?: string; readonly params?: Record<string, unknown> }> {
   return NodeFS.readFileSync(filePath, "utf8")
     .trim()
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as { method?: string; params?: Record<string, SchemaJson> });
+    .map((line) => JSON.parse(line) as { method?: string; params?: Record<string, unknown> });
 }
 
 it.layer(GrokTextGenerationTestLayer)("GrokTextGeneration", (it) => {

@@ -227,6 +227,13 @@ jobs:
               "--ignore-all-space",
               "--ignore-blank-lines",
               `${baseSha}...${resolvedHeadSha}`,
+              // Vendored reference repositories are excluded from checkout and
+              // are not part of the reviewed change; their diff output is also
+              // large enough to overflow execFileSync's default buffer.
+              "--",
+              ".",
+              ":(exclude).repos",
+              ":(exclude).repos/**",
             ];
 
             const totalChangedLines = sumNumstat(
@@ -237,7 +244,7 @@ jobs:
               ),
             );
             const nonTestChangedLines = sumNumstat(
-              execFileSync("git", [...diffArgs, "--", ".", ...testExcludePathspecs], {
+              execFileSync("git", [...diffArgs, ...testExcludePathspecs], {
                 encoding: "utf8",
               }),
             );

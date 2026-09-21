@@ -67,7 +67,7 @@ export function isProxiableBindHost(host: string): boolean {
   );
 }
 
-export const DEFAULT_ROVE_HOME = Effect.map(Effect.service(Path.Path), (path) =>
+export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
   path.join(NodeOS.homedir(), ".rove"),
 );
 
@@ -107,7 +107,7 @@ export function isBrowserAllowedPort(port: number): boolean {
   return !FETCH_BAD_PORTS.has(port);
 }
 
-export class DevRunnerConfigurationError extends Schema.TaggedErrorClass<DevRunnerConfigurationError>()(
+export class DevRunnerConfigurationError extends Schema.TaggedError<DevRunnerConfigurationError>()(
   "DevRunnerConfigurationError",
   {
     configKeys: Schema.Array(Schema.String),
@@ -119,7 +119,7 @@ export class DevRunnerConfigurationError extends Schema.TaggedErrorClass<DevRunn
   }
 }
 
-export class DevRunnerInvalidPortOffsetError extends Schema.TaggedErrorClass<DevRunnerInvalidPortOffsetError>()(
+export class DevRunnerInvalidPortOffsetError extends Schema.TaggedError<DevRunnerInvalidPortOffsetError>()(
   "DevRunnerInvalidPortOffsetError",
   {
     configKey: Schema.Literal("ROVE_PORT_OFFSET"),
@@ -132,7 +132,7 @@ export class DevRunnerInvalidPortOffsetError extends Schema.TaggedErrorClass<Dev
   }
 }
 
-export class DevRunnerPortExhaustedError extends Schema.TaggedErrorClass<DevRunnerPortExhaustedError>()(
+export class DevRunnerPortExhaustedError extends Schema.TaggedError<DevRunnerPortExhaustedError>()(
   "DevRunnerPortExhaustedError",
   {
     startOffset: Schema.Number,
@@ -148,7 +148,7 @@ export class DevRunnerPortExhaustedError extends Schema.TaggedErrorClass<DevRunn
   }
 }
 
-export class DevRunnerProcessError extends Schema.TaggedErrorClass<DevRunnerProcessError>()(
+export class DevRunnerProcessError extends Schema.TaggedError<DevRunnerProcessError>()(
   "DevRunnerProcessError",
   {
     operation: Schema.Literals(["spawn", "wait-for-exit"]),
@@ -164,7 +164,7 @@ export class DevRunnerProcessError extends Schema.TaggedErrorClass<DevRunnerProc
   }
 }
 
-export class DevRunnerProcessExitError extends Schema.TaggedErrorClass<DevRunnerProcessExitError>()(
+export class DevRunnerProcessExitError extends Schema.TaggedError<DevRunnerProcessExitError>()(
   "DevRunnerProcessExitError",
   {
     mode: Schema.Literals(["dev", "dev:server", "dev:web", "dev:desktop"]),
@@ -179,7 +179,7 @@ export class DevRunnerProcessExitError extends Schema.TaggedErrorClass<DevRunner
   }
 }
 
-export class DevRunnerHostNotProxiableError extends Schema.TaggedErrorClass<DevRunnerHostNotProxiableError>()(
+export class DevRunnerHostNotProxiableError extends Schema.TaggedError<DevRunnerHostNotProxiableError>()(
   "DevRunnerHostNotProxiableError",
   {
     mode: Schema.Literals(["dev", "dev:web"]),
@@ -287,7 +287,7 @@ function resolveBaseDir(baseDir: string | undefined): Effect.Effect<string, neve
       return path.resolve(configured);
     }
 
-    return yield* DEFAULT_ROVE_HOME;
+    return yield* DEFAULT_T3_HOME;
   });
 }
 
@@ -389,6 +389,7 @@ export function createDevRunnerEnv({
       delete output.ROVE_MODE;
       delete output.ROVE_NO_BROWSER;
       delete output.ROVE_HOST;
+      delete output.ROVE_DEV_AUTH_TOKEN;
     }
 
     if (!isDesktopMode && host !== undefined) {
@@ -682,7 +683,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
     // Trim before choosing: `--home-dir ""` is not a selection, and treating it
     // as one would skip the worktree default and land on the shared home —
     // exactly the outcome this precedence exists to prevent.
-    const resolvedRoveHome =
+    const resolvedT3Home =
       (input.t3Home?.trim() || undefined) ??
       worktreeHome ??
       (hostEnvironment.ROVE_HOME?.trim() || undefined);
@@ -691,7 +692,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
       baseEnv: hostEnvironment,
       serverOffset,
       webOffset,
-      t3Home: resolvedRoveHome,
+      t3Home: resolvedT3Home,
       browser: input.browser,
       autoBootstrapProjectFromCwd: input.autoBootstrapProjectFromCwd,
       logWebSocketEvents: input.logWebSocketEvents,
@@ -704,7 +705,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
       serverOffset !== offset || webOffset !== offset
         ? ` selectedOffset(server=${serverOffset},web=${webOffset})`
         : "";
-    const baseDir = env.ROVE_HOME ?? (yield* DEFAULT_ROVE_HOME);
+    const baseDir = env.ROVE_HOME ?? (yield* DEFAULT_T3_HOME);
 
     yield* Effect.logInfo(
       `[dev-runner] mode=${input.mode} source=${source}${selectionSuffix} serverPort=${String(env.ROVE_PORT)} webPort=${String(env.PORT)} baseDir=${baseDir}`,
@@ -865,6 +866,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   browser: Flag.boolean("browser").pipe(
     Flag.withDescription("Open a browser automatically (disabled by default for web dev)."),
+    Flag.withDefault(false),
   ),
   autoBootstrapProjectFromCwd: Flag.boolean("auto-bootstrap-project-from-cwd").pipe(
     Flag.withDescription(

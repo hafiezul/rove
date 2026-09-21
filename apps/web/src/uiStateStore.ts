@@ -1,10 +1,11 @@
 import { Debouncer } from "@tanstack/react-pacer";
+import type { PullRequestMergeMethod } from "@t3tools/contracts";
 import { create } from "zustand";
 import { normalizeProjectPathForComparison } from "./lib/projectPaths";
-import * as RuntimePredicate from "effect/Predicate";
 
 export const PERSISTED_STATE_KEY = "rove:ui-state:v1";
-const THREAD_CHANGED_FILES_EXPANSION_VERSION = 1;
+// Version 1 stored card visibility, not folder expansion.
+const THREAD_CHANGED_FILES_EXPANSION_VERSION = 2;
 const LEGACY_PERSISTED_STATE_KEYS = [
   "rove:renderer-state:v8",
   "rove:renderer-state:v7",
@@ -26,13 +27,19 @@ export interface PersistedUiState {
   expandedProjectCwds?: string[];
   projectOrderCwds?: string[];
   defaultAdvertisedEndpointKey?: string | null;
-  threadChangedFilesExpansionVersion?: typeof THREAD_CHANGED_FILES_EXPANSION_VERSION;
+  sidebarProjectScopeKey?: string | null;
+  threadChangedFilesExpansionVersion?: number;
   threadChangedFilesExpandedById?: Record<string, Record<string, boolean>>;
+  pullRequestMergeMethod?: string;
 }
 
 export interface UiProjectState {
   projectExpandedById: Record<string, boolean>;
   projectOrder: string[];
+  // Logical project key the sidebar list is scoped to, or null for "all
+  // projects". Lives here so routes that unmount the sidebar (Settings)
+  // cannot reset the filter.
+  sidebarProjectScopeKey: string | null;
 }
 
 export interface UiThreadState {
@@ -44,14 +51,21 @@ export interface UiEndpointState {
   defaultAdvertisedEndpointKey: string | null;
 }
 
-export interface UiState extends UiProjectState, UiThreadState, UiEndpointState {}
+export interface UiPullRequestState {
+  pullRequestMergeMethod: PullRequestMergeMethod;
+}
+
+export interface UiState
+  extends UiProjectState, UiThreadState, UiEndpointState, UiPullRequestState {}
 
 const initialState: UiState = {
   projectExpandedById: {},
   projectOrder: [],
+  sidebarProjectScopeKey: null,
   threadLastVisitedAtById: {},
   threadChangedFilesExpandedById: {},
   defaultAdvertisedEndpointKey: null,
+  pullRequestMergeMethod: "merge",
 };
 
 const LEGACY_PROJECT_CWD_PREFERENCE_PREFIX = "legacy-project-cwd:";
@@ -68,38 +82,43 @@ function sanitizeStringArray(value: unknown): string[] {
   }
   return [
     ...new Set(
-      value.filter(
-        (entry): entry is string => RuntimePredicate.isString(entry) && entry.length > 0,
-      ),
+      value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0),
     ),
   ];
 }
 
 function sanitizeBooleanRecord(value: unknown): Record<string, boolean> {
-  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
+  if (!value || typeof value !== "object") {
     return {};
   }
   return Object.fromEntries(
     Object.entries(value).filter(
-      (entry): entry is [string, boolean] =>
-        entry[0].length > 0 && RuntimePredicate.isBoolean(entry[1]),
+      (entry): entry is [string, boolean] => entry[0].length > 0 && typeof entry[1] === "boolean",
     ),
   );
 }
 
+function sanitizeOptionalKey(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function sanitizeTimestampRecord(value: unknown): Record<string, string> {
-  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
+  if (!value || typeof value !== "object") {
     return {};
   }
   return Object.fromEntries(
     Object.entries(value).filter(
       (entry): entry is [string, string] =>
         entry[0].length > 0 &&
-        RuntimePredicate.isString(entry[1]) &&
+        typeof entry[1] === "string" &&
         entry[1].length > 0 &&
         Number.isFinite(Date.parse(entry[1])),
     ),
   );
+}
+
+function isPullRequestMergeMethod(value: unknown): value is PullRequestMergeMethod {
+  return value === "merge" || value === "squash" || value === "rebase";
 }
 
 export function parsePersistedState(parsed: PersistedUiState): UiState {
@@ -134,11 +153,11 @@ export function parsePersistedState(parsed: PersistedUiState): UiState {
       parsed.threadChangedFilesExpansionVersion === THREAD_CHANGED_FILES_EXPANSION_VERSION
         ? sanitizePersistedThreadChangedFilesExpanded(parsed.threadChangedFilesExpandedById)
         : {},
-    defaultAdvertisedEndpointKey:
-      RuntimePredicate.isString(parsed.defaultAdvertisedEndpointKey) &&
-      parsed.defaultAdvertisedEndpointKey.length > 0
-        ? parsed.defaultAdvertisedEndpointKey
-        : null,
+    defaultAdvertisedEndpointKey: sanitizeOptionalKey(parsed.defaultAdvertisedEndpointKey),
+    sidebarProjectScopeKey: sanitizeOptionalKey(parsed.sidebarProjectScopeKey),
+    pullRequestMergeMethod: isPullRequestMergeMethod(parsed.pullRequestMergeMethod)
+      ? parsed.pullRequestMergeMethod
+      : initialState.pullRequestMergeMethod,
   };
 }
 
@@ -154,12 +173,10 @@ function readPersistedState(): UiState {
         if (!legacyRaw) {
           continue;
         }
-        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return parsePersistedState(JSON.parse(legacyRaw) as PersistedUiState);
       }
       return initialState;
     }
-    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
     return parsePersistedState(JSON.parse(raw) as PersistedUiState);
   } catch {
     return initialState;
@@ -168,20 +185,20 @@ function readPersistedState(): UiState {
 
 function sanitizePersistedThreadChangedFilesExpanded(
   value: PersistedUiState["threadChangedFilesExpandedById"],
-) {
-  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) {
+): Record<string, Record<string, boolean>> {
+  if (!value || typeof value !== "object") {
     return {};
   }
 
   const nextState: Record<string, Record<string, boolean>> = {};
   for (const [threadId, turns] of Object.entries(value)) {
-    if (!threadId || !turns || !(RuntimePredicate.isObjectOrArray(turns) || turns === null)) {
+    if (!threadId || !turns || typeof turns !== "object") {
       continue;
     }
 
     const nextTurns: Record<string, boolean> = {};
     for (const [turnId, expanded] of Object.entries(turns)) {
-      if (turnId && RuntimePredicate.isBoolean(expanded)) {
+      if (turnId && typeof expanded === "boolean") {
         nextTurns[turnId] = expanded;
       }
     }
@@ -211,8 +228,10 @@ export function persistState(state: UiState): void {
         projectOrder: state.projectOrder,
         threadLastVisitedAtById: state.threadLastVisitedAtById,
         defaultAdvertisedEndpointKey: state.defaultAdvertisedEndpointKey,
+        sidebarProjectScopeKey: state.sidebarProjectScopeKey,
         threadChangedFilesExpansionVersion: THREAD_CHANGED_FILES_EXPANSION_VERSION,
         threadChangedFilesExpandedById: state.threadChangedFilesExpandedById,
+        pullRequestMergeMethod: state.pullRequestMergeMethod,
       } satisfies PersistedUiState),
     );
     if (!legacyKeysCleanedUp) {
@@ -310,6 +329,23 @@ export function setDefaultAdvertisedEndpointKey(state: UiState, key: string | nu
   };
 }
 
+export function setSidebarProjectScopeKey(state: UiState, projectKey: string | null): UiState {
+  const nextKey = sanitizeOptionalKey(projectKey);
+  if (state.sidebarProjectScopeKey === nextKey) {
+    return state;
+  }
+  return {
+    ...state,
+    sidebarProjectScopeKey: nextKey,
+  };
+}
+
+function setPullRequestMergeMethod(state: UiState, method: PullRequestMergeMethod): UiState {
+  return state.pullRequestMergeMethod === method
+    ? state
+    : { ...state, pullRequestMergeMethod: method };
+}
+
 export function resolveProjectExpanded(
   projectExpandedById: Readonly<Record<string, boolean>>,
   preferenceKeys: readonly string[],
@@ -328,7 +364,7 @@ export function setProjectExpanded(
   projectIds: string | readonly string[],
   expanded: boolean,
 ): UiState {
-  const ids = RuntimePredicate.isString(projectIds) ? [projectIds] : projectIds;
+  const ids = typeof projectIds === "string" ? [projectIds] : projectIds;
   const nextEntries = ids.filter((projectId) => state.projectExpandedById[projectId] !== expanded);
   if (nextEntries.length === 0) {
     return state;
@@ -392,6 +428,8 @@ interface UiStateStore extends UiState {
   markThreadUnread: (threadId: string, latestTurnCompletedAt: string | null | undefined) => void;
   setThreadChangedFilesExpanded: (threadId: string, turnId: string, expanded: boolean) => void;
   setDefaultAdvertisedEndpointKey: (key: string | null) => void;
+  setSidebarProjectScopeKey: (projectKey: string | null) => void;
+  setPullRequestMergeMethod: (method: PullRequestMergeMethod) => void;
   setProjectExpanded: (projectIds: string | readonly string[], expanded: boolean) => void;
   reorderProjects: (
     currentProjectOrder: readonly string[],
@@ -410,6 +448,9 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
     set((state) => setThreadChangedFilesExpanded(state, threadId, turnId, expanded)),
   setDefaultAdvertisedEndpointKey: (key) =>
     set((state) => setDefaultAdvertisedEndpointKey(state, key)),
+  setSidebarProjectScopeKey: (projectKey) =>
+    set((state) => setSidebarProjectScopeKey(state, projectKey)),
+  setPullRequestMergeMethod: (method) => set((state) => setPullRequestMergeMethod(state, method)),
   setProjectExpanded: (projectIds, expanded) =>
     set((state) => setProjectExpanded(state, projectIds, expanded)),
   reorderProjects: (currentProjectOrder, draggedProjectIds, targetProjectIds) =>
@@ -420,7 +461,7 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
 
 useUiStateStore.subscribe((state) => debouncedPersistState.maybeExecute(state));
 
-if (typeof window !== "undefined" && RuntimePredicate.isFunction(window.addEventListener)) {
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("beforeunload", () => {
     debouncedPersistState.flush();
   });

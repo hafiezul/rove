@@ -5,8 +5,7 @@ import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { PositiveInt, TrimmedNonEmptyString } from "@t3tools/contracts";
-import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
-import * as RuntimePredicate from "effect/Predicate";
+import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 
 export interface NormalizedGitHubPullRequestRecord {
   readonly number: number;
@@ -15,6 +14,9 @@ export interface NormalizedGitHubPullRequestRecord {
   readonly baseRefName: string;
   readonly headRefName: string;
   readonly state: "open" | "closed" | "merged";
+  readonly isDraft?: boolean;
+  readonly closedAt?: string | null;
+  readonly mergedAt?: string | null;
   readonly updatedAt: Option.Option<DateTime.Utc>;
   readonly isCrossRepository?: boolean;
   readonly headRepositoryNameWithOwner?: string | null;
@@ -28,6 +30,8 @@ const GitHubPullRequestSchema = Schema.Struct({
   baseRefName: TrimmedNonEmptyString,
   headRefName: TrimmedNonEmptyString,
   state: Schema.optional(Schema.NullOr(Schema.String)),
+  isDraft: Schema.optional(Schema.Boolean),
+  closedAt: Schema.optional(Schema.NullOr(Schema.String)),
   mergedAt: Schema.optional(Schema.NullOr(Schema.String)),
   updatedAt: Schema.optional(Schema.OptionFromNullOr(Schema.DateTimeUtcFromString)),
   isCrossRepository: Schema.optional(Schema.Boolean),
@@ -62,7 +66,7 @@ function normalizeGitHubPullRequestState(input: {
 }): "open" | "closed" | "merged" {
   const normalizedState = input.state?.trim().toUpperCase();
   if (
-    (RuntimePredicate.isString(input.mergedAt) && input.mergedAt.trim().length > 0) ||
+    (typeof input.mergedAt === "string" && input.mergedAt.trim().length > 0) ||
     normalizedState === "MERGED"
   ) {
     return "merged";
@@ -94,20 +98,21 @@ function normalizeGitHubPullRequestRecord(
     baseRefName: raw.baseRefName,
     headRefName: raw.headRefName,
     state: normalizeGitHubPullRequestState(raw),
+    ...(raw.isDraft === true ? { isDraft: true } : {}),
+    closedAt: raw.closedAt ?? null,
+    mergedAt: raw.mergedAt ?? null,
     updatedAt: raw.updatedAt ?? Option.none(),
-    ...(RuntimePredicate.isBoolean(raw.isCrossRepository)
+    ...(typeof raw.isCrossRepository === "boolean"
       ? { isCrossRepository: raw.isCrossRepository }
-      : undefined),
-    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : undefined),
-    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : undefined),
+      : {}),
+    ...(headRepositoryNameWithOwner ? { headRepositoryNameWithOwner } : {}),
+    ...(headRepositoryOwnerLogin ? { headRepositoryOwnerLogin } : {}),
   };
 }
 
 const decodeGitHubPullRequestList = decodeJsonResult(Schema.Array(Schema.Unknown));
 const decodeGitHubPullRequest = decodeJsonResult(GitHubPullRequestSchema);
 const decodeGitHubPullRequestEntry = Schema.decodeUnknownExit(GitHubPullRequestSchema);
-
-export const formatGitHubJsonDecodeError = formatSchemaError;
 
 export function decodeGitHubPullRequestListJson(
   raw: string,

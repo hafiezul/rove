@@ -33,7 +33,7 @@ export interface ReferenceRepoSyncPlan {
   readonly args: ReadonlyArray<string>;
 }
 
-export class ReferenceRepoSelectionError extends Schema.TaggedErrorClass<ReferenceRepoSelectionError>()(
+export class ReferenceRepoSelectionError extends Schema.TaggedError<ReferenceRepoSelectionError>()(
   "ReferenceRepoSelectionError",
   {
     repoId: Schema.String,
@@ -45,7 +45,7 @@ export class ReferenceRepoSelectionError extends Schema.TaggedErrorClass<Referen
   }
 }
 
-export class ReferenceRepoVersionSourceError extends Schema.TaggedErrorClass<ReferenceRepoVersionSourceError>()(
+export class ReferenceRepoVersionSourceError extends Schema.TaggedError<ReferenceRepoVersionSourceError>()(
   "ReferenceRepoVersionSourceError",
   {
     operation: Schema.Literals(["read", "parse"]),
@@ -59,7 +59,7 @@ export class ReferenceRepoVersionSourceError extends Schema.TaggedErrorClass<Ref
   }
 }
 
-export class ReferenceRepoVersionResolutionError extends Schema.TaggedErrorClass<ReferenceRepoVersionResolutionError>()(
+export class ReferenceRepoVersionResolutionError extends Schema.TaggedError<ReferenceRepoVersionResolutionError>()(
   "ReferenceRepoVersionResolutionError",
   {
     repoId: Schema.String,
@@ -72,7 +72,7 @@ export class ReferenceRepoVersionResolutionError extends Schema.TaggedErrorClass
   }
 }
 
-export class ReferenceRepoGitSubtreeError extends Schema.TaggedErrorClass<ReferenceRepoGitSubtreeError>()(
+export class ReferenceRepoGitSubtreeError extends Schema.TaggedError<ReferenceRepoGitSubtreeError>()(
   "ReferenceRepoGitSubtreeError",
   {
     operation: Schema.Literals(["spawn", "communicate", "exit"]),

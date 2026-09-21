@@ -8,8 +8,8 @@ import { isDesktopPreviewRecordingFrame } from "./preloadGuards.ts";
 contextBridge.exposeInMainWorld("previewPictureInPicture", {
   onFrame: (listener: (frame: DesktopPreviewRecordingFrame) => void) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, frame: unknown) => {
-      if (!isDesktopPreviewRecordingFrame(frame)) return;
-      listener(frame);
+      if (typeof frame !== "object" || frame === null) return;
+      listener(frame as DesktopPreviewRecordingFrame);
     };
     ipcRenderer.on(PREVIEW_PICTURE_IN_PICTURE_FRAME_CHANNEL, wrappedListener);
     return () =>

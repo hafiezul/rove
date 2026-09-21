@@ -43,7 +43,7 @@ function targetKey(target: CloudLinkTarget): string {
   return JSON.stringify(target);
 }
 
-export function refreshPrimaryCloudLinkState(target: CloudLinkTarget | null): void {
+function refreshPrimaryCloudLinkState(target: CloudLinkTarget | null): void {
   if (target) {
     appAtomRegistry.refresh(primaryCloudLinkStateAtom(targetKey(target)));
   }

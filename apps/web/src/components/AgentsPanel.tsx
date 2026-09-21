@@ -1,7 +1,6 @@
 /**
- * Agents right-panel surface: the fleet view over the native subagent fold,
- * and the ONLY place the roster renders (the chat carries one CTA row per
- * spawn batch).
+ * Agents right-panel surface: the fleet view over the native subagent fold.
+ * The chat carries one expandable row per spawn batch and links here.
  *
  * Visualization rules (from live-test feedback):
  * - Spawn order is stable. Activity and completion update rows in place.
@@ -27,6 +26,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { orchestrationEnvironment } from "~/state/orchestration";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogDescription,
@@ -265,6 +265,8 @@ function AgentDetailsDialog({
 function AgentRow({ agent }: { agent: RuntimeSubagent }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const visuals = STATUS_VISUALS[agent.status];
+  const statusLabel =
+    agent.kind === "subagent_batch" && agent.status === "idle" ? "Idle" : visuals.label;
   const activity = agentActivityText(agent);
   const modelLabel = formatSubagentModelLabel(agent.model, agent.effort);
   const role =
@@ -315,11 +317,12 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
             agent.status === "failed" ? "text-destructive-foreground" : "text-muted-foreground",
           )}
         >
-          {activity ?? visuals.label}
+          {activity ?? statusLabel}
         </span>
         <span className="col-start-2 col-end-4 row-start-3 truncate font-mono text-[.7rem] tabular-nums text-muted-foreground/70">
           {metadata.join(" · ")}
         </span>
+        <span className="sr-only">{statusLabel}</span>
       </button>
       <AgentDetailsDialog agent={agent} open={detailsOpen} onOpenChange={setDetailsOpen} />
     </>
@@ -419,14 +422,15 @@ function WorkflowScriptView({
         <span className="truncate font-mono text-[.65rem] text-muted-foreground">
           {scriptPath.split("/").at(-1)}
         </span>
-        <button
-          type="button"
+        <Button
+          size="icon-micro"
+          variant="ghost-muted"
           onClick={onClose}
           aria-label="Close script"
           className="ml-auto cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <X aria-hidden className="size-3" />
-        </button>
+        </Button>
       </div>
       <div className="max-h-72 overflow-auto p-2">
         {result._tag === "Success" ? (
@@ -554,14 +558,15 @@ function ExpandedWorkflowSection({
         <span className="ml-auto font-mono normal-case text-muted-foreground/80">
           {settled}/{members.length} settled
         </span>
-        <button
-          type="button"
+        <Button
+          size="icon-micro"
+          variant="ghost-muted"
           onClick={onCollapse}
           aria-label="Collapse workflow"
           className="cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <ChevronDown aria-hidden className="size-3" />
-        </button>
+        </Button>
       </div>
       <PhaseRail group={group} />
       {scriptOpen && canShowScript ? (

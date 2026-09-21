@@ -43,10 +43,11 @@ layer("GitLabCli.layer", (it) => {
             JSON.stringify({
               iid: 42,
               title: "Add MR thread creation",
-              web_url: "https://gitlab.com/rovedev/rove/-/merge_requests/42",
+              web_url: "https://gitlab.com/rovecode/rove/-/merge_requests/42",
               target_branch: "main",
               source_branch: "feature/mr-threads",
-              state: "opened",
+              state: "closed",
+              closed_at: "2026-08-23T10:00:00Z",
               source_project_id: 101,
               target_project_id: 100,
               source_project: {
@@ -68,10 +69,12 @@ layer("GitLabCli.layer", (it) => {
       assert.deepStrictEqual(result, {
         number: 42,
         title: "Add MR thread creation",
-        url: "https://gitlab.com/rovedev/rove/-/merge_requests/42",
+        url: "https://gitlab.com/rovecode/rove/-/merge_requests/42",
         baseRefName: "main",
         headRefName: "feature/mr-threads",
-        state: "open",
+        state: "closed",
+        closedAt: "2026-08-23T10:00:00Z",
+        mergedAt: null,
         isCrossRepository: true,
         headRepositoryNameWithOwner: "octocat/rove",
         headRepositoryOwnerLogin: "octocat",
@@ -96,17 +99,18 @@ layer("GitLabCli.layer", (it) => {
               {
                 iid: 0,
                 title: "invalid",
-                web_url: "https://gitlab.com/rovedev/rove/-/merge_requests/0",
+                web_url: "https://gitlab.com/rovecode/rove/-/merge_requests/0",
                 target_branch: "main",
                 source_branch: "feature/invalid",
               },
               {
                 iid: 43,
                 title: "  Valid MR  ",
-                web_url: " https://gitlab.com/rovedev/rove/-/merge_requests/43 ",
+                web_url: " https://gitlab.com/rovecode/rove/-/merge_requests/43 ",
                 target_branch: " main ",
                 source_branch: " feature/mr-list ",
                 state: "merged",
+                merged_at: "2026-08-23T11:00:00Z",
               },
             ]),
           ),
@@ -126,10 +130,12 @@ layer("GitLabCli.layer", (it) => {
         {
           number: 43,
           title: "Valid MR",
-          url: "https://gitlab.com/rovedev/rove/-/merge_requests/43",
+          url: "https://gitlab.com/rovecode/rove/-/merge_requests/43",
           baseRefName: "main",
           headRefName: "feature/mr-list",
           state: "merged",
+          closedAt: null,
+          mergedAt: "2026-08-23T11:00:00Z",
         },
       ]);
       expect(mockedRun).toHaveBeenCalledWith(
@@ -361,6 +367,28 @@ layer("GitLabCli.layer", (it) => {
       }).pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "GitLabCliCommandError");
+      assert.strictEqual(error.cause, cause);
+    }),
+  );
+
+  it.effect("preserves rate-limit failures as a distinct error", () =>
+    Effect.gen(function* () {
+      const cause = new VcsProcessExitError({
+        operation: "GitLabCli.execute",
+        command: "glab",
+        cwd: "/repo",
+        exitCode: 1,
+        detail: "API rate limit exceeded.",
+        failureKind: "rate-limited",
+      });
+      mockedRun.mockReturnValueOnce(Effect.fail(cause));
+
+      const glab = yield* GitLabCli.GitLabCli;
+      const error = yield* glab
+        .execute({ cwd: "/repo", args: ["api", "projects"] })
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "GitLabCliRateLimitError");
       assert.strictEqual(error.cause, cause);
     }),
   );

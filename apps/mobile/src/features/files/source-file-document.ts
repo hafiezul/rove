@@ -1,3 +1,4 @@
+import type { ReviewHighlightedToken } from "../review/shikiReviewHighlighter";
 import { buildNativeSourceRows } from "./nativeSourceFileAdapter";
 import * as RuntimePredicate from "effect/Predicate";
 
@@ -52,4 +53,18 @@ export function prepareSourceFileDocument(contents: string): SourceFileDocument 
   }
 
   return document;
+}
+
+// A selectable document cannot virtualize its rows. Cap React spans instead; large
+// attachments remain fully selectable as one plain string, including every newline.
+export function boundedSelectableSourceTokens(
+  tokens: ReadonlyArray<ReadonlyArray<ReviewHighlightedToken>> | null,
+): typeof tokens {
+  if (!tokens) return null;
+  let spans = tokens.length;
+  for (const line of tokens) {
+    spans += line.length;
+    if (spans > 2_000) return null;
+  }
+  return tokens;
 }

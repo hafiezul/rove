@@ -1,4 +1,5 @@
 import type {
+  CustomModelSetting,
   ProviderDriverKind,
   ModelCapabilities,
   ServerProvider,
@@ -7,22 +8,26 @@ import type {
   ServerProviderSlashCommand,
   ServerProviderModel,
   ServerProviderState,
+  ServerProviderUsageLimits,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-import { normalizeCustomModelSlug } from "@t3tools/shared/model";
+import { readCustomModelEntries } from "@t3tools/shared/model";
 import { isWindowsCommandNotFound } from "../processRunner.ts";
 import { createProviderVersionAdvisory } from "./providerMaintenance.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export const DEFAULT_TIMEOUT_MS = 4_000;
 // Auth status checks involve disk/network lookups and can be slow on first run (especially Windows)
 export const AUTH_PROBE_TIMEOUT_MS = 10_000;
+
+export const COMPACT_SLASH_COMMAND = {
+  name: "compact",
+  description: "Summarize the conversation and reduce context usage",
+} satisfies ServerProviderSlashCommand;
 
 export interface CommandResult {
   readonly stdout: string;
@@ -30,7 +35,7 @@ export interface CommandResult {
   readonly code: number;
 }
 
-export class ProviderCommandNotFoundError extends Schema.TaggedErrorClass<ProviderCommandNotFoundError>()(
+export class ProviderCommandNotFoundError extends Schema.TaggedError<ProviderCommandNotFoundError>()(
   "ProviderCommandNotFoundError",
   {
     binaryPath: Schema.String,
@@ -52,14 +57,17 @@ export interface ProviderProbeResult {
   readonly status: Exclude<ServerProviderState, "disabled">;
   readonly auth: ServerProviderAuth;
   readonly message?: string;
+  readonly usageLimits?: ServerProviderUsageLimits;
 }
 
 export interface ServerProviderPresentation {
   readonly displayName: string;
   readonly badgeLabel?: string;
   readonly showInteractionModeToggle?: boolean;
+  readonly reportsContextWindow?: boolean;
   readonly runtimeModeSelectable?: boolean;
   readonly requiresNewThreadForModelChange?: boolean;
+  readonly supportsConversationRollback?: boolean;
 }
 
 export type ServerProviderDraft = Omit<ServerProvider, "instanceId" | "driver">;
@@ -100,68 +108,41 @@ export const spawnAndCollect = (binaryPath: string, command: ChildProcess.Comman
     return result;
   }).pipe(Effect.scoped);
 
-export function detailFromResult(
-  result: CommandResult & { readonly timedOut?: boolean },
-): string | undefined {
-  if (result.timedOut) return "Timed out while running command.";
-  const stderr = nonEmptyTrimmed(result.stderr);
-  if (stderr) return stderr;
-  const stdout = nonEmptyTrimmed(result.stdout);
-  if (stdout) return stdout;
-  if (result.code !== 0) {
-    return `Command exited with code ${result.code}.`;
-  }
-  return undefined;
-}
-
-export function extractAuthBoolean(value: unknown): boolean | undefined {
-  if (globalThis.Array.isArray(value)) {
-    for (const entry of value) {
-      const nested = extractAuthBoolean(entry);
-      if (nested !== undefined) return nested;
-    }
-    return undefined;
-  }
-
-  if (!value || !(RuntimePredicate.isObjectOrArray(value) || value === null)) return undefined;
-
-  const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
-    record = value as Record<string, SchemaJson>;
-  for (const key of ["authenticated", "isAuthenticated", "loggedIn", "isLoggedIn"] as const) {
-    if (RuntimePredicate.isBoolean(record[key])) return record[key];
-  }
-  for (const key of ["auth", "status", "session", "account"] as const) {
-    const nested = extractAuthBoolean(record[key]);
-    if (nested !== undefined) return nested;
-  }
-  return undefined;
-}
-
+/**
+ * Return the first semantic version found in CLI output, or null. Accepts a
+ * leading "v" (for example `opencode v2.0.3`).
+ */
 export function parseGenericCliVersion(output: string): string | null {
-  const match = output.match(/\b(\d+\.\d+\.\d+)\b/);
+  // "opencode v2.0.3"-style output: the optional "v" has to be consumed first,
+  // since "v2" itself contains no word boundary.
+  const match = output.match(/\bv?(\d+\.\d+\.\d+)\b/);
   return match?.[1] ?? null;
 }
 
+/**
+ * Append the user's custom models after the built-ins. A custom entry that
+ * declares its own capabilities keeps them; a bare slug gets the driver's
+ * default set. Slugs that collide with a built-in are dropped.
+ */
 export function providerModelsFromSettings(
   builtInModels: ReadonlyArray<ServerProviderModel>,
-  customModels: ReadonlyArray<string>,
+  customModels: ReadonlyArray<CustomModelSetting>,
   customModelCapabilities: ModelCapabilities,
 ): ReadonlyArray<ServerProviderModel> {
   const resolvedBuiltInModels = [...builtInModels];
   const seen = new Set(resolvedBuiltInModels.map((model) => model.slug));
   const customEntries: ServerProviderModel[] = [];
 
-  for (const candidate of customModels) {
-    const normalized = normalizeCustomModelSlug(candidate);
-    if (!normalized || seen.has(normalized)) {
+  for (const entry of readCustomModelEntries(customModels)) {
+    if (seen.has(entry.slug)) {
       continue;
     }
-    seen.add(normalized);
+    seen.add(entry.slug);
     customEntries.push({
-      slug: normalized,
-      name: normalized,
+      slug: entry.slug,
+      name: entry.name,
       isCustom: true,
-      capabilities: customModelCapabilities,
+      capabilities: entry.capabilities ?? customModelCapabilities,
     });
   }
 
@@ -172,27 +153,33 @@ export function buildSelectOptionDescriptor(input: {
   readonly id: string;
   readonly label: string;
   readonly options:
-    | ReadonlyArray<{ value: string; label: string; isDefault?: boolean | undefined }>
+    | ReadonlyArray<{
+        value: string;
+        label: string;
+        description?: string | undefined;
+        isDefault?: boolean | undefined;
+      }>
     | undefined;
   readonly description?: string;
   readonly promptInjectedValues?: ReadonlyArray<string>;
 }) {
-  const options = (input.options ?? []).map((option) =>
-    option.isDefault
-      ? { id: option.value, label: option.label, isDefault: true }
-      : { id: option.value, label: option.label },
-  );
+  const options = (input.options ?? []).map((option) => ({
+    id: option.value,
+    label: option.label,
+    ...(option.description ? { description: option.description } : {}),
+    ...(option.isDefault ? { isDefault: true } : {}),
+  }));
   const currentValue = options.find((option) => option.isDefault)?.id;
   return {
     id: input.id,
     label: input.label,
     type: "select" as const,
     options,
-    ...(currentValue ? { currentValue } : undefined),
-    ...(input.description ? { description: input.description } : undefined),
+    ...(currentValue ? { currentValue } : {}),
+    ...(input.description ? { description: input.description } : {}),
     ...(input.promptInjectedValues && input.promptInjectedValues.length > 0
       ? { promptInjectedValues: [...input.promptInjectedValues] }
-      : undefined),
+      : {}),
   };
 }
 
@@ -206,10 +193,8 @@ export function buildBooleanOptionDescriptor(input: {
     id: input.id,
     label: input.label,
     type: "boolean" as const,
-    ...(input.description ? { description: input.description } : undefined),
-    ...(RuntimePredicate.isBoolean(input.currentValue)
-      ? { currentValue: input.currentValue }
-      : undefined),
+    ...(input.description ? { description: input.description } : {}),
+    ...(typeof input.currentValue === "boolean" ? { currentValue: input.currentValue } : {}),
   };
 }
 
@@ -232,31 +217,39 @@ export function buildServerProvider(input: {
     : undefined;
   return {
     displayName: input.presentation.displayName,
-    ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : undefined),
-    ...(RuntimePredicate.isBoolean(input.presentation.showInteractionModeToggle)
+    ...(typeof input.presentation.supportsConversationRollback === "boolean"
+      ? { supportsConversationRollback: input.presentation.supportsConversationRollback }
+      : {}),
+    ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : {}),
+    ...(typeof input.presentation.showInteractionModeToggle === "boolean"
       ? { showInteractionModeToggle: input.presentation.showInteractionModeToggle }
-      : undefined),
-    ...(RuntimePredicate.isBoolean(input.presentation.runtimeModeSelectable)
+      : {}),
+    ...(typeof input.presentation.reportsContextWindow === "boolean"
+      ? { reportsContextWindow: input.presentation.reportsContextWindow }
+      : {}),
+    ...(typeof input.presentation.runtimeModeSelectable === "boolean"
       ? { runtimeModeSelectable: input.presentation.runtimeModeSelectable }
-      : undefined),
-    ...(RuntimePredicate.isBoolean(input.presentation.requiresNewThreadForModelChange)
+      : {}),
+    ...(typeof input.presentation.requiresNewThreadForModelChange === "boolean"
       ? { requiresNewThreadForModelChange: input.presentation.requiresNewThreadForModelChange }
-      : undefined),
+      : {}),
     enabled: input.enabled,
     installed: input.probe.installed,
     version: input.probe.version,
     status: input.enabled ? input.probe.status : "disabled",
     auth: input.probe.auth,
     checkedAt: input.checkedAt,
-    ...(input.probe.message ? { message: input.probe.message } : undefined),
+    ...(input.probe.message ? { message: input.probe.message } : {}),
     models: input.models,
     slashCommands: [...(input.slashCommands ?? [])],
     skills: [...(input.skills ?? [])],
-    ...(versionAdvisory ? { versionAdvisory } : undefined),
+    ...(input.probe.usageLimits ? { usageLimits: input.probe.usageLimits } : {}),
+    ...(versionAdvisory ? { versionAdvisory } : {}),
   };
 }
 
 export const collectStreamAsString = <E>(
   stream: Stream.Stream<Uint8Array, E>,
+  options?: { readonly maxBytes?: number | undefined },
 ): Effect.Effect<string, E> =>
-  collectUint8StreamText({ stream }).pipe(Effect.map((collected) => collected.text));
+  collectUint8StreamText({ stream, ...options }).pipe(Effect.map((collected) => collected.text));

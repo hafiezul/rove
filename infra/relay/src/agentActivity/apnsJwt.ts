@@ -11,7 +11,7 @@ import * as Schema from "effect/Schema";
 import type { ApnsCredentials } from "../Config.ts";
 import * as RuntimePredicate from "effect/Predicate";
 
-export class ApnsJwtEncodingError extends Schema.TaggedErrorClass<ApnsJwtEncodingError>()(
+export class ApnsJwtEncodingError extends Schema.TaggedError<ApnsJwtEncodingError>()(
   "ApnsJwtEncodingError",
   {
     component: Schema.Literals(["header", "payload"]),
@@ -26,7 +26,7 @@ export class ApnsJwtEncodingError extends Schema.TaggedErrorClass<ApnsJwtEncodin
   }
 }
 
-export class ApnsJwtSigningError extends Schema.TaggedErrorClass<ApnsJwtSigningError>()(
+export class ApnsJwtSigningError extends Schema.TaggedError<ApnsJwtSigningError>()(
   "ApnsJwtSigningError",
   {
     teamId: Schema.String,

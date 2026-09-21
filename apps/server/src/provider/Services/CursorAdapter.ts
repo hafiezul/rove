@@ -13,7 +13,7 @@ import type { ProviderAdapterError } from "../Errors.ts";
 import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
- * CursorAdapterShape — per-instance Cursor adapter contract. Carries
+ * CursorAdapterContract — per-instance Cursor adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
 export interface CursorAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

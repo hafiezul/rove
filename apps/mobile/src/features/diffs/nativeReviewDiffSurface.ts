@@ -10,7 +10,6 @@ import type { NativeSyntheticEvent, ViewProps } from "react-native";
 import { requireNativeView } from "expo";
 
 import { NativeViewResolutionError } from "../../native/nativeViewResolutionError";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const NATIVE_REVIEW_DIFF_MODULE_NAME = "T3ReviewDiffSurface";
 const NATIVE_REVIEW_DIFF_PAYLOAD_RETRY_FRAMES = 60;
@@ -130,7 +129,7 @@ export interface NativeReviewDiffViewProps extends ViewProps {
   readonly refreshing?: boolean;
   readonly nativeViewRef?: Ref<NativeReviewDiffViewHandle>;
   readonly onPullToRefresh?: (event: NativeSyntheticEvent<Record<string, never>>) => void;
-  readonly onDebug?: (event: NativeSyntheticEvent<Record<string, SchemaJson>>) => void;
+  readonly onDebug?: (event: NativeSyntheticEvent<Record<string, unknown>>) => void;
   readonly onVisibleFileChange?: (
     event: NativeSyntheticEvent<{ readonly fileId?: string | null }>,
   ) => void;
@@ -154,9 +153,7 @@ export interface NativeReviewDiffViewHandle {
   readonly scrollToTop: (animated?: boolean) => Promise<void>;
 }
 
-export function isNativeReviewDiffDrawEvent(
-  payload: Readonly<Record<string, SchemaJson>>,
-): boolean {
+export function isNativeReviewDiffDrawEvent(payload: Readonly<Record<string, unknown>>): boolean {
   return payload.message === "draw-metrics" || payload.message === "visible-range";
 }
 

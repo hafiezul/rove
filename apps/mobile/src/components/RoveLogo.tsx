@@ -9,11 +9,11 @@ const ROVE_LOGO_SOURCE =
       ? require("../../../../assets/nightly/nightly-ios-1024.png")
       : require("../../../../assets/prod/black-ios-1024.png");
 
-/** Compact Rove logo used in navigation-bar brand lockups. */
+/** Compact Rove Code logo used in navigation-bar brand lockups. */
 export function RoveLogo(props: { readonly height: number }) {
   return (
     <Image
-      accessibilityLabel="Rove"
+      accessibilityLabel="Rove Code"
       source={ROVE_LOGO_SOURCE}
       style={{
         borderRadius: props.height * 0.24,

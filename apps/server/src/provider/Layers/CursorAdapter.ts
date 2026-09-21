@@ -42,6 +42,7 @@ import type * as EffectAcpSchema from "effect-acp/schema";
 
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
+import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
 import {
   ProviderAdapterProcessError,
@@ -66,6 +67,7 @@ import {
 } from "../acp/AcpRuntimeModel.ts";
 import { makeAcpNativeLoggerFactory } from "../acp/AcpNativeLogging.ts";
 import { applyCursorAcpModelSelection, makeCursorAcpRuntime } from "../acp/CursorAcpSupport.ts";
+import { CursorTransportFailure } from "../acp/CursorTransportFailure.ts";
 import {
   CursorAskQuestionRequest,
   CursorCreatePlanRequest,
@@ -77,8 +79,11 @@ import {
 import { type CursorAdapterContract } from "../Services/CursorAdapter.ts";
 import { resolveCursorAcpBaseModelId } from "./CursorProvider.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
+import {
+  discoverCursorSkills,
+  hasCursorSkillMention,
+  rewriteCursorSkillMentions,
+} from "../Drivers/CursorSkills.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 
 const PROVIDER = ProviderDriverKind.make("cursor");
@@ -135,10 +140,12 @@ interface CursorSessionContext {
   readonly turns: Array<{ id: TurnId; items: Array<unknown> }>;
   lastPlanFingerprint: string | undefined;
   activeTurnId: TurnId | undefined;
+  cursorSkillNames: ReadonlySet<string> | undefined;
   /** Number of sendTurn prompts currently in flight or being prepared.
    * >0 means a turn is actively running, so a new sendTurn is a steer that
    * continues it, and only the last remaining prompt settles the turn. */
   promptsInFlight: number;
+  assistantReply: CursorTransportFailure;
   stopped: boolean;
 }
 
@@ -168,20 +175,20 @@ function settlePendingUserInputsAsEmptyAnswers(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, SchemaJson> {
-  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseCursorResume(raw: unknown): { sessionId: string } | undefined {
   if (!isRecord(raw)) return undefined;
   if (raw.schemaVersion !== CURSOR_RESUME_VERSION) return undefined;
-  if (!RuntimePredicate.isString(raw.sessionId) || !raw.sessionId.trim()) return undefined;
+  if (typeof raw.sessionId !== "string" || !raw.sessionId.trim()) return undefined;
   return { sessionId: raw.sessionId.trim() };
 }
 
 function normalizeModeSearchText(mode: AcpSessionMode): string {
   return [mode.id, mode.name, mode.description]
-    .filter((value): value is string => RuntimePredicate.isString(value) && value.length > 0)
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
     .join(" ")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
@@ -300,12 +307,12 @@ function selectAutoApprovedPermissionOption(
   request: EffectAcpSchema.RequestPermissionRequest,
 ): string | undefined {
   const allowAlwaysOption = request.options.find((option) => option.kind === "allow_always");
-  if (RuntimePredicate.isString(allowAlwaysOption?.optionId) && allowAlwaysOption.optionId.trim()) {
+  if (typeof allowAlwaysOption?.optionId === "string" && allowAlwaysOption.optionId.trim()) {
     return allowAlwaysOption.optionId.trim();
   }
 
   const allowOnceOption = request.options.find((option) => option.kind === "allow_once");
-  if (RuntimePredicate.isString(allowOnceOption?.optionId) && allowOnceOption.optionId.trim()) {
+  if (typeof allowOnceOption?.optionId === "string" && allowOnceOption.optionId.trim()) {
     return allowOnceOption.optionId.trim();
   }
 
@@ -536,10 +543,18 @@ export function makeCursorAdapter(
           const mcpSession = McpProviderSession.readMcpProviderSession(input.threadId);
           const acp = yield* makeCursorAcpRuntime({
             cursorSettings: effectiveCursorSettings,
-            ...(options?.environment ? { environment: options.environment } : undefined),
+            ...(options?.environment || mcpSession?.agentDeviceEnvironment
+              ? {
+                  environment: McpProviderSession.withAgentDeviceEnvironment(
+                    options?.environment ?? process.env,
+                    mcpSession,
+                  ),
+                }
+              : {}),
             childProcessSpawner,
             cwd,
-            ...(resumeSessionId ? { resumeSessionId } : undefined),
+            runtimeMode: input.runtimeMode,
+            ...(resumeSessionId ? { resumeSessionId } : {}),
             clientInfo: { name: "rove", version: "0.0.0" },
             ...(mcpSession
               ? {
@@ -557,7 +572,7 @@ export function makeCursorAdapter(
                     },
                   ],
                 }
-              : undefined),
+              : {}),
             ...acpNativeLoggers,
           }).pipe(
             Effect.provideService(Crypto.Crypto, crypto),
@@ -780,7 +795,9 @@ export function makeCursorAdapter(
             turns: [],
             lastPlanFingerprint: undefined,
             activeTurnId: undefined,
+            cursorSkillNames: undefined,
             promptsInFlight: 0,
+            assistantReply: new CursorTransportFailure(),
             stopped: false,
           };
 
@@ -794,6 +811,7 @@ export function makeCursorAdapter(
                   case "ModeChanged":
                     return;
                   case "AssistantItemStarted":
+                    ctx.assistantReply = new CursorTransportFailure();
                     yield* offerRuntimeEvent(
                       makeAcpAssistantItemEvent({
                         stamp: yield* makeEventStamp(),
@@ -851,6 +869,7 @@ export function makeCursorAdapter(
                     );
                     return;
                   case "ContentDelta":
+                    ctx.assistantReply.push(event.text);
                     yield* logNative(
                       ctx.threadId,
                       "session/update",
@@ -863,7 +882,7 @@ export function makeCursorAdapter(
                         provider: PROVIDER,
                         threadId: ctx.threadId,
                         turnId: ctx.activeTurnId,
-                        ...(event.itemId ? { itemId: event.itemId } : undefined),
+                        ...(event.itemId ? { itemId: event.itemId } : {}),
                         text: event.text,
                         rawPayload: event.rawPayload,
                       }),
@@ -876,7 +895,13 @@ export function makeCursorAdapter(
             Effect.catch((cause) =>
               Effect.logError("Failed to process Cursor runtime notification.", { cause }),
             ),
-            Effect.forkChild,
+            // Fork into the session scope, not the calling fiber. `forkChild`
+            // makes this a child of `startSession`, and Effect interrupts a
+            // fiber's children when it completes, so the consumer died as soon
+            // as `startSession` returned and every later notification was
+            // dropped. The scope is created, stored on the context and closed
+            // on teardown already; only the fork target was wrong.
+            Effect.forkIn(ctx.scope),
           );
 
           ctx.notificationFiber = nf;
@@ -944,6 +969,7 @@ export function makeCursorAdapter(
           ctx.activeTurnId = turnId;
           if (steeringTurnId === undefined) {
             ctx.lastPlanFingerprint = undefined;
+            ctx.assistantReply = new CursorTransportFailure();
           }
           ctx.session = {
             ...ctx.session,
@@ -963,11 +989,36 @@ export function makeCursorAdapter(
           }
 
           const promptParts: Array<EffectAcpSchema.ContentBlock> = [];
-          if (input.input?.trim()) {
-            promptParts.push({ type: "text", text: input.input.trim() });
+          const rawPrompt = input.input?.trim() ?? "";
+          if (rawPrompt) {
+            let cursorSkillNames = ctx.cursorSkillNames;
+            if (hasCursorSkillMention(rawPrompt) && cursorSkillNames === undefined) {
+              const skills = yield* discoverCursorSkills(
+                ctx.session.cwd,
+                options?.environment,
+              ).pipe(
+                Effect.provideService(FileSystem.FileSystem, fileSystem),
+                Effect.provideService(Path.Path, path),
+              );
+              cursorSkillNames = new Set(
+                skills
+                  .filter((skill) => skill.enabled && skill.userInvocable !== false)
+                  .map((skill) => skill.name),
+              );
+              ctx.cursorSkillNames = cursorSkillNames;
+            }
+            const prompt = cursorSkillNames
+              ? rewriteCursorSkillMentions(rawPrompt, cursorSkillNames)
+              : rawPrompt;
+            promptParts.push({ type: "text", text: prompt });
           }
           if (input.attachments && input.attachments.length > 0) {
             for (const attachment of input.attachments) {
+              // Cursor ingests images only. Generic files reach the agent
+              // through the path line ProviderService puts in the prompt.
+              if (attachment.type !== "image") {
+                continue;
+              }
               const attachmentPath = resolveAttachmentPath({
                 attachmentsDir: serverConfig.attachmentsDir,
                 attachment,
@@ -1006,15 +1057,33 @@ export function makeCursorAdapter(
             });
           }
 
+          // ACP has no system-message field; keep runtime context separate from the user's text.
           const result = yield* ctx.acp
             .prompt({
-              prompt: promptParts,
+              prompt: [
+                ...promptParts,
+                {
+                  type: "text",
+                  text: buildRuntimeInstructions({ harness: "Cursor", model: resolvedModel }),
+                },
+              ],
             })
             .pipe(
               Effect.mapError((error) =>
                 mapAcpToAdapterError(PROVIDER, input.threadId, "session/prompt", error),
               ),
             );
+
+          yield* ctx.acp.drainEvents;
+          const failure = ctx.assistantReply.failure;
+          if (ctx.promptsInFlight === 1 && result.stopReason !== "cancelled" && failure) {
+            return yield* new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "session/prompt",
+              detail: "Cursor reported a transport failure.",
+              cause: failure,
+            });
+          }
 
           const turnRecord = ctx.turns.find((turn) => turn.id === turnId);
           if (turnRecord) {
@@ -1118,7 +1187,7 @@ export function makeCursorAdapter(
 
     const rollbackThread: CursorAdapterContract["rollbackThread"] = (threadId, numTurns) =>
       Effect.gen(function* () {
-        const ctx = yield* requireSession(threadId);
+        yield* requireSession(threadId);
         if (!Number.isInteger(numTurns) || numTurns < 1) {
           return yield* new ProviderAdapterValidationError({
             provider: PROVIDER,
@@ -1126,9 +1195,11 @@ export function makeCursorAdapter(
             issue: "numTurns must be an integer >= 1.",
           });
         }
-        const nextLength = Math.max(0, ctx.turns.length - numTurns);
-        ctx.turns.splice(nextLength);
-        return { threadId, turns: ctx.turns };
+        return yield* new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "thread/rollback",
+          detail: "Cursor ACP sessions do not support provider-side rollback.",
+        });
       });
 
     const stopSession: CursorAdapterContract["stopSession"] = (threadId) =>
@@ -1166,7 +1237,8 @@ export function makeCursorAdapter(
 
     return {
       provider: PROVIDER,
-      capabilities: { sessionModelSwitch: "in-session" },
+      capabilities: { sessionModelSwitch: "in-session", supportsConversationRollback: false },
+      compaction: { type: "slash-command", command: "/compress" },
       startSession,
       sendTurn,
       interruptTurn,

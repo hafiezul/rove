@@ -44,7 +44,7 @@ export function syncDocumentWindowControlsOverlayClass(): () => void {
   };
 }
 
-export function getElectronPlatformClassNames(
+function getElectronPlatformClassNames(
   platform: string,
 ):
   | readonly [typeof ELECTRON_CLASS_NAME]

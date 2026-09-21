@@ -13,7 +13,7 @@ import type { ProviderAdapterError } from "../Errors.ts";
 import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
- * ClaudeAdapterShape — per-instance Claude adapter contract. Carries
+ * ClaudeAdapterContract — per-instance Claude adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
 export interface ClaudeAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

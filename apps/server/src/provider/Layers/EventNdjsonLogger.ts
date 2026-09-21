@@ -21,8 +21,6 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import { toSafeThreadAttachmentSegment } from "../../attachmentStore.ts";
 import type { ResourceAttribution } from "../../resourceTelemetry/ResourceAttribution.ts";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const MEBIBYTE = 1024 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -47,6 +45,17 @@ const transientCanonicalEventTypes = new Set([
   "tool.progress",
   "turn.proposed.delta",
 ]);
+const transientNativeMethods = new Set([
+  "item/agentMessage/delta",
+  "item/commandExecution/outputDelta",
+  "item/fileChange/outputDelta",
+  "item/plan/delta",
+  "item/reasoning/summaryTextDelta",
+  "item/reasoning/textDelta",
+  "thread/realtime/outputAudio/delta",
+  "thread/realtime/transcript/delta",
+]);
+const transientAcpUpdates = new Set(["agent_message_chunk", "agent_thought_chunk"]);
 
 export type EventNdjsonStream = "native" | "canonical" | "orchestration";
 
@@ -78,7 +87,7 @@ export interface EventNdjsonLoggerOptions extends EventNdjsonLogStoreOptions {
   readonly stream: EventNdjsonStream;
 }
 
-export class EventNdjsonLogConfigurationError extends Schema.TaggedErrorClass<EventNdjsonLogConfigurationError>()(
+export class EventNdjsonLogConfigurationError extends Schema.TaggedError<EventNdjsonLogConfigurationError>()(
   "EventNdjsonLogConfigurationError",
   {
     filePath: Schema.String,
@@ -92,7 +101,7 @@ export class EventNdjsonLogConfigurationError extends Schema.TaggedErrorClass<Ev
   }
 }
 
-export class EventNdjsonLogDirectoryError extends Schema.TaggedErrorClass<EventNdjsonLogDirectoryError>()(
+export class EventNdjsonLogDirectoryError extends Schema.TaggedError<EventNdjsonLogDirectoryError>()(
   "EventNdjsonLogDirectoryError",
   {
     directory: Schema.String,
@@ -128,7 +137,7 @@ export interface PendingRecord {
 }
 
 interface StoreState {
-  readonly pending: ReadonlyArray<PendingRecord>;
+  readonly pending: Array<PendingRecord>;
   readonly pendingBytes: number;
   readonly sinks: ReadonlyMap<string, RotatingFileSink>;
   readonly flushScheduled: boolean;
@@ -156,12 +165,12 @@ interface DrainResult {
   readonly failures: ReadonlyArray<FileOperationFailure>;
 }
 
-function logWarning(message: string, context: Record<string, SchemaJson>): Effect.Effect<void> {
+function logWarning(message: string, context: Record<string, unknown>): Effect.Effect<void> {
   return Effect.logWarning(message, context).pipe(Effect.annotateLogs({ scope: LOG_SCOPE }));
 }
 
 function resolveThreadSegment(raw: string | null | undefined): string {
-  const normalized = RuntimePredicate.isString(raw) ? toSafeThreadAttachmentSegment(raw) : null;
+  const normalized = typeof raw === "string" ? toSafeThreadAttachmentSegment(raw) : null;
   return normalized ?? GLOBAL_THREAD_SEGMENT;
 }
 
@@ -180,16 +189,58 @@ function providerLogPath(directory: string, prefix: string, threadSegment: strin
 }
 
 function shouldPersist(stream: EventNdjsonStream, event: unknown): boolean {
-  if (
-    stream !== "canonical" ||
-    !(RuntimePredicate.isObjectOrArray(event) || event === null) ||
-    event === null
-  ) {
+  if (stream === "orchestration" || typeof event !== "object" || event === null) {
     return true;
   }
   try {
-    const type = Object.getOwnPropertyDescriptor(event, "type")?.value;
-    return !RuntimePredicate.isString(type) || !transientCanonicalEventTypes.has(type);
+    const type = Reflect.get(event, "type");
+    if (typeof type === "string" && transientCanonicalEventTypes.has(type)) {
+      return false;
+    }
+    if (stream !== "native") return true;
+
+    const nested = Reflect.get(event, "event");
+    const nativeEvent = typeof nested === "object" && nested !== null ? nested : event;
+    const method = Reflect.get(nativeEvent, "method");
+    if (
+      typeof method === "string" &&
+      (transientNativeMethods.has(method) ||
+        method.startsWith("claude/stream_event/content_block_delta/"))
+    ) {
+      return false;
+    }
+
+    const nativeType = Reflect.get(nativeEvent, "type");
+    if (nativeType === "message.part.delta") return false;
+
+    const payload = Reflect.get(nativeEvent, "payload");
+    if (typeof payload !== "object" || payload === null) return true;
+
+    if (method === "session/update") {
+      const update = Reflect.get(payload, "update");
+      if (typeof update !== "object" || update === null) return true;
+      const updateType = Reflect.get(update, "sessionUpdate");
+      return typeof updateType !== "string" || !transientAcpUpdates.has(updateType);
+    }
+
+    if (nativeType === "message.part.updated") {
+      const properties = Reflect.get(payload, "properties");
+      if (typeof properties !== "object" || properties === null) return true;
+      const part = Reflect.get(properties, "part");
+      if (typeof part !== "object" || part === null) return true;
+      const partType = Reflect.get(part, "type");
+      if (partType === "text" || partType === "reasoning") return false;
+      if (partType === "tool") {
+        // Running snapshots repeat growing output. Pending and terminal states stay in the log.
+        const state = Reflect.get(part, "state");
+        if (typeof state === "object" && state !== null) {
+          return Reflect.get(state, "status") !== "running";
+        }
+      }
+      return true;
+    }
+
+    return true;
   } catch {
     return true;
   }
@@ -572,10 +623,8 @@ export const makeEventNdjsonLogStore = Effect.fnUntraced(function* (
         if (state.closed) {
           return Effect.succeed([{ flush: false }, state] as const);
         }
-        const pending = [
-          ...state.pending,
-          { stream, threadSegment: resolveThreadSegment(threadId), line, bytes },
-        ];
+        const pending = state.pending;
+        pending.push({ stream, threadSegment: resolveThreadSegment(threadId), line, bytes });
         const pendingBytes = state.pendingBytes + bytes;
         const flush =
           resolved.batchWindowMs === 0 ||
@@ -612,7 +661,7 @@ export const makeEventNdjsonLogger = Effect.fnUntraced(function* (
 ): Effect.fn.Return<EventNdjsonLogger | undefined> {
   const store = yield* makeEventNdjsonLogStore(filePath, options).pipe(
     Effect.catch((error) =>
-      logWarning(error.message, { errorMessage: error.message }).pipe(
+      logWarning(error.message, { error }).pipe(
         Effect.as<EventNdjsonLogStore | undefined>(undefined),
       ),
     ),

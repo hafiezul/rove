@@ -44,10 +44,9 @@ export function readPiInstanceSettings(
 }
 
 type ProviderSettingsPatch = {
-  -readonly [K in keyof Pick<
-    UnifiedSettings,
-    "providers" | "providerInstances"
-  >]?: UnifiedSettings[K];
+  -readonly [
+    K in keyof Pick<UnifiedSettings, "providers" | "providerInstances">
+  ]?: UnifiedSettings[K];
 };
 
 /**

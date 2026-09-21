@@ -116,7 +116,7 @@ function ExtensionRow({
   );
 }
 
-export function ProviderExtensionsContent({
+function ProviderExtensionsContent({
   data,
   error,
   isPending,

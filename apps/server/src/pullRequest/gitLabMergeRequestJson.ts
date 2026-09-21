@@ -11,6 +11,7 @@ import type {
   PullRequestLabel,
   PullRequestMergeability,
   PullRequestMergeCapabilities,
+  PullRequestMergeMethod,
   PullRequestReaction,
   PullRequestReactionContent,
   PullRequestReviewThread,
@@ -19,7 +20,6 @@ import type {
 } from "@t3tools/contracts";
 import { TrimmedNonEmptyString } from "@t3tools/contracts";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
-import * as RuntimePredicate from "effect/Predicate";
 
 /**
  * GitLab's REST enums are decoded as plain strings and normalized here: a GitLab release that
@@ -81,6 +81,9 @@ const RawMergeRequestSchema = Schema.Struct({
    */
   merge_when_pipeline_succeeds: Schema.optional(Schema.NullOr(Schema.Boolean)),
   auto_merge_enabled: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  /** The merge request's stored squash choice, including project-policy overrides. */
+  squash_on_merge: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  squash: Schema.optional(Schema.NullOr(Schema.Boolean)),
   /**
    * How far the target branch has moved on since this one left it, which is the same number
    * GitLab's own "out of date" wording counts. It costs a walk of the two branches, so GitLab
@@ -229,6 +232,8 @@ export interface GitLabMergeRequestDetail extends GitLabMergeRequestListItem {
   readonly reviewerIds: ReadonlyArray<number>;
   /** Absent where GitLab named neither auto-merge field, which is not the same as off. */
   readonly autoMergeEnabled?: boolean;
+  /** GitLab only exposes the stored strategy separately when that strategy is squash. */
+  readonly autoMergeMethod?: PullRequestMergeMethod;
   /**
    * Absent where GitLab did not count, which is not the same as a branch that has nothing behind
    * it: an install too old to answer must not be read as saying the branch is current.
@@ -379,10 +384,11 @@ function toDetail(raw: Schema.Schema.Type<typeof RawMergeRequestSchema>): GitLab
     reviewerIds: (raw.reviewers ?? []).flatMap((reviewer) =>
       reviewer.id === undefined ? [] : [reviewer.id],
     ),
-    ...(autoMerge === undefined ? undefined : { autoMergeEnabled: autoMerge }),
-    ...(raw.diverged_commits_count == null
-      ? undefined
-      : { divergedCommits: raw.diverged_commits_count }),
+    ...(autoMerge === undefined ? {} : { autoMergeEnabled: autoMerge }),
+    ...(autoMerge === true && raw.squash_on_merge === true
+      ? { autoMergeMethod: "squash" as const }
+      : {}),
+    ...(raw.diverged_commits_count == null ? {} : { divergedCommits: raw.diverged_commits_count }),
   };
 }
 
@@ -558,7 +564,7 @@ export function decodeDiscussionsJson(
     threads.push({
       id: discussion.value.id,
       path,
-      line: RuntimePredicate.isNumber(line) && line > 0 ? line : null,
+      line: typeof line === "number" && line > 0 ? line : null,
       side,
       isResolved: root.resolved === true,
       // GitLab reports no equivalent of "written against a line that has since moved", so a
@@ -639,7 +645,7 @@ export function decodeCommitsJson(
       messageHeadline: commit.value.title ?? "",
       committedDate,
       ...(commit.value.stats === null || commit.value.stats === undefined
-        ? undefined
+        ? {}
         : {
             additions: Math.max(0, commit.value.stats.additions ?? 0),
             deletions: Math.max(0, commit.value.stats.deletions ?? 0),
@@ -669,7 +675,10 @@ export function decodeCommitDiffRefsJson(
   );
 }
 
-function diffHeaderPaths(raw: Schema.Schema.Type<typeof RawDiffSchema>) {
+function diffHeaderPaths(raw: Schema.Schema.Type<typeof RawDiffSchema>): {
+  readonly from: string;
+  readonly to: string;
+} {
   return {
     from: raw.new_file === true ? "/dev/null" : `a/${raw.old_path}`,
     to: raw.deleted_file === true ? "/dev/null" : `b/${raw.new_path}`,
@@ -728,7 +737,7 @@ export function decodeMergeRequestDiffsJson(
 }
 
 /** GitLab's award names for the eight reactions the contract carries. */
-const GITLAB_AWARD_BY_CONTENT = {
+const GITLAB_AWARD_BY_CONTENT: Readonly<Record<PullRequestReactionContent, string>> = {
   "thumbs-up": "thumbsup",
   "thumbs-down": "thumbsdown",
   laugh: "laughing",
@@ -737,13 +746,12 @@ const GITLAB_AWARD_BY_CONTENT = {
   heart: "heart",
   rocket: "rocket",
   eyes: "eyes",
-} satisfies Readonly<Record<PullRequestReactionContent, string>>;
+};
 
-const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  CONTENT_BY_GITLAB_AWARD: Readonly<Record<string, PullRequestReactionContent>> =
-    Object.fromEntries(
-      Object.entries(GITLAB_AWARD_BY_CONTENT).map(([content, name]) => [name, content]),
-    ) as Readonly<Record<string, PullRequestReactionContent>>;
+const CONTENT_BY_GITLAB_AWARD: Readonly<Record<string, PullRequestReactionContent>> =
+  Object.fromEntries(
+    Object.entries(GITLAB_AWARD_BY_CONTENT).map(([content, name]) => [name, content]),
+  ) as Readonly<Record<string, PullRequestReactionContent>>;
 
 export function gitLabAwardName(content: PullRequestReactionContent): string {
   return GITLAB_AWARD_BY_CONTENT[content];

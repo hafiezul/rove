@@ -33,6 +33,14 @@ export function runtimePackageClosure(root: string) {
     string,
     { name: string; dependencies: Map<string, string | undefined> }
   >();
+  // Filtered installs (lint-only task graphs, CI partial setups) load this
+  // module through the universal vite config without the workspace's
+  // dependencies installed. Nothing can be bundled in that state anyway, so
+  // report an empty closure instead of failing config resolution. A present
+  // root still enforces its full dependency closure below.
+  if (!NodeFS.existsSync(NodePath.join(root, "package.json"))) {
+    return packages;
+  }
   const pending = [NodeFS.realpathSync(root)];
   for (const directory of pending) {
     if (packages.has(directory)) continue;

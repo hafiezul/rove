@@ -1,15 +1,20 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
-import type { EnvironmentId, ProjectId, ScopedProjectRef, ThreadId } from "@t3tools/contracts";
-import type { DraftId, DraftThreadEnvMode } from "../composerDraftStore";
+import type {
+  EnvironmentId,
+  ModelSelection,
+  ProjectId,
+  ScopedProjectRef,
+} from "@t3tools/contracts";
+import type { ComposerThreadDraftState, DraftThreadEnvMode } from "../composerDraftStore";
+
+type ComposerModelSelectionState = Pick<
+  ComposerThreadDraftState,
+  "activeProvider" | "modelSelectionByProvider" | "modelSelectionExplicit"
+>;
 
 interface ThreadContextLike {
   environmentId: EnvironmentId;
   projectId: ProjectId;
-}
-
-interface NewThreadResult {
-  readonly draftId: DraftId;
-  readonly threadId: ThreadId;
 }
 
 interface NewThreadHandler {
@@ -22,7 +27,7 @@ interface NewThreadHandler {
       startFromOrigin?: boolean;
     },
     // The opened draft's identity, which most callers have no use for.
-  ): Promise<NewThreadResult | null>;
+  ): Promise<unknown>;
 }
 
 export interface ChatThreadActionContext {
@@ -37,6 +42,30 @@ export function resolveNewDraftStartFromOrigin(input: {
   newWorktreesStartFromOrigin: boolean;
 }): boolean {
   return input.envMode === "worktree" && input.newWorktreesStartFromOrigin;
+}
+
+export function resolveNewThreadModelSelectionOverride(input: {
+  readonly projectDefaultSelection: ModelSelection | null;
+  readonly carrySelection: ModelSelection | null;
+  readonly carrySourceDraftId: string | null;
+  readonly destinationDraftId: string;
+}): ModelSelection | null {
+  return (
+    input.projectDefaultSelection ??
+    (input.carrySourceDraftId === input.destinationDraftId ? null : input.carrySelection)
+  );
+}
+
+export function hasExplicitComposerModelSelection(
+  draft: ComposerModelSelectionState | null | undefined,
+): boolean {
+  const activeProvider = draft?.activeProvider;
+  return (
+    draft?.modelSelectionExplicit === true &&
+    activeProvider !== null &&
+    activeProvider !== undefined &&
+    draft.modelSelectionByProvider[activeProvider] !== undefined
+  );
 }
 
 export function resolveThreadActionProjectRef(

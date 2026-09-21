@@ -13,7 +13,7 @@ import type { ProviderAdapterError } from "../Errors.ts";
 import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
- * OpenCodeAdapterShape — per-instance OpenCode adapter contract. Carries
+ * OpenCodeAdapterContract — per-instance OpenCode adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
 export interface OpenCodeAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}

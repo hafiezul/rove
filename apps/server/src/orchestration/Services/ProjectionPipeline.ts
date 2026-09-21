@@ -13,7 +13,7 @@ import type * as Effect from "effect/Effect";
 import type { ProjectionRepositoryError } from "../../persistence/Errors.ts";
 
 /**
- * OrchestrationProjectionPipelineShape - Service API for projection execution.
+ * OrchestrationProjectionPipelineContract - Service API for projection execution.
  */
 export interface OrchestrationProjectionPipelineContract {
   /**
@@ -26,11 +26,20 @@ export interface OrchestrationProjectionPipelineContract {
   /**
    * Project a single orchestration event into projection repositories.
    *
-   * Projectors are executed sequentially to preserve deterministic ordering.
+   * Projectors run sequentially in one transaction. Attachment cleanup runs
+   * after that transaction commits.
    */
   readonly projectEvent: (
     event: OrchestrationEvent,
   ) => Effect.Effect<void, ProjectionRepositoryError>;
+
+  /**
+   * Project an event inside a caller's transaction and return its attachment
+   * cleanup. Run the returned effect only after the outer transaction commits.
+   */
+  readonly projectEventDeferred: (
+    event: OrchestrationEvent,
+  ) => Effect.Effect<Effect.Effect<void>, ProjectionRepositoryError>;
 }
 
 /**

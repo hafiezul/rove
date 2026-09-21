@@ -1,5 +1,9 @@
 import { PRIMARY_LOCAL_ENVIRONMENT_ID } from "@t3tools/contracts";
-import { makeLocalFileTracer, makeTraceSink } from "@t3tools/shared/observability";
+import {
+  makeLocalFileTracer,
+  makeTraceSink,
+  otlpSerializationLayer,
+} from "@t3tools/shared/observability";
 import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -17,11 +21,10 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 import * as Tracer from "effect/Tracer";
-import { OtlpExporter, OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
+import { OtlpExporter, OtlpTracer } from "effect/unstable/observability";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const DESKTOP_LOG_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const DESKTOP_LOG_FILE_MAX_FILES = 10;
@@ -65,7 +68,7 @@ export class DesktopBackendOutputLogFactory extends Context.Service<
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-export type DesktopLogAnnotations = Record<string, SchemaJson>;
+export type DesktopLogAnnotations = Record<string, unknown>;
 
 export interface DesktopComponentLogger {
   readonly annotate: <A, E, R>(
@@ -99,7 +102,7 @@ export function makeComponentLogger(component: string): DesktopComponentLogger {
   };
 }
 
-class DesktopLogFileWriterConfigurationError extends Schema.TaggedErrorClass<DesktopLogFileWriterConfigurationError>()(
+class DesktopLogFileWriterConfigurationError extends Schema.TaggedError<DesktopLogFileWriterConfigurationError>()(
   "DesktopLogFileWriterConfigurationError",
   {
     option: Schema.Literals(["maxBytes", "maxFiles"]),
@@ -363,7 +366,7 @@ const writeBackendChildLogRecord = Effect.fn("desktop.observability.writeBackend
     input: {
       readonly message: string;
       readonly level: "INFO" | "ERROR";
-      readonly annotations: Record<string, SchemaJson>;
+      readonly annotations: DesktopLogAnnotations;
     },
   ): Effect.fn.Return<void> {
     return yield* Effect.gen(function* () {
@@ -587,6 +590,7 @@ const tracerLayer = Layer.unwrap(
       : yield* OtlpTracer.make({
           url: otlpTracesUrl.value,
           exportInterval: `${environment.otlpExportIntervalMs} millis`,
+          headers: Option.getOrUndefined(environment.otlpHeaders),
           resource: {
             serviceName: "desktop",
             attributes: {
@@ -594,7 +598,7 @@ const tracerLayer = Layer.unwrap(
               "service.mode": environment.isDevelopment ? "development" : "packaged",
             },
           },
-        });
+        }).pipe(Effect.provide(otlpSerializationLayer(environment.otlpProtocol)));
     const tracer = yield* makeLocalFileTracer({
       filePath: tracePath,
       maxBytes: DESKTOP_LOG_FILE_MAX_BYTES,
@@ -606,7 +610,7 @@ const tracerLayer = Layer.unwrap(
 
     return Layer.succeed(Tracer.Tracer, tracer);
   }),
-).pipe(Layer.provide(OtlpExporter.layerFlusher), Layer.provideMerge(OtlpSerialization.layerJson));
+).pipe(Layer.provide(OtlpExporter.layerFlusher));
 
 export const layer = Layer.mergeAll(
   backendOutputLogFactoryLayer,

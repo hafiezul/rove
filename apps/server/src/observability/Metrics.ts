@@ -11,7 +11,6 @@ import {
   outcomeFromExit,
 } from "./Attributes.ts";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export const rpcRequestsTotal = Metric.counter("t3_rpc_requests_total", {
   description: "Total RPC requests handled by the websocket RPC server.",
@@ -77,12 +76,12 @@ export const terminalRestartsTotal = Metric.counter("t3_terminal_restarts_total"
 });
 
 export const metricAttributes = (
-  attributes: Readonly<Record<string, SchemaJson>>,
+  attributes: Readonly<Record<string, unknown>>,
 ): ReadonlyArray<[string, string]> => Object.entries(compactMetricAttributes(attributes));
 
 export const increment = (
   metric: Metric.Metric<number, unknown>,
-  attributes: Readonly<Record<string, SchemaJson>>,
+  attributes: Readonly<Record<string, unknown>>,
   amount = 1,
 ) => Metric.update(Metric.withAttributes(metric, metricAttributes(attributes)), amount);
 
@@ -90,11 +89,11 @@ export interface WithMetricsOptions {
   readonly counter?: Metric.Metric<number, unknown>;
   readonly timer?: Metric.Metric<Duration.Duration, unknown>;
   readonly attributes?:
-    | Readonly<Record<string, SchemaJson>>
-    | (() => Readonly<Record<string, SchemaJson>>);
+    | Readonly<Record<string, unknown>>
+    | (() => Readonly<Record<string, unknown>>);
   readonly outcomeAttributes?: (
     outcome: ReturnType<typeof outcomeFromExit>,
-  ) => Readonly<Record<string, SchemaJson>>;
+  ) => Readonly<Record<string, unknown>>;
 }
 
 const withMetricsImpl = <A, E, R>(
@@ -148,7 +147,7 @@ export const withMetrics: {
 
 export const providerMetricAttributes = (
   provider: string,
-  extra?: Readonly<Record<string, SchemaJson>>,
+  extra?: Readonly<Record<string, unknown>>,
 ) =>
   compactMetricAttributes({
     provider,
@@ -158,7 +157,7 @@ export const providerMetricAttributes = (
 export const providerTurnMetricAttributes = (input: {
   readonly provider: string;
   readonly model: string | null | undefined;
-  readonly extra?: Readonly<Record<string, SchemaJson>>;
+  readonly extra?: Readonly<Record<string, unknown>>;
 }) => {
   const modelFamily = normalizeModelMetricLabel(input.model);
   return compactMetricAttributes({

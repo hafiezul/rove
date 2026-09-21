@@ -1,22 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
 import type { NativeSyntheticEvent } from "react-native";
 
-import { type NativeReviewDiffHighlightScheme } from "../diffs/nativeReviewDiffHighlighter";
 import { createNativeReviewDiffTheme, type NativeReviewDiffData } from "./nativeReviewDiffAdapter";
 import { useAppearanceCodeSurface } from "../settings/appearance/useAppearanceCodeSurface";
+import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useNativeReviewDiffHighlighting } from "./useNativeReviewDiffHighlighting";
 import { buildNativeReviewTokensResetKey } from "./reviewDiffBridgeKeys";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
+import { useUniwindTheme } from "../../lib/useUniwindTheme";
 
-export { buildNativeReviewTokensResetKey, hashReviewDiffKey } from "./reviewDiffBridgeKeys";
+export { buildNativeReviewTokensResetKey } from "./reviewDiffBridgeKeys";
 
 export function useNativeReviewDiffBridge(input: {
   readonly threadKey: string | null;
   readonly sectionId: string | null;
   readonly diff: string | null | undefined;
   readonly data: NativeReviewDiffData;
-  readonly scheme: NativeReviewDiffHighlightScheme;
   readonly collapsedFileIds: ReadonlyArray<string>;
   readonly viewedFileIds: ReadonlyArray<string>;
   readonly selectedRowIds: ReadonlyArray<string>;
@@ -27,18 +25,22 @@ export function useNativeReviewDiffBridge(input: {
     collapsedFileIds,
     data,
     diff,
-    scheme,
     sectionId,
     selectedRowIds,
     threadKey,
     viewedFileIds,
   } = input;
   const { nativeReviewDiffStyle } = useAppearanceCodeSurface();
+  const { themeAppearance: scheme, themeId } = useAppearancePreferences();
+  const appTheme = useUniwindTheme();
   const [collapsedCommentIds, setCollapsedCommentIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
 
-  const theme = useMemo(() => createNativeReviewDiffTheme(scheme), [scheme]);
+  const theme = useMemo(
+    () => createNativeReviewDiffTheme(scheme, themeId, appTheme),
+    [appTheme, scheme, themeId],
+  );
   const rowsJson = useMemo(() => JSON.stringify(data.rows), [data.rows]);
   const collapsedFileIdsJson = useMemo(() => JSON.stringify(collapsedFileIds), [collapsedFileIds]);
   const viewedFileIdsJson = useMemo(() => JSON.stringify(viewedFileIds), [viewedFileIds]);
@@ -70,13 +72,13 @@ export function useNativeReviewDiffBridge(input: {
   });
 
   const onDebug = useCallback(
-    (event: NativeSyntheticEvent<Record<string, SchemaJson>>) => {
+    (event: NativeSyntheticEvent<Record<string, unknown>>) => {
       const payload = event.nativeEvent;
       const message = payload.message;
       if (
         (message === "draw-metrics" || message === "visible-range") &&
-        RuntimePredicate.isNumber(payload.firstRowIndex) &&
-        RuntimePredicate.isNumber(payload.lastRowIndex)
+        typeof payload.firstRowIndex === "number" &&
+        typeof payload.lastRowIndex === "number"
       ) {
         updateVisibleRange({
           firstRowIndex: payload.firstRowIndex,
@@ -108,6 +110,7 @@ export function useNativeReviewDiffBridge(input: {
   );
 
   return {
+    themeId,
     theme,
     rowsJson,
     collapsedFileIdsJson,

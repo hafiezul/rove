@@ -25,6 +25,7 @@ const makeEnvironment = (
     isPackaged: true,
     isDevelopment: false,
     displayName: "Rove Code (Alpha)",
+    linuxDesktopEntryName: "com.t3tools.T3Code.desktop",
     linuxWmClass: "rove",
     linuxApplicationsDir: "/home/alice/.local/share/applications",
     appImagePath: Option.some("/home/alice/Applications/Rove Code.AppImage"),
@@ -53,6 +54,7 @@ const makeHandlerLayer = (
     readonly environment?: Partial<DesktopEnvironment.DesktopEnvironment["Service"]>;
     readonly xdgMimeExitCode?: number;
     readonly writeError?: PlatformError.PlatformError;
+    readonly existingEntry?: string;
   } = {},
 ) =>
   DesktopLinuxUrlHandler.layer.pipe(
@@ -60,6 +62,7 @@ const makeHandlerLayer = (
       Layer.mergeAll(
         Layer.succeed(DesktopEnvironment.DesktopEnvironment, makeEnvironment(input.environment)),
         FileSystem.layerNoop({
+          readFileString: () => Effect.succeed(input.existingEntry ?? ""),
           makeDirectory: (path) =>
             Effect.sync(() => {
               recorded.directories.push(path);
@@ -131,7 +134,7 @@ describe("DesktopLinuxUrlHandler", () => {
     const writeError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
       step: "write-desktop-entry",
       scheme: "rove",
-      desktopEntryPath: "/home/alice/.local/share/applications/rove-url-handler.desktop",
+      desktopEntryPath: "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
       cause: new Error("boom"),
     });
     assert.equal(
@@ -140,7 +143,7 @@ describe("DesktopLinuxUrlHandler", () => {
     );
     assert.equal(
       writeError.desktopEntryPath,
-      "/home/alice/.local/share/applications/rove-url-handler.desktop",
+      "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
     );
 
     const exitError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
@@ -164,7 +167,7 @@ describe("DesktopLinuxUrlHandler", () => {
       assert.equal(recorded.files.length, 1);
       assert.equal(
         recorded.files[0]?.path,
-        "/home/alice/.local/share/applications/rove-url-handler.desktop",
+        "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
       );
       assert.include(
         recorded.files[0]?.content,
@@ -174,7 +177,7 @@ describe("DesktopLinuxUrlHandler", () => {
       assert.deepEqual(recorded.commands, [
         {
           command: "xdg-mime",
-          args: ["default", "rove-url-handler.desktop", "x-scheme-handler/rove"],
+          args: ["default", "com.t3tools.T3Code.desktop", "x-scheme-handler/rove"],
         },
       ]);
     });
@@ -193,19 +196,43 @@ describe("DesktopLinuxUrlHandler", () => {
     });
   });
 
-  it.effect("does nothing on other platforms or unpackaged builds", () => {
+  it.effect("does not rewrite the pre-ready entry while the portal can be reading it", () => {
+    const recorded = emptyRecording();
+
+    return Effect.gen(function* () {
+      yield* runRegister(recorded, {
+        existingEntry: DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
+          displayName: "Rove Code (Alpha)",
+          execTarget: "/home/alice/Applications/Rove Code.AppImage",
+          scheme: "rove",
+        }),
+      });
+
+      assert.deepEqual(recorded.files, []);
+      assert.deepEqual(recorded.directories, []);
+      assert.equal(recorded.commands.length, 1);
+    });
+  });
+
+  it.effect("writes the portal identity without claiming the URL scheme in development", () => {
     const nonLinux = emptyRecording();
     const unpackaged = emptyRecording();
 
     return Effect.gen(function* () {
       yield* runRegister(nonLinux, { environment: { platform: "darwin" } });
-      yield* runRegister(unpackaged, { environment: { isPackaged: false } });
+      yield* runRegister(unpackaged, {
+        environment: {
+          isPackaged: false,
+          linuxDesktopEntryName: "com.t3tools.T3Code.Development.desktop",
+        },
+      });
 
-      for (const recorded of [nonLinux, unpackaged]) {
-        assert.deepEqual(recorded.directories, []);
-        assert.deepEqual(recorded.files, []);
-        assert.deepEqual(recorded.commands, []);
-      }
+      assert.deepEqual(nonLinux.files, []);
+      assert.equal(
+        unpackaged.files[0]?.path,
+        "/home/alice/.local/share/applications/com.t3tools.T3Code.Development.desktop",
+      );
+      assert.deepEqual(unpackaged.commands, []);
     });
   });
 
@@ -221,7 +248,7 @@ describe("DesktopLinuxUrlHandler", () => {
           module: "FileSystem",
           method: "writeFileString",
           description: "read-only filesystem",
-          pathOrDescriptor: "/home/alice/.local/share/applications/rove-url-handler.desktop",
+          pathOrDescriptor: "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
         }),
       });
 

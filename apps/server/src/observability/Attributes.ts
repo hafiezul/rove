@@ -1,14 +1,13 @@
 import * as Cause from "effect/Cause";
 import * as Exit from "effect/Exit";
 import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 export type MetricAttributeValue = string;
 export type MetricAttributes = Readonly<Record<string, MetricAttributeValue>>;
 export type ObservabilityOutcome = "success" | "failure" | "interrupt";
 
 export function compactMetricAttributes(
-  attributes: Readonly<Record<string, SchemaJson>>,
+  attributes: Readonly<Record<string, unknown>>,
 ): MetricAttributes {
   return Object.fromEntries(
     Object.entries(attributes).flatMap(([key, value]) => {

@@ -35,7 +35,7 @@ import * as RuntimePredicate from "effect/Predicate";
  * Call `beginRender()` before each component invocation and `reset()` in
  * `beforeEach` to drop persisted state between tests.
  */
-export function createReactHookHarness() {
+function createReactHookHarness() {
   let cursor = 0;
   let slots: unknown[] = [];
   const nextIndex = () => cursor++;
