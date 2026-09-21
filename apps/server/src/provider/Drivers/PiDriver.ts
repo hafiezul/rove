@@ -228,12 +228,12 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // turns, dispose sessions, and terminate the old runtime event subscription.
       yield* Effect.addFinalizer(() => adapter.shutdown());
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
-        createSession: ({ cwd }) =>
+        createSession: ({ cwd, model, thinkingLevel }) =>
           createPiSession(
             {
               cwd,
-              model: undefined,
-              thinkingLevel: undefined,
+              model,
+              thinkingLevel,
               resumeSessionId: undefined,
             },
             { extensions: false },

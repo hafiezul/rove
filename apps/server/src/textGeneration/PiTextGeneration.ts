@@ -1,6 +1,6 @@
 /**
  * PiTextGeneration — commit / PR / branch / thread-title text generation via
- * a throwaway in-memory Pi session on the user's default model.
+ * a throwaway in-memory Pi session on the selection's model.
  *
  * Each operation spins up an ephemeral `PiSessionLike` (in-memory, never
  * persisted), prompts it with the shared text-generation prompt builders, and
@@ -9,15 +9,17 @@
  *
  * @module textGeneration/PiTextGeneration
  */
-import { TextGenerationError, type PiSettings } from "@t3tools/contracts";
+import { TextGenerationError, type ModelSelection, type PiSettings } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
+import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { extractJsonObject } from "@t3tools/shared/schemaJson";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@t3tools/shared/git";
 
 import type { PiSessionLike } from "../provider/Layers/PiAdapter.ts";
 import { acquirePiResource, disposePiResource } from "../provider/Layers/PiLifecycle.ts";
+import { PI_THINKING_DESCRIPTOR_ID } from "../provider/Layers/PiProvider.ts";
 import type * as TextGeneration from "./TextGeneration.ts";
 import {
   buildBranchNamePrompt,
@@ -40,7 +42,26 @@ type TextGenerationOperation =
 
 export interface PiTextGenerationOptions {
   /** Builds a throwaway in-memory session (real SDK in the driver, a fake in tests). */
-  readonly createSession: (input: { cwd: string }) => Promise<PiSessionLike>;
+  readonly createSession: (input: {
+    cwd: string;
+    /** Composer model slug from the selection; blank falls back to the user's Pi default. */
+    model: string | undefined;
+    /** Reasoning level from the selection's options, when set. */
+    thinkingLevel: string | undefined;
+  }) => Promise<PiSessionLike>;
+}
+
+/**
+ * Pi does not throw on a failed model call: it records the provider error on
+ * the assistant reply (empty content, `stopReason: "error"`). The prompt runner
+ * rethrows it as this error so the provider message surfaces verbatim instead
+ * of being read as empty output.
+ */
+class PiPromptReplyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PiPromptReplyError";
+  }
 }
 
 export const makePiTextGeneration = (
@@ -60,11 +81,24 @@ export const makePiTextGeneration = (
       cwd: string;
       prompt: string;
       outputSchema: S;
+      modelSelection: ModelSelection;
     }): Effect.Effect<S["Type"], TextGenerationError, S["DecodingServices"]> =>
       // Hoisted per lint: compile the JSON decoder once per schema, not per call.
       Effect.acquireUseRelease(
         acquirePiResource(
-          () => createSession({ cwd: input.cwd }),
+          () => {
+            // A blank selection model defers to the user's own Pi default —
+            // same contract as thread sessions (see PiSessionFactory).
+            const model = input.modelSelection.model.trim();
+            return createSession({
+              cwd: input.cwd,
+              model: model.length > 0 ? model : undefined,
+              thinkingLevel: getModelSelectionStringOptionValue(
+                input.modelSelection,
+                PI_THINKING_DESCRIPTOR_ID,
+              ),
+            });
+          },
           (session) => session.dispose(),
         ).pipe(
           Effect.mapError(
@@ -81,7 +115,22 @@ export const makePiTextGeneration = (
             try: async () => {
               await session.prompt(input.prompt);
               const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-                last = session.messages.at(-1) as { role?: string; content?: unknown } | undefined;
+                last = session.messages.at(-1) as
+                  | {
+                      role?: string;
+                      content?: unknown;
+                      stopReason?: string;
+                      errorMessage?: string;
+                    }
+                  | undefined;
+              if (last?.role === "assistant" && last.stopReason === "error") {
+                throw new PiPromptReplyError(
+                  RuntimePredicate.isString(last.errorMessage) &&
+                    last.errorMessage.trim().length > 0
+                    ? last.errorMessage
+                    : "Pi assistant response failed.",
+                );
+              }
               const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
                 text = RuntimePredicate.isString(last?.content)
                   ? last.content
@@ -96,7 +145,10 @@ export const makePiTextGeneration = (
             catch: (cause) =>
               new TextGenerationError({
                 operation: input.operation,
-                detail: "Pi text generation failed.",
+                detail:
+                  cause instanceof PiPromptReplyError
+                    ? cause.message
+                    : "Pi text generation failed.",
                 cause,
               }),
           }).pipe(
@@ -143,6 +195,7 @@ export const makePiTextGeneration = (
           cwd: input.cwd,
           prompt,
           outputSchema,
+          modelSelection: input.modelSelection,
         });
         return {
           subject: sanitizeCommitSubject(generated.subject),
@@ -169,6 +222,7 @@ export const makePiTextGeneration = (
           cwd: input.cwd,
           prompt,
           outputSchema,
+          modelSelection: input.modelSelection,
         });
         return {
           title: sanitizePrTitle(generated.title),
@@ -187,6 +241,7 @@ export const makePiTextGeneration = (
           cwd: input.cwd,
           prompt,
           outputSchema,
+          modelSelection: input.modelSelection,
         });
         return { branch: sanitizeBranchFragment(generated.branch) };
       });
@@ -205,6 +260,7 @@ export const makePiTextGeneration = (
           cwd: input.cwd,
           prompt,
           outputSchema,
+          modelSelection: input.modelSelection,
         });
         return { title: sanitizeThreadTitle(generated.title) };
       });
