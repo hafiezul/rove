@@ -1,3 +1,5 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeModule from "node:module";
 import * as NodeURL from "node:url";
 
 import { runtimePackageClosure } from "./runtime-package-closure.ts";
@@ -8,14 +10,12 @@ import { runtimePackageClosure } from "./runtime-package-closure.ts";
  * Two consumers derive from this list, and they must never disagree:
  *
  * - apps/server/vite.config.ts decides what stays external to the bundle.
- * - scripts/build-desktop-artifact.ts decides what gets unpacked out of the asar.
+ * - scripts/build-desktop-artifact.ts selects the runtime dependency roots for
+ *   the Windows server sidecar.
  *
- * A package that is external but not unpacked still resolves on the Windows
- * primary, which runs under ELECTRON_RUN_AS_NODE and reads app.asar
- * transparently. It fails only under WSL, where the backend is launched as plain
- * `wsl.exe -- node` and cannot read inside an archive. That asymmetry makes the
- * drift invisible on the platform you are most likely to test on, which is why
- * both consumers derive from one list instead of maintaining their own.
+ * A runtime package that is external but absent from the sidecar fails as soon
+ * as Node resolves it from the emitted bundle. Keeping both consumers on one
+ * list prevents packaging from drifting away from the bundle boundary.
  *
  * Entries are matched as prefixes (`id.startsWith(prefix)`), so they also cover
  * a package's platform-specific siblings — `node-gyp-build` covers
@@ -28,8 +28,8 @@ import { runtimePackageClosure } from "./runtime-package-closure.ts";
  * critically — the ordinary JS packages those wrappers require. An external
  * package is loaded from the real filesystem, so its own `require` also
  * resolves from the real filesystem; a dependency that was bundled away exists
- * only inside app.asar and is unreachable there. This closure is enforced by a
- * test, not by inspection.
+ * only inside the emitted bundle and is unreachable there. This closure is
+ * enforced by a test, not by inspection.
  */
 export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "node-pty",
@@ -87,6 +87,13 @@ export const CLI_EXTERNAL_PACKAGE_PREFIXES = [
   ...CLI_RUNTIME_EXTERNAL_PREFIXES,
   ...CLI_BUILD_ONLY_EXTERNAL_PREFIXES,
 ] as const;
+export function isRuntimeExternalCliDependency(id: string): boolean {
+  const packageName = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+  return (
+    piRuntimePackages.has(packageName ?? "") ||
+    CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix))
+  );
+}
 
 /**
  * True when `id` must stay out of the bundle.
@@ -112,16 +119,48 @@ export function shouldBundleCliDependency(id: string): boolean {
   return !isExternalCliDependency(id);
 }
 
+/** Select direct dependency roots whose runtime closure belongs in the sidecar. */
+export function selectCliRuntimeExternalDependencies(
+  dependencies: Readonly<Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(dependencies).filter(([name]) => isRuntimeExternalCliDependency(name)),
+  );
+}
+
 /**
- * asar-unpack globs covering every external package.
+ * Scan an emitted bundle chunk for ESM imports of packages that are not Node
+ * built-ins.
  *
- * The trailing `*` is what keeps these aligned with the prefix matching above:
- * without it, `node-gyp-build` would be left external by the bundler and then
- * not unpacked, because the real package is `node-gyp-build-optional-packages`.
- *
- * pnpm stores real files under `.pnpm` and symlinks the top-level names, so both
- * paths are unpacked for the link target to exist on disk.
+ * Inside a Node single-executable, `import` statements and `import()` can only
+ * resolve built-in modules; any file-backed specifier throws at module
+ * evaluation (static) or at first use (dynamic). External packages therefore
+ * have to be reached through `createRequire`, which reads the real filesystem
+ * in every runtime. The bundler cannot enforce this, so the check reads what it
+ * produced.
  */
+export function findEsmImportsOfExternalPackages(source: string): ReadonlyArray<string> {
+  const specifiers = new Set<string>();
+  // `import x from`, `import "side-effect"`, `export ... from`, and `import()`
+  // all resolve through the module loader.
+  const patterns = [
+    /^import\s[^;]*?\sfrom\s+["']([^"']+)["']/gm,
+    /^import\s+["']([^"']+)["']/gm,
+    /^export\s[^;]*?\sfrom\s+["']([^"']+)["']/gm,
+    // Rolldown may leave a `/* @vite-ignore */` style comment before the specifier.
+    /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*["']([^"']+)["']\s*[,)]/g,
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const specifier = match[1];
+      if (specifier === undefined) continue;
+      if (NodeModule.isBuiltin(specifier)) continue;
+      if (specifier.startsWith("./") || specifier.startsWith("../")) continue;
+      specifiers.add(specifier);
+    }
+  }
+  return [...specifiers].sort();
+}
 export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = [
   ...CLI_EXTERNAL_PACKAGE_PREFIXES.flatMap((prefix) => [
     `node_modules/${prefix}*/**/*`,
@@ -150,8 +189,8 @@ export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = [
  * check the opposite direction too. Verifying only that externals are absent
  * would still pass if the bundler reverted to leaving everything external: the
  * scan would see source-file regions, report nothing inlined, and the packaged
- * WSL backend would then fail with ERR_MODULE_NOT_FOUND because those packages
- * are not in the unpack globs either.
+ * backends would then fail with ERR_MODULE_NOT_FOUND because those packages
+ * are not in the selected sidecar closure either.
  */
 export function findInlinedExternalPackages(source: string) {
   // Rolldown marks each inlined module with a `//#region <path>` comment.

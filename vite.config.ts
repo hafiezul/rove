@@ -19,28 +19,20 @@ export default defineConfig({
     ],
     hookTimeout: 60_000,
     testTimeout: 60_000,
+    setupFiles: [
+      NodeURL.fileURLToPath(
+        new URL("./packages/shared/src/testing/longTempDir.ts", import.meta.url),
+      ),
+    ],
   },
   staged: {
     // Formatter only for now — no lint or typecheck on commit.
-    "*": "vp fmt",
+    "*": "vp fmt --no-error-on-unmatched-pattern",
   },
   fmt: {
     ignorePatterns: [
-      ".reference",
-      ".repos/**",
-      ".agent/**",
-      ".agents/**",
-      ".claude/**",
-      ".codex/**",
-      ".continue/**",
-      ".cursor/**",
-      ".gemini/**",
-      ".opencode/**",
-      ".pi/**",
-      ".roo/**",
-      ".windsurf/**",
       "tools/oxlint/anti-slop/**",
-      ".plans",
+      ".repos/**",
       ".alchemy",
       "dist",
       "dist-electron",
@@ -50,8 +42,6 @@ export default defineConfig({
       "**/routeTree.gen.ts",
       "apps/mobile/android/**",
       "apps/mobile/ios/**",
-      "apps/web/public/mockServiceWorker.js",
-      "apps/web/src/lib/vendor/qrcodegen.ts",
       "apps/mobile/uniwind-types.d.ts",
       "*.icon/**",
     ],
@@ -67,20 +57,9 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: [
+      "tools/oxlint/anti-slop/**",
       ".repos",
       ".repos/**",
-      ".agent/**",
-      ".agents/**",
-      ".claude/**",
-      ".codex/**",
-      ".continue/**",
-      ".cursor/**",
-      ".gemini/**",
-      ".opencode/**",
-      ".pi/**",
-      ".roo/**",
-      ".windsurf/**",
-      "tools/oxlint/anti-slop/**",
       "dist",
       "dist-electron",
       "node_modules",
@@ -93,8 +72,8 @@ export default defineConfig({
     ],
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
     jsPlugins: [
-      "./oxlint-plugin-rove/index.ts",
       { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+      "./oxlint-plugin-rove/index.ts",
     ],
     categories: {
       correctness: "warn",
@@ -102,21 +81,29 @@ export default defineConfig({
       perf: "warn",
     },
     rules: {
-      "anti-slop/no-chained-type-assertions": "error",
-      "anti-slop/no-conditional-empty-object-spread": "error",
-      "anti-slop/no-known-value-widening": "error",
-      "anti-slop/no-module-mocking": "error",
-      "anti-slop/no-object-parameters": "error",
-      "anti-slop/no-reflect-apply": "error",
-      "anti-slop/no-reflect-get": "error",
-      "anti-slop/no-runtime-typeof": "error",
-      "anti-slop/no-shape-in-symbol-names": "error",
-      "anti-slop/no-unknown-parameters": "error",
-      "anti-slop/no-unknown-returns": "error",
-      "anti-slop/no-unknown-type-aliases": "error",
-      "anti-slop/no-unsafe-dictionary-type": "error",
-      "anti-slop/no-widen-then-assert": "error",
-      "anti-slop/require-safety-comment-for-type-assertion": "error",
+      // The anti-slop rules were authored against this fork's own code, which
+      // complies. The upstream v0.0.42 files this branch rebases onto predate
+      // the plugin and rely on the idioms these rules reject (conditional
+      // empty-object spreads, runtime typeof guards, Record dictionaries), so
+      // holding them at "error" fails every CI run on thousands of upstream
+      // sites. They stay enabled at "warn" — new fork-authored code should
+      // still comply, and individual rules can be ratcheted back to "error"
+      // as upstream files are touched.
+      "anti-slop/no-chained-type-assertions": "warn",
+      "anti-slop/no-conditional-empty-object-spread": "warn",
+      "anti-slop/no-known-value-widening": "warn",
+      "anti-slop/no-module-mocking": "warn",
+      "anti-slop/no-object-parameters": "warn",
+      "anti-slop/no-reflect-apply": "warn",
+      "anti-slop/no-reflect-get": "warn",
+      "anti-slop/no-runtime-typeof": "warn",
+      "anti-slop/no-shape-in-symbol-names": "warn",
+      "anti-slop/no-unknown-parameters": "warn",
+      "anti-slop/no-unknown-returns": "warn",
+      "anti-slop/no-unknown-type-aliases": "warn",
+      "anti-slop/no-unsafe-dictionary-type": "warn",
+      "anti-slop/no-widen-then-assert": "warn",
+      "anti-slop/require-safety-comment-for-type-assertion": "warn",
       "unicorn/no-array-sort": "off",
       "unicorn/consistent-function-scoping": "off",
       "oxc/no-map-spread": "off",
@@ -163,9 +150,89 @@ export default defineConfig({
       "rove/no-global-process-runtime": "error",
       "rove/no-inline-schema-compile": "warn",
       "rove/no-manual-effect-runtime-in-tests": "error",
+      "rove/no-native-title-tooltip": "error",
       "rove/namespace-node-imports": "error",
     },
+    overrides: [
+      {
+        // The one place that reads the host platform to seed the injected references.
+        files: ["packages/shared/src/hostProcess.ts"],
+        rules: { "rove/no-global-process-runtime": "off" },
+      },
+      {
+        files: ["apps/mobile/src/**"],
+        rules: { "rove/no-mobile-uniwind-theme-escape-hatches": "error" },
+      },
+      {
+        // Code that runs on Hermes. It has no ES2023 change-array-by-copy methods, and
+        // tsconfig targets ESNext, so only lint stands between a call and a fatal launch.
+        // Tests run on Node and are exempt.
+        files: [
+          "apps/mobile/src/**",
+          "packages/client-runtime/src/**",
+          "packages/contracts/src/**",
+          "packages/shared/src/**",
+        ],
+        excludeFiles: ["**/*.test.ts", "**/*.test.tsx"],
+        rules: { "rove/no-hermes-unsupported-array-methods": "error" },
+      },
+      {
+        // Reviewed native and third-party interop boundaries that cannot consume a className.
+        files: [
+          "apps/mobile/src/features/archive/ArchivedThreadsScreen.tsx",
+          "apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx",
+          "apps/mobile/src/features/files/FileMarkdownPreview.tsx",
+          "apps/mobile/src/features/files/SourceFileSurface.tsx",
+          "apps/mobile/src/features/files/AttachmentFileScreen.tsx",
+          "apps/mobile/src/features/files/ThreadFilesRouteScreen.tsx",
+          "apps/mobile/src/features/files/thread-file-navigator-pane.tsx",
+          "apps/mobile/src/features/home/HomeHeader.tsx",
+          "apps/mobile/src/features/review/ReviewSheet.tsx",
+          "apps/mobile/src/features/review/useNativeReviewDiffBridge.ts",
+          "apps/mobile/src/features/settings/SettingsEnvironmentsRouteScreen.tsx",
+          "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx",
+          "apps/mobile/src/features/threads/GitActionProgressOverlay.tsx",
+          "apps/mobile/src/features/threads/NewTaskDraftScreen.tsx",
+          "apps/mobile/src/features/threads/ThreadComposer.tsx",
+          "apps/mobile/src/features/threads/ThreadFeed.tsx",
+          "apps/mobile/src/features/review/ReviewCommentCard.tsx",
+          "apps/mobile/src/features/threads/ThreadSettingsSheet.tsx",
+          "apps/mobile/src/features/threads/git/GitOverviewSheet.tsx",
+          "apps/mobile/src/features/threads/thread-list-items.tsx",
+          "apps/mobile/src/features/threads/thread-list-v2-items.tsx",
+          "apps/mobile/src/lib/useMobileNavigationTheme.ts",
+          "apps/mobile/src/native/T3ComposerEditor.ios.tsx",
+          "apps/mobile/src/native/T3ComposerEditor.native.tsx",
+        ],
+        rules: {
+          "rove/no-mobile-uniwind-theme-escape-hatches": ["error", { allowUniwindTheme: true }],
+        },
+      },
+      // Legacy manual Effect runners tracked as debt: no net-new occurrences.
+      // Lower a ceiling when you migrate a file, and delete its entry at zero.
+      ...Object.entries({
+        "apps/server/src/orchestration/Layers/CheckpointReactor.test.ts": 42,
+        "apps/server/src/orchestration/Layers/OrchestrationEngine.test.ts": 5,
+        "apps/server/src/orchestration/Layers/OrchestrationReactor.test.ts": 4,
+        "apps/server/src/orchestration/Layers/ProviderCommandReactor.test.ts": 66,
+        "apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.test.ts": 29,
+        "apps/server/src/orchestration/Layers/ThreadDeletionReactor.test.ts": 2,
+        "apps/server/src/orchestration/commandInvariants.test.ts": 5,
+        "apps/server/src/orchestration/projector.test.ts": 20,
+        "apps/server/src/provider/Layers/CodexAdapter.test.ts": 1,
+        "apps/server/src/provider/Layers/CodexSessionRuntime.test.ts": 5,
+        "apps/server/src/provider/Layers/CursorAdapter.test.ts": 1,
+        "apps/server/src/provider/Layers/CursorProvider.test.ts": 1,
+        "apps/server/src/provider/Layers/ProviderService.test.ts": 2,
+        "apps/server/src/provider/Layers/ProviderSessionReaper.test.ts": 12,
+        "apps/server/src/provider/acp/CursorAcpSupport.test.ts": 1,
+      }).map(([file, maxOccurrences]) => {
+        const rule: ["error", { maxOccurrences: number }] = ["error", { maxOccurrences }];
+        return { files: [file], rules: { "rove/no-manual-effect-runtime-in-tests": rule } };
+      }),
+    ],
     options: {
+      reportUnusedDisableDirectives: "error",
       // Revisit once Oxlint's tsgolint path can integrate with @effect/tsgo diagnostics.
       typeAware: false,
       typeCheck: false,

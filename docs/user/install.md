@@ -1,84 +1,130 @@
 # Install Rove Code
 
-Rove Code is a web and desktop GUI for running coding agents on your machine.
+Rove Code runs coding agents on your computer and lets you control them from its
+desktop, web, or mobile app. Set up the machine where the agents will work first.
 
 ## Requirements
 
-Node.js `^22.16 || ^23.11 || >=24.10` on the machine that runs the Rove Code server.
+`npx t3` needs Node.js only to run npm itself; the CLI it installs is a
+self-contained executable. SSH hosts and WSL backends need Node.js 22.16+
+(22.x), 23.11+ (23.x), or 24.10 and later. The native desktop app includes its
+server runtime.
 
-At least one provider CLI, installed and authenticated. See [Providers](#providers) below.
+You need an installed, authenticated provider before starting a thread. You can
+launch Rove Code and configure providers afterwards.
 
-## Run Without Installing
+## Run without installing
 
 ```bash
 npx t3@latest
 ```
 
-This starts the Rove Code server on your machine and opens the local web app. Use
-`npx t3@latest --help` for the full CLI reference.
+This starts the server and opens the local web app. Run
+`npx t3@latest --help` for command-line options.
 
-## Desktop App
-
-Download the latest release from
-[GitHub Releases](https://github.com/rovedev/rove/releases), or install from a package
-registry.
-
-Windows:
+The executable is built for Apple Silicon Macs, Linux, and Windows. There is
+no Intel Mac build of it, because Node cannot produce a single executable for
+that platform; the Intel desktop app is unaffected. To run a standalone server
+on an Intel Mac, build it from source. You need Node.js 24 and `vp` (see
+[Install vp](https://github.com/rovecode/rove#install-vp)):
 
 ```bash
-winget install T3Tools.Rove Code
+git clone https://github.com/rovecode/rove
+cd rove && vp i && vp run build:desktop
+node apps/server/dist/bin.mjs
 ```
 
-macOS:
+A server run this way is a plain Node program: `t3 update` and the background
+service do not apply, so update it with `git pull` and a rebuild, and start it
+however you run other Node processes.
+
+## Desktop app
+
+Download a release from [GitHub Releases](https://github.com/rovecode/rove/releases),
+or use a package manager:
+
+| Platform           | Install                         |
+| ------------------ | ------------------------------- |
+| Windows            | `winget install T3Tools.T3Code` |
+| macOS              | `brew install --cask rove`      |
+| Arch Linux         | `yay -S rove-bin`               |
+| Arch Linux nightly | `yay -S rove-nightly-bin`       |
+
+### Windows Subsystem for Linux
+
+Choose a WSL distro in **Settings → Connections** to run agents and projects
+there. Install Node.js and provider CLIs inside that distro. Rove Code installs its
+matching server runtime there automatically; the first launch after an app
+update can take longer.
+
+### Open a project from a terminal
+
+With the desktop app already running on the same machine:
 
 ```bash
-brew install --cask rove
+npx t3 app
 ```
 
-Arch Linux:
+This opens a new thread for the current directory, adding the project if needed.
+Pass a path, such as `npx t3 app ../my-project`, to open another directory. It requires
+the desktop app, so a standalone server or an SSH session is not enough. If the
+command cannot reach the app, start or update the desktop app and try again.
 
-```bash
-yay -S rove-bin
-```
+## Mobile app
+
+Install Rove Code from the
+[App Store](https://apps.apple.com/us/app/rove-remote-claude-more/id6787819824) or
+[Google Play](https://play.google.com/store/apps/details?id=dev.rove.app).
+The phone connects to a server on another machine. Follow
+[remote access](./remote-access.md) to link it through Rove Connect or a pairing URL.
+
+If the app crashes during launch, open Settings → Diagnostics on the next launch
+that succeeds. It lists startup crashes from the last 7 days with the error and
+component stack that store crash reports leave out. Copy the report and paste it
+into a GitHub issue. Error messages can quote values from the app, so read it over
+before sharing.
 
 ## Providers
 
-Rove Code drives provider CLIs; it does not ship them. Install the CLI for each provider you want
-to use, then authenticate it.
+Open **Settings → Providers** in the web or desktop app, select the environment,
+and enable the provider you want. Installation, login, and configuration belong
+to that environment's machine, even when you connect from a phone or another
+computer.
 
-| Provider   | CLI                                                   | Default binary | Log in with           |
-| ---------- | ----------------------------------------------------- | -------------- | --------------------- |
-| Codex      | [Codex CLI](https://developers.openai.com/codex/cli)  | `codex`        | `codex login`         |
-| Claude     | [Claude Code](https://claude.com/product/claude-code) | `claude`       | `claude auth login`   |
-| Cursor     | [Cursor CLI](https://cursor.com/cli)                  | `cursor-agent` | `agent login`         |
-| Grok Build | [Grok Build CLI](https://x.ai/cli)                    | `grok`         | `grok login`          |
-| OpenCode   | [OpenCode](https://opencode.ai)                       | `opencode`     | `opencode auth login` |
+| Provider    | Install and authenticate                                                                     |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| Codex       | Install [Codex CLI](https://developers.openai.com/codex/cli), then run `codex login`.        |
+| Claude      | Install [Claude Code](https://claude.com/product/claude-code), then run `claude auth login`. |
+| Cursor      | Install [Cursor CLI](https://cursor.com/cli), then run `agent login`.                        |
+| Grok Build  | Install [Grok Build CLI](https://x.ai/cli), then run `grok login`.                           |
+| OpenCode    | Install [OpenCode](https://opencode.ai), then run `opencode auth login`.                     |
+| Antigravity | Install and sign in with Google from Rove Code's provider settings.                          |
 
-Cursor is the one to watch: install Cursor CLI, which provides the `cursor-agent` binary that
-Rove Code looks for, but authenticate with `agent login`, not `cursor-agent login`.
+Provider CLIs must be on the server's `PATH`. If Rove Code cannot find one, set its
+**Binary path** in provider settings, especially when using a version manager.
+Cursor's executable is `cursor-agent`, although its login command is
+`agent login`. Antigravity can use its managed runtime without a `PATH` entry.
 
-Run the login command on the machine running the Rove Code server, not on the device you browse
-from.
+When a provider CLI is behind its latest release, its provider card shows the
+available version. **Update now** appears only when Rove Code can tell which
+installer owns the CLI (its own update command, Homebrew, or a global npm, pnpm,
+bun, or Vite+ install) and runs that installer. Otherwise update the CLI the same
+way you installed it. Homebrew installs compare against the version Homebrew
+offers, which can trail the npm release by a few hours.
 
-### Binary Discovery
+Add another provider instance for a separate account or configuration. Each
+instance can have its own environment variables, such as API keys or a custom
+base URL. Mark secret values as sensitive; after saving, Rove Code does not display
+their original values.
 
-Each provider CLI must be on the server's `PATH`, or have an explicit binary path set in
-**Settings** → the provider instance → **Binary path**. Use the explicit path when a version
-manager or a non-standard install location keeps the CLI off the `PATH` of the shell that
-started Rove Code.
+For provider-specific setup and accounts, see [Codex](./providers-codex.md),
+[Claude](./providers-claude.md), [OpenCode](./providers-opencode.md), and
+[Antigravity](./providers-antigravity.md).
 
-### When Auth Is Needed
+## Next steps
 
-Provider auth is required before you start a session with that provider, not before you start
-Rove Code. You can install Rove Code, open it, and add providers afterwards. A provider that is not
-authenticated shows its status in **Settings** and fails at session start with the login command
-to run.
-
-For multi-account setups, see [Codex](./providers-codex.md) and [Claude](./providers-claude.md).
-
-## Next Steps
-
-- [Permission modes](./permission-modes.md): how much Rove Code asks before acting
-- [Remote access](./remote-access.md): connect from a phone, tablet, or another desktop
-- [Keeping Rove Code in sync](./updating.md): client and server version skew
-- [Running in the background](./background-service.md): Linux background service
+- [Working with threads](./thread-sidebar.md): start tasks and organize parallel work.
+- [Permission modes](./permission-modes.md): choose when agents ask before acting.
+- [Remote access](./remote-access.md): connect from another device.
+- [Running in the background](./background-service.md): keep a Linux or macOS host available.
+- [Updating Rove Code](./updating.md): update the app and connected servers.

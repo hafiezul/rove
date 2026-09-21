@@ -7,12 +7,14 @@ import {
   PullRequestListInput,
   PullRequestListResult,
   PullRequestReviewerRequestInput,
+  pullRequestHostOf,
   resolvePullRequestAuthorFilter,
 } from "./pullRequest.ts";
 
 const decodeListResult = Schema.decodeUnknownSync(PullRequestListResult);
 const decodeListInput = Schema.decodeUnknownSync(PullRequestListInput);
 const decodeReviewerRequest = Schema.decodeUnknownSync(PullRequestReviewerRequestInput);
+const decodeAction = Schema.decodeUnknownSync(PullRequestActionInput);
 
 const LIST_RESULT: PullRequestListResult = {
   viewers: { "github.com": "bilal", "gitlab.com": "bilal.hassan" },
@@ -40,10 +42,10 @@ const LIST_RESULT: PullRequestListResult = {
       host: "github.com",
       projectId: "project-1" as PullRequestListResult["entries"][number]["projectId"],
       projectTitle: "rove",
-      repository: "rovedev/rove",
+      repository: "rovecode/rove",
       number: 1,
       title: "Add a pull requests page",
-      url: "https://github.com/rovedev/rove/pull/1",
+      url: "https://github.com/rovecode/rove/pull/1",
       author: { login: "octocat", name: null, avatarUrl: null },
       headBranch: "feat/page",
       baseBranch: "main",
@@ -60,10 +62,24 @@ const LIST_RESULT: PullRequestListResult = {
   ],
   errors: [],
   truncated: false,
-  nextCursors: { "github.com rovedev/rove": "2026-07-02T00:00:00Z|1|1" },
+  nextCursors: { "github.com rovecode/rove": "2026-07-02T00:00:00Z|1|1" },
 };
 
 describe("PullRequestListResult", () => {
+  it("separates Forgejo HTTP ports while preserving other provider host identities", () => {
+    const identity = {
+      canonicalKey: "forge.example/team/repo",
+      locator: { remoteUrl: "http://forge.example:3000/team/repo.git" },
+    };
+    expect(pullRequestHostOf(identity, "forgejo")).toBe("forge.example:3000");
+    expect(pullRequestHostOf(identity, "gitlab")).toBe("forge.example");
+    expect(
+      pullRequestHostOf(
+        { ...identity, locator: { remoteUrl: "ssh://git@forge.example:2222/team/repo.git" } },
+        "forgejo",
+      ),
+    ).toBe("forge.example");
+  });
   /**
    * The RPC builds this codec at call time, so a shape it cannot lower — an open-keyed record
    * with an optional value, for one — fails as an interrupted request rather than as a schema
@@ -103,7 +119,7 @@ describe("PullRequestListInput", () => {
   });
 
   it("takes back the continuation a result handed out, keyed the way it arrived", () => {
-    const cursors = { "github.com rovedev/rove": "2026-07-02T00:00:00Z|99|1,2" };
+    const cursors = { "github.com rovecode/rove": "2026-07-02T00:00:00Z|99|1,2" };
 
     expect(decodeListInput({ state: "open", cursors }).cursors).toStrictEqual(cursors);
   });
@@ -158,7 +174,6 @@ describe("PullRequestReviewerRequestInput", () => {
 });
 
 describe("updating a branch that has fallen behind its base", () => {
-  const decodeAction = Schema.decodeUnknownSync(PullRequestActionInput);
   const ref = { projectId: "project-1", repository: "acme/web", number: 7 };
 
   it("carries the way the branch should be brought up to date", () => {
@@ -182,7 +197,6 @@ describe("updating a branch that has fallen behind its base", () => {
 });
 
 describe("leaving a merge for the host to make once it is ready", () => {
-  const decodeAction = Schema.decodeUnknownSync(PullRequestActionInput);
   const ref = { projectId: "project-1", repository: "acme/web", number: 7 };
 
   it("carries the strategy the deferred merge should use, as merging now does", () => {
@@ -193,6 +207,33 @@ describe("leaving a merge for the host to make once it is ready", () => {
 
   it("takes the arming back without a strategy, because there is nothing to choose", () => {
     expect(decodeAction({ ...ref, action: "disable-auto-merge" }).mergeMethod).toBeUndefined();
+  });
+});
+
+describe("reverting a merged pull request", () => {
+  it("carries the revert action without merge options", () => {
+    const action = decodeAction({
+      projectId: "project-1",
+      repository: "acme/web",
+      number: 7,
+      action: "revert",
+    });
+
+    expect(action.action).toBe("revert");
+    expect(action.mergeMethod).toBeUndefined();
+  });
+});
+
+describe("approving fork workflows", () => {
+  it("carries workflow approval as its own action", () => {
+    const action = decodeAction({
+      projectId: "project-1",
+      repository: "acme/web",
+      number: 7,
+      action: "approve-workflows",
+    });
+
+    expect(action.action).toBe("approve-workflows");
   });
 });
 

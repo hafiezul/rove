@@ -1,5 +1,5 @@
 /**
- * PiAdapter — `ProviderAdapterShape` implementation backed by the Pi SDK
+ * PiAdapter — `ProviderAdapterContract` implementation backed by the Pi SDK
  * (`@earendil-works/pi-coding-agent`) running in-process. See
  * docs/adr/0001-pi-provider-uses-sdk-in-process.md for why this is not a
  * subprocess adapter.
@@ -84,7 +84,7 @@ import * as RuntimePredicate from "effect/Predicate";
  */
 const PI_SKILL_TOKEN_PATTERN = /^\$([^\s]+)(?:\s+|$)/;
 
-export function translatePiSkillToken(text: string): string {
+function translatePiSkillToken(text: string): string {
   const match = PI_SKILL_TOKEN_PATTERN.exec(text);
   if (match === null) {
     return text;

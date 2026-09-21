@@ -15,6 +15,8 @@ import * as ApnsProviderTokens from "./ApnsProviderTokens.ts";
 export { ApnsJwtEncodingError, ApnsJwtSigningError } from "./apnsJwt.ts";
 
 const LIVE_ACTIVITY_NAME = "AgentActivity";
+// Bound sending and reading separately so neither stage can hold a batch open.
+const APNS_HTTP_STAGE_TIMEOUT = "10 seconds";
 // Updates only flow on domain events, so a healthy agent can be silent for
 // minutes (long tool calls, pending approvals). Two minutes made iOS dim
 // perfectly healthy activities; ten minutes still bounds how long a dead
@@ -51,7 +53,7 @@ export interface ApnsDeliveryResult {
   readonly apnsId: string | null;
 }
 
-export class ApnsHttpRequestError extends Schema.TaggedErrorClass<ApnsHttpRequestError>()(
+export class ApnsHttpRequestError extends Schema.TaggedError<ApnsHttpRequestError>()(
   "ApnsHttpRequestError",
   {
     requestKind: ApnsRequestKindSchema,
@@ -248,6 +250,7 @@ export const make = Effect.gen(function* () {
       }),
       HttpClientRequest.bodyJson(input.request.payload),
       Effect.flatMap(httpClient.execute),
+      Effect.timeout(APNS_HTTP_STAGE_TIMEOUT),
       Effect.mapError(
         (cause) =>
           new ApnsHttpRequestError({
@@ -263,6 +266,7 @@ export const make = Effect.gen(function* () {
       ),
     );
     const responseText = yield* response.text.pipe(
+      Effect.timeout(APNS_HTTP_STAGE_TIMEOUT),
       Effect.mapError(
         (cause) =>
           new ApnsHttpRequestError({
@@ -308,6 +312,7 @@ export const make = Effect.gen(function* () {
         }),
         HttpClientRequest.bodyJson(input.request.payload),
         Effect.flatMap(httpClient.execute),
+        Effect.timeout(APNS_HTTP_STAGE_TIMEOUT),
         Effect.mapError(
           (cause) =>
             new ApnsHttpRequestError({
@@ -323,6 +328,7 @@ export const make = Effect.gen(function* () {
         ),
       );
       const responseText = yield* response.text.pipe(
+        Effect.timeout(APNS_HTTP_STAGE_TIMEOUT),
         Effect.mapError(
           (cause) =>
             new ApnsHttpRequestError({

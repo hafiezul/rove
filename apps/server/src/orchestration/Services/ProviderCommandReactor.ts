@@ -11,7 +11,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 
 /**
- * ProviderCommandReactorShape - Service API for provider command reactors.
+ * ProviderCommandReactorContract - Service API for provider command reactors.
  */
 export interface ProviderCommandReactorContract {
   /**
@@ -19,6 +19,7 @@ export interface ProviderCommandReactorContract {
    *
    * The returned effect must be run in a scope so all worker fibers can be
    * finalized on shutdown.
+   * It subscribes before returning. Event handling waits for server activation.
    *
    * Filters orchestration domain events to provider-intent types before
    * processing.

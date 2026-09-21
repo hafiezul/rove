@@ -14,6 +14,7 @@ import type {
   PullRequestReaction,
   PullRequestReactionContent,
   PullRequestReviewCommentDraft,
+  PullRequestReviewPosition,
   PullRequestReviewThread,
   PullRequestReviewVerdict,
   PullRequestReviewerCandidateList,
@@ -47,7 +48,7 @@ import type { ProviderListCursor } from "./PullRequestProvider.ts";
  * Names the read that produced unusable output, so a failure reports the call it came from
  * rather than borrowing another operation's message.
  */
-export class GitLabMergeRequestReadError extends Schema.TaggedErrorClass<GitLabMergeRequestReadError>()(
+export class GitLabMergeRequestReadError extends Schema.TaggedError<GitLabMergeRequestReadError>()(
   "GitLabMergeRequestReadError",
   {
     command: Schema.Literal("glab"),
@@ -66,7 +67,7 @@ export class GitLabMergeRequestReadError extends Schema.TaggedErrorClass<GitLabM
 }
 
 /** Not a decode failure: glab answered, the account it answered for just has no username. */
-export class GitLabViewerUnavailableError extends Schema.TaggedErrorClass<GitLabViewerUnavailableError>()(
+export class GitLabViewerUnavailableError extends Schema.TaggedError<GitLabViewerUnavailableError>()(
   "GitLabViewerUnavailableError",
   {
     command: Schema.Literal("glab"),
@@ -84,7 +85,7 @@ export class GitLabViewerUnavailableError extends Schema.TaggedErrorClass<GitLab
 
 /** Not a decode failure: GitLab answered, the merge request just has no revisions to place a
  *  comment against. */
-export class GitLabDiffRefsUnavailableError extends Schema.TaggedErrorClass<GitLabDiffRefsUnavailableError>()(
+export class GitLabDiffRefsUnavailableError extends Schema.TaggedError<GitLabDiffRefsUnavailableError>()(
   "GitLabDiffRefsUnavailableError",
   {
     command: Schema.Literal("glab"),
@@ -102,7 +103,7 @@ export class GitLabDiffRefsUnavailableError extends Schema.TaggedErrorClass<GitL
 }
 
 /** Not a decode failure: the reader asked to carry on from a cursor this walk never handed out. */
-export class GitLabDiffCursorError extends Schema.TaggedErrorClass<GitLabDiffCursorError>()(
+export class GitLabDiffCursorError extends Schema.TaggedError<GitLabDiffCursorError>()(
   "GitLabDiffCursorError",
   {
     command: Schema.Literal("glab"),
@@ -119,7 +120,7 @@ export class GitLabDiffCursorError extends Schema.TaggedErrorClass<GitLabDiffCur
 }
 
 /** Not a decode failure: the reader named a commit that is not a sha this project could hold. */
-export class GitLabDiffCommitError extends Schema.TaggedErrorClass<GitLabDiffCommitError>()(
+export class GitLabDiffCommitError extends Schema.TaggedError<GitLabDiffCommitError>()(
   "GitLabDiffCommitError",
   {
     command: Schema.Literal("glab"),
@@ -136,7 +137,7 @@ export class GitLabDiffCommitError extends Schema.TaggedErrorClass<GitLabDiffCom
 }
 
 /** The commit exists and decoded, but it has no parent to use as the old revision. */
-export class GitLabDiffCommitParentUnavailableError extends Schema.TaggedErrorClass<GitLabDiffCommitParentUnavailableError>()(
+export class GitLabDiffCommitParentUnavailableError extends Schema.TaggedError<GitLabDiffCommitParentUnavailableError>()(
   "GitLabDiffCommitParentUnavailableError",
   {
     command: Schema.Literal("glab"),
@@ -154,7 +155,7 @@ export class GitLabDiffCommitParentUnavailableError extends Schema.TaggedErrorCl
 }
 
 /** A blob exists, but expanding it would be unsafe or would not produce text. */
-export class GitLabDiffFileContentsUnavailableError extends Schema.TaggedErrorClass<GitLabDiffFileContentsUnavailableError>()(
+export class GitLabDiffFileContentsUnavailableError extends Schema.TaggedError<GitLabDiffFileContentsUnavailableError>()(
   "GitLabDiffFileContentsUnavailableError",
   {
     command: Schema.Literal("glab"),
@@ -400,6 +401,22 @@ function projectPath(repository: string): string {
   return encodeURIComponent(repository.trim());
 }
 
+function gitLabReviewPositionLines(
+  position: PullRequestReviewPosition,
+):
+  | { readonly new_line: number }
+  | { readonly old_line: number }
+  | { readonly old_line: number; readonly new_line: number } {
+  switch (position.kind) {
+    case "added":
+      return { new_line: position.newLine };
+    case "deleted":
+      return { old_line: position.oldLine };
+    case "context":
+      return { old_line: position.oldLine, new_line: position.newLine };
+  }
+}
+
 function stateParam(state: PullRequestListState): string {
   // GitLab's `closed` already excludes merged merge requests, so no extra filter is needed,
   // and it spans every state under `all`.
@@ -487,9 +504,14 @@ function actionArgs(
       return ["rebase"];
     case "reopen":
       return ["reopen"];
+    // Never reached: this host does not declare the action, so the service refuses it first.
+    case "revert":
+    case "approve-workflows":
+      throw new Error(`GitLab merge request action ${action} is unsupported`);
   }
 }
 
+/** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const gitlab = yield* GitLabCli.GitLabCli;
 
@@ -1326,9 +1348,7 @@ export const make = Effect.gen(function* () {
                     // draft carries the name the file had before the change.
                     old_path: comment.oldPath ?? comment.path,
                     new_path: comment.path,
-                    ...(comment.side === "left"
-                      ? { old_line: comment.line }
-                      : { new_line: comment.line }),
+                    ...gitLabReviewPositionLines(comment.position),
                   },
                 }),
               }),

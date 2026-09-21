@@ -66,12 +66,12 @@ test("renders baseline, impact, ceiling, and ceiling changes", () => {
     currentRun: {
       sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       conclusion: "success",
-      url: "https://github.com/rovedev/rove/actions/runs/2",
+      url: "https://github.com/rovecode/rove/actions/runs/2",
     },
     baselineRun: {
       sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       matchesBase: true,
-      url: "https://github.com/rovedev/rove/actions/runs/1",
+      url: "https://github.com/rovecode/rove/actions/runs/1",
     },
   });
 
@@ -140,7 +140,7 @@ test("resolves a fallback PR with a redacted head repo and exact main baseline",
           workflow_id: 3,
           head_sha: "head-sha",
           head_branch: "feature-branch",
-          head_repository: { full_name: "rovedev/rove" },
+          head_repository: { full_name: "rovecode/rove" },
           conclusion: "success",
           pull_requests: [],
         },
@@ -175,7 +175,7 @@ test("does not guess when a fallback commit belongs to multiple PRs", async () =
           head: {
             sha: "head-sha",
             ref: "feature-branch",
-            repo: { full_name: "rovedev/rove" },
+            repo: { full_name: "rovecode/rove" },
           },
         }));
       },
@@ -198,7 +198,7 @@ test("does not guess when a fallback commit belongs to multiple PRs", async () =
           workflow_id: 3,
           head_sha: "head-sha",
           head_branch: "feature-branch",
-          head_repository: { full_name: "rovedev/rove" },
+          head_repository: { full_name: "rovecode/rove" },
           conclusion: "success",
           pull_requests: [],
         },

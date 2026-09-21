@@ -7,6 +7,11 @@ import {
   canCreateProjectInEnvironment,
   findExistingAddProject,
   getAddProjectInitialQuery,
+  getCloneDestinationBrowsePath,
+  getCloneDestinationPath,
+  getCloneDirectoryName,
+  getDefaultCloneUrl,
+  normalizePastedCloneUrl,
   resolveAddProjectPath,
   sortAddProjectProviderSources,
   type AddProjectRemoteSource,
@@ -23,10 +28,16 @@ import {
 } from "@t3tools/client-runtime/state/filesystem";
 import {
   appendBrowsePathSegment,
-  ensureBrowseDirectoryPath,
   inferProjectTitleFromPath,
+  isWindowsPlatform,
 } from "@t3tools/client-runtime/state/projects";
-import { CommandId, type EnvironmentId, ProjectId } from "@t3tools/contracts";
+import {
+  CommandId,
+  type EnvironmentId,
+  type EnvironmentMachineKind,
+  ProjectId,
+  resolveEnvironmentMachineKind,
+} from "@t3tools/contracts";
 import { CommonActions, StackActions, useNavigation } from "@react-navigation/native";
 import { SymbolView } from "../../components/AppSymbol";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -38,15 +49,15 @@ import * as Order from "effect/Order";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { cn } from "../../lib/cn";
 
-import { useProjects, useServerConfigs } from "../../state/entities";
+import { useProjects, useServerConfigs, waitForProject } from "../../state/entities";
 import { filesystemEnvironment } from "../../state/filesystem";
 import { projectEnvironment } from "../../state/projects";
 import { useEnvironmentQuery } from "../../state/query";
 import { sourceControlEnvironment } from "../../state/sourceControl";
 import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
+import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { SourceControlIcon } from "../../components/SourceControlIcon";
-import { useThemeColor } from "../../lib/useThemeColor";
 import { uuidv4 } from "../../lib/uuid";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
@@ -61,10 +72,13 @@ interface EnvironmentOption {
   readonly environmentId: EnvironmentId;
   readonly label: string;
   readonly platform: string;
+  readonly machine: EnvironmentMachineKind;
   readonly baseDirectory: string | null;
   readonly connectionState: EnvironmentConnectionPhase;
   readonly connectionError: string | null;
   readonly connectionErrorTraceId: string | null;
+  /** Server runs clones in the background and streams progress; older servers block. */
+  readonly supportsCloneTracking: boolean;
 }
 
 const environmentOptionOrder = Order.mapInput(
@@ -98,6 +112,7 @@ function sourceFromParam(value: string | string[] | undefined): AddProjectRemote
     source === "url" ||
     source === "github" ||
     source === "gitlab" ||
+    source === "forgejo" ||
     source === "bitbucket" ||
     source === "azure-devops"
   ) {
@@ -154,8 +169,6 @@ function ListRow(props: {
   readonly right?: ReactNode;
   readonly onPress?: () => void;
 }) {
-  const chevronColor = useThemeColor("--color-chevron");
-
   return (
     <Pressable
       disabled={props.disabled}
@@ -187,7 +200,12 @@ function ListRow(props: {
         {"right" in props ? (
           props.right
         ) : !props.disabled ? (
-          <SymbolView name="chevron.right" size={13} tintColor={chevronColor} type="monochrome" />
+          <SymbolView
+            name="chevron.right"
+            size={13}
+            tintColorClassName={"accent-chevron"}
+            type="monochrome"
+          />
         ) : null}
       </View>
     </Pressable>
@@ -200,8 +218,6 @@ function PrimaryActionButton(props: {
   readonly loading?: boolean;
   readonly onPress: () => void;
 }) {
-  const primaryForeground = useThemeColor("--color-primary-foreground");
-
   return (
     <Pressable
       disabled={props.disabled}
@@ -209,7 +225,7 @@ function PrimaryActionButton(props: {
       className="h-12 items-center justify-center rounded-full bg-primary active:opacity-70 disabled:opacity-45"
     >
       {props.loading ? (
-        <ActivityIndicator color={String(primaryForeground)} />
+        <ActivityIndicator colorClassName={String("accent-primary-foreground")} />
       ) : (
         <Text className="text-base font-t3-bold text-primary-foreground">{props.label}</Text>
       )}
@@ -236,11 +252,18 @@ function ProjectPathInput(props: {
   );
 }
 
-function useBrowsePathInput(environment: EnvironmentOption | null) {
+// `pinnedDirectoryName` is the repository folder the clone destination keeps
+// appended to whatever folder the user browses to. The plain add-project flow
+// passes nothing, so it keeps proposing the browsed folder itself.
+function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirectoryName = "") {
   const environmentId = environment?.environmentId ?? null;
   const environmentBaseDirectory = environment?.baseDirectory ?? null;
+  const clonePathCaseSensitive = !isWindowsPlatform(environment?.platform ?? "");
   const [pathInput, commitPathInput] = useState(() =>
-    getAddProjectInitialQuery(environmentBaseDirectory),
+    getCloneDestinationPath(
+      getAddProjectInitialQuery(environmentBaseDirectory),
+      pinnedDirectoryName,
+    ),
   );
   const previousEnvironmentIdRef = useRef(environmentId);
   const environmentRuntime = useRemoteEnvironmentRuntime(environmentId);
@@ -259,33 +282,60 @@ function useBrowsePathInput(environment: EnvironmentOption | null) {
     [browseNavigation],
   );
   const navigateToBrowsePath = useCallback(
-    async (path: string) => {
+    async (input: {
+      readonly browseDirectoryPath: string;
+      readonly selectedDirectoryName?: string;
+    }) => {
+      const selectedDirectoryPath = input.selectedDirectoryName
+        ? appendBrowsePathSegment(input.browseDirectoryPath, input.selectedDirectoryName)
+        : input.browseDirectoryPath;
+      const nextPathInput =
+        pinnedDirectoryName && input.selectedDirectoryName
+          ? getCloneDestinationBrowsePath({
+              browseDirectoryPath: input.browseDirectoryPath,
+              selectedDirectoryName: input.selectedDirectoryName,
+              cloneDirectoryName: pinnedDirectoryName,
+              caseSensitive: clonePathCaseSensitive,
+            })
+          : getCloneDestinationPath(selectedDirectoryPath, pinnedDirectoryName);
       setIsBrowseNavigating(true);
       const committed = await browseNavigation.run(
         async () => {
           if (environment && canPreloadBrowsePath(environmentRuntime?.connectionState)) {
             await loadBrowsePath({
               environmentId: environment.environmentId,
-              input: { partialPath: path },
+              input: { partialPath: selectedDirectoryPath },
             });
           }
         },
-        () => commitPathInput(path),
+        () => commitPathInput(nextPathInput),
       );
       if (committed) {
         setIsBrowseNavigating(false);
       }
       return committed;
     },
-    [browseNavigation, environment, environmentRuntime?.connectionState, loadBrowsePath],
+    [
+      browseNavigation,
+      clonePathCaseSensitive,
+      environment,
+      environmentRuntime?.connectionState,
+      loadBrowsePath,
+      pinnedDirectoryName,
+    ],
   );
 
   useEffect(() => {
     if (environmentId !== null && environmentId !== previousEnvironmentIdRef.current) {
       previousEnvironmentIdRef.current = environmentId;
-      setPathInput(getAddProjectInitialQuery(environmentBaseDirectory));
+      setPathInput(
+        getCloneDestinationPath(
+          getAddProjectInitialQuery(environmentBaseDirectory),
+          pinnedDirectoryName,
+        ),
+      );
     }
-  }, [environmentBaseDirectory, environmentId, setPathInput]);
+  }, [environmentBaseDirectory, environmentId, pinnedDirectoryName, setPathInput]);
 
   useEffect(
     () => () => {
@@ -313,10 +363,12 @@ function useEnvironmentOptions(): ReadonlyArray<EnvironmentOption> {
         environmentId: connection.environmentId,
         label: connection.environmentLabel,
         platform: platformFromOs(config?.environment.platform.os ?? null),
+        machine: resolveEnvironmentMachineKind(config ?? null),
         baseDirectory: config?.settings.addProjectBaseDirectory ?? null,
         connectionState: runtime?.connectionState ?? "available",
         connectionError: runtime?.connectionError ?? null,
         connectionErrorTraceId: runtime?.connectionErrorTraceId ?? null,
+        supportsCloneTracking: config?.environment.capabilities.projectCloneTracking === true,
       };
     });
     return Arr.sort(options, environmentOptionOrder);
@@ -371,7 +423,6 @@ function SourceControlRow(props: {
   readonly isFirst: boolean;
 }) {
   const navigation = useNavigation();
-  const iconColor = useThemeColor("--color-icon");
   const title =
     props.source === "url" ? "Git URL" : `${addProjectRemoteSourceLabel(props.source)} repository`;
   const subtitle =
@@ -380,9 +431,9 @@ function SourceControlRow(props: {
       : `Clone ${addProjectRemoteSourceLabel(props.source)} ${props.hint}`;
   const icon =
     props.source === "url" ? (
-      <SymbolView name="link" size={17} tintColor={iconColor} type="monochrome" />
+      <SymbolView name="link" size={17} tintColorClassName={"accent-icon"} type="monochrome" />
     ) : (
-      <SourceControlIcon kind={props.source} size={18} color={String(iconColor)} />
+      <SourceControlIcon kind={props.source} size={18} colorClassName="accent-icon" />
     );
 
   if (!props.ready) {
@@ -411,8 +462,6 @@ function SourceControlRow(props: {
 
 export function AddProjectSourceScreen() {
   const navigation = useNavigation();
-  const accentColor = useThemeColor("--color-icon-muted");
-  const iconColor = useThemeColor("--color-icon");
   const { environmentOptions, selectedEnvironment, setSelectedEnvironmentId } =
     useSelectedEnvironment();
   const discoveryState = useEnvironmentQuery(
@@ -450,11 +499,10 @@ export function AddProjectSourceScreen() {
                       })
                 }
                 icon={
-                  <SymbolView
-                    name="server.rack"
+                  <EnvironmentMachineSymbol
+                    kind={environment.machine}
                     size={17}
-                    tintColor={iconColor}
-                    type="monochrome"
+                    tintColorClassName="accent-icon"
                   />
                 }
                 selected={environment.environmentId === selectedEnvironment?.environmentId}
@@ -465,7 +513,7 @@ export function AddProjectSourceScreen() {
                     <SymbolView
                       name="checkmark"
                       size={14}
-                      tintColor={iconColor}
+                      tintColorClassName={"accent-icon"}
                       type="monochrome"
                     />
                   ) : null
@@ -487,7 +535,7 @@ export function AddProjectSourceScreen() {
                 <SymbolView
                   name="folder.badge.plus"
                   size={17}
-                  tintColor={iconColor}
+                  tintColorClassName={"accent-icon"}
                   type="monochrome"
                 />
               }
@@ -517,10 +565,21 @@ export function AddProjectSourceScreen() {
               ),
             )}
           </ListSection>
-          {discoveryState.isPending ? <ActivityIndicator color={accentColor} /> : null}
+          {discoveryState.isPending ? (
+            <ActivityIndicator colorClassName={"accent-icon-muted"} />
+          ) : null}
         </>
       ) : null}
     </AddProjectShell>
+  );
+}
+
+function openNewTaskDraft(
+  navigation: { dispatch: (action: ReturnType<typeof CommonActions.reset>) => void },
+  params: { environmentId: EnvironmentId; projectId: ProjectId; title: string; cloning?: "1" },
+) {
+  navigation.dispatch(
+    CommonActions.reset({ index: 0, routes: [{ name: "NewTaskDraft", params }] }),
   );
 }
 
@@ -622,13 +681,14 @@ export function AddProjectRepositoryScreen(props: {
     setIsSubmitting(true);
     const provider = addProjectRemoteSourceProvider(source);
     if (!provider) {
-      const remoteUrl = repositoryInput.trim();
+      const remoteUrl = normalizePastedCloneUrl(repositoryInput);
       navigation.dispatch(
         StackActions.push("AddProjectDestination", {
           environmentId: environment.environmentId,
           source,
           remoteUrl,
           repositoryTitle: remoteUrl,
+          repositoryName: getCloneDirectoryName(remoteUrl),
         }),
       );
       setIsSubmitting(false);
@@ -650,8 +710,9 @@ export function AddProjectRepositoryScreen(props: {
         StackActions.push("AddProjectDestination", {
           environmentId: environment.environmentId,
           source,
-          remoteUrl: repository.sshUrl,
+          remoteUrl: getDefaultCloneUrl(repository),
           repositoryTitle: repository.nameWithOwner,
+          repositoryName: getCloneDirectoryName(repository.nameWithOwner),
         }),
       );
     }
@@ -695,9 +756,12 @@ function FolderBrowser(props: {
   readonly environment: EnvironmentOption;
   readonly pathInput: string;
   readonly setPathInput: (path: string) => void;
-  readonly navigateToBrowsePath: (path: string) => Promise<boolean>;
+  readonly navigateToBrowsePath: (input: {
+    readonly browseDirectoryPath: string;
+    readonly selectedDirectoryName?: string;
+  }) => Promise<boolean>;
+  readonly pinnedDirectoryName?: string;
 }) {
-  const accentColor = useThemeColor("--color-icon-muted");
   const browsePath = useMemo(
     () => getFilesystemBrowsePath(props.pathInput, props.environment.platform),
     [props.environment.platform, props.pathInput],
@@ -714,9 +778,16 @@ function FolderBrowser(props: {
           input: browseInput,
         }),
   );
+  // A pinned repository folder does not exist yet, so filtering the listing by
+  // it would empty the folder picker. Anything the user typed still filters.
+  const pinnedDirectoryName = props.pinnedDirectoryName ?? "";
+  const pinnedDirectoryMatches = isWindowsPlatform(props.environment.platform)
+    ? browsePath.filterQuery.toLowerCase() === pinnedDirectoryName.toLowerCase()
+    : browsePath.filterQuery === pinnedDirectoryName;
+  const browseFilterQuery = pinnedDirectoryMatches ? "" : browsePath.filterQuery;
   const { visibleEntries: visibleBrowseEntries } = useMemo(
-    () => filterFilesystemBrowseEntries(browseState.data?.entries ?? [], browsePath.filterQuery),
-    [browsePath.filterQuery, browseState.data?.entries],
+    () => filterFilesystemBrowseEntries(browseState.data?.entries ?? [], browseFilterQuery),
+    [browseFilterQuery, browseState.data?.entries],
   );
 
   return (
@@ -726,7 +797,7 @@ function FolderBrowser(props: {
       <ListSection>
         {browseState.isPending && browseState.data === null ? (
           <View className="items-center py-5">
-            <ActivityIndicator color={accentColor} />
+            <ActivityIndicator colorClassName={"accent-icon-muted"} />
           </View>
         ) : null}
         {browsePath.canBrowseUp ? (
@@ -736,7 +807,7 @@ function FolderBrowser(props: {
               <SymbolView
                 name="arrow.turn.left.up"
                 size={17}
-                tintColor={accentColor}
+                tintColorClassName={"accent-icon-muted"}
                 type="monochrome"
               />
             }
@@ -744,7 +815,9 @@ function FolderBrowser(props: {
             right={null}
             onPress={() => {
               if (browsePath.parentPath) {
-                void props.navigateToBrowsePath(browsePath.parentPath);
+                void props.navigateToBrowsePath({
+                  browseDirectoryPath: browsePath.parentPath,
+                });
               }
             }}
           />
@@ -753,15 +826,21 @@ function FolderBrowser(props: {
           <ListRow
             key={entry.fullPath}
             title={entry.name}
-            icon={<SymbolView name="folder" size={17} tintColor={accentColor} type="monochrome" />}
+            icon={
+              <SymbolView
+                name="folder"
+                size={17}
+                tintColorClassName={"accent-icon-muted"}
+                type="monochrome"
+              />
+            }
             isFirst={index === 0 && !browsePath.canBrowseUp}
             right={null}
             onPress={() => {
-              const nextPath =
-                browsePath.directoryPath.length > 0
-                  ? appendBrowsePathSegment(browsePath.directoryPath, entry.name)
-                  : ensureBrowseDirectoryPath(entry.fullPath);
-              void props.navigateToBrowsePath(nextPath);
+              void props.navigateToBrowsePath({
+                browseDirectoryPath: browsePath.directoryPath,
+                selectedDirectoryName: entry.name,
+              });
             }}
           />
         ))}
@@ -833,16 +912,28 @@ export function AddProjectDestinationScreen(props: {
   readonly environmentId?: string | string[];
   readonly remoteUrl?: string | string[];
   readonly repositoryTitle?: string | string[];
+  readonly repositoryName?: string | string[];
 }) {
   const cloneRepository = useAtomCommand(sourceControlEnvironment.cloneRepository, {
     reportFailure: false,
   });
+  const startProjectClone = useAtomCommand(sourceControlEnvironment.startProjectClone, {
+    reportFailure: false,
+  });
+  const navigation = useNavigation();
   const environment = useEnvironmentFromParam(props.environmentId);
   const createProject = useCreateProject(environment);
   const remoteUrl = stringParam(props.remoteUrl);
   const repositoryTitle = stringParam(props.repositoryTitle);
-  const { isBrowseNavigating, navigateToBrowsePath, pathInput, setPathInput } =
-    useBrowsePathInput(environment);
+  // A lookup derives this from "owner/repo", a pasted clone URL from its own
+  // last segment. Older links without the param keep the browsed folder.
+  // Trim once here: the path input and the folder-list filter must compare the
+  // same value, or a deep link with a padded param empties the folder picker.
+  const repositoryName = stringParam(props.repositoryName)?.trim() ?? "";
+  const { isBrowseNavigating, navigateToBrowsePath, pathInput, setPathInput } = useBrowsePathInput(
+    environment,
+    repositoryName,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -860,6 +951,48 @@ export function AddProjectDestinationScreen(props: {
     }
 
     setIsSubmitting(true);
+    if (environment.supportsCloneTracking) {
+      // The server creates the project and clones in the background; the
+      // draft screen shows progress and holds Start until the files land.
+      const projectId = ProjectId.make(uuidv4());
+      const title = inferProjectTitleFromPath(resolved.path);
+      const startResult = await startProjectClone({
+        environmentId: environment.environmentId,
+        input: {
+          projectId,
+          title,
+          createdAt: new Date().toISOString(),
+          remoteUrl,
+          destinationPath: resolved.path,
+        },
+      });
+      if (AsyncResult.isFailure(startResult)) {
+        setError(errorMessage(Cause.squash(startResult.cause)));
+      } else {
+        // The draft screen resolves its project from the client store, so it
+        // must not open before the create event has arrived (it would fall
+        // back to the project picker and lose the clone controls). Stay in
+        // the submitting state until then; the clone keeps running either way.
+        const project = await waitForProject(
+          { environmentId: environment.environmentId, projectId },
+          15_000,
+        );
+        if (project === null) {
+          setError(
+            "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+          );
+        } else {
+          openNewTaskDraft(navigation, {
+            environmentId: environment.environmentId,
+            projectId,
+            title,
+            cloning: "1",
+          });
+        }
+      }
+      setIsSubmitting(false);
+      return;
+    }
     const cloneResult = await cloneRepository({
       environmentId: environment.environmentId,
       input: {
@@ -882,8 +1015,10 @@ export function AddProjectDestinationScreen(props: {
     environment,
     isBrowseNavigating,
     isSubmitting,
+    navigation,
     pathInput,
     remoteUrl,
+    startProjectClone,
   ]);
 
   return (
@@ -915,6 +1050,7 @@ export function AddProjectDestinationScreen(props: {
             navigateToBrowsePath={navigateToBrowsePath}
             pathInput={pathInput}
             setPathInput={setPathInput}
+            pinnedDirectoryName={repositoryName}
           />
         </>
       ) : (

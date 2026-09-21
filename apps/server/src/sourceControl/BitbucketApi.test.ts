@@ -7,6 +7,7 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as TestClock from "effect/testing/TestClock";
 import {
   HttpClient,
   HttpClientError,
@@ -27,7 +28,7 @@ const bitbucketPullRequest = {
   updated_on: "2026-01-02T00:00:00.000Z",
   links: {
     html: {
-      href: "https://bitbucket.org/rovedev/rove/pull-requests/42",
+      href: "https://bitbucket.org/rovecode/rove/pull-requests/42",
     },
   },
   source: {
@@ -40,19 +41,19 @@ const bitbucketPullRequest = {
   destination: {
     branch: { name: "main" },
     repository: {
-      full_name: "rovedev/rove",
+      full_name: "rovecode/rove",
       workspace: { slug: "pingdotgg" },
     },
   },
 };
 
 const repositoryJson = {
-  full_name: "rovedev/rove",
+  full_name: "rovecode/rove",
   links: {
-    html: { href: "https://bitbucket.org/rovedev/rove" },
+    html: { href: "https://bitbucket.org/rovecode/rove" },
     clone: [
-      { name: "https", href: "https://bitbucket.org/rovedev/rove.git" },
-      { name: "ssh", href: "git@bitbucket.org:rovedev/rove.git" },
+      { name: "https", href: "https://bitbucket.org/rovecode/rove.git" },
+      { name: "ssh", href: "git@bitbucket.org:rovecode/rove.git" },
     ],
   },
   mainbranch: { name: "main" },
@@ -72,7 +73,7 @@ function makeLayer(input: {
   );
   const gitMock = {
     readConfigValue: vi.fn<GitVcsDriver.GitVcsDriver["Service"]["readConfigValue"]>(() =>
-      Effect.succeed<string | null>("git@bitbucket.org:rovedev/rove.git"),
+      Effect.succeed<string | null>("git@bitbucket.org:rovecode/rove.git"),
     ),
     resolvePrimaryRemoteName: vi.fn<
       GitVcsDriver.GitVcsDriver["Service"]["resolvePrimaryRemoteName"]
@@ -107,7 +108,7 @@ function makeLayer(input: {
         remotes: [
           {
             name: "origin",
-            url: "git@bitbucket.org:rovedev/rove.git",
+            url: "git@bitbucket.org:rovecode/rove.git",
             pushUrl: Option.none(),
             isPrimary: true,
           },
@@ -183,7 +184,7 @@ it.effect("parses pull request responses from the Bitbucket REST API", () => {
     assert.deepStrictEqual(result, {
       number: 42,
       title: "Add Bitbucket provider",
-      url: "https://bitbucket.org/rovedev/rove/pull-requests/42",
+      url: "https://bitbucket.org/rovecode/rove/pull-requests/42",
       baseRefName: "main",
       headRefName: "feature/source-control",
       state: "open",
@@ -194,7 +195,7 @@ it.effect("parses pull request responses from the Bitbucket REST API", () => {
     });
     assert.strictEqual(
       execute.mock.calls[0]?.[0].url,
-      "https://api.test.local/2.0/repositories/rovedev/rove/pullrequests/42",
+      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests/42",
     );
   }).pipe(Effect.provide(layer));
 });
@@ -210,7 +211,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
             state: "MERGED",
             source: {
               branch: { name: "feature/merged" },
-              repository: { full_name: "rovedev/rove" },
+              repository: { full_name: "rovecode/rove" },
             },
           },
         ],
@@ -230,7 +231,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/rovedev/rove/pullrequests",
+      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests",
     );
     assert.deepStrictEqual(request?.urlParams.params, [
       ["pagelen", "10"],
@@ -323,14 +324,14 @@ it.effect("reads repository clone URLs and default branch", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.getRepositoryCloneUrls({
       cwd: "/repo",
-      repository: "rovedev/rove",
+      repository: "rovecode/rove",
     });
     const defaultBranch = yield* bitbucket.getDefaultBranch({ cwd: "/repo" });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "rovedev/rove",
-      url: "https://bitbucket.org/rovedev/rove.git",
-      sshUrl: "git@bitbucket.org:rovedev/rove.git",
+      nameWithOwner: "rovecode/rove",
+      url: "https://bitbucket.org/rovecode/rove.git",
+      sshUrl: "git@bitbucket.org:rovecode/rove.git",
     });
     assert.strictEqual(defaultBranch, "main");
   }).pipe(Effect.provide(layer));
@@ -362,8 +363,8 @@ it.effect(
       assert.deepStrictEqual(
         execute.mock.calls.map((call) => call[0].url).toSorted(),
         [
-          "https://api.test.local/2.0/repositories/rovedev/rove",
-          "https://api.test.local/2.0/repositories/rovedev/rove/branching-model",
+          "https://api.test.local/2.0/repositories/rovecode/rove",
+          "https://api.test.local/2.0/repositories/rovecode/rove/branching-model",
         ].toSorted(),
       );
     }).pipe(Effect.provide(layer));
@@ -425,18 +426,18 @@ it.effect("creates repositories through the Bitbucket REST API", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.createRepository({
       cwd: "/repo",
-      repository: "rovedev/rove",
+      repository: "rovecode/rove",
       visibility: "private",
     });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "rovedev/rove",
-      url: "https://bitbucket.org/rovedev/rove.git",
-      sshUrl: "git@bitbucket.org:rovedev/rove.git",
+      nameWithOwner: "rovecode/rove",
+      url: "https://bitbucket.org/rovecode/rove.git",
+      sshUrl: "git@bitbucket.org:rovecode/rove.git",
     });
 
     const request = execute.mock.calls[0]?.[0];
-    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/rovedev/rove");
+    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/rovecode/rove");
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
     const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
@@ -472,7 +473,7 @@ it.effect("creates pull requests using the official REST payload shape", () => {
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/rovedev/rove/pullrequests",
+      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests",
     );
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
@@ -573,6 +574,24 @@ it.effect("keeps Bitbucket response bodies out of checkout diagnostics", () => {
   }).pipe(Effect.provide(layer));
 });
 
+it.effect("keeps a 429 Retry-After time on the response error", () => {
+  const { layer } = makeLayer({
+    response: () => new Response("busy", { status: 429, headers: { "Retry-After": "120" } }),
+  });
+
+  return Effect.gen(function* () {
+    yield* TestClock.setTime(1_000);
+    const bitbucket = yield* BitbucketApi.BitbucketApi;
+    const error = yield* bitbucket
+      .request({ method: "GET", url: "/repositories/acme/web" })
+      .pipe(Effect.flip);
+
+    assert.instanceOf(error, BitbucketApi.BitbucketResponseError);
+    assert.strictEqual(error.status, 429);
+    assert.strictEqual(error.retryAt, 121_000);
+  }).pipe(Effect.provide(layer));
+});
+
 it.effect("preserves Bitbucket response body read failures as their immediate cause", () => {
   const cause = new Error("response stream failed");
   const { layer } = makeLayer({
@@ -611,7 +630,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
         source: {
           branch: { name: "feature/source-control" },
           repository: {
-            full_name: "rovedev/rove",
+            full_name: "rovecode/rove",
             workspace: { slug: "pingdotgg" },
           },
         },
@@ -629,7 +648,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
           baseUrl: "https://bitbucket.org",
         },
         remoteName: "origin",
-        remoteUrl: "git@bitbucket.org:rovedev/rove.git",
+        remoteUrl: "git@bitbucket.org:rovecode/rove.git",
       },
       reference: "42",
       force: true,
@@ -669,7 +688,7 @@ it.effect("preserves Git checkout failures without deriving the domain message f
         source: {
           branch: { name: "feature/source-control" },
           repository: {
-            full_name: "rovedev/rove",
+            full_name: "rovecode/rove",
             workspace: { slug: "pingdotgg" },
           },
         },

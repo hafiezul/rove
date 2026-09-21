@@ -27,7 +27,7 @@ export const GetProjectionStateInput = Schema.Struct({
 export type GetProjectionStateInput = typeof GetProjectionStateInput.Type;
 
 /**
- * ProjectionStateRepositoryShape - Service API for projector state records.
+ * ProjectionStateRepositoryContract - Service API for projector state records.
  */
 export interface ProjectionStateRepositoryContract {
   /**
@@ -36,6 +36,11 @@ export interface ProjectionStateRepositoryContract {
    * Upserts by projector name.
    */
   readonly upsert: (row: ProjectionState) => Effect.Effect<void, ProjectionRepositoryError>;
+
+  /** Insert or replace projector cursors in one statement. Empty batches do nothing. */
+  readonly upsertMany: (
+    rows: ReadonlyArray<ProjectionState>,
+  ) => Effect.Effect<void, ProjectionRepositoryError>;
 
   /**
    * Read projection cursor state for a projector key.

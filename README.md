@@ -1,20 +1,16 @@
 # Rove Code
 
-Rove Code is an independent, open-source fork of an upstream coding-agent control surface: a fast, remote-ready control surface for coding agents.
+Rove Code is an independent, open-source fork of [Rove Code](https://github.com/rovecode/rove): a fast, remote-ready control surface for coding agents.
 
-The project follows the upstream project closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove Code is not affiliated with or endorsed by the upstream authors.
+Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, Rove Code can control them.
+
+The project follows Rove Code closely while creating room to explore a different direction for how developers run, guide, and move between coding agents. Rove Code is not affiliated with or endorsed by T3 Tools or Ping Labs.
 
 ## Current status
 
-Rove Code is at the beginning of its fork. The product is named **Rove Code**; development happens under the [`rovecode`](https://github.com/rovecode) GitHub organization.
+Rove Code is at the beginning of its fork. The repository identity and documentation use the Rove Code name, while the applications, CLI, package names, and storage identifiers still use Rove Code names for upstream compatibility. Expect those technical identifiers to remain unchanged until a migration has a clear user benefit.
 
-Naming conventions:
-
-- User-facing identity uses "Rove Code" (app display names, installers, documentation). Companion products keep their family names: Rove Connect, Rove Mobile.
-- Technical identifiers stay at the family level (`rove`): environment variables (`ROVE_*`), URL schemes (`rove://`), bundle IDs (`dev.rove.app.*`), the `~/.rove` state directory, and the `rove-relay` JWT audience. This keeps one namespace across Rove Code, Rove Connect, and Rove Mobile.
-- A few deep technical identifiers inherited from upstream (for example the `@t3tools/*` npm scope and `t3` CLI name) remain unchanged until a migration has a clear user benefit.
-
-The inherited application supports Claude Code, Codex, Cursor, Grok Build, and OpenCode across web, desktop, and mobile clients.
+The inherited application supports Claude Code, Codex, Cursor, Grok Build, OpenCode, and Antigravity across web, desktop, and mobile clients.
 
 ## Run from source
 
@@ -29,7 +25,7 @@ The development server prints the local URL and pairing information needed to op
 
 ## Documentation
 
-Start with the [documentation index](./docs).
+Start with the [documentation index](./docs). Because Rove Code currently preserves upstream runtime behavior, much of the product documentation still refers to Rove Code and its existing commands.
 
 Useful starting points:
 
@@ -41,6 +37,6 @@ Useful starting points:
 
 ## Upstream
 
-Rove Code is built from an upstream open-source project that retains its original copyright and is distributed under the [MIT License](./LICENSE).
+Rove Code is built from [rovecode/rove](https://github.com/rovecode/rove). Upstream retains its original copyright and is distributed under the [MIT License](./LICENSE).
 
-When a change is broadly useful, contributors should consider proposing it upstream as well.
+When a change is broadly useful and fits Rove Code's direction, contributors should consider proposing it upstream as well.

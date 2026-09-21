@@ -25,7 +25,7 @@ import {
 } from "../src/provider/Services/ProviderService.ts";
 import * as ServerConfig from "../src/config.ts";
 import { ServerSettingsService } from "../src/serverSettings.ts";
-import { AnalyticsService } from "../src/telemetry/Services/AnalyticsService.ts";
+import { AnalyticsService } from "../src/telemetry/AnalyticsService.ts";
 import { SqlitePersistenceMemory } from "../src/persistence/Layers/Sqlite.ts";
 import * as ProviderSessionRuntime from "../src/persistence/ProviderSessionRuntime.ts";
 
@@ -39,7 +39,6 @@ import {
   codexTurnToolFixture,
   codexTurnTextFixture,
 } from "./fixtures/providerRuntime.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 const codexInstanceId = ProviderInstanceId.make("codex");
 
@@ -59,7 +58,7 @@ interface IntegrationFixture {
 
 interface RecordedAnalyticsEvent {
   readonly event: string;
-  readonly properties: Readonly<Record<string, SchemaJson>> | undefined;
+  readonly properties: Readonly<Record<string, unknown>> | undefined;
 }
 
 /**
@@ -101,7 +100,10 @@ const makeIntegrationFixture = (options?: { readonly analytics?: Layer.Layer<Ana
       Layer.succeed(ProviderEventLoggers, NoOpProviderEventLoggers),
     ).pipe(Layer.provide(SqlitePersistenceMemory));
 
-    const layer = makeProviderServiceLive().pipe(Layer.provide(shared));
+    const layer = makeProviderServiceLive().pipe(
+      Layer.provide(NodeServices.layer),
+      Layer.provide(shared),
+    );
 
     return {
       cwd,

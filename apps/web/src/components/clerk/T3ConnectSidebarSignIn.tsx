@@ -43,7 +43,7 @@ function ConfiguredT3ConnectSidebarAvatar() {
       <UserButton.UserProfilePage
         label="Rove Connect"
         labelIcon={<ServerIcon className="size-4" />}
-        url="t3-connect"
+        url="rove-connect"
       >
         <T3ConnectUserProfilePage />
       </UserButton.UserProfilePage>

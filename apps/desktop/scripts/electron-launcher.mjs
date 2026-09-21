@@ -16,19 +16,19 @@ const repoRoot = NodePath.resolve(desktopDir, "..", "..");
 const devBundleIdSuffix = NodePath.basename(repoRoot)
   .toLowerCase()
   .replaceAll(/[^a-z0-9]+/g, "");
-export const APP_DISPLAY_NAME = isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)";
-export const APP_BUNDLE_ID = isDevelopment
+const APP_DISPLAY_NAME = isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)";
+const APP_BUNDLE_ID = isDevelopment
   ? `dev.rove.app.dev.${devBundleIdSuffix || "local"}`
   : "dev.rove.app";
 const APP_PROTOCOL_SCHEMES = isDevelopment ? ["rove-dev"] : ["rove"];
-const LAUNCHER_VERSION = 14;
-const defaultIconPath = NodePath.join(desktopDir, "resources", "icon.icns");
+const LAUNCHER_VERSION = 19;
 const developmentMacIconPngPath = NodePath.join(
   repoRoot,
   "assets",
   "dev",
   "blueprint-macos-1024.png",
 );
+const productionMacIconPngPath = NodePath.join(repoRoot, "assets", "prod", "black-macos-1024.png");
 // oxlint-disable-next-line rove/no-global-process-runtime -- Standalone launcher script has no Effect runtime.
 const hostPlatform = NodeOS.platform();
 
@@ -97,16 +97,19 @@ function runChecked(command, args) {
   throw new Error(`Failed to run ${command} ${args.join(" ")}: ${details}`.trim());
 }
 
+export function resolveMacCodeSignArguments(appBundlePath) {
+  return ["--force", "--deep", "--sign", "-", "--timestamp=none", appBundlePath];
+}
+
+function signMacLauncherBundle(appBundlePath) {
+  runChecked("codesign", resolveMacCodeSignArguments(appBundlePath));
+}
+
 function shellSingleQuote(value) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-export function makeDevelopmentLauncherScript({
-  electronBinaryPath,
-  mainEntryPath,
-  desktopRoot,
-  environment,
-}) {
+export function makeDevelopmentEnvironmentScript(environment) {
   const envEntries = [
     ["VITE_DEV_SERVER_URL", environment.VITE_DEV_SERVER_URL],
     ["ROVE_PORT", environment.ROVE_PORT],
@@ -114,30 +117,64 @@ export function makeDevelopmentLauncherScript({
     ["ROVE_COMMIT_HASH", environment.ROVE_COMMIT_HASH],
     ["ROVE_OTLP_TRACES_URL", environment.ROVE_OTLP_TRACES_URL],
     ["ROVE_OTLP_EXPORT_INTERVAL_MS", environment.ROVE_OTLP_EXPORT_INTERVAL_MS],
+    ["ROVE_OTLP_HEADERS", environment.ROVE_OTLP_HEADERS],
+    ["ROVE_OTLP_PROTOCOL", environment.ROVE_OTLP_PROTOCOL],
     ["ROVE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
   ].filter((entry) => RuntimePredicate.isString(entry[1]) && entry[1].trim().length > 0);
   return [
-    "#!/bin/sh",
     ...envEntries.map(
       ([name, value]) =>
         `if [ -z "\${${name}:-}" ]; then export ${name}=${shellSingleQuote(value)}; fi`,
     ),
+    "",
+  ].join("\n");
+}
+
+export function makeDevelopmentLauncherScript({
+  electronBinaryPath,
+  mainEntryPath,
+  desktopRoot,
+  environmentFilePath,
+}) {
+  return [
+    "#!/bin/sh",
+    `if [ -f ${shellSingleQuote(environmentFilePath)} ]; then . ${shellSingleQuote(environmentFilePath)}; fi`,
     `exec ${shellSingleQuote(electronBinaryPath)} --rove-dev-root=${shellSingleQuote(desktopRoot)} ${shellSingleQuote(mainEntryPath)} "$@"`,
     "",
   ].join("\n");
 }
 
-function writeDevelopmentLauncherScript(targetBinaryPath, electronBinaryPath) {
+const developmentEnvironmentFilePath = NodePath.join(
+  desktopDir,
+  ".electron-runtime",
+  "dev-environment.sh",
+);
+
+function writeDevelopmentEnvironmentScript() {
+  NodeFS.mkdirSync(NodePath.dirname(developmentEnvironmentFilePath), { recursive: true });
   NodeFS.writeFileSync(
-    targetBinaryPath,
-    makeDevelopmentLauncherScript({
-      electronBinaryPath,
-      mainEntryPath: NodePath.join(desktopDir, "dist-electron", "main.cjs"),
-      desktopRoot: desktopDir,
-      environment: process.env,
-    }),
+    developmentEnvironmentFilePath,
+    makeDevelopmentEnvironmentScript(process.env),
   );
+}
+
+export function writeDevelopmentLauncherScript(targetBinaryPath, electronBinaryPath) {
+  const script = makeDevelopmentLauncherScript({
+    electronBinaryPath,
+    mainEntryPath: NodePath.join(desktopDir, "dist-electron", "main.cjs"),
+    desktopRoot: desktopDir,
+    environmentFilePath: developmentEnvironmentFilePath,
+  });
+  if (
+    NodeFS.existsSync(targetBinaryPath) &&
+    NodeFS.readFileSync(targetBinaryPath, "utf8") === script
+  ) {
+    NodeFS.chmodSync(targetBinaryPath, 0o755);
+    return false;
+  }
+  NodeFS.writeFileSync(targetBinaryPath, script);
   NodeFS.chmodSync(targetBinaryPath, 0o755);
+  return true;
 }
 
 function registerMacLauncherBundle(appBundlePath) {
@@ -166,15 +203,26 @@ function registerMacLauncherBundle(appBundlePath) {
   }
 }
 
-function ensureDevelopmentIconIcns(runtimeDir) {
-  const generatedIconPath = NodePath.join(runtimeDir, "icon-dev.icns");
+// Bundle-internal paths are macOS paths whatever host builds them.
+export function resolveMacLauncherIconPaths(runtimeDir, development = isDevelopment) {
+  return {
+    sourceIconPath: development ? developmentMacIconPngPath : productionMacIconPngPath,
+    generatedIconPath: NodePath.posix.join(
+      runtimeDir,
+      development ? "icon-dev.icns" : "icon-prod.icns",
+    ),
+  };
+}
+
+function ensureMacIconIcns(runtimeDir) {
+  const { sourceIconPath, generatedIconPath } = resolveMacLauncherIconPaths(runtimeDir);
   NodeFS.mkdirSync(runtimeDir, { recursive: true });
 
-  if (!NodeFS.existsSync(developmentMacIconPngPath)) {
-    return defaultIconPath;
+  if (!NodeFS.existsSync(sourceIconPath)) {
+    throw new Error(`Desktop macOS icon source is missing at ${sourceIconPath}`);
   }
 
-  const sourceMtimeMs = NodeFS.statSync(developmentMacIconPngPath).mtimeMs;
+  const sourceMtimeMs = NodeFS.statSync(sourceIconPath).mtimeMs;
   if (
     NodeFS.existsSync(generatedIconPath) &&
     NodeFS.statSync(generatedIconPath).mtimeMs >= sourceMtimeMs
@@ -192,7 +240,7 @@ function ensureDevelopmentIconIcns(runtimeDir) {
         "-z",
         String(size),
         String(size),
-        developmentMacIconPngPath,
+        sourceIconPath,
         "--out",
         NodePath.join(iconsetDir, `icon_${size}x${size}.png`),
       ]);
@@ -202,7 +250,7 @@ function ensureDevelopmentIconIcns(runtimeDir) {
         "-z",
         String(retinaSize),
         String(retinaSize),
-        developmentMacIconPngPath,
+        sourceIconPath,
         "--out",
         NodePath.join(iconsetDir, `icon_${size}x${size}@2x.png`),
       ]);
@@ -210,24 +258,29 @@ function ensureDevelopmentIconIcns(runtimeDir) {
 
     runChecked("iconutil", ["-c", "icns", iconsetDir, "-o", generatedIconPath]);
     return generatedIconPath;
-  } catch (error) {
-    console.warn(
-      "[desktop-launcher] Failed to generate dev macOS icon, falling back to default icon.",
-      error,
-    );
-    return defaultIconPath;
   } finally {
     NodeFS.rmSync(iconsetRoot, { recursive: true, force: true });
   }
 }
 
+export function resolveMacBundleInfoPlistStrings(executableName) {
+  return {
+    CFBundleDisplayName: APP_DISPLAY_NAME,
+    CFBundleName: APP_DISPLAY_NAME,
+    CFBundleIdentifier: APP_BUNDLE_ID,
+    CFBundleExecutable: executableName,
+    CFBundleIconFile: "icon.icns",
+    NSScreenCaptureUsageDescription:
+      "Rove Code captures the active window when you use the snapshot shortcut.",
+    NSDocumentsFolderUsageDescription: "Rove Code reads project files you open in the desktop app.",
+  };
+}
+
 function patchMainBundleInfoPlist(appBundlePath, iconPath, executableName) {
   const infoPlistPath = NodePath.join(appBundlePath, "Contents", "Info.plist");
-  setPlistString(infoPlistPath, "CFBundleDisplayName", APP_DISPLAY_NAME);
-  setPlistString(infoPlistPath, "CFBundleName", APP_DISPLAY_NAME);
-  setPlistString(infoPlistPath, "CFBundleIdentifier", APP_BUNDLE_ID);
-  setPlistString(infoPlistPath, "CFBundleExecutable", executableName);
-  setPlistString(infoPlistPath, "CFBundleIconFile", "icon.icns");
+  for (const [key, value] of Object.entries(resolveMacBundleInfoPlistStrings(executableName))) {
+    setPlistString(infoPlistPath, key, value);
+  }
   setPlistJson(infoPlistPath, "CFBundleURLTypes", [
     {
       CFBundleURLName: APP_BUNDLE_ID,
@@ -280,12 +333,12 @@ function readJson(path) {
 }
 
 export function resolveMacLauncherPaths(appBundlePath, displayName = APP_DISPLAY_NAME) {
-  const executableDir = NodePath.join(appBundlePath, "Contents", "MacOS");
+  const executableDir = NodePath.posix.join(appBundlePath, "Contents", "MacOS");
   const launcherExecutableName = `${displayName} Launcher`;
   return {
     launcherExecutableName,
-    launcherBinaryPath: NodePath.join(executableDir, launcherExecutableName),
-    runtimeElectronBinaryPath: NodePath.join(executableDir, "Electron"),
+    launcherBinaryPath: NodePath.posix.join(executableDir, launcherExecutableName),
+    runtimeElectronBinaryPath: NodePath.posix.join(executableDir, "Electron"),
   };
 }
 
@@ -298,7 +351,7 @@ function buildMacLauncher(electronBinaryPath) {
   const launcherBinaryPath = isDevelopment
     ? developmentPaths.launcherBinaryPath
     : runtimeElectronBinaryPath;
-  const iconPath = isDevelopment ? ensureDevelopmentIconIcns(runtimeDir) : defaultIconPath;
+  const iconPath = ensureMacIconIcns(runtimeDir);
   const metadataPath = NodePath.join(runtimeDir, "metadata.json");
 
   NodeFS.mkdirSync(runtimeDir, { recursive: true });
@@ -323,7 +376,10 @@ function buildMacLauncher(electronBinaryPath) {
       // The launcher also handles protocol activations outside the dev runner,
       // so refresh its fallback environment on every launch. Never let a value
       // captured by an older parent app override the live dev-runner environment.
-      writeDevelopmentLauncherScript(launcherBinaryPath, runtimeElectronBinaryPath);
+      writeDevelopmentEnvironmentScript();
+      if (writeDevelopmentLauncherScript(launcherBinaryPath, runtimeElectronBinaryPath)) {
+        signMacLauncherBundle(targetAppBundlePath);
+      }
     }
     registerMacLauncherBundle(targetAppBundlePath);
     return launcherBinaryPath;
@@ -350,8 +406,10 @@ function buildMacLauncher(electronBinaryPath) {
     // Electron.app even though this bundle's Info.plist has the Rove Code name.
     // Its conventional executable name also keeps Electron's default-app runtime
     // in development mode instead of making app.isPackaged report true.
+    writeDevelopmentEnvironmentScript();
     writeDevelopmentLauncherScript(launcherBinaryPath, runtimeElectronBinaryPath);
   }
+  signMacLauncherBundle(targetAppBundlePath);
   NodeFS.writeFileSync(metadataPath, `${JSON.stringify(expectedMetadata, null, 2)}\n`);
   registerMacLauncherBundle(targetAppBundlePath);
 
@@ -383,7 +441,7 @@ function resolveLinuxSandboxArgs(electronBinaryPath) {
   return ["--no-sandbox"];
 }
 
-export function resolveElectronPath() {
+function resolveElectronPath() {
   const electronBinaryPath = resolveElectronBinaryPath();
 
   if (hostPlatform !== "darwin") {

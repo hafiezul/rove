@@ -1,11 +1,11 @@
 import type { ComponentType, Dispatch, ReactElement, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { AssetResource, EnvironmentId } from "@t3tools/contracts";
-import * as RuntimePredicate from "effect/Predicate";
+import type { EnvironmentId } from "@t3tools/contracts";
+import { PROJECT_FAVICON_FALLBACK_MARKER } from "@t3tools/shared/projectFavicon";
 
 const testState = vi.hoisted(() => ({
   faviconUrl: "https://environment.test/api/assets/token-a/v1-20-favicon.svg",
-  lastResource: null as AssetResource | null,
+  lastTarget: null as unknown,
 }));
 
 const hooks = vi.hoisted(() => {
@@ -26,26 +26,19 @@ const hooks = vi.hoisted(() => {
       if (!slots[index]) {
         slots[index] = Array.from({ length: size }, () => Symbol.for("react.memo_cache_sentinel"));
       }
-      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return slots[index] as unknown[];
     },
     useState<T>(initialValue: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
       const index = nextIndex();
       if (index >= slots.length) {
-        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-        slots[index] = RuntimePredicate.isFunction(initialValue)
-          ? (initialValue as () => T)()
-          : initialValue;
+        slots[index] =
+          typeof initialValue === "function" ? (initialValue as () => T)() : initialValue;
       }
       const setValue: Dispatch<SetStateAction<T>> = (nextValue) => {
-        const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-          previous = slots[index] as T;
-        // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-        slots[index] = RuntimePredicate.isFunction(nextValue)
-          ? (nextValue as (value: T) => T)(previous)
-          : nextValue;
+        const previous = slots[index] as T;
+        slots[index] =
+          typeof nextValue === "function" ? (nextValue as (value: T) => T)(previous) : nextValue;
       };
-      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return [slots[index] as T, setValue];
     },
   };
@@ -60,14 +53,27 @@ vi.mock("react", async (importOriginal) => {
 });
 
 vi.mock("react/compiler-runtime", () => ({ c: hooks.useMemoCache }));
-vi.mock("../assets/assetUrls", () => ({
-  useAssetUrlState: (_environmentId: EnvironmentId, resource: AssetResource) => {
-    testState.lastResource = resource;
-    return { _tag: "Success", url: testState.faviconUrl };
+vi.mock("lucide-react/dynamic", () => ({
+  DynamicIcon: "dynamic-icon",
+  iconNames: ["alarm-clock", "folder-code"],
+}));
+vi.mock("@effect/atom-react", () => ({
+  useAtomValue: () => testState.faviconUrl,
+}));
+vi.mock("../state/assets", () => ({
+  projectFaviconUrlAtom: (input: unknown) => {
+    testState.lastTarget = input;
   },
 }));
 
-import { ProjectFavicon } from "./ProjectFavicon";
+import { ProjectFavicon, type ProjectFaviconProject } from "./ProjectFavicon";
+
+function makeProject(
+  overrides: Partial<ProjectFaviconProject> &
+    Pick<ProjectFaviconProject, "workspaceRoot" | "title">,
+): ProjectFaviconProject {
+  return { environmentId: "environment-test" as EnvironmentId, ...overrides };
+}
 
 type ProjectFaviconImageProps = {
   readonly cacheKey: string;
@@ -86,16 +92,16 @@ type ProjectFaviconImageElement = ReactElement<{
   readonly children: [ReactElement | null, ImageElement | null, ImageElement | null];
 }>;
 
-function resolveImageComponent() {
+function resolveImageComponent(): {
+  readonly Component: (props: ProjectFaviconImageProps) => ProjectFaviconImageElement;
+  readonly props: ProjectFaviconImageProps;
+} {
   hooks.beginRender();
-  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    element = ProjectFavicon({
-      environmentId: "environment-test" as EnvironmentId,
-      cwd: "/workspace-test",
-    }) as ReactElement<ProjectFaviconImageProps>;
+  const element = ProjectFavicon({
+    project: makeProject({ workspaceRoot: "/workspace-test", title: "workspace-test" }),
+  }) as ReactElement<ProjectFaviconImageProps>;
   hooks.reset();
 
-  // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
   return {
     Component: element.type as (props: ProjectFaviconImageProps) => ProjectFaviconImageElement,
     props: element.props,
@@ -113,6 +119,64 @@ function renderImage(
 describe("ProjectFavicon", () => {
   beforeEach(() => {
     hooks.reset();
+    testState.faviconUrl = "https://environment.test/api/assets/token-a/v1-20-favicon.svg";
+  });
+
+  it("shows the project monogram when no favicon exists", () => {
+    testState.faviconUrl = `https://environment.test/api/assets/token/${PROJECT_FAVICON_FALLBACK_MARKER}`;
+
+    const element = ProjectFavicon({
+      project: makeProject({ workspaceRoot: "/workspace/analytics-db", title: "analytics-db" }),
+    }) as ReactElement<{
+      readonly projectName?: string;
+    }>;
+
+    expect(element.props.projectName).toBe("analytics-db");
+  });
+
+  it("uses the same monogram fallback for every project category", () => {
+    testState.faviconUrl = `https://environment.test/api/assets/token/${PROJECT_FAVICON_FALLBACK_MARKER}`;
+
+    const element = ProjectFavicon({
+      project: makeProject({ workspaceRoot: "/workspace/agent-runtime", title: "agent-runtime" }),
+    }) as ReactElement<{
+      readonly projectName?: string;
+    }>;
+
+    expect(element.props.projectName).toBe("agent-runtime");
+  });
+
+  it("renders a saved Lucide icon and color ahead of an uploaded favicon", () => {
+    const element = ProjectFavicon({
+      project: makeProject({
+        workspaceRoot: "/workspace/test",
+        title: "test",
+        faviconPath: "brand/icon.svg",
+        projectIcon: { kind: "lucide", name: "alarm-clock", color: "violet" },
+      }),
+    }) as ReactElement<{
+      readonly children: ReactElement<{
+        readonly children: ReactElement<{ readonly name: string; readonly className: string }>;
+      }>;
+      readonly className: string;
+    }>;
+
+    expect(element.props.children.props.children.props.name).toBe("alarm-clock");
+    expect(element.props.className).toContain("text-violet-600");
+    expect(element.props.children.props.children.props.className).toContain("text-violet-600");
+  });
+
+  it("renders a saved emoji ahead of an uploaded favicon", () => {
+    const element = ProjectFavicon({
+      project: makeProject({
+        workspaceRoot: "/workspace/test",
+        title: "test",
+        faviconPath: "brand/icon.svg",
+        projectIcon: { kind: "emoji", emoji: "🦄" },
+      }),
+    }) as ReactElement<{ readonly emoji: string }>;
+
+    expect(element.props.emoji).toBe("🦄");
   });
 
   it("falls back when the displayed favicon fails without discarding a valid older image early", () => {
@@ -139,15 +203,17 @@ describe("ProjectFavicon", () => {
 
   it("requests a saved favicon path when one is set", () => {
     ProjectFavicon({
-      environmentId: "environment-test" as EnvironmentId,
-      cwd: "/workspace-test",
-      faviconPath: "brand/icon.svg",
+      project: makeProject({
+        workspaceRoot: "/workspace-test",
+        title: "workspace-test",
+        faviconPath: "brand/icon.svg",
+      }),
     });
 
-    expect(testState.lastResource).toEqual({
-      _tag: "project-favicon",
+    expect(testState.lastTarget).toMatchObject({
+      environmentId: "environment-test",
       cwd: "/workspace-test",
-      path: "brand/icon.svg",
+      faviconPath: "brand/icon.svg",
     });
   });
 });

@@ -11,7 +11,7 @@ import {
   type NativeStackNavigationOptions,
 } from "@react-navigation/native-stack";
 import { useEffect, useRef } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { AppText as Text } from "./components/AppText";
@@ -20,9 +20,13 @@ import { ArchivedThreadsRouteScreen } from "./features/archive/ArchivedThreadsRo
 import { useAgentNotificationNavigation } from "./features/agent-awareness/notificationNavigation";
 import { ConnectOnboardingRouteScreen } from "./features/cloud/ConnectOnboardingRouteScreen";
 import { useConnectOnboardingNavigation } from "./features/cloud/connectOnboardingNavigation";
+import { AttachmentFileScreen } from "./features/files/AttachmentFileScreen";
 import { ThreadFilesTreeScreen, ThreadFileScreen } from "./features/files/ThreadFilesRouteScreen";
 import { AdaptiveWorkspaceLayout } from "./features/layout/AdaptiveWorkspaceLayout";
-import { HardwareKeyboardCommandProvider } from "./features/keyboard/HardwareKeyboardCommandProvider";
+import {
+  HardwareKeyboardCommandOverlay,
+  HardwareKeyboardCommandProvider,
+} from "./features/keyboard/HardwareKeyboardCommandProvider";
 import { ReviewCommentComposerSheet } from "./features/review/ReviewCommentComposerSheet";
 import { ReviewSheet } from "./features/review/ReviewSheet";
 import { ThreadTerminalRouteScreen } from "./features/terminal/ThreadTerminalRouteScreen";
@@ -52,10 +56,17 @@ import { NewTaskFlowProvider } from "./features/threads/new-task-flow-provider";
 import { NewTaskRouteScreen } from "./features/threads/NewTaskRouteScreen";
 import { SettingsAppearanceRouteScreen } from "./features/settings/SettingsAppearanceRouteScreen";
 import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsClientStorageRouteScreen";
+import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
 import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
+import { SettingsKeyboardRouteScreen } from "./features/settings/SettingsKeyboardRouteScreen";
 import { SettingsLegalRouteScreen } from "./features/settings/SettingsLegalRouteScreen";
+import {
+  SettingsOpenSourceLicenseRouteScreen,
+  SettingsOpenSourceLicensesRouteScreen,
+} from "./features/settings/SettingsOpenSourceLicensesRouteScreen";
 import { SettingsProjectGroupingRouteScreen } from "./features/settings/SettingsProjectGroupingRouteScreen";
+import { UsageLimitAccountScreen } from "./features/usage/UsageLimitsPooled";
 import { UsageRouteScreen } from "./features/usage/UsageRouteScreen";
 import { SettingsRouteScreen } from "./features/settings/SettingsRouteScreen";
 import { ShowcaseCaptureCoordinator } from "./features/showcase/ShowcaseCaptureCoordinator";
@@ -71,12 +82,9 @@ import {
 } from "./features/sharing/incoming-share-presentation";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "./native/native-glass";
 import { nativeHeaderScrollEdgeEffects } from "./native/StackHeader";
-import {
-  FORM_SHEET_PRESENTATION_OPTIONS,
-  NATIVE_SHEET_SURFACE_COLOR,
-  NATIVE_SHEET_SURFACE_CONTENT_STYLE,
-} from "./native/sheet-surface";
+import { FORM_SHEET_PRESENTATION_OPTIONS } from "./native/sheet-surface";
 import { useThreadOutboxDrain } from "./state/use-thread-outbox-drain";
+import { useComposerAttachmentUploadWorker } from "./state/composer-attachment-uploads";
 
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
 
@@ -90,43 +98,31 @@ type AppScreenOptions = NativeStackNavigationOptions & {
 // GLASS: transparent header over the screen's primary scroll view on supported
 // iOS versions. Pre-glass iOS gets the same solid material as internal-scroll
 // surfaces so content is laid out below the bar instead of underlapping it.
-const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  GLASS_HEADER_OPTIONS: AppScreenOptions = {
-    headerBackButtonDisplayMode: "minimal",
-    headerBackTitle: "",
-    headerLargeTitle: false,
-    headerShadowVisible: false,
-    headerShown: true,
-    headerStyle: NATIVE_LIQUID_GLASS_SUPPORTED
-      ? { backgroundColor: "transparent" }
-      : NATIVE_SHEET_SURFACE_COLOR !== undefined
-        ? { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as string }
-        : undefined,
-    headerTitleStyle: { fontSize: 18, fontWeight: "800" },
-    headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
-    scrollEdgeEffects: NATIVE_LIQUID_GLASS_SUPPORTED ? HEADER_SCROLL_EDGE_EFFECTS : undefined,
-    unstable_navigationItemStyle: NATIVE_LIQUID_GLASS_SUPPORTED ? "editor" : undefined,
-  };
+const GLASS_HEADER_OPTIONS: AppScreenOptions = {
+  headerBackButtonDisplayMode: "minimal",
+  headerBackTitle: "",
+  headerLargeTitle: false,
+  headerShadowVisible: false,
+  headerShown: true,
+  headerStyle: NATIVE_LIQUID_GLASS_SUPPORTED ? { backgroundColor: "transparent" } : undefined,
+  headerTitleStyle: { fontSize: 18, fontWeight: "800" },
+  headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
+  scrollEdgeEffects: NATIVE_LIQUID_GLASS_SUPPORTED ? HEADER_SCROLL_EDGE_EFFECTS : undefined,
+  unstable_navigationItemStyle: NATIVE_LIQUID_GLASS_SUPPORTED ? "editor" : undefined,
+};
 
 // SOLID: opaque sheet-colored header for surfaces whose content scrolls internally
 // (file viewer, terminal, review) — there is nothing for glass to sample there.
-const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-  SOLID_HEADER_OPTIONS: AppScreenOptions = {
-    headerBackButtonDisplayMode: "minimal",
-    headerBackTitle: "",
-    headerLargeTitle: false,
-    headerShadowVisible: false,
-    headerShown: true,
-    headerStyle:
-      NATIVE_SHEET_SURFACE_COLOR !== undefined
-        ? // native-stack types this as `string`, but the native side accepts any
-          // ColorValue including DynamicColorIOS.
-          { backgroundColor: NATIVE_SHEET_SURFACE_COLOR as string }
-        : undefined,
-    headerTitleStyle: { fontSize: 18, fontWeight: "800" },
-    headerTransparent: false,
-    unstable_navigationItemStyle: Platform.OS === "ios" ? "editor" : undefined,
-  };
+const SOLID_HEADER_OPTIONS: AppScreenOptions = {
+  headerBackButtonDisplayMode: "minimal",
+  headerBackTitle: "",
+  headerLargeTitle: false,
+  headerShadowVisible: false,
+  headerShown: true,
+  headerTitleStyle: { fontSize: 18, fontWeight: "800" },
+  headerTransparent: false,
+  unstable_navigationItemStyle: Platform.OS === "ios" ? "editor" : undefined,
+};
 
 // Solid header variant for screens inside sheets (centered title, no editor style).
 const SHEET_SOLID_HEADER_OPTIONS: AppScreenOptions = {
@@ -200,11 +196,43 @@ const SettingsContentStack = createNativeStackNavigator({
         title: "Project Grouping",
       },
     }),
+    SettingsKeyboard: createNativeStackScreen({
+      screen: SettingsKeyboardRouteScreen,
+      linking: "keyboard",
+      options: {
+        title: "Keyboard",
+      },
+    }),
     SettingsClientStorage: createNativeStackScreen({
       screen: SettingsClientStorageRouteScreen,
       linking: "client-storage",
       options: {
         title: "Client Storage",
+      },
+    }),
+    SettingsDiagnostics: createNativeStackScreen({
+      screen: SettingsDiagnosticsRouteScreen,
+      linking: "diagnostics",
+      options: {
+        title: "Diagnostics",
+      },
+    }),
+    SettingsUsageAccount: createNativeStackScreen({
+      screen: UsageLimitAccountScreen,
+      options: { title: "Account" },
+    }),
+    SettingsOpenSourceLicenses: createNativeStackScreen({
+      screen: SettingsOpenSourceLicensesRouteScreen,
+      linking: "open-source-licenses",
+      options: {
+        title: "Open source licenses",
+      },
+    }),
+    SettingsOpenSourceLicense: createNativeStackScreen({
+      screen: SettingsOpenSourceLicenseRouteScreen,
+      linking: "open-source-licenses/:entryKey",
+      options: {
+        title: "License notice",
       },
     }),
     SettingsUsage: createNativeStackScreen({
@@ -296,6 +324,18 @@ const NewTaskSheetStack = createNativeStackNavigator({
         title: "Branch",
       },
     }),
+    // The same file view the thread composer pushes. A draft has no thread, so it names its
+    // own workspace through route params instead of resolving one from a selected thread.
+    NewTaskFile: createNativeStackScreen({
+      screen: ThreadFileScreen,
+      linking: "draft/files/:path*",
+      options: SOLID_HEADER_OPTIONS,
+    }),
+    NewTaskAttachment: createNativeStackScreen({
+      screen: AttachmentFileScreen,
+      linking: "draft/attachments/:attachmentId",
+      options: SOLID_HEADER_OPTIONS,
+    }),
     ThreadSettings: createNativeStackScreen({
       screen: NewTaskThreadSettingsRouteScreen,
       linking: "draft/settings",
@@ -352,17 +392,20 @@ const WORKSPACE_OVERLAY_ROUTES = new Set([
 ]);
 
 /**
- * Pathname of the topmost NON-overlay route — the screen the workspace is
- * actually "on", regardless of any sheets floating above it.
+ * Location of the topmost non-overlay route, including its key so thread
+ * selection can dismiss sheets without replacing the wrong destination.
  */
-function workspacePathFromState(state: NavigationState): string {
+function workspaceLocationFromState(state: NavigationState) {
   const routes = state.routes.filter((route) => !WORKSPACE_OVERLAY_ROUTES.has(route.name));
   const effectiveState =
     routes.length > 0 && routes.length !== state.routes.length
       ? ({ ...state, routes, index: routes.length - 1 } as NavigationState)
       : state;
   const path = getPathFromState(effectiveState, navigationPathConfig);
-  return path.startsWith("/") ? path : `/${path}`;
+  return {
+    pathname: path.startsWith("/") ? path : `/${path}`,
+    routeKey: effectiveState.routes[effectiveState.index]?.key,
+  };
 }
 
 // The drain hook subscribes to the outbox, all thread shells, projects, and
@@ -371,6 +414,7 @@ function workspacePathFromState(state: NavigationState): string {
 // each enqueue, shell change, or reconnect.
 function ThreadOutboxDrainWorker() {
   useThreadOutboxDrain();
+  useComposerAttachmentUploadWorker();
   return null;
 }
 
@@ -405,15 +449,19 @@ function RootStackLayout(props: {
   // workspace layout only reacts to the underlying non-overlay route.
   const path = getPathFromState(props.state, navigationPathConfig);
   const pathname = path.startsWith("/") ? path : `/${path}`;
-  const workspacePathname = workspacePathFromState(props.state);
+  const workspaceLocation = workspaceLocationFromState(props.state);
 
   return (
     <HardwareKeyboardCommandProvider pathname={pathname}>
       <ThreadOutboxDrainWorker />
       <ShowcaseCaptureCoordinator pathname={pathname} />
       <ExistingThreadSettingsRouteProvider>
-        <AdaptiveWorkspaceLayout pathname={workspacePathname}>
+        <AdaptiveWorkspaceLayout
+          pathname={workspaceLocation.pathname}
+          workspaceRouteKey={workspaceLocation.routeKey}
+        >
           {props.children}
+          <HardwareKeyboardCommandOverlay />
         </AdaptiveWorkspaceLayout>
       </ExistingThreadSettingsRouteProvider>
     </HardwareKeyboardCommandProvider>
@@ -509,13 +557,17 @@ export const RootStack = createNativeStackNavigator({
       linking: `${THREAD_LINKING_PREFIX}/files`,
       options: {
         ...GLASS_HEADER_OPTIONS,
-        contentStyle: NATIVE_SHEET_SURFACE_CONTENT_STYLE,
         title: "Files",
       },
     }),
     ThreadFile: createNativeStackScreen({
       screen: ThreadFileScreen,
       linking: `${THREAD_LINKING_PREFIX}/files/:path*`,
+      options: SOLID_HEADER_OPTIONS,
+    }),
+    ThreadAttachment: createNativeStackScreen({
+      screen: AttachmentFileScreen,
+      linking: `${THREAD_LINKING_PREFIX}/attachments/:attachmentId`,
       options: SOLID_HEADER_OPTIONS,
     }),
     ThreadSettingsSheet: createNativeStackScreen({
@@ -638,7 +690,11 @@ export const RootStack = createNativeStackNavigator({
       // The whole new-task flow (choose project → draft → add project) shares
       // draft state via NewTaskFlowProvider. The expo-router era mounted it in
       // app/new/_layout.tsx; this layout wrapper is the native-stack equivalent.
-      layout: ({ children }) => <NewTaskFlowProvider>{children}</NewTaskFlowProvider>,
+      layout: ({ children }) => (
+        <NewTaskFlowProvider>
+          <View className="flex-1 bg-sheet-solid">{children}</View>
+        </NewTaskFlowProvider>
+      ),
       options: {
         gestureEnabled: true,
         headerShown: false,

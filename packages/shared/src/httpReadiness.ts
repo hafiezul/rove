@@ -7,7 +7,7 @@ import type { Json } from "effect/Schema";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import * as RuntimePredicate from "effect/Predicate";
 
-export const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
+const DEFAULT_HTTP_READY_PROBE_TIMEOUT_MS = 1_000;
 
 /**
  * Normalizes an arbitrary readiness probe failure into a plain, structured value

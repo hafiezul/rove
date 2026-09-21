@@ -1,8 +1,10 @@
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
+import * as Exit from "effect/Exit";
 import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
+import type * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -16,9 +18,7 @@ import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import * as AcpSchema from "./_generated/schema.gen.ts";
 import { CLIENT_METHODS } from "./_generated/meta.gen.ts";
 import * as AcpError from "./errors.ts";
-import * as RuntimePredicate from "effect/Predicate";
 const isAcpError = Schema.is(AcpError.AcpError);
-const isProtocolError = Schema.is(AcpSchema.Error);
 
 export interface AcpProtocolLogEvent {
   readonly direction: "incoming" | "outgoing";
@@ -43,13 +43,21 @@ export type AcpIncomingNotification =
       readonly params: unknown;
     };
 
+/** Standard I/O whose input can report provider-specific ACP failures. */
+export interface AcpStdio extends Omit<Stdio.Stdio, "stdin"> {
+  readonly stdin: Stream.Stream<Uint8Array, PlatformError.PlatformError | AcpError.AcpError>;
+}
+
 export interface AcpPatchedProtocolOptions {
-  readonly stdio: Stdio.Stdio;
+  readonly stdio: AcpStdio;
   readonly terminationError?: Effect.Effect<AcpError.AcpError>;
   readonly serverRequestMethods: ReadonlySet<string>;
   readonly logIncoming?: boolean;
   readonly logOutgoing?: boolean;
   readonly logger?: (event: AcpProtocolLogEvent) => Effect.Effect<void, never>;
+  readonly transformSessionUpdate?: (
+    notification: AcpSchema.SessionNotification,
+  ) => AcpSchema.SessionNotification;
   readonly onNotification?: (
     notification: AcpIncomingNotification,
   ) => Effect.Effect<void, AcpError.AcpError, never>;
@@ -78,6 +86,17 @@ const decodeElicitationComplete = Schema.decodeUnknownEffect(
   AcpSchema.ElicitationCompleteNotification,
 );
 const parserFactory = RpcSerialization.ndJsonRpc();
+const MAX_BUFFERED_RAW_NOTIFICATIONS = 32;
+// Outbound JSON-RPC notification: no `id`, so peers never treat it as a request.
+const encodeJsonRpcNotification = Schema.encodeUnknownExit(
+  Schema.fromJsonString(
+    Schema.Struct({
+      jsonrpc: Schema.Literal("2.0"),
+      method: Schema.String,
+      params: Schema.Unknown,
+    }),
+  ),
+);
 
 export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(function* (
   options: AcpPatchedProtocolOptions,
@@ -85,12 +104,19 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
   const parser = parserFactory.makeUnsafe();
   const serverQueue = yield* Queue.unbounded<RpcMessage.FromClientEncoded>();
   const clientQueue = yield* Queue.unbounded<RpcMessage.FromServerEncoded>();
-  const notificationQueue = yield* Queue.unbounded<AcpIncomingNotification>();
+  const notificationQueue = yield* Queue.sliding<AcpIncomingNotification>(
+    MAX_BUFFERED_RAW_NOTIFICATIONS,
+  );
   const disconnects = yield* Queue.unbounded<number>();
   const outgoing = yield* Queue.unbounded<string | Uint8Array, Cause.Done<void>>();
   const nextRequestId = yield* Ref.make(1);
   const terminationHandled = yield* Ref.make(false);
+  const terminationFailure = yield* Deferred.make<never, AcpError.AcpError>();
   const extPending = yield* Ref.make(new Map<string, AcpPendingRequest>());
+
+  const ensureActive = Ref.get(terminationHandled).pipe(
+    Effect.flatMap((terminated) => (terminated ? Deferred.await(terminationFailure) : Effect.void)),
+  );
 
   const logProtocol = (event: AcpProtocolLogEvent) => {
     if (event.direction === "incoming" && !options.logIncoming) {
@@ -108,6 +134,12 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
   const offerOutgoing = Effect.fn("offerOutgoing")(function* (
     message: RpcMessage.FromClientEncoded | RpcMessage.FromServerEncoded,
   ) {
+    // RpcClient emits `@effect/rpc/Interrupt` when a pending request's fiber is interrupted.
+    // ACP has no such method; agents log it as an error and cannot act on it, so drop it.
+    if (message._tag === "Interrupt") {
+      return;
+    }
+    yield* ensureActive;
     yield* logProtocol({
       direction: "outgoing",
       stage: "decoded",
@@ -131,9 +163,10 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
       yield* logProtocol({
         direction: "outgoing",
         stage: "raw",
-        payload: RuntimePredicate.isString(encoded) ? encoded : new TextDecoder().decode(encoded),
+        payload: typeof encoded === "string" ? encoded : new TextDecoder().decode(encoded),
       });
 
+      yield* ensureActive;
       yield* Queue.offer(outgoing, encoded).pipe(Effect.asVoid);
     }
   });
@@ -200,7 +233,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
       }),
     }).pipe(Effect.asVoid);
 
-  const handleTermination = (classify: () => Effect.Effect<AcpError.AcpError | undefined>) =>
+  const handleTermination = (classify: () => Effect.Effect<AcpError.AcpError>) =>
     Ref.modify(terminationHandled, (handled) => {
       if (handled) {
         return [Effect.void, true] as const;
@@ -209,9 +242,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
         Effect.gen(function* () {
           yield* Queue.offer(disconnects, 0);
           const error = yield* classify();
-          if (!error) {
-            return;
-          }
+          yield* Deferred.fail(terminationFailure, error);
           yield* failAllExtPending(error);
           yield* emitClientProtocolError(error);
           if (options.onTermination) {
@@ -272,7 +303,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
               ({
                 _tag: "SessionUpdate",
                 method: CLIENT_METHODS.session_update,
-                params,
+                params: options.transformSessionUpdate?.(params) ?? params,
               }) satisfies AcpIncomingNotification,
           ),
           Effect.mapError((cause) =>
@@ -408,14 +439,16 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
     }
   };
 
-  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   yield* options.stdio.stdin.pipe(
     Stream.runForEach((data) =>
-      logProtocol({
-        direction: "incoming",
-        stage: "raw",
-        payload: RuntimePredicate.isString(data) ? data : new TextDecoder().decode(data),
-      }).pipe(
+      (options.logIncoming
+        ? logProtocol({
+            direction: "incoming",
+            stage: "raw",
+            payload: typeof data === "string" ? data : new TextDecoder().decode(data),
+          })
+        : Effect.void
+      ).pipe(
         Effect.flatMap(() =>
           Effect.try({
             try: () =>
@@ -442,12 +475,12 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
             stage: "decode_failed",
             payload: {
               operation: error.operation,
-              ...(error.method === undefined ? undefined : { method: error.method }),
-              ...(error.requestId === undefined ? undefined : { requestId: error.requestId }),
-              ...(error.issueCount === undefined ? undefined : { issueCount: error.issueCount }),
-              ...(error.issueKinds === undefined ? undefined : { issueKinds: error.issueKinds }),
+              ...(error.method === undefined ? {} : { method: error.method }),
+              ...(error.requestId === undefined ? {} : { requestId: error.requestId }),
+              ...(error.issueCount === undefined ? {} : { issueCount: error.issueCount }),
+              ...(error.issueKinds === undefined ? {} : { issueKinds: error.issueKinds }),
               ...(error.maximumPathDepth === undefined
-                ? undefined
+                ? {}
                 : { maximumPathDepth: error.maximumPathDepth }),
             },
           }),
@@ -500,6 +533,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
       ),
     supportsAck: true,
     supportsTransferables: false,
+    codecFor: parserFactory.codecFor,
   });
 
   const serverProtocol = RpcServer.Protocol.of({
@@ -515,23 +549,40 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
     initialMessage: Effect.succeedNone,
     supportsAck: true,
     supportsTransferables: false,
+    codecFor: parserFactory.codecFor,
     supportsSpanPropagation: true,
+    supportsNotifications: true,
   });
 
+  // JSON-RPC notifications carry no `id`. Encoding a Request without `isNotification`
+  // emits an `id`, which real agents (Grok CLI) parse as a malformed request and silently drop.
+  // That made `session/cancel` a no-op against Grok while the lenient mock agent accepted it.
   const sendNotification = Effect.fn("sendNotification")(function* (
     method: string,
     payload: unknown,
   ) {
-    yield* offerOutgoing({
-      _tag: "Request",
-      id: "",
-      tag: method,
-      payload,
-      headers: [],
+    yield* ensureActive;
+    yield* logProtocol({
+      direction: "outgoing",
+      stage: "decoded",
+      payload: { _tag: "Notification", tag: method, payload },
     });
+    const exit = encodeJsonRpcNotification({ jsonrpc: "2.0", method, params: payload });
+    if (Exit.isFailure(exit)) {
+      return yield* AcpError.AcpProtocolParseError.fromEncodingError(
+        method,
+        undefined,
+        Cause.squash(exit.cause),
+      );
+    }
+    const encoded = `${exit.value}\n`;
+    yield* logProtocol({ direction: "outgoing", stage: "raw", payload: encoded });
+    yield* ensureActive;
+    yield* Queue.offer(outgoing, encoded);
   });
 
   const sendRequest = Effect.fn("sendRequest")(function* (method: string, payload: unknown) {
+    yield* ensureActive;
     const requestId = yield* Ref.modify(
       nextRequestId,
       (current) => [current, current + 1] as const,
@@ -562,3 +613,16 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
     notify: sendNotification,
   } satisfies AcpPatchedProtocol;
 });
+
+function isProtocolError(
+  value: unknown,
+): value is { code: number; message: string; data?: unknown } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    typeof value.code === "number" &&
+    "message" in value &&
+    typeof value.message === "string"
+  );
+}

@@ -16,7 +16,6 @@ import {
   HttpClientResponse,
 } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-import * as RuntimePredicate from "effect/Predicate";
 
 const UPSTREAM_REF = "678157acaa819d5510adfe359abb5d0392cfe461";
 const USER_AGENT = "effect-codex-app-server-generator";
@@ -62,7 +61,7 @@ interface JsonSchemaFile {
   readonly qualifiedName: string;
 }
 
-class GeneratorError extends Schema.TaggedErrorClass<GeneratorError>()("GeneratorError", {
+class GeneratorError extends Schema.TaggedError<GeneratorError>()("GeneratorError", {
   detail: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {
@@ -71,11 +70,7 @@ class GeneratorError extends Schema.TaggedErrorClass<GeneratorError>()("Generato
   }
 }
 
-interface ManualSchemaByName {
-  readonly [name: string]: Schema.Json;
-}
-
-const ManualSchemas: ManualSchemaByName = {
+const ManualSchemas: Record<string, Schema.Json> = {
   GetAuthStatusParams: {
     type: "object",
     title: "GetAuthStatusParams",
@@ -150,6 +145,112 @@ const ManualSchemas: ManualSchemaByName = {
   },
 };
 
+// Codex 0.150 added these multi-agent values before our next full protocol
+// refresh. Keep every generated response namespace compatible with them.
+const Codex0150DefinitionSchemas: Record<string, Schema.Json> = {
+  CollabAgentTool: {
+    type: "string",
+    enum: [
+      "spawnAgent",
+      "sendInput",
+      "resumeAgent",
+      "wait",
+      "closeAgent",
+      "sendMessage",
+      "followupTask",
+      "interruptAgent",
+      "listAgents",
+    ],
+  },
+  CollabAgentToolCallStatus: {
+    type: "string",
+    enum: ["inProgress", "completed", "failed", "interrupted"],
+  },
+  PlanType: {
+    type: "string",
+    enum: [
+      "free",
+      "go",
+      "plus",
+      "pro",
+      "prolite",
+      "team",
+      "self_serve_business_prolite",
+      "self_serve_business_usage_based",
+      "business",
+      "ent26",
+      "enterprise_cbp_automation",
+      "enterprise_cbp_usage_based",
+      "enterprise",
+      "edu",
+      "edu_plus",
+      "edu_pro",
+      "unknown",
+    ],
+  },
+  SubAgentActivityKind: {
+    type: "string",
+    enum: ["started", "interacted", "interrupted", "completed"],
+  },
+};
+
+// Pinned protocol JSON omits later CodexErrorInfo variants. Keep historical
+// thread payloads decodable; do not fold unknown values into "other".
+const CodexErrorInfoCompatibilityValues = [
+  "rateLimitExceeded",
+  "misalignmentPolicyViolation",
+] as const;
+
+const CodexErrorInfoCompatibilityExports = new Set([
+  "V2ThreadReadResponse",
+  "V2ThreadResumeResponse",
+  "V2ThreadRollbackResponse",
+  "V2ThreadForkResponse",
+  "V2TurnCompletedNotification",
+]);
+
+function applyCodex0151DefinitionCompatibility(
+  exportName: string,
+  definitionName: string,
+  definitionSchema: Schema.Json,
+): Schema.Json {
+  if (
+    !CodexErrorInfoCompatibilityExports.has(exportName) ||
+    definitionName !== "CodexErrorInfo" ||
+    typeof definitionSchema !== "object"
+  ) {
+    return definitionSchema;
+  }
+
+  const schema = definitionSchema as {
+    readonly oneOf?: ReadonlyArray<{ readonly enum?: ReadonlyArray<string> }>;
+  };
+  const [firstVariant, ...remainingVariants] = schema.oneOf ?? [];
+  const currentEnum = firstVariant?.enum;
+  if (!currentEnum) {
+    return definitionSchema;
+  }
+
+  const missingValues = CodexErrorInfoCompatibilityValues.filter(
+    (value) => !currentEnum.includes(value),
+  );
+  if (missingValues.length === 0) {
+    return definitionSchema;
+  }
+
+  const enumValues = [...currentEnum];
+  const otherIndex = enumValues.indexOf("other");
+  const nextEnum =
+    otherIndex === -1
+      ? [...enumValues, ...missingValues]
+      : [...enumValues.slice(0, otherIndex), ...missingValues, ...enumValues.slice(otherIndex)];
+
+  return {
+    ...definitionSchema,
+    oneOf: [{ ...firstVariant, enum: nextEnum }, ...remainingVariants],
+  };
+}
+
 const getGeneratedPaths = Effect.fn("getGeneratedPaths")(function* () {
   const path = yield* Path.Path;
   const generatedDir = path.join(import.meta.dirname, "..", "src", "_generated");
@@ -223,15 +324,11 @@ function collectSchemaEntries(
   return entries;
 }
 
-function isJsonObject(value: Schema.Json): value is Schema.JsonObject {
-  return RuntimePredicate.isObjectOrArray(value) && !Array.isArray(value);
-}
-
 function normalizeNullableTypes(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(normalizeNullableTypes);
   }
-  if (!isJsonObject(value)) {
+  if (value === null || typeof value !== "object") {
     return value;
   }
 
@@ -239,17 +336,14 @@ function normalizeNullableTypes(value: Schema.Json): Schema.Json {
     key,
     normalizeNullableTypes(child),
   ]);
-  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
+  const normalizedObject = Object.fromEntries(normalizedEntries) as Record<string, Schema.Json>;
   const typeValue = normalizedObject.type;
 
   if (!Array.isArray(typeValue)) {
     return normalizedObject;
   }
 
-  const normalizedTypes = typeValue.filter((entry): entry is string =>
-    RuntimePredicate.isString(entry),
-  );
+  const normalizedTypes = typeValue.filter((entry): entry is string => typeof entry === "string");
   if (normalizedTypes.length !== typeValue.length || !normalizedTypes.includes("null")) {
     return normalizedObject;
   }
@@ -282,16 +376,69 @@ function stripNullDefaults(value: Schema.Json): Schema.Json {
   if (Array.isArray(value)) {
     return value.map(stripNullDefaults);
   }
-  if (!isJsonObject(value)) {
+  if (value === null || typeof value !== "object") {
     return value;
   }
 
-  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     Object.entries(value)
       .filter(([key, child]) => !(key === "default" && child === null))
       .map(([key, child]) => [key, stripNullDefaults(child)]),
   ) as Schema.Json;
+}
+
+// Codex 0.153 adds async questions to agent messages. Keep older protocol
+// fields until the next full refresh, including every thread history namespace.
+function addAsyncQuestionFields(value: Schema.Json): Schema.Json {
+  if (Array.isArray(value)) {
+    return value.map(addAsyncQuestionFields);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  const properties = "properties" in value ? value.properties : undefined;
+  const itemType =
+    properties && typeof properties === "object" && "type" in properties
+      ? properties.type
+      : undefined;
+  if (
+    properties &&
+    typeof properties === "object" &&
+    itemType &&
+    typeof itemType === "object" &&
+    "enum" in itemType &&
+    Array.isArray(itemType.enum) &&
+    itemType.enum.includes("agentMessage")
+  ) {
+    return {
+      ...value,
+      properties: {
+        ...properties,
+        delivery: { anyOf: [{ type: "string", enum: ["async"] }, { type: "null" }] },
+        questions: {
+          anyOf: [
+            {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  options: {
+                    anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
+                  },
+                },
+                required: ["title"],
+              },
+            },
+            { type: "null" },
+          ],
+        },
+      },
+    };
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [key, addAsyncQuestionFields(child)]),
+  );
 }
 
 function toPascalCaseMethod(method: string) {
@@ -324,7 +471,7 @@ function parseNotificationEntries(fileContents: string): ReadonlyArray<MethodEnt
   while ((match = entryPattern.exec(fileContents)) !== null) {
     entries.push({
       method: match[1]!,
-      ...(match[2] ? { paramsType: match[2].trim() } : undefined),
+      ...(match[2] ? { paramsType: match[2].trim() } : {}),
     });
   }
   return entries;
@@ -353,16 +500,12 @@ function resolveSchemaTypeName(
   throw new Error(`Unable to resolve schema type name: ${rawTypeName}`);
 }
 
-interface ResponseTypeOverrideByMethod {
-  readonly [method: string]: string | undefined;
-}
-
 function resolveResponseTypeName(
   method: string,
   paramsType: string | undefined,
   generatedSchemaNames: ReadonlySet<string>,
 ): string {
-  const overrides: ResponseTypeOverrideByMethod = {
+  const overrides: Record<string, string> = {
     "account/logout": "LogoutAccountResponse",
     "account/rateLimits/read": "GetAccountRateLimitsResponse",
     "account/usage/read": "GetAccountTokenUsageResponse",
@@ -443,8 +586,7 @@ function exportNameForPath(filePath: string): string {
     return relative;
   }
 
-  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    [namespace, name] = relative.split("/", 2) as [string, string];
+  const [namespace, name] = relative.split("/", 2) as [string, string];
   const namespacePrefix = namespace
     .split(/[^A-Za-z0-9]+/)
     .filter(Boolean)
@@ -496,18 +638,13 @@ function rewriteExternalRefs(
       rewriteExternalRefs(entry, localDefinitionNames, currentNamespace, exportNameByQualifiedName),
     );
   }
-  if (!isJsonObject(value)) {
+  if (value === null || typeof value !== "object") {
     return value;
   }
 
-  // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => {
-      if (
-        key === "$ref" &&
-        RuntimePredicate.isString(child) &&
-        child.startsWith("#/definitions/")
-      ) {
+      if (key === "$ref" && typeof child === "string" && child.startsWith("#/definitions/")) {
         const definitionName = child.slice("#/definitions/".length);
         const localRewrite = localDefinitionNames.get(definitionName);
         if (localRewrite) {
@@ -579,10 +716,13 @@ const generateFiles = Effect.fn("generateFiles")(function* () {
     );
 
     for (const [definitionName, definitionSchema] of Object.entries(parsed.definitions ?? {})) {
+      const compatibleDefinitionSchema =
+        Codex0150DefinitionSchemas[definitionName] ??
+        applyCodex0151DefinitionCompatibility(file.exportName, definitionName, definitionSchema);
       aggregateSchemas[localDefinitionNames.get(definitionName)!] = stripNullDefaults(
         normalizeNullableTypes(
           rewriteExternalRefs(
-            definitionSchema,
+            compatibleDefinitionSchema,
             localDefinitionNames,
             file.namespace,
             exportNameByQualifiedName,
@@ -620,13 +760,11 @@ const generateFiles = Effect.fn("generateFiles")(function* () {
   for (const [name, schema] of Object.entries(aggregateSchemas).toSorted(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    // SAFETY: This branch is unreachable under the owning callback contract.
-    generator.addSchema(name, schema as never);
+    generator.addSchema(name, addAsyncQuestionFields(schema) as never);
   }
 
   const generatedEntries = new Map<string, string>();
-  const // SAFETY: This branch is unreachable under the owning callback contract.
-    output = generator.generate("openapi-3.1", aggregateSchemas as never, false).trim();
+  const output = generator.generate("openapi-3.1", aggregateSchemas as never, false).trim();
   if (output.length > 0) {
     for (const entry of collectSchemaEntries(output)) {
       if (!generatedEntries.has(entry.name)) {
@@ -666,9 +804,7 @@ const generateFiles = Effect.fn("generateFiles")(function* () {
     "",
     [...generatedEntries.values()].join("\n\n"),
     "",
-  ]
-    .join("\n")
-    .replaceAll(": unknown", ": Schema.Json");
+  ].join("\n");
 
   const metaOutput = [
     ...prelude,

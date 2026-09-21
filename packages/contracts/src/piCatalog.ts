@@ -30,6 +30,6 @@ export const PiCatalogSnapshot = Schema.Struct({
 });
 export type PiCatalogSnapshot = typeof PiCatalogSnapshot.Type;
 
-export class PiCatalogError extends Schema.TaggedErrorClass<PiCatalogError>()("PiCatalogError", {
+export class PiCatalogError extends Schema.TaggedError<PiCatalogError>()("PiCatalogError", {
   message: Schema.String,
 }) {}

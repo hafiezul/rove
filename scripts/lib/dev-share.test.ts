@@ -27,12 +27,16 @@ const encode = (value: string) => Stream.make(new TextEncoder().encode(value));
  * test set the outcome of the `off` (pre-clear) and `serve` calls separately —
  * they are the same subcommand and are told apart by the trailing `off`.
  */
-const spawnerLayer = (input: { readonly off?: CallResult; readonly serve?: CallResult }) =>
+const spawnerLayer = (input: {
+  readonly off?: CallResult;
+  readonly serve?: CallResult;
+  readonly calls?: Array<ReadonlyArray<string>>;
+}) =>
   Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-        args = "args" in command ? (command.args as ReadonlyArray<string>) : [];
+      const args = "args" in command ? (command.args as ReadonlyArray<string>) : [];
+      input.calls?.push(args);
       const result: CallResult = args.includes("status")
         ? { exitCode: 0 }
         : args.includes("off")
@@ -103,6 +107,20 @@ describe("shareDevServer", () => {
     }),
   );
 
+  // Vite binds `localhost`, which modern Node resolves to `::1` first, so a
+  // 127.0.0.1 target would proxy to a loopback nothing listens on.
+  it.effect("proxies to the localhost name Vite binds, not 127.0.0.1", () =>
+    Effect.gen(function* () {
+      const calls: Array<ReadonlyArray<string>> = [];
+      yield* shareDevServer({ webPort: 5788 }).pipe(
+        Effect.provide(spawnerLayer({ off: { exitCode: 0 }, calls })),
+      );
+
+      const serveCall = calls.find((args) => args.includes("--bg"));
+      assert.deepEqual(serveCall, ["serve", "--bg", "--https=5788", "http://localhost:5788"]);
+    }),
+  );
+
   // The stale-mapping clear runs before serve, so a failure here leaves the
   // port serving nothing. Saying only "serve failed" would let an operator
   // assume their previous mapping survived.
@@ -122,7 +140,6 @@ describe("shareDevServer", () => {
       assert.equal(error.stage, "serve");
       assert.equal(error.webPort, 5788);
       // The underlying failure is preserved rather than flattened to a string.
-      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       assert.equal(
         (error.cause as { _tag?: string } | undefined)?._tag,
         "TailscaleCommandExitError",

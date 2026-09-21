@@ -13,7 +13,11 @@ import type { ProviderAdapterError } from "../Errors.ts";
 import type { ProviderAdapterContract } from "./ProviderAdapter.ts";
 
 /**
- * CodexAdapterShape — per-instance Codex adapter contract. Carries
+ * CodexAdapterContract — per-instance Codex adapter contract. Carries
  * a branded driver kind as the nominal discriminant.
  */
-export interface CodexAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {}
+export interface CodexAdapterContract extends ProviderAdapterContract<ProviderAdapterError> {
+  readonly uploadFeedback: NonNullable<
+    ProviderAdapterContract<ProviderAdapterError>["uploadFeedback"]
+  >;
+}

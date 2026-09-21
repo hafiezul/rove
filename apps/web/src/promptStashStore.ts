@@ -1,9 +1,12 @@
+import { ComposerContextRecord, ForwardCompatibleArray } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { create } from "zustand";
 
-import { PersistedComposerImageAttachment } from "./composerDraftStore";
-import { createMemoryStorage } from "./lib/storage";
-import * as RuntimePredicate from "effect/Predicate";
+import {
+  PersistedComposerFileAttachment,
+  PersistedComposerImageAttachment,
+} from "./composerDraftStore";
+import { createMemoryStorage, type StateStorage } from "./lib/storage";
 
 export const PROMPT_STASH_STORAGE_KEY = "rove:prompt-stash:v2";
 /**
@@ -28,16 +31,15 @@ export const MAX_STASH_ENTRIES = 20;
 export const MAX_STASH_ENTRY_ATTACHMENT_CHARS = 2_700_000;
 
 /**
- * A stashed prompt carries only what every provider can accept: text and
- * image attachments. Deliberately no provider instance or model selection —
- * the point of stashing is to move a prompt into a different thread or
- * provider, so restoring must never drag the old model choice along.
+ * Stashed files keep signed-upload references instead of storing their bytes.
+ * Image payloads remain subject to the localStorage budget.
  */
 const StashEntrySchema = Schema.Struct({
   id: Schema.String,
   createdAt: Schema.String,
   prompt: Schema.String,
   attachments: Schema.Array(PersistedComposerImageAttachment),
+  files: Schema.optionalKey(Schema.Array(PersistedComposerFileAttachment)),
   /** Names of images that exceeded the attachment budget and were not saved. */
   droppedImageNames: Schema.Array(Schema.String),
   /**
@@ -54,6 +56,12 @@ const StashEntrySchema = Schema.Struct({
    * `finalizeEntryImages` lands, and flags entries orphaned by a reload.
    */
   pendingImageCount: Schema.optionalKey(Schema.Number),
+  /**
+   * Payloads behind the prompt's context links (terminal excerpts, review comments, preview
+   * annotations). Images and files have their own fields above. Optional: older entries
+   * decode without it.
+   */
+  records: Schema.optionalKey(ForwardCompatibleArray(ComposerContextRecord)),
 });
 export type PromptStashEntry = typeof StashEntrySchema.Type;
 
@@ -101,7 +109,10 @@ function clearOrphanedPendingImages(
  */
 export function partitionStashAttachments(
   attachments: ReadonlyArray<PersistedComposerImageAttachment>,
-) {
+): {
+  kept: PersistedComposerImageAttachment[];
+  droppedNames: string[];
+} {
   const kept: PersistedComposerImageAttachment[] = [];
   const droppedNames: string[] = [];
   let usedChars = 0;
@@ -126,7 +137,7 @@ export function partitionStashAttachments(
  * vanish on reload, and callers clear the composer on the strength of a
  * successful stash, so they must be told the difference.
  */
-function resolveBaseStorage() {
+function resolveBaseStorage(): { storage: StateStorage; durable: boolean } {
   try {
     if (typeof localStorage !== "undefined") {
       return { storage: localStorage, durable: true };
@@ -148,7 +159,12 @@ const { storage: baseStashStorage, durable: storageIsDurable } = resolveBaseStor
  * Returns whether the write will survive a reload: false on a quota rejection
  * or when only the in-memory fallback is available.
  */
-function persistEntries(entries: ReadonlyArray<PromptStashEntry>) {
+function persistEntries(entries: ReadonlyArray<PromptStashEntry>): {
+  /** The write succeeded (possibly only into the in-memory fallback). */
+  written: boolean;
+  /** The write will survive a reload. */
+  durable: boolean;
+} {
   try {
     baseStashStorage.setItem(
       PROMPT_STASH_STORAGE_KEY,
@@ -168,10 +184,9 @@ function persistEntries(entries: ReadonlyArray<PromptStashEntry>) {
 function readPersistedEntries(): ReadonlyArray<PromptStashEntry> | null {
   try {
     const raw = baseStashStorage.getItem(PROMPT_STASH_STORAGE_KEY);
-    if (!RuntimePredicate.isString(raw) || raw.length === 0) return null;
+    if (typeof raw !== "string" || raw.length === 0) return null;
     const parsed: unknown = JSON.parse(raw);
-    const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      state = (parsed as { state?: unknown } | null)?.state;
+    const state = (parsed as { state?: unknown } | null)?.state;
     if (!state) return null;
     return clearOrphanedPendingImages(decodePersistedPromptStashState(state).entries);
   } catch {

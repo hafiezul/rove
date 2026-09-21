@@ -5,13 +5,7 @@ import {
   foldSubagentActivities,
   formatSubagentModelLabel,
   formatSubagentTokenCount,
-  isAgentAttributedToolActivity,
-  isSubagentActivityKind,
-  isTimelineBypassActivity,
-  workflowCardMembers,
 } from "./subagentRuntime.ts";
-import * as RuntimePredicate from "effect/Predicate";
-import type { Json as SchemaJson } from "effect/Schema";
 
 let sequence = 0;
 /**
@@ -21,7 +15,7 @@ let sequence = 0;
  */
 function activity(
   kind: string,
-  payload: Record<string, SchemaJson>,
+  payload: Record<string, unknown>,
   at = `2026-08-01T10:00:${String(sequence).padStart(2, "0")}.000Z`,
 ): OrchestrationThreadActivity {
   sequence += 1;
@@ -30,8 +24,8 @@ function activity(
       ? {
           ...payload,
           agentKind: classifyTaskAgentKind({
-            taskType: RuntimePredicate.isString(payload.taskType) ? payload.taskType : undefined,
-            agentId: RuntimePredicate.isString(payload.agentId) ? payload.agentId : undefined,
+            taskType: typeof payload.taskType === "string" ? payload.taskType : undefined,
+            agentId: typeof payload.agentId === "string" ? payload.agentId : undefined,
           }),
         }
       : payload;
@@ -43,13 +37,13 @@ function activity(
     payload: stamped,
     turnId: null,
     createdAt: at,
-  } as OrchestrationThreadActivity;
+  } as unknown as OrchestrationThreadActivity;
 }
 
 /** A pre-stamp row (legacy thread / old server): no agentKind at all. */
 function legacyActivity(
   kind: string,
-  payload: Record<string, SchemaJson>,
+  payload: Record<string, unknown>,
 ): OrchestrationThreadActivity {
   sequence += 1;
   return {
@@ -60,7 +54,7 @@ function legacyActivity(
     payload,
     turnId: null,
     createdAt: `2026-08-01T10:00:${String(sequence).padStart(2, "0")}.000Z`,
-  } as OrchestrationThreadActivity;
+  } as unknown as OrchestrationThreadActivity;
 }
 
 function fold(rows: ReadonlyArray<OrchestrationThreadActivity>) {
@@ -68,6 +62,45 @@ function fold(rows: ReadonlyArray<OrchestrationThreadActivity>) {
 }
 
 describe("foldSubagentActivities", () => {
+  it("shows the batch status limit after its parent turn ends without claiming a result", () => {
+    const running = activity("task.progress", {
+      taskId: "batch-1",
+      taskType: "subagent_batch",
+      title: "Antigravity subagent batch",
+      status: "running",
+      summary: "Launch readers",
+    });
+    const agents = fold([
+      running,
+      activity("task.updated", {
+        taskId: "batch-1",
+        taskType: "subagent_batch",
+        status: "idle",
+        detail: "Turn ended. Individual agent status is unavailable.",
+        timelineBypass: true,
+      }),
+    ]);
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      title: "Antigravity subagent batch",
+      kind: "subagent_batch",
+      status: "idle",
+      progress: "Turn ended. Individual agent status is unavailable.",
+      result: null,
+      error: null,
+    });
+  });
+
+  it("learns batch identity from a later update and retains it on sparse updates", () => {
+    const agents = fold([
+      activity("task.progress", { taskId: "batch-1", taskType: "subagent", status: "running" }),
+      activity("task.updated", { taskId: "batch-1", taskType: "subagent_batch", status: "idle" }),
+      activity("task.updated", { taskId: "batch-1", status: "idle" }),
+    ]);
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({ kind: "subagent_batch", status: "idle" });
+  });
+
   it("builds an agent from start → progress → completion", () => {
     const agents = fold([
       activity("task.started", {
@@ -385,11 +418,47 @@ describe("deriveAgentPanelModel", () => {
   it("counts idle deliberately and waiting as active", () => {
     const model = deriveAgentPanelModel({ agents: roster });
     expect(model.idleCount).toBe(1);
-    // wf-1 coordinator + member 1 running.
-    expect(model.runningCount).toBeGreaterThanOrEqual(1);
+    // Member 1 is running; the wf-1 coordinator is a container, not a worker.
+    expect(model.runningCount).toBe(1);
+    // Every agent lands in exactly one bucket, except coordinators that stand
+    // in for their members.
     expect(model.idleCount + model.runningCount + model.waitingCount + model.settledCount).toBe(
-      roster.length,
+      roster.length - 1,
     );
+  });
+
+  it("omits a workflow coordinator from the working-agent count", () => {
+    const model = deriveAgentPanelModel({ agents: roster });
+    // One member still running plus one idle direct spawn. The coordinator
+    // reports running for the whole workflow and must not inflate the banner.
+    expect(model.liveCount).toBe(1);
+  });
+
+  it("omits a finished workflow coordinator from the settled count", () => {
+    const finished = fold([
+      activity("task.started", { taskId: "wf-2", taskType: "local_workflow", title: "sweep" }),
+      activity("task.progress", {
+        taskId: "wf-2:wf:0",
+        title: "sweep:a",
+        status: "completed",
+        parentAgentId: "wf-2",
+        agentIndex: 0,
+        phaseIndex: 0,
+      }),
+      activity("task.completed", {
+        taskId: "wf-2:wf:0",
+        status: "completed",
+        parentAgentId: "wf-2",
+      }),
+      activity("task.completed", { taskId: "wf-2", status: "completed" }),
+    ]);
+
+    const model = deriveAgentPanelModel({ agents: finished });
+
+    // Only the member settled. The coordinator stands in for it, so counting
+    // both would report two finished agents where one ran.
+    expect(model.settledCount).toBe(1);
+    expect(model.liveCount).toBe(0);
   });
 
   it("keeps direct spawns in first-seen order as their activity changes", () => {
@@ -484,64 +553,6 @@ describe("deriveAgentPanelModel", () => {
   });
 });
 
-describe("workflowCardMembers", () => {
-  it("orders by urgency (failed, running, waiting) and reports overflow", () => {
-    const roster = fold([
-      activity("task.started", { taskId: "wf-1", taskType: "local_workflow" }),
-      ...[..."abcdefghij"].map((letter, index) =>
-        activity("task.progress", {
-          taskId: `wf-1:wf:${index}`,
-          title: `agent-${letter}`,
-          status: index === 3 ? "failed" : index < 3 ? "completed" : "running",
-          ...(index === 3 ? { error: "died" } : undefined),
-          parentAgentId: "wf-1",
-          agentIndex: index,
-          phaseIndex: 0,
-          phaseTitle: "Work",
-        }),
-      ),
-    ]);
-    const model = deriveAgentPanelModel({ agents: roster });
-    const { visible, overflow } = workflowCardMembers(model.workflows[0]!, 8);
-    expect(visible).toHaveLength(8);
-    expect(overflow).toBe(2);
-    expect(visible[0]!.status).toBe("failed");
-    expect(visible.filter((agent) => agent.status === "completed").length).toBeLessThanOrEqual(2);
-  });
-});
-
-describe("timeline predicates", () => {
-  it("recognizes subagent activity kinds as fold input", () => {
-    for (const kind of [
-      "task.started",
-      "task.progress",
-      "task.updated",
-      "task.completed",
-      "tool.progress",
-    ]) {
-      expect(isSubagentActivityKind(kind)).toBe(true);
-    }
-    expect(isSubagentActivityKind("tool.completed")).toBe(false);
-  });
-
-  it("attributed tool rows are re-homed; unattributed rows stay in the timeline", () => {
-    expect(isAgentAttributedToolActivity(activity("tool.completed", { agentId: "task-1" }))).toBe(
-      true,
-    );
-    expect(isAgentAttributedToolActivity(activity("tool.completed", {}))).toBe(false);
-    expect(isAgentAttributedToolActivity(activity("tool.completed", { agentId: "  " }))).toBe(
-      false,
-    );
-  });
-
-  it("timelineBypass rows never render in the parent chat", () => {
-    expect(isTimelineBypassActivity(activity("task.progress", { timelineBypass: true }))).toBe(
-      true,
-    );
-    expect(isTimelineBypassActivity(activity("task.progress", {}))).toBe(false);
-  });
-});
-
 describe("formatSubagentTokenCount", () => {
   it("formats plain counters", () => {
     expect(formatSubagentTokenCount(950)).toBe("950");
@@ -567,6 +578,43 @@ describe("model and effort attribution", () => {
     expect(agents).toHaveLength(1);
     expect(agents[0]!.model).toBe("claude-sonnet-5[1m]");
     expect(agents[0]!.effort).toBe("high");
+  });
+
+  it("applies metadata-only updates without changing the current status", () => {
+    const waitingRows = [
+      activity("task.updated", {
+        taskId: "task-metadata",
+        title: "Check metadata",
+        status: "waiting",
+      }),
+      activity("task.updated", {
+        taskId: "task-metadata",
+        model: "gpt-5.6-sol",
+        effort: "high",
+      }),
+    ];
+    const waitingAgent = fold(waitingRows)[0]!;
+    expect(waitingAgent.status).toBe("waiting");
+    expect(formatSubagentModelLabel(waitingAgent.model, waitingAgent.effort)).toBe(
+      "gpt-5.6-sol · high",
+    );
+
+    const idleRows = [
+      ...waitingRows,
+      activity("task.updated", { taskId: "task-metadata", status: "idle" }),
+      activity("task.updated", { taskId: "task-metadata", model: "gpt-5.6-sol" }),
+    ];
+    expect(fold(idleRows)[0]!.status).toBe("idle");
+
+    const completedAgent = fold([
+      ...idleRows,
+      activity("task.progress", { taskId: "task-metadata", typedUsage: { totalTokens: 42 } }),
+      activity("task.completed", { taskId: "task-metadata", status: "completed" }),
+      activity("task.updated", { taskId: "task-metadata", effort: "high" }),
+    ])[0]!;
+    expect(completedAgent.status).toBe("completed");
+    expect(completedAgent.model).toBe("gpt-5.6-sol");
+    expect(completedAgent.effort).toBe("high");
   });
 
   it("formatSubagentModelLabel compacts ids and appends effort", () => {

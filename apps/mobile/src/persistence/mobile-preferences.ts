@@ -6,17 +6,23 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import type { SidebarProjectGroupingMode } from "@t3tools/contracts";
+import type { ComposerEnterBehavior } from "../lib/composerEnterBehavior";
+import { MOBILE_THEME_IDS, type MobileThemeId, type MobileThemeMode } from "../lib/mobileTheme";
 
 import * as MobileDatabase from "./mobile-database";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import { MobileStorageDecodeError, MobileStorageEncodeError } from "./mobile-storage";
-import * as RuntimePredicate from "effect/Predicate";
 
 const PREFERENCES_KEY = "rove.preferences";
 const PREFERENCES_FALLBACK_KEY = "rove.preferences.fallback";
 
 export interface Preferences {
   readonly liveActivitiesEnabled?: boolean;
+  readonly themeId?: MobileThemeId;
+  readonly lightThemeId?: MobileThemeId;
+  readonly darkThemeId?: MobileThemeId;
+  readonly themeMode?: MobileThemeMode;
+  readonly materialYouStyleLayoutEnabled?: boolean;
   readonly baseFontSize?: number;
   readonly terminalFontSize?: number | null;
   readonly markdownFontSize?: number;
@@ -24,10 +30,11 @@ export interface Preferences {
   readonly codeWordBreak?: boolean;
   readonly connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
   readonly collapsedProjectGroups?: readonly string[];
+  /** What the Return key does in the composer on a hardware keyboard. iOS only. */
+  readonly composerEnterBehavior?: ComposerEnterBehavior;
   /** @deprecated Kept temporarily so older OTA bundles retain the selected mode. */
   readonly projectGroupingEnabled?: boolean;
   readonly projectGroupingMode?: SidebarProjectGroupingMode;
-  readonly autoSettleOnMerge?: boolean;
   /**
    * Device-local mirror of the web `legacySidebarEnabled` setting. Mobile has
    * no client-settings sync, so the legacy grouped thread list is opted into
@@ -38,9 +45,12 @@ export interface Preferences {
   readonly legacyThreadListEnabled?: boolean;
   /** Device-local counterpart of desktop's `planModeEnabled` legacy flag. */
   readonly planModeEnabled?: boolean;
+  /** Fresh keys reset both shelves to collapsed when users update. */
+  readonly threadListSettledShelfExpanded?: boolean;
+  readonly threadListSnoozedShelfExpanded?: boolean;
 }
 
-export class MobilePreferencesLoadError extends Schema.TaggedErrorClass<MobilePreferencesLoadError>()(
+export class MobilePreferencesLoadError extends Schema.TaggedError<MobilePreferencesLoadError>()(
   "MobilePreferencesLoadError",
   { cause: Schema.Defect() },
 ) {
@@ -49,7 +59,7 @@ export class MobilePreferencesLoadError extends Schema.TaggedErrorClass<MobilePr
   }
 }
 
-export class MobilePreferencesSaveError extends Schema.TaggedErrorClass<MobilePreferencesSaveError>()(
+export class MobilePreferencesSaveError extends Schema.TaggedError<MobilePreferencesSaveError>()(
   "MobilePreferencesSaveError",
   { cause: Schema.Defect() },
 ) {
@@ -77,52 +87,86 @@ export class MobilePreferencesStore extends Context.Service<
   }
 >()("@t3tools/mobile/persistence/MobilePreferencesStore") {}
 
-interface SanitizedMobilePreferences {
-  liveActivitiesEnabled?: boolean;
-  baseFontSize?: number;
-  terminalFontSize?: number | null;
-  markdownFontSize?: number;
-  codeFontSize?: number | null;
-  codeWordBreak?: boolean;
-  connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
-  collapsedProjectGroups?: readonly string[];
-  projectGroupingEnabled?: boolean;
-  projectGroupingMode?: SidebarProjectGroupingMode;
-  autoSettleOnMerge?: boolean;
-  legacyThreadListEnabled?: boolean;
-  planModeEnabled?: boolean;
-}
-
 function sanitizePreferences(parsed: Preferences): Preferences {
-  const preferences: SanitizedMobilePreferences = {};
+  const preferences: {
+    liveActivitiesEnabled?: boolean;
+    themeId?: MobileThemeId;
+    lightThemeId?: MobileThemeId;
+    darkThemeId?: MobileThemeId;
+    themeMode?: MobileThemeMode;
+    materialYouStyleLayoutEnabled?: boolean;
+    baseFontSize?: number;
+    terminalFontSize?: number | null;
+    markdownFontSize?: number;
+    codeFontSize?: number | null;
+    codeWordBreak?: boolean;
+    connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
+    collapsedProjectGroups?: readonly string[];
+    composerEnterBehavior?: ComposerEnterBehavior;
+    projectGroupingEnabled?: boolean;
+    projectGroupingMode?: SidebarProjectGroupingMode;
+    legacyThreadListEnabled?: boolean;
+    planModeEnabled?: boolean;
+    threadListSettledShelfExpanded?: boolean;
+    threadListSnoozedShelfExpanded?: boolean;
+  } = {};
 
-  if (RuntimePredicate.isBoolean(parsed.liveActivitiesEnabled)) {
+  if (typeof parsed.liveActivitiesEnabled === "boolean") {
     preferences.liveActivitiesEnabled = parsed.liveActivitiesEnabled;
   }
-  if (RuntimePredicate.isNumber(parsed.baseFontSize))
-    preferences.baseFontSize = parsed.baseFontSize;
-  if (RuntimePredicate.isNumber(parsed.terminalFontSize) || parsed.terminalFontSize === null) {
+  if (
+    typeof parsed.themeId === "string" &&
+    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.themeId)
+  ) {
+    preferences.themeId = parsed.themeId as MobileThemeId;
+  }
+  if (
+    typeof parsed.lightThemeId === "string" &&
+    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.lightThemeId)
+  ) {
+    preferences.lightThemeId = parsed.lightThemeId as MobileThemeId;
+  }
+  if (
+    typeof parsed.darkThemeId === "string" &&
+    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.darkThemeId)
+  ) {
+    preferences.darkThemeId = parsed.darkThemeId as MobileThemeId;
+  }
+  if (
+    parsed.themeMode === "system" ||
+    parsed.themeMode === "light" ||
+    parsed.themeMode === "dark"
+  ) {
+    preferences.themeMode = parsed.themeMode;
+  }
+  if (typeof parsed.materialYouStyleLayoutEnabled === "boolean") {
+    preferences.materialYouStyleLayoutEnabled = parsed.materialYouStyleLayoutEnabled;
+  }
+  if (typeof parsed.baseFontSize === "number") preferences.baseFontSize = parsed.baseFontSize;
+  if (typeof parsed.terminalFontSize === "number" || parsed.terminalFontSize === null) {
     preferences.terminalFontSize = parsed.terminalFontSize;
   }
-  if (RuntimePredicate.isNumber(parsed.markdownFontSize)) {
+  if (typeof parsed.markdownFontSize === "number") {
     preferences.markdownFontSize = parsed.markdownFontSize;
   }
-  if (RuntimePredicate.isNumber(parsed.codeFontSize) || parsed.codeFontSize === null) {
+  if (typeof parsed.codeFontSize === "number" || parsed.codeFontSize === null) {
     preferences.codeFontSize = parsed.codeFontSize;
   }
-  if (RuntimePredicate.isBoolean(parsed.codeWordBreak))
-    preferences.codeWordBreak = parsed.codeWordBreak;
+  if (typeof parsed.codeWordBreak === "boolean") preferences.codeWordBreak = parsed.codeWordBreak;
   if (Array.isArray(parsed.connectOnboardingOptOutAccounts)) {
     preferences.connectOnboardingOptOutAccounts = parsed.connectOnboardingOptOutAccounts.filter(
-      (account): account is string => RuntimePredicate.isString(account),
+      (account): account is string => typeof account === "string",
     );
   }
   if (Array.isArray(parsed.collapsedProjectGroups)) {
     preferences.collapsedProjectGroups = parsed.collapsedProjectGroups.filter(
-      (key): key is string => RuntimePredicate.isString(key),
+      (key): key is string => typeof key === "string",
     );
   }
-  if (RuntimePredicate.isBoolean(parsed.projectGroupingEnabled)) {
+  if (parsed.composerEnterBehavior === "send" || parsed.composerEnterBehavior === "newline") {
+    preferences.composerEnterBehavior = parsed.composerEnterBehavior;
+  }
+  if (typeof parsed.projectGroupingEnabled === "boolean") {
     preferences.projectGroupingEnabled = parsed.projectGroupingEnabled;
   }
   if (
@@ -132,14 +176,17 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   ) {
     preferences.projectGroupingMode = parsed.projectGroupingMode;
   }
-  if (RuntimePredicate.isBoolean(parsed.autoSettleOnMerge)) {
-    preferences.autoSettleOnMerge = parsed.autoSettleOnMerge;
-  }
-  if (RuntimePredicate.isBoolean(parsed.legacyThreadListEnabled)) {
+  if (typeof parsed.legacyThreadListEnabled === "boolean") {
     preferences.legacyThreadListEnabled = parsed.legacyThreadListEnabled;
   }
-  if (RuntimePredicate.isBoolean(parsed.planModeEnabled)) {
+  if (typeof parsed.planModeEnabled === "boolean") {
     preferences.planModeEnabled = parsed.planModeEnabled;
+  }
+  if (typeof parsed.threadListSettledShelfExpanded === "boolean") {
+    preferences.threadListSettledShelfExpanded = parsed.threadListSettledShelfExpanded;
+  }
+  if (typeof parsed.threadListSnoozedShelfExpanded === "boolean") {
+    preferences.threadListSnoozedShelfExpanded = parsed.threadListSnoozedShelfExpanded;
   }
   return preferences;
 }
@@ -162,8 +209,7 @@ export const make = Effect.fn("MobilePreferencesStore.make")(function* () {
       );
       return null;
     }
-    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    return RuntimePredicate.isObjectOrArray(parsed) && !Array.isArray(parsed)
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
       ? (parsed as Preferences)
       : null;
   };
@@ -181,11 +227,12 @@ export const make = Effect.fn("MobilePreferencesStore.make")(function* () {
       return null;
     }
     if (
-      !RuntimePredicate.isObjectOrArray(parsed) ||
+      typeof parsed !== "object" ||
+      parsed === null ||
       !("payload" in parsed) ||
-      !RuntimePredicate.isString(parsed.payload) ||
+      typeof parsed.payload !== "string" ||
       !("updatedAt" in parsed) ||
-      !RuntimePredicate.isNumber(parsed.updatedAt)
+      typeof parsed.updatedAt !== "number"
     ) {
       return null;
     }

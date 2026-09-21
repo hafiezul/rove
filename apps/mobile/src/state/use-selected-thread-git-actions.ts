@@ -67,10 +67,8 @@ export function useSelectedThreadGitActions() {
         environmentId: thread.environmentId,
         input: {
           threadId: thread.id,
-          ...(nextState.branch !== undefined ? { branch: nextState.branch } : undefined),
-          ...(nextState.worktreePath !== undefined
-            ? { worktreePath: nextState.worktreePath }
-            : undefined),
+          ...(nextState.branch !== undefined ? { branch: nextState.branch } : {}),
+          ...(nextState.worktreePath !== undefined ? { worktreePath: nextState.worktreePath } : {}),
         },
       });
     },
@@ -329,9 +327,11 @@ export function useSelectedThreadGitActions() {
           const result = await runStackedAction({
             actionId,
             action: input.action,
-            ...(input.commitMessage ? { commitMessage: input.commitMessage } : undefined),
-            ...(input.featureBranch ? { featureBranch: input.featureBranch } : undefined),
-            ...(input.filePaths?.length ? { filePaths: [...input.filePaths] } : undefined),
+            ...(input.commitMessage ? { commitMessage: input.commitMessage } : {}),
+            ...(input.featureBranch ? { featureBranch: input.featureBranch } : {}),
+            ...(input.filePaths?.length ? { filePaths: [...input.filePaths] } : {}),
+            // A pull request the action opens is linked to the thread it ran beside.
+            threadId: thread.id,
           });
           if (AsyncResult.isFailure(result)) {
             return result;

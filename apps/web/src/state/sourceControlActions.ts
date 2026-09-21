@@ -91,7 +91,6 @@ function useAction<
         if (AsyncResult.isSuccess(result)) {
           input.onSuccess?.();
         }
-        // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
         return result as AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>;
       };
       return input.managedExternally === true
@@ -219,6 +218,7 @@ export function useGitStackedAction(scope: SourceControlActionScope) {
       commitMessage?: string;
       featureBranch?: boolean;
       filePaths?: string[];
+      threadId?: ThreadId;
       onProgress?: (event: GitActionProgressEvent) => void;
     }) => {
       if (resolveScope(scope) === null) {
@@ -235,10 +235,11 @@ export function useGitStackedAction(scope: SourceControlActionScope) {
       return runStackedAction({
         actionId: input.actionId,
         action: input.action,
-        ...(input.commitMessage ? { commitMessage: input.commitMessage } : undefined),
-        ...(input.featureBranch ? { featureBranch: true } : undefined),
-        ...(input.filePaths?.length ? { filePaths: input.filePaths } : undefined),
-        ...(input.onProgress ? { onProgress: input.onProgress } : undefined),
+        ...(input.commitMessage ? { commitMessage: input.commitMessage } : {}),
+        ...(input.featureBranch ? { featureBranch: true } : {}),
+        ...(input.filePaths?.length ? { filePaths: input.filePaths } : {}),
+        ...(input.threadId !== undefined ? { threadId: input.threadId } : {}),
+        ...(input.onProgress ? { onProgress: input.onProgress } : {}),
       });
     },
     [runStackedAction, scope],
@@ -268,7 +269,7 @@ export function useSourceControlPublishRepositoryAction(scope: SourceControlActi
   );
   const action = useCallback(
     async (input: {
-      provider: "github" | "gitlab" | "bitbucket" | "azure-devops";
+      provider: "github" | "gitlab" | "forgejo" | "bitbucket" | "azure-devops";
       repository: string;
       visibility: SourceControlRepositoryVisibility;
       remoteName: string;
@@ -329,7 +330,7 @@ export function usePreparePullRequestThreadAction(scope: SourceControlActionScop
           cwd: target.cwd,
           reference: input.reference,
           mode: input.mode,
-          ...(input.threadId ? { threadId: input.threadId } : undefined),
+          ...(input.threadId ? { threadId: input.threadId } : {}),
         },
       });
     },

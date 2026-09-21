@@ -3,9 +3,9 @@ import { NativeHeaderToolbar, NativeStackScreenOptions } from "../../native/Stac
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Platform, ScrollView, View } from "react-native";
+import { Alert, Linking, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useThemeColor } from "../../lib/useThemeColor";
+import { useUniwindTheme } from "../../lib/useUniwindTheme";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
@@ -47,7 +47,7 @@ export function ConnectionsNewRouteScreen({
   const [scannerLocked, setScannerLocked] = useState(false);
   const attemptedAutoConnectRef = useRef<string | null>(null);
 
-  const headerIconColor = useThemeColor("--color-icon");
+  const headerIconColor = useUniwindTheme()["--color-icon"];
 
   const connectDisabled = isSubmitting || hostInput.trim().length === 0;
 
@@ -95,9 +95,21 @@ export function ConnectionsNewRouteScreen({
       return;
     }
 
+    if (permission.canAskAgain) {
+      Alert.alert(
+        "Camera access needed",
+        "Allow camera access to scan an environment pairing QR code.",
+      );
+      return;
+    }
+
     Alert.alert(
       "Camera access needed",
-      "Allow camera access to scan an environment pairing QR code.",
+      "Camera access was denied for this app. Open Settings to enable it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Open Settings", onPress: () => void Linking.openSettings() },
+      ],
     );
   }, [cameraPermission?.granted, requestCameraPermission]);
 

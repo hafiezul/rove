@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
 
-export class CatalogDependencyResolutionError extends Schema.TaggedErrorClass<CatalogDependencyResolutionError>()(
+class CatalogDependencyResolutionError extends Schema.TaggedError<CatalogDependencyResolutionError>()(
   "CatalogDependencyResolutionError",
   {
     workspacePackage: Schema.String,

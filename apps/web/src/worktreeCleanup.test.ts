@@ -21,6 +21,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
     session: null,
     messages: [],
     checkpoints: [],
+    pullRequests: [],
     activities: [],
     proposedPlans: [],
     createdAt: "2026-02-13T00:00:00.000Z",
@@ -88,19 +89,19 @@ describe("getOrphanedWorktreePathForThread", () => {
 describe("formatWorktreePathForDisplay", () => {
   it("shows only the last path segment for unix-like paths", () => {
     const result = formatWorktreePathForDisplay(
-      "/Users/julius/.t3/worktrees/rove-mvp/rove-4e609bb8",
+      "/Users/julius/.rove/worktrees/rove-mvp/rove-4e609bb8",
     );
     expect(result).toBe("rove-4e609bb8");
   });
 
   it("normalizes windows separators before selecting the final segment", () => {
     const result = formatWorktreePathForDisplay(
-      "C:\\Users\\julius\\.t3\\worktrees\\rove-mvp\\rove-4e609bb8",
+      "C:\\Users\\julius\\.rove\\worktrees\\rove-mvp\\rove-4e609bb8",
     );
     expect(result).toBe("rove-4e609bb8");
   });
 
-  it("uses the final segment even when outside ~/.t3/worktrees", () => {
+  it("uses the final segment even when outside ~/.rove/worktrees", () => {
     const result = formatWorktreePathForDisplay("/tmp/custom-worktrees/my-worktree");
     expect(result).toBe("my-worktree");
   });

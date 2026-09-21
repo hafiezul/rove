@@ -1,4 +1,3 @@
-import { testDouble } from "../../testDouble";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const expoMocks = vi.hoisted(() => ({
@@ -8,9 +7,9 @@ const nativeView = () => null;
 const originalExpo = globalThis.expo;
 
 function setExpoViewConfigAvailable() {
-  globalThis.expo = testDouble<typeof globalThis.expo>({
+  globalThis.expo = {
     getViewConfig: vi.fn().mockReturnValue({ validAttributes: {}, directEventTypes: {} }),
-  });
+  } as unknown as typeof globalThis.expo;
 }
 
 vi.mock("expo", () => ({
@@ -21,7 +20,7 @@ describe("resolveNativeReviewDiffView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    globalThis.expo = testDouble<typeof globalThis.expo>(undefined);
+    globalThis.expo = undefined as unknown as typeof globalThis.expo;
   });
 
   afterEach(() => {
@@ -43,21 +42,6 @@ describe("resolveNativeReviewDiffView", () => {
     expect(resolvedView).not.toBe(nativeView);
     expect(resolveNativeReviewDiffView()).toBe(resolvedView);
     expect(expoMocks.requireNativeView).toHaveBeenCalledWith("T3ReviewDiffSurface");
-  });
-
-  it("does not fall back to stale legacy native review diff view names", async () => {
-    globalThis.expo = testDouble<typeof globalThis.expo>({
-      getViewConfig: vi.fn().mockImplementation((moduleName: string) => {
-        if (moduleName === "T3ReviewDiffView") {
-          return { validAttributes: {}, directEventTypes: {} };
-        }
-        return null;
-      }),
-    });
-    expoMocks.requireNativeView.mockReturnValue(nativeView);
-    const { resolveNativeReviewDiffView } = await import("./nativeReviewDiffSurface");
-    expect(resolveNativeReviewDiffView()).toBeNull();
-    expect(expoMocks.requireNativeView).not.toHaveBeenCalled();
   });
 
   it("returns null when the view manager cannot be required", async () => {

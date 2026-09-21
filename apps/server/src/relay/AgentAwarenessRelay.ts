@@ -46,7 +46,6 @@ import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as OrchestrationEngine from "../orchestration/Services/OrchestrationEngine.ts";
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import { forkParked } from "../serverActivation.ts";
-import * as RuntimePredicate from "effect/Predicate";
 
 export class AgentAwarenessRelay extends Context.Service<
   AgentAwarenessRelay,
@@ -57,20 +56,20 @@ export class AgentAwarenessRelay extends Context.Service<
 >()("t3/relay/AgentAwarenessRelay") {}
 
 export function eventThreadId(event: OrchestrationEvent): ThreadId | null {
-  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    payload = event.payload as { readonly threadId?: unknown };
-  if (RuntimePredicate.isString(payload.threadId)) {
-    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  const payload = event.payload as { readonly threadId?: unknown };
+  if (typeof payload.threadId === "string") {
     return payload.threadId as ThreadId;
   }
-  if (event.aggregateKind === "thread" && RuntimePredicate.isString(event.aggregateId)) {
-    // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
+  if (event.aggregateKind === "thread" && typeof event.aggregateId === "string") {
     return event.aggregateId as ThreadId;
   }
   return null;
 }
 
 export function shouldPublishAgentAwarenessEvent(event: OrchestrationEvent): boolean {
+  if (event.metadata.historyImport === true) {
+    return false;
+  }
   switch (event.type) {
     case "thread.message-sent":
     case "thread.turn-start-requested":
@@ -104,10 +103,6 @@ export function agentAwarenessPublishIdentity(state: RelayAgentActivityState | n
   }
   const { updatedAt: _updatedAt, ...meaningfulState } = state;
   return JSON.stringify(meaningfulState);
-}
-
-export function isAgentActivityPublishingEnabled(value: string | null): boolean {
-  return isAgentActivityPublishingEnabledValue(value);
 }
 
 export function resolveAgentActivityPublishingStartupState(input: {
@@ -201,23 +196,24 @@ const makePublishProof = Effect.fn("makePublishProof")(function* (input: {
 }) {
   const now = yield* DateTime.now;
   const expiresAt = DateTime.add(now, { minutes: 5 });
-  const // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-    payload = {
-      iss: `t3-env:${input.environmentId}`,
-      aud: normalizeRelayIssuer(input.relayIssuer),
-      sub: input.environmentId,
-      jti: input.jti,
-      iat: Math.floor(now.epochMilliseconds / 1_000),
-      exp: Math.floor(expiresAt.epochMilliseconds / 1_000),
-      environmentId: input.environmentId as RelayAgentActivityPublishProofPayload["environmentId"],
-      threadId: input.threadId,
-      state: input.state,
-    } satisfies RelayAgentActivityPublishProofPayload;
+  const payload = {
+    iss: `t3-env:${input.environmentId}`,
+    aud: normalizeRelayIssuer(input.relayIssuer),
+    sub: input.environmentId,
+    jti: input.jti,
+    iat: Math.floor(now.epochMilliseconds / 1_000),
+    exp: Math.floor(expiresAt.epochMilliseconds / 1_000),
+    environmentId: input.environmentId as RelayAgentActivityPublishProofPayload["environmentId"],
+    threadId: input.threadId,
+    state: input.state,
+  } satisfies RelayAgentActivityPublishProofPayload;
   return yield* signRelayAgentActivityPublishProof({ privateKey: input.privateKey, payload });
 });
 
 // Compact, log-safe view of the fields the awareness phase ladder reads.
-export function describeThreadShellForAwareness(thread: Option.Option<OrchestrationThreadShell>) {
+function describeThreadShellForAwareness(
+  thread: Option.Option<OrchestrationThreadShell>,
+): Record<string, unknown> {
   if (Option.isNone(thread)) {
     return { found: false };
   }
@@ -239,7 +235,11 @@ export function resolveAgentAwarenessRelayPublishSnapshot(input: {
   readonly threadId: ThreadId;
   readonly thread: Option.Option<OrchestrationThreadShell>;
   readonly project: Option.Option<OrchestrationProjectShell>;
-}) {
+}): {
+  readonly projectId: string | null;
+  readonly state: RelayAgentActivityState | null;
+  readonly reason: "snapshot" | "thread-not-found" | "project-not-found";
+} {
   if (Option.isNone(input.thread)) {
     return {
       projectId: null,
@@ -290,6 +290,7 @@ export function resolveAgentAwarenessRelayActiveThreadIds(input: {
     .map((thread) => thread.id);
 }
 
+/** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
@@ -321,7 +322,7 @@ export const make = Effect.gen(function* () {
   });
 
   const readPublishAgentActivityEnabled = readSecretString(PUBLISH_AGENT_ACTIVITY_SECRET).pipe(
-    Effect.map(isAgentActivityPublishingEnabled),
+    Effect.map(isAgentActivityPublishingEnabledValue),
   );
 
   const makeRelayClient = (relayConfig: {
@@ -588,11 +589,11 @@ export const make = Effect.gen(function* () {
       switch (startupState) {
         case "waiting-for-link":
           yield* Effect.logInfo(
-            "agent activity publishing standby; waiting for T3 Connect link reconciliation",
+            "agent activity publishing standby; waiting for Rove Connect link reconciliation",
           );
           break;
         case "disabled":
-          yield* Effect.logInfo("agent activity publishing disabled by T3 Connect configuration");
+          yield* Effect.logInfo("agent activity publishing disabled by Rove Connect configuration");
           break;
         case "enabled":
           yield* Effect.logInfo("agent activity publishing enabled", {

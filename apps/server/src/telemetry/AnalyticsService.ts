@@ -7,6 +7,7 @@
  * @module AnalyticsService
  */
 import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import type { ClientOs } from "@t3tools/contracts";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -21,11 +22,10 @@ import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import { getTelemetryIdentifier } from "./Identify.ts";
-import type { Json as SchemaJson } from "effect/Schema";
 
 interface BufferedAnalyticsEvent {
   readonly event: string;
-  readonly properties?: Readonly<Record<string, SchemaJson>>;
+  readonly properties?: Readonly<Record<string, unknown>>;
   readonly capturedAt: string;
 }
 
@@ -50,7 +50,7 @@ export class AnalyticsService extends Context.Service<
     /** Record an anonymous event for best-effort buffered delivery. */
     readonly record: (
       event: string,
-      properties?: Readonly<Record<string, SchemaJson>>,
+      properties?: Readonly<Record<string, unknown>>,
     ) => Effect.Effect<void>;
 
     /** Flush all currently queued telemetry events. */
@@ -67,6 +67,22 @@ export class AnalyticsService extends Context.Service<
   );
 }
 
+function serverOsFromNodePlatform(platform: string): ClientOs {
+  switch (platform) {
+    case "darwin":
+      return "macOS";
+    case "win32":
+      return "Windows";
+    case "linux":
+      return "Linux";
+    case "android":
+      return "Android";
+    default:
+      return "other";
+  }
+}
+
+/** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const telemetryConfig = yield* TelemetryEnvConfig;
   const httpClient = yield* HttpClient.HttpClient;
@@ -77,7 +93,7 @@ export const make = Effect.gen(function* () {
   const hostPlatform = yield* HostProcessPlatform;
   const hostArchitecture = yield* HostProcessArchitecture;
 
-  const enqueueBufferedEvent = (event: string, properties?: Readonly<Record<string, SchemaJson>>) =>
+  const enqueueBufferedEvent = (event: string, properties?: Readonly<Record<string, unknown>>) =>
     Effect.flatMap(DateTime.now, (now) =>
       Ref.modify(bufferRef, (current) => {
         const appended = [
@@ -122,6 +138,11 @@ export const make = Effect.gen(function* () {
           arch: hostArchitecture,
           roveVersion: packageJson.version,
           clientType,
+          serverOs: serverOsFromNodePlatform(hostPlatform),
+          serverArch: hostArchitecture,
+          serverWslDistro: Option.getOrUndefined(telemetryConfig.wslDistroName),
+          serverAppVersion: packageJson.version,
+          serverMode: serverConfig.mode,
         },
         timestamp: event.capturedAt,
       })),

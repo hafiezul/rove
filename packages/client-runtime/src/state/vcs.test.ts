@@ -84,9 +84,11 @@ const LIVE_REFS: VcsListRefsResult = {
 };
 
 function session(client: unknown): RpcSession {
+  const rpcClient = testDouble<WsRpcProtocolClient>(client);
   return {
-    client: testDouble<WsRpcProtocolClient>(client),
+    client: rpcClient,
     initialConfig: Effect.never,
+    subscribeServerConfig: (input) => rpcClient.subscribeServerConfig(input),
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,

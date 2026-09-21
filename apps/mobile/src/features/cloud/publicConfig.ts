@@ -4,7 +4,7 @@ import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
 
-export class CloudPublicConfigMissingError extends Schema.TaggedErrorClass<CloudPublicConfigMissingError>()(
+export class CloudPublicConfigMissingError extends Schema.TaggedError<CloudPublicConfigMissingError>()(
   "CloudPublicConfigMissingError",
   {
     key: Schema.Literal("ROVE_CLERK_JWT_TEMPLATE"),

@@ -4,7 +4,6 @@ import { Children, isValidElement, type ReactElement, type ReactNode } from "rea
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { PullRequestFiltersMenu, pullRequestProjectKey } from "./PullRequestListFilters";
-import * as RuntimePredicate from "effect/Predicate";
 
 function findValueChange(
   node: ReactNode,
@@ -13,13 +12,11 @@ function findValueChange(
   | undefined {
   for (const child of Children.toArray(node)) {
     if (!isValidElement(child)) continue;
-    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-      props = child.props as {
-        readonly children?: ReactNode;
-        readonly onValueChange?: (value: string) => void;
-      };
+    const props = child.props as {
+      readonly children?: ReactNode;
+      readonly onValueChange?: (value: string) => void;
+    };
     if (props.onValueChange) {
-      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
       return child as ReactElement<{
         readonly children?: ReactNode;
         readonly onValueChange: (value: string) => void;
@@ -35,11 +32,10 @@ function findValueChange(
 function findLabeledGroup(node: ReactNode, label: string): ReactNode {
   for (const child of Children.toArray(node)) {
     if (!isValidElement(child)) continue;
-    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-      props = child.props as { readonly children?: ReactNode; readonly label?: string };
-    if (props.label === label && RuntimePredicate.isFunction(child.type)) {
-      // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-      return (child.type as (properties: unknown) => ReactNode)(child.props);
+    const props = child.props as { readonly children?: ReactNode; readonly label?: string };
+    if (props.label === label && typeof child.type === "function") {
+      const rendered = (child.type as (properties: unknown) => ReactNode)(child.props);
+      return findLabeledGroup(rendered, label) ?? rendered;
     }
     const nested = findLabeledGroup(props.children, label);
     if (nested !== undefined) return nested;
@@ -131,7 +127,7 @@ describe("pull request filters menu", () => {
       projectEnvironmentId: environmentId,
       onProject,
     });
-    const radioGroup = findValueChange(view);
+    const radioGroup = findValueChange(findLabeledGroup(view, "Project"));
     expect(radioGroup).toBeDefined();
 
     radioGroup?.props.onValueChange(pullRequestProjectKey({ id: projectId, environmentId }));
@@ -161,7 +157,7 @@ describe("pull request filters menu", () => {
       ],
       onProject,
     });
-    const radioGroup = findValueChange(view);
+    const radioGroup = findValueChange(findLabeledGroup(view, "Project"));
     expect(radioGroup).toBeDefined();
 
     radioGroup?.props.onValueChange(

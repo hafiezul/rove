@@ -1,4 +1,8 @@
 import { type LiveActivity } from "expo-widgets";
+import {
+  configureAndroidAgentNotifications,
+  clearAndroidAgentNotifications,
+} from "./androidNotifications";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as Effect from "effect/Effect";
@@ -35,7 +39,6 @@ import AgentActivity, { type AgentActivityProps } from "../../widgets/AgentActiv
 import { resolveCloudPublicConfig } from "../cloud/publicConfig";
 import { supportsAgentAwarenessPush } from "./capabilities";
 import { makeRelayDeviceRegistrationRequest, resolveApsEnvironment } from "./registrationPayload";
-import * as RuntimePredicate from "effect/Predicate";
 
 const REMOTE_ACTIVITY_REGISTRATION_RETRY_MS = 15_000;
 
@@ -55,7 +58,7 @@ const AgentAwarenessOperation = Schema.Literals([
   "prime-live-activity",
 ]);
 
-export class AgentAwarenessOperationError extends Schema.TaggedErrorClass<AgentAwarenessOperationError>()(
+export class AgentAwarenessOperationError extends Schema.TaggedError<AgentAwarenessOperationError>()(
   "AgentAwarenessOperationError",
   {
     operation: AgentAwarenessOperation,
@@ -80,6 +83,7 @@ const activityPushTokenListeners = new WeakSet<LiveActivity<AgentActivityProps>>
 // sign-out/identity change alongside the device registration state.
 const ACTIVITY_TOKEN_REREGISTER_INTERVAL_MS = 60_000;
 const registeredActivityPushTokens = new Map<string, number>();
+let androidDeviceReplayedAt: number | null = null;
 let pushTokenSubscription: { remove: () => void } | null = null;
 let appStateSubscription: { remove: () => void } | null = null;
 
@@ -140,16 +144,6 @@ export function mergeAgentAwarenessRegistrationPreferences(
   return { ...stored, ...override };
 }
 
-export function normalizeAgentAwarenessRelayBaseUrl(
-  value: string | null | undefined,
-): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-  return trimmed.replace(/\/+$/g, "");
-}
-
 function readRelayConfig(): { readonly url: string } | null {
   const relayUrl = resolveCloudPublicConfig().relay.url;
   if (!relayUrl) {
@@ -162,6 +156,10 @@ function readRelayConfig(): { readonly url: string } | null {
 
 function canRegisterRemoteLiveActivities(): boolean {
   return Platform.OS === "ios";
+}
+
+function canRegisterPushNotifications(): boolean {
+  return Platform.OS === "ios" || Platform.OS === "android";
 }
 
 export function shouldRegisterAgentAwarenessDeviceForProvider(
@@ -179,6 +177,12 @@ export function setAgentAwarenessRelayTokenProvider(
     provider !== null &&
     !shouldRegisterAgentAwarenessDeviceForProvider(relayTokenProviderIdentity, identity);
   if (!isExistingIdentity) {
+    // Native configure compares the persisted account on cold start. An
+    // unset JS identity is a remount, not evidence of a different account.
+    if (relayTokenProviderIdentity && identity !== relayTokenProviderIdentity) {
+      clearAndroidAgentNotifications();
+    }
+    androidDeviceReplayedAt = null;
     deviceRegistrationGeneration++;
     activeDeviceRegistration = null;
     pendingDeviceRegistration = null;
@@ -187,6 +191,7 @@ export function setAgentAwarenessRelayTokenProvider(
   relayTokenProvider = provider;
   relayTokenProviderIdentity = provider ? (identity ?? null) : null;
   if (!provider) {
+    clearAndroidAgentNotifications();
     pushTokenSubscription?.remove();
     pushTokenSubscription = null;
     appStateSubscription?.remove();
@@ -232,6 +237,10 @@ export function setAgentAwarenessRelayTokenProvider(
 export function releaseAgentAwarenessRelayTokenProvider(): void {
   relayTokenProvider = null;
   relayTokenProviderIdentity = null;
+  deviceRegistrationGeneration++;
+  activeDeviceRegistration = null;
+  pendingDeviceRegistration = null;
+  androidDeviceReplayedAt = null;
   pushTokenSubscription?.remove();
   pushTokenSubscription = null;
   appStateSubscription?.remove();
@@ -244,7 +253,7 @@ export function releaseAgentAwarenessRelayTokenProvider(): void {
 
 function iosMajorVersion(): number {
   const version = Platform.Version;
-  if (RuntimePredicate.isNumber(version)) {
+  if (typeof version === "number") {
     return Math.floor(version);
   }
   const major = Number.parseInt(version.split(".")[0] ?? "", 10);
@@ -253,11 +262,8 @@ function iosMajorVersion(): number {
 
 function nativePushTokenRegistration(observedPushToken?: string) {
   return Effect.gen(function* () {
-    if (!canRegisterRemoteLiveActivities() || !supportsAgentAwarenessPush()) {
+    if (!canRegisterPushNotifications() || !supportsAgentAwarenessPush()) {
       return { notificationsEnabled: false, pushToken: null };
-    }
-    if (observedPushToken) {
-      return { notificationsEnabled: true, pushToken: observedPushToken };
     }
     const permissions = yield* Effect.tryPromise({
       try: () => Notifications.getPermissionsAsync(),
@@ -270,6 +276,9 @@ function nativePushTokenRegistration(observedPushToken?: string) {
     if (!permissions.granted) {
       return { notificationsEnabled: false, pushToken: null };
     }
+    if (observedPushToken) {
+      return { notificationsEnabled: true, pushToken: observedPushToken };
+    }
     const token = yield* Effect.tryPromise({
       try: () => Notifications.getDevicePushTokenAsync(),
       catch: (cause) =>
@@ -280,13 +289,13 @@ function nativePushTokenRegistration(observedPushToken?: string) {
     }).pipe(
       Effect.tapError((error) =>
         Effect.sync(() => {
-          logRegistrationError("native APNs token lookup failed", error);
+          logRegistrationError("native push token lookup failed", error);
         }),
       ),
       Effect.orElseSucceed(() => null),
     );
     const pushToken =
-      token?.type === "ios" && RuntimePredicate.isString(token.data) && token.data.trim().length > 0
+      token?.type === Platform.OS && typeof token.data === "string" && token.data.trim().length > 0
         ? token.data.trim()
         : null;
     return { notificationsEnabled: pushToken !== null, pushToken };
@@ -318,7 +327,9 @@ function registrationSignature(body: RelayDeviceRegistrationRequest): string {
     body.apsEnvironment ?? "",
     body.appVersion ?? "",
     body.label,
+    body.platform,
     body.iosMajorVersion,
+    body.androidApiLevel,
     body.preferences.notificationsEnabled,
     body.preferences.liveActivitiesEnabled,
     body.preferences.notifyOnApproval,
@@ -383,7 +394,19 @@ function registerDeviceWithRelay(
     // The relay URL participates so pointing the app at a different relay
     // invalidates the record and re-registers there.
     const signature = `${relayConfig.url}|${registrationSignature(payload)}`;
-    if (persisted && persisted.identity === identity && persisted.signature === signature) {
+    // Android registration also silently replays the current card. Collapse
+    // foreground bursts, but repair missed pushes on cold start or a return
+    // after time away, just like re-registering an iOS activity token.
+    const needsAndroidReplay =
+      body.platform === "android" &&
+      (androidDeviceReplayedAt === null ||
+        Date.now() - androidDeviceReplayedAt >= ACTIVITY_TOKEN_REREGISTER_INTERVAL_MS);
+    if (
+      persisted &&
+      persisted.identity === identity &&
+      persisted.signature === signature &&
+      !needsAndroidReplay
+    ) {
       setRegistrationStatus("registered");
       logRegistrationDebug("relay device registration skipped; already registered for account", {
         expectedGeneration,
@@ -409,6 +432,7 @@ function registerDeviceWithRelay(
       });
       return;
     }
+    if (body.platform === "android") androidDeviceReplayedAt = Date.now();
     setRegistrationStatus("registered");
     yield* Effect.promise(() =>
       saveAgentAwarenessRegistrationRecord({
@@ -695,7 +719,7 @@ function registerDevice(
   expectedGeneration = deviceRegistrationGeneration,
 ): Effect.Effect<void, unknown, ManagedRelay.ManagedRelayClient> {
   return Effect.gen(function* () {
-    if (!canRegisterRemoteLiveActivities()) {
+    if (!canRegisterPushNotifications()) {
       logRegistrationDebug("device registration skipped; platform does not support it");
       return;
     }
@@ -723,23 +747,38 @@ function registerDevice(
       storedPreferences,
       input.preferencesOverride,
     );
+    if (expectedGeneration !== deviceRegistrationGeneration) return;
+    if (relayTokenProvider && relayTokenProviderIdentity) {
+      configureAndroidAgentNotifications(
+        deviceId,
+        relayTokenProviderIdentity,
+        preferences.liveActivitiesEnabled !== false,
+      );
+    }
     const pushTokenRegistration = yield* nativePushTokenRegistration(input?.observedPushToken);
     logRegistrationDebug("device registration local state ready", {
       expectedGeneration,
       notificationsEnabled: pushTokenRegistration.notificationsEnabled,
     });
-    const bundleId = Constants.expoConfig?.ios?.bundleIdentifier?.trim();
+    const bundleId =
+      Platform.OS === "android"
+        ? Constants.expoConfig?.android?.package?.trim()
+        : Constants.expoConfig?.ios?.bundleIdentifier?.trim();
     yield* registerDeviceWithRelay(
       makeRelayDeviceRegistrationRequest({
         deviceId,
-        label: Constants.deviceName?.trim() || "iOS device",
-        iosMajorVersion: iosMajorVersion(),
+        label:
+          Constants.deviceName?.trim() ||
+          (Platform.OS === "android" ? "Android device" : "iOS device"),
+        ...(Platform.OS === "android"
+          ? { platform: "android" as const, androidApiLevel: Number(Platform.Version) }
+          : { platform: "ios" as const, iosMajorVersion: iosMajorVersion() }),
         appVersion: Constants.expoConfig?.version,
-        ...(bundleId ? { bundleId } : undefined),
-        apsEnvironment: resolveApsEnvironment(Constants.expoConfig?.extra?.appVariant),
-        ...(pushTokenRegistration.pushToken
-          ? { pushToken: pushTokenRegistration.pushToken }
-          : undefined),
+        ...(bundleId ? { bundleId } : {}),
+        ...(Platform.OS === "ios"
+          ? { apsEnvironment: resolveApsEnvironment(Constants.expoConfig?.extra?.appVariant) }
+          : {}),
+        ...(pushTokenRegistration.pushToken ? { pushToken: pushTokenRegistration.pushToken } : {}),
         notificationsEnabled: pushTokenRegistration.notificationsEnabled,
         preferences,
       }),
@@ -757,19 +796,19 @@ function registerDeviceForCurrentUser(): Effect.Effect<
 }
 
 function ensurePushTokenListener(): void {
-  if (pushTokenSubscription || !canRegisterRemoteLiveActivities()) {
+  if (pushTokenSubscription || !canRegisterPushNotifications()) {
     return;
   }
 
   pushTokenSubscription = Notifications.addPushTokenListener((token) => {
     if (
-      token.type === "ios" &&
-      RuntimePredicate.isString(token.data) &&
+      token.type === Platform.OS &&
+      typeof token.data === "string" &&
       token.data.trim().length > 0
     ) {
       enqueueDeviceRegistration(
         { observedPushToken: token.data.trim() },
-        "native APNs token rotation registration failed",
+        "native push token rotation registration failed",
       );
     }
   });
@@ -782,7 +821,7 @@ function ensurePushTokenListener(): void {
 // foreground/sign-in bursts collapse to one registration, but returning after
 // real time away still replays.)
 function ensureAppStateListener(): void {
-  if (appStateSubscription || !canRegisterRemoteLiveActivities()) {
+  if (appStateSubscription || !canRegisterPushNotifications()) {
     return;
   }
 
@@ -790,6 +829,7 @@ function ensureAppStateListener(): void {
     if (state !== "active") {
       return;
     }
+    enqueueDeviceRegistration({}, "device registration after app foreground failed");
     runRegistrationInBackground(
       refreshActiveLiveActivityRemoteRegistration(),
       "active live activity reconciliation after app foreground failed",
@@ -813,7 +853,7 @@ function endLocalLiveActivities(context: string): void {
 }
 
 export function registerAgentAwarenessConnection(connection: SavedRemoteConnection): void {
-  if (!canRegisterRemoteLiveActivities()) {
+  if (!canRegisterPushNotifications()) {
     return;
   }
 
@@ -833,18 +873,6 @@ function removeAgentAwarenessConnection(environmentId: EnvironmentId): void {
 
 export function unregisterAgentAwarenessConnection(environmentId: EnvironmentId): void {
   removeAgentAwarenessConnection(environmentId);
-}
-
-export function unregisterAllAgentAwarenessConnections(): void {
-  environmentConnections.clear();
-  pushTokenSubscription?.remove();
-  pushTokenSubscription = null;
-  appStateSubscription?.remove();
-  appStateSubscription = null;
-  if (activeLiveActivityRegistrationRetry) {
-    clearTimeout(activeLiveActivityRegistrationRetry);
-    activeLiveActivityRegistrationRetry = null;
-  }
 }
 
 export function refreshAgentAwarenessRegistration(): Effect.Effect<
@@ -897,6 +925,7 @@ export function __resetAgentAwarenessRemoteRegistrationForTest(): void {
   activeDeviceRegistration = null;
   pendingDeviceRegistration = null;
   registrationStatus = "unknown";
+  androidDeviceReplayedAt = null;
   registrationStatusListeners.clear();
   registeredActivityPushTokens.clear();
 }

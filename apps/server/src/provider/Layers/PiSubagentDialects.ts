@@ -85,7 +85,7 @@ export interface PiSubagentDialect {
 }
 
 /** First dialect whose tool names claim this tool, if any. */
-export function findToolDialect(
+function findToolDialect(
   dialects: ReadonlyArray<PiSubagentDialect>,
   toolName: string,
 ): PiSubagentDialect | undefined {
@@ -144,7 +144,7 @@ export function piFirstText(result: Record<string, SchemaJson> | undefined): str
   return piTrimmed(piRecord(content[0])?.text);
 }
 
-export function piUsageToTypedUsage(value: unknown): RuntimeTaskUsage | undefined {
+function piUsageToTypedUsage(value: unknown): RuntimeTaskUsage | undefined {
   const usage = piRecord(value);
   if (!usage) return undefined;
   const input = piNonNegativeInt(usage.input);
