@@ -189,7 +189,7 @@ function makeService(input: {
   readonly projects: ReadonlyArray<OrchestrationProjectShell>;
   readonly providers: ReadonlyArray<PullRequestProviderApi>;
   readonly resolveHandle?: SourceControlProviderRegistry.SourceControlProviderRegistry["Service"]["resolveHandle"];
-  readonly projectSettingsOverrides?: Record<ProjectId, ProjectSettingsOverrides>;
+  readonly projectSettingsOverrides?: Record<string, ProjectSettingsOverrides>;
 }) {
   return PullRequestService.make.pipe(
     Effect.provide(
@@ -766,7 +766,7 @@ it.effect("acts as the project's selected GitHub account in its provider calls",
       ],
       projectSettingsOverrides: {
         p1: { githubAccount: { host: "github.com", login: "work-account" } },
-      } as Record<ProjectId, ProjectSettingsOverrides>,
+      },
     });
 
     yield* service.list({ state: "open" });
