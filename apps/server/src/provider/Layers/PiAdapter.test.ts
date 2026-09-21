@@ -492,9 +492,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
     "driver teardown sequence: settlement timeout still ends with all sessions disposed",
     () =>
       Effect.gen(function* () {
-        // Mirrors the Pi driver's scope finalizer: settle (which may time out
-        // while a turn is still streaming) followed by stopAll. Sessions and
-        // their extension resources must never outlive the driver.
+        // Exercise the same shutdown operation the driver's finalizer calls.
         const fake = new FakePiSession();
         const adapter = yield* makeAdapter(fake);
         yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
@@ -503,18 +501,84 @@ it.layer(testLayer)("PiAdapter", (it) => {
 
         // The settle wait times out against the test clock, like a real
         // 30s timeout elapsing while the turn is still streaming.
-        const settleTurn = adapter.waitForActiveTurnsToSettle
-          ? adapter.waitForActiveTurnsToSettle(30_000)
-          : Effect.void;
-        const settleFiber = yield* settleTurn.pipe(Effect.forkChild({ startImmediately: true }));
+        const shutdown = yield* adapter
+          .shutdown()
+          .pipe(Effect.uninterruptible, Effect.forkChild({ startImmediately: true }));
         yield* TestClock.adjust(60_000);
-        yield* Fiber.join(settleFiber);
-        assert.isTrue(yield* adapter.hasSession(threadId));
-
-        yield* adapter.stopAll();
+        yield* Fiber.join(shutdown);
         assert.isTrue(fake.disposed);
         assert.isFalse(yield* adapter.hasSession(threadId));
       }),
+  );
+
+  it.effect("shutdown disposes idle sessions, closes subscribers, and rejects new work", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const subscriber = yield* Stream.runDrain(adapter.streamEvents).pipe(
+        Effect.forkChild({ startImmediately: true }),
+      );
+
+      yield* adapter.shutdown();
+      yield* Fiber.await(subscriber);
+      assert.isTrue(fake.disposed);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      const start = yield* adapter
+        .startSession({ threadId, runtimeMode: "full-access" })
+        .pipe(Effect.result);
+      const send = yield* adapter.sendTurn({ threadId, input: "too late" }).pipe(Effect.result);
+      assert.strictEqual(start._tag, "Failure");
+      assert.strictEqual(send._tag, "Failure");
+      yield* adapter.shutdown();
+    }),
+  );
+
+  it.effect("shutdown delivers active turn completion before closing the event stream", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const events = yield* Stream.runCollect(adapter.streamEvents).pipe(
+        Effect.forkChild({ startImmediately: true }),
+      );
+      const turn = yield* adapter.sendTurn({ threadId, input: "finish before replacement" });
+      const shutdown = yield* adapter.shutdown().pipe(Effect.forkChild({ startImmediately: true }));
+      fake.emit({ type: "agent_settled" });
+      yield* Fiber.join(shutdown);
+      const received = yield* Fiber.join(events);
+      assert.isTrue(
+        received.some((event) => event.type === "turn.completed" && event.turnId === turn.turnId),
+      );
+      assert.isTrue(fake.disposed);
+    }),
+  );
+
+  it.effect("shutdown disposes sessions that finish starting after the adapter retires", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const started = yield* Deferred.make<void>();
+      let finish!: (session: PiSessionLike) => void;
+      const pending = new Promise<PiSessionLike>((resolve) => {
+        finish = resolve;
+      });
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: () => {
+          Deferred.doneUnsafe(started, Effect.void);
+          return pending;
+        },
+      });
+      const startup = yield* adapter
+        .startSession({ threadId, runtimeMode: "full-access" })
+        .pipe(Effect.result, Effect.forkChild({ startImmediately: true }));
+      yield* Deferred.await(started);
+      yield* adapter.shutdown();
+      finish(fake);
+      const result = yield* Fiber.join(startup);
+      assert.strictEqual(result._tag, "Failure");
+      assert.isTrue(fake.disposed);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+    }),
   );
 
   it.effect("startSession creates a Pi session, emits started+ready, and lists it", () =>

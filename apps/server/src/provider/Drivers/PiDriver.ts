@@ -224,18 +224,9 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         ),
       });
 
-      // When the driver scope closes (e.g. config update), wait for any active
-      // streaming turns to settle before teardown, rather than disrupting live
-      // streams. Then dispose every session: replacement drivers must not share
-      // Pi sessions, extension resources, or MCP connections with their
-      // predecessor, and sessions left alive past settlement keep running
-      // alongside the new driver.
-      yield* Effect.addFinalizer(() =>
-        (adapter.waitForActiveTurnsToSettle?.() ?? Effect.void).pipe(
-          Effect.andThen(adapter.stopAll),
-          Effect.ignore,
-        ),
-      );
+      // Retire the adapter before replacement: stop accepting work, drain active
+      // turns, dispose sessions, and terminate the old runtime event subscription.
+      yield* Effect.addFinalizer(() => adapter.shutdown());
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
         createSession: ({ cwd }) =>
           createPiSession(

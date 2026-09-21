@@ -490,6 +490,8 @@ function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>) {
 }
 
 export interface PiAdapterContract extends ProviderAdapterContract<ProviderAdapterRequestError> {
+  /** Permanently retire this adapter, drain its turns, and close its event stream. */
+  readonly shutdown: () => Effect.Effect<void>;
   readonly waitForActiveTurnsToSettle?: (timeoutMs?: number) => Effect.Effect<void>;
 }
 
@@ -599,6 +601,7 @@ export function makePiAdapter(
     const runFork = Effect.runForkWith(yield* Effect.context<Crypto.Crypto>());
     const createSession = options.createSession;
 
+    let closed = false;
     const sessions = new Map<ThreadId, PiSessionContext>();
     const threadLocksRef = yield* SynchronizedRef.make(new Map<string, Semaphore.Semaphore>());
     const runtimeEventPubSub = yield* PubSub.unbounded<ProviderRuntimeEvent>();
@@ -789,10 +792,24 @@ export function makePiAdapter(
         } satisfies ProviderSession;
       });
 
+    const ensureOpen = (method: string) =>
+      Effect.suspend(() =>
+        closed
+          ? Effect.fail(
+              new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method,
+                detail: "Pi provider is shutting down. Retry with the replacement provider.",
+              }),
+            )
+          : Effect.void,
+      );
+
     const getSession = (threadId: ThreadId, method: string) =>
-      Effect.suspend(() => {
+      Effect.gen(function* () {
+        yield* ensureOpen(method);
         const ctx = sessions.get(threadId);
-        return ctx
+        return yield* ctx
           ? Effect.succeed(ctx)
           : Effect.fail(
               new ProviderAdapterRequestError({
@@ -1358,6 +1375,7 @@ export function makePiAdapter(
       withThreadLock(
         input.threadId,
         Effect.gen(function* () {
+          yield* ensureOpen("startSession");
           const existing = sessions.get(input.threadId);
           if (existing) {
             return yield* providerSessionFor(existing, "ready");
@@ -1434,6 +1452,12 @@ export function makePiAdapter(
             ),
           );
 
+          // Creation is asynchronous and does not hold up driver retirement.
+          // A late session must be disposed, never adopted by the retired adapter.
+          if (closed) {
+            yield* disposePiResource(() => session.dispose());
+            yield* ensureOpen("startSession");
+          }
           const failedExtensions = recoveredFailures;
           const settingsDisabled = piSettings.disabledExtensions ?? [];
           const effectiveDisabledExtensions = [
@@ -1483,7 +1507,7 @@ export function makePiAdapter(
                 message:
                   `Skipped ${failedExtensions.length} Pi ${plural} that failed to load: ` +
                   `${failedExtensions.join(", ")}. ` +
-                  "Fix or disable them in settings; the next turn reloads extensions.",
+                  "Skipped for this session; fix or disable them before starting a new session.",
               },
             });
           }
@@ -1690,6 +1714,8 @@ export function makePiAdapter(
           if (modelChanged) {
             yield* publishPiTokenUsage(ctx, "model-switch");
           }
+
+          yield* ensureOpen("sendTurn");
 
           // A non-vision model silently receives "(image omitted)" placeholder
           // text instead of pixels (pi-ai downgrades images), so reject up front
@@ -1971,9 +1997,26 @@ export function makePiAdapter(
         );
       });
 
+    const shutdown = () =>
+      Effect.gen(function* () {
+        closed = true;
+        yield* waitForActiveTurnsToSettle().pipe(
+          Effect.interruptible,
+          Effect.ensuring(
+            stopAll().pipe(
+              Effect.catchCause((cause) =>
+                Effect.logWarning("Pi adapter cleanup failed.", { cause }),
+              ),
+              Effect.ensuring(PubSub.shutdown(runtimeEventPubSub)),
+            ),
+          ),
+        );
+      });
+
     return {
       provider: PROVIDER,
       capabilities: { sessionModelSwitch: "in-session" },
+      shutdown,
       startSession,
       sendTurn,
       interruptTurn,
