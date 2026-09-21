@@ -1,6 +1,7 @@
 import * as NodeUtil from "node:util";
 import type {
   SourceControlProviderAuth,
+  SourceControlProviderAccount,
   SourceControlProviderDiscoveryItem,
   SourceControlProviderInfo,
   SourceControlProviderKind,
@@ -113,17 +114,25 @@ function authDetail(detail: string | undefined): Option.Option<string> {
   return trimmed === undefined || trimmed.length === 0 ? Option.none() : Option.some(trimmed);
 }
 
+function authAccounts(
+  accounts: readonly SourceControlProviderAccount[] | undefined,
+): Option.Option<ReadonlyArray<SourceControlProviderAccount>> {
+  return accounts === undefined || accounts.length === 0 ? Option.none() : Option.some(accounts);
+}
+
 export function providerAuth(input: {
   readonly status: SourceControlProviderAuth["status"];
   readonly account?: string | undefined;
   readonly host?: string | undefined;
   readonly detail?: string | undefined;
+  readonly accounts?: readonly SourceControlProviderAccount[] | undefined;
 }): SourceControlProviderAuth {
   return {
     status: input.status,
     account: authAccount(input.account),
     host: authHost(input.host),
     detail: authDetail(input.detail),
+    accounts: authAccounts(input.accounts),
   };
 }
 

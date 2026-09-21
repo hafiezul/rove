@@ -1036,6 +1036,10 @@ export const make = Effect.gen(function* () {
       const host = input.host.toLowerCase();
       const pinned = yield* GitHubCli.PinnedGitHubCredential;
       if (pinned !== null && pinned.host !== host) return yield* unavailable();
+      const selection = yield* GitHubCli.SelectedGitHubAccount;
+      if (pinned === null && selection !== null && selection.host !== host) {
+        return yield* unavailable();
+      }
       // Only the digest is retained. Never attach credential lookup output to an error.
       const token =
         pinned !== null
@@ -1043,7 +1047,12 @@ export const make = Effect.gen(function* () {
           : (yield* github
               .execute({
                 cwd: input.cwd,
-                args: ["auth", "token", "--hostname", host],
+                // The selected account is resolved by login so the verified
+                // identity is the project's choice, not the CLI's active one.
+                args:
+                  selection !== null
+                    ? ["auth", "token", "--hostname", host, "--user", selection.login]
+                    : ["auth", "token", "--hostname", host],
                 env: { GH_DEBUG: "" },
               })
               .pipe(Effect.mapError(unavailable))).stdout.trim();

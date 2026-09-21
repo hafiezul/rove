@@ -252,6 +252,9 @@ it("accepts active authenticated GitHub accounts when another account fails", ()
       host: Option.some("github.com"),
     },
   );
+  assert.deepStrictEqual(Option.getOrThrow(auth.accounts), [
+    { host: "github.com", login: "active-user", active: true },
+  ]);
 });
 
 it("parses GitHub auth JSON from stdout when stderr has warnings", () => {

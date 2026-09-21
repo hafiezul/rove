@@ -422,6 +422,7 @@ it.effect("reports implemented tools separately from locally available executabl
             status: "unauthenticated",
             account: Option.none(),
             host: Option.some("bitbucket.org"),
+            accounts: Option.none(),
             detail: Option.some(
               "Set ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN, or ROVE_BITBUCKET_ACCESS_TOKEN.",
             ),
@@ -573,6 +574,7 @@ Logged in to gitlab.com as gitlab-user
             status: "authenticated",
             account: Option.some("bitbucket-user"),
             host: Option.some("bitbucket.org"),
+            accounts: Option.none(),
             detail: Option.none(),
           }),
         },

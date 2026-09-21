@@ -64,10 +64,13 @@ import {
   type PullRequestUpdateInput,
   type SourceControlProviderInfo,
   type SourceControlProviderKind,
+  type GitHubAccountSelection,
 } from "@t3tools/contracts";
 import { detectSourceControlProviderFromRemoteUrl } from "@t3tools/shared/sourceControl";
 
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
+import * as ServerSettings from "../serverSettings.ts";
+import { provideSelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as SourceControlRateLimit from "../sourceControl/SourceControlRateLimit.ts";
 import {
@@ -283,6 +286,8 @@ interface SupportedProject {
   readonly repository: string;
   /** The host the repository lives on, which is the account boundary rather than the kind. */
   readonly host: string;
+  /** The project's selected GitHub account, or null when it uses the environment's. */
+  readonly selectedAccount: GitHubAccountSelection | null;
 }
 
 /**
@@ -560,6 +565,7 @@ export const make = Effect.gen(function* () {
   const pullRequestRefreshes = yield* SubscriptionRef.make(0);
   const registry = yield* PullRequestProviderRegistry;
   const projections = yield* ProjectionSnapshotQuery.ProjectionSnapshotQuery;
+  const serverSettingsService = yield* ServerSettings.ServerSettingsService;
   const sourceControlProviders = yield* SourceControlProviderRegistry.SourceControlProviderRegistry;
   const rateLimits = yield* SourceControlRateLimit.SourceControlRateLimit;
   const readCache = yield* PullRequestReadCache.PullRequestReadCache;
@@ -657,11 +663,23 @@ export const make = Effect.gen(function* () {
           }),
       ),
       Effect.flatMap((projects) =>
-        refineUnknownProjectKinds(projects, filter).pipe(
-          Effect.map((refinedProviders) => ({ refinedProviders, projects })),
+        Effect.flatMap(
+          Effect.mapError(
+            serverSettingsService.getSettings,
+            (cause) =>
+              new PullRequestOperationError({
+                operation: "listProjects",
+                detail: "The project list could not be read.",
+                cause,
+              }),
+          ),
+          (settings) =>
+            refineUnknownProjectKinds(projects, filter).pipe(
+              Effect.map((refinedProviders) => ({ refinedProviders, projects, settings })),
+            ),
         ),
       ),
-      Effect.map(({ refinedProviders, projects }) => {
+      Effect.map(({ refinedProviders, projects, settings }) => {
         const supported: SupportedProject[] = [];
         const unimplemented = new Map<
           string,
@@ -715,12 +733,23 @@ export const make = Effect.gen(function* () {
             else counted.projectCount += 1;
             continue;
           }
+          // The project's selected GitHub account rides the api's calls into the
+          // gh execution boundary; null keeps the environment's active account.
+          const selectedAccount =
+            settings.projectSettingsOverrides[project.id]?.githubAccount ??
+            settings.githubAccount ??
+            null;
           supported.push({
             cursorKey: key,
             project,
-            api: withRateLimitBackoff(api, host, rateLimits),
+            api: withRateLimitBackoff(
+              provideSelectedGitHubAccount(api, selectedAccount),
+              host,
+              rateLimits,
+            ),
             repository,
             host,
+            selectedAccount,
           });
         }
         return { supported, unimplemented, viewerRoots };
@@ -863,16 +892,21 @@ export const make = Effect.gen(function* () {
   const viewersByHost = new Map<string, { readonly at: number; readonly result: ResolvedViewer }>();
   const viewerFlights = yield* Cache.makeWith(
     (key: string): Effect.Effect<ResolvedViewer> => {
-      const [host, kind, roots] = JSON.parse(key) as [
+      const [host, kind, roots, selectedAccount] = JSON.parse(key) as [
         string,
         SourceControlProviderKind,
         ReadonlyArray<string>,
+        GitHubAccountSelection | null,
       ];
       const registered = registry.get(kind);
       if (registered === null) {
         return Effect.die(new Error(`Missing pull request provider: ${kind}`));
       }
-      const api = withRateLimitBackoff(registered, host, rateLimits);
+      const api = withRateLimitBackoff(
+        provideSelectedGitHubAccount(registered, selectedAccount),
+        host,
+        rateLimits,
+      );
       return Effect.firstSuccessOf(roots.map((cwd) => api.getViewer({ cwd, host }))).pipe(
         Effect.map((viewer) => ({
           host,
@@ -920,7 +954,14 @@ export const make = Effect.gen(function* () {
           // unreadable worktree would otherwise report the whole host as signed out.
           const roots =
             viewerRoots.get(host) ?? forHost.map(({ project }) => project.workspaceRoot);
-          const key = JSON.stringify([host, api.kind, [...new Set(roots)].sort()]);
+          // Accounts sharing a host sign in separately when a project selects one, so the
+          // flight and the host cache must not collapse them into one answer.
+          const key = JSON.stringify([
+            host,
+            api.kind,
+            [...new Set(roots)].sort(),
+            forHost[0]!.selectedAccount,
+          ]);
           return Cache.get(viewerFlights, key);
         }),
       { concurrency: REPOSITORY_CONCURRENCY },

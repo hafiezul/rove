@@ -254,6 +254,75 @@ it.effect(
     }),
 );
 
+it.effect("verifies the identity of the project's selected GitHub account", () =>
+  Effect.gen(function* () {
+    const commands: VcsProcess.VcsProcessInput[] = [];
+    const github = yield* GitHubCli.make.pipe(
+      Effect.provideService(VcsProcess.VcsProcess, {
+        run: (input) =>
+          Effect.sync(() => {
+            commands.push(input);
+            if (input.args[0] === "auth") return output("selected-credential");
+            if (input.args[0] === "api") return output('{"id":456,"login":"work-user"}');
+            return output("");
+          }),
+      }),
+    );
+    const cli = yield* GitHubPullRequestCli.make.pipe(
+      Effect.provideService(GitHubCli.GitHubCli, github),
+      Effect.provide(GitHubGraphQlBudget.layer),
+    );
+    const input = { cwd: "/repo", host: "github.com" };
+    const identity = yield* cli.getRoutingIdentity(input).pipe(
+      Effect.provideService(GitHubCli.SelectedGitHubAccount, {
+        host: "github.com",
+        login: "work-user-selected",
+      }),
+    );
+    expect(identity).toEqual({ accountId: "456", viewer: "work-user" });
+    const lookup = commands.find(
+      (command) => command.args[0] === "auth" && command.args.includes("--user"),
+    );
+    expect(lookup?.args).toEqual([
+      "auth",
+      "token",
+      "--hostname",
+      "github.com",
+      "--user",
+      "work-user-selected",
+    ]);
+    // The verified identity is the selected account's, and its token is what
+    // the verification call authenticated with.
+    expect(commands.find((command) => command.args[0] === "api")?.env).toMatchObject({
+      GH_TOKEN: "selected-credential",
+      GH_HOST: "github.com",
+    });
+  }),
+);
+
+it.effect("refuses a selected account whose host is not the repository's", () =>
+  Effect.gen(function* () {
+    const github = yield* GitHubCli.make.pipe(
+      Effect.provideService(VcsProcess.VcsProcess, {
+        run: () => Effect.die("no command should run"),
+      }),
+    );
+    const cli = yield* GitHubPullRequestCli.make.pipe(
+      Effect.provideService(GitHubCli.GitHubCli, github),
+      Effect.provide(GitHubGraphQlBudget.layer),
+    );
+    const failure = yield* Effect.flip(
+      cli.getRoutingIdentity({ cwd: "/repo", host: "github.com" }).pipe(
+        Effect.provideService(GitHubCli.SelectedGitHubAccount, {
+          host: "other.example.test",
+          login: "work-user",
+        }),
+      ),
+    );
+    expect(failure._tag).toBe("GitHubViewerLoginUnavailableError");
+  }),
+);
+
 layer("GitHubPullRequestCli.layer", (it) => {
   it.effect("coalesces concurrent identity verification for the same host and credential", () =>
     Effect.gen(function* () {

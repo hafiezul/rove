@@ -509,6 +509,7 @@ it.effect("reports auth status through the Bitbucket REST /user endpoint", () =>
       account: Option.some("bitbucket-user"),
       host: Option.some("bitbucket.org"),
       detail: Option.none(),
+      accounts: Option.none(),
     });
   }).pipe(Effect.provide(layer));
 });

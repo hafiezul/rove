@@ -118,11 +118,24 @@ export const SourceControlProviderAuthStatus = Schema.Literals([
 ]);
 export type SourceControlProviderAuthStatus = typeof SourceControlProviderAuthStatus.Type;
 
+export const SourceControlProviderAccount = Schema.Struct({
+  host: TrimmedNonEmptyString,
+  login: TrimmedNonEmptyString,
+  active: Schema.Boolean,
+});
+export type SourceControlProviderAccount = typeof SourceControlProviderAccount.Type;
+
 export const SourceControlProviderAuth = Schema.Struct({
   status: SourceControlProviderAuthStatus,
   account: Schema.Option(TrimmedNonEmptyString),
   host: Schema.Option(TrimmedNonEmptyString),
   detail: Schema.Option(TrimmedNonEmptyString),
+  /**
+   * Every account the provider CLI reports as authenticated, when the CLI can
+   * enumerate more than its active one. GitHub's `auth status --json` does;
+   * hosts that cannot leave this none.
+   */
+  accounts: Schema.Option(Schema.Array(SourceControlProviderAccount)),
 });
 export type SourceControlProviderAuth = typeof SourceControlProviderAuth.Type;
 

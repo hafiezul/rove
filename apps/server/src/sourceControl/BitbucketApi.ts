@@ -545,6 +545,7 @@ function authFromConfig(
       account: Option.none(),
       host: Option.some("bitbucket.org"),
       detail: Option.some("Bitbucket access token is configured."),
+      accounts: Option.none(),
     };
   }
 
@@ -554,6 +555,7 @@ function authFromConfig(
       account: config.email,
       host: Option.some("bitbucket.org"),
       detail: Option.some("Bitbucket API token is configured."),
+      accounts: Option.none(),
     };
   }
 
@@ -564,6 +566,7 @@ function authFromConfig(
     detail: Option.some(
       "Set ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN, or ROVE_BITBUCKET_ACCESS_TOKEN.",
     ),
+    accounts: Option.none(),
   };
 }
 
@@ -909,6 +912,7 @@ export const make = Effect.gen(function* () {
         account: nonEmpty(user.username ?? user.display_name ?? user.account_id),
         host: Option.some("bitbucket.org"),
         detail: Option.none<string>(),
+        accounts: Option.none(),
       })),
       Effect.orElseSucceed(() => authFromConfig(config)),
     ),
