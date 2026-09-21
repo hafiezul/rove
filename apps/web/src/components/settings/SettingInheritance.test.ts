@@ -37,7 +37,7 @@ describe("settingInheritanceLayers", () => {
     expect(layers.map((layer) => [layer.label, layer.value, layer.effective])).toEqual([
       ["Project", "hafiezul", true],
       ["Laptop", "Inherits", false],
-      ["Default", "Not set", false],
+      ["Default", "Server sign-in", false],
     ]);
     const enterprise = {
       ...settings,
