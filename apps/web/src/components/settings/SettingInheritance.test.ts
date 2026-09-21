@@ -21,6 +21,43 @@ describe("settingInheritanceLayers", () => {
     ]);
   });
 
+  it("names the selected GitHub account instead of the chain's fallback", () => {
+    const settings = {
+      ...DEFAULT_SERVER_SETTINGS,
+      projectSettingsOverrides: {
+        [projectId]: { githubAccount: { host: "github.com", login: "hafiezul" } },
+      },
+    };
+    const resolved = resolveProjectSettings(settings, projectId);
+    const layers = settingInheritanceLayers(
+      { environmentId, label: "Laptop", projectId, ...resolved },
+      settings,
+      "githubAccount",
+    );
+    expect(layers.map((layer) => [layer.label, layer.value, layer.effective])).toEqual([
+      ["Project", "hafiezul", true],
+      ["Laptop", "Inherits", false],
+      ["Default", "Not set", false],
+    ]);
+    const enterprise = {
+      ...settings,
+      projectSettingsOverrides: {
+        [projectId]: { githubAccount: { host: "ghe.example.test", login: "work" } },
+      },
+    };
+    const enterpriseLayers = settingInheritanceLayers(
+      {
+        environmentId,
+        label: "Laptop",
+        projectId,
+        ...resolveProjectSettings(enterprise, projectId),
+      },
+      enterprise,
+      "githubAccount",
+    );
+    expect(enterpriseLayers[0]?.value).toBe("work (ghe.example.test)");
+  });
+
   it("walks project override, environment value, then built-in default", () => {
     const settings = {
       ...DEFAULT_SERVER_SETTINGS,

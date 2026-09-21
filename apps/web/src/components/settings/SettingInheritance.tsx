@@ -63,6 +63,12 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
   }
   if (Array.isArray(value)) return `${value.length} ${value.length === 1 ? "item" : "items"}`;
   if (typeof value === "object") {
+    if ("login" in value && typeof value.login === "string") {
+      // A selected GitHub account reads as its login; the host names the
+      // account only when it is not the common one.
+      const host = "host" in value && typeof value.host === "string" ? value.host : null;
+      return host !== null && host !== "github.com" ? `${value.login} (${host})` : value.login;
+    }
     if ("model" in value && typeof value.model === "string") return value.model;
     if ("mode" in value && typeof value.mode === "string") {
       return WRITING_STYLE_LABELS[value.mode] ?? value.mode;
