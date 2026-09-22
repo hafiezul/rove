@@ -487,10 +487,11 @@ export const make = Effect.gen(function* () {
       let credential = pinned;
       if (credential === null) {
         const selection = yield* SelectedGitHubAccount;
-        // `auth token` is the lookup itself: it must read the stored
-        // credentials, not the token this layer would otherwise inject.
-        const isTokenLookup = input.args[0] === "auth" && input.args[1] === "token";
-        if (selection !== null && !isTokenLookup) {
+        // `auth` subcommands manage the stored credentials themselves: they
+        // must read the keyring, not the token this layer would otherwise
+        // inject.
+        const isAuthCommand = input.args[0] === "auth";
+        if (selection !== null && !isAuthCommand) {
           const named = namedHosts(input.args).filter((host) => host !== null);
           if (named.some((host) => host !== selection.host)) {
             return yield* new GitHubCliCommandError({
