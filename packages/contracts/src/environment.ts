@@ -64,6 +64,12 @@ export const RepositoryRemotePreference = Schema.Literals(["origin", "upstream"]
 export type RepositoryRemotePreference = typeof RepositoryRemotePreference.Type;
 export const DEFAULT_REPOSITORY_REMOTE_PREFERENCE: RepositoryRemotePreference = "origin";
 
+/**
+ * How a new worktree populates git submodules: every nested level, only the
+ * ones this repository declares, or not at all.
+ */
+export const WorktreeSubmodules = Schema.Literals(["recursive", "top-level", "none"]);
+export type WorktreeSubmodules = typeof WorktreeSubmodules.Type;
 export type ExecutionEnvironmentPlatform = typeof ExecutionEnvironmentPlatform.Type;
 
 /** How a server can replace itself with another version when asked over RPC.
