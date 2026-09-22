@@ -13,7 +13,7 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
-import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import * as PiSdk from "@earendil-works/pi-coding-agent";
 import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";
 
 import {
   createPiSession,
+  createPiSessionServices,
   PiResourceLoader,
   resolvePiModelForSession,
   resolvePiSessionResume,
@@ -798,6 +799,46 @@ export default function (pi) {
     );
     await create(false);
     assert.isFalse(NodeFS.existsSync(NodePath.join(cwd, "extension.log")));
+  });
+
+  it("resolves extension-registered models for text generation through a shared runtime", async () => {
+    // Without extensions and without a shared runtime, the fixture's provider
+    // is unknown and the session fails — the pre-fix text-generation behavior.
+    await expect(
+      createPiSession(
+        {
+          cwd,
+          model: "rove-extension-test/fixture",
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { extensions: false },
+      ),
+    ).rejects.toThrow(/not found/i);
+
+    // Sharing a runtime where the extension registered its provider (as the
+    // Pi driver now does via the catalog host) resolves the model.
+    const hostSettings = SettingsManager.create(cwd, agentDir);
+    hostSettings.setProjectTrusted(true);
+    const hostServices = await createPiSessionServices({
+      cwd,
+      agentDir,
+      settingsManager: hostSettings,
+    });
+    const session = await createPiSession(
+      {
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { extensions: false, modelRuntime: hostServices.modelRuntime },
+    );
+    sessions.push(session);
+    expect(session.getModel?.()).toMatchObject({
+      provider: "rove-extension-test",
+      id: "fixture",
+    });
   });
 });
 

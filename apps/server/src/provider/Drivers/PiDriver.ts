@@ -227,7 +227,13 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
               thinkingLevel,
               resumeSessionId: undefined,
             },
-            { extensions: false },
+            {
+              extensions: false,
+              // Text generation stays extension-free (no tools or hooks), but
+              // must resolve extension-registered models, so it shares the
+              // catalog host's runtime.
+              modelRuntime: catalogHost.getModelRuntime(),
+            },
           ),
       });
 

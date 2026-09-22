@@ -176,6 +176,15 @@ export class PiCatalogHost {
     };
   }
 
+  /**
+   * The runtime carrying extension-registered providers. Auxiliary Pi sessions
+   * (text generation) run their own loaders without extensions, so they must
+   * resolve models against this shared runtime instead of a fresh one.
+   */
+  getModelRuntime(): ModelRuntime {
+    return this.modelRuntime;
+  }
+
   /** Snapshot-shaped models with per-model reasoning capabilities. */
   async getCatalogModels(
     thinkingLevel?: PiThinkingLevel | null,
