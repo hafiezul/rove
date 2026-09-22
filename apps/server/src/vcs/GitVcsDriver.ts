@@ -809,18 +809,16 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
       const worktreeIndexExists =
         resolvedWorktreeIndexPath === null
           ? false
-          : yield* fileSystem.exists(resolvedWorktreeIndexPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+          : yield* fileSystem
+              .exists(resolvedWorktreeIndexPath)
+              .pipe(Effect.catch(() => Effect.succeed(false)));
       const seededFromWorktreeIndex = worktreeIndexExists
-        ? yield* fileSystem
-            .copyFile(resolvedWorktreeIndexPath as string, tempIndexPath)
-            .pipe(
-              Effect.as(true),
-              // Unreadable index (permissions, concurrent delete): fall
-              // through to the read-tree path below.
-              Effect.catch(() => Effect.succeed(false)),
-            )
+        ? yield* fileSystem.copyFile(resolvedWorktreeIndexPath as string, tempIndexPath).pipe(
+            Effect.as(true),
+            // Unreadable index (permissions, concurrent delete): fall
+            // through to the read-tree path below.
+            Effect.catch(() => Effect.succeed(false)),
+          )
         : false;
       const commitEnv: NodeJS.ProcessEnv = {
         ...process.env,
