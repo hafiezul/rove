@@ -252,7 +252,7 @@ it("accepts active authenticated GitHub accounts when another account fails", ()
       host: Option.some("github.com"),
     },
   );
-  assert.deepStrictEqual(Option.getOrThrow(auth.accounts), [
+  assert.deepStrictEqual(auth.accounts ?? [], [
     { host: "github.com", login: "active-user", active: true },
   ]);
 });

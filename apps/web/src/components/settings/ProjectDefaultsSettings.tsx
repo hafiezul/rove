@@ -150,7 +150,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   );
   const githubDiscovery =
     discovery.data?.sourceControlProviders.find((provider) => provider.kind === "github") ?? null;
-  const githubAccounts = Option.getOrNull(githubDiscovery?.auth.accounts ?? Option.none()) ?? [];
+  const githubAccounts = githubDiscovery?.auth.accounts ?? [];
   const serverAccount = Option.getOrNull(githubDiscovery?.auth.account ?? Option.none());
   const knownSelection = settings.githubAccount
     ? `${settings.githubAccount.host}/${settings.githubAccount.login}`

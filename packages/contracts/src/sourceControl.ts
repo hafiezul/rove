@@ -1,5 +1,5 @@
 import * as Schema from "effect/Schema";
-import { PositiveInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { ForwardCompatibleOptional, PositiveInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { VcsDriverKind } from "./vcs.ts";
 
 export const SourceControlProviderKind = Schema.Literals([
@@ -133,9 +133,10 @@ export const SourceControlProviderAuth = Schema.Struct({
   /**
    * Every account the provider CLI reports as authenticated, when the CLI can
    * enumerate more than its active one. GitHub's `auth status --json` does;
-   * hosts that cannot leave this none.
+   * hosts that cannot leave this none. Forward-compatible: payloads from older
+   * servers, which never sent it, decode as if it were absent.
    */
-  accounts: Schema.Option(Schema.Array(SourceControlProviderAccount)),
+  accounts: ForwardCompatibleOptional(Schema.Array(SourceControlProviderAccount)),
 });
 export type SourceControlProviderAuth = typeof SourceControlProviderAuth.Type;
 

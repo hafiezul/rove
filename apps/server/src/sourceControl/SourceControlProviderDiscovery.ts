@@ -116,8 +116,8 @@ function authDetail(detail: string | undefined): Option.Option<string> {
 
 function authAccounts(
   accounts: readonly SourceControlProviderAccount[] | undefined,
-): Option.Option<ReadonlyArray<SourceControlProviderAccount>> {
-  return accounts === undefined || accounts.length === 0 ? Option.none() : Option.some(accounts);
+): ReadonlyArray<SourceControlProviderAccount> | undefined {
+  return accounts === undefined || accounts.length === 0 ? undefined : [...accounts];
 }
 
 export function providerAuth(input: {
@@ -125,14 +125,17 @@ export function providerAuth(input: {
   readonly account?: string | undefined;
   readonly host?: string | undefined;
   readonly detail?: string | undefined;
-  readonly accounts?: readonly SourceControlProviderAccount[] | undefined;
+  readonly accounts?: ReadonlyArray<SourceControlProviderAccount> | undefined;
 }): SourceControlProviderAuth {
+  // The wire field stays absent unless there is something to say: payloads
+  // from older servers never send it, and the schema decodes absence as none.
+  const accounts = authAccounts(input.accounts);
   return {
     status: input.status,
     account: authAccount(input.account),
     host: authHost(input.host),
     detail: authDetail(input.detail),
-    accounts: authAccounts(input.accounts),
+    ...(accounts === undefined ? {} : { accounts }),
   };
 }
 
