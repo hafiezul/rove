@@ -539,7 +539,11 @@ export async function createPiSessionServices(
     }
   }
   extensionsResult.runtime.pendingNativeProviderRegistrations = [];
-  await modelRuntime.refresh({ allowNetwork: false });
+  // A caller-provided runtime (the catalog host's) is already refreshed;
+  // refreshing it here would only churn availability listeners.
+  if (options.modelRuntime === undefined) {
+    await modelRuntime.refresh({ allowNetwork: false });
+  }
 
   return {
     cwd,
@@ -559,6 +563,12 @@ export async function createPiSession(
   options: {
     extensions?: boolean;
     retryWithoutFailedExtensions?: boolean;
+    /**
+     * Shared runtime (the catalog host's) to resolve models against. Sessions
+     * running without extensions never register extension providers, so a
+     * fresh runtime cannot resolve extension-registered models.
+     */
+    modelRuntime?: ModelRuntime;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
@@ -594,6 +604,7 @@ export async function createPiSession(
     settingsManager,
     disabledExtensions,
     noExtensions: options.extensions === false,
+    modelRuntime: options.modelRuntime,
   });
 
   const getErrors = (s: AgentSessionServices) => [
@@ -623,6 +634,7 @@ export async function createPiSession(
           settingsManager,
           disabledExtensions: recoveredDisabled,
           noExtensions: false,
+          modelRuntime: options.modelRuntime,
         });
         for (const { path, error } of services.resourceLoader.getExtensions().errors) {
           startupErrors.push({
