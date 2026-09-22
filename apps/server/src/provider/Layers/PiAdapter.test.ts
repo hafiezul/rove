@@ -889,9 +889,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
       yield* collectEvents(adapter, eventsRef);
       const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
       assert.strictEqual(session.model, "anthropic/claude-sonnet-5");
-      yield* waitFor(eventsRef, (events) =>
-        events.some((event) => event.type === "runtime.warning"),
-      );
+      // The fallback warning is published synchronously inside startSession
+      // (same tick as session.started), so assert on the collected events
+      // directly: PubSub.publish drops events with no subscriber attached,
+      // which made polling with waitFor flake under CI load.
       const warning = (yield* Ref.get(eventsRef)).find((event) => event.type === "runtime.warning");
       assert.include(
         warning !== undefined && warning.type === "runtime.warning" ? warning.payload.message : "",
