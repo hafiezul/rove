@@ -1,5 +1,3 @@
-import * as NodeCrypto from "node:crypto";
-
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -380,6 +378,12 @@ export class GitVcsDriver extends Context.Service<
 const WORKSPACE_FILES_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const GIT_CHECK_IGNORE_MAX_STDIN_BYTES = 256 * 1024;
 const CHECKPOINT_DIFF_MAX_OUTPUT_BYTES = 10_000_000;
+// The checkpoint `add` walks the full tracked tree. Seed the throwaway
+// index from the worktree's warm index so git's stat cache survives and
+// unchanged files skip re-hashing (~0.5s vs ~7s on a 22k-file tree).
+// Keep the add bounded on its own generous budget; a timeout here reports
+// as `.add` so it is distinguishable from the other capture sub-steps.
+const CHECKPOINT_ADD_TIMEOUT_MS = 120_000;
 const WORKSPACE_GIT_HARDENED_CONFIG_ARGS = [
   "-c",
   "core.fsmonitor=false",
@@ -738,25 +742,84 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
       }),
     );
 
-  const resolveGitCommonDir = (cwd: string) =>
-    Effect.gen(function* () {
-      const result = yield* execute({
-        operation: "GitVcsDriver.checkpoints.resolveGitCommonDir",
-        cwd,
-        args: ["rev-parse", "--git-common-dir"],
-      });
-      const gitCommonDir = result.stdout.trim();
-      return path.isAbsolute(gitCommonDir) ? gitCommonDir : path.resolve(cwd, gitCommonDir);
-    });
-
   const checkpoints: VcsDriver.VcsCheckpointOps = {
     captureCheckpoint: Effect.fn("GitVcsDriver.checkpoints.captureCheckpoint")(function* (input) {
+      // Shared prefix so the whole capture is still greppable; per-step
+      // suffixes make a timeout report the exact sub-step (`.seedIndex`,
+      // `.add`) instead of one opaque operation name.
+      const seedOperation = "GitVcsDriver.checkpoints.captureCheckpoint.seedIndex";
+      const addOperation = "GitVcsDriver.checkpoints.captureCheckpoint.add";
       const operation = "GitVcsDriver.checkpoints.captureCheckpoint";
-      const gitCommonDir = yield* resolveGitCommonDir(input.cwd);
-      const tempIndexPath = path.join(
-        gitCommonDir,
-        `t3-checkpoint-index-${NodeCrypto.randomUUID()}`,
+      // Copy the worktree's live index (`--git-path index` resolves the
+      // per-worktree admin file, not the shared common dir) into a scoped
+      // temp file. Fresh `read-tree HEAD` output has zeroed stat data,
+      // forcing git to re-hash every tracked file; the warm copy preserves
+      // the stat cache so unchanged files are skipped. Seed only when the
+      // worktree index exists, otherwise fall back to read-tree.
+      const seedIndexResult = yield* execute({
+        operation: seedOperation,
+        cwd: input.cwd,
+        args: ["rev-parse", "--git-path", "index"],
+      }).pipe(
+        // Not a repo (or rev-parse itself failed): surface the standard
+        // resolution error downstream instead of failing on the seed step.
+        Effect.orElseSucceed(() => null),
       );
+      // Temp index lives in the OS temp dir: unique per call, no litter
+      // or lock contention in the shared common dir on timeouts.
+      // Deleted right after creation: `makeTempFile` pre-creates an empty
+      // file, and git rejects a pre-existing empty GIT_INDEX_FILE as
+      // truncated ("index file smaller than expected") whenever the seed
+      // copy is skipped (fresh `git init`: no index file, no HEAD). A
+      // nonexistent path lets git create the index itself. Non-scoped on
+      // purpose: the `checkpoints` object must stay Scope-free per the
+      // VcsCheckpointOps contract; `ensuring(cleanupTempIndex)` below
+      // still removes the file on timeout because the Effect runtime
+      // interrupts the timed-out child and runs finalizers.
+      const tempIndexPath = yield* fileSystem
+        .makeTempFile({
+          prefix: `t3-checkpoint-index-${process.pid}-`,
+        })
+        .pipe(
+          Effect.tap((createdPath) =>
+            fileSystem.remove(createdPath, { force: true }).pipe(Effect.ignore),
+          ),
+          // A failure here races with file cleanup, so map it to the
+          // checkpoint error channel instead of leaking PlatformError
+          // into the VcsError-typed contract.
+          Effect.mapError(
+            (cause) =>
+              new VcsProcessExitError({
+                operation: seedOperation,
+                command: "git rev-parse",
+                cwd: input.cwd,
+                exitCode: 0,
+                detail: `Could not create a checkpoint index file: ${cause.message}`,
+              }),
+          ),
+        );
+      const resolvedWorktreeIndexPath =
+        seedIndexResult === null || seedIndexResult.exitCode !== 0
+          ? null
+          : path.isAbsolute(seedIndexResult.stdout.trim())
+            ? seedIndexResult.stdout.trim()
+            : path.resolve(input.cwd, seedIndexResult.stdout.trim());
+      // A fresh `git init` has no index file yet; the temp path above
+      // was deleted so git creates the index itself on `add`.
+      const worktreeIndexExists =
+        resolvedWorktreeIndexPath === null
+          ? false
+          : yield* fileSystem
+              .exists(resolvedWorktreeIndexPath)
+              .pipe(Effect.catch(() => Effect.succeed(false)));
+      const seededFromWorktreeIndex = worktreeIndexExists
+        ? yield* fileSystem.copyFile(resolvedWorktreeIndexPath as string, tempIndexPath).pipe(
+            Effect.as(true),
+            // Unreadable index (permissions, concurrent delete): fall
+            // through to the read-tree path below.
+            Effect.catch(() => Effect.succeed(false)),
+          )
+        : false;
       const commitEnv: NodeJS.ProcessEnv = {
         ...process.env,
         GIT_INDEX_FILE: tempIndexPath,
@@ -772,7 +835,7 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
 
       yield* Effect.gen(function* () {
         const headExists = yield* hasHeadCommit(input.cwd);
-        if (headExists) {
+        if (!seededFromWorktreeIndex && headExists) {
           yield* execute({
             operation,
             cwd: input.cwd,
@@ -781,11 +844,27 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
           });
         }
 
+        // `update-index --refresh` revalidates the copied stat cache
+        // against HEAD without clearing it (plain `read-tree HEAD` would
+        // zero all stat data and force a full rehash on `add`). A change
+        // made between the copy and now shows up as dirty and gets
+        // hashed by `add` as usual; a no-op copy keeps the fast path.
+        if (seededFromWorktreeIndex && headExists) {
+          yield* execute({
+            operation,
+            cwd: input.cwd,
+            args: ["update-index", "--refresh"],
+            env: commitEnv,
+            allowNonZeroExit: true,
+          });
+        }
+
         yield* execute({
-          operation,
+          operation: addOperation,
           cwd: input.cwd,
           args: ["add", "-A", "--", "."],
           env: commitEnv,
+          timeoutMs: CHECKPOINT_ADD_TIMEOUT_MS,
         });
 
         const writeTreeResult = yield* execute({

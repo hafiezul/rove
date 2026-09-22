@@ -430,5 +430,40 @@ it.layer(TestLayer)("CheckpointStore.layer", (it) => {
         ]);
       }),
     );
+
+    it.effect("captures through the seeded-index fast path", () =>
+      Effect.gen(function* () {
+        const tmp = yield* makeTmpDir();
+        yield* initRepoWithCommit(tmp);
+        const checkpointStore = yield* CheckpointStore.CheckpointStore;
+        const threadId = ThreadId.make("checkpoint-seeded-index");
+        const firstRef = checkpointRefForThreadTurn(threadId, 0);
+        const secondRef = checkpointRefForThreadTurn(threadId, 1);
+
+        yield* checkpointStore.captureCheckpoint({ cwd: tmp, checkpointRef: firstRef });
+        // A change committed outside the checkpoint flow moves HEAD after
+        // the live index was written; the next capture must still snapshot
+        // the new HEAD tree (via --refresh), not a stale copy.
+        yield* writeTextFile(NodePath.join(tmp, "README.md"), "# updated\n");
+        yield* git(tmp, ["add", "."]);
+        yield* git(tmp, ["commit", "-m", "outside checkpoint"]);
+        yield* checkpointStore.captureCheckpoint({ cwd: tmp, checkpointRef: secondRef });
+
+        const numstat = yield* checkpointStore.diffCheckpoints({
+          cwd: tmp,
+          fromCheckpointRef: firstRef,
+          toCheckpointRef: secondRef,
+          ignoreWhitespace: false,
+          format: "numstat" as const,
+        });
+        expect(parseTurnDiffFilesFromNumstat(numstat)).toEqual([
+          { path: "README.md", additions: 1, deletions: 1 },
+        ]);
+        // Capture must not leave temp indexes behind in the repo.
+        const fileSystem = yield* FileSystem.FileSystem;
+        const entries = yield* fileSystem.readDirectory(NodePath.join(tmp, ".git"));
+        expect(entries.filter((entry) => entry.startsWith("t3-checkpoint-index-"))).toEqual([]);
+      }),
+    );
   });
 });
