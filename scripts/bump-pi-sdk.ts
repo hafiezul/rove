@@ -11,32 +11,44 @@ const PACKAGE_JSON = "apps/server/package.json";
 const LICENSES_CONFIG = "third-party-licenses.config.json";
 const PINS = ["@earendil-works/pi-ai", "@earendil-works/pi-coding-agent"];
 
-const run = (command, args, options) =>
+const run = (
+  command: string,
+  args: ReadonlyArray<string>,
+  options?: { readonly cwd?: string },
+): string =>
   NodeChildProcess.execFileSync(command, args, {
     encoding: "utf8",
     stdio: "pipe",
     ...options,
   }).trim();
 
+const log = (message: string): void => {
+  NodeFS.writeFileSync(1, `${message}\n`);
+};
+
 const latest = run("npm", ["view", "@earendil-works/pi-coding-agent", "dist-tags.latest"]);
 
-const packageJson = JSON.parse(NodeFS.readFileSync(PACKAGE_JSON, "utf8"));
+const packageJson: { dependencies?: Record<string, string> } = JSON.parse(
+  NodeFS.readFileSync(PACKAGE_JSON, "utf8"),
+);
 const current = packageJson.dependencies?.["@earendil-works/pi-coding-agent"];
 const pinned = current?.replace(/^[^\d]*/, "");
 
 if (pinned === latest) {
-  console.log(`Pi SDK already at latest (${latest}); nothing to do.`);
+  log(`Pi SDK already at latest (${latest}); nothing to do.`);
   process.exit(0);
 }
 
-console.log(`Bumping Pi SDK ${pinned ?? current} -> ${latest}`);
+log(`Bumping Pi SDK ${pinned ?? current} -> ${latest}`);
 for (const name of PINS) {
-  packageJson.dependencies[name] = `^${latest}`;
+  if (packageJson.dependencies) packageJson.dependencies[name] = `^${latest}`;
 }
 NodeFS.writeFileSync(PACKAGE_JSON, `${JSON.stringify(packageJson, null, 2)}\n`);
 
 // The earendil-works license override points at a versioned LICENSE URL.
-const licenses = JSON.parse(NodeFS.readFileSync(LICENSES_CONFIG, "utf8"));
+const licenses: {
+  packageOverrides?: Array<{ repositoryUrl?: string; sourceUrl?: string }>;
+} = JSON.parse(NodeFS.readFileSync(LICENSES_CONFIG, "utf8"));
 for (const override of licenses.packageOverrides ?? []) {
   if (override.repositoryUrl === "https://github.com/earendil-works/pi" && override.sourceUrl) {
     override.sourceUrl = override.sourceUrl.replace(/\/blob\/v[^/]+\//, `/blob/v${latest}/`);
@@ -49,7 +61,7 @@ run("vp", ["i"]);
 run("node", ["scripts/sync-third-party-license-notices.ts"]);
 
 if (!run("git", ["status", "--porcelain"])) {
-  console.log("No changes after install and license sync; nothing to do.");
+  log("No changes after install and license sync; nothing to do.");
   process.exit(0);
 }
 
@@ -76,4 +88,4 @@ run("gh", [
     "Includes lockfile refresh and third-party license sync. Generated with Rove Code.",
   ].join("\n"),
 ]);
-console.log(`Opened PR for Pi SDK ${latest}.`);
+log(`Opened PR for Pi SDK ${latest}.`);
