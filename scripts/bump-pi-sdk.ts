@@ -12,7 +12,11 @@ const LICENSES_CONFIG = "third-party-licenses.config.json";
 const PINS = ["@earendil-works/pi-ai", "@earendil-works/pi-coding-agent"];
 
 const run = (command, args, options) =>
-  NodeChildProcess.execFileSync(command, args, { encoding: "utf8", stdio: "pipe", ...options }).trim();
+  NodeChildProcess.execFileSync(command, args, {
+    encoding: "utf8",
+    stdio: "pipe",
+    ...options,
+  }).trim();
 
 const latest = run("npm", ["view", "@earendil-works/pi-coding-agent", "dist-tags.latest"]);
 
