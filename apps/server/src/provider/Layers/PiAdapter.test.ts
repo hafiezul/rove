@@ -75,7 +75,7 @@ class FakePiSession implements PiSessionLike {
       readonly preflightResult?: (success: boolean) => void;
     };
   }> = [];
-  readonly forkCalls: Array<{ entryId: string }> = [];
+  readonly forkCalls: Array<{ entryId: string | null }> = [];
   readonly setModelCalls: Array<{ model: string }> = [];
   readonly setThinkingLevelCalls: Array<{ level: string }> = [];
   forkedMessages: ReadonlyArray<unknown> | undefined;
@@ -105,9 +105,9 @@ class FakePiSession implements PiSessionLike {
   getSessionStats() {
     return this.sessionStats;
   }
-  async fork(entryId: string): Promise<void> {
+  async fork(entryId: string | null): Promise<void> {
     this.forkCalls.push({ entryId });
-    this.leafId = entryId;
+    this.leafId = entryId ?? "";
     this.forkedMessages = this.messages;
   }
 
@@ -581,6 +581,291 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("passes file attachment path notes to Pi without treating files as images", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const input = 'Read this file. [Attached file "notes.txt" is saved at: /tmp/notes.txt]';
+      yield* adapter.sendTurn({
+        threadId,
+        input,
+        attachments: [
+          { type: "file", id: "notes", name: "notes.txt", mimeType: "text/plain", sizeBytes: 10 },
+        ],
+      });
+      assert.strictEqual(fake.promptCalls[0]?.text, input);
+      assert.isUndefined(fake.promptCalls[0]?.options?.images);
+    }),
+  );
+
+  it.effect("backfills snapshot-only text without duplicating streamed responses", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const completed = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "turn.completed"
+            ? Deferred.succeed(completed, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "snapshot" }],
+          stopReason: "stop",
+        },
+      });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: { type: "text_delta", delta: "streamed" },
+      });
+      fake.emit({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "streamed" }],
+          stopReason: "stop",
+        },
+      });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(completed);
+      assert.deepStrictEqual(
+        events
+          .filter((event) => event.type === "content.delta")
+          .map((event) => event.payload.delta),
+        ["snapshot", "streamed"],
+      );
+      assert.strictEqual(events.filter((event) => event.type === "item.completed").length, 2);
+    }),
+  );
+
+  it.effect("manual compaction emits a canonical completion and rejects overlapping prompts", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const started = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const adapter = yield* makeAdapter(
+        Object.assign(fake, {
+          compact: async () => {
+            Deferred.doneUnsafe(started, Effect.void);
+            await Effect.runPromise(Deferred.await(release));
+            fake.emit({ type: "compaction_end", aborted: false });
+          },
+        }),
+      );
+      const completed = yield* Deferred.make<void>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "thread.state.changed" && event.payload.state === "compacted"
+            ? Deferred.succeed(completed, undefined)
+            : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      assert.strictEqual(adapter.compaction?.type, "native");
+      if (adapter.compaction?.type !== "native") return;
+      const compact = yield* adapter.compaction.start(threadId).pipe(Effect.forkChild);
+      yield* Deferred.await(started);
+      const result = yield* adapter
+        .sendTurn({ threadId, input: "during compaction" })
+        .pipe(Effect.result);
+      assert.strictEqual(result._tag, "Failure");
+      assert.strictEqual(fake.promptCalls.length, 0);
+      yield* Deferred.succeed(release, undefined);
+      yield* Fiber.join(compact);
+      yield* Deferred.await(completed);
+      yield* adapter.sendTurn({ threadId, input: "after compaction" });
+      assert.strictEqual(fake.promptCalls.length, 1);
+    }),
+  );
+
+  it.effect("Stop retires Pi so late extension events cannot revive the thread", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const exited = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "session.exited"
+            ? Deferred.succeed(exited, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "start" });
+      yield* adapter.interruptTurn(threadId);
+      fake.emit({ type: "turn_start" });
+      yield* Deferred.await(exited);
+      assert.isTrue(fake.disposed);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.strictEqual(events.filter((event) => event.type === "turn.aborted").length, 1);
+      assert.strictEqual(events.filter((event) => event.type === "turn.started").length, 0);
+    }),
+  );
+
+  it.effect("retires an unresponsive session after the Stop deadline", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const entered = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      fake.abort = async () => {
+        Deferred.doneUnsafe(entered, Effect.void);
+        await Effect.runPromise(Deferred.await(release));
+      };
+      const adapter = yield* makeAdapter(fake);
+      const exited = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "session.exited"
+            ? Deferred.succeed(exited, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "work" });
+      const stop = yield* adapter.interruptTurn(threadId).pipe(Effect.forkChild);
+      yield* Deferred.await(entered);
+      yield* TestClock.adjust("5 seconds");
+      yield* Fiber.join(stop);
+      yield* Deferred.await(exited);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isTrue(fake.disposed);
+      assert.isTrue(
+        events.some(
+          (event) =>
+            event.type === "runtime.warning" &&
+            event.payload.message.includes("may still be running"),
+        ),
+      );
+      yield* Deferred.succeed(release, undefined);
+    }),
+  );
+
+  it.effect("failed compaction is not reported as compacted and releases the session", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(
+        Object.assign(fake, {
+          compact: async () => {
+            fake.emit({ type: "compaction_end", aborted: false, errorMessage: "quota exceeded" });
+            throw new Error("quota exceeded");
+          },
+        }),
+      );
+      const notice = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "runtime.info" ? Deferred.succeed(notice, undefined) : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      if (adapter.compaction?.type !== "native") throw new Error("Missing Pi compaction");
+      const result = yield* adapter.compaction.start(threadId).pipe(Effect.result);
+      assert.strictEqual(result._tag, "Failure");
+      yield* Deferred.await(notice);
+      assert.isFalse(events.some((event) => event.type === "thread.state.changed"));
+      yield* adapter.sendTurn({ threadId, input: "retry later" });
+      assert.strictEqual(fake.promptCalls.length, 1);
+    }),
+  );
+
+  it.effect(
+    "retains exact rollback boundaries across recovery and can roll back to an empty root",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        yield* adapter.startSession({
+          threadId,
+          runtimeMode: "full-access",
+          resumeCursor: {
+            sessionId: fake.sessionId,
+            turnBoundaries: [
+              { turnId: "first", entryId: null },
+              { turnId: "second", entryId: "entry-2" },
+            ],
+          },
+        });
+        yield* adapter.rollbackThread(threadId, 1);
+        const cursor = (yield* adapter.listSessions())[0]!.resumeCursor;
+        yield* adapter.stopSession(threadId);
+        const recovered = yield* makeAdapter(fake);
+        yield* recovered.startSession({
+          threadId,
+          runtimeMode: "full-access",
+          resumeCursor: cursor,
+        });
+        yield* recovered.rollbackThread(threadId, 1);
+        assert.deepStrictEqual(fake.forkCalls, [{ entryId: "entry-2" }, { entryId: null }]);
+        assert.deepStrictEqual(
+          parsePiResumeCursor((yield* recovered.listSessions())[0]!.resumeCursor)?.turnBoundaries,
+          [],
+        );
+      }),
+  );
+
+  it.effect(
+    "reports live status and stable creation time without reapplying an unchanged model",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        const modelSelection = {
+          instanceId: ProviderInstanceId.make("pi"),
+          model: "test/model",
+          options: [{ id: "thinkingLevel", value: "high" }],
+        };
+        const started = yield* adapter.startSession({
+          threadId,
+          runtimeMode: "full-access",
+          modelSelection,
+        });
+        yield* TestClock.adjust("1 second");
+        yield* adapter.sendTurn({ threadId, input: "hello", modelSelection });
+        const current = (yield* adapter.listSessions())[0]!;
+        assert.strictEqual(current.status, "running");
+        assert.strictEqual(current.createdAt, started.createdAt);
+        assert.notStrictEqual(current.updatedAt, started.updatedAt);
+        assert.deepStrictEqual(fake.setModelCalls, []);
+        assert.deepStrictEqual(fake.setThinkingLevelCalls, [{ level: "high" }]);
+      }),
+  );
+
+  it.effect("refuses ambiguous legacy rollback instead of counting steering as turns", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: { sessionId: fake.sessionId },
+      });
+      const result = yield* adapter.rollbackThread(threadId, 1).pipe(Effect.result);
+      assert.strictEqual(result._tag, "Failure");
+      assert.deepStrictEqual(fake.forkCalls, []);
+    }),
+  );
+
   it.effect("startSession creates a Pi session, emits started+ready, and lists it", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -593,7 +878,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(session.threadId, threadId);
       assert.strictEqual(session.provider, "pi");
       assert.strictEqual(session.status, "ready");
-      assert.deepStrictEqual(session.resumeCursor, { sessionId: fake.sessionId });
+      assert.deepStrictEqual(session.resumeCursor, {
+        sessionId: fake.sessionId,
+        turnBoundaries: [],
+      });
       assert.isTrue(yield* adapter.hasSession(threadId));
       assert.strictEqual((yield* adapter.listSessions()).length, 1);
 
@@ -1608,11 +1896,20 @@ it.layer(testLayer)("PiAdapter", (it) => {
         contextUsage: { tokens: 120, contextWindow: 400_000, percent: 0.03 },
       };
       const adapter = yield* makeAdapter(fake);
-      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: {
+          sessionId: fake.sessionId,
+          turnBoundaries: [
+            { turnId: "first", entryId: null },
+            { turnId: "second", entryId: "entry-2" },
+          ],
+        },
+      });
 
       const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
       yield* collectEvents(adapter, eventsRef);
-      yield* adapter.sendTurn({ threadId, input: "undo the active turn" });
       yield* adapter.rollbackThread(threadId, 1);
 
       const events = yield* waitFor(eventsRef, (received) =>
@@ -1948,10 +2245,13 @@ it.layer(testLayer)("PiAdapter", (it) => {
         resumeCursor: cursor,
       });
       assert.strictEqual(calls[0]?.resumeSessionFile, sessionFile);
-      assert.deepStrictEqual(session.resumeCursor, cursor);
+      assert.deepStrictEqual(session.resumeCursor, { ...cursor, turnBoundaries: [] });
       const turn = yield* adapter.sendTurn({ threadId, input: "Continue" });
-      assert.deepStrictEqual(turn.resumeCursor, cursor);
-      assert.deepStrictEqual((yield* adapter.listSessions())[0]?.resumeCursor, cursor);
+      assert.deepStrictEqual(turn.resumeCursor, {
+        ...cursor,
+        turnBoundaries: [{ turnId: turn.turnId, entryId: fake.leafId }],
+      });
+      assert.deepStrictEqual((yield* adapter.listSessions())[0]?.resumeCursor, turn.resumeCursor);
       yield* adapter.stopAll();
     }),
   );
@@ -2226,11 +2526,21 @@ it.layer(testLayer)("PiAdapter", (it) => {
       const adapter = yield* makeAdapter(fake);
       yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
 
+      // The new Rove turn starts at entry-4; steering remains inside it.
+      yield* adapter.sendTurn({ threadId, input: "new turn" });
+      yield* adapter.sendTurn({ threadId, input: "steer" });
+      const settled = yield* Deferred.make<void>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "turn.completed" ? Deferred.succeed(settled, undefined) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(settled);
       const snapshot = yield* adapter.rollbackThread(threadId, 1);
 
-      // 1 turn back from leaf entry-4 forks at entry-2 (the end of turn 1),
-      // dropping turn 2 (user entry-3 + assistant entry-4).
-      assert.deepStrictEqual(fake.forkCalls, [{ entryId: "entry-2" }]);
+      assert.deepStrictEqual(fake.forkCalls, [{ entryId: "entry-4" }]);
       assert.strictEqual(snapshot.threadId, threadId);
     }),
   );

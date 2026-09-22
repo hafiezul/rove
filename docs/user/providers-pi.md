@@ -12,6 +12,8 @@ Tools run through the connected Rove server, including when you control a thread
 
 Rove saves each Pi session's identity and absolute file location on the server. Sessions remain recoverable when a thread's working directory changes, provided the saved file remains accessible. Older sessions without a saved file location use Pi's working-directory lookup.
 
+Rollback positions are saved as exact session-tree boundaries, so steering messages sent while a turn runs never count as extra turns. Threads whose history predates exact boundaries cannot roll back; start a new thread instead.
+
 If history is missing, unreadable, empty, or belongs to another session, startup fails instead of silently starting an empty conversation. Restore the session file or storage access on the server, then retry the turn. To continue without that history, create a new thread. The original thread keeps its saved session reference for recovery.
 
 New sessions are saved before the first prompt, so restarting before the first assistant response does not invalidate their session reference.
@@ -90,6 +92,9 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 
 - Extension tools run through Pi and appear as tool calls in Rove.
 - Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
+- Other file attachments reach Pi as saved-file paths in the message text, like the other providers; open them with file tools.
+- Stopping a thread aborts the live response and retires the session, including its extensions. Background agent work reported before Stop is marked stopped, and a stopped session cannot be revived by late events. The next message starts a fresh session from the saved history.
+- Manual context compaction is available from the context meter while the thread is idle; failed compaction is reported as a failure.
 - Input, agent, tool, context, and compaction hooks run through Pi.
 - Extension commands run when typed as `/command arguments` while the thread is idle, and loaded extension commands appear in the composer's slash menu alongside prompt templates.
 - Session startup and shutdown hooks run when Rove creates and disposes sessions.
@@ -107,4 +112,4 @@ Dialogs are unavailable. Confirmations return `false`; selection and text-input 
 
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 
-Background text generation, including thread titles, does not load extensions. Other providers are unchanged.
+Background text generation, including thread titles, does not load extensions or expose tools, and keeps no session history. Other providers are unchanged.

@@ -771,6 +771,18 @@ export const PiSettings = makeProviderSettingsSchema(
         providerSettingsForm: { clearWhenEmpty: "omit" },
       }),
     ),
+    agentDir: TrimmedString.pipe(
+      Schema.withDecodingDefault(Effect.succeed("")),
+      Schema.annotateKey({
+        title: "Pi agent directory",
+        description:
+          "Custom Pi config directory (PI_CODING_AGENT_DIR). Keeps auth, models, sessions, and extensions separate per instance.",
+        providerSettingsForm: {
+          placeholder: "~/.pi/agent",
+          clearWhenEmpty: "omit",
+        },
+      }),
+    ),
     // Extension paths blocked from loading in new Pi sessions. Toggled from
     // the provider extensions panel and applied at session creation.
     disabledExtensions: Schema.Array(Schema.String).pipe(
@@ -783,7 +795,7 @@ export const PiSettings = makeProviderSettingsSchema(
     ),
   },
   {
-    order: ["model", "thinkingLevel"],
+    order: ["model", "thinkingLevel", "agentDir"],
   },
 ).pipe(
   Schema.annotate({

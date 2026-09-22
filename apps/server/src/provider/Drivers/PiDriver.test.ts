@@ -67,15 +67,27 @@ describe("Pi SDK discovery client", () => {
     const discovered = await client.discover({ cwd: undefined });
     assert.isFalse(discovered.slashCommands.some((command) => command.name === "local"));
 
-    // An explicit cwd (future thread-scoped callers) is still honored. The
-    // loader follows Pi's trust rules, so the project opts in via settings.
-    NodeFS.writeFileSync(
-      NodePath.join(agentDir, "settings.json"),
-      JSON.stringify({ defaultProjectTrust: "always" }),
-    );
+    // Thread-scoped discovery shares the session's trust without changing
+    // the user's persisted Pi settings.
     const scoped = await client.discover({ cwd: project });
     const local = scoped.slashCommands.find((command) => command.name === "local");
     assert.isDefined(local);
     assert.strictEqual(local?.description, "Project local");
+    assert.isFalse(NodeFS.existsSync(NodePath.join(agentDir, "settings.json")));
+  });
+
+  it("reads user resources from an explicit per-instance agent directory", async () => {
+    const instanceAgentDir = NodePath.join(root, "agent-personal");
+    NodeFS.mkdirSync(NodePath.join(instanceAgentDir, "skills", "personal-skill"), {
+      recursive: true,
+    });
+    NodeFS.writeFileSync(
+      NodePath.join(instanceAgentDir, "skills", "personal-skill", "SKILL.md"),
+      "---\nname: personal-skill\ndescription: Personal skill\n---\n\nBody\n",
+    );
+    const client = makeSdkDiscoveryClient(undefined, instanceAgentDir);
+    const discovered = await client.discover({ cwd: undefined });
+    assert.isTrue(discovered.skills.some((skill) => skill.name === "personal-skill"));
+    assert.isFalse(discovered.skills.some((skill) => skill.name === "fixture-skill"));
   });
 });

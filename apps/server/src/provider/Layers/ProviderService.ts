@@ -1100,8 +1100,8 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         canonicalEvent.type === "turn.aborted"
       ) {
         yield* recordTurnCompletedAnalytics(source, canonicalEvent);
-        if (source.provider === "claudeAgent") {
-          // Background Claude turns have no sendTurn response to persist their
+        if (source.provider === "claudeAgent" || source.provider === "pi") {
+          // Background turns have no sendTurn response to persist their
           // new native boundary. Save it before clients can checkpoint the turn.
           yield* Effect.gen(function* () {
             const adapter = yield* registry.getByInstance(source.instanceId);
@@ -1125,7 +1125,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
             }
           }).pipe(
             Effect.catch((cause) =>
-              Effect.logWarning("failed to persist Claude turn resume state", { cause }),
+              Effect.logWarning("failed to persist provider turn resume state", { cause }),
             ),
           );
         }

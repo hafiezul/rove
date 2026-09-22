@@ -147,6 +147,62 @@ describe("headless Pi extensions", () => {
     expect(dispose).toHaveBeenCalledOnce();
   });
 
+  it("creates tool-free in-memory metadata sessions with Rove runtime instructions", async () => {
+    const createSdkSession = vi.spyOn(PiSdk, "createAgentSessionFromServices").mockClear();
+    const session = await createPiSession(
+      { cwd, model: undefined, thinkingLevel: undefined, resumeSessionId: undefined },
+      { extensions: false, textGeneration: true },
+    );
+    sessions.push(session);
+    const result = createSdkSession.mock.results[0]!;
+    if (result.type !== "return") throw new Error("SDK session creation failed");
+    const { session: sdkSession } = await result.value;
+    expect(session.sessionFile).toBeUndefined();
+    expect(sdkSession.getActiveToolNames()).toEqual([]);
+    expect(sdkSession.agent.state.systemPrompt).toContain(
+      "running in Rove Code through the Pi harness",
+    );
+    expect(sdkSession.agent.state.systemPrompt).toContain("link_pull_request");
+    expect(NodeFS.existsSync(NodePath.join(cwd, "extension.log"))).toBe(false);
+  });
+
+  it("persists rollback branches, including an empty root, before another prompt", async () => {
+    const session = await create();
+    await session.prompt("first");
+    const retainedLeaf = session.getLeafId!()!;
+    await session.prompt("second");
+    await session.fork!(retainedLeaf);
+    const history = () => SessionManager.open(session.sessionFile!).buildSessionContext().messages;
+    expect(history().filter((message) => message.role === "user")).toHaveLength(1);
+    await session.fork!(null);
+    expect(history()).toEqual([]);
+    expect(session.messages).toEqual([]);
+  });
+
+  it("resolves catalog extension models in metadata sessions without loading their tools or hooks", async () => {
+    const createSdkSession = vi.spyOn(PiSdk, "createAgentSessionFromServices").mockClear();
+    await create();
+    const modelRuntime = createSdkSession.mock.calls.at(-1)![0].services.modelRuntime;
+    const before = log();
+    const helper = await createPiSession(
+      {
+        cwd,
+        model: "rove-extension-test/fixture",
+        thinkingLevel: undefined,
+        resumeSessionId: undefined,
+      },
+      { extensions: false, textGeneration: true, modelRuntime },
+    );
+    sessions.push(helper);
+    const result = createSdkSession.mock.results.at(-1)!;
+    if (result.type !== "return") throw new Error("SDK session creation failed");
+    const { session: sdkSession } = await result.value;
+    expect(helper.getModel?.()?.id).toBe("fixture");
+    expect(sdkSession.getActiveToolNames()).toEqual([]);
+    expect(helper.sessionFile).toBeUndefined();
+    expect(log()).toBe(before);
+  });
+
   it("keeps unnamed inline identities stable when earlier factories are disabled", async () => {
     const first = vi.fn();
     const second = vi.fn();
