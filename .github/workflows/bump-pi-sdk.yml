@@ -10,6 +10,11 @@ permissions:
   contents: write
   pull-requests: write
 
+# One bump at a time: two overlapping runs would race on the same bot branch.
+concurrency:
+  group: bump-pi-sdk
+  cancel-in-progress: true
+
 jobs:
   bump:
     name: Open Pi SDK bump PR
@@ -30,6 +35,13 @@ jobs:
           node-version-file: package.json
           cache: true
           run-install: true
+
+      # Commits as github-actions[bot] so history shows the bump is automated.
+      # Must run before the bump step creates its commit.
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Bump Pi SDK and open PR when outdated
         env:
