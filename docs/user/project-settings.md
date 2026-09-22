@@ -61,3 +61,12 @@ with its configured upstream. Choose an environment to set the default or a proj
 Rove Code only pulls when it can fast-forward and the checkout has no changed files, untracked files,
 or local commits. It skips checkouts on another branch or without an upstream. If a checkout has
 local work, resolve it yourself before automatic pulls can resume.
+
+## Choose the GitHub account
+
+In Source Control, set **GitHub account** to decide whose `gh` sign-in a project's pull requests
+read and merge as. **Default** follows the server's active GitHub sign-in; a named account pins
+the project to that sign-in. When the named account cannot read the repository or loses its
+credentials, pull requests fail with the sign-in error and the project keeps its choice until you
+change it. Git push and fetch still use git's own credentials; agent-run `gh` and `git` commands
+use their own sign-in.
