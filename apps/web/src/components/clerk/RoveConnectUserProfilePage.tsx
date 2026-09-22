@@ -233,20 +233,20 @@ export function RoveConnectUserProfilePage() {
             ))}
           </ul>
         ) : environmentsState.error ? null : (
-          <Empty className="min-h-64 gap-4 border-t px-6 py-10 md:p-10">
-            <EmptyMedia className="mb-0" variant="icon">
-              <ServerIcon />
-            </EmptyMedia>
-            <EmptyHeader>
-              <EmptyTitle className="text-[1.0625rem] leading-6">
-                No Rove Connect environments
-              </EmptyTitle>
-              <EmptyDescription className="text-[0.8125rem] leading-[1.125rem]">
-                Link an environment from its local Settings to make it available through Rove Code
-                Connect.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <div className="border-t">
+            <Empty size="compact">
+              <EmptyMedia variant="icon">
+                <ServerIcon />
+              </EmptyMedia>
+              <EmptyHeader>
+                <EmptyTitle>No Rove Connect environments</EmptyTitle>
+                <EmptyDescription>
+                  Link an environment from its local Settings to make it available through Rove
+                  Connect.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
         )}
       </div>
     </ClerkUserProfilePage>
