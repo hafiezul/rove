@@ -1,4 +1,5 @@
 import * as Context from "effect/Context";
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -30,7 +31,53 @@ export const PinnedGitHubCredential = Context.Reference<{
   readonly credentialFingerprint: string;
 } | null>("t3/sourceControl/PinnedGitHubCredential", { defaultValue: () => null });
 
+/**
+ * The acting project's selected GitHub account (`host` + `login`), provided by
+ * callers that resolved a project setting. When present, every `gh` command in
+ * scope acts as that account; commands with no selection in scope keep the
+ * server's ambient `gh` active account. Never put its value in RPC payloads.
+ */
+export const SelectedGitHubAccount = Context.Reference<{
+  readonly host: string;
+  readonly login: string;
+} | null>("t3/sourceControl/SelectedGitHubAccount", { defaultValue: () => null });
+
+/**
+ * Turn any object of effect-returning methods into one whose calls run with
+ * `SelectedGitHubAccount` in scope. The selection rides the Effect context to
+ * the `gh` execution boundary, so callers that already resolved a project's
+ * setting need no per-method plumbing.
+ */
+export function provideSelectedGitHubAccount<T extends object>(
+  api: T,
+  selection: { readonly host: string; readonly login: string } | null,
+): T {
+  if (selection === null) return api;
+  return Object.fromEntries(
+    Object.entries(api).map(([key, value]) => [
+      key,
+      typeof value === "function"
+        ? (...args: ReadonlyArray<unknown>) =>
+            (value as (...args: ReadonlyArray<unknown>) => Effect.Effect<unknown>)(...args).pipe(
+              Effect.provideService(SelectedGitHubAccount, selection),
+            )
+        : value,
+    ]),
+  ) as T;
+}
+
+/** How long one selected account's resolved token is reused before `gh` is asked again. */
+const SELECTED_TOKEN_TTL_MS = 10 * 60_000;
+const SELECTED_TOKEN_CACHE_CAPACITY = 32;
+const selectedTokenCache = new Map<string, { token: string; at: number }>();
+
 function targetsVerifiedHost(args: ReadonlyArray<string>, host: string): boolean {
+  const hosts = namedHosts(args);
+  return hosts.length > 0 && hosts.every((target) => target === host);
+}
+
+/** Every host the command names itself (`--hostname`, `-R owner/name/repo`, URLs); empty when hostless. */
+function namedHosts(args: ReadonlyArray<string>): Array<string | null> {
   const hosts: Array<string | null> = [];
   const repositoryHost = (repository: string | undefined) => {
     if (repository === undefined) return null;
@@ -54,7 +101,7 @@ function targetsVerifiedHost(args: ReadonlyArray<string>, host: string): boolean
     else if (arg.startsWith("-R")) hosts.push(repositoryHost(arg.slice(2)));
     else if (/^https?:\/\//i.test(arg)) hosts.push(repositoryHost(arg));
   }
-  return hosts.length > 0 && hosts.every((target) => target === host);
+  return hosts;
 }
 
 const gitHubCliFailureFields = {
@@ -378,16 +425,98 @@ function deriveRepositoryCloneUrlsFromCreateOutput(
 export const make = Effect.gen(function* () {
   const process = yield* VcsProcess.VcsProcess;
 
+  /**
+   * The selected account's stored token, via the same lookup the gh docs
+   * suggest for automated switching (`auth token --hostname --user`). Cached
+   * per account so a burst of commands does not spawn a lookup each; a failed
+   * lookup is not cached, so repairing auth retries on the next command.
+   */
+  const resolveSelectedAccountToken = (input: {
+    readonly host: string;
+    readonly login: string;
+    readonly cwd: string;
+  }): Effect.Effect<string, GitHubCliError> =>
+    Effect.flatMap(Clock.currentTimeMillis, (now) => {
+      const key = `${input.host}:${input.login}`;
+      const cached = selectedTokenCache.get(key);
+      if (cached !== undefined && now - cached.at < SELECTED_TOKEN_TTL_MS) {
+        return Effect.succeed(cached.token);
+      }
+      if (selectedTokenCache.size >= SELECTED_TOKEN_CACHE_CAPACITY) {
+        const oldest = selectedTokenCache.keys().next().value;
+        if (oldest !== undefined) selectedTokenCache.delete(oldest);
+      }
+      return process
+        .run({
+          operation: "GitHubCli.resolveSelectedAccountToken",
+          command: "gh",
+          args: ["auth", "token", "--hostname", input.host, "--user", input.login],
+          cwd: input.cwd,
+          timeoutMs: DEFAULT_TIMEOUT_MS,
+          maxOutputBytes: 4_000,
+        })
+        .pipe(
+          Effect.map((result) => {
+            const token = result.stdout.trim();
+            if (token.length > 0) selectedTokenCache.set(key, { token, at: now });
+            return token;
+          }),
+          Effect.mapError((error) => fromVcsError({ command: "gh", cwd: input.cwd }, error)),
+          Effect.filterOrFail(
+            (token) => token.length > 0,
+            () =>
+              new GitHubCliAuthenticationError({
+                command: "gh",
+                cwd: input.cwd,
+                cause: new Error(`No stored token for ${input.login} on ${input.host}.`),
+              }),
+          ),
+        );
+    });
+
   const execute: GitHubCli["Service"]["execute"] = Effect.fn("GitHubCli.execute")(
     function* (input) {
-      const credential = yield* PinnedGitHubCredential;
-      if (credential !== null && !targetsVerifiedHost(input.args, credential.host)) {
+      const pinned = yield* PinnedGitHubCredential;
+      if (pinned !== null && !targetsVerifiedHost(input.args, pinned.host)) {
         return yield* new GitHubCliCommandError({
           command: "gh",
           cwd: input.cwd,
           cause: new Error("The GitHub command does not target the verified credential's host."),
         });
       }
+      let credential = pinned;
+      if (credential === null) {
+        const selection = yield* SelectedGitHubAccount;
+        // `auth` subcommands manage the stored credentials themselves: they
+        // must read the keyring, not the token this layer would otherwise
+        // inject.
+        const isAuthCommand = input.args[0] === "auth";
+        if (selection !== null && !isAuthCommand) {
+          const named = namedHosts(input.args).filter((host) => host !== null);
+          if (named.some((host) => host !== selection.host)) {
+            return yield* new GitHubCliCommandError({
+              command: "gh",
+              cwd: input.cwd,
+              cause: new Error(
+                "The GitHub command targets a different host than the project's selected account.",
+              ),
+            });
+          }
+          const token = yield* resolveSelectedAccountToken({
+            host: selection.host,
+            login: selection.login,
+            cwd: input.cwd,
+          });
+          credential = {
+            host: selection.host,
+            token: Redacted.make(token),
+            credentialFingerprint: `selected:${selection.host}:${selection.login}`,
+          };
+        }
+      }
+      // Hostless commands inherit the selection's host, so only a command that
+      // names a different one is refused here; the pinned credential above keeps
+      // the strict check because it is a verified identity, not a preference.
       const token = credential === null ? undefined : Redacted.value(credential.token);
       const env =
         credential === null

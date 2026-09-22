@@ -331,6 +331,7 @@ const PullRequestServiceLive = PullRequestService.layer.pipe(
   Layer.provide(PullRequestReadCache.layer),
   Layer.provide(SourceControlProviderRegistryLayerLive),
   Layer.provide(SourceControlRateLimit.layer),
+  Layer.provide(ServerSettingsLayerLive),
 );
 
 const GitManagerLayerLive = GitManager.layer.pipe(

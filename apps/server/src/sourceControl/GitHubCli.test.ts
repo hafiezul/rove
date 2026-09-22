@@ -79,6 +79,108 @@ describe("GitHubCli.layer", () => {
     }).pipe(Effect.provide(layer)),
   );
 
+  it.effect("acts as the selected account and reuses its resolved token across commands", () =>
+    Effect.gen(function* () {
+      mockRun.mockImplementation((input) =>
+        input.args[0] === "auth"
+          ? Effect.succeed(processOutput("work-token"))
+          : Effect.succeed(processOutput(input.env?.GH_TOKEN ?? "ambient")),
+      );
+      const gh = yield* GitHubCli.GitHubCli;
+      const selection = { host: "github.com", login: "work-account-1" };
+      const act = (args: ReadonlyArray<string>) =>
+        gh
+          .execute({ cwd: "/repo", args })
+          .pipe(Effect.provideService(GitHubCli.SelectedGitHubAccount, selection));
+
+      expect((yield* act(["pr", "list"])).stdout).toBe("work-token");
+      expect((yield* act(["pr", "view", "1"])).stdout).toBe("work-token");
+
+      const calls = mockRun.mock.calls.map(([input]) => input);
+      // One credential lookup for both commands, then the commands themselves.
+      expect(calls[0]?.args).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.com",
+        "--user",
+        "work-account-1",
+      ]);
+      expect(calls).toHaveLength(3);
+      expect(calls[1]?.env).toMatchObject({
+        GH_HOST: "github.com",
+        GH_TOKEN: "work-token",
+        GH_ENTERPRISE_TOKEN: "work-token",
+        GH_DEBUG: "",
+      });
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("refuses a selected account whose host the command does not name", () =>
+    Effect.gen(function* () {
+      mockRun.mockImplementation((input) =>
+        input.args[0] === "auth"
+          ? Effect.succeed(processOutput("work-token"))
+          : Effect.succeed(processOutput("")),
+      );
+      const gh = yield* GitHubCli.GitHubCli;
+      const failure = yield* gh
+        .execute({ cwd: "/repo", args: ["api", "user", "--hostname", "other.example.test"] })
+        .pipe(
+          Effect.provideService(GitHubCli.SelectedGitHubAccount, {
+            host: "github.com",
+            login: "work-account-2",
+          }),
+          Effect.flip,
+        );
+      expect(failure._tag).toBe("GitHubCliCommandError");
+      expect(mockRun).not.toHaveBeenCalled();
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect(
+    "leaves token lookups unpinned so the selected account resolves stored credentials",
+    () =>
+      Effect.gen(function* () {
+        mockRun.mockReturnValue(Effect.succeed(processOutput("stored-token")));
+        const gh = yield* GitHubCli.GitHubCli;
+        const result = yield* gh
+          .execute({
+            cwd: "/repo",
+            args: ["auth", "token", "--hostname", "github.com"],
+            env: { GH_DEBUG: "" },
+          })
+          .pipe(
+            Effect.provideService(GitHubCli.SelectedGitHubAccount, {
+              host: "github.com",
+              login: "work-account-3",
+            }),
+          );
+        expect(result.stdout).toBe("stored-token");
+        expect(mockRun.mock.calls[0]?.[0].env).toEqual({ GH_DEBUG: "" });
+        expect(mockRun).toHaveBeenCalledTimes(1);
+      }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("fails a project whose selected account has no stored credentials", () =>
+    Effect.gen(function* () {
+      mockRun.mockReturnValue(
+        Effect.succeed(
+          processOutput("") satisfies VcsProcess.VcsProcessOutput as VcsProcess.VcsProcessOutput,
+        ),
+      );
+      const gh = yield* GitHubCli.GitHubCli;
+      const failure = yield* gh.execute({ cwd: "/repo", args: ["pr", "list"] }).pipe(
+        Effect.provideService(GitHubCli.SelectedGitHubAccount, {
+          host: "github.com",
+          login: "work-account-4",
+        }),
+        Effect.flip,
+      );
+      expect(failure._tag).toBe("GitHubCliAuthenticationError");
+    }).pipe(Effect.provide(layer)),
+  );
+
   it.effect("refuses other or implicit hosts before exposing a scoped credential to gh", () =>
     Effect.gen(function* () {
       const gh = yield* GitHubCli.GitHubCli;

@@ -29,9 +29,9 @@ one until you pick another. Every other setting fans out to the selection.
 ## Defaults and inheritance
 
 General contains the model and workspace for new threads. Integrations controls agent browser
-access. Source Control contains automatic pull, the default pull request merge method and text
-generation. The same rows edit environment defaults or project overrides depending on the
-project crumb.
+access. Source Control contains automatic pull, the default pull request merge method, the GitHub
+account and text generation. The same rows edit environment defaults or project overrides
+depending on the project crumb.
 
 The Project category, shown while a project is selected, holds the project's name, icon, actions,
 checkouts and removal. Actions belong to a project: editing them creates the project's own list
@@ -61,3 +61,12 @@ with its configured upstream. Choose an environment to set the default or a proj
 Rove Code only pulls when it can fast-forward and the checkout has no changed files, untracked files,
 or local commits. It skips checkouts on another branch or without an upstream. If a checkout has
 local work, resolve it yourself before automatic pulls can resume.
+
+## Choose the GitHub account
+
+In Source Control, set **GitHub account** to decide whose `gh` sign-in a project's pull requests
+read and merge as. **Default** follows the server's active GitHub sign-in; a named account pins
+the project to that sign-in. When the named account cannot read the repository or loses its
+credentials, pull requests fail with the sign-in error and the project keeps its choice until you
+change it. Git push and fetch still use git's own credentials; agent-run `gh` and `git` commands
+use their own sign-in.

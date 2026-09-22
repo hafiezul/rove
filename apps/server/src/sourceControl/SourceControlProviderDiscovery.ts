@@ -1,6 +1,7 @@
 import * as NodeUtil from "node:util";
 import type {
   SourceControlProviderAuth,
+  SourceControlProviderAccount,
   SourceControlProviderDiscoveryItem,
   SourceControlProviderInfo,
   SourceControlProviderKind,
@@ -113,17 +114,28 @@ function authDetail(detail: string | undefined): Option.Option<string> {
   return trimmed === undefined || trimmed.length === 0 ? Option.none() : Option.some(trimmed);
 }
 
+function authAccounts(
+  accounts: readonly SourceControlProviderAccount[] | undefined,
+): ReadonlyArray<SourceControlProviderAccount> | undefined {
+  return accounts === undefined || accounts.length === 0 ? undefined : [...accounts];
+}
+
 export function providerAuth(input: {
   readonly status: SourceControlProviderAuth["status"];
   readonly account?: string | undefined;
   readonly host?: string | undefined;
   readonly detail?: string | undefined;
+  readonly accounts?: ReadonlyArray<SourceControlProviderAccount> | undefined;
 }): SourceControlProviderAuth {
+  // The wire field stays absent unless there is something to say: payloads
+  // from older servers never send it, and the schema decodes absence as none.
+  const accounts = authAccounts(input.accounts);
   return {
     status: input.status,
     account: authAccount(input.account),
     host: authHost(input.host),
     detail: authDetail(input.detail),
+    ...(accounts === undefined ? {} : { accounts }),
   };
 }
 

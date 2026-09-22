@@ -66,6 +66,9 @@ function parseGitHubAuth(input: SourceControlAuthProbeInput) {
       status: "authenticated",
       account: authenticatedAccount.account,
       host,
+      accounts: authStatus.accounts
+        .filter((entry) => entry.authenticated)
+        .map((entry) => ({ host: entry.host, login: entry.account, active: entry.active })),
     });
   }
 

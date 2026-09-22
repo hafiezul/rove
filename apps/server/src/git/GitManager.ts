@@ -67,6 +67,7 @@ import * as ServerSettings from "../serverSettings.ts";
 import type { GitManagerServiceError } from "@t3tools/contracts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
+import { SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 import { detectPrTemplate } from "../sourceControl/PrTemplateDetection.ts";
 import type { ChangeRequest } from "@t3tools/contracts";
 
@@ -2788,7 +2789,18 @@ export const make = Effect.gen(function* () {
         return result;
       });
 
-      return yield* runAction().pipe(
+      const runActionWithAccount = Effect.flatMap(
+        projectSettingsFor(input).pipe(
+          Effect.map((settings) => settings.githubAccount ?? null),
+          Effect.orElseSucceed(() => null),
+        ),
+        (selectedAccount) =>
+          selectedAccount === null
+            ? runAction()
+            : Effect.provideService(runAction(), SelectedGitHubAccount, selectedAccount),
+      );
+
+      return yield* runActionWithAccount.pipe(
         Effect.ensuring(invalidateStatus(input.cwd)),
         Effect.tapError((error) =>
           Effect.flatMap(Ref.get(currentPhase), (phase) =>

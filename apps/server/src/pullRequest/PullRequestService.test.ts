@@ -12,6 +12,7 @@ import * as TestClock from "effect/testing/TestClock";
 import type {
   OrchestrationProjectShell,
   ProjectId,
+  ProjectSettingsOverrides,
   PullRequestReviewCapabilities,
   PullRequestReviewerCapabilities,
   SourceControlProviderKind,
@@ -19,6 +20,8 @@ import type {
 import { PullRequestOperationError } from "@t3tools/contracts";
 
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
+import * as ServerSettings from "../serverSettings.ts";
+import { SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as SourceControlRateLimit from "../sourceControl/SourceControlRateLimit.ts";
 import {
@@ -185,6 +188,7 @@ function makeService(input: {
   readonly projects: ReadonlyArray<OrchestrationProjectShell>;
   readonly providers: ReadonlyArray<PullRequestProviderApi>;
   readonly resolveHandle?: SourceControlProviderRegistry.SourceControlProviderRegistry["Service"]["resolveHandle"];
+  readonly projectSettingsOverrides?: Record<string, ProjectSettingsOverrides>;
 }) {
   return PullRequestService.make.pipe(
     Effect.provide(
@@ -202,6 +206,9 @@ function makeService(input: {
             ),
           getProjectShellById: (projectId) =>
             Effect.succeed(Option.fromNullishOr(input.projects.find((p) => p.id === projectId))),
+        }),
+        ServerSettings.layerTest({
+          projectSettingsOverrides: input.projectSettingsOverrides ?? {},
         }),
         SourceControlRateLimit.layer,
         Layer.effect(PullRequestReadCache.PullRequestReadCache, PullRequestReadCache.make).pipe(
@@ -734,6 +741,40 @@ it.effect("lists every host that has an implementation", () =>
       [
         ["gitlab", 2],
         ["github", 1],
+      ],
+    );
+  }),
+);
+
+it.effect("acts as the project's selected GitHub account in its provider calls", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ readonly repository: string; readonly selection: unknown }> = [];
+    const service = yield* makeService({
+      projects: [
+        project({ id: "p1", title: "work", workspaceRoot: "/a", repository: "acme/web" }),
+        project({ id: "p2", title: "personal", workspaceRoot: "/b", repository: "octo/dots" }),
+      ],
+      providers: [
+        fakeProvider("github", {
+          listChangeRequests: (input) =>
+            Effect.gen(function* () {
+              seen.push({ repository: input.repository, selection: yield* SelectedGitHubAccount });
+              return { items: [], truncated: false, continues: true };
+            }),
+        }),
+      ],
+      projectSettingsOverrides: {
+        p1: { githubAccount: { host: "github.com", login: "work-account" } },
+      },
+    });
+
+    yield* service.list({ state: "open" });
+
+    assert.deepStrictEqual(
+      seen.toSorted((left, right) => left.repository.localeCompare(right.repository)),
+      [
+        { repository: "acme/web", selection: { host: "github.com", login: "work-account" } },
+        { repository: "octo/dots", selection: null },
       ],
     );
   }),
