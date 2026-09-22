@@ -1,0 +1,37 @@
+name: Bump Pi SDK
+
+on:
+  schedule:
+    # Weekly on Monday morning UTC; Pi ships minors roughly weekly.
+    - cron: "23 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    name: Open Pi SDK bump PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      - name: Bump Pi SDK and open PR when outdated
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/bump-pi-sdk.ts
