@@ -333,6 +333,7 @@ function makeFakeCodexAdapter(
     rollbackThread,
     uploadFeedback,
     stopAll,
+    destroy: () => sessions.clear(),
   };
 }
 
@@ -2940,7 +2941,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
   it.effect("lists no sessions after adapter runtime clears", () =>
     Effect.gen(function* () {
       const provider = yield* ProviderService.ProviderService;
-
+      for (const adapter of [routing.codex, routing.claude, routing.cursor, routing.pi]) {
+        adapter.destroy();
+      }
       yield* provider.startSession(asThreadId("thread-1"), {
         provider: ProviderDriverKind.make("codex"),
         providerInstanceId: codexInstanceId,
