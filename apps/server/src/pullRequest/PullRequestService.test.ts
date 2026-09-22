@@ -17,7 +17,6 @@ import type {
   PullRequestReviewerCapabilities,
   SourceControlProviderKind,
 } from "@t3tools/contracts";
-import type { GitHubAccountSelection } from "@t3tools/contracts";
 import { PullRequestOperationError } from "@t3tools/contracts";
 
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
@@ -749,7 +748,7 @@ it.effect("lists every host that has an implementation", () =>
 
 it.effect("acts as the project's selected GitHub account in its provider calls", () =>
   Effect.gen(function* () {
-    const seen = new Map<string, GitHubAccountSelection | null>();
+    const seen: Array<{ readonly repository: string; readonly selection: unknown }> = [];
     const service = yield* makeService({
       projects: [
         project({ id: "p1", title: "work", workspaceRoot: "/a", repository: "acme/web" }),
@@ -759,7 +758,7 @@ it.effect("acts as the project's selected GitHub account in its provider calls",
         fakeProvider("github", {
           listChangeRequests: (input) =>
             Effect.gen(function* () {
-              seen.set(input.repository, yield* SelectedGitHubAccount);
+              seen.push({ repository: input.repository, selection: yield* SelectedGitHubAccount });
               return { items: [], truncated: false, continues: true };
             }),
         }),
@@ -771,8 +770,13 @@ it.effect("acts as the project's selected GitHub account in its provider calls",
 
     yield* service.list({ state: "open" });
 
-    assert.deepStrictEqual(seen.get("acme/web"), { host: "github.com", login: "work-account" });
-    assert.strictEqual(seen.get("octo/dots"), null);
+    assert.deepStrictEqual(
+      seen.toSorted((left, right) => left.repository.localeCompare(right.repository)),
+      [
+        { repository: "acme/web", selection: { host: "github.com", login: "work-account" } },
+        { repository: "octo/dots", selection: null },
+      ],
+    );
   }),
 );
 
