@@ -176,7 +176,11 @@ it.effect("surfaces discovered skills and prompt templates", () =>
       ["diagnosing-bugs"],
     );
     assert.strictEqual(snapshot.skills[0]?.scope, "user");
-    assert.strictEqual(snapshot.slashCommands[0]?.input?.hint, "[path]");
+    assert.strictEqual(
+      snapshot.slashCommands.find((command) => command.name === "review")?.input?.hint,
+      "[path]",
+    );
+    assert.isTrue(snapshot.slashCommands.some((command) => command.name === "compact"));
   }),
 );
 
@@ -189,6 +193,9 @@ it.effect("treats a discovery failure as empty pickers, not a snapshot failure",
     });
     assert.strictEqual(snapshot.status, "ready");
     assert.deepEqual(snapshot.skills, []);
-    assert.deepEqual(snapshot.slashCommands, []);
+    assert.deepEqual(
+      snapshot.slashCommands.map((command) => command.name),
+      ["compact"],
+    );
   }),
 );

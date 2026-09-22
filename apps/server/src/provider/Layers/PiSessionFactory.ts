@@ -50,6 +50,8 @@ import {
 
 import { readMcpProviderSession } from "../../mcp/McpProviderSession.ts";
 import { createPiRoveTools } from "./PiRoveTools.ts";
+import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
+import { expandHomePath } from "../../pathExpansion.ts";
 
 export { PiExtensionLoadError } from "./PiAdapter.ts";
 
@@ -105,13 +107,13 @@ async function toPiSessionLike(
   const dispose = () =>
     (disposal ??= (async () => {
       try {
-        await session.abort();
         await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
       } finally {
         try {
+          await session.abort();
+        } finally {
           session.dispose();
           listeners.clear();
-        } finally {
           await disposeRoveTools();
         }
       }
@@ -166,6 +168,7 @@ async function toPiSessionLike(
       return session.autoCompactionEnabled;
     },
     prompt: async (text, options) => {
+      if (disposal !== undefined) throw new Error("Pi session has been stopped.");
       let agentStarted = false;
       const unsubscribe = session.subscribe((event) => {
         if (event.type === "agent_start") agentStarted = true;
@@ -174,6 +177,15 @@ async function toPiSessionLike(
         await session.prompt(text, {
           ...options,
           source: "rpc",
+          preflightResult: (success) => {
+            // Stop can race asynchronous input hooks or auth resolution.
+            // Reject before the SDK enters its agent loop on a retired session.
+            if (disposal !== undefined) {
+              options?.preflightResult?.(false);
+              throw new Error("Pi session stopped during prompt preparation.");
+            }
+            options?.preflightResult?.(success);
+          },
         });
         // Commands and handled input can finish without emitting agent_settled.
         if (!agentStarted && session.isIdle) emit({ type: "agent_settled" });
@@ -182,6 +194,9 @@ async function toPiSessionLike(
       }
     },
     followUp: (text) => session.followUp(text),
+    compact: async () => {
+      await session.compact();
+    },
     abort: () => session.abort(),
     dispose,
     setModel: async (slug) => {
@@ -189,6 +204,7 @@ async function toPiSessionLike(
     },
     // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
+    getThinkingLevel: () => session.thinkingLevel,
     getModel: () => {
       const model = session.model;
       return model ? { id: model.id, provider: model.provider, input: model.input } : undefined;
@@ -208,23 +224,42 @@ async function toPiSessionLike(
     getSessionStats: () => session.getSessionStats(),
     getLeafId: () => session.sessionManager.getLeafId() ?? undefined,
     fork: async (entryId) => {
+      if (!session.isIdle) throw new Error("Wait for Pi to finish before rolling back.");
+      if (entryId === null) {
+        session.sessionManager.resetLeaf();
+        session.sessionManager.appendCustomEntry("rove.rollback", {});
+        session.agent.state.messages = session.sessionManager.buildSessionContext().messages;
+        return;
+      }
       const result = await session.navigateTree(entryId);
       if (result.cancelled) {
         throw new Error("Pi session tree navigation was cancelled.");
       }
+      // Tree navigation only moves the in-memory leaf. Persist the chosen
+      // branch immediately so restarting before the next prompt preserves it.
+      session.sessionManager.appendCustomEntry("rove.rollback", {});
     },
   };
+}
+
+/** Match Pi's cwd-based session layout without changing the process-wide agent directory. */
+function piSessionDirectory(cwd: string, agentDir: string): string {
+  const safePath = `--${NodePath.resolve(cwd)
+    .replace(/^[/\\]/, "")
+    .replace(/[/\\:]/g, "-")}--`;
+  return NodePath.join(agentDir, "sessions", safePath);
 }
 
 export function resolvePiSessionResume(
   cwd: string,
   sessionId: string | undefined,
   sessionFile?: string,
+  agentDir = getAgentDir(),
 ): PiSessionResumeOutcome {
   if (sessionId === undefined) return { resumed: false, reason: "no-cursor" };
   try {
     if (sessionFile === undefined) {
-      const sessionDir = SessionManager.create(cwd).getSessionDir();
+      const sessionDir = piSessionDirectory(cwd, agentDir);
       const matches = NodeFS.readdirSync(sessionDir).filter((entry) =>
         entry.endsWith(`_${sessionId}.jsonl`),
       );
@@ -489,8 +524,10 @@ export async function createPiSessionServices(
     }));
   const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
   const disabledExtensions = options.disabledExtensions ?? [];
-  const appendSystemPrompt =
-    disabledExtensions.length > 0 ? [disabledExtensionsPromptNote(disabledExtensions)] : undefined;
+  const appendSystemPrompt = [
+    buildRuntimeInstructions({ harness: "Pi" }),
+    ...(disabledExtensions.length > 0 ? [disabledExtensionsPromptNote(disabledExtensions)] : []),
+  ];
 
   const resourceLoader = new PiResourceLoader(
     {
@@ -562,27 +599,38 @@ export async function createPiSession(
   input: PiCreateSessionInput,
   options: {
     extensions?: boolean;
-    retryWithoutFailedExtensions?: boolean;
+    /** Metadata helpers must not persist history or execute tools. */
+    textGeneration?: boolean;
     /**
      * Shared runtime (the catalog host's) to resolve models against. Sessions
      * running without extensions never register extension providers, so a
      * fresh runtime cannot resolve extension-registered models.
      */
     modelRuntime?: ModelRuntime;
+    retryWithoutFailedExtensions?: boolean;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
-  const agentDir = getAgentDir();
-  const outcome = resolvePiSessionResume(cwd, input.resumeSessionId, input.resumeSessionFile);
+  const agentDir = input.agentDir
+    ? NodePath.resolve(expandHomePath(input.agentDir))
+    : getAgentDir();
+  const outcome = resolvePiSessionResume(
+    cwd,
+    input.resumeSessionId,
+    input.resumeSessionFile,
+    agentDir,
+  );
   const sessionManager = outcome.resumed
     ? SessionManager.open(outcome.sessionFile, undefined, cwd)
-    : SessionManager.create(cwd);
+    : options.textGeneration
+      ? SessionManager.inMemory(cwd)
+      : SessionManager.create(cwd, piSessionDirectory(cwd, agentDir));
   if (outcome.resumed && sessionManager.getSessionId() !== input.resumeSessionId) {
     throw new Error(
       "Pi session identity does not match the saved cursor. Restore the correct session file and retry, or create a new thread to start fresh.",
     );
   }
-  if (!outcome.resumed) {
+  if (!outcome.resumed && !options.textGeneration) {
     // Pi defers persistence until an assistant response. Rove saves a cursor at startup.
     const sessionFile = sessionManager.getSessionFile()!;
     NodeFS.writeFileSync(sessionFile, `${JSON.stringify(sessionManager.getHeader())}\n`, {
@@ -694,6 +742,7 @@ export async function createPiSession(
       services,
       sessionManager,
       customTools: roveTools.tools,
+      ...(options.textGeneration ? { noTools: "all" as const } : {}),
       ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
       ...(requestedThinkingLevel !== undefined
         ? { thinkingLevel: requestedThinkingLevel }

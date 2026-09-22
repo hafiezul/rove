@@ -333,6 +333,7 @@ function makeFakeCodexAdapter(
     rollbackThread,
     uploadFeedback,
     stopAll,
+    destroy: () => sessions.clear(),
   };
 }
 
@@ -426,12 +427,14 @@ function makeProviderServiceLayer(
   const codex = makeFakeCodexAdapter(CODEX_DRIVER, input.supportsConversationRollback);
   const claude = makeFakeCodexAdapter(CLAUDE_AGENT_DRIVER);
   const cursor = makeFakeCodexAdapter(CURSOR_DRIVER);
+  const pi = makeFakeCodexAdapter(ProviderDriverKind.make("pi"));
   const registry =
     input.registry ??
     makeAdapterRegistryMock({
       [ProviderDriverKind.make("codex")]: codex.adapter,
       [ProviderDriverKind.make("claudeAgent")]: claude.adapter,
       [ProviderDriverKind.make("cursor")]: cursor.adapter,
+      [ProviderDriverKind.make("pi")]: pi.adapter,
     });
 
   const providerAdapterLayer = Layer.succeed(
@@ -473,6 +476,7 @@ function makeProviderServiceLayer(
     codex,
     claude,
     cursor,
+    pi,
     layer,
   };
 }
@@ -1760,6 +1764,35 @@ routing.layer("ProviderServiceLive routing", (it) => {
     }),
   );
 
+  it.effect("saves Pi background boundaries before Stop retires the live session", () =>
+    Effect.gen(function* () {
+      const provider = yield* ProviderService.ProviderService;
+      const directory = yield* ProviderSessionDirectory.ProviderSessionDirectory;
+      const threadId = asThreadId("pi-stopped-background");
+      const driver = ProviderDriverKind.make("pi");
+      const instanceId = ProviderInstanceId.make("pi");
+      yield* provider.startSession(threadId, {
+        provider: driver,
+        providerInstanceId: instanceId,
+        threadId,
+        runtimeMode: "full-access",
+      });
+      const cursor = {
+        sessionId: "pi-session",
+        turnBoundaries: [{ turnId: "background", entryId: "previous-leaf" }],
+      };
+      routing.pi.updateSession(threadId, (session) => ({ ...session, resumeCursor: cursor }));
+      routing.pi.interruptTurn.mockImplementationOnce(() => routing.pi.stopSession(threadId));
+      yield* provider.interruptTurn({ threadId });
+      assert.isFalse(yield* routing.pi.hasSession(threadId));
+      const binding = yield* directory.getBinding(threadId);
+      assert(Option.isSome(binding));
+      assert.deepStrictEqual(binding.value.resumeCursor, cursor);
+      yield* provider.rollbackConversation({ threadId, numTurns: 1 });
+      assert.deepStrictEqual(routing.pi.startSession.mock.calls.at(-1)?.[0].resumeCursor, cursor);
+    }),
+  );
+
   it.effect("preserves background turn boundaries when stopping before rollback recovery", () =>
     Effect.gen(function* () {
       const provider = yield* ProviderService.ProviderService;
@@ -2908,7 +2941,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
   it.effect("lists no sessions after adapter runtime clears", () =>
     Effect.gen(function* () {
       const provider = yield* ProviderService.ProviderService;
-
+      for (const adapter of [routing.codex, routing.claude, routing.cursor, routing.pi]) {
+        adapter.destroy();
+      }
       yield* provider.startSession(asThreadId("thread-1"), {
         provider: ProviderDriverKind.make("codex"),
         providerInstanceId: codexInstanceId,

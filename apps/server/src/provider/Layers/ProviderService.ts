@@ -1100,8 +1100,8 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         canonicalEvent.type === "turn.aborted"
       ) {
         yield* recordTurnCompletedAnalytics(source, canonicalEvent);
-        if (source.provider === "claudeAgent") {
-          // Background Claude turns have no sendTurn response to persist their
+        if (source.provider === "claudeAgent" || source.provider === "pi") {
+          // Background turns have no sendTurn response to persist their
           // new native boundary. Save it before clients can checkpoint the turn.
           yield* Effect.gen(function* () {
             const adapter = yield* registry.getByInstance(source.instanceId);
@@ -1125,7 +1125,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
             }
           }).pipe(
             Effect.catch((cause) =>
-              Effect.logWarning("failed to persist Claude turn resume state", { cause }),
+              Effect.logWarning("failed to persist provider turn resume state", { cause }),
             ),
           );
         }
@@ -1937,6 +1937,21 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           "provider.thread_id": input.threadId,
           "provider.turn_id": input.turnId,
         });
+        if (routed.adapter.provider === "pi") {
+          // Pi Stop retires the session. Its aborted event may be consumed only
+          // after listSessions can no longer supply background turn boundaries.
+          const session = (yield* routed.adapter.listSessions()).find(
+            (session) => session.threadId === routed.threadId,
+          );
+          if (session?.resumeCursor !== undefined) {
+            yield* directory.upsert({
+              threadId: routed.threadId,
+              provider: routed.adapter.provider,
+              providerInstanceId: routed.instanceId,
+              resumeCursor: session.resumeCursor,
+            });
+          }
+        }
         yield* routed.adapter.interruptTurn(routed.threadId, input.turnId);
         yield* analytics.record("provider.turn.interrupted", {
           provider: routed.adapter.provider,

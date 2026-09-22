@@ -36,7 +36,9 @@ A useful first boundary is one child per thread session, with a separate child
 for the provider catalog host. A single shared child is cheaper but lets one
 extension take down all Pi threads. Isolating only thread sessions leaves global
 catalog extensions able to take down the server. Background text-generation
-sessions also need an explicit placement decision.
+sessions run in-process as well: in-memory, extension-free, and tool-free.
+They share the catalog's model implementations but do not load extension hooks
+or expose agent tools.
 
 Before adopting this design, prototype and measure:
 

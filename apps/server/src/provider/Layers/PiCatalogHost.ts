@@ -61,7 +61,8 @@ export class PiCatalogHost {
   private disposed = false;
 
   private readonly session: AgentSession;
-  private readonly modelRuntime: ModelRuntime;
+  /** Share registered model implementations with tool-free metadata sessions. */
+  readonly modelRuntime: ModelRuntime;
   private readonly resourceLoader: PiResourceLoader;
   private disabledExtensions: ReadonlyArray<string>;
   private readonly extensionProviderIds = new Set<string>();

@@ -9,6 +9,9 @@
  *
  * @module provider/Drivers/PiDriver
  */
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodePath from "node:path";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import {
   PiCatalogError,
   PiSettings,
@@ -23,6 +26,7 @@ import * as Schema from "effect/Schema";
 import type { ServerSettings } from "@t3tools/contracts";
 
 import { acquirePiResource, disposePiResource } from "../Layers/PiLifecycle.ts";
+import { expandHomePath } from "../../pathExpansion.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
@@ -36,11 +40,7 @@ import {
   type PiProbeClient,
 } from "../Layers/PiProvider.ts";
 import { ProviderDriverError } from "../Errors.ts";
-import {
-  defaultProviderContinuationIdentity,
-  type ProviderDriver,
-  type ProviderInstance,
-} from "../ProviderDriver.ts";
+import { type ProviderDriver, type ProviderInstance } from "../ProviderDriver.ts";
 import type { ServerProviderDraft } from "../providerSnapshot.ts";
 import {
   haveProviderSnapshotSettingsChanged,
@@ -79,13 +79,18 @@ const MAINTENANCE = makeManualOnlyProviderMaintenanceCapabilities({
  */
 export const makeSdkDiscoveryClient = (
   getExtensionCommands?: () => ReadonlyArray<ServerProviderSlashCommand>,
+  agentDir?: string,
 ): PiDiscoveryClient => ({
   discover: async ({ cwd }) => {
-    const { DefaultResourceLoader, getAgentDir } = await import("@earendil-works/pi-coding-agent");
-    const agentDir = getAgentDir();
+    const { DefaultResourceLoader, getAgentDir, SettingsManager } =
+      await import("@earendil-works/pi-coding-agent");
+    const resolvedAgentDir = agentDir ? NodePath.resolve(expandHomePath(agentDir)) : getAgentDir();
+    const settingsManager = SettingsManager.create(cwd ?? resolvedAgentDir, resolvedAgentDir);
+    if (cwd !== undefined) settingsManager.setProjectTrusted(true);
     const loader = new DefaultResourceLoader({
-      cwd: cwd ?? agentDir,
-      agentDir,
+      cwd: cwd ?? resolvedAgentDir,
+      agentDir: resolvedAgentDir,
+      settingsManager,
       noExtensions: true,
     });
     // Resources populate lazily: getSkills()/getPrompts() return empty until
@@ -163,24 +168,34 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
   create: ({ instanceId, displayName, accentColor, enabled, config }) =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsService;
-      const continuationIdentity = defaultProviderContinuationIdentity({
+      const effectiveConfig = { ...config, enabled } satisfies PiSettings;
+      // Sessions, the catalog host, and discovery all share this directory, so
+      // instances with different agent directories keep auth, models, sessions,
+      // and extensions separate — and instances sharing one stay cross-continuable.
+      const effectiveAgentDir = NodePath.resolve(
+        effectiveConfig.agentDir ? expandHomePath(effectiveConfig.agentDir) : getAgentDir(),
+      );
+      const continuationIdentity = {
         driverKind: DRIVER_KIND,
-        instanceId,
-      });
+        continuationKey: `pi:agent:${effectiveAgentDir}`,
+      };
       const stampIdentity = withInstanceIdentity({
         instanceId,
         displayName,
         accentColor,
         continuationGroupKey: continuationIdentity.continuationKey,
       });
-      const effectiveConfig = { ...config, enabled } satisfies PiSettings;
 
       // One catalog host per instance: extension models enter the provider
       // snapshot here, so every picker lists them with no per-thread work.
       // Thread sessions keep full per-thread loading for tools and hooks.
       const catalogHost = yield* Effect.acquireRelease(
         acquirePiResource(
-          () => PiCatalogHost.create({ disabledExtensions: effectiveConfig.disabledExtensions }),
+          () =>
+            PiCatalogHost.create({
+              disabledExtensions: effectiveConfig.disabledExtensions,
+              agentDir: effectiveAgentDir,
+            }),
           (host) => host.dispose(),
         ).pipe(
           Effect.mapError(
@@ -208,7 +223,11 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
 
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
-        createSession: createPiSession,
+        createSession: (input) =>
+          createPiSession({
+            ...input,
+            agentDir: effectiveAgentDir,
+          }),
         getSettings: serverSettings.getSettings.pipe(
           Effect.map(readCurrentPiSettings),
           Effect.orElseSucceed(() => effectiveConfig),
@@ -225,10 +244,12 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
               cwd,
               model,
               thinkingLevel,
+              agentDir: effectiveAgentDir,
               resumeSessionId: undefined,
             },
             {
               extensions: false,
+              textGeneration: true,
               // Text generation stays extension-free (no tools or hooks), but
               // must resolve extension-registered models, so it shares the
               // catalog host's runtime.
@@ -240,10 +261,14 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       const probeClient: PiProbeClient = {
         getCatalogModels: (thinkingLevel) => catalogHost.getCatalogModels(thinkingLevel),
       };
+      const discoveryClient = makeSdkDiscoveryClient(
+        () => catalogHost.getExtensionSlashCommands(),
+        effectiveAgentDir,
+      );
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
         probeClient,
-        makeSdkDiscoveryClient(() => catalogHost.getExtensionSlashCommands()),
+        discoveryClient,
       ).pipe(Effect.map(stampIdentity));
 
       const snapshot = yield* makeManagedServerProvider<ProviderSnapshotSettings<PiSettings>>({
@@ -288,6 +313,29 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         accentColor,
         enabled,
         snapshot,
+        snapshotForCwd: (cwd) =>
+          Effect.gen(function* () {
+            const current = yield* snapshot.getSnapshot;
+            if (!enabled) return current;
+            const resources = yield* Effect.tryPromise({
+              try: () => discoveryClient.discover({ cwd }),
+              catch: (cause) =>
+                new ProviderDriverError({
+                  driver: DRIVER_KIND,
+                  instanceId,
+                  detail: "Failed to discover project Pi resources.",
+                  cause,
+                }),
+            });
+            return {
+              ...current,
+              skills: resources.skills,
+              slashCommands: [
+                ...current.slashCommands.filter((command) => command.name === "compact"),
+                ...resources.slashCommands.filter((command) => command.name !== "compact"),
+              ],
+            };
+          }),
         adapter,
         textGeneration,
         piCatalog: {

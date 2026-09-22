@@ -172,7 +172,10 @@ export function checkPiProviderStatus(
       enabled: true,
       checkedAt,
       models,
-      slashCommands: discovered.slashCommands,
+      slashCommands: [
+        { name: "compact", description: "Compact the conversation context" },
+        ...discovered.slashCommands.filter((command) => command.name !== "compact"),
+      ],
       skills: discovered.skills,
       probe: {
         installed: true,
