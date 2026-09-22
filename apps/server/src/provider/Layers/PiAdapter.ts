@@ -1255,7 +1255,6 @@ export function makePiAdapter(
             return;
           }
           case "agent_end": {
-            const willRetry = event.willRetry === true;
             // Auto-drain completions ride the transcript as text-only customs
             // (structured details do not survive the session round-trip), so
             // recover structure through the dialect registry. Dedupe by notify
@@ -1281,24 +1280,9 @@ export function makePiAdapter(
                 yield* offerParsedNotify(turnId, parsed);
               }
             }
-            if (
-              !willRetry &&
-              ctx.pendingTurnError !== undefined &&
-              ctx.activeTurnId !== undefined
-            ) {
-              // Terminal error — Pi is not retrying. Emit the deferred failure.
-              const turnId = ctx.activeTurnId;
-              const errorMessage = ctx.pendingTurnError;
-              ctx.activeTurnId = undefined;
-              ctx.activeAssistantMessage = undefined;
-              ctx.pendingTurnError = undefined;
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "turn.completed",
-                turnId,
-                payload: { state: "failed", errorMessage },
-              });
-            }
+            // Only agent_settled closes the Rove turn. Retry or compaction can
+            // fail without another agent_end, and extension follow-ups can
+            // still continue a run whose willRetry flag was false.
             return;
           }
           case "auto_retry_start":
@@ -1394,6 +1378,7 @@ export function makePiAdapter(
             ctx.toolCallArgs.clear();
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
+              const errorMessage = ctx.pendingTurnError;
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
               ctx.activeAssistantMessage = undefined;
@@ -1402,7 +1387,10 @@ export function makePiAdapter(
                 ...base,
                 type: "turn.completed",
                 turnId,
-                payload: { state: "completed" },
+                payload:
+                  errorMessage !== undefined
+                    ? { state: "failed", errorMessage }
+                    : { state: "completed" },
               });
             }
             return;
@@ -1824,14 +1812,6 @@ export function makePiAdapter(
                 },
               });
             }
-            const live = sessions.get(input.threadId);
-            if (live === undefined || live.activeTurnId !== turnId) {
-              return {
-                threadId: input.threadId,
-                turnId,
-                resumeCursor: resumeCursorFor(ctx),
-              } satisfies ProviderTurnStartResult;
-            }
             modelChanged = switchOutcome;
           }
           if (modelChanged) {
@@ -1839,6 +1819,13 @@ export function makePiAdapter(
           }
 
           yield* ensureOpen("sendTurn");
+          if (sessions.get(input.threadId) !== ctx || ctx.activeTurnId !== turnId) {
+            return yield* new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "sendTurn",
+              detail: "Pi session stopped during turn preparation.",
+            });
+          }
 
           // A non-vision model silently receives "(image omitted)" placeholder
           // text instead of pixels (pi-ai downgrades images), so reject up front
@@ -1858,19 +1845,21 @@ export function makePiAdapter(
           }
 
           // The SDK prompt promise waits for the whole run, not just acceptance.
-          const acceptance = yield* Deferred.make<boolean>();
-          let preflightReported = false;
+          const acceptance = yield* Deferred.make<void, ProviderAdapterRequestError>();
+          let preflightResult: boolean | undefined;
           const accept = (success: boolean) => {
-            if (preflightReported) return;
-            preflightReported = true;
+            if (preflightResult !== undefined) return;
+            preflightResult = success;
+            // Rejection is followed by a rejected prompt promise. Wait for its
+            // cause so auth and extension failures remain actionable.
+            if (!success) return;
             if (
-              success &&
               steeringTurnId === undefined &&
               !ctx.turnBoundaries.some((boundary) => boundary.turnId === turnId)
             ) {
               ctx.turnBoundaries.push({ turnId, entryId });
             }
-            Deferred.doneUnsafe(acceptance, Effect.succeed(success));
+            Deferred.doneUnsafe(acceptance, Effect.void);
           };
           runFork(
             Effect.promise(async () => {
@@ -1880,20 +1869,24 @@ export function makePiAdapter(
                   ...(steeringTurnId !== undefined ? { streamingBehavior: "steer" } : undefined),
                   preflightResult: accept,
                 });
+                if (preflightResult === false) throw new Error("Pi rejected the prompt.");
                 accept(true);
-              } catch {
-                accept(false);
+              } catch (cause) {
+                Deferred.doneUnsafe(
+                  acceptance,
+                  Effect.fail(
+                    new ProviderAdapterRequestError({
+                      provider: PROVIDER,
+                      method: "sendTurn",
+                      detail: `Pi rejected the turn for session ${ctx.session.sessionId}. ${cause instanceof Error ? cause.message : String(cause)}`,
+                      cause,
+                    }),
+                  ),
+                );
               }
             }),
           );
-          const promptAccepted = yield* Deferred.await(acceptance);
-          if (!promptAccepted) {
-            return yield* new ProviderAdapterRequestError({
-              provider: PROVIDER,
-              method: "sendTurn",
-              detail: `Pi rejected the turn for session ${ctx.session.sessionId}.`,
-            });
-          }
+          yield* Deferred.await(acceptance);
 
           return {
             threadId: input.threadId,
@@ -1971,11 +1964,11 @@ export function makePiAdapter(
               new ProviderAdapterRequestError({
                 provider: PROVIDER,
                 method: "interruptTurn",
-                detail: `Failed to abort Pi session ${ctx.session.sessionId}.`,
+                detail: `Failed to abort Pi session ${ctx.session.sessionId}. ${cause instanceof Error ? cause.message : String(cause)}`,
                 cause,
               }),
-          }).pipe(Effect.timeoutOption("5 seconds"));
-          if (Option.isNone(aborted)) {
+          }).pipe(Effect.timeout("5 seconds"), Effect.result);
+          if (aborted._tag === "Failure") {
             yield* offerRuntimeEvent({
               ...(yield* makeEventStamp()),
               provider: PROVIDER,
@@ -1983,8 +1976,7 @@ export function makePiAdapter(
               threadId,
               type: "runtime.warning",
               payload: {
-                message:
-                  "Pi did not acknowledge Stop. The session was retired; an unresponsive extension may still be running on the server.",
+                message: `Pi did not acknowledge Stop. The session was retired; an unresponsive extension may still be running on the server. ${aborted.failure.message}`,
               },
             });
           }
@@ -2031,7 +2023,7 @@ export function makePiAdapter(
             type: "session.exited",
             payload: {
               reason: "Stopped by user",
-              exitKind: Option.isNone(aborted) ? "error" : "graceful",
+              exitKind: aborted._tag === "Failure" ? "error" : "graceful",
             },
           });
         }),

@@ -166,6 +166,34 @@ describe("headless Pi extensions", () => {
     expect(NodeFS.existsSync(NodePath.join(cwd, "extension.log"))).toBe(false);
   });
 
+  it("isolates persistent history and ID-only recovery by the instance agent directory", async () => {
+    const instanceDir = NodePath.join(root, "other-agent");
+    const input = {
+      cwd,
+      agentDir: instanceDir,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+    };
+    const first = await createPiSession(input);
+    sessions.push(first);
+    expect(
+      first.sessionFile?.startsWith(NodePath.join(instanceDir, "sessions") + NodePath.sep),
+    ).toBe(true);
+    expect(NodeFS.existsSync(NodePath.join(agentDir, "sessions"))).toBe(false);
+    await first.prompt("Remember the isolated conversation");
+    const messages = JSON.stringify(first.messages);
+    await first.dispose();
+
+    const resumed = await createPiSession({ ...input, resumeSessionId: first.sessionId });
+    sessions.push(resumed);
+    expect(resumed.sessionId).toBe(first.sessionId);
+    expect(JSON.stringify(resumed.messages)).toBe(messages);
+    await expect(
+      createPiSession({ ...input, agentDir, resumeSessionId: first.sessionId }),
+    ).rejects.toThrow("missing");
+  });
+
   it("persists rollback branches, including an empty root, before another prompt", async () => {
     const session = await create();
     await session.prompt("first");

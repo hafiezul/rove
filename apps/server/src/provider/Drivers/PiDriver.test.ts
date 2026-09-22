@@ -4,9 +4,26 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import { ProviderInstanceId } from "@t3tools/contracts";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import { afterEach, beforeEach, describe, vi } from "vite-plus/test";
 
-import { makeSdkDiscoveryClient } from "./PiDriver.ts";
+import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
+import { ServerConfig } from "../../config.ts";
+import { ServerSettingsService } from "../../serverSettings.ts";
+import { makeSdkDiscoveryClient, PiDriver } from "./PiDriver.ts";
+
+const testLayer = ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-driver-" }).pipe(
+  Layer.provideMerge(NodeServices.layer),
+  Layer.provideMerge(ServerSettingsService.layerTest()),
+  Layer.provideMerge(
+    Layer.mock(BackgroundPolicy.BackgroundPolicy)({
+      shouldRunScopeWork: () => Effect.succeed(false),
+    }),
+  ),
+);
 
 describe("Pi SDK discovery client", () => {
   let root: string;
@@ -75,6 +92,28 @@ describe("Pi SDK discovery client", () => {
     assert.strictEqual(local?.description, "Project local");
     assert.isFalse(NodeFS.existsSync(NodePath.join(agentDir, "settings.json")));
   });
+
+  it.effect("groups default and explicit agent directories by their resolved location", () =>
+    Effect.gen(function* () {
+      const create = (id: string, directory: string) =>
+        PiDriver.create({
+          instanceId: ProviderInstanceId.make(id),
+          displayName: undefined,
+          enabled: false,
+          environment: [],
+          config: { ...PiDriver.defaultConfig(), agentDir: directory },
+        });
+      const implicit = yield* create("pi-default", "");
+      const explicit = yield* create("pi-explicit", NodePath.join(agentDir, "."));
+      const isolated = yield* create("pi-other", NodePath.join(root, "other-agent"));
+      assert.deepStrictEqual(implicit.continuationIdentity, explicit.continuationIdentity);
+      assert.notDeepEqual(implicit.continuationIdentity, isolated.continuationIdentity);
+      assert.strictEqual(
+        (yield* implicit.snapshot.getSnapshot).continuation?.groupKey,
+        explicit.continuationIdentity.continuationKey,
+      );
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
 
   it("reads user resources from an explicit per-instance agent directory", async () => {
     const instanceAgentDir = NodePath.join(root, "agent-personal");

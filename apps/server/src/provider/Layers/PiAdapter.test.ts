@@ -653,12 +653,12 @@ it.layer(testLayer)("PiAdapter", (it) => {
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const started = yield* Deferred.make<void>();
-      const release = yield* Deferred.make<void>();
+      const release = Promise.withResolvers<void>();
       const adapter = yield* makeAdapter(
         Object.assign(fake, {
           compact: async () => {
             Deferred.doneUnsafe(started, Effect.void);
-            await Effect.runPromise(Deferred.await(release));
+            await release.promise;
             fake.emit({ type: "compaction_end", aborted: false });
           },
         }),
@@ -682,7 +682,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
         .pipe(Effect.result);
       assert.strictEqual(result._tag, "Failure");
       assert.strictEqual(fake.promptCalls.length, 0);
-      yield* Deferred.succeed(release, undefined);
+      release.resolve();
       yield* Fiber.join(compact);
       yield* Deferred.await(completed);
       yield* adapter.sendTurn({ threadId, input: "after compaction" });
@@ -721,10 +721,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const entered = yield* Deferred.make<void>();
-      const release = yield* Deferred.make<void>();
+      const release = Promise.withResolvers<void>();
       fake.abort = async () => {
         Deferred.doneUnsafe(entered, Effect.void);
-        await Effect.runPromise(Deferred.await(release));
+        await release.promise;
       };
       const adapter = yield* makeAdapter(fake);
       const exited = yield* Deferred.make<void>();
@@ -754,7 +754,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
             event.payload.message.includes("may still be running"),
         ),
       );
-      yield* Deferred.succeed(release, undefined);
+      release.resolve();
     }),
   );
 
@@ -1129,6 +1129,51 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("rejects a turn stopped during asynchronous model selection without prompting", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const switching = yield* Deferred.make<void>();
+      const release = Promise.withResolvers<void>();
+      fake.setModel = () => {
+        Deferred.doneUnsafe(switching, Effect.void);
+        return release.promise;
+      };
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const sending = yield* adapter
+        .sendTurn({
+          threadId,
+          input: "hello",
+          modelSelection: { instanceId: ProviderInstanceId.make("pi"), model: "test/model" },
+        })
+        .pipe(Effect.result, Effect.forkChild);
+      yield* Deferred.await(switching);
+      yield* adapter.interruptTurn(threadId);
+      release.resolve();
+      assert.strictEqual((yield* Fiber.join(sending))._tag, "Failure");
+      assert.strictEqual(fake.promptCalls.length, 0);
+    }),
+  );
+
+  it.effect("preserves actionable SDK preflight error details", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      fake.prompt = async (_text, options) => {
+        options?.preflightResult?.(false);
+        throw new Error("Credentials expired; run /login test-provider");
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const error = yield* adapter.sendTurn({ threadId, input: "hello" }).pipe(Effect.flip);
+      assert.include(error.detail, "Credentials expired; run /login test-provider");
+      assert.isUndefined((yield* adapter.listSessions())[0]?.activeTurnId);
+      assert.deepStrictEqual(
+        parsePiResumeCursor((yield* adapter.listSessions())[0]?.resumeCursor)?.turnBoundaries,
+        [],
+      );
+    }),
+  );
+
   it.effect("a rejected steering request preserves the active turn", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -1198,30 +1243,43 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect("failed abort does not suppress subsequent settlement", () =>
+  it.effect("Stop retires the session even when the SDK abort rejects", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
-      const completion = yield* Deferred.make<ProviderRuntimeEvent>();
-      const barrier = yield* Deferred.make<void>();
+      const exited = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
       yield* adapter.streamEvents.pipe(
         Stream.runForEach((event) => {
-          if (event.type === "turn.completed") return Deferred.succeed(completion, event);
-          if (event.type === "runtime.warning") return Deferred.succeed(barrier, undefined);
-          return Effect.void;
+          events.push(event);
+          return event.type === "session.exited"
+            ? Deferred.succeed(exited, undefined)
+            : Effect.void;
         }),
         Effect.forkChild({ startImmediately: true }),
       );
       yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
       const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
       fake.abort = () => Promise.reject(new Error("Abort failed"));
-      const rejected = yield* adapter.interruptTurn(threadId).pipe(Effect.exit);
-      assert.strictEqual(rejected._tag, "Failure");
-      fake.emit({ type: "agent_settled" });
-      fake.emit({ type: "extension_error", extensionPath: "test", error: "barrier" });
-      yield* Deferred.await(barrier);
-      assert.isTrue(yield* Deferred.isDone(completion));
-      assert.strictEqual((yield* Deferred.await(completion)).turnId, turn.turnId);
+      yield* adapter.interruptTurn(threadId);
+      yield* Deferred.await(exited);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isTrue(fake.disposed);
+      assert.strictEqual(
+        events.find((event) => event.type === "turn.aborted")?.turnId,
+        turn.turnId,
+      );
+      assert.isTrue(
+        events.some(
+          (event) =>
+            event.type === "runtime.warning" && event.payload.message.includes("Abort failed"),
+        ),
+      );
+      assert.isTrue(
+        events.some(
+          (event) => event.type === "session.exited" && event.payload.exitKind === "error",
+        ),
+      );
     }),
   );
 
@@ -1966,6 +2024,48 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect(
+    "keeps a failed run active until settlement and preserves errors when recovery stops",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        const recoveryFailed = yield* Deferred.make<void>();
+        const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+        yield* adapter.streamEvents.pipe(
+          Stream.runForEach((event) => {
+            if (event.type === "runtime.info" && event.payload.message === "Compaction failed")
+              return Deferred.succeed(recoveryFailed, undefined);
+            if (event.type === "turn.completed") return Deferred.succeed(completion, event);
+            return Effect.void;
+          }),
+          Effect.forkChild({ startImmediately: true }),
+        );
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+        fake.emit({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            stopReason: "error",
+            errorMessage: "Context window exceeded",
+          },
+        });
+        fake.emit({ type: "agent_end", willRetry: true });
+        fake.emit({ type: "compaction_end", errorMessage: "quota exceeded" });
+        yield* Deferred.await(recoveryFailed);
+        assert.isFalse(yield* Deferred.isDone(completion));
+        assert.strictEqual((yield* adapter.listSessions())[0]?.activeTurnId, turn.turnId);
+        fake.emit({ type: "agent_settled" });
+        const completed = yield* Deferred.await(completion);
+        assert.strictEqual(completed.turnId, turn.turnId);
+        assert.deepStrictEqual(completed.payload, {
+          state: "failed",
+          errorMessage: "Context window exceeded",
+        });
+      }),
+  );
+
   it.effect("defers turn failure when Pi auto-retries a transient error", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -2068,6 +2168,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
         attempt: 1,
         finalError: "502: Service temporarily unavailable",
       });
+      fake.emit({ type: "agent_settled" });
 
       const events = yield* waitFor(eventsRef, (e) => e.some((ev) => ev.type === "turn.completed"));
       const completed = events.filter((event) => event.type === "turn.completed");

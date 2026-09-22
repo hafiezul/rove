@@ -2,6 +2,8 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
+To keep separate Pi configurations, set **Pi agent directory** for each instance in provider settings. Each directory has its own credentials, models, saved sessions, and global extensions. Leave it blank to use the server's default Pi directory. Instances using the same directory can continue each other's threads.
+
 ## Built-in Rove tools
 
 Pi threads automatically receive Rove's browser-preview tools, including navigation, page inspection with screenshots, interaction, and recording. No Pi extension or MCP configuration is required. These tools use the thread's authorization and remain available when user extensions are disabled.

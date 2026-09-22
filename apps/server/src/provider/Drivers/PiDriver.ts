@@ -11,6 +11,7 @@
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodePath from "node:path";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import {
   PiCatalogError,
   PiSettings,
@@ -171,12 +172,12 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // Sessions, the catalog host, and discovery all share this directory, so
       // instances with different agent directories keep auth, models, sessions,
       // and extensions separate — and instances sharing one stay cross-continuable.
-      const effectiveAgentDir = effectiveConfig.agentDir
-        ? NodePath.resolve(expandHomePath(effectiveConfig.agentDir))
-        : undefined;
+      const effectiveAgentDir = NodePath.resolve(
+        effectiveConfig.agentDir ? expandHomePath(effectiveConfig.agentDir) : getAgentDir(),
+      );
       const continuationIdentity = {
         driverKind: DRIVER_KIND,
-        continuationKey: `pi:agent:${effectiveAgentDir ?? "default"}`,
+        continuationKey: `pi:agent:${effectiveAgentDir}`,
       };
       const stampIdentity = withInstanceIdentity({
         instanceId,
@@ -193,7 +194,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
           () =>
             PiCatalogHost.create({
               disabledExtensions: effectiveConfig.disabledExtensions,
-              ...(effectiveAgentDir !== undefined ? { agentDir: effectiveAgentDir } : {}),
+              agentDir: effectiveAgentDir,
             }),
           (host) => host.dispose(),
         ).pipe(
@@ -225,7 +226,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         createSession: (input) =>
           createPiSession({
             ...input,
-            ...(effectiveAgentDir !== undefined ? { agentDir: effectiveAgentDir } : {}),
+            agentDir: effectiveAgentDir,
           }),
         getSettings: serverSettings.getSettings.pipe(
           Effect.map(readCurrentPiSettings),
@@ -243,6 +244,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
               cwd,
               model,
               thinkingLevel,
+              agentDir: effectiveAgentDir,
               resumeSessionId: undefined,
             },
             {

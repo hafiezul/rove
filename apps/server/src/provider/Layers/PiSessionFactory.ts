@@ -242,15 +242,24 @@ async function toPiSessionLike(
   };
 }
 
+/** Match Pi's cwd-based session layout without changing the process-wide agent directory. */
+function piSessionDirectory(cwd: string, agentDir: string): string {
+  const safePath = `--${NodePath.resolve(cwd)
+    .replace(/^[/\\]/, "")
+    .replace(/[/\\:]/g, "-")}--`;
+  return NodePath.join(agentDir, "sessions", safePath);
+}
+
 export function resolvePiSessionResume(
   cwd: string,
   sessionId: string | undefined,
   sessionFile?: string,
+  agentDir = getAgentDir(),
 ): PiSessionResumeOutcome {
   if (sessionId === undefined) return { resumed: false, reason: "no-cursor" };
   try {
     if (sessionFile === undefined) {
-      const sessionDir = SessionManager.create(cwd).getSessionDir();
+      const sessionDir = piSessionDirectory(cwd, agentDir);
       const matches = NodeFS.readdirSync(sessionDir).filter((entry) =>
         entry.endsWith(`_${sessionId}.jsonl`),
       );
@@ -592,26 +601,30 @@ export async function createPiSession(
     extensions?: boolean;
     /** Metadata helpers must not persist history or execute tools. */
     textGeneration?: boolean;
-    modelRuntime?: ModelRuntime;
-    retryWithoutFailedExtensions?: boolean;
     /**
      * Shared runtime (the catalog host's) to resolve models against. Sessions
      * running without extensions never register extension providers, so a
      * fresh runtime cannot resolve extension-registered models.
      */
     modelRuntime?: ModelRuntime;
+    retryWithoutFailedExtensions?: boolean;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
   const agentDir = input.agentDir
     ? NodePath.resolve(expandHomePath(input.agentDir))
     : getAgentDir();
-  const outcome = resolvePiSessionResume(cwd, input.resumeSessionId, input.resumeSessionFile);
+  const outcome = resolvePiSessionResume(
+    cwd,
+    input.resumeSessionId,
+    input.resumeSessionFile,
+    agentDir,
+  );
   const sessionManager = outcome.resumed
     ? SessionManager.open(outcome.sessionFile, undefined, cwd)
     : options.textGeneration
       ? SessionManager.inMemory(cwd)
-      : SessionManager.create(cwd);
+      : SessionManager.create(cwd, piSessionDirectory(cwd, agentDir));
   if (outcome.resumed && sessionManager.getSessionId() !== input.resumeSessionId) {
     throw new Error(
       "Pi session identity does not match the saved cursor. Restore the correct session file and retry, or create a new thread to start fresh.",
