@@ -80,6 +80,7 @@ it.effect("preserves catalog capabilities and defaults without adding tiers", ()
     assert.strictEqual(snapshot.status, "ready");
     assert.strictEqual(snapshot.auth.status, "authenticated");
     assert.strictEqual(snapshot.runtimeModeSelectable, false);
+    assert.strictEqual(snapshot.reportsContextWindow, true);
   }),
 );
 

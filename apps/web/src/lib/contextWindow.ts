@@ -29,11 +29,14 @@ export type ContextWindowSnapshot = {
   readonly remainingPercentage: number | null;
   readonly inputTokens: number | null;
   readonly cachedInputTokens: number | null;
+  readonly cacheCreationTokens: number | null;
+  readonly tokenBreakdownScope: "latestResponse" | "activeBranch" | null;
   readonly outputTokens: number | null;
   readonly reasoningOutputTokens: number | null;
   readonly lastUsedTokens: number | null;
   readonly lastInputTokens: number | null;
   readonly lastCachedInputTokens: number | null;
+  readonly lastCacheCreationTokens: number | null;
   readonly lastOutputTokens: number | null;
   readonly lastReasoningOutputTokens: number | null;
   readonly toolUses: number | null;
@@ -78,11 +81,14 @@ export function deriveLatestContextWindowSnapshot(
         remainingPercentage: null,
         inputTokens: null,
         cachedInputTokens: null,
+        cacheCreationTokens: null,
+        tokenBreakdownScope: null,
         outputTokens: null,
         reasoningOutputTokens: null,
         lastUsedTokens: null,
         lastInputTokens: null,
         lastCachedInputTokens: null,
+        lastCacheCreationTokens: null,
         lastOutputTokens: null,
         lastReasoningOutputTokens: null,
         toolUses: null,
@@ -117,11 +123,18 @@ export function deriveLatestContextWindowSnapshot(
       remainingPercentage,
       inputTokens: asFiniteNumber(payload?.inputTokens),
       cachedInputTokens: asFiniteNumber(payload?.cachedInputTokens),
+      cacheCreationTokens: asFiniteNumber(payload?.cacheCreationTokens),
+      tokenBreakdownScope:
+        payload?.tokenBreakdownScope === "latestResponse" ||
+        payload?.tokenBreakdownScope === "activeBranch"
+          ? payload.tokenBreakdownScope
+          : null,
       outputTokens: asFiniteNumber(payload?.outputTokens),
       reasoningOutputTokens: asFiniteNumber(payload?.reasoningOutputTokens),
       lastUsedTokens: asFiniteNumber(payload?.lastUsedTokens),
       lastInputTokens: asFiniteNumber(payload?.lastInputTokens),
       lastCachedInputTokens: asFiniteNumber(payload?.lastCachedInputTokens),
+      lastCacheCreationTokens: asFiniteNumber(payload?.lastCacheCreationTokens),
       lastOutputTokens: asFiniteNumber(payload?.lastOutputTokens),
       lastReasoningOutputTokens: asFiniteNumber(payload?.lastReasoningOutputTokens),
       toolUses: asFiniteNumber(payload?.toolUses),
@@ -135,6 +148,40 @@ export function deriveLatestContextWindowSnapshot(
   return null;
 }
 
+export function contextWindowTokenCounters(
+  usage: ContextWindowSnapshot,
+): ReadonlyArray<{ readonly label: string; readonly value: number }> {
+  const counters: Array<{ label: string; value: number }> = [];
+  const { inputTokens, cachedInputTokens, cacheCreationTokens, outputTokens } = usage;
+  // Both cache counts must be present to split input without mislabeling unreported writes.
+  const uncachedInput =
+    inputTokens !== null &&
+    cachedInputTokens !== null &&
+    cacheCreationTokens !== null &&
+    cachedInputTokens + cacheCreationTokens <= inputTokens
+      ? inputTokens - cachedInputTokens - cacheCreationTokens
+      : null;
+  const hasCache = (cachedInputTokens ?? 0) > 0 || (cacheCreationTokens ?? 0) > 0;
+
+  if (inputTokens !== null && (inputTokens > 0 || (uncachedInput === 0 && hasCache))) {
+    counters.push({
+      label:
+        uncachedInput !== null && hasCache ? "Uncached input" : hasCache ? "Input total" : "Input",
+      value: uncachedInput !== null && hasCache ? uncachedInput : inputTokens,
+    });
+  }
+  if (outputTokens !== null && outputTokens > 0) {
+    counters.push({ label: "Output", value: outputTokens });
+  }
+  if (cachedInputTokens !== null && cachedInputTokens > 0) {
+    counters.push({ label: "Cache read", value: cachedInputTokens });
+  }
+  if (cacheCreationTokens !== null && cacheCreationTokens > 0) {
+    counters.push({ label: "Cache write", value: cacheCreationTokens });
+  }
+  return counters;
+}
+
 export function formatContextWindowTokens(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
     return "0";
@@ -145,7 +192,7 @@ export function formatContextWindowTokens(value: number | null): string {
   if (value < 10_000) {
     return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
   }
-  if (value < 1_000_000) {
+  if (value < 999_500) {
     return `${Math.round(value / 1_000)}k`;
   }
   return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;

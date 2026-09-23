@@ -24,6 +24,7 @@ import { buildServerProvider, type ServerProviderDraft } from "../providerSnapsh
 
 const PI_PRESENTATION = {
   displayName: "Pi",
+  reportsContextWindow: true,
   // Pi has no tool-approval model; threads run full-access.
   showInteractionModeToggle: false,
   runtimeModeSelectable: false,

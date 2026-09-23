@@ -3232,6 +3232,7 @@ describe("ClaudeAdapterLive", () => {
           totalProcessedTokens: 550,
           inputTokens: 180,
           outputTokens: 20,
+          tokenBreakdownScope: "latestResponse",
           maxTokens: 200000,
         });
       }
@@ -5024,7 +5025,10 @@ describe("ClaudeAdapterLive", () => {
             usedTokens: 24542,
             lastUsedTokens: 24542,
             inputTokens: 23863,
+            cachedInputTokens: 21144,
+            cacheCreationTokens: 2715,
             outputTokens: 679,
+            tokenBreakdownScope: "latestResponse",
             maxTokens: 200000,
           },
         });

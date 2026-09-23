@@ -508,6 +508,10 @@ function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>) {
   let hasAssistantMessage = false;
   let hasUsage = false;
   let total = 0;
+  let inputTokens = 0;
+  let cachedInputTokens = 0;
+  let cacheCreationTokens = 0;
+  let outputTokens = 0;
 
   for (const entry of entries) {
     const message = entry.message;
@@ -526,19 +530,29 @@ function activeBranchUsage(entries: ReadonlyArray<PiSessionEntryLike>) {
       continue;
     }
 
-    const components = [usage.input, usage.output, usage.cacheRead, usage.cacheWrite];
-    for (const component of components) {
-      const tokens = finiteNonNegativeInteger(component);
-      if (tokens !== undefined) {
-        total += tokens;
-        hasUsage = true;
-      }
-    }
+    const input = finiteNonNegativeInteger(usage.input);
+    const output = finiteNonNegativeInteger(usage.output);
+    const cacheRead = finiteNonNegativeInteger(usage.cacheRead);
+    const cacheWrite = finiteNonNegativeInteger(usage.cacheWrite);
+    inputTokens += input ?? 0;
+    cachedInputTokens += cacheRead ?? 0;
+    cacheCreationTokens += cacheWrite ?? 0;
+    outputTokens += output ?? 0;
+    total += (input ?? 0) + (output ?? 0) + (cacheRead ?? 0) + (cacheWrite ?? 0);
+    hasUsage ||=
+      input !== undefined ||
+      output !== undefined ||
+      cacheRead !== undefined ||
+      cacheWrite !== undefined;
   }
 
   return {
     hasAssistantMessage,
     totalProcessedTokens: hasUsage && total > 0 ? total : undefined,
+    inputTokens: hasUsage ? inputTokens + cachedInputTokens + cacheCreationTokens : undefined,
+    cachedInputTokens: hasUsage ? cachedInputTokens : undefined,
+    cacheCreationTokens: hasUsage ? cacheCreationTokens : undefined,
+    outputTokens: hasUsage ? outputTokens : undefined,
   };
 }
 
@@ -803,6 +817,15 @@ export function makePiAdapter(
           usedTokens,
           maxTokens,
           ...totalProcessed,
+          ...(branchUsage?.inputTokens !== undefined
+            ? {
+                inputTokens: branchUsage.inputTokens,
+                tokenBreakdownScope: "activeBranch" as const,
+                cachedInputTokens: branchUsage.cachedInputTokens,
+                cacheCreationTokens: branchUsage.cacheCreationTokens,
+                outputTokens: branchUsage.outputTokens,
+              }
+            : undefined),
           ...autoCompaction,
         },
         usageTurnId,

@@ -22,6 +22,12 @@ results appear as each one responds.
 If recent work is missing or a new model shows no cost, refresh to rescan session history and
 update model pricing.
 
+On web and desktop, enable **Settings → Legacy features → Context window indicator** to see the
+current thread's context budget beside the composer. Open the indicator for input, output, and cache
+tokens when the provider reports them. The token activity may cover the latest response or the
+active branch; the popover names its scope. It is separate from subscription limits and Usage's
+history-wide totals.
+
 ## Set custom model prices
 
 On web or desktop, open the environment dropdown on **Usage**, then choose **Model prices** to add,
