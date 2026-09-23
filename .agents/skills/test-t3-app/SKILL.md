@@ -1,11 +1,11 @@
 ---
 name: test-t3-app
-description: Launch, retain, and test the Rove Code web app in isolated development environments, including first-try browser authentication with one-time pairing URLs, pairing-token recovery, worktree-safe state directories, cross-turn dev server lifecycle, and direct SQLite inspection or fixture seeding. Use when an agent needs to run T3 locally, iteratively test UI behavior with a human, recover from an expired or consumed pairing token, isolate dev state, or prepare test data in state.sqlite.
+description: Launch, retain, and test the Rove Code web app in isolated development environments, including first-try browser authentication with one-time pairing URLs, pairing-token recovery, worktree-safe state directories, cross-turn dev server lifecycle, and direct SQLite inspection or fixture seeding. Use when an agent needs to run Rove Code locally, iteratively test UI behavior with a human, recover from an expired or consumed pairing token, isolate dev state, or prepare test data in state.sqlite.
 ---
 
-# Test T3 App
+# Test Rove App
 
-Use this skill for the web client. For iOS Simulator, Android Emulator, or physical-device testing against an isolated T3 backend, use the sibling [`test-t3-mobile`](../test-t3-mobile/SKILL.md) skill.
+Use this skill for the web client. For iOS Simulator, Android Emulator, or physical-device testing against an isolated Rove Code backend, use the sibling [`test-t3-mobile`](../test-t3-mobile/SKILL.md) skill.
 
 ## Start an isolated web environment
 

@@ -18,17 +18,17 @@ Lots of apps have gotten bogged down with bad tech decisions and "slop". We have
 
 ### 3. Remote ready
 
-The architecture of Rove Code's websocket layer (npx t3) enables a lot of awesome remote features. These have become core to the product. Whether users are connecting directly over their local network, using Tailscale, or leaning in fully with Rove Connect (our tunnel solution, also in this repo), we need to make sure new features are properly supported.
+The architecture of Rove Code's websocket layer (npx t3) supports direct connections over the local network, including pairing and Tailscale. Rove Connect (our tunnel solution, also in this repo) is not available in community builds, which ship without cloud configuration; the gating that hides it must keep working.
 
 ### 4. Multi-surface
 
 Rove Code has 3 key app surfaces: **web**, **desktop**, and **mobile**.
 
-**Web** is kind of two surfaces, as we have the public facing "app.t3.codes" as well as locally hosting the web app through the `npx t3` command. Both need to be supported by all new features where reasonable.
+**Web** is kind of two surfaces, as we have a hosted web app in maintainer builds as well as locally hosting the web app through the `npx t3` command. Community builds only support the local one. Both need to be supported by all new features where reasonable.
 
-**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from app.t3.codes or the mobile app.
+**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing direct LAN or Tailscale connections from another client or the mobile app.
 
-**Mobile** is a React Native app for both iOS and Android, available on the App Store and Google Play. The mobile app allows for connecting to any Rove Code server to control work remotely.
+**Mobile** is a React Native app for both iOS and Android. Community builds are source-only: build the dev client and pair it over the LAN. There are no store releases from this project yet.
 
 ## A note from Theo
 

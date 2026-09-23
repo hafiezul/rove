@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { View } from "react-native";
 
 import { hasCloudPublicConfig } from "../cloud/publicConfig";
-import { T3ConnectProfilePage } from "../cloud/T3ConnectProfilePage";
+import { RoveConnectProfilePage } from "../cloud/RoveConnectProfilePage";
 
 // Custom rows in Clerk's native profile. Mirrors the web UserButton pages.
 const USER_PROFILE_CUSTOM_PAGES = [
@@ -13,7 +13,7 @@ const USER_PROFILE_CUSTOM_PAGES = [
     path: "rove-connect",
     label: "Rove Connect",
     icon: "globe",
-    content: <T3ConnectProfilePage />,
+    content: <RoveConnectProfilePage />,
   },
 ] satisfies UserProfileCustomPage[];
 

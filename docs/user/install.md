@@ -1,5 +1,9 @@
 # Install Rove Code
 
+> Community builds support the local desktop app and `npx t3` on your own
+> machine. There are no project-owned package repositories, hosted web app,
+> or store mobile builds yet; install from a GitHub release below.
+
 Rove Code runs coding agents on your computer and lets you control them from its
 desktop, web, or mobile app. Set up the machine where the agents will work first.
 
@@ -40,15 +44,15 @@ however you run other Node processes.
 
 ## Desktop app
 
-Download a release from [GitHub Releases](https://github.com/rovecode/rove/releases),
-or use a package manager:
+Download a release from [GitHub Releases](https://github.com/rovecode/rove/releases).
 
-| Platform           | Install                         |
-| ------------------ | ------------------------------- |
-| Windows            | `winget install T3Tools.T3Code` |
-| macOS              | `brew install --cask rove`      |
-| Arch Linux         | `yay -S rove-bin`               |
-| Arch Linux nightly | `yay -S rove-nightly-bin`       |
+> Package-manager installs are not published for community builds. The legacy
+> `winget`, Homebrew, and AUR entries are omitted until their new package IDs
+> exist; installing a stale third-party ID would pull someone else's build.
+
+> The mobile app is source-only for now: build the dev client from
+> `apps/mobile` (see its README) and pair it over your LAN. There are no
+> App Store or Google Play releases from this project yet.
 
 ### Windows Subsystem for Linux
 
@@ -70,13 +74,12 @@ Pass a path, such as `npx t3 app ../my-project`, to open another directory. It r
 the desktop app, so a standalone server or an SSH session is not enough. If the
 command cannot reach the app, start or update the desktop app and try again.
 
-## Mobile app
+## Mobile app (source builds only)
 
-Install Rove Code from the
-[App Store](https://apps.apple.com/us/app/rove-remote-claude-more/id6787819824) or
-[Google Play](https://play.google.com/store/apps/details?id=dev.rove.app).
-The phone connects to a server on another machine. Follow
-[remote access](./remote-access.md) to link it through Rove Connect or a pairing URL.
+There are no App Store or Google Play releases from this project. To try the
+mobile client, build the development client from source (see
+`apps/mobile/README.md`) and pair it with a server on your LAN following
+[remote access](./remote-access.md#pair-over-a-lan-or-private-network).
 
 If the app crashes during launch, open Settings → Diagnostics on the next launch
 that succeeds. It lists startup crashes from the last 7 days with the error and

@@ -1,4 +1,7 @@
-# Mobile notifications
+# Mobile notifications (requires a cloud-configured build)
+
+> Community builds have no push-notification backend. The flow below applies
+> once a maintainer build ships with Rove Connect configuration.
 
 Sign in to Rove Connect, link your environments, and enable **Device Notifications** in Settings to receive alerts when an agent finishes, fails, needs approval, or asks for input. Tap a notification to open its thread. Your environment must have agent activity publishing enabled.
 

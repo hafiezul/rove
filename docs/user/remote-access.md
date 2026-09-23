@@ -1,36 +1,17 @@
 # Remote access
 
+> Community builds support the local desktop app plus direct pairing below.
+> Rove Connect (cloud relay), the hosted web app, and store mobile builds are
+> not available until the project has its own domains and accounts; the
+> relevant controls stay hidden until a build ships with that configuration.
+
 Connect a phone, browser, or another desktop app to Rove Code running on a different
 machine. That machine must stay running and reachable while you work.
 
-## Rove Connect
-
-Rove Connect makes an environment available to your other devices without setting
-up router forwarding. In the desktop app on the host, open **Settings →
-Connections**, sign in, and enable **Rove Connect** for that environment.
-
-For a command-line host, run:
-
-```bash
-npx t3@latest connect
-```
-
-Follow the sign-in instructions. Setup offers a
-[background service](./background-service.md); if you decline it, start the
-server with `npx t3 serve`. Saving your sign-in alone does not make the machine
-reachable.
-
-On your other device, sign in to the same Rove Connect account and choose the
-environment. Over SSH, the CLI prints a browser link and a short code. Open the
-link on any device, confirm the code matches, and approve. The CLI continues on
-its own, so you do not need to forward an OAuth callback port.
-
-Rove Connect renews access credentials when needed without disconnecting a healthy
-connection. Pull request diffs and provider settings keep working after the
-previous credential expires. A failed renewal affects that request; it does not
-disconnect an otherwise healthy conversation.
-
 ## Pair over a LAN or private network
+
+This is the supported way to reach another machine in community builds: no
+account, relay, or hosted domain involved.
 
 Use direct pairing when the other device can reach the host's network address.
 
@@ -108,15 +89,13 @@ tailscale serve --https=443 off
 If that port is already in use, choose another with
 `--tailscale-serve-port`. See `npx t3 pair --help` for other pairing options.
 
-### Hosted web app
+### Hosted web app (not available in community builds)
 
-[app.t3.codes](https://app.t3.codes) needs an HTTPS endpoint. It connects directly
-to your server; a hosted pairing link does not make an unreachable backend
-reachable or convert HTTP to HTTPS.
-
-For a plain HTTP LAN endpoint, use the direct pairing URL in a browser that can
-open it, or pair from the desktop app. On mobile, an IP address entered without a
-scheme uses HTTP, so include `https://` when your server uses HTTPS.
+A hosted web app would need an HTTPS endpoint plus the project's own domain.
+Community builds have neither, so there is no hosted URL to pair from: use a
+local browser that can open the direct pairing URL, or pair from the desktop
+app. On mobile, an IP address entered without a scheme uses HTTP, so include
+`https://` when your server uses HTTPS.
 
 ## Desktop-managed SSH
 
@@ -154,7 +133,8 @@ management is available through `npx t3 auth --help`.
 A session with an open connection stays listed after its access credential
 expires.
 
-To remove an environment from Rove Connect, open your account menu's **Rove Connect**
+To remove an environment from Rove Connect (maintainer builds with cloud
+configuration), open your account menu's **Rove Connect**
 page, or **Settings → Rove Connect** on mobile, and choose **Deregister**. This
 revokes its cloud access and frees its host space even when the environment is
 offline or has been wiped.
@@ -166,7 +146,39 @@ your login; `t3 connect logout` also clears that login. Background-service
 Treat pairing URLs and authorization codes as passwords. Do not include them in
 screenshots, logs, or bug reports.
 
-## Rove Connect troubleshooting
+## Rove Connect (not available in community builds)
+
+Rove Connect would make an environment available to your other devices without
+setting up router forwarding. It needs the project's own relay, accounts, and
+hosted domain, which community builds do not ship with. Source builds already
+report `t3 connect` as unavailable and hide the sign-in UI; the notes below
+apply once a maintainer build enables it.
+
+In the desktop app on the host, open **Settings →
+Connections**, sign in, and enable **Rove Connect** for that environment.
+
+For a command-line host, run:
+
+```bash
+npx t3@latest connect
+```
+
+Follow the sign-in instructions. Setup offers a
+[background service](./background-service.md); if you decline it, start the
+server with `npx t3 serve`. Saving your sign-in alone does not make the machine
+reachable.
+
+On your other device, sign in to the same Rove Connect account and choose the
+environment. Over SSH, the CLI prints a browser link and a short code. Open the
+link on any device, confirm the code matches, and approve. The CLI continues on
+its own, so you do not need to forward an OAuth callback port.
+
+Rove Connect renews access credentials when needed without disconnecting a healthy
+connection. Pull request diffs and provider settings keep working after the
+previous credential expires. A failed renewal affects that request; it does not
+disconnect an otherwise healthy conversation.
+
+### Rove Connect troubleshooting
 
 Run `t3 connect status` on the host to inspect saved authorization and link
 configuration. It is not a live reachability check. If the environment appears
@@ -195,7 +207,7 @@ If a computer should only drive work running elsewhere, turn off its local envir
 desktop app, open **Settings → Connections** and switch off **Local
 environment**. Rove Code restarts without a local server: no local agents or terminals run, WSL
 backends stay off, and other devices can no longer connect to this computer. Your projects,
-history, and saved connections are kept, and you keep working through pairing, Rove Connect, or SSH.
+history, and saved connections are kept, and you keep working through pairing or SSH.
 
 Switch **Local environment** back on in the same place to restart with your previous local
 settings.

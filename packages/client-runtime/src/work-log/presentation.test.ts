@@ -295,8 +295,8 @@ describe("resolveWorkEntryToolPresentation", () => {
       "Stopping recording the preview browser",
       "Stopped recording the preview browser",
     ],
-    ["t3_thread_read", "Reading a T3 thread", "Read a T3 thread"],
-    ["t3_thread_send", "Sending to a T3 thread", "Sent to a T3 thread"],
+    ["t3_thread_read", "Reading a Rove thread", "Read a Rove thread"],
+    ["t3_thread_send", "Sending to a Rove thread", "Sent to a Rove thread"],
     [
       "t3_worktree_handoff",
       "Handing off thread to a git worktree",
@@ -313,7 +313,7 @@ describe("resolveWorkEntryToolPresentation", () => {
     ).toBe(completed);
   });
 
-  it("keeps T3 branding for non-browser tools and falls back to the original tool label", () => {
+  it("keeps Rove branding for non-browser tools and falls back to the original tool label", () => {
     expect(
       resolveWorkEntryToolPresentation({
         label: "mcp__t3_code__task_status",
@@ -699,7 +699,7 @@ describe("device group summaries", () => {
     expect(workEntryViewedImagePath(entry)).toBe("/workspace/device.png");
   });
 
-  it("does not classify another server's tools as T3 device controls", () => {
+  it("does not classify another server's tools as Rove device controls", () => {
     expect(
       summarizeToolGroup([
         {

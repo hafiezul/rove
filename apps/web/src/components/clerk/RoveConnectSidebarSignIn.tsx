@@ -4,22 +4,22 @@ import { LogInIcon, ServerIcon, SmartphoneIcon } from "lucide-react";
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { MobileClientsUserProfilePage } from "./MobileClientsUserProfilePage";
-import { T3ConnectUserProfilePage } from "./T3ConnectUserProfilePage";
-import { useT3ConnectAuthPrompt } from "./useT3ConnectAuthPrompt";
+import { RoveConnectUserProfilePage } from "./RoveConnectUserProfilePage";
+import { useRoveConnectAuthPrompt } from "./useRoveConnectAuthPrompt";
 
-export function T3ConnectSidebarSignIn() {
+export function RoveConnectSidebarSignIn() {
   if (!hasCloudPublicConfig()) return null;
 
-  return <ConfiguredT3ConnectSidebarSignIn />;
+  return <ConfiguredRoveConnectSidebarSignIn />;
 }
 
-export function T3ConnectSidebarAvatar() {
+export function RoveConnectSidebarAvatar() {
   if (!hasCloudPublicConfig()) return null;
 
-  return <ConfiguredT3ConnectSidebarAvatar />;
+  return <ConfiguredRoveConnectSidebarAvatar />;
 }
 
-function ConfiguredT3ConnectSidebarAvatar() {
+function ConfiguredRoveConnectSidebarAvatar() {
   const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded || !isSignedIn) return null;
@@ -45,15 +45,15 @@ function ConfiguredT3ConnectSidebarAvatar() {
         labelIcon={<ServerIcon className="size-4" />}
         url="rove-connect"
       >
-        <T3ConnectUserProfilePage />
+        <RoveConnectUserProfilePage />
       </UserButton.UserProfilePage>
     </UserButton>
   );
 }
 
-function ConfiguredT3ConnectSidebarSignIn() {
+function ConfiguredRoveConnectSidebarSignIn() {
   const { isLoaded, isSignedIn } = useAuth();
-  const { authPrompt, openAuthPrompt } = useT3ConnectAuthPrompt();
+  const { authPrompt, openAuthPrompt } = useRoveConnectAuthPrompt();
 
   if (!isLoaded || isSignedIn) return null;
 

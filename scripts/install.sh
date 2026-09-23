@@ -8,7 +8,7 @@
 #   ROVE_CHANNEL           release train to follow: stable, nightly, or preview
 #                            (default: stable; preview is a maintainers' test train)
 #   ROVE_VERSION           exact version to install (overrides ROVE_CHANNEL)
-#   ROVE_HOME              T3 home directory (default: ~/.rove)
+#   ROVE_HOME              Rove home directory (default: ~/.rove)
 #   ROVE_INSTALL_BIN_DIR   where the `t3` symlink goes (default: ~/.local/bin)
 #   ROVE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #

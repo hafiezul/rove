@@ -52,12 +52,12 @@ function makeProject(
     locator: {
       source: "git-remote",
       remoteName: "origin",
-      remoteUrl: "git@github.com:T3Tools/T3Code.git",
+      remoteUrl: "git@github.com:hafiezul/rove.git",
     },
     provider: "github",
-    displayName: "T3Tools/T3Code",
-    owner: "T3Tools",
-    name: "T3Code",
+    displayName: "hafiezul/rove",
+    owner: "hafiezul",
+    name: "rove",
   },
 ): OrchestrationProjectShell {
   return {

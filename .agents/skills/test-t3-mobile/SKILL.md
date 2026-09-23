@@ -1,11 +1,11 @@
 ---
 name: test-t3-mobile
-description: Launch and test Rove Mobile on an iOS Simulator or Android Emulator against disposable local T3 environments, including Metro and dev-client reuse, native rebuild decisions, per-client pairing, seeded projects, semantic UI control, screenshots, and iOS serve-sim streaming. Use after mobile UI or native changes, when reproducing phone or tablet behavior, pairing an emulator to isolated state, or verifying mobile behavior on macOS, Linux, or Windows.
+description: Launch and test Rove Mobile on an iOS Simulator or Android Emulator against disposable local Rove Code environments, including Metro and dev-client reuse, native rebuild decisions, per-client pairing, seeded projects, semantic UI control, screenshots, and iOS serve-sim streaming. Use after mobile UI or native changes, when reproducing phone or tablet behavior, pairing an emulator to isolated state, or verifying mobile behavior on macOS, Linux, or Windows.
 ---
 
-# Test T3 Mobile
+# Test Rove Mobile
 
-Run one focused, end-to-end mobile verification pass against disposable T3 state. Use the sibling [`test-t3-app`](../test-t3-app/SKILL.md) skill as the detailed reference for pairing-token semantics and SQLite fixtures.
+Run one focused, end-to-end mobile verification pass against disposable Rove Code state. Use the sibling [`test-t3-app`](../test-t3-app/SKILL.md) skill as the detailed reference for pairing-token semantics and SQLite fixtures.
 
 Command examples use POSIX shell syntax. On Windows, use PowerShell equivalents: set variables with `$env:NAME = "value"`, use an explicit temporary directory from `[System.IO.Path]::GetTempPath()`, and run multiline examples on one line or with PowerShell backticks. Use `$env:ANDROID_HOME\platform-tools\adb.exe` when `adb` is not already on `PATH`.
 
@@ -38,7 +38,7 @@ A JavaScript-only diff, bundle identifier, app version, or recent install date d
 
 The development identity is `Rove Code Dev`, bundle/package `dev.rove.app.dev`, scheme `rove-dev`. If a build fails, investigate the build error and fix the local prerequisites. Report the concrete failure if it cannot be resolved, not “no compatible client.”
 
-## Start one disposable T3 environment
+## Start one disposable Rove Code environment
 
 Run backend commands from the repository root. Use the ignored, worktree-local `.rove` directory or create a fresh directory with the host OS's temporary-directory mechanism. An explicit base directory stores state in `<base-dir>/userdata`; never point testing at shared `~/.rove` state.
 
@@ -96,8 +96,8 @@ Run Metro from `apps/mobile`.
 
 Use `ios-debugger-agent` to select one UDID and set these XcodeBuildMCP session defaults:
 
-- Workspace: `<repo>/apps/mobile/ios/T3CodeDev.xcworkspace`
-- Scheme: `T3CodeDev`
+- Workspace: `<repo>/apps/mobile/ios/RoveCodeDev.xcworkspace`
+- Scheme: `RoveCodeDev`
 - Configuration: `Debug`
 - Simulator ID: the selected UDID
 - Bundle ID: `dev.rove.app.dev`

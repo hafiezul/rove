@@ -28,13 +28,14 @@ update already in progress. To match a remote client's version, follow
 Self-contained builds install as a download from the Rove Code GitHub release
 instead of through npm, so the machine running the service does not need
 Node.js or npm once the CLI is on it. To get the CLI onto a machine without
-Node, run the install script:
+Node, download `install.sh` from a
+[GitHub release](https://github.com/rovecode/rove/releases) and run it:
 
 ```sh
-curl -fsSL https://t3.codes/install.sh | sh
+sh install.sh
 ```
 
-On Windows, run `irm https://t3.codes/install.ps1 | iex` in PowerShell instead.
+On Windows, run the downloaded `install.ps1` in PowerShell instead.
 
 It places `t3` in `~/.local/bin` and reuses the same download when you later
 run `t3 service install`. It follows the stable train by default; set
@@ -78,8 +79,8 @@ service is still installed and will start at the next login.
 
 Windows background services are not supported.
 
-Rove Connect can offer service installation during setup, but the two are managed
-separately. Signing out of Rove Connect does not stop or uninstall the service.
+Rove Connect can offer service installation during setup in builds with cloud
+configuration, but the two are managed separately. Signing out of Rove Connect does not stop or uninstall the service.
 
 ## Troubleshooting
 
@@ -118,5 +119,6 @@ Downloads, it may need Full Disk Access for the Node executable listed in
 `ProgramArguments` in
 `~/Library/LaunchAgents/dev.rove.app.service.plist`.
 
-For failures after signing in to Rove Connect, see
-[connection troubleshooting](./remote-access.md#rove-connect-troubleshooting).
+For failures after signing in to Rove Connect (builds with cloud
+configuration), see
+[connection troubleshooting](./remote-access.md#rove-connect-not-available-in-community-builds).
