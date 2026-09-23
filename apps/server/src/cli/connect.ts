@@ -215,7 +215,7 @@ const CLOUD_CLI_LIVE_SERVER_TIMEOUT = Duration.seconds(5);
 const confirmRelayClientInstall = (version: string) =>
   Prompt.run(
     Prompt.confirm({
-      message: `The T3 relay client is required for Rove Connect. Download and install version ${version}?`,
+      message: `The Rove relay client is required for Rove Connect. Download and install version ${version}?`,
       initial: false,
     }),
   );

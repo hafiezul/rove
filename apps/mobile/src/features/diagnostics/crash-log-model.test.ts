@@ -2,9 +2,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { formatStartupCrashReport, parseStartupCrashRecords } from "./crash-log-model";
 
-// Verbatim shape of the entry expo-updates wrote for the build 56 launch crash.
+// Shape of an expo-updates entry for an iOS launch crash, with a bundle path
+// in the CI archive layout the parser has to cope with.
 const BUNDLE =
-  "/Users/expo/workingdir/build/apps/mobile/ios/build/Build/Intermediates.noindex/ArchiveIntermediates/T3Code/BuildProductsPath/Release-iphoneos/main.jsbundle";
+  "/Users/expo/workingdir/build/apps/mobile/ios/build/Build/Intermediates.noindex/ArchiveIntermediates/RoveCode/BuildProductsPath/Release-iphoneos/main.jsbundle";
 const FATAL = {
   timestamp: 1789277752000,
   level: "error",

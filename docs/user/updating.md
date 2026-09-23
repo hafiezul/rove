@@ -58,7 +58,7 @@ update can roll back to the previous version. If the update still fails:
 
 ## Mobile updates
 
-Install App Store or Google Play releases as usual. The mobile app can also
+The mobile app can also
 download updates in the background and apply them when you next leave the app.
 It saves drafts and queued messages before restarting. If you keep the app open
 for a long time, it may ask to install immediately; choosing **Later** leaves the

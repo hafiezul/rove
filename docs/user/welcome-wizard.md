@@ -1,7 +1,6 @@
 # Welcome wizard
 
-Rove Code shows a setup flow when you open a new installation or connect to the
-hosted app for the first time. Existing workspaces skip this flow.
+Rove Code shows a setup flow when you open a new installation. Existing workspaces skip this flow.
 
 ## Connect your computers
 
@@ -12,7 +11,8 @@ browser.
 
 You can add more computers before continuing:
 
-- **Rove Connect** connects computers that are signed in to your account. Run
+- **Rove Connect** (builds with cloud configuration) connects computers that
+  are signed in to your account. Run
   `npx t3 connect` on each computer you want to add, then start Rove Code or run
   `npx t3 serve` so the computer stays available.
 - **Add a computer** connects directly to a server on your network or tailnet.

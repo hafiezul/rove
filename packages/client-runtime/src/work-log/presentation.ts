@@ -71,7 +71,7 @@ export function normalizeCompactToolLabel(value: string): string {
   return value.replace(/\s+(?:complete|completed)\s*$/i, "").trim();
 }
 
-const T3_MCP_TOOL_LABELS: Record<
+const ROVE_MCP_TOOL_LABELS: Record<
   string,
   readonly [action: string, running: string, completed: string, detail: string]
 > = {
@@ -86,13 +86,13 @@ const T3_MCP_TOOL_LABELS: Record<
   list_scheduled_tasks: ["List", "Listing", "Listed", "scheduled tasks"],
   update_scheduled_task: ["Update", "Updating", "Updated", "a scheduled task"],
   delete_scheduled_task: ["Delete", "Deleting", "Deleted", "a scheduled task"],
-  create_threads: ["Create", "Creating", "Created", "T3 threads"],
-  t3_thread_start: ["Start", "Starting", "Started", "a T3 thread"],
-  t3_thread_list: ["List", "Listing", "Listed", "T3 threads"],
-  t3_thread_read: ["Read", "Reading", "Read", "a T3 thread"],
-  t3_thread_send: ["Send", "Sending", "Sent", "to a T3 thread"],
-  t3_thread_wait: ["Wait", "Waiting", "Waited", "for a T3 thread"],
-  t3_thread_interrupt: ["Interrupt", "Interrupting", "Interrupted", "a T3 thread"],
+  create_threads: ["Create", "Creating", "Created", "Rove threads"],
+  t3_thread_start: ["Start", "Starting", "Started", "a Rove thread"],
+  t3_thread_list: ["List", "Listing", "Listed", "Rove threads"],
+  t3_thread_read: ["Read", "Reading", "Read", "a Rove thread"],
+  t3_thread_send: ["Send", "Sending", "Sent", "to a Rove thread"],
+  t3_thread_wait: ["Wait", "Waiting", "Waited", "for a Rove thread"],
+  t3_thread_interrupt: ["Interrupt", "Interrupting", "Interrupted", "a Rove thread"],
   t3_worktree_handoff: ["Hand off", "Handing off", "Handed off", "thread to a git worktree"],
   t3_worktree_status: ["Get", "Getting", "Got", "thread worktree status"],
   preview_status: ["Get", "Getting", "Got", "preview browser status"],
@@ -131,7 +131,7 @@ const PR_TOOL_ACTIONS: Readonly<Record<string, ToolGroupAction>> = {
   list_thread_pull_requests: "list-prs",
 };
 
-function resolveT3McpToolPresentation(
+function resolveRoveMcpToolPresentation(
   value: string | undefined,
   status: string | undefined,
   data?: unknown,
@@ -141,9 +141,9 @@ function resolveT3McpToolPresentation(
     /^(?:mcp__(?:rove|t3-code|t3_code|t3code)__|(?:rove|t3-code|t3_code|t3code)(?:[.:/]|\s*·\s*))/i,
     "",
   );
-  if (!Object.hasOwn(T3_MCP_TOOL_LABELS, name)) return null;
+  if (!Object.hasOwn(ROVE_MCP_TOOL_LABELS, name)) return null;
 
-  const [action, running, completed, detail] = T3_MCP_TOOL_LABELS[name]!;
+  const [action, running, completed, detail] = ROVE_MCP_TOOL_LABELS[name]!;
   const verb =
     status === "inProgress"
       ? running
@@ -206,16 +206,16 @@ export function resolveWorkEntryToolPresentation(
       "tool" in data &&
       typeof data.tool === "string"
     ) {
-      return resolveT3McpToolPresentation(`${data.server}.${data.tool}`, status, data);
+      return resolveRoveMcpToolPresentation(`${data.server}.${data.tool}`, status, data);
     }
     if ("toolName" in data && typeof data.toolName === "string") {
-      return resolveT3McpToolPresentation(data.toolName, status, data);
+      return resolveRoveMcpToolPresentation(data.toolName, status, data);
     }
   }
 
   return (
-    resolveT3McpToolPresentation(entry.toolTitle, status, data) ??
-    resolveT3McpToolPresentation(entry.label, status, data)
+    resolveRoveMcpToolPresentation(entry.toolTitle, status, data) ??
+    resolveRoveMcpToolPresentation(entry.label, status, data)
   );
 }
 
