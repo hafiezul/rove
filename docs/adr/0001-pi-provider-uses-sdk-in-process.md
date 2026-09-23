@@ -25,6 +25,12 @@ Reversing this decision means rewriting the adapter's transport, but the adapter
 boundary (driver + adapter conforming to `ProviderAdapterShape`) hides the swap from
 orchestration and clients.
 
+Thread extension binding is deferred until the first routed prompt. A `session_start`
+hook can open a dialog, but `ProviderService` cannot route its answer until
+`startSession` returns and its binding is persisted. Opening a dialog also accepts
+the pending prompt before waiting for the answer. Do not move binding back into
+session acquisition or make prompt acceptance wait for dialog completion.
+
 ## Containment review: SDK-backed child process
 
 The in-process decision remains in force. A stronger alternative is a **Rove-owned
@@ -53,9 +59,10 @@ Before adopting this design, prototype and measure:
 - Credential/config sharing, extension registrations, headless hooks, and
   packaging on all supported server/desktop platforms.
 
-Current hardening bounds resource startup to 60 seconds and asynchronous disposal
-to 5 seconds, disposes resources that arrive after cancellation, and samples tool
-progress before queueing it (two 1,024-character snapshots per second per session).
+Current hardening bounds resource startup and prompt preparation to 60 seconds
+and asynchronous disposal to 5 seconds, disposes resources that arrive after
+cancellation, and samples tool progress before queueing it (two 1,024-character
+snapshots per second per session).
 Final tool results remain authoritative and are not truncated by this sampling.
 These are responsiveness safeguards, **not fault isolation**. A blocked event loop
 also blocks deadlines. A child-process migration should supersede this ADR only

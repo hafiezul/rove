@@ -12,7 +12,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import { PiSettings, ThreadId, type ProviderRuntimeEvent } from "@t3tools/contracts";
+import {
+  ApprovalRequestId,
+  PiSettings,
+  ThreadId,
+  type ProviderRuntimeEvent,
+} from "@t3tools/contracts";
 import { ModelRuntime, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import * as PiSdk from "@earendil-works/pi-coding-agent";
 import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
@@ -61,6 +66,7 @@ describe("headless Pi extensions", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     for (const session of sessions.splice(0)) await session.dispose();
     vi.restoreAllMocks();
     McpProviderSession.clearAllMcpProviderSessions();
@@ -429,6 +435,351 @@ describe("headless Pi extensions", () => {
     },
   );
 
+  const createInteractive = async () => {
+    const session = await createPiSession({
+      cwd,
+      interactive: true,
+      model: "rove-extension-test/fixture",
+      thinkingLevel: undefined,
+      resumeSessionId: undefined,
+    });
+    sessions.push(session);
+    return session;
+  };
+
+  it("supports startup questions once the session can route responses", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "startup-ui.ts"),
+      `
+      export default function(pi) {
+        pi.on("session_start", async (_event, ctx) => {
+          if (!ctx.hasUI || ctx.mode !== "rpc") throw new Error("Missing remote UI");
+          const name = await ctx.ui.input("Your name", "Name");
+          pi.appendEntry("startup-answer", { name });
+          ctx.ui.notify("Welcome " + name, "info");
+        });
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const requested = Promise.withResolvers<PiSessionEventLike>();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => {
+      events.push(event);
+      if (event.type === "rove_ui_request") requested.resolve(event);
+    });
+    const accepted: boolean[] = [];
+    const prompting = session.prompt("handled", {
+      preflightResult: (success) => accepted.push(success),
+    });
+    const question = await requested.promise;
+    expect(accepted).toEqual([true]);
+    expect(session.hasPendingUserInput).toBe(true);
+    expect(session.isPreparingPrompt).toBe(true);
+    expect(session.respondToUserInput!(String(question.requestId), { answer: "Ada" })).toBe(true);
+    await prompting;
+    expect(events).toContainEqual({
+      type: "rove_ui_notify",
+      level: "info",
+      message: "Welcome Ada",
+    });
+    expect(events.filter((event) => event.type === "rove_ui_resolved")).toHaveLength(1);
+    expect(events.filter((event) => event.type === "agent_settled")).toHaveLength(1);
+    expect(session.hasPendingUserInput).toBe(false);
+    expect(session.isPreparingPrompt).toBe(false);
+    expect(JSON.stringify(SessionManager.open(session.sessionFile!).getEntries())).toContain(
+      '"name":"Ada"',
+    );
+  });
+
+  it("preserves selector values, rejects forged choices, and keeps dialogs session-local", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "select-ui.ts"),
+      `
+      export default function(pi) {
+        pi.registerCommand("pick", { handler: async (_args, ctx) => {
+          const choice = await ctx.ui.select("Pick", ["same", "\\u001b[31msame\\u001b[0m"]);
+          pi.appendEntry("choice", { choice });
+        }});
+      }
+    `,
+    );
+    const first = await createInteractive();
+    const second = await createInteractive();
+    const requested = Promise.withResolvers<PiSessionEventLike>();
+    first.subscribe((event) => {
+      if (event.type === "rove_ui_request") requested.resolve(event);
+    });
+    const prompt = first.prompt("/pick");
+    const event = await requested.promise;
+    expect(event.questions).toMatchObject([
+      {
+        options: [
+          { label: "same", value: "0" },
+          { label: "same", value: "1" },
+        ],
+        allowCustomAnswer: false,
+      },
+    ]);
+    const requestId = String(event.requestId);
+    expect(second.respondToUserInput!(requestId, { answer: "1" })).toBe(false);
+    expect(() => first.respondToUserInput!(requestId, { answer: "injected" })).toThrow(
+      "offered options",
+    );
+    expect(first.hasPendingUserInput).toBe(true);
+    expect(first.respondToUserInput!(requestId, { answer: "1" })).toBe(true);
+    await prompt;
+    const saved = SessionManager.open(first.sessionFile!)
+      .getEntries()
+      .find((entry) => entry.type === "custom" && entry.customType === "choice");
+    expect(saved).toMatchObject({ data: { choice: "\u001b[31msame\u001b[0m" } });
+    expect(first.respondToUserInput!(requestId, { answer: "0" })).toBe(false);
+  });
+
+  it("honors extension permission gates before a tool executes", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "permission-ui.ts"),
+      `
+      export default function(pi) {
+        pi.on("tool_call", async (_event, ctx) => {
+          if (!await ctx.ui.confirm("Run tool?", "Extension permission gate")) {
+            return { block: true, reason: "Denied by user" };
+          }
+        });
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const requested = Promise.withResolvers<PiSessionEventLike>();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => {
+      events.push(event);
+      if (event.type === "rove_ui_request") requested.resolve(event);
+    });
+    const prompting = session.prompt("Call the fixture tool");
+    const question = await requested.promise;
+    expect(events.some((event) => event.type === "tool_execution_end")).toBe(false);
+    session.respondToUserInput!(String(question.requestId), { answer: "1" });
+    await prompting;
+    expect(events.find((event) => event.type === "tool_execution_end")).toMatchObject({
+      isError: true,
+    });
+    expect(JSON.stringify(events.find((event) => event.type === "tool_execution_end"))).toContain(
+      "Denied by user",
+    );
+    expect(JSON.stringify(events)).not.toContain("extension tool worked");
+  });
+
+  it("times out extension dialogs and removes their pending request", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "timeout-ui.ts"),
+      `
+      export default function(pi) {
+        pi.registerCommand("timed", { handler: async (_args, ctx) => {
+          const confirmed = await ctx.ui.confirm("Continue?", "Timed question", { timeout: 25 });
+          pi.appendEntry("timed-answer", { confirmed });
+        }});
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const requested = Promise.withResolvers<void>();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => {
+      events.push(event);
+      if (event.type === "rove_ui_request") requested.resolve();
+    });
+    vi.useFakeTimers();
+    const prompt = session.prompt("/timed");
+    await requested.promise;
+    await vi.advanceTimersByTimeAsync(25);
+    await prompt;
+    expect(session.hasPendingUserInput).toBe(false);
+    expect(events.filter((event) => event.type === "rove_ui_resolved")).toMatchObject([
+      { answers: {} },
+    ]);
+    expect(SessionManager.open(session.sessionFile!).getEntries()).toContainEqual(
+      expect.objectContaining({ data: { confirmed: false } }),
+    );
+  });
+
+  it("coalesces text widgets and status bursts without running terminal components", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "status-ui.ts"),
+      `
+      export default function(pi) {
+        pi.registerCommand("statuses", { handler: async (_args, ctx) => {
+          for (let i = 0; i < 1000; i++) ctx.ui.setStatus("progress", ctx.ui.theme.fg("accent", "Step " + i));
+          ctx.ui.setWidget("todo", ["One", "Two"]);
+          ctx.ui.setStatus("cleared", "must disappear");
+          ctx.ui.setStatus("cleared", undefined);
+          await ctx.ui.custom(() => { throw new Error("Must not execute terminal code"); });
+          await ctx.ui.custom(() => { throw new Error("Must not execute terminal code"); });
+        }});
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => events.push(event));
+    vi.useFakeTimers();
+    await session.prompt("/statuses");
+    expect(events.some((event) => event.type === "extension_error")).toBe(false);
+    expect(
+      events.filter((event) => event.type === "rove_ui_notify" && event.level === "warning"),
+    ).toHaveLength(1);
+    expect(
+      events.filter((event) => event.type === "rove_ui_notify" && event.level === "info"),
+    ).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(
+      events.filter((event) => event.type === "rove_ui_notify" && event.level === "info"),
+    ).toEqual([
+      { type: "rove_ui_notify", level: "info", message: "progress: Step 999\ntodo: One\nTwo" },
+    ]);
+    await session.prompt("/statuses");
+    await session.dispose();
+    const count = events.length;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(events).toHaveLength(count);
+  });
+
+  it("supports multi-line editor answers and extension AbortSignal cancellation", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "editor-ui.ts"),
+      `
+      export default function(pi) {
+        pi.registerCommand("edit-text", { handler: async (_args, ctx) => {
+          const text = await ctx.ui.editor("Edit", "Original text");
+          pi.appendEntry("edited-text", { text });
+          const controller = new AbortController();
+          const dismissed = ctx.ui.input("Dismiss me", undefined, { signal: controller.signal });
+          controller.abort();
+          if (await dismissed !== undefined) throw new Error("Expected cancellation");
+          if (await ctx.ui.confirm("Already aborted", "Must not open", { signal: controller.signal })) throw new Error("Expected false");
+        }});
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const requested = Promise.withResolvers<PiSessionEventLike>();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => {
+      events.push(event);
+      if (event.type === "rove_ui_request") requested.resolve(event);
+    });
+    const prompting = session.prompt("/edit-text");
+    const question = await requested.promise;
+    expect(question.questions).toMatchObject([
+      { question: "Edit\n\nOriginal text", options: [], allowCustomAnswer: true },
+    ]);
+    session.respondToUserInput!(String(question.requestId), { answer: "First line\nSecond line" });
+    await prompting;
+    expect(events.filter((event) => event.type === "rove_ui_request")).toHaveLength(2);
+    expect(events.filter((event) => event.type === "rove_ui_resolved")).toHaveLength(2);
+    expect(session.hasPendingUserInput).toBe(false);
+    expect(SessionManager.open(session.sessionFile!).getEntries()).toContainEqual(
+      expect.objectContaining({ data: { text: "First line\nSecond line" } }),
+    );
+  });
+
+  it("discards queued continuations on Stop and refuses further prompts", async () => {
+    const session = await create();
+    const sdkSession = (
+      await vi.mocked(PiSdk.createAgentSessionFromServices).mock.results.at(-1)!.value
+    ).session;
+    await session.followUp("must not run after Stop");
+    expect(sdkSession.getFollowUpMessages()).toEqual(["must not run after Stop"]);
+    await session.abort();
+    expect(sdkSession.getFollowUpMessages()).toEqual([]);
+    await expect(session.prompt("must not restart")).rejects.toThrow("stopped");
+    expect(session.messages).toEqual([]);
+  });
+
+  it("aborts a preflight question without allowing its original prompt into the agent loop", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "gate-ui.ts"),
+      `
+      export default function(pi) {
+        pi.on("before_agent_start", async (_event, ctx) => {
+          await ctx.ui.input("Before starting");
+        });
+      }
+    `,
+    );
+    const session = await createInteractive();
+    const requested = Promise.withResolvers<void>();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => {
+      events.push(event);
+      if (event.type === "rove_ui_request") requested.resolve();
+    });
+    const prompting = session.prompt("must not execute tools");
+    const rejected = expect(prompting).rejects.toThrow("stopped during prompt preparation");
+    await requested.promise;
+    await session.abort();
+    await rejected;
+    expect(events.some((event) => event.type === "agent_start")).toBe(false);
+    expect(events.filter((event) => event.type === "rove_ui_resolved")).toMatchObject([
+      { answers: {} },
+    ]);
+    expect(session.hasPendingUserInput).toBe(false);
+  });
+
+  it("still disposes the SDK and Rove tools when an extension shutdown hook never resolves", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "stuck-shutdown.ts"),
+      `
+      export default function(pi) {
+        pi.on("session_shutdown", async (_event, ctx) => {
+          ctx.ui.notify("shutdown entered");
+          await new Promise(() => {});
+        });
+      }
+    `,
+    );
+    const session = await create();
+    const sdkSession = (
+      await vi.mocked(PiSdk.createAgentSessionFromServices).mock.results.at(-1)!.value
+    ).session;
+    const entered = Promise.withResolvers<void>();
+    sdkSession.extensionRunner.setUIContext({
+      ...sdkSession.extensionRunner.getUIContext(),
+      notify: () => entered.resolve(),
+    });
+    const context = sdkSession.extensionRunner.createContext();
+    vi.useFakeTimers();
+    const disposal = session.dispose();
+    await entered.promise;
+    await vi.advanceTimersByTimeAsync(5_000);
+    await disposal;
+    expect(() => context.cwd).toThrow("stale");
+    await expect(session.prompt("no restart")).rejects.toThrow("stopped");
+  });
+
+  it("reports a rejected accepted prompt before the SDK's finally-block settlement", async () => {
+    const session = await create();
+    const sdkSession = (
+      await vi.mocked(PiSdk.createAgentSessionFromServices).mock.results.at(-1)!.value
+    ).session;
+    sdkSession.agent.prompt = async () => {
+      throw new Error("Agent loop crashed before producing a message");
+    };
+    const events: PiSessionEventLike[] = [];
+    const preflight: boolean[] = [];
+    session.subscribe((event) => events.push(event));
+    await expect(
+      session.prompt("hello", { preflightResult: (success) => preflight.push(success) }),
+    ).rejects.toThrow("Agent loop crashed");
+    expect(preflight).toEqual([true]);
+    expect(
+      events.filter((event) => event.type === "prompt_error" || event.type === "agent_settled"),
+    ).toEqual([
+      { type: "prompt_error", error: "Agent loop crashed before producing a message" },
+      { type: "agent_settled" },
+    ]);
+  });
+
   it("keeps rejected SDK prompts on the request error channel", async () => {
     const session = await create(false);
     const events: PiSessionEventLike[] = [];
@@ -490,25 +841,104 @@ describe("headless Pi extensions", () => {
       });
       yield* Effect.addFinalizer(() => adapter.stopAll().pipe(Effect.orDie));
       const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+      const question =
+        yield* Deferred.make<Extract<ProviderRuntimeEvent, { type: "user-input.requested" }>>();
+      const resolved = yield* Deferred.make<void>();
       yield* adapter.streamEvents.pipe(
         Stream.runForEach((event) =>
-          event.type === "turn.completed" ? Deferred.succeed(completion, event) : Effect.void,
+          event.type === "turn.completed"
+            ? Deferred.succeed(completion, event)
+            : event.type === "user-input.requested"
+              ? Deferred.succeed(question, event)
+              : event.type === "user-input.resolved"
+                ? Deferred.succeed(resolved, undefined)
+                : Effect.void,
         ),
         Effect.forkChild({ startImmediately: true }),
       );
       const threadId = ThreadId.make("pi-extension-integration");
       yield* adapter.startSession({ threadId, cwd, runtimeMode: "full-access" });
       const turn = yield* adapter.sendTurn({ threadId, input: "/count" });
+      const requested = yield* Deferred.await(question);
+      assert.strictEqual(requested.turnId, turn.turnId);
+      assert.strictEqual(requested.payload.questions[0]?.allowCustomAnswer, false);
+      assert.isFalse(yield* Deferred.isDone(completion));
+      yield* adapter.respondToUserInput(threadId, ApprovalRequestId.make(requested.requestId!), {
+        answer: "0",
+      });
+      yield* Deferred.await(resolved);
       const completed = yield* Deferred.await(completion);
       assert.strictEqual(completed.turnId, turn.turnId);
       assert.strictEqual(completed.type, "turn.completed");
       if (completed.type === "turn.completed")
         assert.strictEqual(completed.payload.state, "completed");
-      assert.include(log(), "command:1:false\n");
+      assert.include(log(), "start:true:rpc\n");
+      assert.include(log(), "command:1:true\n");
     }).pipe(
       Effect.scoped,
       Effect.provide(
         ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-factory-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("Stop dismisses a real extension question and continuation uses a new runtime", () =>
+    Effect.gen(function* () {
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        createSession: createPiSession,
+      });
+      yield* Effect.addFinalizer(() => adapter.stopAll().pipe(Effect.orDie));
+      const question =
+        yield* Deferred.make<Extract<ProviderRuntimeEvent, { type: "user-input.requested" }>>();
+      const exited = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "user-input.requested"
+            ? Deferred.succeed(question, event)
+            : event.type === "session.exited"
+              ? Deferred.succeed(exited, undefined)
+              : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      const threadId = ThreadId.make("pi-stop-question");
+      yield* adapter.startSession({ threadId, cwd, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "/count" });
+      const requested = yield* Deferred.await(question);
+      const blocked = yield* adapter
+        .sendTurn({ threadId, input: "overlapping prompt" })
+        .pipe(Effect.flip);
+      assert.include(blocked.detail, "pending Pi extension question");
+      yield* adapter.interruptTurn(threadId, turn.turnId);
+      yield* Deferred.await(exited);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isTrue(
+        events.some(
+          (event) =>
+            event.type === "user-input.resolved" && event.requestId === requested.requestId,
+        ),
+      );
+      assert.strictEqual(events.filter((event) => event.type === "turn.aborted").length, 1);
+      yield* adapter.startSession({
+        threadId,
+        cwd,
+        runtimeMode: "full-access",
+        resumeCursor: turn.resumeCursor,
+      });
+      const stale = yield* adapter
+        .respondToUserInput(threadId, ApprovalRequestId.make(requested.requestId!), { answer: "0" })
+        .pipe(Effect.flip);
+      assert.include(stale.detail, "Unknown pending user-input request");
+      const next = yield* adapter.sendTurn({ threadId, input: "handled" });
+      assert.notStrictEqual(next.turnId, turn.turnId);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-pi-session-ui-" }).pipe(
           Layer.provideMerge(NodeServices.layer),
         ),
       ),

@@ -10,6 +10,7 @@ const cwd = process.argv[2];
 NodeAssert.ok(cwd, "fixture project is required");
 const session = await createPiSession({
   cwd,
+  interactive: true,
   model: "rove-extension-test/fixture",
   thinkingLevel: undefined,
   resumeSessionId: undefined,
@@ -20,7 +21,18 @@ try {
   session.subscribe((event) => {
     if (event.type === "tool_execution_end") results.push(event.result);
     if (event.type === "extension_error") errors.push(event.error);
+    if (event.type === "rove_ui_request") {
+      NodeAssert.equal(
+        session.respondToUserInput?.(String(event.requestId), { answer: "0" }),
+        true,
+      );
+    }
   });
+  await session.prompt("/count");
+  NodeAssert.match(
+    NodeFS.readFileSync(NodePath.join(cwd, "extension.log"), "utf8"),
+    /start:true:rpc\ncommand:1:true/,
+  );
   await session.prompt("/probe-child-runtime");
   NodeAssert.deepEqual(errors, [], "child runtime bootstrap must not fail in an extension");
   NodeAssert.match(

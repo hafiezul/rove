@@ -30,10 +30,11 @@ completed tool result remains the authoritative output. The same activity reache
 remote clients.
 
 Provider diagnostics report the Pi version bundled with Rove, not a separately
-installed Pi CLI. Session and catalog startup waits are limited to 60 seconds;
-cleanup waits are limited to 5 seconds. A startup timeout is reported as a failure,
-not a successful empty session. These limits cannot protect against an extension
-that blocks or exits the server process.
+installed Pi CLI. Session startup, catalog startup, and turn preparation waits are
+limited to 60 seconds; cleanup waits are limited to 5 seconds. Waiting for your
+answer to an extension question does not use the turn preparation deadline. A
+startup timeout is reported as a failure, not a successful empty session. These
+limits cannot protect against an extension that blocks or exits the server process.
 
 ## Extension sources
 
@@ -95,22 +96,28 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 - Extension tools run through Pi and appear as tool calls in Rove.
 - Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Other file attachments reach Pi as saved-file paths in the message text, like the other providers; open them with file tools.
-- Stopping a thread aborts the live response and retires the session, including its extensions. Background agent work reported before Stop is marked stopped, and a stopped session cannot be revived by late events. The next message starts a fresh session from the saved history.
+- Stopping a thread discards queued steering and follow-up messages, dismisses extension questions, aborts the live response, and retires the session. Background agent work reported before Stop is marked stopped, and late events cannot revive the stopped session. The next message starts a fresh runtime from the saved history; it does not automatically replay unfinished work.
 - Manual context compaction is available from the context meter while the thread is idle; failed compaction is reported as a failure.
 - Input, agent, tool, context, and compaction hooks run through Pi.
 - Extension commands run when typed as `/command arguments` while the thread is idle, and loaded extension commands appear in the composer's slash menu alongside prompt templates.
-- Session startup and shutdown hooks run when Rove creates and disposes sessions.
+- Session startup hooks run before the first prompt, when the thread can receive and answer extension questions. Shutdown hooks run during disposal; a stuck hook cannot prevent the SDK's local cleanup.
 - Extension state can persist in Pi's session history.
 - When extensions are disabled in the extensions panel, the session's system prompt lists them. Ask the thread agent about its loaded extensions and it can answer from its own session instead of Pi's settings file.
 - When the session's effective model or reasoning level differs from the request, the thread shows a warning with the effective selection.
 
 A command or input hook that handles a prompt without calling a model still completes the Rove turn. Load failures prevent the failing extensions from loading: the session starts without them and the thread shows a warning naming each skipped extension. Runtime extension errors appear as warnings.
 
+## Extension questions and messages
+
+Standard extension selections, confirmations, and text questions appear in the thread on web, desktop, and mobile, including remote connections. Answer the pending question before sending another message, or use Stop to cancel it. Extension-supplied timeouts and cancellation signals dismiss questions automatically; cancelled confirmations return `false`, not approval.
+
+Multi-line editor requests use a text question. Existing text is shown as context rather than inserted into your composer draft. Selection dialogs support up to 256 choices.
+
+Extension notifications and visible custom-message text appear in activity. Text status updates and string-array widgets appear as rate-limited activity snapshots, not persistent terminal widgets. Hidden extension context stays hidden.
+
 ## Limitations
 
-Extensions run headlessly with `ctx.mode` set to `"print"` and `ctx.hasUI` set to `false`.
-
-Dialogs are unavailable. Confirmations return `false`; selection and text-input dialogs return no value. Notifications, widgets, keyboard shortcuts, custom message renderers, and terminal components are not displayed in Rove. Extensions that require these features need a headless fallback.
+Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value, matching Pi's RPC fallback. Unsupported UI calls produce a warning where possible. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
 
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 

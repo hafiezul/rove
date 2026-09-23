@@ -13,12 +13,14 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import {
+  ApprovalRequestId,
   PiSettings,
   ProviderInstanceId,
   ThreadId,
   TurnId,
   type ChatImageAttachment,
   type ProviderRuntimeEvent,
+  type ProviderUserInputAnswers,
 } from "@t3tools/contracts";
 
 import { attachmentRelativePath } from "../../attachmentStore.ts";
@@ -53,6 +55,8 @@ class FakePiSession implements PiSessionLike {
   emitSettledOnAbort = false;
   resumeOutcome: PiSessionLike["resumeOutcome"] = { resumed: false, reason: "no-cursor" };
   isStreaming = false;
+  hasPendingUserInput = false;
+  isPreparingPrompt = false;
   messages: ReadonlyArray<unknown> = [
     { role: "user", content: "earlier question" },
     { role: "assistant", content: "earlier answer" },
@@ -81,6 +85,12 @@ class FakePiSession implements PiSessionLike {
   forkedMessages: ReadonlyArray<unknown> | undefined;
   aborted = false;
   disposed = false;
+  readonly userInputResponses: Array<{ requestId: string; answers: ProviderUserInputAnswers }> = [];
+  respondToUserInput(requestId: string, answers: ProviderUserInputAnswers): boolean {
+    if (requestId !== "pi-question") return false;
+    this.userInputResponses.push({ requestId, answers });
+    return true;
+  }
   private listeners = new Set<(event: PiSessionEventLike) => void>();
 
   getEntries() {
@@ -245,6 +255,81 @@ it.layer(testLayer)("PiAdapter", (it) => {
       resolve(late);
       yield* Deferred.await(disposed);
       assert.strictEqual((yield* adapter.listSessions()).length, 1);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect(
+    "Stop cancels startup without waiting for an extension factory and disposes late arrivals",
+    () =>
+      Effect.gen(function* () {
+        const entered = yield* Deferred.make<void>();
+        const disposed = yield* Deferred.make<void>();
+        const pending = Promise.withResolvers<PiSessionLike>();
+        const late = new FakePiSession();
+        late.dispose = () => {
+          Deferred.doneUnsafe(disposed, Effect.void);
+        };
+        let calls = 0;
+        const adapter = yield* makePiAdapter(decodePiSettings({}), {
+          createSession: () => {
+            if (++calls > 1) return Promise.resolve(new FakePiSession());
+            Deferred.doneUnsafe(entered, Effect.void);
+            return pending.promise;
+          },
+        });
+        const starting = yield* adapter
+          .startSession({ threadId, runtimeMode: "full-access" })
+          .pipe(Effect.result, Effect.forkChild);
+        yield* Deferred.await(entered);
+        yield* adapter.interruptTurn(threadId);
+        assert.strictEqual((yield* Fiber.join(starting))._tag, "Failure");
+        assert.isFalse(yield* adapter.hasSession(threadId));
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        pending.resolve(late);
+        yield* Deferred.await(disposed);
+        assert.strictEqual((yield* adapter.listSessions()).length, 1);
+        yield* adapter.stopAll();
+      }),
+  );
+
+  it.effect("reports SDK-originated aborts rather than marking them completed", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const received = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "turn.aborted"
+            ? Deferred.succeed(received, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.emit({ type: "message_start", message: { role: "assistant" } });
+      fake.emit({
+        type: "message_update",
+        assistantMessageEvent: { type: "text_delta", delta: "partial" },
+      });
+      fake.emit({ type: "message_end", message: { role: "assistant", stopReason: "aborted" } });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(received);
+      assert.strictEqual(
+        events.find((event) => event.type === "turn.aborted")?.turnId,
+        turn.turnId,
+      );
+      assert.isFalse(events.some((event) => event.type === "turn.completed"));
+      assert.isTrue(
+        events.some(
+          (event) => event.type === "item.completed" && event.payload.status === "failed",
+        ),
+      );
+      const next = yield* adapter.sendTurn({ threadId, input: "continue" });
+      assert.notStrictEqual(next.turnId, turn.turnId);
       yield* adapter.stopAll();
     }),
   );
@@ -554,10 +639,97 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
+  it.effect("routes an extension question and its answer through provider runtime events", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const requested = yield* Deferred.make<void>();
+      const resolved = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          if (event.type === "user-input.requested") return Deferred.succeed(requested, undefined);
+          if (event.type === "user-input.resolved") return Deferred.succeed(resolved, undefined);
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "ask" });
+      fake.emit({
+        type: "rove_ui_request",
+        requestId: "pi-question",
+        questions: [
+          {
+            id: "answer",
+            header: "Pi extension",
+            question: "Proceed?",
+            options: [{ label: "Yes", description: "", value: "0" }],
+            allowCustomAnswer: false,
+            multiSelect: false,
+          },
+        ],
+      });
+      yield* Deferred.await(requested);
+      const question = events.find((event) => event.type === "user-input.requested");
+      assert.strictEqual(question?.requestId, "pi-question");
+      assert.strictEqual(question?.turnId, turn.turnId);
+      yield* adapter.respondToUserInput(threadId, ApprovalRequestId.make("pi-question"), {
+        answer: "0",
+      });
+      assert.deepEqual(fake.userInputResponses, [
+        { requestId: "pi-question", answers: { answer: "0" } },
+      ]);
+      fake.emit({ type: "rove_ui_resolved", requestId: "pi-question", answers: { answer: "0" } });
+      yield* Deferred.await(resolved);
+      assert.strictEqual(
+        events.find((event) => event.type === "user-input.resolved")?.requestId,
+        "pi-question",
+      );
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("does not steer a second message while an answered hook is still preparing", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "first" });
+      fake.isPreparingPrompt = true;
+      const error = yield* adapter.sendTurn({ threadId, input: "second" }).pipe(Effect.flip);
+      assert.include(error.detail, "still preparing");
+      assert.lengthOf(fake.promptCalls, 1);
+      fake.isPreparingPrompt = false;
+      yield* adapter.sendTurn({ threadId, input: "second" });
+      assert.lengthOf(fake.promptCalls, 2);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("shutdown dismisses extension questions rather than waiting for an answer", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "hello" });
+      fake.hasPendingUserInput = true;
+      yield* adapter.shutdown();
+      assert.isTrue(fake.disposed);
+      assert.isFalse(yield* adapter.hasSession(threadId));
+    }),
+  );
+
   it.effect("shutdown disposes sessions that finish starting after the adapter retires", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const started = yield* Deferred.make<void>();
+      const disposed = yield* Deferred.make<void>();
+      fake.dispose = () => {
+        fake.disposed = true;
+        Deferred.doneUnsafe(disposed, Effect.void);
+      };
       let finish!: (session: PiSessionLike) => void;
       const pending = new Promise<PiSessionLike>((resolve) => {
         finish = resolve;
@@ -576,6 +748,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
       finish(fake);
       const result = yield* Fiber.join(startup);
       assert.strictEqual(result._tag, "Failure");
+      yield* Deferred.await(disposed);
       assert.isTrue(fake.disposed);
       assert.isFalse(yield* adapter.hasSession(threadId));
     }),
@@ -1101,6 +1274,215 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }).pipe(Effect.provide(ServerConfig.layerTest(process.cwd(), baseDir)));
   });
 
+  it.effect("fails an accepted turn when its prompt promise rejects without settlement", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const pending = Promise.withResolvers<void>();
+      fake.prompt = (_text, options) => {
+        options?.preflightResult?.(true);
+        return pending.promise;
+      };
+      const adapter = yield* makeAdapter(fake);
+      const completed =
+        yield* Deferred.make<Extract<ProviderRuntimeEvent, { type: "turn.completed" }>>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "turn.completed" ? Deferred.succeed(completed, event) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const turn = yield* adapter.sendTurn({ threadId, input: "hello" });
+      pending.reject(new Error("Extension continuation failed"));
+      const event = yield* Deferred.await(completed);
+      assert.strictEqual(event.turnId, turn.turnId);
+      assert.deepStrictEqual(event.payload, {
+        state: "failed",
+        errorMessage: "Extension continuation failed",
+      });
+      assert.isUndefined((yield* adapter.listSessions())[0]?.activeTurnId);
+      fake.prompt = FakePiSession.prototype.prompt.bind(fake);
+      const retry = yield* adapter.sendTurn({ threadId, input: "try again" });
+      assert.notStrictEqual(retry.turnId, turn.turnId);
+      assert.isUndefined(fake.promptCalls[0]?.options?.streamingBehavior);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("Stop releases a send stuck in SDK preflight and ignores late acceptance", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const entered = yield* Deferred.make<void>();
+      const pending = Promise.withResolvers<void>();
+      let accept: (() => void) | undefined;
+      fake.prompt = (_text, options) => {
+        accept = () => options?.preflightResult?.(true);
+        Deferred.doneUnsafe(entered, Effect.void);
+        return pending.promise;
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const sending = yield* adapter
+        .sendTurn({ threadId, input: "hello" })
+        .pipe(Effect.result, Effect.forkChild);
+      yield* Deferred.await(entered);
+      yield* adapter.interruptTurn(threadId);
+      const result = yield* Fiber.join(sending);
+      assert.strictEqual(result._tag, "Failure");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      accept?.();
+      pending.resolve();
+    }),
+  );
+
+  it.effect("retires a session whose prompt preflight never finishes", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const entered = yield* Deferred.make<void>();
+      const pending = Promise.withResolvers<void>();
+      fake.prompt = () => {
+        Deferred.doneUnsafe(entered, Effect.void);
+        return pending.promise;
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const sending = yield* adapter
+        .sendTurn({ threadId, input: "hello" })
+        .pipe(Effect.flip, Effect.forkChild);
+      yield* Deferred.await(entered);
+      yield* TestClock.adjust(60_000);
+      assert.include((yield* Fiber.join(sending)).detail, "preparation timed out");
+      assert.isFalse(yield* adapter.hasSession(threadId));
+      assert.isTrue(fake.disposed);
+      pending.resolve();
+    }),
+  );
+
+  it.effect("serializes concurrent prompt preflights without blocking Stop or SDK events", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const entered = yield* Deferred.make<void>();
+      const pending = Promise.withResolvers<void>();
+      let accept: (() => void) | undefined;
+      let calls = 0;
+      fake.prompt = (_text, options) => {
+        calls++;
+        if (calls === 1) {
+          accept = () => options?.preflightResult?.(true);
+          Deferred.doneUnsafe(entered, Effect.void);
+          return pending.promise;
+        }
+        assert.strictEqual(options?.streamingBehavior, "steer");
+        options?.preflightResult?.(true);
+        return Promise.resolve();
+      };
+      const adapter = yield* makeAdapter(fake);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      const first = yield* adapter.sendTurn({ threadId, input: "first" }).pipe(Effect.forkChild);
+      yield* Deferred.await(entered);
+      const second = yield* adapter
+        .sendTurn({ threadId, input: "second" })
+        .pipe(Effect.forkChild({ startImmediately: true }));
+      assert.strictEqual(calls, 1);
+      accept?.();
+      const firstResult = yield* Fiber.join(first);
+      const secondResult = yield* Fiber.join(second);
+      assert.strictEqual(firstResult.turnId, secondResult.turnId);
+      assert.strictEqual(calls, 2);
+      pending.resolve();
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("a late prompt failure cannot fail a newer turn", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const pending = Promise.withResolvers<void>();
+      fake.prompt = (_text, options) => {
+        options?.preflightResult?.(true);
+        return pending.promise;
+      };
+      const adapter = yield* makeAdapter(fake);
+      const settled = yield* Deferred.make<void>();
+      const drained = yield* Deferred.make<void>();
+      const events: ProviderRuntimeEvent[] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "turn.completed"
+            ? Deferred.succeed(settled, undefined)
+            : event.type === "runtime.warning"
+              ? Deferred.succeed(drained, undefined)
+              : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "first" });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(settled);
+      fake.prompt = FakePiSession.prototype.prompt.bind(fake);
+      const second = yield* adapter.sendTurn({ threadId, input: "second" });
+      pending.reject(new Error("late failure"));
+      // The rejection handler runs before this promise continuation. The event
+      // marker then drains behind its turn-scoped failure check on the same lock.
+      yield* Effect.promise(() => pending.promise.catch(() => {}));
+      fake.emit({ type: "extension_error", error: "drain marker" });
+      yield* Deferred.await(drained);
+      assert.strictEqual((yield* adapter.listSessions())[0]?.activeTurnId, second.turnId);
+      assert.strictEqual(events.filter((event) => event.type === "turn.completed").length, 1);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect(
+    "shows arbitrary extension messages without exposing hidden context or inventing turns",
+    () =>
+      Effect.gen(function* () {
+        const fake = new FakePiSession();
+        const adapter = yield* makeAdapter(fake);
+        const received = yield* Deferred.make<void>();
+        const events: ProviderRuntimeEvent[] = [];
+        yield* adapter.streamEvents.pipe(
+          Stream.runForEach((event) => {
+            events.push(event);
+            return event.type === "runtime.info"
+              ? Deferred.succeed(received, undefined)
+              : Effect.void;
+          }),
+          Effect.forkChild({ startImmediately: true }),
+        );
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        fake.emit({
+          type: "message_end",
+          message: {
+            role: "custom",
+            customType: "arbitrary-extension",
+            content: "hidden context",
+            display: false,
+          },
+        });
+        fake.emit({
+          type: "message_end",
+          message: {
+            role: "custom",
+            customType: "arbitrary-extension",
+            content: [{ type: "text", text: "Visible extension result" }],
+            display: true,
+          },
+        });
+        yield* Deferred.await(received);
+        assert.deepStrictEqual(
+          events
+            .filter((event) => event.type === "runtime.info")
+            .map((event) => event.payload.message),
+          ["Visible extension result"],
+        );
+        assert.isFalse(events.some((event) => event.type === "turn.started"));
+        yield* adapter.stopAll();
+      }),
+  );
+
   it.effect("sendTurn waits for preflight but not prompt settlement", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
@@ -1218,19 +1600,18 @@ it.layer(testLayer)("PiAdapter", (it) => {
       fake.model = { id: "claude-sonnet-5", provider: "anthropic", input: ["text"] };
       fake.modelFallbackMessage = "Could not restore model a/old. Using anthropic/claude-sonnet-5";
       const adapter = yield* makeAdapter(fake);
-      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
-      yield* collectEvents(adapter, eventsRef);
+      const received =
+        yield* Deferred.make<Extract<ProviderRuntimeEvent, { type: "runtime.warning" }>>();
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) =>
+          event.type === "runtime.warning" ? Deferred.succeed(received, event) : Effect.void,
+        ),
+        Effect.forkChild({ startImmediately: true }),
+      );
       const session = yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
       assert.strictEqual(session.model, "anthropic/claude-sonnet-5");
-      // The fallback warning is published synchronously inside startSession
-      // (same tick as session.started), so assert on the collected events
-      // directly: PubSub.publish drops events with no subscriber attached,
-      // which made polling with waitFor flake under CI load.
-      const warning = (yield* Ref.get(eventsRef)).find((event) => event.type === "runtime.warning");
-      assert.include(
-        warning !== undefined && warning.type === "runtime.warning" ? warning.payload.message : "",
-        "Could not restore model a/old",
-      );
+      const warning = yield* Deferred.await(received);
+      assert.include(warning.payload.message, "Could not restore model a/old");
     }),
   );
 
