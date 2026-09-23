@@ -9608,7 +9608,10 @@ export default function ChatView(props: ChatViewProps) {
                         : undefined
                     }
                   >
-                    <PiExtensionStatus statuses={piExtensionStatuses} />
+                    <PiExtensionStatus
+                      key={activeThreadId ?? draftId}
+                      statuses={piExtensionStatuses}
+                    />
                     <ComposerSurface.Shell contextStrip={showComposerContextStrip}>
                       <ComposerSurface.Host>
                         <div ref={attachDraftHeroComposerAnchorRef} className="relative z-10">
