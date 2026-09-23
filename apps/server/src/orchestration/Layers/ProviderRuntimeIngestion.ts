@@ -8,6 +8,7 @@ import {
   classifyTaskAgentKind,
   EventId,
   isToolLifecycleItemType,
+  PI_EXTENSION_STATUS_ACTIVITY_KIND,
   ThreadId,
   type ThreadTokenUsageSnapshot,
   TurnId,
@@ -482,6 +483,37 @@ export function runtimeEventToActivities(
       : {};
   })();
   switch (event.type) {
+    case "session.started":
+    case "session.exited":
+      if (event.provider !== "pi") return [];
+      return [
+        {
+          id: EventId.make(`pi-extension-status:${event.threadId}`),
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: PI_EXTENSION_STATUS_ACTIVITY_KIND,
+          summary: "Pi extension status",
+          payload: { statuses: [] },
+          turnId: null,
+          ...maybeSequence,
+        },
+      ];
+
+    case "runtime.ui.status":
+      if (event.provider !== "pi") return [];
+      return [
+        {
+          id: EventId.make(`pi-extension-status:${event.threadId}`),
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: PI_EXTENSION_STATUS_ACTIVITY_KIND,
+          summary: "Pi extension status",
+          payload: event.payload,
+          turnId: null,
+          ...maybeSequence,
+        },
+      ];
+
     case "request.opened": {
       if (event.payload.requestType === "tool_user_input") {
         return [];

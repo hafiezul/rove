@@ -13,6 +13,7 @@ import {
   OrchestrationMessage,
   OrchestrationSession,
   OrchestrationThread,
+  PI_EXTENSION_STATUS_ACTIVITY_KIND,
   WORKTREE_SETUP_ACTIVITY_KIND,
 } from "@t3tools/contracts";
 import {
@@ -83,7 +84,8 @@ function retainThreadActivities(activities: OrchestrationThread["activities"]) {
       // The worktree setup record is upserted under one id for the thread's
       // whole life and is the only durable copy of a running setup; an async
       // setup script can outlast a chatty first turn.
-      activity.kind === WORKTREE_SETUP_ACTIVITY_KIND,
+      activity.kind === WORKTREE_SETUP_ACTIVITY_KIND ||
+      activity.kind === PI_EXTENSION_STATUS_ACTIVITY_KIND,
   );
 }
 

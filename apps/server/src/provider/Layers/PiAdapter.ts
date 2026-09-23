@@ -19,6 +19,7 @@ import {
   type ChatAttachment,
   EventId,
   PiSettings,
+  PiExtensionStatusSnapshot,
   ProviderDriverKind,
   ProviderInstanceId,
   RuntimeItemId,
@@ -125,6 +126,7 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 
 const PROVIDER = ProviderDriverKind.make("pi");
 const decodePiUserInput = Schema.decodeUnknownEffect(UserInputRequestedPayload);
+const decodePiExtensionStatus = Schema.decodeUnknownSync(PiExtensionStatusSnapshot);
 
 /**
  * Registered subagent dialects. pi-subagents is the first (and currently only)
@@ -1458,6 +1460,14 @@ export function makePiAdapter(
             return;
           }
           case "rove_ui_status": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.ui.status",
+              payload: decodePiExtensionStatus({ statuses: event.statuses }),
+            });
+            return;
+          }
+          case "rove_ui_text": {
             yield* offerRuntimeEvent({
               ...base,
               type: "runtime.info",

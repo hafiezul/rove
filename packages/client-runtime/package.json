@@ -231,6 +231,10 @@
       "types": "./src/state/vcs.ts",
       "default": "./src/state/vcs.ts"
     },
+    "./pi-extension-status": {
+      "types": "./src/piExtensionStatus.ts",
+      "default": "./src/piExtensionStatus.ts"
+    },
     "./work-log/user-input": {
       "types": "./src/work-log/userInput.ts",
       "default": "./src/work-log/userInput.ts"

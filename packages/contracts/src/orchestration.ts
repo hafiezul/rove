@@ -593,6 +593,14 @@ export const OrchestrationThreadActivityTone = Schema.Literals([
 ]);
 export type OrchestrationThreadActivityTone = typeof OrchestrationThreadActivityTone.Type;
 
+export const PI_EXTENSION_STATUS_ACTIVITY_KIND = "pi.extension-status";
+export const PiExtensionStatusSnapshot = Schema.Struct({
+  statuses: Schema.Array(
+    Schema.Struct({ key: TrimmedNonEmptyString, text: TrimmedNonEmptyString }),
+  ),
+});
+export type PiExtensionStatusSnapshot = typeof PiExtensionStatusSnapshot.Type;
+
 export const OrchestrationThreadActivity = Schema.Struct({
   id: EventId,
   tone: OrchestrationThreadActivityTone,

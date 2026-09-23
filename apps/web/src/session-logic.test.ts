@@ -483,6 +483,23 @@ describe("workEntryIndicatesToolNeutralStatus", () => {
 });
 
 describe("deriveWorkLogEntries", () => {
+  it("keeps notifications and tools in the work log but hides Pi composer status", () => {
+    const activities = [
+      makeActivity({
+        id: "pi-status",
+        kind: "pi.extension-status",
+        summary: "Pi extension status",
+        payload: { statuses: [{ key: "quota", text: "80%" }] },
+      }),
+      makeActivity({ id: "notification", kind: "runtime.info", summary: "Extension notified" }),
+      makeActivity({ id: "tool", kind: "tool.completed", summary: "Read files" }),
+    ];
+    expect(deriveWorkLogEntries(activities).map((entry) => entry.id)).toEqual([
+      "notification",
+      "tool",
+    ]);
+  });
+
   it("keeps the latest task progress without emitting plan-update log entries", () => {
     const activities = [
       makeActivity({ id: "before", kind: "tool.completed", summary: "Read files", sequence: 0 }),
