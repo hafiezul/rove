@@ -209,6 +209,8 @@ const main = (): void => {
     log(`PR #${existingPr} is already open for Pi SDK ${plan.to}; leaving it alone.`);
     return;
   }
+  const remoteBranchOid =
+    run("git", ["ls-remote", "--heads", "origin", `refs/heads/${branch}`]).split(/\s+/, 1)[0] ?? "";
   const branchPlan = planPiSdkBranch({
     currentBranch: run("git", ["branch", "--show-current"]),
     targetBranch: branch,
@@ -243,7 +245,13 @@ const main = (): void => {
   // licenses:sync only writes the gitignored SPDX cache under .generated/, so the
   // three tracked files above are the whole commit; no `git add -A` here.
   run("git", ["commit", "-m", `chore(pi): bump Pi SDK to ${plan.to}`]);
-  run("git", ["push", "--force-with-lease", "-u", "origin", branch]);
+  run("git", [
+    "push",
+    `--force-with-lease=refs/heads/${branch}:${remoteBranchOid}`,
+    "-u",
+    "origin",
+    branch,
+  ]);
   run("gh", [
     "pr",
     "create",
