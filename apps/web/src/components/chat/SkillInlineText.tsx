@@ -2,14 +2,8 @@ import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import type { ServerProviderSkill } from "@t3tools/contracts";
 import { formatProviderSkillDisplayName } from "@t3tools/client-runtime/providerSkills";
 
-import {
-  CHAT_INLINE_CHIP_CLASS_NAME,
-  CHAT_INLINE_CHIP_LABEL_CLASS_NAME,
-  COMPOSER_INLINE_CHIP_ICON_CLASS_NAME,
-  CONTEXT_INLINE_CHIP_TONE_CLASS_NAMES,
-  SKILL_CHIP_ICON_SVG,
-} from "../composerInlineChip";
-import { cn } from "~/lib/utils";
+import { SKILL_CHIP_ICON_SVG } from "../composerInlineChip";
+import { ContextChip, ContextChipLabel } from "../ContextChip";
 import * as RuntimePredicate from "effect/Predicate";
 
 const SKILL_TOKEN_REGEX =
@@ -79,17 +73,20 @@ export function renderSkillInlineMarkdownChildren(
 
 function SkillChip(props: { skill: InlineSkill; rawText: string }) {
   return (
-    <span className="inline-flex align-middle leading-none" data-markdown-copy={props.rawText}>
-      <span className={cn(CHAT_INLINE_CHIP_CLASS_NAME, CONTEXT_INLINE_CHIP_TONE_CLASS_NAMES.skill)}>
-        <span
-          aria-hidden="true"
-          className={COMPOSER_INLINE_CHIP_ICON_CLASS_NAME}
-          dangerouslySetInnerHTML={{ __html: SKILL_CHIP_ICON_SVG }}
-        />
-        <span className={CHAT_INLINE_CHIP_LABEL_CLASS_NAME}>
-          {formatProviderSkillDisplayName(props.skill)}
-        </span>
-      </span>
-    </span>
+    <ContextChip kind="skill" data-markdown-copy={props.rawText}>
+      <SkillChipIcon />
+      <ContextChipLabel>{formatProviderSkillDisplayName(props.skill)}</ContextChipLabel>
+    </ContextChip>
+  );
+}
+
+/** The skill glyph; the surrounding chip sizes its svg. */
+export function SkillChipIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="contents"
+      dangerouslySetInnerHTML={{ __html: SKILL_CHIP_ICON_SVG }}
+    />
   );
 }
