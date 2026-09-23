@@ -578,7 +578,30 @@ export function runtimeEventToActivities(
       ];
     }
 
-    case "runtime.info":
+    case "runtime.info": {
+      const activityId =
+        event.itemId === undefined
+          ? event.eventId
+          : EventId.make(
+              `runtime-info:${event.threadId}:${event.turnId === undefined ? "thread" : `turn:${event.turnId}`}:item:${event.itemId}`,
+            );
+      return [
+        {
+          id: activityId,
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: event.type,
+          summary: truncateDetail(event.payload.message, 120),
+          payload: {
+            message: truncateDetail(event.payload.message),
+            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "runtime.warning": {
       return [
         {

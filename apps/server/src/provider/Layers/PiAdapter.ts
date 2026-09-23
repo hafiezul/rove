@@ -1434,6 +1434,16 @@ export function makePiAdapter(
             });
             return;
           }
+          case "rove_ui_status": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "runtime.info",
+              itemId: RuntimeItemId.make("pi-extension-ui-status"),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              payload: { message: String(event.message) },
+            });
+            return;
+          }
           case "rove_ui_notify": {
             yield* offerRuntimeEvent({
               ...base,

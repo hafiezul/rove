@@ -610,6 +610,7 @@ describe("headless Pi extensions", () => {
       export default function(pi) {
         pi.registerCommand("statuses", { handler: async (_args, ctx) => {
           for (let i = 0; i < 1000; i++) ctx.ui.setStatus("progress", ctx.ui.theme.fg("accent", "Step " + i));
+          ctx.ui.setWorkingMessage("Thinking");
           ctx.ui.setWidget("todo", ["One", "Two"]);
           ctx.ui.setStatus("cleared", "must disappear");
           ctx.ui.setStatus("cleared", undefined);
@@ -632,10 +633,11 @@ describe("headless Pi extensions", () => {
       events.filter((event) => event.type === "rove_ui_notify" && event.level === "info"),
     ).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(500);
-    expect(
-      events.filter((event) => event.type === "rove_ui_notify" && event.level === "info"),
-    ).toEqual([
-      { type: "rove_ui_notify", level: "info", message: "progress: Step 999\ntodo: One\nTwo" },
+    expect(events.filter((event) => event.type === "rove_ui_status")).toEqual([
+      {
+        type: "rove_ui_status",
+        message: "progress: Step 999\nPi: Thinking\ntodo: One\nTwo",
+      },
     ]);
     await session.prompt("/statuses");
     await session.dispose();

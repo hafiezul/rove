@@ -10,6 +10,7 @@ import {
   ProviderRuntimeEvent,
   ProviderSession,
   ProviderInstanceId,
+  RuntimeItemId,
 } from "@t3tools/contracts";
 import {
   ApprovalRequestId,
@@ -4044,6 +4045,50 @@ describe("ProviderRuntimeIngestion", () => {
       summary: "Compacting context…",
       turnId: "turn-1",
     });
+  });
+
+  it("uses stable activity identity only for keyed runtime info", () => {
+    const base = {
+      type: "runtime.info" as const,
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      threadId: asThreadId("thread-1"),
+      itemId: RuntimeItemId.make("status:progress"),
+      payload: { message: "progress: Step 1" },
+    };
+    const first = runtimeEventToActivities({
+      ...base,
+      eventId: asEventId("status-event-1"),
+      turnId: asTurnId("turn-1"),
+    })[0]!;
+    const sameIdentity = runtimeEventToActivities({
+      ...base,
+      eventId: asEventId("status-event-2"),
+      turnId: asTurnId("turn-1"),
+      payload: { message: "progress: Step 2" },
+    })[0]!;
+    const differentTurn = runtimeEventToActivities({
+      ...base,
+      eventId: asEventId("status-event-3"),
+      turnId: asTurnId("turn-2"),
+    })[0]!;
+    const unkeyed = runtimeEventToActivities({
+      ...base,
+      itemId: undefined,
+      eventId: asEventId("notify-event"),
+      turnId: asTurnId("turn-1"),
+    })[0]!;
+    const warning = runtimeEventToActivities({
+      ...base,
+      type: "runtime.warning",
+      eventId: asEventId("warning-event"),
+      turnId: asTurnId("turn-1"),
+    })[0]!;
+
+    expect(sameIdentity.id).toBe(first.id);
+    expect(differentTurn.id).not.toBe(first.id);
+    expect(unkeyed.id).toBe(asEventId("notify-event"));
+    expect(warning.id).toBe(asEventId("warning-event"));
   });
 
   it("keeps the session running when a runtime.warning arrives during an active turn", async () => {
