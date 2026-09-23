@@ -1,6 +1,6 @@
 import { EventId, type OrchestrationThreadActivity } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
-import { latestPiExtensionStatuses } from "./piExtensionStatus";
+import { latestPiExtensionStatuses } from "./piExtensionStatus.js";
 
 function activity(
   id: string,
