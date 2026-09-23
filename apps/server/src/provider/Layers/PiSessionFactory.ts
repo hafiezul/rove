@@ -2,8 +2,8 @@
  * PiSessionFactory — builds the real in-process Pi sessions for `PiAdapter`.
  *
  * Wires `@earendil-works/pi-coding-agent` per the settled provider design:
- *   - Headless extensions: tools, commands, and hooks load through the SDK.
- *     Terminal UI is unavailable.
+ *   - Tools, commands, and hooks load through the SDK. Thread sessions expose
+ *     RPC-style dialogs through Rove; terminal rendering remains unavailable.
  *   - Always-trust: project-local resources are trusted, matching Rove Code's
  *     full-access stance and avoiding silent divergence from terminal `pi`.
  *   - Resume: the cursor holds the session id and absolute file path.
@@ -20,6 +20,7 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as RuntimePredicate from "effect/Predicate";
+import * as Effect from "effect/Effect";
 
 import {
   createAgentSessionFromServices,
@@ -50,6 +51,8 @@ import {
 
 import { readMcpProviderSession } from "../../mcp/McpProviderSession.ts";
 import { createPiRoveTools } from "./PiRoveTools.ts";
+import { createPiExtensionUI } from "./PiExtensionUI.ts";
+import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 
@@ -97,24 +100,67 @@ async function toPiSessionLike(
   initialStartupErrors: ReadonlyArray<PiSessionEventLike> = [],
   modelFallbackMessage?: string | undefined,
   disposeRoveTools: () => Promise<void> = async () => {},
+  interactive = false,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
   const emit = (event: PiSessionEventLike) => {
     for (const listener of listeners) listener(event);
   };
+  let stopped = false;
+  let activePrompts = 0;
+  let preparingPrompt = false;
+  let settlementPending = false;
+  // SDK settlement is emitted from a finally block, before prompt() rejects.
+  // Hold it until the Promise outcome is known so a thrown provider/extension
+  // failure cannot first be projected as a successful Rove turn.
+  const unsubscribeSdk = session.subscribe((event) => {
+    if (event.type === "agent_settled" && activePrompts > 0) {
+      settlementPending = true;
+      return;
+    }
+    // SAFETY: Preserve SDK message identity; the adapter reads JSON-compatible fields only.
+    emit(event as never);
+  });
+  let activePreflight: (() => void) | undefined;
+  const extensionUI = interactive
+    ? createPiExtensionUI(session.extensionRunner.getUIContext(), emit, () => activePreflight?.())
+    : undefined;
+  const abort = () => {
+    stopped = true;
+    extensionUI?.stop();
+    // Pi abort deliberately continues queued messages. Rove Stop must discard
+    // them before aborting, or a queued follow-up can execute more tools.
+    session.clearQueue();
+    return session.abort();
+  };
   let disposal: Promise<void> | undefined;
   const dispose = () =>
     (disposal ??= (async () => {
+      stopped = true;
+      extensionUI?.stop();
+      session.clearQueue();
       try {
-        await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+        // Abort and shutdown run independently: a shutdown hook waiting for
+        // idle (or a stuck tool) must not prevent the other cleanup from running.
+        await Effect.runPromise(
+          Effect.all(
+            [
+              disposePiResource(() => session.abort()),
+              disposePiResource(() =>
+                session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" }),
+              ),
+              disposePiResource(disposeRoveTools),
+            ],
+            { concurrency: "unbounded" },
+          ),
+        );
       } finally {
+        unsubscribeSdk();
         try {
-          await session.abort();
-        } finally {
           session.dispose();
+        } finally {
           listeners.clear();
-          await disposeRoveTools();
         }
       }
     })());
@@ -124,29 +170,35 @@ async function toPiSessionLike(
       "Pi extension session replacement and reload are not supported in Rove. Use Rove's thread controls.",
     );
   };
-  try {
-    await session.bindExtensions({
-      mode: "print",
-      commandContextActions: {
-        waitForIdle: () => session.waitForIdle(),
-        newSession: unsupportedSessionControl,
-        fork: unsupportedSessionControl,
-        navigateTree: unsupportedSessionControl,
-        switchSession: unsupportedSessionControl,
-        reload: unsupportedSessionControl,
-      },
-      onError: (error) => {
-        const event = { type: "extension_error", ...error };
-        if (listeners.size === 0) {
-          startupErrors.push(event);
-          if (startupErrors.length > 50) startupErrors.shift();
-        } else emit(event);
-      },
-    });
-  } catch (error) {
-    await dispose();
-    throw error;
-  }
+  let binding: Promise<void> | undefined;
+  const bind = () =>
+    (binding ??= session
+      .bindExtensions({
+        mode: interactive ? "rpc" : "print",
+        ...(extensionUI ? { uiContext: extensionUI.ui } : {}),
+        commandContextActions: {
+          waitForIdle: () => session.waitForIdle(),
+          newSession: unsupportedSessionControl,
+          fork: unsupportedSessionControl,
+          navigateTree: unsupportedSessionControl,
+          switchSession: unsupportedSessionControl,
+          reload: unsupportedSessionControl,
+        },
+        onError: (error) => {
+          const event = { type: "extension_error", ...error };
+          if (listeners.size === 0) {
+            startupErrors.push(event);
+            if (startupErrors.length > 50) startupErrors.shift();
+          } else emit(event);
+        },
+      })
+      .catch(async (error: unknown) => {
+        await dispose();
+        throw error;
+      }));
+  // Startup hooks may ask questions. Wait until the first routed prompt rather
+  // than blocking startSession before ProviderService can persist its binding.
+  if (!interactive) await bind();
 
   return {
     get sessionId() {
@@ -160,6 +212,12 @@ async function toPiSessionLike(
     get isStreaming() {
       return session.isStreaming;
     },
+    get hasPendingUserInput() {
+      return extensionUI?.hasPendingInput ?? false;
+    },
+    get isPreparingPrompt() {
+      return preparingPrompt;
+    },
     get messages() {
       // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
       return session.messages as ReadonlyArray<unknown>;
@@ -168,36 +226,65 @@ async function toPiSessionLike(
       return session.autoCompactionEnabled;
     },
     prompt: async (text, options) => {
-      if (disposal !== undefined) throw new Error("Pi session has been stopped.");
+      if (stopped) throw new Error("Pi session has been stopped.");
+      let reported = false;
+      let accepted = false;
+      activePrompts++;
+      preparingPrompt = true;
+      const reportPreflight = (success: boolean) => {
+        if (stopped) throw new Error("Pi session stopped during prompt preparation.");
+        if (reported) return;
+        reported = true;
+        accepted = success;
+        options?.preflightResult?.(success);
+      };
+      const acceptDialog = () => reportPreflight(true);
+      activePreflight = acceptDialog;
       let agentStarted = false;
       const unsubscribe = session.subscribe((event) => {
-        if (event.type === "agent_start") agentStarted = true;
+        if (event.type === "agent_start") {
+          agentStarted = true;
+          preparingPrompt = false;
+        }
       });
       try {
+        await bind();
+        if (stopped) throw new Error("Pi session stopped during prompt preparation.");
         await session.prompt(text, {
           ...options,
           source: "rpc",
-          preflightResult: (success) => {
-            // Stop can race asynchronous input hooks or auth resolution.
-            // Reject before the SDK enters its agent loop on a retired session.
-            if (disposal !== undefined) {
-              options?.preflightResult?.(false);
-              throw new Error("Pi session stopped during prompt preparation.");
-            }
-            options?.preflightResult?.(success);
-          },
+          preflightResult: reportPreflight,
         });
         // Commands and handled input can finish without emitting agent_settled.
-        if (!agentStarted && session.isIdle) emit({ type: "agent_settled" });
+        if (!agentStarted && session.isIdle) settlementPending = true;
+      } catch (error) {
+        if (accepted && !stopped) {
+          emit({
+            type: "prompt_error",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        throw error;
       } finally {
+        if (activePreflight === acceptDialog) activePreflight = undefined;
         unsubscribe();
+        preparingPrompt = false;
+        activePrompts--;
+        if (activePrompts === 0 && settlementPending) {
+          settlementPending = false;
+          if (!stopped) emit({ type: "agent_settled" });
+        }
       }
     },
-    followUp: (text) => session.followUp(text),
+    followUp: (text) => {
+      if (stopped) return Promise.reject(new Error("Pi session has been stopped."));
+      return session.followUp(text);
+    },
+    respondToUserInput: (requestId, answers) => extensionUI?.respond(requestId, answers) ?? false,
     compact: async () => {
       await session.compact();
     },
-    abort: () => session.abort(),
+    abort,
     dispose,
     setModel: async (slug) => {
       await session.setModel(resolvePiModelForSession(modelRuntime, slug));
@@ -211,12 +298,9 @@ async function toPiSessionLike(
     },
     subscribe: (listener) => {
       listeners.add(listener);
-      // SAFETY: The adapter reads only the SDK event's JSON-compatible fields.
-      const unsubscribe = session.subscribe((event) => listener(event as never));
       for (const event of startupErrors.splice(0)) listener(event);
       return () => {
         listeners.delete(listener);
-        unsubscribe();
       };
     },
     getEntries: () => session.sessionManager.getEntries(),
@@ -776,5 +860,6 @@ export async function createPiSession(
     startupErrors,
     modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
     roveTools.dispose,
+    input.interactive === true && !options.textGeneration,
   );
 }

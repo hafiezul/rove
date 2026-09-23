@@ -26,6 +26,7 @@ import type {
   ServerProviderSlashCommand,
 } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
+import * as Effect from "effect/Effect";
 
 import {
   createAgentSessionFromServices,
@@ -36,6 +37,7 @@ import {
   type ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
 import { buildSelectOptionDescriptor } from "../providerSnapshot.ts";
+import { disposePiResource } from "./PiLifecycle.ts";
 import { PI_THINKING_DESCRIPTOR_ID, PI_THINKING_LEVEL_LABELS } from "./PiProvider.ts";
 import { createPiSessionServices, type PiResourceLoader } from "./PiSessionFactory.ts";
 
@@ -328,8 +330,17 @@ export class PiCatalogHost {
     this.disposed = true;
     this.listeners.clear();
     try {
-      await this.session.abort();
-      await this.session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+      await Effect.runPromise(
+        Effect.all(
+          [
+            disposePiResource(() => this.session.abort()),
+            disposePiResource(() =>
+              this.session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" }),
+            ),
+          ],
+          { concurrency: "unbounded" },
+        ),
+      );
     } finally {
       this.session.dispose();
     }

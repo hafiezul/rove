@@ -5,8 +5,8 @@
  * subprocess adapter.
  *
  * One Pi `AgentSession` per Rove Code thread. Sessions run with the user's global
- * Pi config and headless extensions. Extension dialogs and terminal rendering
- * are unavailable. Rollback is fork-as-rollback: Pi sessions are
+ * Pi config and extensions. Standard extension dialogs use Rove's question UI;
+ * terminal rendering remains unavailable. Rollback is fork-as-rollback: Pi sessions are
  * trees, so rolling back N turns forks the session at the entry that precedes
  * them and the fork becomes the thread's live session.
  *
@@ -22,7 +22,10 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   RuntimeItemId,
+  RuntimeRequestId,
   RuntimeTaskId,
+  UserInputRequestedPayload,
+  type ProviderUserInputAnswers,
   TurnId,
   type ProviderRuntimeEvent,
   type ProviderSendTurnInput,
@@ -43,6 +46,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Semaphore from "effect/Semaphore";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
@@ -51,7 +55,7 @@ import { ServerConfig } from "../../config.ts";
 
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
-import { acquirePiResource, disposePiResource } from "./PiLifecycle.ts";
+import { acquirePiResource, disposePiResource, PI_STARTUP_TIMEOUT_MS } from "./PiLifecycle.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import {
@@ -120,6 +124,7 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 }
 
 const PROVIDER = ProviderDriverKind.make("pi");
+const decodePiUserInput = Schema.decodeUnknownEffect(UserInputRequestedPayload);
 
 /**
  * Registered subagent dialects. pi-subagents is the first (and currently only)
@@ -189,6 +194,8 @@ export interface PiSessionStatsLike {
 export interface PiSessionLike {
   readonly sessionId: string;
   readonly isStreaming: boolean;
+  readonly hasPendingUserInput?: boolean | undefined;
+  readonly isPreparingPrompt?: boolean | undefined;
   readonly messages: ReadonlyArray<unknown>;
   readonly sessionFile?: string | undefined;
   readonly resumeOutcome?: PiSessionResumeOutcome | undefined;
@@ -209,6 +216,7 @@ export interface PiSessionLike {
     },
   ): Promise<void>;
   followUp(text: string): Promise<void>;
+  respondToUserInput?(requestId: string, answers: ProviderUserInputAnswers): boolean;
   compact?(): Promise<void>;
   abort(): Promise<void>;
   dispose(): void | Promise<void>;
@@ -284,6 +292,8 @@ export function parsePiResumeCursor(raw: unknown):
 
 export interface PiCreateSessionInput {
   readonly threadId?: ThreadId | undefined;
+  /** Bind interactive extensions on the first prompt, once responses can be routed. */
+  readonly interactive?: boolean | undefined;
   readonly cwd: string;
   /** Per-instance Pi agent directory; blank falls back to the global default. */
   readonly agentDir?: string | undefined;
@@ -337,6 +347,8 @@ interface PiSessionContext {
   nextAssistantMessageIndex: number;
   /** Deferred error from a failed assistant message, held until we know whether Pi will auto-retry. */
   pendingTurnError: string | undefined;
+  /** Pi (or an extension) aborted without a Rove Stop request. */
+  pendingTurnAborted: boolean;
   /** Resolved tool-call arguments by toolCallId (Pi SDK events omit args). */
   toolCallArgs: Map<string, Record<string, SchemaJson>>;
   /** Progress is sampled before queueing work, so bursts cannot build a fiber backlog. */
@@ -346,6 +358,8 @@ interface PiSessionContext {
   /** Open single subagent runs (no coordinator) for notify correlation. */
   openSingles: Array<{ agent: string | undefined; taskId: string }>;
   readonly liveTaskIds: Set<string>;
+  readonly openUiRequestIds: Set<string>;
+  readonly stopped: Deferred.Deferred<never, ProviderAdapterRequestError>;
   unsubscribe: () => void;
   loadedDisabledExtensions: ReadonlyArray<string>;
   /** Failed extensions this session auto-skipped at startup, beyond the settings-disabled set. */
@@ -637,6 +651,7 @@ export function makePiAdapter(
 
     let closed = false;
     const sessions = new Map<ThreadId, PiSessionContext>();
+    const starting = new Map<ThreadId, Deferred.Deferred<never, ProviderAdapterRequestError>>();
     const threadLocksRef = yield* SynchronizedRef.make(new Map<string, Semaphore.Semaphore>());
     const runtimeEventPubSub = yield* PubSub.unbounded<ProviderRuntimeEvent>();
 
@@ -674,7 +689,16 @@ export function makePiAdapter(
       });
 
     const withThreadLock = <A, E, R>(threadId: string, effect: Effect.Effect<A, E, R>) =>
-      Effect.flatMap(getThreadSemaphore(threadId), (semaphore) => semaphore.withPermit(effect));
+      Effect.flatMap(getThreadSemaphore(`events:${threadId}`), (semaphore) =>
+        semaphore.withPermit(effect),
+      );
+
+    // Serialize prompt preparation separately from SDK events and Stop. Two
+    // concurrent sends must not both enter Pi's asynchronous preflight idle.
+    const withSendLock = <A, E, R>(threadId: string, effect: Effect.Effect<A, E, R>) =>
+      Effect.flatMap(getThreadSemaphore(`send:${threadId}`), (semaphore) =>
+        semaphore.withPermit(effect),
+      );
 
     const offerRuntimeEvent = (event: ProviderRuntimeEvent) =>
       PubSub.publish(runtimeEventPubSub, event).pipe(Effect.asVoid);
@@ -895,6 +919,7 @@ export function makePiAdapter(
           ctx.turnBoundaries.push({ turnId, entryId: ctx.lastSettledEntryId });
           ctx.activeAssistantMessage = undefined;
           ctx.pendingTurnError = undefined;
+          ctx.pendingTurnAborted = false;
           yield* offerRuntimeEvent({
             ...base,
             type: "turn.started",
@@ -1010,6 +1035,7 @@ export function makePiAdapter(
             // emits turn_start — clear any stale deferred error from the
             // previous attempt.
             ctx.pendingTurnError = undefined;
+            ctx.pendingTurnAborted = false;
             const turnId = yield* ensureActiveTurn();
             yield* offerRuntimeEvent({
               ...base,
@@ -1140,11 +1166,14 @@ export function makePiAdapter(
                   itemId: assistantMessage.itemId,
                   payload: {
                     itemType: "assistant_message",
-                    status: "completed",
+                    status: message.stopReason === "aborted" ? "failed" : "completed",
                     title: "Assistant message",
                   },
                 });
               }
+            }
+            if (message?.role === "assistant" && message.stopReason === "aborted") {
+              ctx.pendingTurnAborted = true;
             }
             if (
               message?.role === "assistant" &&
@@ -1174,6 +1203,31 @@ export function makePiAdapter(
                 ctx.seenNotifyMessages.add(customMessage);
                 const turnId = yield* ensureActiveTurn();
                 yield* offerParsedNotify(turnId, parsed);
+              }
+              // Any extension can send visible messages, not just known
+              // subagent dialects. Keep hidden context hidden and show text
+              // without attempting to run an extension's terminal renderer.
+              if (customMessage.display === true) {
+                const content = customMessage.content;
+                const text = RuntimePredicate.isString(content)
+                  ? content
+                  : Array.isArray(content)
+                    ? content
+                        .map((part) => {
+                          const block = piRecord(part);
+                          return block?.type === "text" && RuntimePredicate.isString(block.text)
+                            ? block.text
+                            : "";
+                        })
+                        .join("\n")
+                    : "";
+                if (text.trim())
+                  yield* offerRuntimeEvent({
+                    ...base,
+                    type: "runtime.info",
+                    ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+                    payload: { message: piBounded(text, 16_384) },
+                  });
               }
             }
             return;
@@ -1343,6 +1397,52 @@ export function makePiAdapter(
             }
             return;
           }
+          case "rove_ui_request": {
+            const payload = yield* decodePiUserInput({
+              questions: event.questions,
+            }).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProviderAdapterRequestError({
+                    provider: PROVIDER,
+                    method: "extensionUI",
+                    detail: "Invalid Pi extension question.",
+                    cause,
+                  }),
+              ),
+            );
+            const requestId = String(event.requestId);
+            ctx.openUiRequestIds.add(requestId);
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "user-input.requested",
+              requestId: RuntimeRequestId.make(requestId),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              payload,
+            });
+            return;
+          }
+          case "rove_ui_resolved": {
+            const requestId = String(event.requestId);
+            if (!ctx.openUiRequestIds.delete(requestId)) return;
+            yield* offerRuntimeEvent({
+              ...base,
+              type: "user-input.resolved",
+              requestId: RuntimeRequestId.make(requestId),
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              payload: { answers: piRecord(event.answers) ?? {} },
+            });
+            return;
+          }
+          case "rove_ui_notify": {
+            yield* offerRuntimeEvent({
+              ...base,
+              type: event.level === "info" ? "runtime.info" : "runtime.warning",
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : {}),
+              payload: { message: String(event.message) },
+            });
+            return;
+          }
           case "extension_error": {
             // Warnings stay warnings even when they arrive mid-turn (e.g. a
             // subagent auto-drain failure Pi may still recover from) — but
@@ -1365,6 +1465,9 @@ export function makePiAdapter(
             ctx.activeTurnId = undefined;
             ctx.activeAssistantMessage = undefined;
             ctx.pendingTurnError = undefined;
+            ctx.pendingTurnAborted = false;
+            ctx.lastSettledEntryId = ctx.session.getLeafId?.() ?? null;
+            ctx.toolCallArgs.clear();
             yield* offerRuntimeEvent({
               ...base,
               type: "turn.completed",
@@ -1379,19 +1482,30 @@ export function makePiAdapter(
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
+              const aborted = ctx.pendingTurnAborted;
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
               ctx.activeAssistantMessage = undefined;
               ctx.pendingTurnError = undefined;
-              yield* offerRuntimeEvent({
-                ...base,
-                type: "turn.completed",
-                turnId,
-                payload:
-                  errorMessage !== undefined
-                    ? { state: "failed", errorMessage }
-                    : { state: "completed" },
-              });
+              ctx.pendingTurnAborted = false;
+              if (aborted) {
+                yield* offerRuntimeEvent({
+                  ...base,
+                  type: "turn.aborted",
+                  turnId,
+                  payload: { reason: "Pi response was aborted" },
+                });
+              } else {
+                yield* offerRuntimeEvent({
+                  ...base,
+                  type: "turn.completed",
+                  turnId,
+                  payload:
+                    errorMessage !== undefined
+                      ? { state: "failed", errorMessage }
+                      : { state: "completed" },
+                });
+              }
             }
             return;
           }
@@ -1465,12 +1579,15 @@ export function makePiAdapter(
           // retry below; the failed set is reported to the thread and recorded
           // on the session context so the actual disabled set stays accurate.
           let recoveredFailures: ReadonlyArray<string> = [];
+          const startupStopped = yield* Deferred.make<never, ProviderAdapterRequestError>();
+          starting.set(input.threadId, startupStopped);
           const session = yield* acquirePiResource(
             async () => {
               const cursor = parsePiResumeCursor(input.resumeCursor);
               try {
                 return await createSession({
                   threadId: input.threadId,
+                  interactive: true,
                   cwd,
                   model: initialModelSlug,
                   thinkingLevel:
@@ -1492,6 +1609,7 @@ export function makePiAdapter(
                   recoveredFailures = cause.failedExtensionPaths;
                   return await createSession({
                     threadId: input.threadId,
+                    interactive: true,
                     cwd,
                     model: initialModelSlug,
                     thinkingLevel:
@@ -1522,6 +1640,13 @@ export function makePiAdapter(
                   detail: `Failed to create Pi session in ${cwd}. ${cause.message}`,
                   cause,
                 }),
+            ),
+            Effect.raceFirst(Deferred.await(startupStopped)),
+            Effect.ensuring(
+              Effect.sync(() => {
+                if (starting.get(input.threadId) === startupStopped)
+                  starting.delete(input.threadId);
+              }),
             ),
           );
 
@@ -1555,16 +1680,18 @@ export function makePiAdapter(
             activeAssistantMessage: undefined,
             nextAssistantMessageIndex: 0,
             pendingTurnError: undefined,
+            pendingTurnAborted: false,
             toolCallArgs: new Map(),
             lastToolProgressAt: -Infinity,
             seenNotifyMessages: new WeakSet(),
             openSingles: [],
             liveTaskIds: new Set(),
+            openUiRequestIds: new Set(),
+            stopped: yield* Deferred.make<never, ProviderAdapterRequestError>(),
             unsubscribe: () => {},
             loadedDisabledExtensions: effectiveDisabledExtensions,
             recoveredFailedExtensions: failedExtensions,
           };
-          ctx.pendingTurnError = undefined;
           // Register before subscribing: buffered startup events replay
           // synchronously inside subscribeToSession, and its membership guard
           // would drop them for a context that is not in the map yet.
@@ -1639,6 +1766,22 @@ export function makePiAdapter(
           input.threadId,
           Effect.gen(function* () {
             const ctx = yield* getSession(input.threadId, "sendTurn");
+            if (ctx.session.hasPendingUserInput) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail:
+                  "Answer the pending Pi extension question or stop the thread before sending another message.",
+              });
+            }
+            if (ctx.session.isPreparingPrompt) {
+              return yield* new ProviderAdapterRequestError({
+                provider: PROVIDER,
+                method: "sendTurn",
+                detail:
+                  "Pi is still preparing the previous message. Wait for it to start or finish.",
+              });
+            }
             if (ctx.compacting) {
               return yield* new ProviderAdapterRequestError({
                 provider: PROVIDER,
@@ -1685,6 +1828,12 @@ export function makePiAdapter(
           }),
         );
         const { ctx, turnId, steeringTurnId, entryId, text } = prepared;
+        const preparationTimeout = new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "sendTurn",
+          detail:
+            "Pi turn preparation timed out after 60 seconds. The session was retired; check extension hooks and provider authentication before retrying.",
+        });
 
         return yield* Effect.gen(function* () {
           // If disabled extensions changed while idle between turns, refresh the session
@@ -1716,6 +1865,7 @@ export function makePiAdapter(
               () =>
                 createSession({
                   threadId: input.threadId,
+                  interactive: true,
                   cwd: ctx.cwd,
                   model: ctx.currentModelSlug,
                   thinkingLevel:
@@ -1872,6 +2022,24 @@ export function makePiAdapter(
                 if (preflightResult === false) throw new Error("Pi rejected the prompt.");
                 accept(true);
               } catch (cause) {
+                // Acceptance already returned to orchestration. A rejected SDK
+                // promise must now fail that turn, not a newer turn or a retired
+                // session, and must not disappear into an already-done Deferred.
+                if (preflightResult === true) {
+                  runFork(
+                    withThreadLock(
+                      input.threadId,
+                      Effect.suspend(() =>
+                        sessions.get(input.threadId) === ctx && ctx.activeTurnId === turnId
+                          ? handleSdkEvent(ctx, {
+                              type: "prompt_error",
+                              error: cause instanceof Error ? cause.message : String(cause),
+                            })
+                          : Effect.void,
+                      ),
+                    ),
+                  );
+                }
                 Deferred.doneUnsafe(
                   acceptance,
                   Effect.fail(
@@ -1894,10 +2062,18 @@ export function makePiAdapter(
             resumeCursor: resumeCursorFor(ctx),
           } satisfies ProviderTurnStartResult;
         }).pipe(
+          Effect.raceFirst(Deferred.await(ctx.stopped)),
+          Effect.timeoutOrElse({
+            duration: PI_STARTUP_TIMEOUT_MS,
+            orElse: () => preparationTimeout,
+          }),
           Effect.catch((error) =>
             withThreadLock(
               input.threadId,
               Effect.gen(function* () {
+                if (error === preparationTimeout && sessions.get(input.threadId) === ctx) {
+                  yield* stopSession(input.threadId);
+                }
                 if (
                   steeringTurnId === undefined &&
                   sessions.get(input.threadId) === ctx &&
@@ -1906,13 +2082,14 @@ export function makePiAdapter(
                   ctx.activeTurnId = undefined;
                   ctx.activeAssistantMessage = undefined;
                   ctx.pendingTurnError = undefined;
+                  ctx.pendingTurnAborted = false;
                 }
                 return yield* error;
               }),
             ),
           ),
         );
-      });
+      }).pipe((effect) => withSendLock(input.threadId, effect));
 
     const compactThread = Effect.fn("compactPiThread")(function* (threadId: ThreadId) {
       const ctx = yield* withThreadLock(
@@ -1949,84 +2126,89 @@ export function makePiAdapter(
     });
 
     const interruptTurn: PiAdapterContract["interruptTurn"] = (threadId, turnId) =>
-      withThreadLock(
-        threadId,
-        Effect.gen(function* () {
-          const ctx = yield* getSession(threadId, "interruptTurn");
-          const liveTurnId = ctx.activeTurnId;
-          if (turnId !== undefined && liveTurnId !== undefined && liveTurnId !== turnId) {
-            return;
-          }
-          const abortedId = turnId ?? liveTurnId;
-          const aborted = yield* Effect.tryPromise({
-            try: () => ctx.session.abort(),
-            catch: (cause) =>
-              new ProviderAdapterRequestError({
-                provider: PROVIDER,
-                method: "interruptTurn",
-                detail: `Failed to abort Pi session ${ctx.session.sessionId}. ${cause instanceof Error ? cause.message : String(cause)}`,
-                cause,
+      Effect.suspend(() =>
+        starting.has(threadId)
+          ? stopSession(threadId)
+          : withThreadLock(
+              threadId,
+              Effect.gen(function* () {
+                const ctx = yield* getSession(threadId, "interruptTurn");
+                const liveTurnId = ctx.activeTurnId;
+                if (turnId !== undefined && liveTurnId !== undefined && liveTurnId !== turnId) {
+                  return;
+                }
+                const abortedId = turnId ?? liveTurnId;
+                const aborted = yield* Effect.tryPromise({
+                  try: () => ctx.session.abort(),
+                  catch: (cause) =>
+                    new ProviderAdapterRequestError({
+                      provider: PROVIDER,
+                      method: "interruptTurn",
+                      detail: `Failed to abort Pi session ${ctx.session.sessionId}. ${cause instanceof Error ? cause.message : String(cause)}`,
+                      cause,
+                    }),
+                }).pipe(Effect.timeout("5 seconds"), Effect.result);
+                if (aborted._tag === "Failure") {
+                  yield* offerRuntimeEvent({
+                    ...(yield* makeEventStamp()),
+                    provider: PROVIDER,
+                    ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+                    threadId,
+                    type: "runtime.warning",
+                    payload: {
+                      message: `Pi did not acknowledge Stop. The session was retired; an unresponsive extension may still be running on the server. ${aborted.failure.message}`,
+                    },
+                  });
+                }
+                // SDK settlement waits on this lock and observes the cleared turn.
+                if (
+                  ctx.activeTurnId !== undefined &&
+                  (abortedId === undefined || ctx.activeTurnId === abortedId)
+                ) {
+                  const settledId = abortedId ?? ctx.activeTurnId;
+                  if (settledId !== undefined) {
+                    ctx.activeTurnId = undefined;
+                    ctx.activeAssistantMessage = undefined;
+                    ctx.pendingTurnError = undefined;
+                    ctx.pendingTurnAborted = false;
+                    yield* offerRuntimeEvent({
+                      ...(yield* makeEventStamp()),
+                      provider: PROVIDER,
+                      ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+                      threadId,
+                      type: "turn.aborted",
+                      turnId: settledId,
+                      payload: { reason: "Interrupted by user" },
+                    });
+                  }
+                }
+                // Retire the extension runtime as well: background notifications must
+                // not revive a thread after the user pressed Stop.
+                for (const taskId of ctx.liveTaskIds) {
+                  yield* offerRuntimeEvent({
+                    ...(yield* makeEventStamp()),
+                    provider: PROVIDER,
+                    ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+                    threadId,
+                    ...(abortedId ? { turnId: abortedId } : {}),
+                    type: "task.completed",
+                    payload: { taskId: RuntimeTaskId.make(taskId), status: "stopped" },
+                  });
+                }
+                yield* stopSession(threadId);
+                yield* offerRuntimeEvent({
+                  ...(yield* makeEventStamp()),
+                  provider: PROVIDER,
+                  ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+                  threadId,
+                  type: "session.exited",
+                  payload: {
+                    reason: "Stopped by user",
+                    exitKind: aborted._tag === "Failure" ? "error" : "graceful",
+                  },
+                });
               }),
-          }).pipe(Effect.timeout("5 seconds"), Effect.result);
-          if (aborted._tag === "Failure") {
-            yield* offerRuntimeEvent({
-              ...(yield* makeEventStamp()),
-              provider: PROVIDER,
-              ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
-              threadId,
-              type: "runtime.warning",
-              payload: {
-                message: `Pi did not acknowledge Stop. The session was retired; an unresponsive extension may still be running on the server. ${aborted.failure.message}`,
-              },
-            });
-          }
-          // SDK settlement waits on this lock and observes the cleared turn.
-          if (
-            ctx.activeTurnId !== undefined &&
-            (abortedId === undefined || ctx.activeTurnId === abortedId)
-          ) {
-            const settledId = abortedId ?? ctx.activeTurnId;
-            if (settledId !== undefined) {
-              ctx.activeTurnId = undefined;
-              ctx.activeAssistantMessage = undefined;
-              ctx.pendingTurnError = undefined;
-              yield* offerRuntimeEvent({
-                ...(yield* makeEventStamp()),
-                provider: PROVIDER,
-                ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
-                threadId,
-                type: "turn.aborted",
-                turnId: settledId,
-                payload: { reason: "Interrupted by user" },
-              });
-            }
-          }
-          // Retire the extension runtime as well: background notifications must
-          // not revive a thread after the user pressed Stop.
-          for (const taskId of ctx.liveTaskIds) {
-            yield* offerRuntimeEvent({
-              ...(yield* makeEventStamp()),
-              provider: PROVIDER,
-              ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
-              threadId,
-              ...(abortedId ? { turnId: abortedId } : {}),
-              type: "task.completed",
-              payload: { taskId: RuntimeTaskId.make(taskId), status: "stopped" },
-            });
-          }
-          yield* stopSession(threadId);
-          yield* offerRuntimeEvent({
-            ...(yield* makeEventStamp()),
-            provider: PROVIDER,
-            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
-            threadId,
-            type: "session.exited",
-            payload: {
-              reason: "Stopped by user",
-              exitKind: aborted._tag === "Failure" ? "error" : "graceful",
-            },
-          });
-        }),
+            ),
       );
 
     const respondToRequest: PiAdapterContract["respondToRequest"] = (
@@ -2039,19 +2221,68 @@ export function makePiAdapter(
       Effect.void;
 
     const respondToUserInput: PiAdapterContract["respondToUserInput"] = (
-      _threadId,
-      _requestId,
-      _answers,
-    ) => Effect.void;
+      threadId,
+      requestId,
+      answers,
+    ) =>
+      Effect.gen(function* () {
+        const ctx = yield* getSession(threadId, "respondToUserInput");
+        yield* Effect.try({
+          try: () => {
+            if (!ctx.session.respondToUserInput?.(requestId, answers)) {
+              throw new Error(`Unknown pending user-input request: ${requestId}`);
+            }
+          },
+          catch: (cause) =>
+            new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "respondToUserInput",
+              detail: cause instanceof Error ? cause.message : "Pi extension response failed.",
+              cause,
+            }),
+        });
+      });
 
     const stopSession: PiAdapterContract["stopSession"] = (threadId) =>
-      Effect.suspend(() => {
+      Effect.gen(function* () {
+        const startupStopped = starting.get(threadId);
+        if (startupStopped) {
+          starting.delete(threadId);
+          yield* Deferred.fail(
+            startupStopped,
+            new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "startSession",
+              detail: "Pi session stopped during startup.",
+            }),
+          );
+        }
         const ctx = sessions.get(threadId);
-        if (!ctx) return Effect.void;
+        if (!ctx) return;
         sessions.delete(threadId);
         ctx.unsubscribe();
         ctx.toolCallArgs.clear();
-        return disposePiResource(() => ctx.session.dispose());
+        yield* Deferred.fail(
+          ctx.stopped,
+          new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: "sendTurn",
+            detail: "Pi session stopped during turn preparation.",
+          }),
+        );
+        for (const requestId of ctx.openUiRequestIds) {
+          yield* offerRuntimeEvent({
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : {}),
+            threadId,
+            type: "user-input.resolved",
+            requestId: RuntimeRequestId.make(requestId),
+            payload: { answers: {} },
+          });
+        }
+        ctx.openUiRequestIds.clear();
+        yield* disposePiResource(() => ctx.session.dispose());
       });
 
     const listSessions: PiAdapterContract["listSessions"] = () =>
@@ -2130,7 +2361,7 @@ export function makePiAdapter(
 
     const stopAll: PiAdapterContract["stopAll"] = () =>
       Effect.suspend(() => {
-        return Effect.forEach([...sessions.keys()], stopSession, {
+        return Effect.forEach(new Set([...sessions.keys(), ...starting.keys()]), stopSession, {
           discard: true,
           concurrency: "unbounded",
         });
@@ -2188,6 +2419,20 @@ export function makePiAdapter(
     const shutdown = () =>
       Effect.gen(function* () {
         closed = true;
+        // A question or startup hook is still preparing a turn, not running
+        // one. Retire it on provider replacement instead of waiting through
+        // the entire turn-drain deadline for an answer it may never receive.
+        yield* Effect.forEach(
+          [...sessions.values()].filter(
+            (ctx) => ctx.session.hasPendingUserInput || ctx.session.isPreparingPrompt,
+          ),
+          (ctx) => stopSession(ctx.threadId),
+          { discard: true, concurrency: "unbounded" },
+        ).pipe(
+          Effect.catchCause((cause) =>
+            Effect.logWarning("Pi extension question cleanup failed.", { cause }),
+          ),
+        );
         yield* waitForActiveTurnsToSettle().pipe(
           Effect.interruptible,
           Effect.ensuring(

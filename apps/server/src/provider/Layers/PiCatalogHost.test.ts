@@ -68,6 +68,27 @@ describe("Pi catalog host", () => {
     assert.strictEqual(thinking?.currentValue, "off");
   });
 
+  it("invalidates its SDK session even when a catalog extension hangs on shutdown", async () => {
+    const extensionPath = NodePath.join(root, "stuck-shutdown.ts");
+    NodeFS.writeFileSync(
+      extensionPath,
+      `
+      export default function(pi) {
+        pi.on("session_shutdown", async () => { await new Promise(() => {}); });
+      }
+    `,
+    );
+    const host = await create({ additionalExtensionPaths: [extensionPath] });
+    vi.useFakeTimers();
+    try {
+      const disposal = host.dispose();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await disposal;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("lists slash commands registered by loaded extensions", async () => {
     const host = await create({ additionalExtensionPaths: [fixturePath] });
     const commands = host.getExtensionSlashCommands();
