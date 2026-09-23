@@ -40,8 +40,7 @@ export function createPiExtensionUI(
     }
   >();
   const warned = new Set<string>();
-  const lastText = new Map<string, string>();
-  const textUpdates = new Map<string, string>();
+  const lastText = new Map<string, { text: string; message: string }>();
   let textTimer: ReturnType<typeof setTimeout> | undefined;
   const showText = (kind: string, key: string, value: string | undefined) => {
     if (stopped) return;
@@ -49,25 +48,24 @@ export function createPiExtensionUI(
     const id = `${kind}:${displayKey}`;
     if (value === undefined) {
       lastText.delete(id);
-      textUpdates.delete(id);
       return;
     }
     const text = textForDisplay(value).slice(0, 4096).trim();
-    if (!text || lastText.get(id) === text) return;
+    if (!text || lastText.get(id)?.text === text) return;
     if (!lastText.has(id) && lastText.size >= 64) {
       const oldest = lastText.keys().next().value!;
       lastText.delete(oldest);
-      textUpdates.delete(oldest);
     }
-    lastText.set(id, text);
-    textUpdates.set(id, `${displayKey}: ${text}`);
+    lastText.set(id, { text, message: `${displayKey}: ${text}` });
     if (textTimer !== undefined) return;
     // @effect-diagnostics-next-line globalTimers:off - Coalesce SDK callbacks before publishing bounded text snapshots.
     textTimer = setTimeout(() => {
       textTimer = undefined;
-      const message = [...textUpdates.values()].join("\n").slice(0, 8192);
-      textUpdates.clear();
-      if (message) emit({ type: "rove_ui_notify", message, level: "info" });
+      const message = [...lastText.values()]
+        .map((entry) => entry.message)
+        .join("\n")
+        .slice(0, 8192);
+      if (message) emit({ type: "rove_ui_status", message });
     }, 500);
     textTimer.unref();
   };
@@ -208,7 +206,6 @@ export function createPiExtensionUI(
       stopped = true;
       if (textTimer !== undefined) clearTimeout(textTimer);
       textTimer = undefined;
-      textUpdates.clear();
       lastText.clear();
       for (const request of pending.values()) request.cancel();
     },
