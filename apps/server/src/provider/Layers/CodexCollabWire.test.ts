@@ -163,6 +163,7 @@ describe("routeCodexChildNotification", () => {
       "thread/compacted",
       "thread/name/updated",
       "thread/tokenUsage/updated",
+      "error",
       "turn/started",
       "turn/completed",
       "turn/plan/updated",

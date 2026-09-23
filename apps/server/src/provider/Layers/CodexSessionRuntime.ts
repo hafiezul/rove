@@ -1052,6 +1052,7 @@ function shouldSuppressChildConversationNotification(
     method === "thread/settings/updated" ||
     method === "thread/tokenUsage/updated" ||
     method === "model/rerouted" ||
+    method === "error" ||
     method === "turn/started" ||
     method === "turn/completed" ||
     method === "turn/plan/updated" ||
@@ -1920,6 +1921,14 @@ export const makeCodexSessionRuntime = (
                 yield* Ref.update(collabChildLiveTurnsRef, (current) => {
                   const next = new Map(current);
                   next.set(foreignThreadId, foreignTurnId);
+                  return next;
+                });
+              }
+            } else if (notification.method === "error") {
+              if (notification.params.willRetry !== true) {
+                yield* Ref.update(collabChildLiveTurnsRef, (current) => {
+                  const next = new Map(current);
+                  next.delete(foreignThreadId);
                   return next;
                 });
               }

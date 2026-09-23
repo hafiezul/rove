@@ -344,6 +344,104 @@ describe("CodexSessionRuntime collab integration", () => {
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 
+  it.effect("keeps pre-registration child errors off the parent runtime", () =>
+    Effect.gen(function* () {
+      const childTurnStarted = wireFixture.notifications.find(
+        (entry) =>
+          entry.method === "turn/started" &&
+          (entry.params as { threadId?: string }).threadId === CHILD_A,
+      );
+      const marker = wireFixture.notifications.find(
+        (entry) =>
+          entry.method === "item/started" &&
+          (entry.params as { threadId?: string }).threadId === ROOT,
+      );
+      assert.isDefined(childTurnStarted);
+      assert.isDefined(marker);
+
+      const childTurnId = `${CHILD_A}-turn-disconnect`;
+      const script = {
+        rootThreadId: ROOT,
+        holdTurnOpen: true,
+        notifications: [
+          {
+            ...childTurnStarted,
+            params: {
+              ...childTurnStarted.params,
+              threadId: CHILD_A,
+              turn: { ...childTurnStarted.params.turn, id: childTurnId },
+            },
+          },
+          {
+            method: "error",
+            params: {
+              threadId: CHILD_A,
+              turnId: childTurnId,
+              willRetry: true,
+              error: { message: "Reconnecting... 1/5" },
+            },
+          },
+          {
+            method: "error",
+            params: {
+              threadId: CHILD_A,
+              turnId: childTurnId,
+              willRetry: false,
+              error: { message: "stream disconnected before completion" },
+            },
+          },
+          marker,
+        ],
+      };
+      // @effect-diagnostics-next-line preferSchemaOverJson:off
+      NodeFS.writeFileSync(scriptPath, JSON.stringify(script), "utf8");
+      const interruptsPath = `${scriptPath}.interrupts`;
+      NodeFS.rmSync(interruptsPath, { force: true });
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          NodeFS.rmSync(scriptPath, { force: true });
+          NodeFS.rmSync(interruptsPath, { force: true });
+        }),
+      );
+
+      const runtime = yield* makeCodexSessionRuntime({
+        threadId: ThreadId.make("thread-collab-child-error"),
+        binaryPath: peerPath,
+        cwd: NodeOS.tmpdir(),
+        runtimeMode: "full-access",
+        environment: { ...process.env, ROVE_CODEX_COLLAB_SCRIPT: scriptPath },
+      });
+      const eventsFiber = yield* runtime.events.pipe(
+        Stream.takeUntil((event) => event.method === "item/started"),
+        Stream.runCollect,
+        Effect.forkScoped,
+      );
+
+      yield* runtime.start();
+      yield* runtime.sendTurn({ input: "spawn a child that disconnects" });
+      const events = Array.from(yield* Fiber.join(eventsFiber));
+      assert.isFalse(
+        events.some((event) => event.method === "error"),
+        "child errors must not reach the parent runtime",
+      );
+      assert.equal((yield* runtime.getSession).status, "running");
+
+      yield* runtime.interruptTurn();
+      const interrupted = NodeFS.readFileSync(interruptsPath, "utf8")
+        .trim()
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as { threadId?: string });
+      assert.deepEqual(
+        interrupted.map((entry) => entry.threadId),
+        [ROOT],
+        "terminal child errors must clear the stale child turn before Stop",
+      );
+
+      yield* runtime.close;
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
   it.effect("does not delay the parent turn when the child lookup fails", () =>
     Effect.gen(function* () {
       yield* Effect.addFinalizer(() =>
