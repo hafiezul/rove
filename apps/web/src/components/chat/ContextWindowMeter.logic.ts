@@ -105,7 +105,7 @@ export function formatContextWindowCompactionMessage(
     return `Compacts automatically at ${autoCompactThreshold.toLocaleString("en-US")} tokens.`;
   }
   return modelDisplayName
-    ? `Context for ${modelDisplayName} compacts automatically when needed.`
+    ? `Compacts as needed for ${modelDisplayName}.`
     : "Context compacts automatically when needed.";
 }
 

@@ -122,7 +122,7 @@ describe("resolveContextWindowModelDisplayName", () => {
 describe("formatContextWindowCompactionMessage", () => {
   it("describes compaction in terms of the selected model", () => {
     expect(formatContextWindowCompactionMessage("GPT-5.6 Sol")).toBe(
-      "Context for GPT-5.6 Sol compacts automatically when needed.",
+      "Compacts as needed for GPT-5.6 Sol.",
     );
   });
 

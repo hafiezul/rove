@@ -1787,6 +1787,11 @@ it.layer(testLayer)("PiAdapter", (it) => {
         maxTokens: 400_000,
         totalProcessedTokens: 208,
         totalProcessedTokensScope: "activeBranch",
+        inputTokens: 181,
+        tokenBreakdownScope: "activeBranch",
+        cachedInputTokens: 31,
+        cacheCreationTokens: 40,
+        outputTokens: 27,
         compactsAutomatically: true,
       });
     }),
@@ -1986,6 +1991,11 @@ it.layer(testLayer)("PiAdapter", (it) => {
         maxTokens: 400_000,
         totalProcessedTokens: 120,
         totalProcessedTokensScope: "activeBranch",
+        inputTokens: 100,
+        tokenBreakdownScope: "activeBranch",
+        cachedInputTokens: 0,
+        cacheCreationTokens: 0,
+        outputTokens: 20,
         compactsAutomatically: true,
       });
     }),
