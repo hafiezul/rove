@@ -9,6 +9,7 @@ import {
 import { feedbackBannerItem } from "./chat/ComposerFeedback";
 import { usageLimitsBannerItem } from "./chat/ComposerUsageLimits";
 import { derivePendingRequests } from "@t3tools/client-runtime/pending-requests";
+import { latestPiExtensionStatuses } from "@t3tools/client-runtime/pi-extension-status";
 import {
   questionAttachmentDraftId,
   questionAttachmentDraftPrefix,
@@ -385,6 +386,7 @@ import {
 } from "./chat/ThreadErrorBanner";
 import type { ComposerBannerStackItem } from "./chat/ComposerBannerStack";
 import { ComposerSurface } from "./chat/ComposerSurface";
+import { PiExtensionStatus } from "./chat/PiExtensionStatus";
 import {
   hasAvailableCompactionProvider,
   hasDismissedResumeCompaction,
@@ -2868,6 +2870,13 @@ export default function ChatView(props: ChatViewProps) {
     [threadActivities],
   );
   const workLogEntries = useMemo(() => deriveWorkLogEntries(threadActivities), [threadActivities]);
+  const piExtensionStatuses = useMemo(
+    () =>
+      activeThread?.session?.providerName === "pi" && phase !== "disconnected"
+        ? latestPiExtensionStatuses(threadActivities)
+        : [],
+    [activeThread?.session?.providerName, phase, threadActivities],
+  );
   // Native subagent fold: memoized by activity-list identity, shared by the
   // Agents surface, live strip, and workflow cards. v2Projection is null
   // until orchestration-v2 lands (source precedence lives in the derive).
@@ -9599,6 +9608,7 @@ export default function ChatView(props: ChatViewProps) {
                         : undefined
                     }
                   >
+                    <PiExtensionStatus statuses={piExtensionStatuses} />
                     <ComposerSurface.Shell contextStrip={showComposerContextStrip}>
                       <ComposerSurface.Host>
                         <div ref={attachDraftHeroComposerAnchorRef} className="relative z-10">

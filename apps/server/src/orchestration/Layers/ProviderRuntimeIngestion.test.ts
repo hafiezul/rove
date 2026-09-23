@@ -6,6 +6,7 @@ import * as NodeChildProcess from "node:child_process";
 
 import {
   OrchestrationReadModel,
+  PiExtensionStatusSnapshot,
   ProviderDriverKind,
   ProviderRuntimeEvent,
   ProviderSession,
@@ -35,6 +36,7 @@ import * as ManagedRuntime from "effect/ManagedRuntime";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Scope from "effect/Scope";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as Tracer from "effect/Tracer";
 import { it as effectIt } from "@effect/vitest";
@@ -4089,6 +4091,97 @@ describe("ProviderRuntimeIngestion", () => {
     expect(differentTurn.id).not.toBe(first.id);
     expect(unkeyed.id).toBe(asEventId("notify-event"));
     expect(warning.id).toBe(asEventId("warning-event"));
+  });
+
+  it("projects Pi status snapshots as one replaceable, clearable thread state", async () => {
+    const isStatusSnapshot = Schema.is(PiExtensionStatusSnapshot);
+    const harness = await createHarness();
+    const base = {
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      threadId: asThreadId("thread-1"),
+    };
+    harness.emit({
+      ...base,
+      type: "runtime.ui.status",
+      eventId: asEventId("pi-status-1"),
+      payload: {
+        statuses: [
+          { key: "quota", text: "80%" },
+          { key: "tps", text: "90 t/s" },
+        ],
+      },
+    });
+    harness.emit({
+      ...base,
+      type: "runtime.ui.status",
+      eventId: asEventId("pi-status-2"),
+      payload: { statuses: [{ key: "quota", text: "80%" }] },
+    });
+    harness.emit({
+      ...base,
+      type: "runtime.info",
+      eventId: asEventId("pi-notice"),
+      payload: { message: "Extension notified" },
+    });
+    const withStatus = await waitForThread(
+      harness.readModel,
+      (thread) =>
+        thread.activities.some(
+          (activity) =>
+            activity.id === "pi-extension-status:thread-1" &&
+            isStatusSnapshot(activity.payload) &&
+            activity.payload.statuses.length === 1,
+        ) && thread.activities.some((activity) => activity.id === "pi-notice"),
+    );
+    expect(
+      withStatus.activities.filter((activity) => activity.id === "pi-extension-status:thread-1"),
+    ).toMatchObject([
+      {
+        kind: "pi.extension-status",
+        payload: { statuses: [{ key: "quota", text: "80%" }] },
+        turnId: null,
+      },
+    ]);
+    expect(withStatus.activities.find((activity) => activity.id === "pi-notice")?.kind).toBe(
+      "runtime.info",
+    );
+
+    harness.emit({
+      ...base,
+      type: "runtime.ui.status",
+      eventId: asEventId("pi-status-clear"),
+      payload: { statuses: [] },
+    });
+    const cleared = await waitForThread(harness.readModel, (thread) =>
+      thread.activities.some(
+        (activity) =>
+          activity.id === "pi-extension-status:thread-1" &&
+          isStatusSnapshot(activity.payload) &&
+          activity.payload.statuses.length === 0,
+      ),
+    );
+    expect(
+      cleared.activities.filter((activity) => activity.id === "pi-extension-status:thread-1"),
+    ).toHaveLength(1);
+  });
+
+  it("clears Pi extension status on session boundaries", () => {
+    const base = {
+      provider: ProviderDriverKind.make("pi"),
+      threadId: asThreadId("thread-1"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    for (const type of ["session.started", "session.exited"] as const) {
+      expect(
+        runtimeEventToActivities({
+          ...base,
+          type,
+          eventId: asEventId(type),
+          payload: {},
+        }),
+      ).toMatchObject([{ id: "pi-extension-status:thread-1", payload: { statuses: [] } }]);
+    }
   });
 
   it("keeps the session running when a runtime.warning arrives during an active turn", async () => {

@@ -610,12 +610,18 @@ describe("headless Pi extensions", () => {
       export default function(pi) {
         pi.registerCommand("statuses", { handler: async (_args, ctx) => {
           for (let i = 0; i < 1000; i++) ctx.ui.setStatus("progress", ctx.ui.theme.fg("accent", "Step " + i));
+          ctx.ui.setStatus("second", "Remaining");
+          ctx.ui.setStatus("progress", "Step 1000");
           ctx.ui.setWorkingMessage("Thinking");
           ctx.ui.setWidget("todo", ["One", "Two"]);
           ctx.ui.setStatus("cleared", "must disappear");
           ctx.ui.setStatus("cleared", undefined);
           await ctx.ui.custom(() => { throw new Error("Must not execute terminal code"); });
           await ctx.ui.custom(() => { throw new Error("Must not execute terminal code"); });
+        }});
+        pi.registerCommand("clear-statuses", { handler: async (_args, ctx) => {
+          ctx.ui.setStatus("progress", undefined);
+          ctx.ui.setStatus("second", "");
         }});
       }
     `,
@@ -632,13 +638,28 @@ describe("headless Pi extensions", () => {
     expect(
       events.filter((event) => event.type === "rove_ui_notify" && event.level === "info"),
     ).toHaveLength(0);
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(249);
+    expect(events.filter((event) => event.type === "rove_ui_status")).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
     expect(events.filter((event) => event.type === "rove_ui_status")).toEqual([
       {
         type: "rove_ui_status",
-        message: "progress: Step 999\nPi: Thinking\ntodo: One\nTwo",
+        statuses: [
+          { key: "progress", text: "Step 1000" },
+          { key: "second", text: "Remaining" },
+        ],
       },
     ]);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(events.filter((event) => event.type === "rove_ui_text")).toEqual([
+      { type: "rove_ui_text", message: "Pi: Thinking\ntodo: One\nTwo" },
+    ]);
+    await session.prompt("/clear-statuses");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(events.filter((event) => event.type === "rove_ui_status").at(-1)).toEqual({
+      type: "rove_ui_status",
+      statuses: [],
+    });
     await session.prompt("/statuses");
     await session.dispose();
     const count = events.length;

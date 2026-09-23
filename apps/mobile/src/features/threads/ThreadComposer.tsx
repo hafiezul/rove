@@ -10,6 +10,7 @@ import {
   type MessageId,
   type ModelSelection,
   type OrchestrationThreadShell,
+  type PiExtensionStatusSnapshot,
   type ProviderInteractionMode,
   type RuntimeMode,
   type ServerConfig as T3ServerConfig,
@@ -87,6 +88,7 @@ import {
 } from "../../lib/modelOptions";
 import { useProviderResources } from "../../lib/useProviderResources";
 import { ProviderExtensions } from "./ProviderExtensions";
+import { PiExtensionStatus } from "./PiExtensionStatus";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import type { RemoteClientConnectionState } from "../../lib/connection";
 import { resolveProviderOptionDescriptors } from "../../lib/providerOptions";
@@ -132,6 +134,7 @@ export interface ThreadComposerProps {
   readonly connectionState: RemoteClientConnectionState;
   readonly environmentLabel: string | null;
   readonly selectedThread: OrchestrationThreadShell;
+  readonly piExtensionStatuses: PiExtensionStatusSnapshot["statuses"];
   readonly hasCompactableConversation: boolean;
   readonly serverConfig: T3ServerConfig | null;
   readonly queueCount: number;
@@ -680,6 +683,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
           </Pressable>
         ) : null}
 
+        <PiExtensionStatus statuses={props.piExtensionStatuses} />
         <ComposerSurface
           style={
             isExpanded

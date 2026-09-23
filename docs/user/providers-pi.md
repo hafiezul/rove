@@ -113,7 +113,7 @@ Standard extension selections, confirmations, and text questions appear in the t
 
 Multi-line editor requests use a text question. Existing text is shown as context rather than inserted into your composer draft. Selection dialogs support up to 256 choices.
 
-Extension notifications and visible custom-message text appear in activity. Text status updates and string-array widgets appear as rate-limited activity snapshots, not persistent terminal widgets. Hidden extension context stays hidden.
+Extension notifications and visible custom-message text appear in activity. Status text from `ctx.ui.setStatus()` appears above the composer and updates while the extension supplies a value. If the extension clears a status, it disappears. String-array widgets remain rate-limited activity snapshots. Hidden extension context stays hidden.
 
 ## Limitations
 

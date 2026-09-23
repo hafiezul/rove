@@ -18,6 +18,7 @@ import type {
   MessageId,
   ModelSelection,
   OrchestrationThreadShell,
+  PiExtensionStatusSnapshot,
   ProviderApprovalDecision,
   ProviderInteractionMode,
   RuntimeMode,
@@ -117,6 +118,7 @@ export interface ThreadDetailScreenProps {
   readonly feedbackSubmissions: ReadonlyArray<CodexFeedbackSubmission>;
   readonly onDismissFeedback: (id: MessageId) => void;
   readonly selectedThreadFeed: ReadonlyArray<ThreadFeedEntry>;
+  readonly piExtensionStatuses: PiExtensionStatusSnapshot["statuses"];
   readonly activeWorkStartedAt: string | null;
   readonly isCompacting: boolean;
   /**
@@ -1035,6 +1037,7 @@ export const ThreadDetailScreen = memo(function ThreadDetailScreen(props: Thread
                     connectionState={props.connectionStateLabel}
                     environmentLabel={props.environmentLabel}
                     selectedThread={props.selectedThread}
+                    piExtensionStatuses={props.piExtensionStatuses}
                     hasCompactableConversation={hasCompactableConversation && !props.isCompacting}
                     serverConfig={props.serverConfig}
                     queueCount={props.selectedThreadQueueCount}

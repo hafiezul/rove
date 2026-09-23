@@ -7,7 +7,11 @@ import {
   type ExtensionUIContext,
   type ExtensionUIDialogOptions,
 } from "@earendil-works/pi-coding-agent";
-import type { ProviderUserInputAnswers, UserInputQuestion } from "@t3tools/contracts";
+import type {
+  PiExtensionStatusSnapshot,
+  ProviderUserInputAnswers,
+  UserInputQuestion,
+} from "@t3tools/contracts";
 import type { PiSessionEventLike } from "./PiAdapter.ts";
 
 const textForDisplay = (text: string) =>
@@ -41,7 +45,38 @@ export function createPiExtensionUI(
   >();
   const warned = new Set<string>();
   const lastText = new Map<string, { text: string; message: string }>();
+  const statuses = new Map<string, string>();
   let textTimer: ReturnType<typeof setTimeout> | undefined;
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+  const showStatus = (key: string, value: string | undefined) => {
+    if (stopped) return;
+    const displayKey = textForDisplay(key).slice(0, 120).trim() || "Pi extension";
+    const text = value === undefined ? "" : textForDisplay(value).slice(0, 4096).trim();
+    if (statuses.get(displayKey) === text || (!text && !statuses.has(displayKey))) return;
+    if (!text) {
+      statuses.delete(displayKey);
+    } else {
+      if (!statuses.has(displayKey) && statuses.size >= 64) {
+        statuses.delete(statuses.keys().next().value!);
+      }
+      statuses.set(displayKey, text);
+    }
+    if (statusTimer !== undefined) return;
+    // @effect-diagnostics-next-line globalTimers:off - Coalesce extension-owned UI bursts before sending a bounded snapshot.
+    statusTimer = setTimeout(() => {
+      statusTimer = undefined;
+      let remaining = 8192;
+      const visible: PiExtensionStatusSnapshot["statuses"][number][] = [];
+      for (const [statusKey, statusText] of statuses) {
+        if (remaining <= statusKey.length) break;
+        const text = statusText.slice(0, remaining - statusKey.length);
+        visible.push({ key: statusKey, text });
+        remaining -= statusKey.length + text.length;
+      }
+      emit({ type: "rove_ui_status", statuses: visible });
+    }, 250);
+    statusTimer.unref();
+  };
   const showText = (kind: string, key: string, value: string | undefined) => {
     if (stopped) return;
     const displayKey = textForDisplay(key).slice(0, 120);
@@ -65,7 +100,7 @@ export function createPiExtensionUI(
         .map((entry) => entry.message)
         .join("\n")
         .slice(0, 8192);
-      if (message) emit({ type: "rove_ui_status", message });
+      if (message) emit({ type: "rove_ui_text", message });
     }, 500);
     textTimer.unref();
   };
@@ -172,7 +207,7 @@ export function createPiExtensionUI(
       // Match Pi's RPC fallback without executing a terminal component factory.
       return fallback.custom(factory, options);
     },
-    setStatus: (key, text) => showText("status", key, text),
+    setStatus: showStatus,
     setWorkingMessage: (text) => showText("working", "Pi", text),
     setWidget: (key, content) => {
       if (content === undefined || Array.isArray(content)) {
@@ -205,8 +240,11 @@ export function createPiExtensionUI(
     stop: () => {
       stopped = true;
       if (textTimer !== undefined) clearTimeout(textTimer);
+      if (statusTimer !== undefined) clearTimeout(statusTimer);
       textTimer = undefined;
+      statusTimer = undefined;
       lastText.clear();
+      statuses.clear();
       for (const request of pending.values()) request.cancel();
     },
   };

@@ -5,6 +5,7 @@ import {
   ProviderDriverKind,
   ThreadId,
   type OrchestrationEvent,
+  type OrchestrationThreadActivity,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { it as effectIt } from "@effect/vitest";
@@ -1172,7 +1173,7 @@ describe("orchestration projector", () => {
     expect(thread?.checkpoints.at(-1)?.turnId).toBe("turn-599");
   });
 
-  effectIt.effect("keeps the worktree setup record past the activity retention cap", () =>
+  effectIt.effect("keeps worktree setup and Pi status past the activity retention cap", () =>
     Effect.gen(function* () {
       const createdAt = "2026-03-01T10:00:00.000Z";
       const threadId = "thread-setup-retained";
@@ -1201,7 +1202,12 @@ describe("orchestration projector", () => {
           },
         }),
       );
-      const activityEvent = (sequence: number, id: string, kind: string) =>
+      const activityEvent = (
+        sequence: number,
+        id: string,
+        kind: string,
+        payload: OrchestrationThreadActivity["payload"] = {},
+      ) =>
         makeEvent({
           sequence,
           type: "thread.activity-appended",
@@ -1216,7 +1222,7 @@ describe("orchestration projector", () => {
               tone: "info",
               kind,
               summary: kind,
-              payload: {},
+              payload,
               turnId: null,
               createdAt: `2026-03-01T10:${String(Math.floor(sequence / 60) % 60).padStart(2, "0")}:${String(sequence % 60).padStart(2, "0")}.000Z`,
             },
@@ -1226,15 +1232,22 @@ describe("orchestration projector", () => {
         afterCreate,
         activityEvent(2, `worktree-setup:${threadId}`, "worktree-setup"),
       );
+      model = yield* projectEvent(
+        model,
+        activityEvent(3, `pi-extension-status:${threadId}`, "pi.extension-status", {
+          statuses: [{ key: "quota", text: "80%" }],
+        }),
+      );
       for (let index = 0; index < 600; index += 1) {
         model = yield* projectEvent(
           model,
-          activityEvent(3 + index, `tool-${index}`, "tool.completed"),
+          activityEvent(4 + index, `tool-${index}`, "tool.completed"),
         );
       }
       const thread = model.threads.find((entry) => entry.id === threadId);
-      expect(thread?.activities).toHaveLength(501);
+      expect(thread?.activities).toHaveLength(502);
       expect(thread?.activities[0]?.id).toBe(`worktree-setup:${threadId}`);
+      expect(thread?.activities[1]?.id).toBe(`pi-extension-status:${threadId}`);
     }),
   );
 });

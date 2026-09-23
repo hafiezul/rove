@@ -16,7 +16,6 @@ import {
   ApprovalRequestId,
   PiSettings,
   ProviderInstanceId,
-  RuntimeItemId,
   ThreadId,
   TurnId,
   type ChatImageAttachment,
@@ -692,7 +691,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect("maps extension status identity while keeping notifications append-only", () =>
+  it.effect("keeps extension status snapshots separate from append-only notifications", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
@@ -701,29 +700,32 @@ it.layer(testLayer)("PiAdapter", (it) => {
       yield* collectEvents(adapter, eventsRef);
 
       const { turnId } = yield* adapter.sendTurn({ threadId, input: "status" });
-      fake.emit({ type: "rove_ui_status", message: "progress: Step 9" });
-      fake.emit({ type: "rove_ui_status", message: "progress: Step 10" });
+      fake.emit({ type: "rove_ui_status", statuses: [{ key: "progress", text: "Step 9" }] });
+      fake.emit({ type: "rove_ui_status", statuses: [{ key: "progress", text: "Step 10" }] });
+      fake.emit({ type: "rove_ui_status", statuses: [] });
+      fake.emit({ type: "rove_ui_text", message: "Pi: Thinking" });
       fake.emit({ type: "rove_ui_notify", level: "info", message: "Done one thing" });
 
       const events = yield* waitFor(
         eventsRef,
-        (entries) => entries.filter((event) => event.type === "runtime.info").length >= 3,
+        (entries) =>
+          entries.filter((event) => event.type === "runtime.ui.status").length >= 3 &&
+          entries.filter((event) => event.type === "runtime.info").length >= 2,
       );
+      const statuses = events.filter((event) => event.type === "runtime.ui.status");
+      assert.deepEqual(
+        statuses.map((event) => event.payload.statuses),
+        [[{ key: "progress", text: "Step 9" }], [{ key: "progress", text: "Step 10" }], []],
+      );
+      assert.isTrue(statuses.every((event) => event.turnId === undefined));
       const info = events.filter((event) => event.type === "runtime.info");
-      const statusItemId = RuntimeItemId.make("pi-extension-ui-status");
-      assert.deepInclude(info[0], {
-        itemId: statusItemId,
-        turnId,
-        payload: { message: "progress: Step 9" },
-      });
-      assert.deepInclude(info[1], {
-        itemId: statusItemId,
-        turnId,
-        payload: { message: "progress: Step 10" },
-      });
-      assert.strictEqual(info[2]?.itemId, undefined);
-      assert.strictEqual(info[2]?.turnId, turnId);
-      assert.strictEqual(info[2]?.payload.message, "Done one thing");
+      assert.lengthOf(info, 2);
+      assert.strictEqual(info[0]?.itemId, "pi-extension-ui-status");
+      assert.strictEqual(info[0]?.turnId, turnId);
+      assert.strictEqual(info[0]?.payload.message, "Pi: Thinking");
+      assert.strictEqual(info[1]?.itemId, undefined);
+      assert.strictEqual(info[1]?.turnId, turnId);
+      assert.strictEqual(info[1]?.payload.message, "Done one thing");
       yield* adapter.stopAll();
     }),
   );

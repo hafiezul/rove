@@ -22,6 +22,7 @@ import {
 import { extractToolActivityPresentation } from "@t3tools/client-runtime/work-log/tool-presentation";
 import {
   isToolLifecycleItemType,
+  PI_EXTENSION_STATUS_ACTIVITY_KIND,
   type AssetResource,
   type OrchestrationLatestTurn,
   type OrchestrationThreadActivity,
@@ -490,6 +491,7 @@ export function deriveWorkLogEntries(
     if (activity.kind === "task.updated") continue;
     if (activity.kind === "tool.progress") continue;
     if (activity.kind === "context-window.updated") continue;
+    if (activity.kind === PI_EXTENSION_STATUS_ACTIVITY_KIND) continue;
     if (activity.kind === "turn.plan.updated") continue;
     if (activity.summary === "Checkpoint captured") continue;
     if (isNoContentRuntimeWarning(activity)) continue;

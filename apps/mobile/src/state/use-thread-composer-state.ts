@@ -16,6 +16,7 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
+import { latestPiExtensionStatuses } from "@t3tools/client-runtime/pi-extension-status";
 import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
 import { nextPastedTextFileName, pastedTextDisposition } from "@t3tools/client-runtime/text-paste";
 import {
@@ -195,6 +196,18 @@ export function useThreadComposerState() {
   );
   const selectedThreadMessages = selectedThreadDetail?.messages;
   const selectedThreadActivities = selectedThreadDetail?.activities;
+  const piExtensionStatuses = useMemo(
+    () =>
+      selectedThreadDetail?.session?.providerName === "pi" &&
+      selectedThreadDetail.session.status !== "stopped"
+        ? latestPiExtensionStatuses(selectedThreadActivities ?? [])
+        : [],
+    [
+      selectedThreadActivities,
+      selectedThreadDetail?.session?.providerName,
+      selectedThreadDetail?.session?.status,
+    ],
+  );
   // A thread whose creation has not delivered its turn yet: the prompt only
   // exists in the outbox, so it is appended to whatever the server has. The
   // detail is usually present but empty during a worktree checkout, so this
@@ -810,6 +823,7 @@ export function useThreadComposerState() {
     feedbackSubmissions,
     dismissFeedback,
     selectedThreadFeed,
+    piExtensionStatuses,
     selectedThreadQueueCount,
     selectedThreadQueuedMessages,
     dispatchingQueuedMessageId,

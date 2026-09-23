@@ -389,6 +389,35 @@ function makeThread(
 }
 
 describe("buildThreadFeed", () => {
+  it("hides Pi status from the feed without hiding extension notifications", () => {
+    const thread = makeThread({
+      id: ThreadId.make("thread-pi-status"),
+      projectId: ProjectId.make("project-1"),
+      title: "Pi status",
+      activities: [
+        makeActivity({
+          id: EventId.make("status"),
+          kind: "pi.extension-status",
+          summary: "Pi extension status",
+          createdAt: "2026-04-01T00:00:00.000Z",
+          payload: { statuses: [{ key: "quota", text: "80%" }] },
+        }),
+        makeActivity({
+          id: EventId.make("notice"),
+          kind: "runtime.info",
+          summary: "Extension notified",
+          createdAt: "2026-04-01T00:00:01.000Z",
+          payload: { message: "Extension notified" },
+        }),
+      ],
+    });
+    const [entry] = buildThreadFeed(thread);
+    expect(entry?.type).toBe("activity-group");
+    if (entry?.type === "activity-group") {
+      expect(entry.activities.map((activity) => activity.id)).toEqual(["notice"]);
+    }
+  });
+
   it("keeps streaming turn.reasoning activity in the active feed", () => {
     const turnId = TurnId.make("turn-reasoning-streaming");
     const thread = makeThread({

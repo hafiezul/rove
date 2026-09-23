@@ -3002,6 +3002,11 @@ projectionSnapshotLayer("ProjectionSnapshotQuery windowed thread detail", (it) =
             '2026-03-01T00:00:01.000Z'
           ),
           (
+            'pi-extension-status:thread-w', 'thread-w', NULL, 'info', 'pi.extension-status',
+            'Pi extension status', '{"statuses":[{"key":"quota","text":"80%"}]}', NULL,
+            '2026-03-01T00:00:01.000Z'
+          ),
+          (
             'user-input-old', 'thread-w', NULL, 'approval', 'user-input.requested',
             'Answer old question', '{"requestId":"input-1"}', NULL,
             '2026-03-01T00:00:02.000Z'
@@ -3048,7 +3053,8 @@ projectionSnapshotLayer("ProjectionSnapshotQuery windowed thread detail", (it) =
         const ids = new Set(
           detailWithPinnedRequests.value.activities.map((activity) => activity.id),
         );
-        assert.equal(detailWithPinnedRequests.value.activities.length, 503);
+        assert.equal(detailWithPinnedRequests.value.activities.length, 504);
+        assert.equal(ids.has(asEventId("pi-extension-status:thread-w")), true);
         assert.equal(ids.has(asEventId("approval-old")), true);
         assert.equal(ids.has(asEventId("user-input-old")), true);
         assert.equal(ids.has(asEventId("user-input-closed")), false);
@@ -3063,7 +3069,8 @@ projectionSnapshotLayer("ProjectionSnapshotQuery windowed thread detail", (it) =
         const ids = new Set(
           windowWithPinnedRequests.value.thread.activities.map((activity) => activity.id),
         );
-        assert.equal(windowWithPinnedRequests.value.thread.activities.length, 503);
+        assert.equal(windowWithPinnedRequests.value.thread.activities.length, 504);
+        assert.equal(ids.has(asEventId("pi-extension-status:thread-w")), true);
         assert.equal(ids.has(asEventId("approval-old")), true);
         assert.equal(ids.has(asEventId("user-input-old")), true);
         assert.equal(ids.has(asEventId("user-input-closed")), false);
