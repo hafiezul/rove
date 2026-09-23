@@ -596,8 +596,8 @@ function PairingForm({
               {isPairing ? "Pairing..." : "Pair"}
             </Button>
           </div>
-          <CollapsiblePanel className="pt-3">
-            <p className="text-sm text-muted-foreground">
+          <CollapsiblePanel>
+            <p className="pt-3 text-sm text-muted-foreground">
               On the computer with your code, open Settings → Connections and create a pairing link.
               If you run from source without the desktop app, start the server first and run{" "}
               <code className="font-mono">node apps/server/src/bin.ts pair</code> from the checkout.
