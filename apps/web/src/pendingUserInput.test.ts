@@ -39,6 +39,16 @@ const multiSelectQuestion = {
   multiSelect: true,
 } as const;
 
+const editorQuestion = {
+  id: "edit",
+  header: "Editor",
+  question: "Edit the text",
+  options: [],
+  allowCustomAnswer: true,
+  inputMode: "multiline",
+  multiSelect: false,
+} as const;
+
 const nativeChoiceQuestion = {
   id: "result",
   header: "Result",
@@ -195,6 +205,32 @@ describe("buildPendingUserInputAnswers", () => {
     ).toEqual({
       areas: ["Server", "Web"],
     });
+  });
+
+  it("preserves an editor's exact answer, including empty and whitespace-only edits", () => {
+    const question = { ...editorQuestion, initialAnswer: "Original\n" };
+    expect(buildPendingUserInputAnswers([question], {})).toEqual({ edit: "Original\n" });
+
+    for (const text of ["  first\nsecond\n", "  \n", ""]) {
+      const drafts = { edit: setPendingUserInputCustomAnswer(undefined, text) };
+      expect(buildPendingUserInputAnswers([question], drafts)).toEqual({ edit: text });
+      expect(derivePendingUserInputProgress([question], drafts, 0)).toMatchObject({
+        customAnswer: text,
+        resolvedAnswer: text,
+        usingCustomAnswer: true,
+        canAdvance: true,
+        isComplete: true,
+      });
+    }
+    expect(buildPendingUserInputAnswers([editorQuestion], {})).toEqual({ edit: "" });
+  });
+
+  it("continues trimming ordinary free-text answers", () => {
+    expect(
+      buildPendingUserInputAnswers([singleSelectQuestion], {
+        scope: { customAnswer: "  Use Bun  " },
+      }),
+    ).toEqual({ scope: "Use Bun" });
   });
 
   it("returns null when any question is unanswered", () => {

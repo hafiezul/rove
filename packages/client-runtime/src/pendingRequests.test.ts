@@ -265,12 +265,14 @@ describe("pending questions", () => {
     expect(derivePendingRequests([requested]).userInputs[0]?.questions).toEqual([question]);
   });
 
-  it("keeps free-text questions without suggested answers", () => {
+  it("preserves an editor's multiline initial answer across the activity boundary", () => {
     const question = {
       id: "0",
       header: "Question",
-      question: "What should it be named?",
+      question: "Edit this text",
       options: [],
+      initialAnswer: "First line\nSecond line",
+      inputMode: "multiline",
       allowCustomAnswer: true,
       multiSelect: false,
     };

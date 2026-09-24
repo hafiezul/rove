@@ -293,6 +293,26 @@ describe("pending user input answers", () => {
     ).toBe(false);
   });
 
+  it("preserves an editor's exact answer, including empty and whitespace-only edits", () => {
+    const editor = {
+      id: "edit",
+      header: "Editor",
+      question: "Edit the text",
+      options: [],
+      allowCustomAnswer: true,
+      inputMode: "multiline",
+      multiSelect: false,
+    } as const;
+    const question = { ...editor, initialAnswer: "Original\n" };
+    expect(buildPendingUserInputAnswers([question], {})).toEqual({ edit: "Original\n" });
+
+    for (const text of ["  first\nsecond\n", "  \n", ""]) {
+      const draft = setPendingUserInputCustomAnswer(question, undefined, text);
+      expect(buildPendingUserInputAnswers([question], { edit: draft })).toEqual({ edit: text });
+    }
+    expect(buildPendingUserInputAnswers([editor], {})).toEqual({ edit: "" });
+  });
+
   it("keeps custom answers enabled for legacy questions", () => {
     expect(
       buildPendingUserInputAnswers([singleSelectQuestion], {

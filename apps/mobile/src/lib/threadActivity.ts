@@ -297,10 +297,13 @@ function isUserInputActivityGroup(entry: ThreadFeedActivityGroup): boolean {
   return entry.activities.some((activity) => activity.workEntry.questionAnswer !== undefined);
 }
 
-function normalizeDraftAnswer(value: string | undefined): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
+function normalizeDraftAnswer(
+  question: UserInputQuestion,
+  value: string | undefined,
+): string | null {
+  if (question.inputMode === "multiline") return value ?? question.initialAnswer ?? "";
+  if (value === undefined) return null;
+
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
@@ -343,8 +346,10 @@ function resolvePendingUserInputAnswer(
 ): string | ReadonlyArray<string> | null {
   if (draft?.attachmentsBlocked) return null;
   const customAnswer =
-    question.allowCustomAnswer === false ? null : normalizeDraftAnswer(draft?.customAnswer);
-  if (customAnswer) {
+    question.allowCustomAnswer === false
+      ? null
+      : normalizeDraftAnswer(question, draft?.customAnswer);
+  if (customAnswer !== null) {
     return customAnswer;
   }
 
@@ -2157,7 +2162,7 @@ export function isPendingUserInputOptionSelected(
   draft: PendingUserInputDraftAnswer | undefined,
   optionValue: string,
 ): boolean {
-  if (question.allowCustomAnswer !== false && normalizeDraftAnswer(draft?.customAnswer)) {
+  if (question.allowCustomAnswer !== false && normalizeDraftAnswer(question, draft?.customAnswer)) {
     return false;
   }
 

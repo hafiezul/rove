@@ -21,10 +21,12 @@ export interface PendingUserInputProgress {
   canAdvance: boolean;
 }
 
-function normalizeDraftAnswer(value: string | undefined): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
+function normalizeDraftAnswer(
+  question: UserInputQuestion,
+  value: string | undefined,
+): string | null {
+  if (question.inputMode === "multiline") return value ?? question.initialAnswer ?? "";
+  if (value === undefined) return null;
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -45,8 +47,10 @@ export function resolvePendingUserInputAnswer(
 ): string | string[] | null {
   if (draft?.attachmentsBlocked) return null;
   const customAnswer =
-    question.allowCustomAnswer === false ? null : normalizeDraftAnswer(draft?.customAnswer);
-  if (customAnswer) {
+    question.allowCustomAnswer === false
+      ? null
+      : normalizeDraftAnswer(question, draft?.customAnswer);
+  if (customAnswer !== null) {
     return customAnswer;
   }
 
@@ -160,7 +164,10 @@ export function derivePendingUserInputProgress(
     selectedOptionValues: normalizeSelectedOptionValues(activeDraft?.selectedOptionValues),
     customAnswer,
     resolvedAnswer,
-    usingCustomAnswer: customAnswer.trim().length > 0,
+    usingCustomAnswer:
+      activeQuestion?.inputMode === "multiline" && activeQuestion.allowCustomAnswer !== false
+        ? resolvedAnswer !== null
+        : customAnswer.trim().length > 0,
     answeredQuestionCount,
     isLastQuestion,
     isComplete: buildPendingUserInputAnswers(questions, draftAnswers) !== null,

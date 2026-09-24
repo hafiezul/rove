@@ -2985,6 +2985,9 @@ export default function ChatView(props: ChatViewProps) {
         return [
           question.id,
           {
+            ...(question.initialAnswer !== undefined
+              ? { customAnswer: question.initialAnswer }
+              : undefined),
             ...pendingUserInputAnswersByRequestId[activePendingRequestKey]?.[question.id],
             attachmentCount: attachments.length,
             attachmentsBlocked:
