@@ -2998,7 +2998,6 @@ function OpenCommandPaletteDialog(props: {
         setHighlightedItemValue(RuntimePredicate.isString(value) ? value : null);
       }}
       onValueChange={handleQueryChange}
-      panelClassName="max-h-[min(28rem,70vh)]"
       showBackHint={isSubmenu}
       value={query}
     >
