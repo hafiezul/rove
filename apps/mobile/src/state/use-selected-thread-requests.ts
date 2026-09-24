@@ -159,6 +159,9 @@ export function useSelectedThreadRequests() {
             return [
               question.id,
               {
+                ...(question.initialAnswer !== undefined
+                  ? { customAnswer: question.initialAnswer }
+                  : undefined),
                 ...userInputDraftsByRequestKey[
                   scopedRequestKey(
                     selectedThreadShell.environmentId,

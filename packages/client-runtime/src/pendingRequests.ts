@@ -76,6 +76,10 @@ function parseQuestions(value: unknown): UserInputQuestion[] {
       question: question.question,
       options,
       multiSelect: question.multiSelect === true,
+      ...(typeof question.initialAnswer === "string"
+        ? { initialAnswer: question.initialAnswer }
+        : undefined),
+      ...(question.inputMode === "multiline" ? { inputMode: "multiline" as const } : undefined),
       ...(typeof question.allowCustomAnswer === "boolean"
         ? { allowCustomAnswer: question.allowCustomAnswer }
         : {}),

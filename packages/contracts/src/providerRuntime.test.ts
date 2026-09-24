@@ -162,6 +162,38 @@ describe("ProviderRuntimeEvent", () => {
     expect(parsed.payload.questions[0]?.options).toHaveLength(2);
   });
 
+  it("keeps a multiline initial answer in a user-input question", () => {
+    const parsed = decodeRuntimeEvent({
+      type: "user-input.requested",
+      eventId: "event-editor",
+      provider: "pi",
+      sessionId: "runtime-session-editor",
+      createdAt: "2026-02-28T00:00:01.000Z",
+      threadId: "thread-editor",
+      requestId: "request-editor",
+      payload: {
+        questions: [
+          {
+            id: "answer",
+            header: "Pi extension",
+            question: "Edit",
+            options: [],
+            allowCustomAnswer: true,
+            inputMode: "multiline",
+            initialAnswer: "First line\nSecond line",
+          },
+        ],
+      },
+    });
+
+    expect(parsed.type).toBe("user-input.requested");
+    if (parsed.type !== "user-input.requested") throw new Error("expected user-input.requested");
+    expect(parsed.payload.questions[0]).toMatchObject({
+      inputMode: "multiline",
+      initialAnswer: "First line\nSecond line",
+    });
+  });
+
   it("decodes user-input.resolved with answer map", () => {
     const parsed = decodeRuntimeEvent({
       type: "user-input.resolved",

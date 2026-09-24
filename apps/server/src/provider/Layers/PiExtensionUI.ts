@@ -119,9 +119,13 @@ export function createPiExtensionUI(
     description: string | undefined,
     choices: string[] | undefined,
     opts?: ExtensionUIDialogOptions,
+    editor?: { prefill?: string | undefined },
   ): Promise<string | undefined> => {
     if (stopped || opts?.signal?.aborted) return Promise.resolve(undefined);
     if (pending.size >= 32) throw new Error("Too many pending Pi extension questions.");
+    if (editor?.prefill !== undefined && editor.prefill.length > 65_536) {
+      throw new Error("Pi extension editor prefill exceeds 65,536 characters in Rove.");
+    }
     // Do not send an unbounded extension-owned array across the wire.
     if (choices && (choices.length === 0 || choices.length > 256)) {
       throw new Error("Pi extension selectors require between 1 and 256 options in Rove.");
@@ -140,6 +144,8 @@ export function createPiExtensionUI(
           value: String(index),
         })) ?? [],
       allowCustomAnswer: choices === undefined,
+      ...(editor ? { inputMode: "multiline" as const } : undefined),
+      ...(editor?.prefill !== undefined ? { initialAnswer: editor.prefill } : undefined),
       multiSelect: false,
     } satisfies UserInputQuestion;
     return new Promise((resolve) => {
@@ -195,9 +201,7 @@ export function createPiExtensionUI(
     confirm: async (title, message, opts) =>
       (await ask(title, message, ["Yes", "No"], opts)) === "Yes",
     input: (title, placeholder, opts) => ask(title, placeholder, undefined, opts),
-    // Rove's free-text question preserves multi-line responses. Prefill is shown
-    // as context rather than overwriting a draft on an arbitrary remote client.
-    editor: (title, prefill) => ask(title, prefill, undefined),
+    editor: (title, prefill) => ask(title, undefined, undefined, undefined, { prefill }),
     notify: (message, level = "info") => {
       const text = textForDisplay(message).trim();
       if (!stopped && text) emit({ type: "rove_ui_notify", message: text, level });

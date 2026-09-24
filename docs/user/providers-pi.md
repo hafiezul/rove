@@ -60,22 +60,22 @@ Refresh re-reads extension files and model catalogs from the server's Pi config,
 
 ## Extensions panel
 
-The Extensions button beside the Pi provider selector opens the provider catalog:
+The Extensions button beside the Pi provider selector opens the global provider catalog. Project-local extensions load in their project's threads but do not appear in this panel.
 
-- Loaded extension names, scope, source, tools, and commands.
+- Discovered global extension names, scope, source, tools, and commands.
 - A per-extension switch on each row. Off removes that extension from Pi sessions.
 - Model providers with authentication and model counts.
 - Load warnings and catalog refresh errors.
 
-A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts. Project extensions keep their own scope: the switch removes that extension from every Pi session that loads it.
+A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts.
 
-The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. Loaded means initialization succeeded. It does not mean every feature works headlessly. See Limitations.
+The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. An extension appearing here does not mean every feature works without Pi's terminal. See Limitations.
 
 ## Selecting extension models
 
 Extension models behave like any other Pi model. Clicking one saves it to the thread. If the extension is later removed, the thread falls back to a model the runtime still lists instead of keeping a stale slug.
 
-The composer's slash menu lists prompt templates from Pi's configuration plus the commands registered by loaded global extensions, so every entry can actually be typed in the thread. Skills and prompt templates follow Pi's user scope; a project's own resources appear inside that project's threads.
+The composer's slash menu lists prompt templates from Pi's configuration and commands registered by loaded global extensions. Project extension commands run when typed in that project's thread, but they do not appear in the slash menu. Skills and prompt templates follow Pi's user scope; a project's own resources appear inside that project's threads.
 
 ## Model fallback
 
@@ -111,7 +111,7 @@ A command or input hook that handles a prompt without calling a model still comp
 
 Standard extension selections, confirmations, and text questions appear in the thread on web, desktop, and mobile, including remote connections. Answer the pending question before sending another message, or use Stop to cancel it. Extension-supplied timeouts and cancellation signals dismiss questions automatically; cancelled confirmations return `false`, not approval.
 
-Multi-line editor requests use a text question. Existing text is shown as context rather than inserted into your composer draft. Selection dialogs support up to 256 choices.
+Multi-line editor requests use a text question with the extension's existing text prefilled as the answer. Edit or submit that text, including an empty replacement, without replacing your normal thread draft. Editor answers preserve whitespace. Rove rejects editor prefill longer than 65,536 characters instead of truncating it. Selection dialogs support up to 256 choices.
 
 Extension notifications and visible custom-message text appear in activity. Status text from `ctx.ui.setStatus()` appears above the composer and updates while the extension supplies a value. If the extension clears a status, it disappears. String-array widgets remain rate-limited activity snapshots. Hidden extension context stays hidden.
 

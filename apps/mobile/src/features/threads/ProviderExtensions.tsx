@@ -62,9 +62,8 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
             <Text>Close</Text>
           </Pressable>
           <Text>
-            Extensions loaded for this Pi provider on the server. Entries marked project apply
-            inside their own threads. Headless mode does not support interactive terminal UI, custom
-            dialogs, or editor widgets.
+            Global Pi extensions found on the server. Project extensions load in their threads and
+            are not listed here. Standard questions work in Rove, but Pi terminal components do not.
           </Text>
 
           <View
@@ -193,8 +192,8 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
             <Text style={{ fontWeight: "600" }}>{props.error ? "Retry" : "Refresh catalogue"}</Text>
           </Pressable>
           <Text style={{ fontSize: 13, color: "#888" }}>
-            Project extensions apply inside their own threads. Disabling an extension stops loading
-            it in new Pi sessions; existing sessions reload on their next turn.
+            Found does not mean every extension feature works in Rove. Disabling an extension stops
+            loading it in new Pi sessions; existing sessions reload on their next turn.
           </Text>
         </ScrollView>
       </Modal>

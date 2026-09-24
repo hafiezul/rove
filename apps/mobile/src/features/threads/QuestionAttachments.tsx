@@ -193,6 +193,7 @@ export function QuestionAttachments(props: {
       <TextInputWrapper onPaste={paste}>
         <TextInput
           value={props.value}
+          multiline={props.question.inputMode === "multiline"}
           editable={!props.disabled}
           onChangeText={props.onChangeText}
           onFocus={() => props.onInputFocusChange?.(true)}

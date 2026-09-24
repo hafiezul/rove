@@ -196,7 +196,7 @@ function ProviderExtensionsContent({
             {data.extensions.length === 0 ? (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>No extensions loaded</EmptyTitle>
+                  <EmptyTitle>No extensions found</EmptyTitle>
                   <EmptyDescription>
                     Install a Pi extension on the server to see it here.
                   </EmptyDescription>
@@ -222,6 +222,7 @@ function ProviderExtensionsContent({
           {error ? "Retry" : "Refresh"}
         </Button>
         <ul className="space-y-1 text-xs text-muted-foreground">
+          <li>Found does not mean every feature works in Rove. Pi terminal UI stays in Pi.</li>
           <li>Refresh re-reads extensions and model catalogs from the server's Pi config.</li>
           <li>Switches apply to new sessions. Live threads reload on their next turn.</li>
         </ul>
@@ -260,7 +261,7 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
           <DialogHeader>
             <DialogTitle>Pi provider catalog</DialogTitle>
             <DialogDescription>
-              Extensions and models loaded for this Pi provider on the server.
+              Global Pi extensions found on the server. Project extensions load in their threads.
             </DialogDescription>
           </DialogHeader>
           <ProviderExtensionsContent {...props} />

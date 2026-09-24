@@ -694,7 +694,13 @@ describe("headless Pi extensions", () => {
     const prompting = session.prompt("/edit-text");
     const question = await requested.promise;
     expect(question.questions).toMatchObject([
-      { question: "Edit\n\nOriginal text", options: [], allowCustomAnswer: true },
+      {
+        question: "Edit",
+        options: [],
+        allowCustomAnswer: true,
+        inputMode: "multiline",
+        initialAnswer: "Original text",
+      },
     ]);
     session.respondToUserInput!(String(question.requestId), { answer: "First line\nSecond line" });
     await prompting;
