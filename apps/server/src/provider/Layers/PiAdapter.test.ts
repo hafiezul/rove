@@ -444,6 +444,146 @@ it.layer(testLayer)("PiAdapter", (it) => {
       );
     }),
   );
+  it.effect("projects example updates and final results into one row per child", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const settled = yield* Deferred.make<void>();
+      const events: Array<ProviderRuntimeEvent> = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          events.push(event);
+          return event.type === "turn.completed"
+            ? Deferred.succeed(settled, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "delegate" });
+      const args = {
+        tasks: [
+          { agent: "scout", task: "Inspect" },
+          { agent: "reviewer", task: "Review" },
+        ],
+      };
+      const resultFor = (codes: number[]) => ({
+        details: {
+          mode: "parallel",
+          agentScope: "user",
+          projectAgentsDir: null,
+          results: codes.map((exitCode, index) => ({
+            ...args.tasks[index],
+            exitCode,
+            messages: [{ content: "private transcript" }],
+            usage: { input: 3, output: 2, cacheRead: 0, cacheWrite: 0, turns: 1 },
+          })),
+        },
+        content: [{ type: "text", text: "private output" }],
+      });
+      fake.emit({
+        type: "tool_execution_start",
+        toolName: "subagent",
+        toolCallId: "call-example",
+        args,
+      });
+      fake.emit({
+        type: "tool_execution_update",
+        toolName: "subagent",
+        toolCallId: "call-example",
+        partialResult: resultFor([-1, -1]),
+      });
+      yield* TestClock.adjust(500);
+      fake.emit({
+        type: "tool_execution_update",
+        toolName: "subagent",
+        toolCallId: "call-example",
+        partialResult: resultFor([0, -1]),
+      });
+      fake.emit({
+        type: "tool_execution_end",
+        toolName: "subagent",
+        toolCallId: "call-example",
+        result: resultFor([0, 1]),
+      });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(settled);
+      const started = events.filter((event) => event.type === "task.started");
+      const progress = events.filter((event) => event.type === "task.progress");
+      const completed = events.filter((event) => event.type === "task.completed");
+      assert.deepStrictEqual(
+        started.map((event) => event.payload.taskId),
+        ["call-example:0", "call-example:1"],
+      );
+      assert.isAtLeast(progress.length, 2);
+      assert.deepStrictEqual(
+        completed.map((event) => [event.payload.taskId, event.payload.status]),
+        [
+          ["call-example:0", "completed"],
+          ["call-example:1", "failed"],
+        ],
+      );
+      assert.isFalse(
+        events
+          .filter((event) => event.type.startsWith("task."))
+          .some((event) => JSON.stringify(event).includes("private")),
+      );
+      assert.strictEqual(events.filter((event) => event.type === "item.completed").length, 1);
+    }),
+  );
+
+  it.effect("settles an interrupted example call after its last update", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const settled = yield* Deferred.make<void>();
+      const tasks: Array<ProviderRuntimeEvent> = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          if (event.type.startsWith("task.")) tasks.push(event);
+          return event.type === "turn.completed"
+            ? Deferred.succeed(settled, undefined)
+            : Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      yield* adapter.sendTurn({ threadId, input: "delegate" });
+      const args = { agent: "scout", task: "Inspect" };
+      fake.emit({
+        type: "tool_execution_update",
+        toolName: "subagent",
+        toolCallId: "call-interrupted",
+        args,
+        partialResult: {
+          details: {
+            mode: "single",
+            agentScope: "user",
+            projectAgentsDir: null,
+            results: [{ agent: "scout", task: "Inspect", exitCode: 0 }],
+          },
+        },
+      });
+      fake.emit({
+        type: "tool_execution_end",
+        toolName: "subagent",
+        toolCallId: "call-interrupted",
+        args,
+        result: {},
+        isError: true,
+      });
+      fake.emit({ type: "agent_settled" });
+      yield* Deferred.await(settled);
+      assert.deepStrictEqual(
+        tasks.map((event) => event.type),
+        ["task.started", "task.progress", "task.completed"],
+      );
+      const completed = tasks[2];
+      if (completed?.type === "task.completed")
+        assert.strictEqual(completed.payload.status, "stopped");
+    }),
+  );
+
   it.effect("publishes extension failures as warnings and completes handled commands", () =>
     Effect.gen(function* () {
       const fake = new FakePiSession();

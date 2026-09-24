@@ -62,6 +62,62 @@ function fold(rows: ReadonlyArray<OrchestrationThreadActivity>) {
 }
 
 describe("foldSubagentActivities", () => {
+  it("projects repeated Pi example updates onto the same two Agents rows", () => {
+    const rows = [
+      activity("task.started", {
+        taskId: "call:0",
+        taskType: "subagent",
+        toolUseId: "call",
+        agentIndex: 0,
+        title: "scout: Inspect",
+        role: "scout",
+      }),
+      activity("task.started", {
+        taskId: "call:1",
+        taskType: "subagent",
+        toolUseId: "call",
+        agentIndex: 1,
+        title: "reviewer: Review",
+        role: "reviewer",
+      }),
+      activity("task.progress", {
+        taskId: "call:0",
+        taskType: "subagent",
+        status: "running",
+        description: "scout: Inspect",
+        typedUsage: { totalTokens: 5 },
+      }),
+      activity("task.progress", {
+        taskId: "call:1",
+        taskType: "subagent",
+        status: "pending",
+        description: "reviewer: Review",
+      }),
+      activity("task.progress", {
+        taskId: "call:0",
+        taskType: "subagent",
+        status: "running",
+        description: "scout: Inspect",
+        typedUsage: { totalTokens: 8 },
+      }),
+      activity("task.completed", {
+        taskId: "call:0",
+        taskType: "subagent",
+        status: "completed",
+        typedUsage: { totalTokens: 10 },
+      }),
+      activity("task.completed", { taskId: "call:1", taskType: "subagent", status: "failed" }),
+    ];
+    const agents = fold(rows);
+    expect(agents).toHaveLength(2);
+    expect(
+      agents.map((agent) => [agent.id, agent.status, agent.usage?.totalTokens ?? null]),
+    ).toEqual([
+      ["call:0", "completed", 10],
+      ["call:1", "failed", null],
+    ]);
+    expect(deriveAgentPanelModel({ agents }).directAgents).toHaveLength(2);
+  });
   it("shows the batch status limit after its parent turn ends without claiming a result", () => {
     const running = activity("task.progress", {
       taskId: "batch-1",

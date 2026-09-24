@@ -93,7 +93,7 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 
 ## Supported behavior
 
-- Extension tools run through Pi and appear as tool calls in Rove.
+- Extension tools run through Pi and appear as tool calls in Rove. The bundled `examples/extensions/subagent` extension also shows its single, parallel, and chain children in **Agents** on web and desktop, and in the thread work log on mobile. Child updates show identity and available usage while the tool runs; the final result settles each child. This applies to that bundled example, not arbitrary Pi subagent extensions.
 - Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Other file attachments reach Pi as saved-file paths in the message text, like the other providers; open them with file tools.
 - Stopping a thread discards queued steering and follow-up messages, dismisses extension questions, aborts the live response, and retires the session. Background agent work reported before Stop is marked stopped, and late events cannot revive the stopped session. The next message starts a fresh runtime from the saved history; it does not automatically replay unfinished work.

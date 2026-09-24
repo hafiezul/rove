@@ -48,6 +48,9 @@ export interface PiSubagentToolInput {
   readonly toolCallId?: unknown;
   /** SDK isError flag for the tool result. */
   readonly isError?: unknown;
+  readonly phase?: "update" | "result";
+  /** The tool ended without a final child result after an identified update. */
+  readonly interrupted?: boolean;
 }
 
 /** One wake-notification child in extension-neutral shape. */
@@ -73,8 +76,10 @@ export interface PiNotifyReading {
  */
 export interface PiSubagentDialect {
   readonly name: string;
-  /** Tool names this dialect claims (e.g. `subagent`, `bg_wait`). */
+  /** Tool names this dialect can inspect (e.g. `subagent`, `bg_wait`). */
   readonly toolNames: ReadonlySet<string>;
+  /** Positively identify this extension from the tool payload, not its name alone. */
+  matchesTool(input: PiSubagentToolInput): boolean;
   /** Custom message types this dialect observes (e.g. `subagent-notify`). */
   readonly customMessageTypes: ReadonlySet<string>;
   /** Roster rows for one tool result. */
@@ -84,12 +89,14 @@ export interface PiSubagentDialect {
   parseNotifyContent(content: unknown): PiNotifyReading | undefined;
 }
 
-/** First dialect whose tool names claim this tool, if any. */
+/** First dialect whose name and payload shape identify this tool. */
 function findToolDialect(
   dialects: ReadonlyArray<PiSubagentDialect>,
-  toolName: string,
+  input: PiSubagentToolInput,
 ): PiSubagentDialect | undefined {
-  return dialects.find((dialect) => dialect.toolNames.has(toolName));
+  return dialects.find(
+    (dialect) => dialect.toolNames.has(input.toolName) && dialect.matchesTool(input),
+  );
 }
 
 /** Roster rows for one tool result via the claiming dialect (none = []). */
@@ -97,7 +104,7 @@ export function describeDialectToolTasks(
   dialects: ReadonlyArray<PiSubagentDialect>,
   input: PiSubagentToolInput,
 ): ReadonlyArray<PiSubagentTaskDescriptor> {
-  return findToolDialect(dialects, input.toolName)?.describeToolTasks(input) ?? [];
+  return findToolDialect(dialects, input)?.describeToolTasks(input) ?? [];
 }
 
 /** Parse wake content via the dialect observing this custom message type. */
