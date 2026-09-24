@@ -41,6 +41,24 @@ const PI_SUBAGENTS_TOOL_NAMES: ReadonlySet<string> = new Set(["subagent", "bg_wa
 export const piSubagentsDialect: PiSubagentDialect = {
   name: "pi-subagents",
   toolNames: PI_SUBAGENTS_TOOL_NAMES,
+  matchesTool: (input) => {
+    if (input.phase === "update") return false;
+    const args = piRecord(input.args);
+    const details = piRecord(piRecord(input.result)?.details);
+    if (input.toolName === "bg_wait") return Array.isArray(details?.completions);
+    if (input.toolName !== "subagent") return false;
+    if (details?.agentScope !== undefined || details?.projectAgentsDir !== undefined) return false;
+    return (
+      piTrimmed(details?.runId) !== undefined ||
+      Array.isArray(details?.completions) ||
+      (Array.isArray(details?.results) && piTrimmed(details?.toolCallId) !== undefined) ||
+      details?.workflowChildren !== undefined ||
+      details?.lifecycleStatus !== undefined ||
+      (input.isError === true &&
+        args?.async === true &&
+        piFailureText(piFirstText(piRecord(input.result))) !== undefined)
+    );
+  },
   customMessageTypes: new Set(["subagent-notify"]),
   describeToolTasks: describePiSubagentToolTasks,
   parseNotifyContent: (content) => parsePiNotifyContent(content),
