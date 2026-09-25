@@ -41,7 +41,7 @@ rl.on("line", (line) => {
     const request = openServerRequests.get(id);
     openServerRequests.delete(id);
     NodeFS.appendFileSync(
-      `${process.env.T3_CODEX_COLLAB_SCRIPT}.approvalResponses`,
+      `${process.env.ROVE_CODEX_COLLAB_SCRIPT}.approvalResponses`,
       `${JSON.stringify({ id, label: request.label, result: message.result ?? null })}\n`,
     );
     write({
@@ -104,6 +104,14 @@ rl.on("line", (line) => {
   }
   if (method === "thread/start") {
     write({ id, result: fixture.responses.threadStart });
+    return;
+  }
+  if (method === "thread/inject_items" && script.recordRequests) {
+    NodeFS.appendFileSync(
+      `${process.env.ROVE_CODEX_COLLAB_SCRIPT}.requests`,
+      `${JSON.stringify({ method, params: message.params })}\n`,
+    );
+    write({ id, result: {} });
     return;
   }
   if (method === "thread/resume") {
