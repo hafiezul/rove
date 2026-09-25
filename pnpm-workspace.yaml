@@ -100,6 +100,9 @@ minimumReleaseAgeExclude:
   - cn@0.3.2
 
 overrides:
+  # Alchemy's optional D1 peer must match the pinned Effect release; a newer
+  # sql-d1 imports Effect modules this release does not ship.
+  "@effect/sql-d1": 4.0.0-rc.115
   # Earlier React Navigation declarations create a circular type alias in TypeScript 7.
   "@react-navigation/core": 7.21.13
   # The dbus-next patch drops usocket from the package, but pnpm resolves from the
