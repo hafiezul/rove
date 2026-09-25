@@ -461,7 +461,7 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       if (error._tag !== "ShowHelp") {
         assert.fail(`Expected ShowHelp, got ${error._tag}`);
       }
-      assert.deepEqual(error.commandPath, ["t3", "connect"]);
+      assert.deepEqual(error.commandPath, ["rove", "connect"]);
       assert.include(error.errors[0]?.message ?? "", "missing Rove Connect public configuration");
 
       const output = (yield* TestConsole.errorLines).join("\n");
@@ -696,7 +696,7 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       if (error._tag !== "ShowHelp") {
         assert.fail(`Expected ShowHelp, got ${error._tag}`);
       }
-      assert.deepEqual(error.commandPath, ["t3", "auth", "pairing", "create"]);
+      assert.deepEqual(error.commandPath, ["rove", "auth", "pairing", "create"]);
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         ttlError = error.errors[0] as CliError.CliError | undefined;
       if (!ttlError || ttlError._tag !== "InvalidValue") {
@@ -865,7 +865,7 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       if (error._tag !== "ShowHelp") {
         assert.fail(`Expected ShowHelp, got ${error._tag}`);
       }
-      assert.deepEqual(error.commandPath, ["t3", "project", "add"]);
+      assert.deepEqual(error.commandPath, ["rove", "project", "add"]);
       const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
         optionError = error.errors[0] as CliError.CliError | undefined;
       if (!optionError || optionError._tag !== "UnrecognizedOption") {

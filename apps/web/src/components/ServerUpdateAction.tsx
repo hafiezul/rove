@@ -8,11 +8,9 @@ import { CircleArrowUpIcon } from "lucide-react";
 import { type ComponentProps, useRef, useState } from "react";
 
 import { requestConfirmDialog } from "~/confirmDialog";
-import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useEnvironmentSettings } from "~/hooks/useSettings";
 import { serverEnvironment } from "~/state/server";
 import { useAtomCommand } from "~/state/use-atom-command";
-import { manualServerUpdateCommand } from "~/versionSkew";
 import { Button } from "./ui/button";
 import { toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
@@ -77,7 +75,7 @@ function useServerUpdate() {
         description:
           selfUpdate === "desktop-managed"
             ? `Desktop app relaunched on ${result.value.targetVersion}.`
-            : `Reconnected on t3@${result.value.targetVersion}.`,
+            : `Reconnected on Rove Code ${result.value.targetVersion}.`,
       });
     } catch (error) {
       toastManager.add({
@@ -205,24 +203,6 @@ export function ServerUpdateAction({
     (settings) => settings.continueThreadsAfterServerUpdate,
   );
   const update = useServerUpdate();
-  const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
-    target: "update command",
-    onCopy: ({ command }) => {
-      toastManager.add({
-        type: "success",
-        title: "Update command copied",
-        description: `Run \`${command}\` on ${serverLabel} to update it.`,
-      });
-    },
-    onError: (error) => {
-      toastManager.add({
-        type: "error",
-        title: "Could not copy update command",
-        description: error.message,
-      });
-    },
-  });
-
   const handleUpdate = async () => {
     if (pendingUpdateEnvironmentIds.has(environmentId)) {
       return;
@@ -258,12 +238,12 @@ export function ServerUpdateAction({
     );
   }
 
-  const manualCommand = selfUpdate === null ? manualServerUpdateCommand(targetVersion) : null;
-  const actionLabel = manualCommand !== null ? "Copy update command" : label;
-  const onClick =
-    manualCommand !== null
-      ? () => copyToClipboard(manualCommand, { command: manualCommand })
-      : () => void handleUpdate();
+  if (selfUpdate === null) {
+    return <span className="text-muted-foreground text-xs">Update Rove Code on that machine.</span>;
+  }
+
+  const actionLabel = label;
+  const onClick = () => void handleUpdate();
 
   if (appearance === "icon") {
     return (

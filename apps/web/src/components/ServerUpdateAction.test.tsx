@@ -46,6 +46,7 @@ import {
 
 type ActionElement = ReactElement<{
   readonly onClick?: () => void;
+  readonly children?: string;
 }>;
 
 function renderAction(): ActionElement {
@@ -85,7 +86,7 @@ describe("ServerUpdateAction", () => {
     expect(testState.toast).toHaveBeenCalledWith({
       type: "success",
       title: "Test server updated",
-      description: "Reconnected on t3@0.0.31.",
+      description: "Reconnected on Rove Code 0.0.31.",
     });
   });
 
@@ -118,6 +119,18 @@ describe("ServerUpdateAction", () => {
     await flushPromises();
 
     expect(testState.toast).not.toHaveBeenCalled();
+  });
+
+  it("does not offer an upstream update command for servers without self-update", () => {
+    // SAFETY: The component returns a span for servers without self-update.
+    const element = ServerUpdateAction({
+      environmentId: "env-test" as EnvironmentId,
+      serverLabel: "Test server",
+      selfUpdate: null,
+      targetVersion: "0.0.31",
+    }) as ActionElement;
+    expect(element.props.onClick).toBeUndefined();
+    expect(element.props.children).toBe("Update Rove Code on that machine.");
   });
 
   it("keeps the manual instruction for desktop servers without remote update support", () => {

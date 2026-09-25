@@ -1,78 +1,33 @@
 # Install Rove Code
 
-> Community builds support the local desktop app and `npx t3` on your own
-> machine. There are no project-owned package repositories, hosted web app,
-> or store mobile builds yet; install from a GitHub release below.
+Rove Code currently runs from source. This fork has not published a desktop
+installer, npm package, hosted web app, or store mobile app. Do not use an
+upstream download or package expecting it to install this fork.
 
-Rove Code runs coding agents on your computer and lets you control them from its
-desktop, web, or mobile app. Set up the machine where the agents will work first.
+## Run from source
 
-## Requirements
-
-`npx t3` needs Node.js only to run npm itself; the CLI it installs is a
-self-contained executable. SSH hosts and WSL backends need Node.js 22.16+
-(22.x), 23.11+ (23.x), or 24.10 and later. The native desktop app includes its
-server runtime.
-
-You need an installed, authenticated provider before starting a thread. You can
-launch Rove Code and configure providers afterwards.
-
-## Run without installing
+Install Node.js 24.13.1 and [Vite+](https://viteplus.dev/guide/). Then run:
 
 ```bash
-npx t3@latest
+git clone https://github.com/hafiezul/rove.git
+cd rove
+vp i
+vp run dev
 ```
 
-This starts the server and opens the local web app. Run
-`npx t3@latest --help` for command-line options.
+The development server prints the local web address and pairing information.
+For a development desktop app, run `vp run dev:desktop` from the same checkout.
+You need an installed, authenticated coding-agent provider before starting a
+thread. You can configure providers after opening Rove Code.
 
-The executable is built for Apple Silicon Macs, Linux, and Windows. There is
-no Intel Mac build of it, because Node cannot produce a single executable for
-that platform; the Intel desktop app is unaffected. To run a standalone server
-on an Intel Mac, build it from source. You need Node.js 24 and `vp` (see
-[Install vp](https://github.com/rovecode/rove#install-vp)):
+This source build has no managed updater. To get changes, pull from this fork
+and rebuild. Installers and an update feed will be documented here after this
+project publishes and tests its own release artifacts.
 
-```bash
-git clone https://github.com/rovecode/rove
-cd rove && vp i && vp run build:desktop
-node apps/server/dist/bin.mjs
-```
-
-A server run this way is a plain Node program: `t3 update` and the background
-service do not apply, so update it with `git pull` and a rebuild, and start it
-however you run other Node processes.
-
-## Desktop app
-
-Download a release from [GitHub Releases](https://github.com/rovecode/rove/releases).
-
-> Package-manager installs are not published for community builds. The legacy
-> `winget`, Homebrew, and AUR entries are omitted until their new package IDs
-> exist; installing a stale third-party ID would pull someone else's build.
-
-> The mobile app is source-only for now: build the dev client from
-> `apps/mobile` (see its README) and pair it over your LAN. There are no
-> App Store or Google Play releases from this project yet.
-
-### Windows Subsystem for Linux
-
-Choose a WSL distro in **Settings → Connections** to run agents and projects
-there. Install Node.js and provider CLIs inside that distro. Rove Code installs its
-matching server runtime there automatically; the first launch after an app
-update can take longer.
-
-### Open a project from a terminal
-
-With the desktop app already running on the same machine:
-
-```bash
-npx t3 app
-```
-
-This opens a new thread for the current directory, adding the project if needed.
-Pass a path, such as `npx t3 app ../my-project`, to open another directory. It requires
-the desktop app, so a standalone server or an SSH session is not enough. If the
-command cannot reach the app, start or update the desktop app and try again.
+Outside a development worktree, Rove Code uses `~/.rove-code` for its data.
+The inherited installation's `~/.rove` is left untouched. Do not point both
+applications at the same data directory. Importing an existing installation
+is not yet supported.
 
 ## Mobile app (source builds only)
 

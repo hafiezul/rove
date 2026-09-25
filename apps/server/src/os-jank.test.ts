@@ -6,12 +6,12 @@ import * as NodeOS from "node:os";
 
 import { hydratePosixHome, resolveBaseDir } from "./os-jank.ts";
 
-it.effect("defaults Rove Code state to ~/.rove", () =>
+it.effect("defaults Rove Code state to its own home", () =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const baseDir = yield* resolveBaseDir(undefined);
 
-    assert.equal(baseDir, path.join(NodeOS.homedir(), ".rove"));
+    assert.equal(baseDir, path.join(NodeOS.homedir(), ".rove-code"));
   }).pipe(Effect.provide(NodeServices.layer)),
 );
 

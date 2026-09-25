@@ -44,15 +44,15 @@ const run = Effect.fn("test.run")(function* (
   return { stdout, stderr, exitCode };
 });
 
-/** A tar.gz laid out like build-cli-archive.ts writes, with a stub `t3` that echoes its args. */
+/** A tar.gz laid out like build-cli-archive.ts writes, with a stub `rove` that echoes its args. */
 const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-npm-packages-test-" });
+  const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-npm-packages-test-" });
   const archivesDir = path.join(root, "archives");
   yield* fs.makeDirectory(archivesDir);
   for (const key of KEYS) {
-    const stem = `t3-${VERSION}-${key}`;
+    const stem = `rove-${VERSION}-${key}`;
     const stage = path.join(root, "stage", key);
     const contentDir = path.join(stage, stem);
     for (const dir of [
@@ -73,10 +73,10 @@ const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* () {
     );
     yield* fs.writeFileString(path.join(contentDir, "client/index.html"), "<html></html>\n");
     yield* fs.writeFileString(
-      path.join(contentDir, "t3"),
+      path.join(contentDir, "rove"),
       `#!/bin/sh\necho "stub ${key} $*"\nexit 7\n`,
     );
-    yield* fs.chmod(path.join(contentDir, "t3"), 0o755);
+    yield* fs.chmod(path.join(contentDir, "rove"), 0o755);
     const exit = yield* run("tar", ["-czf", path.join(archivesDir, `${stem}.tar.gz`), stem], {
       cwd: stage,
     });
@@ -117,23 +117,23 @@ it.layer(NodeServices.layer)("build-npm-platform-packages", (it) => {
       // Platform packages in CLI_ARCHIVE_PLATFORM_KEYS order, launcher last.
       assert.deepStrictEqual(
         outputs.map((output) => output.name),
-        ["@rove/t3-darwin-arm64", "@rove/t3-linux-x64", "t3"],
+        ["@rove/cli-darwin-arm64", "@rove/cli-linux-x64", "@rove/cli"],
       );
       for (const output of outputs) {
         assert.isTrue(yield* fs.exists(output.tarball), output.tarball);
       }
 
-      const linuxDir = path.join(fixture.outputDir, "@rove/t3-linux-x64");
+      const linuxDir = path.join(fixture.outputDir, "@rove/cli-linux-x64");
       const linuxManifest = yield* decodeManifest(
         yield* fs.readFileString(path.join(linuxDir, "package.json")),
       );
-      assert.equal(linuxManifest.name, "@rove/t3-linux-x64");
+      assert.equal(linuxManifest.name, "@rove/cli-linux-x64");
       assert.equal(linuxManifest.version, VERSION);
       assert.deepStrictEqual(linuxManifest.os, ["linux"]);
       assert.deepStrictEqual(linuxManifest.cpu, ["x64"]);
       assert.deepStrictEqual(linuxManifest.files, [
-        "t3",
-        "t3.exe",
+        "rove",
+        "rove.exe",
         "client",
         "resource-monitor",
         "node_modules",
@@ -152,44 +152,45 @@ it.layer(NodeServices.layer)("build-npm-platform-packages", (it) => {
       // A root README, or npm would display a bundled dependency's.
       assert.include(
         yield* fs.readFileString(path.join(linuxDir, "README.md")),
-        "# @rove/t3-linux-x64",
+        "# @rove/cli-linux-x64",
       );
       assert.isTrue(yield* fs.exists(path.join(linuxDir, "node_modules/node-pty")));
-      assert.equal(Number((yield* fs.stat(path.join(linuxDir, "t3"))).mode) & 0o111, 0o111);
+      assert.equal(Number((yield* fs.stat(path.join(linuxDir, "rove"))).mode) & 0o111, 0o111);
 
       const darwinManifest = yield* decodeManifest(
         yield* fs.readFileString(
-          path.join(fixture.outputDir, "@rove/t3-darwin-arm64/package.json"),
+          path.join(fixture.outputDir, "@rove/cli-darwin-arm64/package.json"),
         ),
       );
       assert.deepStrictEqual(darwinManifest.os, ["darwin"]);
       assert.deepStrictEqual(darwinManifest.cpu, ["arm64"]);
 
-      const launcherDir = path.join(fixture.outputDir, "t3");
+      const launcherDir = path.join(fixture.outputDir, "@rove/cli");
       const launcherManifest = yield* decodeManifest(
         yield* fs.readFileString(path.join(launcherDir, "package.json")),
       );
-      assert.equal(launcherManifest.name, "t3");
+      assert.equal(launcherManifest.name, "@rove/cli");
+      assert.isUndefined(launcherManifest.private);
       assert.equal(launcherManifest.version, VERSION);
-      assert.deepStrictEqual(launcherManifest.bin, { t3: "./bin/t3.js" });
-      assert.deepStrictEqual(launcherManifest.files, ["bin", "dist"]);
+      assert.deepStrictEqual(launcherManifest.bin, { rove: "./bin/rove.js" });
+      assert.deepStrictEqual(launcherManifest.files, ["bin"]);
       assert.deepStrictEqual(launcherManifest.optionalDependencies, {
-        "@rove/t3-darwin-arm64": VERSION,
-        "@rove/t3-linux-x64": VERSION,
+        "@rove/cli-darwin-arm64": VERSION,
+        "@rove/cli-linux-x64": VERSION,
       });
       assert.isUndefined(launcherManifest.engines);
-      assert.isTrue(yield* fs.exists(path.join(launcherDir, "bin/t3.js")));
+      assert.isTrue(yield* fs.exists(path.join(launcherDir, "bin/rove.js")));
 
       // The scratch dirs must not be left behind next to the packages.
       const outputEntries = yield* fs.readDirectory(fixture.outputDir);
-      assert.deepStrictEqual(outputEntries.sort(), ["@rove", "t3", "t3.tgz"]);
+      assert.deepStrictEqual(outputEntries.sort(), ["@rove"]);
 
       // The tarball is what gets published: it must carry node_modules (which
       // `npm publish <dir>` would strip) under npm's `package/` root, with the
       // executable bit intact.
       const listing = yield* run(
         "tar",
-        ["-tzvf", path.join(fixture.outputDir, "@rove/t3-linux-x64.tgz")],
+        ["-tzvf", path.join(fixture.outputDir, "@rove/cli-linux-x64.tgz")],
         { cwd: fixture.outputDir },
       );
       assert.equal(listing.exitCode, 0, listing.stderr);
@@ -197,7 +198,7 @@ it.layer(NodeServices.layer)("build-npm-platform-packages", (it) => {
       assert.isTrue(lines.some((line) => line.endsWith(" package/node_modules/node-pty/")));
       assert.isTrue(lines.some((line) => line.endsWith(" package/package.json")));
       assert.isTrue(
-        lines.some((line) => /^-rwxr-xr-x .* package\/t3$/.test(line)),
+        lines.some((line) => /^-rwxr-xr-x .* package\/rove$/.test(line)),
         listing.stdout,
       );
 
@@ -207,55 +208,29 @@ it.layer(NodeServices.layer)("build-npm-platform-packages", (it) => {
       const hostArch = yield* HostProcessArchitecture;
       const env = { ...process.env, NODE_PATH: fixture.outputDir } as Record<string, string>;
       if (KEYS.some((key) => key === `${hostPlatform}-${hostArch}`)) {
-        const passthrough = yield* run(process.execPath, ["bin/t3.js", "serve", "--port", "1234"], {
-          cwd: launcherDir,
-          env,
-        });
+        const passthrough = yield* run(
+          process.execPath,
+          ["bin/rove.js", "serve", "--port", "1234"],
+          {
+            cwd: launcherDir,
+            env,
+          },
+        );
         assert.equal(
           passthrough.stdout.trim(),
           `stub ${hostPlatform}-${hostArch} serve --port 1234`,
         );
         assert.equal(passthrough.exitCode, 7);
-
-        // Run the entry point used by already-installed service updaters from
-        // the published tarball, including their preflight arguments.
-        const installedLauncher = path.join(fixture.root, "installed-launcher");
-        yield* fs.makeDirectory(installedLauncher);
-        const unpack = yield* run(
-          "tar",
-          ["-xf", path.join(fixture.outputDir, "t3.tgz"), "-C", installedLauncher],
-          {
-            cwd: fixture.root,
-          },
-        );
-        assert.equal(unpack.exitCode, 0, unpack.stderr);
-        const legacy = yield* run(
-          process.execPath,
-          [
-            "dist/bin.mjs",
-            "__service-preflight",
-            "--database-path",
-            "a database.sqlite",
-            "--launcher-protocol",
-            "2",
-          ],
-          { cwd: path.join(installedLauncher, "package"), env },
-        );
-        assert.equal(
-          legacy.stdout.trim(),
-          `stub ${hostPlatform}-${hostArch} __service-preflight --database-path a database.sqlite --launcher-protocol 2`,
-        );
-        assert.equal(legacy.exitCode, 7);
       }
 
-      const unsupported = yield* run(process.execPath, ["bin/t3.js", "--version"], {
+      const unsupported = yield* run(process.execPath, ["bin/rove.js", "--version"], {
         cwd: launcherDir,
         env: { ...env, NODE_PATH: path.join(fixture.root, "nowhere") },
       });
       assert.equal(unsupported.exitCode, 1);
       assert.include(unsupported.stderr, "linux-x64");
       assert.include(unsupported.stderr, "win32-arm64");
-      assert.include(unsupported.stderr, "https://github.com/rovecode/rove/releases");
+      assert.include(unsupported.stderr, "https://github.com/hafiezul/rove/releases");
     }),
   );
 });

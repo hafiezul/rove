@@ -114,11 +114,6 @@ export function supportsServerUpdateThreadContinuation(
   return serverConfig?.environment.capabilities.serverUpdateThreadContinuation === true;
 }
 
-/** The command to hand users whose server cannot update itself. */
-export function manualServerUpdateCommand(targetVersion: string): string {
-  return `npx t3@${targetVersion}`;
-}
-
 export function serverUpdateGuidance(capability: ServerSelfUpdateCapability): string {
   return capability === "desktop-managed" ? "Update the desktop app" : "Update to stay in sync";
 }
