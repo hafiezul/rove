@@ -216,7 +216,7 @@ export function createPiExtensionUI(
     setWidget: (key, content) => {
       if (content === undefined || Array.isArray(content)) {
         showText("widget", key, content?.slice(0, 128).join("\n"));
-      } else unsupported("setWidget(component)");
+      }
     },
     setEditorText: () => unsupported("setEditorText"),
     pasteToEditor: () => unsupported("pasteToEditor"),
@@ -225,10 +225,6 @@ export function createPiExtensionUI(
     setHeader: () => unsupported("setHeader"),
     setTitle: () => unsupported("setTitle"),
     addAutocompleteProvider: () => unsupported("addAutocompleteProvider"),
-    onTerminalInput: () => {
-      unsupported("onTerminalInput");
-      return () => {};
-    },
   };
   return {
     ui,

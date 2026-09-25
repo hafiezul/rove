@@ -117,7 +117,7 @@ Extension notifications and visible custom-message text appear in activity. Stat
 
 ## Limitations
 
-Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value, matching Pi's RPC fallback. Unsupported UI calls produce a warning where possible. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
+Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value. Raw terminal-input listeners and component widgets are ignored, as in Pi's RPC mode. Other unsupported UI calls produce a warning where possible. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
 
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 

@@ -26,6 +26,7 @@ import {
   createAgentSessionFromServices,
   DefaultResourceLoader,
   getAgentDir,
+  getPackageDir,
   ModelRuntime,
   resolveCliModel,
   SessionManager,
@@ -595,6 +596,9 @@ export async function createPiSessionServices(
 ): Promise<
   AgentSessionServices & { resourceLoader: PiResourceLoader; extensionProviderIds: Set<string> }
 > {
+  // pi-subagents caches this root while loading. Embedded Pi has no CLI path,
+  // and the extension's separate npm install cannot resolve Rove's SDK.
+  process.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT = getPackageDir();
   const cwd = NodePath.resolve(options.cwd);
   const agentDir = options.agentDir ? NodePath.resolve(options.agentDir) : getAgentDir();
   const modelRuntime =
