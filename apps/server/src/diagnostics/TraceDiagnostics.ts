@@ -423,8 +423,9 @@ export const make = Effect.gen(function* () {
       const readAt = options.readAt ?? (yield* DateTime.now);
       const slowSpanThresholdMs = options.slowSpanThresholdMs ?? DEFAULT_SLOW_SPAN_THRESHOLD_MS;
       const paths = toRotatedTracePaths(options.traceFilePath, options.maxFiles);
-      const results = yield* Effect.all(
-        paths.map((path) =>
+      const results = yield* Effect.forEach(
+        paths,
+        (path) =>
           readTraceFile(fileSystem, path).pipe(
             Effect.tapError((cause) =>
               Effect.logWarning("Failed to read local trace file.").pipe(
@@ -437,7 +438,6 @@ export const make = Effect.gen(function* () {
             ),
             Effect.result,
           ),
-        ),
         {
           concurrency: 1,
         },

@@ -159,8 +159,9 @@ export function consumeCloudReplayGuards(input: {
   readonly names: ReadonlyArray<string>;
   readonly value: Uint8Array;
 }) {
-  return Effect.all(
-    input.names.map((name) =>
+  return Effect.forEach(
+    input.names,
+    (name) =>
       input.secrets.create(name, input.value).pipe(
         Effect.as(true),
         Effect.catchIf(ServerSecretStore.isSecretStoreError, (error) =>
@@ -169,7 +170,6 @@ export function consumeCloudReplayGuards(input: {
             : Effect.fail(error),
         ),
       ),
-    ),
     { concurrency: input.names.length },
   ).pipe(Effect.map((created) => created.every(Boolean)));
 }
