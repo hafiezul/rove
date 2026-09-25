@@ -130,7 +130,7 @@ function ProviderExtensionsContent({
   const compatibilityWarnings = data?.compatibilityWarnings ?? [];
 
   return (
-    <div className="space-y-3 p-4 text-sm">
+    <div className="space-y-3 px-6 pb-4 text-sm">
       {isPending && data === null && (
         <div className="flex items-center gap-2 text-muted-foreground" role="status">
           <Spinner className="size-4" />
@@ -280,7 +280,7 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
           Extensions
         </DialogTrigger>
         <DialogPopup className="overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="pb-4">
             <DialogTitle>Pi provider catalog</DialogTitle>
             <DialogDescription>
               Global Pi extensions found on the server. Project extensions load in their threads.
