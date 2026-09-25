@@ -18,8 +18,8 @@ const devBundleIdSuffix = NodePath.basename(repoRoot)
   .replaceAll(/[^a-z0-9]+/g, "");
 const APP_DISPLAY_NAME = isDevelopment ? "Rove Code (Dev)" : "Rove Code (Alpha)";
 const APP_BUNDLE_ID = isDevelopment
-  ? `dev.rove.app.dev.${devBundleIdSuffix || "local"}`
-  : "dev.rove.app";
+  ? `io.github.hafiezul.rove.dev.${devBundleIdSuffix || "local"}`
+  : "io.github.hafiezul.rove";
 const APP_PROTOCOL_SCHEMES = isDevelopment ? ["rove-dev"] : ["rove"];
 const LAUNCHER_VERSION = 19;
 const developmentMacIconPngPath = NodePath.join(

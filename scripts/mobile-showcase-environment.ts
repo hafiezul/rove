@@ -117,7 +117,7 @@ export const SHOWCASE_PROJECTS = [
     id: "rove",
     title: "Rove Code",
     directory: "rove",
-    repositoryUrl: "https://github.com/rovecode/rove.git",
+    repositoryUrl: "https://github.com/hafiezul/rove.git",
     favicon: PROJECT_FAVICONS.rove,
   },
   {
@@ -305,7 +305,7 @@ async function seedRoveWorkspace(workspaceRoot: string): Promise<void> {
   );
   await initializeRepository({
     workspaceRoot,
-    repositoryUrl: "https://github.com/rovecode/rove.git",
+    repositoryUrl: "https://github.com/hafiezul/rove.git",
     commitMessage: "Show connected environments",
   });
   await runGit(workspaceRoot, ["checkout", "-b", "feat/remote-command-center"]);

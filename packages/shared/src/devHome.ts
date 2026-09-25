@@ -1,6 +1,6 @@
 /**
  * Where development state lives, and how to keep it away from the shared
- * `~/.rove` that a user's installed Rove Code runs against.
+ * `~/.rove-code` that a user's installed Rove Code runs against.
  *
  * A linked git worktree gets its own (gitignored) `.rove`: feature work in a
  * throwaway branch must not share a database with the real app, and an ambient

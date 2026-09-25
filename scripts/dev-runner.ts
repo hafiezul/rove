@@ -68,7 +68,7 @@ export function isProxiableBindHost(host: string): boolean {
 }
 
 export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
-  path.join(NodeOS.homedir(), ".rove"),
+  path.join(NodeOS.homedir(), ".rove-code"),
 );
 
 const MODE_ARGS = {

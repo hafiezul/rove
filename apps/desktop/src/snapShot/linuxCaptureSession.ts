@@ -8,8 +8,8 @@ import { nativeImage } from "electron";
 // process can answer "which desktop is this" and read a PNG without loading it.
 
 export const HYPRLAND_CAPTURE_ACTION = "capture-window";
-export const NIRI_CAPTURE_PATH = "/com/t3tools/SnapShot";
-export const NIRI_CAPTURE_INTERFACE = "com.t3tools.SnapShot";
+export const NIRI_CAPTURE_PATH = "/io/github/hafiezul/rove/SnapShot";
+export const NIRI_CAPTURE_INTERFACE = "io.github.hafiezul.rove.SnapShot";
 
 function isDesktopSession(env: NodeJS.ProcessEnv, desktop: string): boolean {
   return (

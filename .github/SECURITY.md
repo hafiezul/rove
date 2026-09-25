@@ -1,8 +1,5 @@
 # Security policy
 
-Report security vulnerabilities affecting Rove Code or T3 Tools-operated infrastructure to
-[security@ping.gg](mailto:security@ping.gg). Please do not disclose them publicly until we have had
-a reasonable opportunity to investigate and remediate them.
+Report vulnerabilities in Rove Code through [private vulnerability reporting](https://github.com/hafiezul/rove/security/advisories/new). Do not post exploit details in a public issue.
 
-See the [full security policy](https://t3.codes/security-policy) for reporting details, scope,
-and safe harbor terms for good-faith research.
+Rove Code is an independent fork. Its maintainers can investigate issues in this repository, but they do not operate the upstream project's services.
