@@ -223,11 +223,16 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
 
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
-        createSession: (input) =>
-          createPiSession({
-            ...input,
-            agentDir: effectiveAgentDir,
-          }),
+        createSession: (input) => {
+          const compatibility = catalogHost.observeThreadUI();
+          return createPiSession(
+            { ...input, agentDir: effectiveAgentDir },
+            { compatibility },
+          ).catch((error: unknown) => {
+            compatibility.dispose();
+            throw error;
+          });
+        },
         getSettings: serverSettings.getSettings.pipe(
           Effect.map(readCurrentPiSettings),
           Effect.orElseSucceed(() => effectiveConfig),

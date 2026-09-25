@@ -27,6 +27,7 @@ export const PiCatalogSnapshot = Schema.Struct({
     }),
   ),
   warnings: Schema.Array(Schema.String),
+  compatibilityWarnings: Schema.optional(Schema.Array(Schema.String)),
 });
 export type PiCatalogSnapshot = typeof PiCatalogSnapshot.Type;
 

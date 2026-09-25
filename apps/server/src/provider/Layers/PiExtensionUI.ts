@@ -27,6 +27,7 @@ export function createPiExtensionUI(
   fallback: ExtensionUIContext,
   emit: (event: PiSessionEventLike) => void,
   onPrompt: () => void,
+  reportUnsupportedUI: () => void,
 ) {
   // Common extensions style status strings through ctx.ui.theme. Pi's SDK
   // leaves it uninitialized; use a built-in theme without a terminal watcher,
@@ -43,7 +44,7 @@ export function createPiExtensionUI(
       cancel: () => void;
     }
   >();
-  const warned = new Set<string>();
+  let reportedUnsupported = false;
   const lastText = new Map<string, { text: string; message: string }>();
   const statuses = new Map<string, string>();
   let textTimer: ReturnType<typeof setTimeout> | undefined;
@@ -104,14 +105,10 @@ export function createPiExtensionUI(
     }, 500);
     textTimer.unref();
   };
-  const unsupported = (method: string) => {
-    if (stopped || warned.has(method)) return;
-    warned.add(method);
-    emit({
-      type: "rove_ui_notify",
-      level: "warning",
-      message: `Pi extension UI ${method} is not supported in Rove. Use Pi's terminal UI for this feature.`,
-    });
+  const unsupported = () => {
+    if (stopped || reportedUnsupported) return;
+    reportedUnsupported = true;
+    reportUnsupportedUI();
   };
 
   const ask = (
@@ -207,24 +204,28 @@ export function createPiExtensionUI(
       if (!stopped && text) emit({ type: "rove_ui_notify", message: text, level });
     },
     custom: (factory, options) => {
-      unsupported("custom");
+      unsupported();
       // Match Pi's RPC fallback without executing a terminal component factory.
       return fallback.custom(factory, options);
+    },
+    onTerminalInput: (handler) => {
+      unsupported();
+      return fallback.onTerminalInput(handler);
     },
     setStatus: showStatus,
     setWorkingMessage: (text) => showText("working", "Pi", text),
     setWidget: (key, content) => {
       if (content === undefined || Array.isArray(content)) {
         showText("widget", key, content?.slice(0, 128).join("\n"));
-      }
+      } else unsupported();
     },
-    setEditorText: () => unsupported("setEditorText"),
-    pasteToEditor: () => unsupported("pasteToEditor"),
-    setEditorComponent: () => unsupported("setEditorComponent"),
-    setFooter: () => unsupported("setFooter"),
-    setHeader: () => unsupported("setHeader"),
-    setTitle: () => unsupported("setTitle"),
-    addAutocompleteProvider: () => unsupported("addAutocompleteProvider"),
+    setEditorText: unsupported,
+    pasteToEditor: unsupported,
+    setEditorComponent: unsupported,
+    setFooter: unsupported,
+    setHeader: unsupported,
+    setTitle: unsupported,
+    addAutocompleteProvider: unsupported,
   };
   return {
     ui,

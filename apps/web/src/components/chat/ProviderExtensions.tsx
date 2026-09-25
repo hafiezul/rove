@@ -127,6 +127,7 @@ function ProviderExtensionsContent({
   const modelCount =
     data?.modelProviders.reduce((total, provider) => total + provider.modelCount, 0) ?? 0;
   const warningCount = data?.warnings.length ?? 0;
+  const compatibilityWarnings = data?.compatibilityWarnings ?? [];
 
   return (
     <div className="space-y-3 p-4 text-sm">
@@ -154,6 +155,20 @@ function ProviderExtensionsContent({
             </ul>
           </AlertDescription>
         </Alert>
+      )}
+
+      {data && compatibilityWarnings.length > 0 && (
+        <section aria-label="Compatibility" className="flex gap-2 border-s-2 border-warning ps-3">
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+          <div className="space-y-1">
+            <h3 className="font-medium">Needs Pi's terminal</h3>
+            {compatibilityWarnings.map((warning) => (
+              <p key={warning} className="text-muted-foreground">
+                {warning}
+              </p>
+            ))}
+          </div>
+        </section>
       )}
 
       {data && (
@@ -222,7 +237,9 @@ function ProviderExtensionsContent({
           {error ? "Retry" : "Refresh"}
         </Button>
         <ul className="space-y-1 text-xs text-muted-foreground">
-          <li>Found does not mean every feature works in Rove. Pi terminal UI stays in Pi.</li>
+          {compatibilityWarnings.length === 0 && (
+            <li>Found does not mean every feature works in Rove. Pi terminal UI stays in Pi.</li>
+          )}
           <li>Refresh re-reads extensions and model catalogs from the server's Pi config.</li>
           <li>Switches apply to new sessions. Live threads reload on their next turn.</li>
         </ul>
@@ -232,14 +249,19 @@ function ProviderExtensionsContent({
 }
 
 export function ProviderExtensions(props: ProviderExtensionsProps) {
-  const warningCount = props.data?.warnings.length ?? 0;
+  const issueCount =
+    (props.data?.warnings.length ?? 0) + (props.data?.compatibilityWarnings?.length ?? 0);
   return (
     <div className="flex items-center gap-1">
       <Dialog>
         <DialogTrigger
           render={
-            <Button size="xs" variant="outline" aria-label="Extensions">
-              {warningCount > 0 ? (
+            <Button
+              size="xs"
+              variant="outline"
+              aria-label={`Extensions${issueCount > 0 ? `, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}` : ""}`}
+            >
+              {issueCount > 0 ? (
                 <TriangleAlertIcon className="size-3.5 text-warning" />
               ) : (
                 <PuzzleIcon className="size-3.5" />
@@ -247,9 +269,9 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
               <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
                 Extensions
               </span>
-              {warningCount > 0 && (
+              {issueCount > 0 && (
                 <Badge variant="warning" size="sm">
-                  {warningCount}
+                  {issueCount}
                 </Badge>
               )}
             </Button>

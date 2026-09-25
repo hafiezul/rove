@@ -65,9 +65,9 @@ The Extensions button beside the Pi provider selector opens the global provider 
 - Discovered global extension names, scope, source, tools, and commands.
 - A per-extension switch on each row. Off removes that extension from Pi sessions.
 - Model providers with authentication and model counts.
-- Load warnings and catalog refresh errors.
+- Load warnings, catalog refresh errors, and notices when an active extension asks for Pi terminal-only controls.
 
-A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts.
+A disabled extension stays listed in the discovered inventory so it can be turned back on. A compatibility notice may come from a project extension in an active thread, even when that extension is not listed in the global inventory. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. An extension appearing here does not mean every feature works without Pi's terminal. See Limitations.
 
@@ -117,7 +117,7 @@ Extension notifications and visible custom-message text appear in activity. Stat
 
 ## Limitations
 
-Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value. Raw terminal-input listeners and component widgets are ignored, as in Pi's RPC mode. Other unsupported UI calls produce a warning where possible. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
+Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value. Raw terminal-input listeners and component widgets do not run in Rove. If an active extension requests terminal-only controls, the Pi Extensions panel shows a compatibility notice instead of adding a warning to the thread. The notice clears when the affected session ends. Extension load and runtime failures still appear in thread activity, and failed tools still show an error in their results. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
 
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 

@@ -94,6 +94,11 @@ function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
   ].join("\n");
 }
 
+interface PiUiCompatibility {
+  readonly reportUnsupportedUI: () => void;
+  readonly dispose: () => void;
+}
+
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
@@ -102,6 +107,7 @@ async function toPiSessionLike(
   modelFallbackMessage?: string | undefined,
   disposeRoveTools: () => Promise<void> = async () => {},
   interactive = false,
+  compatibility?: PiUiCompatibility,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -125,7 +131,12 @@ async function toPiSessionLike(
   });
   let activePreflight: (() => void) | undefined;
   const extensionUI = interactive
-    ? createPiExtensionUI(session.extensionRunner.getUIContext(), emit, () => activePreflight?.())
+    ? createPiExtensionUI(
+        session.extensionRunner.getUIContext(),
+        emit,
+        () => activePreflight?.(),
+        () => compatibility?.reportUnsupportedUI(),
+      )
     : undefined;
   const abort = () => {
     stopped = true;
@@ -162,6 +173,7 @@ async function toPiSessionLike(
           session.dispose();
         } finally {
           listeners.clear();
+          compatibility?.dispose();
         }
       }
     })());
@@ -696,6 +708,7 @@ export async function createPiSession(
      */
     modelRuntime?: ModelRuntime;
     retryWithoutFailedExtensions?: boolean;
+    compatibility?: PiUiCompatibility;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
@@ -865,5 +878,6 @@ export async function createPiSession(
     modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
     roveTools.dispose,
     input.interactive === true && !options.textGeneration,
+    options.compatibility,
   );
 }
