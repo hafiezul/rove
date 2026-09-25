@@ -64,6 +64,7 @@ describe("shouldBundleCliDependency", () => {
       "ffi-rs",
       "@yuuang/ffi-rs-win32-x64-msvc",
       "@ff-labs/fff-node",
+      "@napi-rs/keyring",
       "@clerk/electron-passkeys",
       "node-addon-api",
     ]) {
@@ -151,6 +152,7 @@ describe("selectCliRuntimeExternalDependencies", () => {
         "@earendil-works/pi-coding-agent",
         "@ff-labs/fff-node",
         "@modelcontextprotocol/sdk",
+        "@napi-rs/keyring",
         "cross-spawn",
         "diff",
         "jose",
