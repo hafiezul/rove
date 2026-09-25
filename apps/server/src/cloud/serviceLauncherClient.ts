@@ -135,13 +135,6 @@ const resolveStartup = Effect.fn("cloud.service_launcher_client.resolve_startup"
   },
 );
 
-export const resolveServiceLauncherMode = Effect.fn("cloud.service_launcher_client.resolve_mode")(
-  function* () {
-    const { managed } = yield* resolveStartup();
-    return { managed };
-  },
-);
-
 export const make = Effect.fn("cloud.service_launcher_client.make")(function* (options?: {
   readonly currentVersion?: string;
 }) {
