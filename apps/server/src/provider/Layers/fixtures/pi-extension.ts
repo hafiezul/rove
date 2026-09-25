@@ -71,9 +71,25 @@ export default function (pi: ExtensionAPI) {
       },
     ],
     streamSimple(model, context) {
-      if (!context.systemPrompt?.includes("Fixture hook active."))
-        throw new Error("Missing extension hook");
-      if (!context.tools?.some((tool) => tool.name === "fixture_tool"))
+      // Pi 0.87 normalizes each request into a transcript where the prompt and
+      // tool declarations ride on system messages instead of dedicated fields.
+      const systemPrompt = context.messages
+        .filter((message) => message.role === "system")
+        .map((message) =>
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- Mirrors pi-ai's declared `content: string | TextContent[]` union; extensions can inject either shape.
+          typeof message.content === "string"
+            ? message.content
+            : message.content
+                .filter((block) => block.type === "text")
+                .map((block) => block.text)
+                .join("\n"),
+        )
+        .join("\n");
+      const tools = context.messages.flatMap((message) =>
+        message.role === "system" ? (message.toolsAdded ?? []) : [],
+      );
+      if (!systemPrompt.includes("Fixture hook active.")) throw new Error("Missing extension hook");
+      if (!tools.some((tool) => tool.name === "fixture_tool"))
         throw new Error("Missing extension tool");
       const hasResult = context.messages.some((message) => message.role === "toolResult");
       const message: AssistantMessage = {

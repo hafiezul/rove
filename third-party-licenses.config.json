@@ -154,7 +154,7 @@
   "packageOverrides": [
     {
       "repositoryUrl": "https://github.com/earendil-works/pi",
-      "sourceUrl": "https://github.com/earendil-works/pi/blob/v0.85.1/LICENSE",
+      "sourceUrl": "https://github.com/earendil-works/pi/blob/v0.87.1/LICENSE",
       "generatedNotice": {
         "licenseId": "MIT",
         "copyrights": ["Copyright (c) 2025 Mario Zechner"]
