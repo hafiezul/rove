@@ -13,6 +13,7 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
   const serverRoot = NodePath.resolve(import.meta.dirname, "../../..");
   const distDir = NodePath.join(root, "dist");
   const project = NodePath.join(root, "project");
+  const externalRoot = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pi-external-package-"));
   const extensions = NodePath.join(project, ".pi", "extensions");
   NodeFS.mkdirSync(extensions, { recursive: true });
   NodeFS.copyFileSync(
@@ -22,6 +23,17 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
   NodeFS.copyFileSync(
     new URL("./fixtures/pi-runtime-probe.ts", import.meta.url),
     NodePath.join(extensions, "runtime-probe.ts"),
+  );
+  const externalExtension = NodePath.join(externalRoot, "index.mjs");
+  NodeFS.copyFileSync(
+    new URL("./fixtures/pi-host-sdk-probe.mjs", import.meta.url),
+    externalExtension,
+  );
+  const agentDir = NodePath.join(root, "agent");
+  NodeFS.mkdirSync(agentDir);
+  NodeFS.writeFileSync(
+    NodePath.join(agentDir, "settings.json"),
+    JSON.stringify({ extensions: [externalExtension] }),
   );
   try {
     stageRuntimePackageFixture(
@@ -62,5 +74,6 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
     assert.include(executed.stdout, "bundled Pi extensions smoke test passed");
   } finally {
     NodeFS.rmSync(root, { recursive: true, force: true });
+    NodeFS.rmSync(externalRoot, { recursive: true, force: true });
   }
 }, 120000);

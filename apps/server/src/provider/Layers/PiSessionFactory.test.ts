@@ -59,6 +59,7 @@ describe("headless Pi extensions", () => {
     NodeFS.mkdirSync(agentDir);
     vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
     vi.stubEnv("PI_OFFLINE", "1");
+    vi.stubEnv("PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT", undefined);
     NodeFS.copyFileSync(
       new URL("./fixtures/pi-extension.ts", import.meta.url),
       NodePath.join(cwd, ".pi", "extensions", "fixture.ts"),
@@ -490,6 +491,28 @@ describe("headless Pi extensions", () => {
     expect(JSON.stringify(SessionManager.open(session.sessionFile!).getEntries())).toContain(
       '"name":"Ada"',
     );
+  });
+
+  it("ignores TUI-only input and widget hooks in an RPC extension session", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "terminal-input.ts"),
+      `export default function (pi) {
+        pi.on("session_start", (_event, ctx) => {
+          if (ctx.mode !== "rpc") throw new Error("Expected remote UI");
+          ctx.ui.onTerminalInput(() => ({ consume: true }));
+          ctx.ui.setWidget("fleet", () => { throw new Error("TUI factory must not render"); });
+          ctx.ui.notify("RPC hooks registered");
+        });
+      }`,
+    );
+    const session = await createInteractive();
+    const events: PiSessionEventLike[] = [];
+    session.subscribe((event) => events.push(event));
+    await session.prompt("handled");
+    expect(log()).toContain("start:true:rpc\n");
+    expect(events.filter((event) => event.type === "rove_ui_notify")).toEqual([
+      { type: "rove_ui_notify", level: "info", message: "RPC hooks registered" },
+    ]);
   });
 
   it("preserves selector values, rejects forged choices, and keeps dialogs session-local", async () => {
@@ -1047,6 +1070,33 @@ describe("headless Pi extensions", () => {
     const session = await create();
     await session.prompt("/count");
     assert.include(log(), "command:1:false\n");
+  });
+
+  it("loads the host SDK from an external Pi extension and a detached process", async () => {
+    const externalDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-external-"));
+    try {
+      const extensionPath = NodePath.join(externalDir, "index.mjs");
+      NodeFS.copyFileSync(
+        new URL("./fixtures/pi-host-sdk-probe.mjs", import.meta.url),
+        extensionPath,
+      );
+      NodeFS.writeFileSync(
+        NodePath.join(agentDir, "settings.json"),
+        JSON.stringify({ extensions: [extensionPath] }),
+      );
+      const session = await createInteractive();
+      const events: PiSessionEventLike[] = [];
+      session.subscribe((event) => events.push(event));
+      await session.prompt("/probe-host-sdk");
+      expect(events).toContainEqual({
+        type: "rove_ui_notify",
+        level: "info",
+        message: "host SDK loaded in Rove and detached child",
+      });
+      expect(process.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT).toBe(PiSdk.getPackageDir());
+    } finally {
+      NodeFS.rmSync(externalDir, { recursive: true, force: true });
+    }
   });
 
   it("skips extensions listed in disabledExtensions and tells the model about it", async () => {

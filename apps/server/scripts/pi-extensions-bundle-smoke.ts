@@ -18,9 +18,11 @@ const session = await createPiSession({
 try {
   const results: unknown[] = [];
   const errors: unknown[] = [];
+  const notifications: unknown[] = [];
   session.subscribe((event) => {
     if (event.type === "tool_execution_end") results.push(event.result);
     if (event.type === "extension_error") errors.push(event.error);
+    if (event.type === "rove_ui_notify") notifications.push(event.message);
     if (event.type === "rove_ui_request") {
       NodeAssert.equal(
         session.respondToUserInput?.(String(event.requestId), { answer: "0" }),
@@ -34,6 +36,8 @@ try {
     /start:true:rpc\ncommand:1:true/,
   );
   await session.prompt("/probe-child-runtime");
+  await session.prompt("/probe-host-sdk");
+  NodeAssert.ok(notifications.includes("host SDK loaded in Rove and detached child"));
   NodeAssert.deepEqual(errors, [], "child runtime bootstrap must not fail in an extension");
   NodeAssert.match(
     NodeFS.readFileSync(NodePath.join(cwd, "runtime-probe.txt"), "utf8"),
