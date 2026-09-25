@@ -15,6 +15,7 @@ import { checkPiProviderStatus } from "./PiProvider.ts";
 import { afterEach, beforeEach, describe, vi } from "vite-plus/test";
 
 import { PiCatalogHost } from "./PiCatalogHost.ts";
+import { createPiSession } from "./PiSessionFactory.ts";
 
 const decodePiSettings = Schema.decodeSync(PiSettings);
 
@@ -268,6 +269,82 @@ describe("Pi catalog host", () => {
     assert.deepStrictEqual(broken?.tools, []);
     assert.isTrue(catalog.modelProviders.some((provider) => provider.id === "rove-extension-test"));
     assert.isTrue(catalog.warnings.some((warning) => warning.includes("catalog load failed")));
+  });
+
+  it("reports one compatibility notice across active sessions and clears it on disposal", async () => {
+    const host = await create();
+    let changes = 0;
+    const unsubscribe = host.onChange(() => {
+      changes++;
+    });
+    try {
+      const first = host.observeThreadUI();
+      const second = host.observeThreadUI();
+      first.reportUnsupportedUI();
+      first.reportUnsupportedUI();
+      second.reportUnsupportedUI();
+      const active = await host.getCatalog();
+      assert.deepEqual(active.compatibilityWarnings, [
+        "A Pi extension in an active thread requested terminal-only controls. These controls do not work in Rove. Use Pi's terminal UI to access them.",
+      ]);
+      assert.deepEqual(active.warnings, []);
+      assert.strictEqual(changes, 1);
+
+      first.dispose();
+      first.reportUnsupportedUI();
+      assert.strictEqual((await host.getCatalog()).compatibilityWarnings?.length, 1);
+      second.dispose();
+      second.dispose();
+      assert.deepEqual((await host.getCatalog()).compatibilityWarnings, []);
+      assert.strictEqual(changes, 2);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("shows a project extension's terminal-only UI issue in the catalog, not its thread", async () => {
+    const host = await create();
+    const project = NodePath.join(root, "project");
+    const extensions = NodePath.join(project, ".pi", "extensions");
+    NodeFS.mkdirSync(extensions, { recursive: true });
+    NodeFS.copyFileSync(fixturePath, NodePath.join(extensions, "fixture.ts"));
+    NodeFS.writeFileSync(
+      NodePath.join(extensions, "terminal.ts"),
+      `export default function (pi) {
+        pi.on("session_start", (_event, ctx) => {
+          ctx.ui.onTerminalInput(() => ({ consume: true }));
+        });
+      }`,
+    );
+    const compatibility = host.observeThreadUI();
+    let session: Awaited<ReturnType<typeof createPiSession>> | undefined;
+    try {
+      session = await createPiSession(
+        {
+          cwd: project,
+          interactive: true,
+          model: "rove-extension-test/fixture",
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { compatibility },
+      );
+      const threadWarnings: unknown[] = [];
+      session.subscribe((event) => {
+        if (event.type === "rove_ui_notify" && event.level === "warning") {
+          threadWarnings.push(event);
+        }
+      });
+      await session.prompt("handled");
+      assert.deepEqual(threadWarnings, []);
+      const catalog = await host.getCatalog();
+      assert.strictEqual(catalog.extensions.length, 0);
+      assert.strictEqual(catalog.compatibilityWarnings?.length, 1);
+    } finally {
+      await session?.dispose();
+      compatibility.dispose();
+    }
+    assert.deepEqual((await host.getCatalog()).compatibilityWarnings, []);
   });
 
   it("rescans extension files on refresh", async () => {

@@ -1,20 +1,21 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { UserInputRequestedPayload } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";
 import type { PiSessionEventLike } from "./PiAdapter.ts";
 
 const decodeQuestions = Schema.decodeUnknownSync(UserInputRequestedPayload);
 
-function createUI() {
+function createUI(reportUnsupportedUI = () => {}) {
   const events: PiSessionEventLike[] = [];
-  // SAFETY: The bridge spreads this fallback but these tests never call other SDK UI methods.
-  const fallback = {} as ExtensionUIContext;
+  // SAFETY: Tests call only the mocked terminal input hook and bridge-owned methods.
+  const fallback = Object.assign({} as ExtensionUIContext, { onTerminalInput: () => () => {} });
   const bridge = createPiExtensionUI(
     fallback,
     (event) => events.push(event),
     () => {},
+    reportUnsupportedUI,
   );
   const latestQuestion = () => {
     const request = events.findLast((event) => event.type === "rove_ui_request");
@@ -24,8 +25,26 @@ function createUI() {
       questions: decodeQuestions({ questions: request.questions }).questions,
     };
   };
-  return { bridge, latestQuestion };
+  return { bridge, events, latestQuestion };
 }
+
+describe("Pi extension compatibility", () => {
+  it("reports terminal-only UI once outside the thread and stops after disposal", () => {
+    const report = vi.fn();
+    const { bridge, events } = createUI(report);
+    const unsubscribe = bridge.ui.onTerminalInput(() => ({ consume: true }));
+    bridge.ui.setWidget("fleet", () => {
+      throw new Error("terminal widget rendered");
+    });
+    bridge.ui.setTitle("Terminal title");
+    expect(report).toHaveBeenCalledOnce();
+    expect(events).toEqual([]);
+    unsubscribe();
+    bridge.stop();
+    bridge.ui.setTitle("after stop");
+    expect(report).toHaveBeenCalledOnce();
+  });
+});
 
 describe("Pi extension editor questions", () => {
   it("prefills a multiline answer and returns the user's edit", async () => {
