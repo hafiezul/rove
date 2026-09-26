@@ -1,5 +1,5 @@
 /**
- * PiSessionFactory — builds the real in-process Pi sessions for `PiAdapter`.
+ * PiSessionFactory — builds SDK sessions inside the isolated Pi instance runtime.
  *
  * Wires `@earendil-works/pi-coding-agent` per the settled provider design:
  *   - Tools, commands, and hooks load through the SDK. Thread sessions expose
@@ -50,7 +50,10 @@ import {
   type PiSessionResumeOutcome,
 } from "./PiAdapter.ts";
 
-import { readMcpProviderSession } from "../../mcp/McpProviderSession.ts";
+import {
+  readMcpProviderSession,
+  type McpProviderSessionConfig,
+} from "../../mcp/McpProviderSession.ts";
 import { createPiRoveTools } from "./PiRoveTools.ts";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
@@ -709,6 +712,8 @@ export async function createPiSession(
     modelRuntime?: ModelRuntime;
     retryWithoutFailedExtensions?: boolean;
     compatibility?: PiUiCompatibility;
+    /** Thread authorization passed over the isolated runtime's private IPC channel. */
+    mcpProviderSession?: McpProviderSessionConfig | undefined;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
@@ -836,7 +841,8 @@ export async function createPiSession(
       | undefined;
 
   const roveTools = await createPiRoveTools(
-    input.threadId === undefined ? undefined : readMcpProviderSession(input.threadId),
+    options.mcpProviderSession ??
+      (input.threadId === undefined ? undefined : readMcpProviderSession(input.threadId)),
   );
   const { session, modelFallbackMessage: sdkModelFallbackMessage } =
     await createAgentSessionFromServices({

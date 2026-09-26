@@ -1,5 +1,5 @@
 /**
- * PiDriver — `ProviderDriver` for the Pi runtime (in-process via the SDK).
+ * PiDriver — `ProviderDriver` for the SDK runtime in an isolated instance process.
  *
  * See docs/adr/0001-pi-provider-uses-sdk-in-process.md. The driver's `create()`
  * bundles `snapshot` / `adapter` / `textGeneration` closures over the decoded
@@ -30,8 +30,8 @@ import { expandHomePath } from "../../pathExpansion.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
-import { PiCatalogHost } from "../Layers/PiCatalogHost.ts";
-import { createPiSession } from "../Layers/PiSessionFactory.ts";
+import { PiRuntimeProcess } from "../Layers/PiRuntimeProcess.ts";
+import { HostProcessIsExecutable } from "@t3tools/shared/hostProcess";
 import { registerPiBundledOAuthFlows } from "./PiOAuth.ts";
 import {
   buildInitialPiProviderSnapshot,
@@ -78,7 +78,9 @@ const MAINTENANCE = makeManualOnlyProviderMaintenanceCapabilities({
  * Project resources are thread-scoped and keep living in their own sessions.
  */
 export const makeSdkDiscoveryClient = (
-  getExtensionCommands?: () => ReadonlyArray<ServerProviderSlashCommand>,
+  getExtensionCommands?: () =>
+    | ReadonlyArray<ServerProviderSlashCommand>
+    | Promise<ReadonlyArray<ServerProviderSlashCommand>>,
   agentDir?: string,
 ): PiDiscoveryClient => ({
   discover: async ({ cwd }) => {
@@ -101,7 +103,7 @@ export const makeSdkDiscoveryClient = (
     // command resolution order (extension commands come first).
     let extensionCommands: ReadonlyArray<ServerProviderSlashCommand> = [];
     try {
-      extensionCommands = getExtensionCommands?.() ?? [];
+      extensionCommands = (await getExtensionCommands?.()) ?? [];
     } catch {
       // Discovery is best-effort; a catalog host hiccup must not drop templates.
     }
@@ -189,13 +191,17 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // One catalog host per instance: extension models enter the provider
       // snapshot here, so every picker lists them with no per-thread work.
       // Thread sessions keep full per-thread loading for tools and hooks.
+      const executable = yield* HostProcessIsExecutable;
       const catalogHost = yield* Effect.acquireRelease(
         acquirePiResource(
           () =>
-            PiCatalogHost.create({
-              disabledExtensions: effectiveConfig.disabledExtensions,
-              agentDir: effectiveAgentDir,
-            }),
+            PiRuntimeProcess.create(
+              {
+                disabledExtensions: effectiveConfig.disabledExtensions,
+                agentDir: effectiveAgentDir,
+              },
+              executable,
+            ),
           (host) => host.dispose(),
         ).pipe(
           Effect.mapError(
@@ -223,16 +229,8 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
 
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
-        createSession: (input) => {
-          const compatibility = catalogHost.observeThreadUI();
-          return createPiSession(
-            { ...input, agentDir: effectiveAgentDir },
-            { compatibility },
-          ).catch((error: unknown) => {
-            compatibility.dispose();
-            throw error;
-          });
-        },
+        createSession: (input) =>
+          catalogHost.createSession({ ...input, agentDir: effectiveAgentDir }),
         getSettings: serverSettings.getSettings.pipe(
           Effect.map(readCurrentPiSettings),
           Effect.orElseSucceed(() => effectiveConfig),
@@ -244,22 +242,10 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       yield* Effect.addFinalizer(() => adapter.shutdown());
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
         createSession: ({ cwd, model, thinkingLevel }) =>
-          createPiSession(
-            {
-              cwd,
-              model,
-              thinkingLevel,
-              agentDir: effectiveAgentDir,
-              resumeSessionId: undefined,
-            },
-            {
-              extensions: false,
-              textGeneration: true,
-              // Text generation stays extension-free (no tools or hooks), but
-              // must resolve extension-registered models, so it shares the
-              // catalog host's runtime.
-              modelRuntime: catalogHost.getModelRuntime(),
-            },
+          catalogHost.createSession(
+            { cwd, model, thinkingLevel, agentDir: effectiveAgentDir, resumeSessionId: undefined },
+            // Tool-free helper sessions share the catalog's model implementations inside the child.
+            true,
           ),
       });
 

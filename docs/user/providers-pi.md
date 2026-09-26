@@ -2,7 +2,7 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
-To keep separate Pi configurations, set **Pi agent directory** for each instance in provider settings. Each directory has its own credentials, models, saved sessions, and global extensions. Leave it blank to use the server's default Pi directory. Instances using the same directory can continue each other's threads.
+To keep separate Pi configurations, set **Pi agent directory** for each instance in provider settings. Each directory has its own credentials, models, saved sessions, and global extensions. Subagents started by extensions inherit that directory unless the extension explicitly overrides it. Leave it blank to use the server's default Pi directory. Instances using the same directory can continue each other's threads.
 
 ## Built-in Rove tools
 
@@ -33,8 +33,10 @@ Provider diagnostics report the Pi version bundled with Rove, not a separately
 installed Pi CLI. Session startup, catalog startup, and turn preparation waits are
 limited to 60 seconds; cleanup waits are limited to 5 seconds. Waiting for your
 answer to an extension question does not use the turn preparation deadline. A
-startup timeout is reported as a failure, not a successful empty session. These
-limits cannot protect against an extension that blocks or exits the server process.
+startup timeout is reported as a failure, not a successful empty session. Each Pi
+instance runs separately from the server. If its runtime exits or becomes
+unresponsive, disable and re-enable the instance in provider settings, then resume
+the thread. Unfinished prompts are not replayed automatically.
 
 ## Extension sources
 
@@ -46,7 +48,7 @@ Rove uses Pi's standard resource loader for these sources:
 
 `PI_CODING_AGENT_DIR` overrides the global Pi directory. Pi's resource filters still apply. Extension changes take effect when Rove creates the next Pi session. Existing sessions keep their loaded extensions until their next turn after a settings change, such as disabling an extension in the extensions panel.
 
-Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute inside the Rove server with its permissions. A faulty extension can affect other threads or the server itself.
+Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute on the server machine with its permissions; this is not a security sandbox. A faulty extension can interrupt other threads in the same Pi instance, but does not share a runtime with other instances or the Rove server.
 
 ## Models from extensions
 

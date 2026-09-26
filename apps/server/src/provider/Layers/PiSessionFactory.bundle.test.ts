@@ -40,16 +40,16 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
       NodePath.join(serverRoot, "node_modules/@earendil-works/pi-coding-agent"),
       root,
     );
-    const packed = NodeChildProcess.spawnSync(
-      "vp",
-      ["pack", "scripts/pi-extensions-bundle-smoke.ts", "--out-dir", distDir, "--clean"],
-      {
-        cwd: serverRoot,
-        encoding: "utf8",
-        timeout: 90000,
-      },
-    );
-    assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
+    // Separate roots (scripts/ and src/) would preserve those directories in a
+    // multi-entry build. Production's entries all live in src/ and are siblings.
+    for (const entry of ["scripts/pi-extensions-bundle-smoke.ts", "src/pi-runtime-worker.ts"]) {
+      const packed = NodeChildProcess.spawnSync(
+        "vp",
+        ["pack", entry, "--out-dir", distDir, "--no-clean"],
+        { cwd: serverRoot, encoding: "utf8", timeout: 90000 },
+      );
+      assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
+    }
     const executed = NodeChildProcess.spawnSync(
       process.execPath,
       [NodePath.join(distDir, "pi-extensions-bundle-smoke.mjs"), project],
