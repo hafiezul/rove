@@ -146,19 +146,19 @@ const withIdentity = <A, E, R>(
 };
 
 describe("DesktopAppIdentity", () => {
-  it.effect("keeps using the legacy userData path when it already exists", () =>
+  it.effect("uses isolated userData even when the inherited app directory exists", () =>
     withIdentity(
       Effect.gen(function* () {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
         const userDataPath = yield* identity.resolveUserDataPath;
 
-        assert.equal(userDataPath, "/Users/alice/Library/Application Support/Rove Code (Alpha)");
+        assert.equal(userDataPath, "/Users/alice/Library/Application Support/rove-code");
       }),
       { legacyPathExists: true },
     ),
   );
 
-  it.effect("preserves failures while inspecting the legacy userData path", () => {
+  it.effect("does not inspect the inherited app directory", () => {
     const legacyPath = "/Users/alice/Library/Application Support/Rove Code (Alpha)";
     const cause = PlatformError.systemError({
       _tag: "PermissionDenied",
@@ -171,15 +171,8 @@ describe("DesktopAppIdentity", () => {
     return withIdentity(
       Effect.gen(function* () {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
-        const error = yield* identity.resolveUserDataPath.pipe(Effect.flip);
-
-        assert.instanceOf(error, DesktopAppIdentity.DesktopUserDataPathResolutionError);
-        assert.equal(error.legacyPath, legacyPath);
-        assert.strictEqual(error.cause, cause);
-        assert.equal(
-          error.message,
-          `Failed to inspect legacy desktop user-data path at "${legacyPath}".`,
-        );
+        const userDataPath = yield* identity.resolveUserDataPath;
+        assert.equal(userDataPath, "/Users/alice/Library/Application Support/rove-code");
       }),
       { legacyPathProbeError: cause },
     );

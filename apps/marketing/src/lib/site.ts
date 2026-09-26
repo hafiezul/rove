@@ -1,4 +1,4 @@
-export const GITHUB_REPOSITORY_URL = "https://github.com/rovecode/rove";
+export const GITHUB_REPOSITORY_URL = "https://github.com/hafiezul/rove";
 
 export const IOS_APP_STORE_URL =
   "https://apps.apple.com/us/app/rove-remote-claude-more/id6787819824";

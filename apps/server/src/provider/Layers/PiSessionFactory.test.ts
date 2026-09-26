@@ -166,10 +166,10 @@ describe("headless Pi extensions", () => {
     const { session: sdkSession } = await result.value;
     expect(session.sessionFile).toBeUndefined();
     expect(sdkSession.getActiveToolNames()).toEqual([]);
-    expect(sdkSession.agent.state.systemPrompt).toContain(
-      "running in Rove Code through the Pi harness",
-    );
-    expect(sdkSession.agent.state.systemPrompt).toContain("link_pull_request");
+    // Pi 0.87 replays the prompt from the transcript; the session getter is the
+    // effective prompt, including changes not yet sent to the model.
+    expect(sdkSession.systemPrompt).toContain("running in Rove Code through the Pi harness");
+    expect(sdkSession.systemPrompt).toContain("link_pull_request");
     expect(NodeFS.existsSync(NodePath.join(cwd, "extension.log"))).toBe(false);
   });
 
@@ -415,9 +415,13 @@ describe("headless Pi extensions", () => {
   it.each(["what is this", ""])(
     "forwards prompt images with text %j into the session's user message",
     async (text) => {
+      // A real 1×1 PNG survives Pi 0.87's image normalization untouched; an
+      // invalid payload would be replaced by an "[Image omitted: ...]" text.
+      const png =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
       const session = await create();
       await session.prompt(text, {
-        images: [{ type: "image", data: "AQ==", mimeType: "image/png" }],
+        images: [{ type: "image", data: png, mimeType: "image/png" }],
       });
       // SAFETY: The PiSessionLike surface types messages loosely; the last user
       // message is the one this test just prompted with, and its final content
@@ -430,7 +434,7 @@ describe("headless Pi extensions", () => {
       assert.isDefined(userMessage);
       assert.deepEqual(userMessage?.content?.at(-1), {
         type: "image",
-        data: "AQ==",
+        data: png,
         mimeType: "image/png",
       });
     },

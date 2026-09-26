@@ -13,6 +13,18 @@ describe("hostedPairing", () => {
     vi.unstubAllEnvs();
   });
 
+  it("does not use an upstream hosted origin without explicit configuration", () => {
+    vi.stubEnv("VITE_HOSTED_APP_URL", "");
+    vi.stubEnv("VITE_HTTP_URL", "");
+    vi.stubEnv("VITE_WS_URL", "");
+
+    expect(isHostedStaticApp(new URL("https://app.t3.codes/"))).toBe(false);
+    expect(
+      new URL(buildHostedPairingUrl({ host: "https://host.example.com", token: "test", label: "" }))
+        .hostname,
+    ).toBe("app.example.invalid");
+  });
+
   it("reads hosted pairing host and query token parameters", () => {
     const url = new URL("https://app.t3.codes/pair?host=100.64.1.2:3773&token=ABCD1234");
 

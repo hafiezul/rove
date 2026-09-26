@@ -2,28 +2,28 @@
 # Installs the Rove Code CLI from a GitHub Release archive. Needs only sh, tar,
 # sha256sum or shasum, and curl or wget; no Node, npm, or compiler.
 #
-#   curl -fsSL https://t3.codes/install.sh | sh
+# This installer is not available until Rove publishes its own CLI archives.
 #
 # Environment:
 #   ROVE_CHANNEL           release train to follow: stable, nightly, or preview
 #                            (default: stable; preview is a maintainers' test train)
 #   ROVE_VERSION           exact version to install (overrides ROVE_CHANNEL)
-#   ROVE_HOME              Rove home directory (default: ~/.rove)
-#   ROVE_INSTALL_BIN_DIR   where the `t3` symlink goes (default: ~/.local/bin)
+#   ROVE_HOME              Rove home directory (default: ~/.rove-code)
+#   ROVE_INSTALL_BIN_DIR   where the `rove` symlink goes (default: ~/.local/bin)
 #   ROVE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #
 # The archive is unpacked into $ROVE_HOME/runtime/versions/<version>, the
-# same layout `t3 service install` uses, so the service reuses this download
+# same layout `rove service install` uses, so the service reuses this download
 # instead of fetching the release again.
 set -eu
 
-repo="rovecode/rove"
+repo="hafiezul/rove"
 base_url="${ROVE_RELEASE_BASE_URL:-https://github.com/${repo}/releases/download}"
-t3_home="${ROVE_HOME:-$HOME/.rove}"
+rove_home="${ROVE_HOME:-$HOME/.rove-code}"
 bin_dir="${ROVE_INSTALL_BIN_DIR:-$HOME/.local/bin}"
 
 fail() {
-  printf 't3 install: %s\n' "$1" >&2
+  printf 'rove install: %s\n' "$1" >&2
   exit 1
 }
 
@@ -84,7 +84,7 @@ fi
 case "$version" in
   *-preview.*)
     printf '%s\n' \
-      "t3 ${version} is a preview build." \
+      "rove ${version} is a preview build." \
       "  Preview builds are cut by maintainers from unreleased branches to exercise the release" \
       "  pipeline. They can be broken, receive no fixes, and are never offered as updates." \
       "  Set ROVE_CHANNEL=stable (the default) for a supported build." >&2
@@ -94,13 +94,13 @@ case "$version" in
     ;;
 esac
 
-stem="t3-${version}-${platform}-${arch}"
+stem="rove-${version}-${platform}-${arch}"
 archive="${stem}.tar.gz"
-versions_dir="${t3_home}/runtime/versions"
+versions_dir="${rove_home}/runtime/versions"
 target_dir="${versions_dir}/${version}"
 
 if [ -f "${target_dir}/.install-complete" ] && [ "$(cat "${target_dir}/.install-complete")" = "$version" ]; then
-  printf 't3 %s is already installed at %s\n' "$version" "$target_dir"
+  printf 'rove %s is already installed at %s\n' "$version" "$target_dir"
 else
   mkdir -p "$versions_dir"
   staging="$(mktemp -d "${versions_dir}/.staging-XXXXXX")"
@@ -110,7 +110,7 @@ else
   fetch_status=0
   fetch "${base_url}/v${version}/SHA256SUMS" "${staging}/SHA256SUMS" || fetch_status=$?
   if [ "$fetch_status" -eq 44 ]; then
-    fail "t3 ${version} has no release archive for ${platform}-${arch}; releases before the self-contained CLI can only be installed with \`npm install -g t3@${version}\`"
+    fail "rove ${version} has no release archive for ${platform}-${arch} in this fork"
   elif [ "$fetch_status" -ne 0 ]; then
     fail "could not download the release checksums"
   fi
@@ -123,18 +123,25 @@ else
 
   tar -xzf "${staging}/${archive}" -C "$staging" --strip-components=1
   rm -f "${staging}/${archive}" "${staging}/SHA256SUMS"
-  "${staging}/t3" --version >/dev/null || fail "the downloaded executable does not run"
+  "${staging}/rove" --version >/dev/null || fail "the downloaded executable does not run"
   printf '%s\n' "$version" > "${staging}/.install-complete"
 
-  rm -rf "$target_dir"
+  { [ ! -e "$target_dir" ] && [ ! -L "$target_dir" ]; } || fail "${target_dir} already exists; refusing to replace an existing installation"
   mv "$staging" "$target_dir"
   trap - EXIT
 fi
 
 mkdir -p "$bin_dir"
-ln -sfn "${target_dir}/t3" "${bin_dir}/t3"
-printf 'Installed t3 %s\n  %s -> %s\n' "$version" "${bin_dir}/t3" "${target_dir}/t3"
+if [ -e "${bin_dir}/rove" ] || [ -L "${bin_dir}/rove" ]; then
+  [ -L "${bin_dir}/rove" ] || fail "${bin_dir}/rove exists and is not a Rove installer link"
+  case "$(readlink "${bin_dir}/rove")" in
+    "${versions_dir}"/*/rove) ;;
+    *) fail "${bin_dir}/rove points to a different installation; refusing to replace it" ;;
+  esac
+fi
+ln -sfn "${target_dir}/rove" "${bin_dir}/rove"
+printf 'Installed rove %s\n  %s -> %s\n' "$version" "${bin_dir}/rove" "${target_dir}/rove"
 case ":${PATH}:" in
   *":${bin_dir}:"*) ;;
-  *) printf 'Add %s to your PATH to run `t3`.\n' "$bin_dir" ;;
+  *) printf 'Add %s to your PATH to run `rove`.\n' "$bin_dir" ;;
 esac

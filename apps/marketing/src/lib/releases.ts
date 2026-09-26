@@ -1,4 +1,4 @@
-const REPO = "rovecode/rove";
+const REPO = "hafiezul/rove";
 
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 export const NIGHTLY_RELEASES_URL = `${RELEASES_URL}?q=nightly&expanded=true`;

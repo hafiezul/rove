@@ -5,7 +5,7 @@
 See the [development runbook](docs/operations/development.md#first-checkout) for the initial checkout,
 development commands, tests, and platform-specific desktop packaging prerequisites.
 
-Rove Code is an early fork of [Rove Code](https://github.com/rovecode/rove). Its direction and contribution process are still taking shape.
+Rove Code is an independent fork with its own roadmap. Its contribution process is still taking shape.
 
 ## Before starting
 
@@ -23,6 +23,6 @@ Do not combine unrelated fixes or broad rewrites in one pull request. Include be
 
 ## Working with upstream
 
-Before implementing a fix, check whether it already exists in [upstream Rove Code](https://github.com/rovecode/rove). Changes that are broadly useful and align with upstream's direction may be better proposed there first, then incorporated into Rove Code.
+Before implementing a fix, check whether it already exists in [the upstream project](https://github.com/pingdotgg/t3code). Changes that are broadly useful to both projects may be proposed upstream and incorporated here.
 
 Preserve upstream copyright and attribution when carrying or adapting upstream work.

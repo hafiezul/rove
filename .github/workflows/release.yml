@@ -1,14 +1,9 @@
 name: Release
 
+# Publication remains opt-in while the fork's CLI namespace, signing and
+# artifact paths are being migrated. Re-enable tag/scheduled triggers only
+# after downloaded Rove-built artifacts pass the release smoke gates.
 on:
-  push:
-    tags:
-      - "v*.*.*"
-      - "!v*-nightly.*"
-      - "!v*-preview.*"
-  schedule:
-    # Avoid minute zero, when GitHub scheduled jobs are busiest.
-    - cron: "8,38 * * * *"
   workflow_dispatch:
     inputs:
       channel:
@@ -47,6 +42,7 @@ jobs:
   # have already run. Scheduled runs also decide here whether a nightly is due.
   resolve_commit:
     name: Resolve release commit
+    if: vars.ROVE_RELEASE_READY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -650,7 +646,7 @@ jobs:
       - name: Check npm publish access (dry run)
         run: |
           if ! node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --dry-run --verbose; then
-            echo "::error::npm publish --dry-run failed. Make sure the @rove npm org exists and that t3 and every @rove/t3-<platform> package has a trusted publisher registered for .github/workflows/release.yml (see docs/operations/release.md)." >&2
+            echo "::error::npm publish --dry-run failed. Make sure the @rove npm org exists and that @rove/cli and every @rove/cli-<platform> package has a trusted publisher registered for .github/workflows/release.yml (see docs/operations/release.md)." >&2
             exit 1
           fi
 
@@ -716,7 +712,7 @@ jobs:
           set -euo pipefail
           cd release-assets
           shopt -s nullglob
-          archives=(t3-*.tar.gz t3-*.zip)
+          archives=(rove-*.tar.gz rove-*.zip)
           if [[ ${#archives[@]} -eq 0 ]]; then
             echo "No CLI archives were produced." >&2
             exit 1
@@ -805,7 +801,7 @@ jobs:
           > [!WARNING]
           > **This is a preview build. Do not install it unless you know exactly why you are here.**
           >
-          > Preview builds are cut by maintainers from unreleased branches to exercise the release pipeline. They can be broken, receive no fixes, are never offered as updates, and are not supported. If you want Rove Code, install the [latest release](https://github.com/rovecode/rove/releases/latest) or a nightly instead.
+          > Preview builds are cut by maintainers from unreleased branches to exercise the release pipeline. They can be broken, receive no fixes, are never offered as updates, and are not supported. If you want Rove Code, install the [latest release](https://github.com/hafiezul/rove/releases/latest) or a nightly instead.
 
           Built from `${{ needs.preflight.outputs.ref }}`.
           EOF
@@ -844,7 +840,7 @@ jobs:
   publish_aur:
     name: Publish AUR package
     needs: [preflight, release]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
+    if: ${{ vars.ROVE_AUR_RELEASE_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
     uses: ./.github/workflows/publish-aur.yml
     with:
       release_tag: ${{ needs.preflight.outputs.tag }}
@@ -854,7 +850,7 @@ jobs:
   deploy_web:
     name: Deploy hosted web app
     needs: [preflight, relay_public_config, release]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
+    if: ${{ vars.ROVE_HOSTED_RELEASE_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -919,9 +915,15 @@ jobs:
             exit 1
           fi
 
-          router_url="${ROVE_WEB_ROUTER_URL:-https://app.t3.codes}"
-          latest_domain="${ROVE_WEB_LATEST_DOMAIN:-latest.app.t3.codes}"
-          nightly_domain="${ROVE_WEB_NIGHTLY_DOMAIN:-nightly.app.t3.codes}"
+          router_url="${ROVE_WEB_ROUTER_URL:?Configure a Rove-owned hosted router URL}"
+          latest_domain="${ROVE_WEB_LATEST_DOMAIN:?Configure a Rove-owned latest domain}"
+          nightly_domain="${ROVE_WEB_NIGHTLY_DOMAIN:?Configure a Rove-owned nightly domain}"
+          for host in "$router_url" "$latest_domain" "$nightly_domain"; do
+            if [[ "$host" == *t3.codes* ]]; then
+              echo "Refusing to deploy to an upstream T3 domain: $host" >&2
+              exit 1
+            fi
+          done
           router_domain="${router_url#http://}"
           router_domain="${router_domain#https://}"
           router_domain="${router_domain%%/*}"
@@ -973,7 +975,7 @@ jobs:
   deploy_marketing:
     name: Deploy marketing site
     needs: [preflight, release]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
+    if: ${{ vars.ROVE_MARKETING_RELEASE_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:

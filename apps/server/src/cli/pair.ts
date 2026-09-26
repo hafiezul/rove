@@ -79,7 +79,7 @@ export class NoRunningServerError extends Schema.TaggedError<NoRunningServerErro
     return [
       "No running Rove Code server found.",
       ...this.checkedStatePaths.map((statePath) => `  checked ${statePath}`),
-      "Start one with `npx t3 serve`, or connect this machine with Rove Connect: `npx t3 connect`.",
+      "Start one with `rove serve` on the server machine and pair over its local or LAN address.",
     ].join("\n");
   }
 }

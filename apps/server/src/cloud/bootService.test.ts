@@ -79,7 +79,7 @@ const macPlan = {
   program: [macRuntime, "__service-launcher"],
   baseDir: "/Users/theo/.rove",
   logPath: "/Users/theo/.rove/userdata/logs/boot-service.log",
-  unitPath: "/Users/theo/Library/LaunchAgents/dev.rove.app.service.plist",
+  unitPath: "/Users/theo/Library/LaunchAgents/io.github.hafiezul.rove.service.plist",
 };
 const macInstallerPath =
   "/opt/homebrew/bin:/Users/theo/.npm-global/bin:/Users/theo/.nvm/versions/node/v22.16.0/bin:/usr/bin:/bin";
@@ -451,7 +451,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           platform === "linux"
             ? ["systemctl --user stop rove.service", "systemctl --user restart rove.service"]
             : [
-                "launchctl bootout --wait gui/501/dev.rove.app.service",
+                "launchctl bootout --wait gui/501/io.github.hafiezul.rove.service",
                 `launchctl bootstrap gui/501 ${plan.unitPath}`,
               ],
         );
@@ -502,7 +502,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         protocol: SERVICE_LAUNCHER_PROTOCOL,
         activeVersion: "1.2.4",
       });
-      expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/t3");
+      expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/rove");
       expect(
         commands.filter(
           (command) => command.startsWith("systemctl ") && !command.includes("show-environment"),
@@ -690,7 +690,9 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       const plan = yield* service.install();
 
       expect(
-        plan.unitPath.endsWith(path.join("Library", "LaunchAgents", "dev.rove.app.service.plist")),
+        plan.unitPath.endsWith(
+          path.join("Library", "LaunchAgents", "io.github.hafiezul.rove.service.plist"),
+        ),
       ).toBe(true);
       expect(yield* fs.readFileString(plan.unitPath)).toContain(
         `    <key>PATH</key>\n    <string>${macInstallerPath}:/usr/local/bin:/usr/sbin:/sbin</string>`,
@@ -711,9 +713,9 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       expect(commands.some((command) => command.startsWith("systemctl "))).toBe(false);
       // A bootout can block up to the plist's 90s ExitTimeOut; the runner's
       // 60s default would cancel it and let bootstrap race a loaded job.
-      expect(timeouts.get("launchctl bootout --wait gui/501/dev.rove.app.service")).toEqual(
-        Duration.seconds(120),
-      );
+      expect(
+        timeouts.get("launchctl bootout --wait gui/501/io.github.hafiezul.rove.service"),
+      ).toEqual(Duration.seconds(120));
     }),
   );
 
@@ -728,8 +730,8 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       const error = yield* service.install().pipe(Effect.flip);
       expect(error._tag).toBe("BootServiceCommandError");
       expect(commands.filter((command) => command.startsWith("launchctl "))).toEqual([
-        "launchctl bootout --wait gui/501/dev.rove.app.service",
-        "launchctl enable gui/501/dev.rove.app.service",
+        "launchctl bootout --wait gui/501/io.github.hafiezul.rove.service",
+        "launchctl enable gui/501/io.github.hafiezul.rove.service",
         `launchctl bootstrap gui/501 ${plistPath}`,
         `launchctl bootstrap gui/501 ${plistPath}`,
       ]);
@@ -791,7 +793,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
     Effect.gen(function* () {
       const { service, control } = yield* makeHarness("darwin");
       yield* service.install();
-      control.failCommand = "launchctl bootout --wait gui/501/dev.rove.app.service";
+      control.failCommand = "launchctl bootout --wait gui/501/io.github.hafiezul.rove.service";
 
       yield* service.install();
       expect((yield* service.status).current).toBe(true);
@@ -823,7 +825,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         );
         expect(serviceStateHasPendingUpdate(yield* fs.readFileString(statePath))).toBe(true);
         expect(commands.filter((command) => command.startsWith("launchctl "))).toEqual([
-          "launchctl bootout --wait gui/501/dev.rove.app.service",
+          "launchctl bootout --wait gui/501/io.github.hafiezul.rove.service",
           `launchctl bootstrap gui/501 ${plistPath}`,
         ]);
       }
