@@ -16,7 +16,7 @@ function Shell({
       data-slot="composer-shell"
       data-with-context={contextStrip || undefined}
       className={cn(
-        "@container/composer-surface group/composer-surface relative isolate mx-auto w-full max-w-3xl",
+        "@container/composer-surface group/composer-surface relative isolate mx-auto w-full max-w-(--chat-max-width)",
         composerSurfaceTokenClasses,
         "before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-3xl before:bg-(--chat-composer-glass-surface)/(--glass-opacity) before:backdrop-blur-(--glass-blur) before:backdrop-saturate-(--glass-saturation)",
         "not-supports-[((backdrop-filter:blur(1px))_or_(-webkit-backdrop-filter:blur(1px)))]:before:bg-(--chat-composer-glass-surface)",
