@@ -31,6 +31,8 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const warningCount = props.data?.warnings.length ?? 0;
+  const compatibilityWarnings = props.data?.compatibilityWarnings ?? [];
+  const issueCount = warningCount + compatibilityWarnings.length;
   const modelCount =
     props.data?.modelProviders.reduce((total, provider) => total + provider.modelCount, 0) ?? 0;
 
@@ -38,13 +40,13 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Extensions${warningCount > 0 ? `, ${warningCount} issues` : ""}`}
+        accessibilityLabel={`Extensions${issueCount > 0 ? `, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}` : ""}`}
         onPress={() => setOpen(true)}
         style={{ padding: 8 }}
       >
         <Text style={{ color: "#888" }}>
           Extensions
-          {warningCount > 0 ? ` · ${warningCount}` : ""}
+          {issueCount > 0 ? ` · ${issueCount}` : ""}
           {props.isPending && props.data === null ? " · Loading…" : props.error ? " · Error" : ""}
         </Text>
       </Pressable>
@@ -77,8 +79,8 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
             />
             <Stat value={props.data ? String(modelCount) : "–"} label="Models" />
             <Stat
-              value={props.data ? String(warningCount) : "–"}
-              label={warningCount === 1 ? "Issue" : "Issues"}
+              value={props.data ? String(issueCount) : "–"}
+              label={issueCount === 1 ? "Issue" : "Issues"}
             />
           </View>
 
@@ -92,6 +94,19 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
               <SectionTitle>Needs attention</SectionTitle>
               {props.data.warnings.map((warning) => (
                 <Text key={warning}>• {warning}</Text>
+              ))}
+            </View>
+          )}
+
+          {props.data && compatibilityWarnings.length > 0 && (
+            <View className="gap-1.5 border-l-2 border-warning-border pl-3">
+              <Text accessibilityRole="header" className="font-t3-medium text-sm text-foreground">
+                Needs Pi's terminal
+              </Text>
+              {compatibilityWarnings.map((warning) => (
+                <Text key={warning} className="text-sm leading-5 text-foreground-secondary">
+                  {warning}
+                </Text>
               ))}
             </View>
           )}
@@ -192,8 +207,11 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
             <Text style={{ fontWeight: "600" }}>{props.error ? "Retry" : "Refresh catalogue"}</Text>
           </Pressable>
           <Text style={{ fontSize: 13, color: "#888" }}>
-            Found does not mean every extension feature works in Rove. Disabling an extension stops
-            loading it in new Pi sessions; existing sessions reload on their next turn.
+            {compatibilityWarnings.length === 0
+              ? "Found does not mean every extension feature works in Rove. Pi terminal UI stays in Pi. "
+              : ""}
+            Disabling an extension stops loading it in new Pi sessions; existing sessions reload on
+            their next turn.
           </Text>
         </ScrollView>
       </Modal>

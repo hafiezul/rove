@@ -65,6 +65,44 @@ runVcsDriverContractSuite<GitVcsDriver.GitVcsDriver, GitContractError>({
   },
 });
 
+it.effect("captures same-size edits when the source index has racy timestamps", () =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const driver = yield* GitVcsDriver.makeVcsDriverShape();
+    const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "rove-racy-checkpoint-" });
+    yield* runGit(cwd, ["init"]);
+    yield* runGit(cwd, ["config", "user.email", "test@test.com"]);
+    yield* runGit(cwd, ["config", "user.name", "Test"]);
+    yield* runGit(cwd, ["config", "core.trustctime", "false"]);
+    yield* runGit(cwd, ["config", "core.checkStat", "minimal"]);
+    const file = path.join(cwd, "README.md");
+    const timestamp = 946_684_800; // 2000-01-01, in seconds since the epoch.
+    yield* fileSystem.writeFileString(file, "v1\n");
+    yield* fileSystem.utimes(file, timestamp, timestamp);
+    yield* runGit(cwd, ["add", "."]);
+    yield* runGit(cwd, ["commit", "-m", "initial"]);
+    // Reproduce a write within the index's timestamp resolution without sleeping.
+    yield* fileSystem.utimes(path.join(cwd, ".git", "index"), timestamp, timestamp);
+    yield* fileSystem.writeFileString(file, "v2\n");
+    yield* fileSystem.utimes(file, timestamp, timestamp);
+    const checkpointRef = CheckpointRef.make("refs/t3/checkpoints/racy");
+    yield* driver.checkpoints.captureCheckpoint({ cwd, checkpointRef });
+    const captured = yield* driver.execute({
+      operation: "test",
+      cwd,
+      args: ["show", `${checkpointRef}:README.md`],
+    });
+    assert.strictEqual(captured.stdout, "v2\n");
+    const staged = yield* driver.execute({
+      operation: "test",
+      cwd,
+      args: ["show", ":README.md"],
+    });
+    assert.strictEqual(staged.stdout, "v1\n");
+  }).pipe(Effect.provide(GitContractLayer)),
+);
+
 it.effect("restores empty checkpoints without changing paths outside the workspace", () =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;

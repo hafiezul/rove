@@ -812,14 +812,24 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
           : yield* fileSystem
               .exists(resolvedWorktreeIndexPath)
               .pipe(Effect.catch(() => Effect.succeed(false)));
-      const seededFromWorktreeIndex = worktreeIndexExists
-        ? yield* fileSystem.copyFile(resolvedWorktreeIndexPath as string, tempIndexPath).pipe(
-            Effect.as(true),
-            // Unreadable index (permissions, concurrent delete): fall
-            // through to the read-tree path below.
-            Effect.catch(() => Effect.succeed(false)),
-          )
-        : false;
+      const seededFromWorktreeIndex =
+        worktreeIndexExists && resolvedWorktreeIndexPath !== null
+          ? yield* Effect.gen(function* () {
+              const source = yield* fileSystem.stat(resolvedWorktreeIndexPath);
+              yield* fileSystem.copyFile(resolvedWorktreeIndexPath, tempIndexPath);
+              // Git uses the index mtime to detect same-size writes within its stat
+              // resolution. Giving the copy a newer mtime can make stale entries
+              // appear clean. Read the source timestamp before copying; an older
+              // timestamp from a concurrent index refresh is conservative too.
+              const mtime = Option.getOrElse(source.mtime, () => 0);
+              yield* fileSystem.utimes(tempIndexPath, mtime, mtime);
+              return true;
+            }).pipe(
+              // Unreadable index (permissions, concurrent delete): fall
+              // through to the read-tree path below.
+              Effect.catch(() => Effect.succeed(false)),
+            )
+          : false;
       const commitEnv: NodeJS.ProcessEnv = {
         ...process.env,
         GIT_INDEX_FILE: tempIndexPath,

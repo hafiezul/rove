@@ -1063,6 +1063,14 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:pi-catalog",
       tag: WS_METHODS.piGetCatalog,
       staleTimeMs: 30_000,
+      // Pi republishes its provider snapshot when active UI compatibility changes.
+      refreshTrigger: ({ environmentId, input }) =>
+        Atom.make(
+          (get) =>
+            get(providersValueAtom(environmentId))?.find(
+              (provider) => provider.instanceId === input.instanceId,
+            )?.checkedAt ?? null,
+        ),
     }),
     refreshPiCatalog: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:refresh-pi-catalog",

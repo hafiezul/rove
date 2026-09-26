@@ -2,7 +2,7 @@
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 
-To keep separate Pi configurations, set **Pi agent directory** for each instance in provider settings. Each directory has its own credentials, models, saved sessions, and global extensions. Leave it blank to use the server's default Pi directory. Instances using the same directory can continue each other's threads.
+To keep separate Pi configurations, set **Pi agent directory** for each instance in provider settings. Each directory has its own credentials, models, saved sessions, and global extensions. Subagents started by extensions inherit that directory unless the extension explicitly overrides it. Leave it blank to use the server's default Pi directory. Instances using the same directory can continue each other's threads.
 
 ## Built-in Rove tools
 
@@ -33,8 +33,10 @@ Provider diagnostics report the Pi version bundled with Rove, not a separately
 installed Pi CLI. Session startup, catalog startup, and turn preparation waits are
 limited to 60 seconds; cleanup waits are limited to 5 seconds. Waiting for your
 answer to an extension question does not use the turn preparation deadline. A
-startup timeout is reported as a failure, not a successful empty session. These
-limits cannot protect against an extension that blocks or exits the server process.
+startup timeout is reported as a failure, not a successful empty session. Each Pi
+instance runs separately from the server. If its runtime exits or becomes
+unresponsive, disable and re-enable the instance in provider settings, then resume
+the thread. Unfinished prompts are not replayed automatically.
 
 ## Extension sources
 
@@ -46,7 +48,7 @@ Rove uses Pi's standard resource loader for these sources:
 
 `PI_CODING_AGENT_DIR` overrides the global Pi directory. Pi's resource filters still apply. Extension changes take effect when Rove creates the next Pi session. Existing sessions keep their loaded extensions until their next turn after a settings change, such as disabling an extension in the extensions panel.
 
-Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute inside the Rove server with its permissions. A faulty extension can affect other threads or the server itself.
+Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute on the server machine with its permissions; this is not a security sandbox. A faulty extension can interrupt other threads in the same Pi instance, but does not share a runtime with other instances or the Rove server.
 
 ## Models from extensions
 
@@ -65,9 +67,9 @@ The Extensions button beside the Pi provider selector opens the global provider 
 - Discovered global extension names, scope, source, tools, and commands.
 - A per-extension switch on each row. Off removes that extension from Pi sessions.
 - Model providers with authentication and model counts.
-- Load warnings and catalog refresh errors.
+- Load warnings, catalog refresh errors, and notices when an active extension asks for Pi terminal-only controls.
 
-A disabled extension stays listed in the discovered inventory so it can be turned back on. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts.
+A disabled extension stays listed in the discovered inventory so it can be turned back on. A compatibility notice may come from a project extension in an active thread, even when that extension is not listed in the global inventory. Disabling filters the extension out before its factory executes, and excludes its models from both the catalog host and thread sessions. When an extension is disabled, the change is applied after active turns settle rather than disrupting live streams. The change is saved per provider instance in settings and survives restarts.
 
 The panel needs no thread. It shows whenever a Pi provider instance is selected, on web and mobile. An extension appearing here does not mean every feature works without Pi's terminal. See Limitations.
 
@@ -117,7 +119,7 @@ Extension notifications and visible custom-message text appear in activity. Stat
 
 ## Limitations
 
-Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value, matching Pi's RPC fallback. Unsupported UI calls produce a warning where possible. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
+Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This does not provide a terminal: custom components, keyboard shortcuts, custom renderers, editor replacement, autocomplete providers, and terminal themes are not reproduced. Custom components are not executed and return no value. Raw terminal-input listeners and component widgets do not run in Rove. If an active extension requests terminal-only controls, the Pi Extensions panel shows a compatibility notice instead of adding a warning to the thread. The notice clears when the affected session ends. Extension load and runtime failures still appear in thread activity, and failed tools still show an error in their results. Extensions should guard terminal-only features with `ctx.mode === "tui"` and use standard dialogs for remote interaction.
 
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 

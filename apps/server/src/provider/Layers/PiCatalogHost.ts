@@ -48,6 +48,8 @@ export interface PiCatalogHostOptions {
 }
 
 const MAX_WARNINGS = 50;
+const TERMINAL_UI_NOTICE =
+  "A Pi extension in an active thread requested terminal-only controls. These controls do not work in Rove. Use Pi's terminal UI to access them.";
 
 function pushWarning(warnings: Array<string>, warning: string): void {
   // Repeated refreshes would otherwise stack the same message.
@@ -60,6 +62,7 @@ function pushWarning(warnings: Array<string>, warning: string): void {
 export class PiCatalogHost {
   private readonly listeners = new Set<() => void>();
   private readonly warnings: Array<string> = [];
+  private activeTerminalUiSessions = 0;
   private disposed = false;
 
   private readonly session: AgentSession;
@@ -171,7 +174,28 @@ export class PiCatalogHost {
     }
   }
 
-  /** Change notifications for provider registrations, refreshes, and errors. */
+  /** Pi shares one UI context across extensions, so only the session is attributable. */
+  observeThreadUI() {
+    let active = true;
+    let reported = false;
+    return {
+      reportUnsupportedUI: () => {
+        if (!active || this.disposed || reported) return;
+        reported = true;
+        this.activeTerminalUiSessions++;
+        if (this.activeTerminalUiSessions === 1) this.emit();
+      },
+      dispose: () => {
+        if (!active) return;
+        active = false;
+        if (!reported) return;
+        this.activeTerminalUiSessions--;
+        if (this.activeTerminalUiSessions === 0 && !this.disposed) this.emit();
+      },
+    };
+  }
+
+  /** Notify snapshot subscribers when models, errors, or compatibility change. */
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {
@@ -274,6 +298,7 @@ export class PiCatalogHost {
           modelCount: this.modelRuntime.getModels(String(provider.id)).length,
         })),
       warnings: [...this.warnings],
+      compatibilityWarnings: this.activeTerminalUiSessions > 0 ? [TERMINAL_UI_NOTICE] : [],
     };
   }
 

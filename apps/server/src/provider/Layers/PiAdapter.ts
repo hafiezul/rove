@@ -1,8 +1,7 @@
 /**
  * PiAdapter — `ProviderAdapterContract` implementation backed by the Pi SDK
- * (`@earendil-works/pi-coding-agent`) running in-process. See
- * docs/adr/0001-pi-provider-uses-sdk-in-process.md for why this is not a
- * subprocess adapter.
+ * (`@earendil-works/pi-coding-agent`) in an isolated instance process. See
+ * docs/adr/0001-pi-provider-uses-sdk-in-process.md for the runtime boundary.
  *
  * One Pi `AgentSession` per Rove Code thread. Sessions run with the user's global
  * Pi config and extensions. Standard extension dialogs use Rove's question UI;
@@ -10,7 +9,7 @@
  * trees, so rolling back N turns forks the session at the entry that precedes
  * them and the fork becomes the thread's live session.
  *
- * The SDK surface is injected as `PiSdkLike` so tests can drive the adapter
+ * The SDK surface is injected as `PiSessionLike` so tests can drive the adapter
  * with a fake in-process Pi instead of real LLM calls.
  *
  * @module provider/Layers/PiAdapter
@@ -72,7 +71,8 @@ import {
   type PiSubagentTaskDescriptor,
 } from "./PiSubagentDialects.ts";
 import { piSubagentsDialect } from "./PiSubagentsDialect.ts";
-import { compactPiExampleUpdate, piExampleSubagentDialect } from "./PiExampleSubagentDialect.ts";
+import { piExampleSubagentDialect } from "./PiExampleSubagentDialect.ts";
+import { compactPiToolProgress } from "./PiRuntimeEvents.ts";
 import type {
   ProviderAdapterContract,
   ProviderThreadSnapshot,
@@ -222,12 +222,15 @@ export interface PiSessionLike {
     },
   ): Promise<void>;
   followUp(text: string): Promise<void>;
-  respondToUserInput?(requestId: string, answers: ProviderUserInputAnswers): boolean;
+  respondToUserInput?(
+    requestId: string,
+    answers: ProviderUserInputAnswers,
+  ): boolean | Promise<boolean>;
   compact?(): Promise<void>;
   abort(): Promise<void>;
   dispose(): void | Promise<void>;
   setModel?(model: string): Promise<void>;
-  setThinkingLevel?(level: string): void;
+  setThinkingLevel?(level: string): void | Promise<void>;
   getThinkingLevel?(): string;
   /**
    * Current model for image-input capability checks; undefined when no model
@@ -1613,29 +1616,7 @@ export function makePiAdapter(
           const now = clock.currentTimeMillisUnsafe();
           if (now - ctx.lastToolProgressAt < 500) return;
           ctx.lastToolProgressAt = now;
-          const content = piRecord(event.partialResult)?.content;
-          let progress = "";
-          if (Array.isArray(content)) {
-            // SDK updates can contain cumulative output. Keep the newest text,
-            // otherwise every snapshot looks identical once output exceeds the cap.
-            for (let index = content.length - 1; index >= 0; index--) {
-              const text = piRecord(content[index]);
-              if (text?.type !== "text" || !RuntimePredicate.isString(text.text)) continue;
-              progress = text.text.slice(-(1024 - progress.length)) + progress;
-              if (progress.length >= 1024) break;
-            }
-          }
-          const exampleUpdate =
-            event.toolName === "subagent"
-              ? piRecord(compactPiExampleUpdate(event.partialResult))
-              : undefined;
-          queued = {
-            type: event.type,
-            toolCallId: String(event.toolCallId ?? ""),
-            toolName: piBounded(String(event.toolName ?? "tool"), 120),
-            progress: progress.trim() || "Tool running",
-            ...(exampleUpdate !== undefined ? { exampleUpdate } : undefined),
-          };
+          queued = compactPiToolProgress(event);
         }
         runFork(withThreadLock(ctx.threadId, handleSdkEvent(ctx, queued)));
       });
@@ -2015,7 +1996,7 @@ export function makePiAdapter(
                   ctx.currentModelSlug = modelSlug;
                 }
                 if (ctx.session.setThinkingLevel !== undefined && thinkingLevel !== undefined) {
-                  ctx.session.setThinkingLevel(thinkingLevel);
+                  await ctx.session.setThinkingLevel(thinkingLevel);
                 }
                 return changed;
               },
@@ -2310,9 +2291,9 @@ export function makePiAdapter(
     ) =>
       Effect.gen(function* () {
         const ctx = yield* getSession(threadId, "respondToUserInput");
-        yield* Effect.try({
-          try: () => {
-            if (!ctx.session.respondToUserInput?.(requestId, answers)) {
+        yield* Effect.tryPromise({
+          try: async () => {
+            if (!(await ctx.session.respondToUserInput?.(requestId, answers))) {
               throw new Error(`Unknown pending user-input request: ${requestId}`);
             }
           },

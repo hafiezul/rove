@@ -1,5 +1,5 @@
 /**
- * PiSessionFactory — builds the real in-process Pi sessions for `PiAdapter`.
+ * PiSessionFactory — builds SDK sessions inside the isolated Pi instance runtime.
  *
  * Wires `@earendil-works/pi-coding-agent` per the settled provider design:
  *   - Tools, commands, and hooks load through the SDK. Thread sessions expose
@@ -26,6 +26,7 @@ import {
   createAgentSessionFromServices,
   DefaultResourceLoader,
   getAgentDir,
+  getPackageDir,
   ModelRuntime,
   resolveCliModel,
   SessionManager,
@@ -49,7 +50,10 @@ import {
   type PiSessionResumeOutcome,
 } from "./PiAdapter.ts";
 
-import { readMcpProviderSession } from "../../mcp/McpProviderSession.ts";
+import {
+  readMcpProviderSession,
+  type McpProviderSessionConfig,
+} from "../../mcp/McpProviderSession.ts";
 import { createPiRoveTools } from "./PiRoveTools.ts";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
@@ -93,6 +97,11 @@ function disabledExtensionsPromptNote(disabled: ReadonlyArray<string>): string {
   ].join("\n");
 }
 
+interface PiUiCompatibility {
+  readonly reportUnsupportedUI: () => void;
+  readonly dispose: () => void;
+}
+
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
@@ -101,6 +110,7 @@ async function toPiSessionLike(
   modelFallbackMessage?: string | undefined,
   disposeRoveTools: () => Promise<void> = async () => {},
   interactive = false,
+  compatibility?: PiUiCompatibility,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -124,7 +134,12 @@ async function toPiSessionLike(
   });
   let activePreflight: (() => void) | undefined;
   const extensionUI = interactive
-    ? createPiExtensionUI(session.extensionRunner.getUIContext(), emit, () => activePreflight?.())
+    ? createPiExtensionUI(
+        session.extensionRunner.getUIContext(),
+        emit,
+        () => activePreflight?.(),
+        () => compatibility?.reportUnsupportedUI(),
+      )
     : undefined;
   const abort = () => {
     stopped = true;
@@ -161,6 +176,7 @@ async function toPiSessionLike(
           session.dispose();
         } finally {
           listeners.clear();
+          compatibility?.dispose();
         }
       }
     })());
@@ -595,6 +611,9 @@ export async function createPiSessionServices(
 ): Promise<
   AgentSessionServices & { resourceLoader: PiResourceLoader; extensionProviderIds: Set<string> }
 > {
+  // pi-subagents caches this root while loading. Embedded Pi has no CLI path,
+  // and the extension's separate npm install cannot resolve Rove's SDK.
+  process.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT = getPackageDir();
   const cwd = NodePath.resolve(options.cwd);
   const agentDir = options.agentDir ? NodePath.resolve(options.agentDir) : getAgentDir();
   const modelRuntime =
@@ -692,6 +711,9 @@ export async function createPiSession(
      */
     modelRuntime?: ModelRuntime;
     retryWithoutFailedExtensions?: boolean;
+    compatibility?: PiUiCompatibility;
+    /** Thread authorization passed over the isolated runtime's private IPC channel. */
+    mcpProviderSession?: McpProviderSessionConfig | undefined;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
@@ -819,7 +841,8 @@ export async function createPiSession(
       | undefined;
 
   const roveTools = await createPiRoveTools(
-    input.threadId === undefined ? undefined : readMcpProviderSession(input.threadId),
+    options.mcpProviderSession ??
+      (input.threadId === undefined ? undefined : readMcpProviderSession(input.threadId)),
   );
   const { session, modelFallbackMessage: sdkModelFallbackMessage } =
     await createAgentSessionFromServices({
@@ -861,5 +884,6 @@ export async function createPiSession(
     modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
     roveTools.dispose,
     input.interactive === true && !options.textGeneration,
+    options.compatibility,
   );
 }
