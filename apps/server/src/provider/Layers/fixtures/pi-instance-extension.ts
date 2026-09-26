@@ -3,7 +3,11 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeUtil from "node:util";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
-import { createAssistantMessageEventStream, type AssistantMessage } from "@earendil-works/pi-ai";
+import {
+  createAssistantMessageEventStream,
+  getCurrentTools,
+  type AssistantMessage,
+} from "@earendil-works/pi-ai";
 import {
   createAgentSessionServices,
   createAgentSessionFromServices,
@@ -87,8 +91,9 @@ export default function (pi: ExtensionAPI) {
     ],
     streamSimple(model, context) {
       const callTool =
-        context.tools?.some((tool) => tool.name === "mcp__rove__preview_status") &&
-        !context.messages.some((message) => message.role === "toolResult");
+        getCurrentTools(context.messages).some(
+          (tool) => tool.name === "mcp__rove__preview_status",
+        ) && !context.messages.some((message) => message.role === "toolResult");
       const message: AssistantMessage = {
         role: "assistant",
         api: model.api,
