@@ -174,7 +174,13 @@ const WINDOWS_PAYLOAD_FIXTURE_VERSION = "1.2.3";
 const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(function* (input: {
   readonly copyUnpackedNatives: boolean;
   readonly serverEntrySource?: string;
-  readonly wslRuntime?: "valid" | "loose-server-tree" | "missing-pty" | "bad-digest";
+  readonly wslRuntime?:
+    | "valid"
+    | "dependency-bin-shim"
+    | "embedded-server-bundle"
+    | "loose-server-tree"
+    | "missing-pty"
+    | "bad-digest";
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -228,6 +234,12 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
             stem,
             ...(input.wslRuntime === "missing-pty"
               ? { omitMembers: [`${stem}/node_modules/node-pty/build/Release/pty.node`] }
+              : {}),
+            ...(input.wslRuntime === "dependency-bin-shim"
+              ? { extraMembers: [`${stem}/node_modules/yaml/bin.mjs`] }
+              : {}),
+            ...(input.wslRuntime === "embedded-server-bundle"
+              ? { extraMembers: [`${stem}/apps/server/dist/bin.mjs`] }
               : {}),
           });
     const archivePath = path.join(resourcesDir, WSL_RUNTIME_ARCHIVE_NAME);
@@ -1241,6 +1253,48 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
         assert.instanceOf(error, WindowsPackagedPayloadValidationError);
         assert.equal(error.reason, "wsl-runtime-missing");
+      }),
+    ),
+  );
+
+  it.effect("accepts an embedded archive whose dependencies ship their own bin.mjs shims", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fixture = yield* makeWindowsPayloadFixture({
+          copyUnpackedNatives: true,
+          wslRuntime: "dependency-bin-shim",
+        });
+        const result = yield* validateWindowsPackagedPayload({
+          stageDistDir: fixture.stageDistDir,
+          appExecutableName: fixture.appExecutableName,
+          targetArch: "x64",
+          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
+          expectWslRuntime: true,
+        });
+
+        assert.equal(result.packagedAppDir, fixture.packagedAppDir);
+      }),
+    ).pipe(Effect.provideService(HostProcessPlatform, "linux")),
+  );
+
+  it.effect("rejects an embedded archive that carries a loose server bundle", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fixture = yield* makeWindowsPayloadFixture({
+          copyUnpackedNatives: true,
+          wslRuntime: "embedded-server-bundle",
+        });
+        const error = yield* validateWindowsPackagedPayload({
+          stageDistDir: fixture.stageDistDir,
+          appExecutableName: fixture.appExecutableName,
+          targetArch: "x64",
+          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
+          expectWslRuntime: true,
+        }).pipe(Effect.flip);
+
+        assert.instanceOf(error, WindowsPackagedPayloadValidationError);
+        assert.equal(error.reason, "wsl-runtime-invalid");
+        assert.match(String(error.cause), /server bundle entry/);
       }),
     ),
   );
