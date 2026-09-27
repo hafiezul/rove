@@ -64,4 +64,25 @@ async function resolveLatestNightlyCommit({ github, context, core }) {
   return { tag, sha: commit.sha, version };
 }
 
-module.exports = { shouldReleaseNightly, resolveLatestNightlyCommit };
+// Build-only runs never need a previous release. Publishing stable still uses
+// the tested nightly commit; an explicit version must not bypass that invariant.
+async function resolveReleaseCommit({ github, context, core, channel, buildOnly = false }) {
+  if (buildOnly) {
+    core.info("Build-only: building the selected ref without publishing.");
+    return { ref: context.sha };
+  }
+  if (context.eventName === "schedule") {
+    return {
+      ref: context.sha,
+      has_changes: await shouldReleaseNightly({ github, context, core }),
+    };
+  }
+  if (context.eventName === "workflow_dispatch" && channel !== "nightly" && channel !== "preview") {
+    const { tag, sha, version } = await resolveLatestNightlyCommit({ github, context, core });
+    core.info(`Stable release builds ${sha}, the commit shipped by ${tag}.`);
+    return { ref: sha, nightly_version: version };
+  }
+  return { ref: context.sha };
+}
+
+module.exports = { shouldReleaseNightly, resolveLatestNightlyCommit, resolveReleaseCommit };

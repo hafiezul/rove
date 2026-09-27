@@ -25,7 +25,7 @@ import * as ProcessRunner from "../processRunner.ts";
  * web client, and the native packages beside it. The boot service points its
  * unit or launch agent at the executable, and server self-update installs the
  * target version here before switching over. The runtime never depends on a
- * Node or npm on the machine; `@rove/cli` is only a launcher for people who
+ * Node or npm on the machine; `@rove-code/cli` is only a launcher for people who
  * prefer npm, and also pins an archive when it sets up the service.
  */
 const PINNED_RUNTIME_DIR = "runtime";

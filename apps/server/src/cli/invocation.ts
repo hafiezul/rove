@@ -37,20 +37,20 @@ function detectCliRunner(entryPath: string): CliRunner | null {
 }
 
 /**
- * The `@rove/cli` package spec to suggest. The literal spec the user typed (e.g.
- * `@rove/cli@nightly`) is resolved away before our process starts, so re-derive it
+ * The `@rove-code/cli` package spec to suggest. The literal spec the user typed (e.g.
+ * `@rove-code/cli@nightly`) is resolved away before our process starts, so re-derive it
  * from the running version: nightly builds re-suggest the nightly channel,
  * anything else suggests the bare package.
  */
 function suggestedPackageSpec(version: string): string {
   const channel = /^[^-+]+-(nightly|preview)\./.exec(version)?.[1];
-  return channel === undefined ? "@rove/cli" : `@rove/cli@${channel}`;
+  return channel === undefined ? "@rove-code/cli" : `@rove-code/cli@${channel}`;
 }
 
 /**
  * Render a `rove <subcommand>` suggestion that matches how this process was
- * launched, so copy/pasting it works: `npx @rove/cli connect` suggests
- * `npx @rove/cli serve`, a global install suggests `rove serve`, and a nightly build
+ * launched, so copy/pasting it works: `npx @rove-code/cli connect` suggests
+ * `npx @rove-code/cli serve`, a global install suggests `rove serve`, and a nightly build
  * keeps the `@nightly` tag.
  */
 export function formatCliCommand(input: {

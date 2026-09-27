@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { shouldReleaseNightly } = require("./check-nightly-release.cjs");
+const { shouldReleaseNightly, resolveReleaseCommit } = require("./check-nightly-release.cjs");
 
 const now = Date.parse("2026-09-05T12:00:00Z");
 const hour = 60 * 60 * 1000;
@@ -140,4 +140,43 @@ test("stable releases derive the version from legacy nightly tags", async () => 
 test("stable releases fail without a published nightly", async () => {
   const { options } = nightlyCommitFixture({ releases: [nightly(0, { tag_name: "v1.0.0" })] });
   await assert.rejects(resolveLatestNightlyCommit(options), /No published nightly/);
+});
+
+test("build-only uses the selected commit without querying published releases", async () => {
+  for (const channel of ["stable", "nightly", "preview"]) {
+    const { options } = fixture({ releases: [] });
+    options.context.eventName = "workflow_dispatch";
+    options.github.paginate = async () => {
+      throw new Error("Build-only must not query releases");
+    };
+    assert.deepEqual(await resolveReleaseCommit({ ...options, channel, buildOnly: true }), {
+      ref: "new",
+    });
+  }
+});
+
+test("publishing stable still requires a nightly; staging cannot bypass promotion", async () => {
+  const { options } = fixture({ releases: [] });
+  options.context.eventName = "workflow_dispatch";
+  await assert.rejects(
+    resolveReleaseCommit({ ...options, channel: "stable", buildOnly: false }),
+    /No published nightly/,
+  );
+});
+
+test("publishing stable builds the nightly commit, not the selected branch", async () => {
+  const { options } = nightlyCommitFixture({ releases: [nightly(7)], commitSha: "tested" });
+  options.context.eventName = "workflow_dispatch";
+  assert.deepEqual(await resolveReleaseCommit({ ...options, channel: "stable" }), {
+    ref: "tested",
+    nightly_version: "1.0.1",
+  });
+});
+
+test("first nightly and preview publication build the selected ref", async () => {
+  for (const channel of ["nightly", "preview"]) {
+    const { options } = fixture({ releases: [] });
+    options.context.eventName = "workflow_dispatch";
+    assert.deepEqual(await resolveReleaseCommit({ ...options, channel }), { ref: "new" });
+  }
 });

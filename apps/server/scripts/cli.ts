@@ -167,7 +167,7 @@ const buildExeCmd = Command.make(
 
 /**
  * Publishes the tarballs scripts/build-npm-platform-packages.ts produced:
- * every `@rove/cli-<platform>.tgz` first, `@rove/cli.tgz` (the launcher) last, so
+ * every `@rove-code/cli-<platform>.tgz` first, `@rove-code/cli.tgz` (the launcher) last, so
  * the launcher is never installable before the executables it depends on.
  * Tarballs rather than directories because `npm publish <dir>` strips the
  * `node_modules/` the executable loads its native addons from.
@@ -191,7 +191,7 @@ const publishCmd = Command.make(
       // npm runs with cwd set to the packages dir below, so tarball paths are
       // resolved once here rather than joined twice.
       const packagesDir = path.resolve(config.packagesDir);
-      const scopeDir = path.join(packagesDir, "@rove");
+      const scopeDir = path.join(packagesDir, "@rove-code");
       const launcherTarball = path.join(scopeDir, "cli.tgz");
       const platformTarballs = (yield* fs
         .readDirectory(scopeDir)
@@ -226,7 +226,9 @@ const publishCmd = Command.make(
       }
     }),
 ).pipe(
-  Command.withDescription("Publish the @rove/cli-<platform> tarballs and then @rove/cli to npm."),
+  Command.withDescription(
+    "Publish the @rove-code/cli-<platform> tarballs and then @rove-code/cli to npm.",
+  ),
 );
 
 // ---------------------------------------------------------------------------

@@ -16,9 +16,14 @@ on:
           - nightly
           - preview
       version:
-        description: "Stable version override (for example 1.2.3). Defaults to the version the latest nightly previewed."
+        description: "Stable version override (for example 0.0.1). Required for stable build-only runs; otherwise defaults to the latest nightly's version."
         required: false
         type: string
+      build_only:
+        description: "Build downloadable artifacts without publishing (use preview for npm bootstrap)"
+        required: true
+        default: true
+        type: boolean
 
 # Serialize nightlies (scheduled and manual) so overlapping runs cannot build
 # the same commit twice or publish out of order. Stable tag releases get their
@@ -42,7 +47,7 @@ jobs:
   # have already run. Scheduled runs also decide here whether a nightly is due.
   resolve_commit:
     name: Resolve release commit
-    if: vars.ROVE_RELEASE_READY == 'true'
+    if: inputs.build_only || vars.ROVE_RELEASE_READY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -60,23 +65,17 @@ jobs:
         uses: actions/github-script@v8
         env:
           DISPATCH_CHANNEL: ${{ inputs.channel }}
+          BUILD_ONLY: ${{ inputs.build_only }}
         with:
           script: |
-            const {
-              shouldReleaseNightly,
-              resolveLatestNightlyCommit,
-            } = require('./.github/scripts/check-nightly-release.cjs');
-
-            if (context.eventName === 'schedule') {
-              core.setOutput('has_changes', await shouldReleaseNightly({ github, context, core }));
-              core.setOutput('ref', context.sha);
-            } else if (context.eventName === 'workflow_dispatch' && process.env.DISPATCH_CHANNEL !== 'nightly' && process.env.DISPATCH_CHANNEL !== 'preview') {
-              const { tag, sha, version } = await resolveLatestNightlyCommit({ github, context, core });
-              core.notice(`Stable release builds ${sha}, the commit shipped by ${tag}.`);
-              core.setOutput('ref', sha);
-              core.setOutput('nightly_version', version);
-            } else {
-              core.setOutput('ref', context.sha);
+            const { resolveReleaseCommit } = require('./.github/scripts/check-nightly-release.cjs');
+            const outputs = await resolveReleaseCommit({
+              github, context, core,
+              channel: process.env.DISPATCH_CHANNEL,
+              buildOnly: process.env.BUILD_ONLY === 'true',
+            });
+            for (const [name, value] of Object.entries(outputs)) {
+              core.setOutput(name, value);
             }
 
   preflight:
@@ -125,12 +124,11 @@ jobs:
           DISPATCH_CHANNEL: ${{ github.event.inputs.channel }}
           DISPATCH_VERSION: ${{ github.event.inputs.version }}
           NIGHTLY_VERSION: ${{ needs.resolve_commit.outputs.nightly_version }}
-          NIGHTLY_DATE: ${{ github.run_started_at }}
           NIGHTLY_SHA: ${{ needs.resolve_commit.outputs.ref }}
           NIGHTLY_RUN_NUMBER: ${{ github.run_number }}
         run: |
+          nightly_date="$(date -u +%Y%m%d)"
           if [[ "${GITHUB_EVENT_NAME}" == "schedule" || ( "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${DISPATCH_CHANNEL:-stable}" == "nightly" ) ]]; then
-            nightly_date="$(date -u -d "$NIGHTLY_DATE" +%Y%m%d)"
 
             node scripts/resolve-nightly-release.ts \
               --date "$nightly_date" \
@@ -151,8 +149,6 @@ jobs:
             # its desktop builds carry no update feed, and no updater manifest
             # is attached to the release, so neither stable nor nightly
             # installs can ever be offered one.
-            nightly_date="$(date -u -d "$NIGHTLY_DATE" +%Y%m%d)"
-
             node scripts/resolve-nightly-release.ts \
               --channel preview \
               --date "$nightly_date" \
@@ -255,8 +251,11 @@ jobs:
     name: Resolve Rove Connect public config
     # Consumes only the release commit, not preflight's resolved version, so it
     # runs alongside preflight instead of after it. The condition mirrors preflight's.
+    # Gated behind ROVE_CLOUD_READY: forks without Clerk/Cloudflare skip this
+    # job and produce a community build (no Rove Connect baked in).
     needs: [resolve_commit]
     if: |
+      vars.ROVE_CLOUD_READY == 'true' &&
       needs.resolve_commit.result == 'success' &&
       (github.event_name != 'schedule' || needs.resolve_commit.outputs.has_changes == 'true')
     runs-on: ubuntu-24.04
@@ -351,10 +350,10 @@ jobs:
   # job rather than to the packaging jobs.
   build_bundle:
     name: Build JS bundle
-    # Same gating as relay_public_config: only the release commit is needed, so
-    # this runs alongside preflight. See the condition comment there.
+    # Runs alongside preflight. When relay_public_config is skipped (no cloud
+    # config), the bundle is built without Rove Connect — a community build.
     needs: [preflight, relay_public_config]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -394,12 +393,14 @@ jobs:
         run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
 
       - name: Download relay client tracing config
+        if: needs.relay_public_config.result == 'success'
         uses: actions/download-artifact@v8
         with:
           name: relay-client-tracing-config
           path: ${{ runner.temp }}/relay-client-tracing
 
       - name: Load relay client tracing config
+        if: needs.relay_public_config.result == 'success'
         shell: bash
         run: |
           config_path="$RUNNER_TEMP/relay-client-tracing/relay-client-tracing.env"
@@ -444,7 +445,7 @@ jobs:
   desktop_mac_arm64:
     name: Desktop macOS arm64
     needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -455,6 +456,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: macOS arm64
       runner: macos-26
       platform: mac
@@ -467,7 +469,7 @@ jobs:
   desktop_mac_x64:
     name: Desktop macOS x64
     needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -478,6 +480,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: macOS x64
       runner: macos-26
       platform: mac
@@ -493,7 +496,7 @@ jobs:
   desktop_linux_x64:
     name: Desktop Linux x64
     needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -504,6 +507,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: Linux x64
       runner: ubuntu-24.04
       platform: linux
@@ -518,7 +522,7 @@ jobs:
   desktop_linux_arm64:
     name: Desktop Linux arm64
     needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -529,6 +533,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: Linux arm64
       runner: ubuntu-24.04-arm
       platform: linux
@@ -545,7 +550,7 @@ jobs:
   desktop_win_x64:
     name: Desktop Windows x64
     needs: [preflight, relay_public_config, build_bundle, desktop_linux_x64]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -556,6 +561,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: Windows x64
       runner: windows-2025
       platform: win
@@ -568,7 +574,7 @@ jobs:
   desktop_win_arm64:
     name: Desktop Windows arm64
     needs: [preflight, relay_public_config, build_bundle, desktop_linux_arm64]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
     with:
@@ -579,6 +585,7 @@ jobs:
       clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
       clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
+      relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: Windows arm64
       runner: windows-11-arm
       platform: win
@@ -592,7 +599,7 @@ jobs:
   # package per CLI archive. Preview publishes too, under the `preview`
   # dist-tag, which nothing resolves unless asked for by name.
   publish_cli:
-    name: Publish CLI to npm
+    name: Package CLI and optionally publish to npm
     needs:
       [
         preflight,
@@ -604,7 +611,7 @@ jobs:
         desktop_win_x64,
         desktop_win_arm64,
       ]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.quality.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.desktop_win_arm64.result == 'success' }}
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.quality.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.desktop_win_arm64.result == 'success' }}
     runs-on: ubuntu-24.04 # ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -640,17 +647,21 @@ jobs:
       - name: Build npm packages from CLI archives
         run: node scripts/build-npm-platform-packages.ts --archives-dir release-cli --version "${{ needs.preflight.outputs.version }}" --output-dir npm-packages
 
-      # A dry run of every package first: an auth or scope error here (the
-      # @rove org missing, a package without a trusted publisher) fails
-      # before anything is live, instead of after some platforms already are.
-      - name: Check npm publish access (dry run)
-        run: |
-          if ! node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --dry-run --verbose; then
-            echo "::error::npm publish --dry-run failed. Make sure the @rove npm org exists and that @rove/cli and every @rove/cli-<platform> package has a trusted publisher registered for .github/workflows/release.yml (see docs/operations/release.md)." >&2
-            exit 1
-          fi
+      - name: Upload npm packages for inspection and bootstrap
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-packages
+          path: npm-packages/@rove-code/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+      # A dry run validates package contents, not registry ownership or OIDC
+      # access. First publication still needs the npm bootstrap procedure.
+      - name: Validate npm packages (dry run)
+        run: node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --dry-run --verbose
 
       - name: Publish CLI packages
+        if: ${{ !inputs.build_only }}
         run: node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --verbose
 
   release:
@@ -666,7 +677,7 @@ jobs:
         desktop_win_arm64,
         publish_cli,
       ]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_mac_x64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.desktop_win_arm64.result == 'success' && needs.publish_cli.result == 'success' }}
+    if: ${{ !inputs.build_only && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_mac_x64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.desktop_win_arm64.result == 'success' && needs.publish_cli.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -1111,9 +1122,9 @@ jobs:
       always() && !cancelled() &&
       needs.preflight.result == 'success' &&
       needs.preflight.outputs.release_channel != 'preview' &&
-      needs.relay_public_config.result == 'success' &&
+      needs.relay_public_config.result != 'failure' &&
       needs.release.result == 'success' &&
-      needs.deploy_web.result == 'success' &&
+      (needs.deploy_web.result == 'success' || needs.deploy_web.result == 'skipped') &&
       (needs.finalize.result == 'success' || needs.finalize.result == 'skipped')
     needs: [preflight, relay_public_config, release, deploy_web, finalize]
     runs-on: ubuntu-24.04
