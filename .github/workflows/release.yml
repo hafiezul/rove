@@ -212,7 +212,9 @@ jobs:
     needs: [preflight]
     if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Unlike CI, this runs the whole suite (including the serial server tests)
+    # on one runner. CI's sharded jobs each fit in 10 minutes; this cannot.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v6
