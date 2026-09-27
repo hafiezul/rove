@@ -17,6 +17,9 @@ concurrency:
 jobs:
   deploy_relay:
     name: Deploy production relay
+    # Requires Cloudflare, PlanetScale, Clerk, and Axiom credentials.
+    # Forks without cloud infrastructure should not set ROVE_CLOUD_READY.
+    if: vars.ROVE_CLOUD_READY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:

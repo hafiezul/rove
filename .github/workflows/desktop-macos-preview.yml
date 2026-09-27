@@ -29,8 +29,9 @@ concurrency:
 jobs:
   build:
     name: Build preview JS bundle
-    if: github.event.label.name == 'preview:mac'
-    runs-on: blacksmith-32vcpu-ubuntu-2404
+    # This preview publishes a Developer ID-signed, notarized app.
+    if: vars.ROVE_MACOS_SIGNING_READY == 'true' && github.event.label.name == 'preview:mac'
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       # This repository is public, so Git needs no credentials. checkout's

@@ -75,6 +75,8 @@ concurrency:
 
 jobs:
   production:
+    # Store distribution requires paid Apple/Google developer accounts.
+    if: vars.ROVE_MOBILE_STORES_READY == 'true'
     name: EAS Production ${{ github.event_name == 'push' && 'auto' || inputs.mode }}
     runs-on: ubuntu-24.04
     permissions:

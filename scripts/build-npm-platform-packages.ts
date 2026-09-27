@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
  * Turns the per-platform CLI archives of one release into the npm packages
- * behind `npx @rove/cli` / `npm i -g @rove/cli`: one `@rove/cli-<platformKey>`
- * package per archive holding its contents verbatim, plus the `@rove/cli` launcher
+ * behind `npx @rove-code/cli` / `npm i -g @rove-code/cli`: one `@rove-code/cli-<platformKey>`
+ * package per archive holding its contents verbatim, plus the `@rove-code/cli` launcher
  * that lists them as optionalDependencies and execs the one npm installed.
  * The bytes a user gets from npm are therefore the release archive's, and
  * running them needs neither a Node runtime, npm, nor a native build.
  *
  * Output layout under `--output-dir`:
  *
- *   @rove/cli-<platformKey>/     archive contents flattened + package.json
- *   @rove/cli-<platformKey>.tgz  the same tree as an npm tarball
- *   @rove/cli/                   launcher: package.json, bin/rove.js, README.md
- *   @rove/cli.tgz                the launcher as an npm tarball
+ *   @rove-code/cli-<platformKey>/     archive contents flattened + package.json
+ *   @rove-code/cli-<platformKey>.tgz  the same tree as an npm tarball
+ *   @rove-code/cli/                   launcher: package.json, bin/rove.js, README.md
+ *   @rove-code/cli.tgz                the launcher as an npm tarball
  *
  * The tarballs are what gets published. `npm publish <dir>` always drops
  * `node_modules/` (npm-packlist ignores it whatever `files` says, and
@@ -42,8 +42,8 @@ import serverPackageJson from "../apps/server/package.json" with { type: "json" 
 
 import { windowsSystemTar } from "./build-cli-archive.ts";
 
-export const NPM_PLATFORM_PACKAGE_SCOPE = "@rove";
-export const NPM_LAUNCHER_PACKAGE_NAME = "@rove/cli";
+export const NPM_PLATFORM_PACKAGE_SCOPE = "@rove-code";
+export const NPM_LAUNCHER_PACKAGE_NAME = "@rove-code/cli";
 
 const encodePackageJson = Schema.encodeEffect(fromJsonStringPretty(Schema.Unknown));
 
@@ -187,7 +187,7 @@ export function npmLauncherPackageManifest(
 }
 
 /**
- * The launcher every `npx @rove/cli` runs. Plain CommonJS with no dependencies so it
+ * The launcher every `npx @rove-code/cli` runs. Plain CommonJS with no dependencies so it
  * loads on any Node that npm itself runs on; the real work happens in the
  * single-executable it execs.
  */
@@ -208,7 +208,7 @@ try {
     [
       "rove: no Rove Code CLI build is available for this platform (" + key + ").",
       "Supported platforms: " + SUPPORTED.join(", ") + ".",
-      "If yours is listed, reinstall @rove/cli so npm fetches its optional dependency.",
+      "If yours is listed, reinstall @rove-code/cli so npm fetches its optional dependency.",
       "The desktop app and release archives are at https://github.com/hafiezul/rove/releases",
       "",
     ].join("\\n"),
@@ -474,7 +474,7 @@ const command = Command.make(
   buildNpmPlatformPackages,
 ).pipe(
   Command.withDescription(
-    "Build the rove launcher and @rove/cli-<platform> npm packages from CLI release archives.",
+    "Build the rove launcher and @rove-code/cli-<platform> npm packages from CLI release archives.",
   ),
 );
 
