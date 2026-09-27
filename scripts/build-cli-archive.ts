@@ -247,7 +247,46 @@ const stageRuntimeExternals = Effect.fn("stageRuntimeExternals")(function* (inpu
   // nothing runs, and the npm registry refuses a tarball that contains any
   // symlink, so strip every `.bin` directory below node_modules.
   yield* removeNestedBinDirectories(fs, path, path.join(input.stageDir, "node_modules"));
+  // esbuild's postinstall replaces its `bin/esbuild` JS shim with a hard link
+  // to the platform binary (`@esbuild/<platform>/bin/esbuild`) on macOS. tar
+  // records the second path to a linked inode as a hard-link entry, and the
+  // npm registry refuses those too (E415 "Hard link is not allowed"). Break
+  // every hard link into an independent regular file so the archive, and the
+  // npm tarball repacked from it, contain only plain files.
+  yield* breakHardLinks(fs, path, path.join(input.stageDir, "node_modules"));
 });
+
+/**
+ * Replaces every regular file with a link count above one by a copy of
+ * itself, so no two paths in the tree share an inode.
+ */
+export const breakHardLinks = (
+  fs: FileSystem.FileSystem,
+  path: Path.Path,
+  root: string,
+): Effect.Effect<void, PlatformError.PlatformError> =>
+  Effect.gen(function* () {
+    const entries = yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []));
+    for (const entry of entries) {
+      const child = path.join(root, entry);
+      const info = yield* fs.stat(child).pipe(Effect.option);
+      if (Option.isNone(info)) continue;
+      if (info.value.type === "Directory") {
+        yield* breakHardLinks(fs, path, child);
+        continue;
+      }
+      if (info.value.type !== "File" || Option.getOrElse(info.value.nlink, () => 1) <= 1) {
+        continue;
+      }
+      const copy = `${child}.unlink-tmp`;
+      yield* fs.copyFile(child, copy);
+      yield* fs.remove(child);
+      yield* fs.rename(copy, child);
+      // copyFile does not carry the mode; the executable bit is what the
+      // esbuild shim needs.
+      yield* fs.chmod(child, Number(info.value.mode) & 0o7777);
+    }
+  });
 
 const removeNestedBinDirectories = (
   fs: FileSystem.FileSystem,
