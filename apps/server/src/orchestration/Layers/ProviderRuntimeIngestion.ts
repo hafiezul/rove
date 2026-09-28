@@ -111,13 +111,16 @@ const TASK_DESCRIPTION_BY_TASK_CACHE_CAPACITY = 10_000;
 const TASK_DESCRIPTION_BY_TASK_TTL = Duration.minutes(120);
 const REASONING_TEXT_BY_TURN_CACHE_CAPACITY = 10_000;
 const REASONING_TEXT_BY_TURN_TTL = Duration.minutes(120);
-// Reasoning streams are per-token floods; the timeline activity re-dispatches
-// at this cadence at most, and always once more when the turn settles.
-const REASONING_ACTIVITY_FLUSH_INTERVAL_MS = 500;
+// Reasoning streams are per-token floods, and every flush is a persisted event
+// broadcast to clients. The timeline activity re-dispatches at this cadence at
+// most, and always once more when the phase ends.
+const REASONING_ACTIVITY_FLUSH_INTERVAL_MS = 1_500;
 // Bound the rendered reasoning text: full stream can be tens of thousands of
-// chars on long turns; keep head (early plan) + tail (latest reasoning).
+// chars on long turns. A finished phase keeps head (early plan) + tail (latest
+// reasoning); a streaming update carries only the live tail.
 const MAX_REASONING_ACTIVITY_HEAD_CHARS = 600;
 const MAX_REASONING_ACTIVITY_TAIL_CHARS = 4_000;
+const MAX_STREAMING_REASONING_TAIL_CHARS = 1_000;
 const MAX_BUFFERED_ASSISTANT_CHARS = 24_000;
 // Paragraphs that finish within this window after a delivery stay buffered
 // and land together on the next one. Keeps fast models from repainting the
@@ -199,16 +202,16 @@ function truncateDetail(value: string, limit = 180): string {
 }
 
 /**
- * Present a bounded window of a turn's reasoning stream: the head carries the
- * early plan, the tail stays live as reasoning progresses. Omitted middle is
- * marked so the reader knows it was elided, and the cut starts on a line
- * boundary so markdown blocks are not sliced in half.
+ * Present a bounded window of a turn's reasoning stream. A finished phase keeps
+ * the head (early plan) and the tail; a streaming phase shows only the live
+ * tail. Omitted text is marked so the reader knows it was elided, and the cut
+ * starts on a line boundary so markdown blocks are not sliced in half.
  */
-function formatReasoningStreamWindow(
-  text: string,
-  maxHeadChars = MAX_REASONING_ACTIVITY_HEAD_CHARS,
-  maxTailChars = MAX_REASONING_ACTIVITY_TAIL_CHARS,
-): string {
+function formatReasoningStreamWindow(text: string, streaming: boolean): string {
+  const maxHeadChars = streaming ? 0 : MAX_REASONING_ACTIVITY_HEAD_CHARS;
+  const maxTailChars = streaming
+    ? MAX_STREAMING_REASONING_TAIL_CHARS
+    : MAX_REASONING_ACTIVITY_TAIL_CHARS;
   if (text.length <= maxHeadChars + maxTailChars) {
     return text;
   }
@@ -218,7 +221,7 @@ function formatReasoningStreamWindow(
   if (firstNewline >= 0 && firstNewline < tail.length - 1) {
     tail = tail.slice(firstNewline + 1);
   }
-  return `${head}\n…\n${tail}`;
+  return head.length === 0 ? `…\n${tail}` : `${head}\n…\n${tail}`;
 }
 
 function normalizeProposedPlanMarkdown(planMarkdown: string | undefined): string | undefined {
@@ -1707,7 +1710,7 @@ const make = Effect.gen(function* () {
     createdAt: string;
   }) =>
     Effect.gen(function* () {
-      const detail = formatReasoningStreamWindow(input.text.trim());
+      const detail = formatReasoningStreamWindow(input.text.trim(), input.streaming);
       if (detail.length === 0) {
         return;
       }
