@@ -262,10 +262,20 @@ async function toPiSessionLike(
           agentStarted = true;
           preparingPrompt = false;
         }
+        // Pre-prompt compaction runs before Pi accepts the prompt and can take
+        // minutes. It only starts after validation, so the prompt is accepted.
+        if (event.type === "compaction_start" && !reported && !stopped) reportPreflight(true);
       });
       try {
         await bind();
         if (stopped) throw new Error("Pi session stopped during prompt preparation.");
+        // Pi runs an extension command to completion before accepting it, and
+        // treats a failing handler as handled, so the command is accepted up front.
+        if (text.startsWith("/")) {
+          const spaceIndex = text.indexOf(" ");
+          const commandName = text.slice(1, spaceIndex === -1 ? undefined : spaceIndex);
+          if (session.extensionRunner.getCommand(commandName)) reportPreflight(true);
+        }
         await session.prompt(text, {
           ...options,
           source: "rpc",

@@ -18,6 +18,28 @@ import type {
   PiSessionUpdate,
 } from "./PiRuntimeProtocol.ts";
 
+/** Calls on one session. A timeout rejects the call; it never terminates the instance. */
+const SESSION_METHODS: ReadonlySet<keyof PiRuntimeCalls> = new Set<keyof PiRuntimeCalls>([
+  "prompt",
+  "followUp",
+  "compact",
+  "abort",
+  "dispose",
+  "setModel",
+  "setThinkingLevel",
+  "respondToUserInput",
+  "fork",
+]);
+
+/**
+ * Prompts are unbounded after acceptance, and compaction is one long model call.
+ * Everything else, including extension loading and model selection, stays bounded.
+ */
+function requestTimeoutMs(method: keyof PiRuntimeCalls): number | undefined {
+  if (method === "shutdown" || method === "compact") return undefined;
+  return method === "dispose" || method === "abort" ? 4_000 : 60_000;
+}
+
 /** One bundled-SDK process per instance. Never shares process.env with the server. */
 export class PiRuntimeProcess {
   private readonly pending = new Map<
@@ -150,23 +172,20 @@ export class PiRuntimeProcess {
     if (this.failure) return Promise.reject(this.failure);
     const id = ++this.nextId;
     return new Promise((resolve, reject) => {
-      // Prompts are unbounded after acceptance. Everything before that point,
-      // including extension loading and model selection, remains parent-bounded.
-      const timeout =
-        method === "shutdown"
-          ? undefined
-          : method === "dispose" || method === "abort"
-            ? 4_000
-            : 60_000;
+      const timeout = requestTimeoutMs(method);
       const timer =
         timeout === undefined
           ? undefined
           : setTimeout(() => {
-              this.fail(
-                new Error(
-                  `Pi instance ${method} timed out. Disable and re-enable this Pi instance to continue.`,
-                ),
+              const error = new Error(
+                SESSION_METHODS.has(method)
+                  ? `Pi session ${method} timed out after ${timeout / 1000} seconds.`
+                  : `Pi instance ${method} timed out. Disable and re-enable this Pi instance to continue.`,
               );
+              // A stuck session must not take the instance's other sessions down with it.
+              if (!SESSION_METHODS.has(method)) return this.fail(error);
+              this.pending.delete(id);
+              reject(error);
             }, timeout);
       timer?.unref();
       this.pending.set(id, {
