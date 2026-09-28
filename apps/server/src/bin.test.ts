@@ -520,7 +520,7 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
       assert.include(output, "Rove Connect\n  Exposure: disabled");
       assert.include(output, "  Authorization: missing");
       assert.include(output, "  Environment link: not provisioned");
-      assert.include(output, "Next: Run `t3 connect link` to authorize and enable Rove Connect.");
+      assert.include(output, "Next: Run `rove connect link` to authorize and enable Rove Connect.");
     }),
   );
 
@@ -589,7 +589,7 @@ it.layer(NodeServices.layer)("bin cli parsing", (it) => {
 
       assert.equal(
         output,
-        "Signed out of Rove Connect locally.\nThe background service is managed separately with `t3 service`.",
+        "Signed out of Rove Connect locally.\nThe background service is managed separately with `rove service`.",
       );
       assert.isFalse(NodeFS.existsSync(tokenPath));
     }),
