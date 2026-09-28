@@ -103,6 +103,38 @@ it.effect("captures same-size edits when the source index has racy timestamps", 
   }).pipe(Effect.provide(GitContractLayer)),
 );
 
+it.effect("captures edits to paths the worktree index marks as unchanged", () =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const driver = yield* GitVcsDriver.makeVcsDriverShape();
+    const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "rove-flagged-checkpoint-" });
+    yield* runGit(cwd, ["init"]);
+    yield* runGit(cwd, ["config", "user.email", "test@test.com"]);
+    yield* runGit(cwd, ["config", "user.name", "Test"]);
+    yield* fileSystem.writeFileString(path.join(cwd, "assumed.txt"), "v1\n");
+    yield* fileSystem.writeFileString(path.join(cwd, "skipped.txt"), "v1\n");
+    yield* runGit(cwd, ["add", "."]);
+    yield* runGit(cwd, ["commit", "-m", "initial"]);
+    yield* runGit(cwd, ["update-index", "--assume-unchanged", "assumed.txt"]);
+    yield* runGit(cwd, ["update-index", "--skip-worktree", "skipped.txt"]);
+    yield* fileSystem.writeFileString(path.join(cwd, "assumed.txt"), "v2 changed\n");
+    yield* fileSystem.writeFileString(path.join(cwd, "skipped.txt"), "v2 changed\n");
+    const checkpointRef = CheckpointRef.make("refs/t3/checkpoints/flagged");
+    yield* driver.checkpoints.captureCheckpoint({ cwd, checkpointRef });
+    for (const file of ["assumed.txt", "skipped.txt"]) {
+      const captured = yield* driver.execute({
+        operation: "test",
+        cwd,
+        args: ["show", `${checkpointRef}:${file}`],
+      });
+      assert.strictEqual(captured.stdout, "v2 changed\n", file);
+    }
+    const flags = yield* driver.execute({ operation: "test", cwd, args: ["ls-files", "-v"] });
+    assert.strictEqual(flags.stdout, "h assumed.txt\nS skipped.txt\n");
+  }).pipe(Effect.provide(GitContractLayer)),
+);
+
 it.effect("restores empty checkpoints without changing paths outside the workspace", () =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
