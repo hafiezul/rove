@@ -157,7 +157,6 @@ export async function requestThreadUnpinConfirmation(input: {
   );
 }
 
-/** Report navigation separately so a completed deletion can still finish worktree cleanup. */
 export async function navigateAfterThreadDeletion(navigate: () => Promise<void>) {
   const result = await settlePromise(navigate);
   if (result._tag === "Failure") {
@@ -383,8 +382,24 @@ export function useThreadActions() {
 
       await closeTerminal({
         environmentId: threadRef.environmentId,
-        input: { threadId: threadRef.threadId, deleteHistory: true },
+        // Keep history until the thread is deleted; ThreadDeletionReactor removes it then.
+        input: { threadId: threadRef.threadId, deleteHistory: false },
       });
+
+      if (shouldDeleteWorktree && orphanedWorktreePath && threadProject) {
+        const removeResult = await removeWorktree({
+          environmentId: threadRef.environmentId,
+          input: {
+            cwd: threadProject.workspaceRoot,
+            path: orphanedWorktreePath,
+            force: true,
+            threadId: threadRef.threadId,
+          },
+        });
+        if (removeResult._tag === "Failure") {
+          return removeResult;
+        }
+      }
 
       const deletedThreadIds = deletedIds ?? new Set<ThreadId>();
       const currentRouteThreadRef = getCurrentRouteThreadRef();
@@ -430,54 +445,28 @@ export function useThreadActions() {
         );
       }
 
-      if (!shouldDeleteWorktree || !orphanedWorktreePath || !threadProject) {
-        return deleteResult;
-      }
-
-      const removeResult = await removeWorktree({
-        environmentId: threadRef.environmentId,
-        input: {
-          cwd: threadProject.workspaceRoot,
-          path: orphanedWorktreePath,
-          force: true,
-        },
-      });
-      const refreshResult =
-        removeResult._tag === "Success"
-          ? await refreshVcsStatus({
-              environmentId: threadRef.environmentId,
-              input: { cwd: threadProject.workspaceRoot },
-            })
-          : null;
-      const cleanupFailure =
-        removeResult._tag === "Failure"
-          ? removeResult
-          : refreshResult?._tag === "Failure"
-            ? refreshResult
-            : null;
-      if (cleanupFailure) {
-        const removalFailed = removeResult._tag === "Failure";
-        const error = squashAtomCommandFailure(cleanupFailure);
-        const message = error instanceof Error ? error.message : "An error occurred.";
-        console.error("Worktree cleanup failed after thread deletion", {
-          threadId: threadRef.threadId,
-          projectCwd: threadProject.workspaceRoot,
-          worktreePath: orphanedWorktreePath,
-          error,
+      if (shouldDeleteWorktree && threadProject) {
+        const refreshResult = await refreshVcsStatus({
+          environmentId: threadRef.environmentId,
+          input: { cwd: threadProject.workspaceRoot },
         });
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: removalFailed
-              ? "Failed to delete worktree"
-              : "Worktree deleted, but Git status refresh failed",
-            description: removalFailed
-              ? `Could not remove ${displayWorktreePath ?? orphanedWorktreePath}. ${message}`
-              : message,
-          }),
-        );
-        // The thread was deleted. Cleanup has its own toast; returning its
-        // failure would make callers incorrectly report a thread deletion error.
+        if (refreshResult._tag === "Failure") {
+          const error = squashAtomCommandFailure(refreshResult);
+          const message = error instanceof Error ? error.message : "An error occurred.";
+          console.error("Git status refresh failed after worktree deletion", {
+            threadId: threadRef.threadId,
+            projectCwd: threadProject.workspaceRoot,
+            worktreePath: orphanedWorktreePath,
+            error,
+          });
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Worktree deleted, but Git status refresh failed",
+              description: message,
+            }),
+          );
+        }
       }
       return deleteResult;
     },

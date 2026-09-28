@@ -136,6 +136,11 @@ export interface CreateWorktreeOptions {
   readonly progress?: CreateWorktreeProgress;
 }
 
+export interface RemoveWorktreeOptions {
+  /** Only after the server has verified ownership of the checkout. */
+  readonly recoverPartialManagedWorktree: true;
+}
+
 export interface GitCommitProgress {
   readonly onOutputLine?: (input: {
     stream: "stdout" | "stderr";
@@ -356,6 +361,7 @@ export class GitVcsDriver extends Context.Service<
     ) => Effect.Effect<void, GitCommandError>;
     readonly removeWorktree: (
       input: VcsRemoveWorktreeInput,
+      options?: RemoveWorktreeOptions,
     ) => Effect.Effect<void, GitCommandError>;
     /** Drops worktree admin entries whose directory is already gone (`git worktree prune`). */
     readonly pruneWorktrees: (input: {

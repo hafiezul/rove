@@ -164,6 +164,7 @@ export const VcsRemoveWorktreeInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
   path: TrimmedNonEmptyStringSchema,
   force: Schema.optional(Schema.Boolean),
+  threadId: Schema.optional(ThreadId),
 });
 export type VcsRemoveWorktreeInput = typeof VcsRemoveWorktreeInput.Type;
 
