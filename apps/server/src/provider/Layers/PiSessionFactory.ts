@@ -428,7 +428,6 @@ function isExtensionPathDisabled(
         // Path might not exist
       }
     }
-    if (NodePath.basename(extensionPath) === disabled) return true;
   }
   return false;
 }
