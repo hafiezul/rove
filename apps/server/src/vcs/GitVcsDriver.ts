@@ -851,7 +851,35 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
 
       yield* Effect.gen(function* () {
         const headExists = yield* hasHeadCommit(input.cwd);
-        if (!seededFromWorktreeIndex && headExists) {
+        // The copy keeps the user's assume-unchanged and skip-worktree bits,
+        // which make `add` skip real edits. Such an index is rebuilt from HEAD.
+        const seedKeepsFlags =
+          seededFromWorktreeIndex &&
+          (yield* execute({
+            operation,
+            cwd: input.cwd,
+            args: ["ls-files", "-v", "-z"],
+            env: commitEnv,
+            maxOutputBytes: WORKSPACE_FILES_MAX_OUTPUT_BYTES,
+          })).stdout
+            .split("\0")
+            .some((entry) => entry.length > 2 && (entry[0] === "S" || /[a-z]/.test(entry[0]!)));
+        if (seedKeepsFlags) {
+          yield* fileSystem.remove(tempIndexPath, { force: true }).pipe(
+            Effect.mapError(
+              (cause) =>
+                new VcsProcessExitError({
+                  operation: seedOperation,
+                  command: "git ls-files",
+                  cwd: input.cwd,
+                  exitCode: 0,
+                  detail: `Could not reset the checkpoint index file: ${cause.message}`,
+                }),
+            ),
+          );
+        }
+        const useSeed = seededFromWorktreeIndex && !seedKeepsFlags;
+        if (!useSeed && headExists) {
           yield* execute({
             operation,
             cwd: input.cwd,
@@ -865,7 +893,7 @@ export const makeVcsDriverShape = Effect.fn("makeGitVcsDriverShape")(function* (
         // zero all stat data and force a full rehash on `add`). A change
         // made between the copy and now shows up as dirty and gets
         // hashed by `add` as usual; a no-op copy keeps the fast path.
-        if (seededFromWorktreeIndex && headExists) {
+        if (useSeed && headExists) {
           yield* execute({
             operation,
             cwd: input.cwd,
