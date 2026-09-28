@@ -45,7 +45,7 @@ function recoveryHint(error: RelayProtectedError): string {
     case "RelayEnvironmentLinkLimitExceededError":
       return "Unlink an unused environment in Rove Connect, then restart Rove Code on this machine.";
     case "RelayAuthInvalidError":
-      return "Run `t3 connect login` to check this machine's authorization. If the stored credential was revoked, sign out with `t3 connect logout`, then run `t3 connect` again. Restart Rove Code after signing in.";
+      return "Run `rove connect login` to check this machine's authorization. If the stored credential was revoked, sign out with `rove connect logout`, then run `rove connect` again. Restart Rove Code after signing in.";
     case "RelayEnvironmentLinkProofExpiredError":
     case "RelayEnvironmentLinkProofInvalidError":
       return "Check this machine's date and time, update Rove Code, then restart it.";

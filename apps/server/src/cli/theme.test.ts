@@ -47,7 +47,16 @@ const writeSettings = (baseDir: string, settings: Record<string, unknown>) => {
   NodeFS.writeFileSync(settingsPathFor(baseDir), `${JSON.stringify(settings, null, 2)}\n`);
 };
 
-describe("t3 theme", () => {
+describe("rove theme", () => {
+  it.effect("suggests the installed command when no theme is given", () =>
+    Effect.gen(function* () {
+      const baseDir = makeBaseDir();
+      const failure = yield* runCli(["theme", "set", "", "--base-dir", baseDir]).pipe(Effect.flip);
+      assert.include(String(failure), "run `rove theme clear`");
+      assert.equal(NodeFS.existsSync(settingsPathFor(baseDir)), false);
+    }),
+  );
+
   it.effect("writes a default theme when no settings file exists yet", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();

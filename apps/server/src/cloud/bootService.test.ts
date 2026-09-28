@@ -32,6 +32,14 @@ const linuxPlan = {
   unitPath: "/home/theo/.config/systemd/user/rove.service",
 };
 
+it.each([
+  ["service-disabled", "`rove service install`"],
+  ["service-stopped", "`rove service install`"],
+  ["restart-pending", "`rove service restart`"],
+] as const)("points $0 at the installed CLI", (problem, command) => {
+  expect(BootService.formatBootServiceProblem(problem)).toContain(command);
+});
+
 it("runs the pinned runtime's own executable as the systemd launcher", () => {
   const unit = BootService.renderBootServiceUnit(linuxPlan);
 
@@ -40,7 +48,7 @@ it("runs the pinned runtime's own executable as the systemd launcher", () => {
   expect(unit).not.toContain("node");
 });
 
-it("reads the served T3 home back out of a rendered unit or plist", () => {
+it("reads the served Rove Code home back out of a rendered unit or plist", () => {
   const plan = (baseDir: string) => ({
     program: [`${baseDir}/runtime/versions/1.2.3/t3`, "__service-launcher"],
     baseDir,
@@ -509,7 +517,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         ),
       ).toEqual([]);
       // The files say 1.2.4 but the process is still 1.2.3: not current, and
-      // the reason is named so `t3 service status` can point at restart.
+      // the reason is named so `rove service status` can point at restart.
       const status = yield* newer.status;
       expect(status.current).toBe(false);
       expect(status.problems).toContain("restart-pending");
@@ -587,7 +595,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
     }),
   );
 
-  it.effect("restart leaves a service that serves another T3 home alone", () =>
+  it.effect("restart leaves a service that serves another Rove Code home alone", () =>
     Effect.gen(function* () {
       const { service, fs, commands, makeService } = yield* makeHarness();
       yield* service.install();

@@ -6,8 +6,8 @@ provisioning instructions.
 
 ## Public application configuration
 
-Rove Connect is disabled in a fresh clone. To build against the production deployment, copy the
-repository-root example:
+Rove Connect is disabled in a fresh clone. Copy the repository-root example to configure a
+Rove-owned Clerk instance and relay; the placeholders do not enable cloud features:
 
 ```sh
 cp .env.example .env
@@ -38,7 +38,7 @@ depend on. The deploy wrapper writes the resulting relay URL back to the root `.
 
 In Clerk's OAuth applications settings:
 
-1. Create a public OAuth application for the T3 CLI, using authorization-code exchange with PKCE.
+1. Create a public OAuth application for the Rove Code CLI, using authorization-code exchange with PKCE.
 2. Allow the redirect URI `http://127.0.0.1:34338/callback`.
 3. Enable the `openid`, `profile`, `email`, and `offline_access` scopes.
 4. Enable **Device authorization grant** on the application. Headless and SSH authorization use

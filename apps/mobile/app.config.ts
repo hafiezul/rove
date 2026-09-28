@@ -15,6 +15,9 @@ const runtimeVersionPolicy =
   (APP_VARIANT === "development" ? "appVersion" : "fingerprint");
 
 const personalTeamBundleIdentifier = repoEnv.ROVE_IOS_PERSONAL_TEAM_BUNDLE_ID?.trim();
+const expoProjectId = repoEnv.ROVE_EXPO_PROJECT_ID?.trim();
+const mobileUpdatesEnabled = repoEnv.ROVE_MOBILE_UPDATES_ENABLED === "1";
+const clerkRelyingParty = repoEnv.ROVE_CLERK_RELYING_PARTY_DOMAIN?.trim();
 const IOS_BUNDLE_IDENTIFIER_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
 const fromRepoRoot = (relativePath: string) => `../../${relativePath}`;
@@ -30,6 +33,13 @@ if (
   throw new Error(
     "ROVE_IOS_PERSONAL_TEAM_BUNDLE_ID must be a reverse-DNS identifier such as com.example.rove when ROVE_IOS_PERSONAL_TEAM=1.",
   );
+}
+
+if (mobileUpdatesEnabled && !expoProjectId) {
+  throw new Error("ROVE_EXPO_PROJECT_ID is required to enable mobile OTA updates.");
+}
+if (clerkRelyingParty && /(^|\.)(t3\.codes|t3\.tools)$/i.test(clerkRelyingParty)) {
+  throw new Error("ROVE_CLERK_RELYING_PARTY_DOMAIN must belong to this project.");
 }
 
 const DEVELOPMENT_ASSETS = {
@@ -77,7 +87,6 @@ const VARIANT_CONFIG = {
     scheme: "rove-dev",
     iosBundleIdentifier: "dev.rove.app.dev",
     androidPackage: "dev.rove.app.dev",
-    relyingParty: "clerk.t3.codes",
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
@@ -85,7 +94,6 @@ const VARIANT_CONFIG = {
     scheme: "rove-preview",
     iosBundleIdentifier: "dev.rove.app.preview",
     androidPackage: "dev.rove.app.preview",
-    relyingParty: "clerk.t3.codes",
     assets: PREVIEW_ASSETS,
   },
   production: {
@@ -93,7 +101,6 @@ const VARIANT_CONFIG = {
     scheme: "rove",
     iosBundleIdentifier: "dev.rove.app",
     androidPackage: "dev.rove.app",
-    relyingParty: "clerk.t3.codes",
     assets: RELEASE_ASSETS,
   },
 } as const;
@@ -225,8 +232,8 @@ const config: ExpoConfig = {
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
   updates: {
-    enabled: repoEnv.ROVE_MOBILE_UPDATES_ENABLED !== "0",
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+    enabled: mobileUpdatesEnabled,
+    url: mobileUpdatesEnabled ? `https://u.expo.dev/${expoProjectId}` : undefined,
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0,
   },
@@ -237,14 +244,10 @@ const config: ExpoConfig = {
     // showcase capture build requires full screen (see infoPlist below).
     requireFullScreen: process.env.T3_SHOWCASE_CAPTURE_BUILD === "1",
     bundleIdentifier: iosBundleIdentifier,
-    // Pin code signing to the T3 Tools team so non-interactive `expo run:ios`
-    // does not fall back to a personal team (which cannot sign app groups,
-    // Sign in with Apple, or push notification entitlements).
-    appleTeamId: "ARK85ZXQ4Z",
-    associatedDomains: [
-      `applinks:${variant.relyingParty}`,
-      `webcredentials:${variant.relyingParty}`,
-    ],
+    appleTeamId: repoEnv.ROVE_APPLE_TEAM_ID?.trim() || undefined,
+    associatedDomains: clerkRelyingParty
+      ? [`applinks:${clerkRelyingParty}`, `webcredentials:${clerkRelyingParty}`]
+      : [],
     entitlements: {
       "keychain-access-groups": [`$(AppIdentifierPrefix)${variant.iosBundleIdentifier}`],
     },
@@ -452,11 +455,9 @@ const config: ExpoConfig = {
       tracesDataset: repoEnv.EXPO_PUBLIC_OTLP_TRACES_DATASET ?? null,
       tracesToken: repoEnv.EXPO_PUBLIC_OTLP_TRACES_TOKEN ?? null,
     },
-    eas: {
-      projectId: "d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    },
+    eas: expoProjectId ? { projectId: expoProjectId } : undefined,
   },
-  owner: "pingdotgg",
+  owner: repoEnv.ROVE_EXPO_OWNER?.trim() || undefined,
 };
 
 export default config;

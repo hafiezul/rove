@@ -121,11 +121,13 @@ The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin.
 
 ## EAS Builds
 
+Source builds have no Expo owner or project ID, Apple signing team, Clerk relying-party domain, or OTA source by default. Local development clients use Metro without EAS. For an EAS build, set `ROVE_EXPO_PROJECT_ID` and `ROVE_EXPO_OWNER` to your own Expo project and account. Enable OTA only if you intend to publish updates from that project by setting `ROVE_MOBILE_UPDATES_ENABLED=1`; otherwise updates stay off. Signed iOS builds may also set `ROVE_APPLE_TEAM_ID` and `ROVE_CLERK_RELYING_PARTY_DOMAIN` to their own verified values.
+
 Preview and production variants use Expo fingerprinting so OTA updates only reach binaries with matching native dependencies, config plugins, and patches. CI uses the `preview:dev` profile to reuse a compatible native build when possible.
 
 The development variant uses `appVersion` to avoid recalculating the native fingerprint for each Metro launch manifest. `MOBILE_VERSION_POLICY` can override either default. If you distribute a custom Release build with the development identity and publish OTA updates to it, set `MOBILE_VERSION_POLICY=fingerprint` for both its build and updates. Changing the runtime policy requires a native rebuild for OTA matching; an existing dev client can still load local Metro bundles.
 
-For preview or production EAS environments, set `ROVE_CLERK_PUBLISHABLE_KEY`,
+For a Rove Connect-enabled preview or production EAS environment, set `ROVE_CLERK_PUBLISHABLE_KEY`,
 `ROVE_CLERK_JWT_TEMPLATE`, and `ROVE_RELAY_URL`
 as EAS environment variables. Expo config maps the canonical values into the mobile build.
 

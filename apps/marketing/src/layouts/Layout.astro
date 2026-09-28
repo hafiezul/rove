@@ -4,12 +4,7 @@ import appIcon from "../assets/icon.webp";
 import desktopScreenshot from "../assets/app-desktop.webp";
 import dmSansLatinUrl from "../assets/fonts/dm-sans-latin.woff2?url";
 import "../styles/fonts.css";
-import {
-  ANDROID_PLAY_STORE_URL,
-  GITHUB_REPOSITORY_URL,
-  IOS_APP_STORE_URL,
-  MARKETING_STATS,
-} from "../lib/site";
+import { GITHUB_REPOSITORY_URL, MOBILE_SOURCE_GUIDE_URL } from "../lib/site";
 
 interface Props {
   title?: string;
@@ -35,8 +30,8 @@ const socialImage = await getImage({
   format: "jpg",
   quality: 90,
 });
-const socialImageUrl = new URL(socialImage.src, Astro.site);
-const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
+const socialImageUrl = Astro.site ? new URL(socialImage.src, Astro.site) : null;
+const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null;
 ---
 
 <html lang="en">
@@ -44,21 +39,20 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonicalUrl} />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Rove Code" />
-    <meta property="og:url" content={canonicalUrl} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={socialImageUrl} />
+    {socialImageUrl && <meta property="og:image" content={socialImageUrl} />}
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="The Rove Code desktop app with a thread open." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@t3dotgg" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={socialImageUrl} />
+    {socialImageUrl && <meta name="twitter:image" content={socialImageUrl} />}
     <link
       rel="preload"
       href={dmSansLatinUrl}
@@ -86,12 +80,12 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
               href={GITHUB_REPOSITORY_URL}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Star Rove Code on GitHub — ${MARKETING_STATS.githubStars} stars`}
+              aria-label="View Rove Code on GitHub"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2.3l2.9 5.88 6.49.94-4.7 4.58 1.11 6.47L12 17.12l-5.8 3.05 1.11-6.47-4.7-4.58 6.49-.94L12 2.3z"/>
               </svg>
-              <span><strong>{MARKETING_STATS.githubStars}</strong> GitHub stars</span>
+              <span>View on GitHub</span>
             </a>
           </div>
         </div>
@@ -115,17 +109,13 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
               loading="lazy"
               decoding="async"
             />
-            <span>&copy; {new Date().getFullYear()} T3 Tools Inc · MIT licensed</span>
+            <span>Rove Code · MIT licensed</span>
           </div>
           <div class="footer-links">
             <a href={GITHUB_REPOSITORY_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
-            <a href="https://discord.gg/jn4EGJjrvv" target="_blank" rel="noopener noreferrer">Discord</a>
             <a href="/download">Download</a>
-            <a href={IOS_APP_STORE_URL} target="_blank" rel="noopener noreferrer">iOS app</a>
-            <a href={ANDROID_PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">Android app</a>
-            <a href="/terms-of-service">Terms</a>
-            <a href="/privacy-policy">Privacy</a>
-            <a href="/security-policy">Security</a>
+            <a href={MOBILE_SOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer">Build mobile app</a>
+            <a href={`${GITHUB_REPOSITORY_URL}/security/policy`} target="_blank" rel="noopener noreferrer">Security</a>
           </div>
         </div>
       </footer>

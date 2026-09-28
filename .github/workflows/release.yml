@@ -108,6 +108,13 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
+      - name: Check public release identity
+        env:
+          ROVE_MARKETING_RELEASE_READY: ${{ vars.ROVE_MARKETING_RELEASE_READY }}
+          ROVE_HOSTED_RELEASE_READY: ${{ vars.ROVE_HOSTED_RELEASE_READY }}
+          ROVE_MOBILE_STORES_READY: ${{ vars.ROVE_MOBILE_STORES_READY }}
+        run: node scripts/check-release-identity.mjs
+
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
