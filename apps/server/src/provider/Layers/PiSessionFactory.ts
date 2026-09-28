@@ -468,9 +468,31 @@ interface DefaultResourceLoaderInternalAccess {
   resourceMetadataByPath?: Map<string, { source?: string; scope?: string }> | undefined;
 }
 
+/**
+ * Rove filters extensions through unexported loader members. A Pi SDK bump that
+ * renames them would silently stop disabling extensions, so fail loudly instead.
+ */
 function getLoaderInternals(loader: DefaultResourceLoader): DefaultResourceLoaderInternalAccess {
-  const // SAFETY: DefaultResourceLoader runtime instance contains unexported methods and state.
-    internals = loader as never;
+  const hasMethod = (owner: unknown, name: string) =>
+    RuntimePredicate.hasProperty(owner, name) && RuntimePredicate.isFunction(owner[name]);
+  const members: unknown = loader;
+  const packageManager = RuntimePredicate.hasProperty(members, "packageManager")
+    ? members.packageManager
+    : undefined;
+  const missing = [
+    hasMethod(members, "loadFinalExtensionSet") ? [] : ["loadFinalExtensionSet"],
+    hasMethod(members, "loadExtensionFactories") ? [] : ["loadExtensionFactories"],
+    hasMethod(packageManager, "resolve") && hasMethod(packageManager, "resolveExtensionSources")
+      ? []
+      : ["packageManager"],
+  ].flat();
+  if (missing.length > 0) {
+    throw new Error(
+      `Pi SDK resource loader internals changed (${missing.join(", ")}); update PiResourceLoader for this SDK version.`,
+    );
+  }
+  const // SAFETY: The members this file reads and replaces were checked above.
+    internals: DefaultResourceLoaderInternalAccess = loader as never;
   return internals;
 }
 

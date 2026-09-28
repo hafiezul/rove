@@ -267,7 +267,10 @@ const main = (): void => {
       "Includes lockfile refresh and third-party license sync. Generated with Rove Code.",
     ].join("\n"),
   ]);
-  log(`Opened PR for Pi SDK ${plan.to}.`);
+  // A PR opened with GITHUB_TOKEN triggers no pull_request workflows. A
+  // dispatched run is allowed and reports its checks on the PR's head commit.
+  run("gh", ["workflow", "run", "ci.yml", "--ref", branch]);
+  log(`Opened PR for Pi SDK ${plan.to} and dispatched CI.`);
 };
 
 if (import.meta.main) main();
