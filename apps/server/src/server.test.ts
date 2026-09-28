@@ -7647,6 +7647,23 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           cwd: "/tmp/repo",
         },
         layers: {
+          projectionSnapshotQuery: {
+            getThreadShellById: (threadId) =>
+              Effect.succeed(
+                threadId === defaultThreadId
+                  ? Option.some(makeDefaultOrchestrationThreadShell({ worktreePath: "/tmp/wt" }))
+                  : Option.none(),
+              ),
+            getProjectShellById: (projectId) =>
+              Effect.succeed(
+                projectId === defaultProjectId
+                  ? Option.some({
+                      ...makeDefaultOrchestrationReadModel().projects[0]!,
+                      workspaceRoot: "/tmp/repo",
+                    })
+                  : Option.none(),
+              ),
+          },
           vcsDriver: {
             isInsideWorkTree: () => Effect.succeed(true),
           },
@@ -7783,7 +7800,17 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               Effect.succeed({
                 worktree: { path: "/tmp/wt", refName: "feature/demo" },
               }),
-            removeWorktree: () => Effect.void,
+            removeWorktree: (input, options) =>
+              input.force && !options?.recoverPartialManagedWorktree
+                ? Effect.fail(
+                    new GitCommandError({
+                      operation: "removeWorktree",
+                      command: "git",
+                      cwd: input.cwd,
+                      detail: "Partial cleanup requires a verified thread.",
+                    }),
+                  )
+                : Effect.void,
             createRef: (input) => Effect.succeed({ refName: input.refName }),
             switchRef: (input) => Effect.succeed({ refName: input.refName }),
           },
@@ -7915,6 +7942,49 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             path: "/tmp/wt",
           }),
         ),
+      );
+
+      const invalidThreadRemoval = yield* Effect.scoped(
+        withWsRpcClient(wsUrl, (client) =>
+          client[WS_METHODS.vcsRemoveWorktree]({
+            cwd: "/tmp/repo",
+            path: "/tmp/wt",
+            force: true,
+            threadId: ThreadId.make("not-an-active-thread"),
+          }).pipe(Effect.flip),
+        ),
+      );
+      assertTrue(invalidThreadRemoval._tag === "GitCommandError");
+      assert.equal(
+        invalidThreadRemoval.detail,
+        "Could not verify that this worktree belongs to the active thread.",
+      );
+
+      yield* Effect.scoped(
+        withWsRpcClient(wsUrl, (client) =>
+          client[WS_METHODS.vcsRemoveWorktree]({
+            cwd: "/tmp/repo",
+            path: "/tmp/wt",
+            force: true,
+            threadId: defaultThreadId,
+          }),
+        ),
+      );
+
+      const mismatchedWorktree = yield* Effect.scoped(
+        withWsRpcClient(wsUrl, (client) =>
+          client[WS_METHODS.vcsRemoveWorktree]({
+            cwd: "/tmp/repo",
+            path: "/tmp/another-worktree",
+            force: true,
+            threadId: defaultThreadId,
+          }).pipe(Effect.flip),
+        ),
+      );
+      assertTrue(mismatchedWorktree._tag === "GitCommandError");
+      assert.equal(
+        mismatchedWorktree.detail,
+        "Could not verify that this worktree belongs to the active thread.",
       );
 
       yield* Effect.scoped(

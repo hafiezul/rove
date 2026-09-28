@@ -3371,12 +3371,36 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
 
   const removeWorktree: GitVcsDriver.GitVcsDriver["Service"]["removeWorktree"] = Effect.fn(
     "removeWorktree",
-  )(function* (input) {
+  )(function* (input, options) {
     const args = ["worktree", "remove"];
     if (input.force) {
       args.push("--force");
     }
     args.push(input.path);
+    const context = gitCommandContext({
+      operation: "GitVcsDriver.removeWorktree",
+      cwd: input.cwd,
+      args,
+    });
+    const verifyRemoved = Effect.gen(function* () {
+      const stillExists = yield* fileSystem.exists(input.path).pipe(
+        Effect.mapError(
+          (cause) =>
+            new GitCommandError({
+              ...context,
+              detail: "Could not verify that the worktree directory was removed.",
+              cause,
+            }),
+        ),
+      );
+      if (stillExists) {
+        return yield* new GitCommandError({
+          ...context,
+          detail:
+            "Worktree files remain after Git removed it. Stop processes using them, then retry.",
+        });
+      }
+    });
     const result = yield* executeGitWithStableDiagnostics(
       "GitVcsDriver.removeWorktree",
       input.cwd,
@@ -3390,7 +3414,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       },
     );
     if (result.exitCode === 0) {
-      return;
+      return yield* verifyRemoved;
     }
     // Threads can share a worktree path, and worktrees get removed or pruned
     // outside the app, so a worktree that is already gone is a no-op rather
@@ -3403,6 +3427,45 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       yield* pruneWorktrees({ cwd: input.cwd });
       return;
     }
+    const unregistered = result.stderr.toLowerCase().includes("is not a working tree");
+    if (unregistered && input.force && options?.recoverPartialManagedWorktree) {
+      const [root, target] = yield* Effect.all([
+        fileSystem.realPath(worktreesDir).pipe(Effect.option),
+        fileSystem.realPath(input.path).pipe(Effect.option),
+      ]);
+      if (Option.isSome(root) && Option.isSome(target)) {
+        const expectedParts = [path.basename(input.cwd), path.basename(input.path)];
+        const requestedParts = path
+          .relative(path.resolve(worktreesDir), path.resolve(input.path))
+          .split(path.sep);
+        const actualParts = path.relative(root.value, target.value).split(path.sep);
+        const isManaged =
+          requestedParts.length === 2 &&
+          actualParts.length === 2 &&
+          expectedParts.every(
+            (part, index) => part === requestedParts[index] && part === actualParts[index],
+          );
+        const hasGitMarker = yield* fileSystem
+          .exists(path.join(input.path, ".git"))
+          .pipe(Effect.orElseSucceed(() => true));
+        if (isManaged && !hasGitMarker) {
+          // Git can unregister a checkout even when removing its files fails.
+          // Recover only a server-verified checkout in our managed directory.
+          yield* fileSystem.remove(input.path, { recursive: true, force: true }).pipe(
+            Effect.mapError(
+              (cause) =>
+                new GitCommandError({
+                  ...context,
+                  detail:
+                    "Could not remove partial worktree files. Stop processes using them, then retry.",
+                  cause,
+                }),
+            ),
+          );
+          return yield* verifyRemoved;
+        }
+      }
+    }
     // Raw stderr stays out of both the wire error and the log (it can carry
     // secrets); log bounded diagnostics so a genuine failure is visible
     // server-side.
@@ -3410,8 +3473,10 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       `GitVcsDriver.removeWorktree: git worktree remove exited with code ${result.exitCode} for ${input.path} (stderr length ${result.stderr.length}).`,
     );
     return yield* new GitCommandError({
-      ...gitCommandContext({ operation: "GitVcsDriver.removeWorktree", cwd: input.cwd, args }),
-      detail: "git worktree remove failed",
+      ...context,
+      detail: unregistered
+        ? "Git no longer tracks this worktree. Remove its leftover files before retrying."
+        : "git worktree remove failed. Check for running processes or file permissions, then retry.",
       ...(result.exitCode === null ? {} : { exitCode: result.exitCode }),
       stdoutLength: result.stdout.length,
       stderrLength: result.stderr.length,
@@ -3633,7 +3698,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     fetchRemoteTrackingBranch: (input) =>
       withListRefsInvalidation(input.cwd, fetchRemoteTrackingBranch(input)),
     setBranchUpstream: (input) => withListRefsInvalidation(input.cwd, setBranchUpstream(input)),
-    removeWorktree: (input) => withListRefsInvalidation(input.cwd, removeWorktree(input)),
+    removeWorktree: (input, options) =>
+      withListRefsInvalidation(input.cwd, removeWorktree(input, options)),
     pruneWorktrees: (input) => withListRefsInvalidation(input.cwd, pruneWorktrees(input)),
     renameBranch: (input) => withListRefsInvalidation(input.cwd, renameBranch(input)),
     createRef: (input) => withListRefsInvalidation(input.cwd, createRef(input)),

@@ -33,6 +33,7 @@ import {
   EventId,
   type EditorId,
   type FileManagerRevealKind,
+  GitCommandError,
   type OrchestrationClientOrigin,
   type OrchestrationCommand,
   type GitActionProgressEvent,
@@ -3275,7 +3276,33 @@ const makeWsRpcLayer = (
         [WS_METHODS.vcsRemoveWorktree]: (input) =>
           observeRpcEffect(
             WS_METHODS.vcsRemoveWorktree,
-            gitWorkflow.removeWorktree(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
+            Effect.gen(function* () {
+              if (input.threadId !== undefined) {
+                const ownershipError = new GitCommandError({
+                  operation: "GitWorkflowService.removeWorktree",
+                  command: "git",
+                  cwd: input.cwd,
+                  detail: "Could not verify that this worktree belongs to the active thread.",
+                });
+                const thread = yield* projectionSnapshotQuery
+                  .getThreadShellById(input.threadId)
+                  .pipe(Effect.mapError(() => ownershipError));
+                if (Option.isNone(thread) || thread.value.worktreePath !== input.path) {
+                  return yield* ownershipError;
+                }
+                const project = yield* projectionSnapshotQuery
+                  .getProjectShellById(thread.value.projectId)
+                  .pipe(Effect.mapError(() => ownershipError));
+                if (Option.isNone(project) || project.value.workspaceRoot !== input.cwd) {
+                  return yield* ownershipError;
+                }
+              }
+              yield* gitWorkflow.removeWorktree(
+                input,
+                input.threadId === undefined ? undefined : { recoverPartialManagedWorktree: true },
+              );
+              yield* refreshGitStatus(input.cwd);
+            }),
             { "rpc.aggregate": "vcs" },
           ),
         [WS_METHODS.vcsCreateRef]: (input) =>

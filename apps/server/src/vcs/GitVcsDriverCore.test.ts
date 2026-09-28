@@ -2027,6 +2027,151 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
       }),
     );
 
+    it.effect("does not report success when Git leaves the directory behind", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const delegate = yield* ChildProcessSpawner.ChildProcessSpawner;
+        const worktreePath = (yield* driver.createWorktree({
+          cwd,
+          path: null,
+          refName: initialBranch,
+          newRefName: "feature/remaining-files",
+        })).worktree.path;
+        const removalSpawner = ChildProcessSpawner.make((command) =>
+          ChildProcess.isStandardCommand(command) &&
+          command.args[0] === "worktree" &&
+          command.args[1] === "remove"
+            ? Effect.succeed(makeSuccessfulHandle(""))
+            : delegate.spawn(command),
+        );
+        const guardedDriver = yield* makeGitVcsDriverCore().pipe(
+          Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, removalSpawner),
+          Effect.provide(ServerConfigLayer),
+        );
+
+        const error = yield* guardedDriver
+          .removeWorktree({ cwd, path: worktreePath, force: true })
+          .pipe(Effect.flip);
+        assert.equal(error._tag, "GitCommandError");
+        assert.equal(yield* fileSystem.exists(worktreePath), true);
+      }),
+    );
+
+    it.effect("recovers a partially removed managed worktree on retry", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const worktreePath = (yield* driver.createWorktree({
+          cwd,
+          path: null,
+          refName: initialBranch,
+          newRefName: "feature/partial-removal",
+        })).worktree.path;
+
+        yield* git(cwd, ["worktree", "remove", "--force", worktreePath]);
+        yield* fileSystem.makeDirectory(worktreePath);
+        yield* writeTextFile(
+          worktreePath,
+          "leftover.txt",
+          "left after git removed its registration\n",
+        );
+
+        const firstRetry = yield* driver
+          .removeWorktree({ cwd, path: worktreePath, force: true })
+          .pipe(Effect.flip);
+        assert.equal(firstRetry._tag, "GitCommandError");
+        assert.equal(yield* fileSystem.exists(worktreePath), true);
+
+        yield* driver.removeWorktree(
+          { cwd, path: worktreePath, force: true },
+          { recoverPartialManagedWorktree: true },
+        );
+        assert.equal(yield* fileSystem.exists(worktreePath), false);
+      }),
+    );
+
+    it.effect("does not recover an unregistered directory with a Git marker", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const pathService = yield* Path.Path;
+        const worktreePath = (yield* driver.createWorktree({
+          cwd,
+          path: null,
+          refName: initialBranch,
+          newRefName: "feature/reused-path",
+        })).worktree.path;
+
+        yield* git(cwd, ["worktree", "remove", "--force", worktreePath]);
+        yield* fileSystem.makeDirectory(worktreePath);
+        yield* writeTextFile(worktreePath, ".git", "another checkout");
+
+        const error = yield* driver
+          .removeWorktree(
+            { cwd, path: worktreePath, force: true },
+            { recoverPartialManagedWorktree: true },
+          )
+          .pipe(Effect.flip);
+        assert.equal(error._tag, "GitCommandError");
+        assert.equal(yield* fileSystem.exists(pathService.join(worktreePath, ".git")), true);
+      }),
+    );
+
+    it.effect("does not recover a managed path replaced by a file", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const worktreePath = (yield* driver.createWorktree({
+          cwd,
+          path: null,
+          refName: initialBranch,
+          newRefName: "feature/replaced-path",
+        })).worktree.path;
+
+        yield* git(cwd, ["worktree", "remove", "--force", worktreePath]);
+        yield* fileSystem.writeFileString(worktreePath, "unrelated file\n");
+
+        const error = yield* driver
+          .removeWorktree(
+            { cwd, path: worktreePath, force: true },
+            { recoverPartialManagedWorktree: true },
+          )
+          .pipe(Effect.flip);
+        assert.equal(error._tag, "GitCommandError");
+        assert.equal(yield* fileSystem.readFileString(worktreePath), "unrelated file\n");
+      }),
+    );
+
+    it.effect("does not recover directories outside the managed worktree root", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        yield* initRepoWithCommit(cwd);
+        const worktreePath = yield* makeTmpDir("unmanaged-worktree-");
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const pathService = yield* Path.Path;
+        yield* writeTextFile(worktreePath, "keep.txt", "unrelated data\n");
+
+        const error = yield* driver
+          .removeWorktree(
+            { cwd, path: worktreePath, force: true },
+            { recoverPartialManagedWorktree: true },
+          )
+          .pipe(Effect.flip);
+        assert.equal(error._tag, "GitCommandError");
+        assert.equal(yield* fileSystem.exists(pathService.join(worktreePath, "keep.txt")), true);
+      }),
+    );
+
     it.effect("prunes stale registrations when removing an already-gone worktree", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();
