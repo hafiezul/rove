@@ -5,7 +5,7 @@ import * as NodeURL from "node:url";
 
 const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
 const upstreamPublicIdentity =
-  /t3\.codes|T3 Tools|@t3dotgg|\bnpx\s+t3(?:@|\b)|\bpingdotgg\b|d763fcb8-d37c-41ea-a773-b54a0ab4a454|ARK85ZXQ4Z/i;
+  /t3\.codes|T3 Tools|@t3dotgg|\bnpx\s+t3(?:@|\b)|\bpingdotgg\b|d763fcb8-d37c-41ea-a773-b54a0ab4a454|ARK85ZXQ4Z|\b6787819824\b/i;
 
 const surfaces = [
   {
@@ -23,6 +23,7 @@ const surfaces = [
     readiness: "ROVE_MOBILE_STORES_READY",
     paths: [
       "apps/mobile/app.config.ts",
+      "apps/mobile/eas.json",
       "apps/mobile/src/features/settings/lib/legal-document-url.ts",
     ],
   },
