@@ -29,6 +29,22 @@ The inherited installation's `~/.rove` is left untouched. Do not point both
 applications at the same data directory. Importing an existing installation
 is not yet supported.
 
+## Test an unsigned macOS build
+
+If you are testing an **unsigned** macOS DMG from this repository's build
+artifacts, macOS may say the app is "damaged" after you copy it to Applications.
+Only if you trust the artifact you downloaded, remove the download quarantine
+for that app:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Rove Code (Alpha).app"
+```
+
+For a nightly build, use `/Applications/Rove Code (Nightly).app` instead. This
+bypasses Gatekeeper's download check for that app; it does not verify the app is
+safe. Do not disable Gatekeeper system-wide. If you do not trust the artifact,
+do not run this command.
+
 ## Mobile app (source builds only)
 
 There are no App Store or Google Play releases from this project. To try the

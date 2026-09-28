@@ -376,6 +376,8 @@ jobs:
               args+=(--signed)
             else
               echo "macOS signing disabled (missing one or more Apple signing secrets)."
+              mac_unsigned=true
+              echo "::warning title=Unsigned macOS build::This DMG is not signed or notarized. See the job summary before installing it."
             fi
           elif [[ "${{ inputs.platform }}" == "win" ]]; then
             # Embed the Linux CLI archive built by the same-arch Linux job as
@@ -399,6 +401,25 @@ jobs:
           fi
 
           vp run dist:desktop:artifact "${args[@]}"
+
+          if [[ "${mac_unsigned:-false}" == "true" ]]; then
+            app_name="$(node -p "require('./apps/desktop/package.json').productName || 'Rove Code'")"
+            if [[ "${{ inputs.release_channel }}" == "nightly" ]]; then
+              app_name="Rove Code (Nightly)"
+            fi
+            {
+              echo "### Installing this unsigned macOS build"
+              echo
+              echo "This DMG is not signed or notarized by Apple. Gatekeeper may say the app is **damaged** even when the download is intact."
+              echo "After copying the app from the DMG to Applications, **only if you trust the download from this repository**, run:"
+              echo
+              echo '```sh'
+              printf 'xattr -dr com.apple.quarantine "/Applications/%s.app"\n' "$app_name"
+              echo '```'
+              echo
+              echo "This bypasses Gatekeeper's download check for this app; it does not verify that the app is safe. Do not disable Gatekeeper globally."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # The single-executable is built with a Node that supports --build-sea
       # (25.7+); the repo itself stays on the engines.node version. It always
