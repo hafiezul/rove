@@ -29,6 +29,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
+import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 import { formatTokens } from "@t3tools/shared/usageFormat";
@@ -134,6 +135,13 @@ type TurnStartRequestedDomainEvent = Extract<
   { type: "thread.turn-start-requested" }
 >;
 
+interface ReasoningTrailingFlush {
+  readonly threadId: ThreadId;
+  readonly turnId: TurnId;
+  readonly phaseIndex: number;
+  readonly createdAt: string;
+}
+
 type RuntimeIngestionInput =
   | {
       source: "runtime";
@@ -142,6 +150,10 @@ type RuntimeIngestionInput =
   | {
       source: "domain";
       event: TurnStartRequestedDomainEvent;
+    }
+  | {
+      source: "reasoning-flush";
+      flush: ReasoningTrailingFlush;
     };
 
 function toTurnId(value: TurnId | string | undefined): TurnId | undefined {
@@ -1158,6 +1170,8 @@ const make = Effect.gen(function* () {
 
   // Reasoning is a per-token stream, but the UI needs one mutable row per
   // continuous thought phase rather than one row per token or one row per turn.
+  // Due trailing flushes wait here until the ingestion worker picks them up.
+  const dueReasoningFlushes = yield* Queue.unbounded<ReasoningTrailingFlush>();
   const reasoningBufferByTurnKey = yield* Cache.make<string, ReasoningTurnBuffer>({
     capacity: REASONING_TEXT_BY_TURN_CACHE_CAPACITY,
     timeToLive: REASONING_TEXT_BY_TURN_TTL,
@@ -1774,14 +1788,11 @@ const make = Effect.gen(function* () {
    * Trailing edge for the reasoning-stream throttle: leading-only flushes
    * would leave a burst shorter than the cadence (or the tail of a long
    * stream) stale until the phase settles. A scheduled flush is scoped to a
-   * phase so a tool boundary cannot update an older thought row.
+   * phase so a tool boundary cannot update an older thought row. The flush
+   * itself runs on the ingestion worker, serialized with tool boundaries and
+   * turn settlement, so it can never land after the phase ends.
    */
-  const scheduleReasoningTrailingFlush = (input: {
-    threadId: ThreadId;
-    turnId: TurnId;
-    phaseIndex: number;
-    createdAt: string;
-  }) =>
+  const scheduleReasoningTrailingFlush = (input: ReasoningTrailingFlush) =>
     Effect.gen(function* () {
       const turnKey = providerTurnKey(input.threadId, input.turnId);
       const buffered = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
@@ -1797,45 +1808,7 @@ const make = Effect.gen(function* () {
         activePhase: { ...phase, trailingFlushScheduled: true },
       });
       yield* Effect.sleep(REASONING_ACTIVITY_FLUSH_INTERVAL_MS).pipe(
-        Effect.andThen(
-          Effect.gen(function* () {
-            const latest = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
-            if (Option.isNone(latest)) {
-              return;
-            }
-            const latestPhase = latest.value.activePhase;
-            if (latestPhase === null || latestPhase.index !== input.phaseIndex) {
-              return;
-            }
-            yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
-              ...latest.value,
-              activePhase: {
-                ...latestPhase,
-                trailingFlushScheduled: false,
-                lastFlushedAt: yield* Clock.currentTimeMillis,
-              },
-            });
-            yield* dispatchReasoningActivity({
-              commandTag: "reasoning-trailing-flush",
-              threadId: input.threadId,
-              turnId: input.turnId,
-              phaseIndex: latestPhase.index,
-              text: latestPhase.text,
-              streaming: true,
-              activityCreatedAt: latestPhase.startedAt,
-              createdAt: input.createdAt,
-            });
-          }),
-        ),
-        // A trailing flush that raced the phase boundary, settle sweep, or a
-        // dropped engine must never tear down the ingestion worker.
-        Effect.catchCause((cause) =>
-          Effect.logWarning("reasoning trailing flush failed", {
-            threadId: input.threadId,
-            turnId: input.turnId,
-            cause: Cause.pretty(cause),
-          }),
-        ),
+        Effect.andThen(Queue.offer(dueReasoningFlushes, input)),
         Effect.forkScoped,
       );
     });
@@ -2684,8 +2657,47 @@ const make = Effect.gen(function* () {
 
   const processDomainEvent = (_event: TurnStartRequestedDomainEvent) => Effect.void;
 
-  const processInput = (input: RuntimeIngestionInput) =>
-    input.source === "runtime" ? processRuntimeEvent(input.event) : processDomainEvent(input.event);
+  const flushReasoningTrailingEdge = (input: ReasoningTrailingFlush) =>
+    Effect.gen(function* () {
+      const turnKey = providerTurnKey(input.threadId, input.turnId);
+      const latest = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
+      if (Option.isNone(latest)) {
+        return;
+      }
+      const latestPhase = latest.value.activePhase;
+      if (latestPhase === null || latestPhase.index !== input.phaseIndex) {
+        return;
+      }
+      yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
+        ...latest.value,
+        activePhase: {
+          ...latestPhase,
+          trailingFlushScheduled: false,
+          lastFlushedAt: yield* Clock.currentTimeMillis,
+        },
+      });
+      yield* dispatchReasoningActivity({
+        commandTag: "reasoning-trailing-flush",
+        threadId: input.threadId,
+        turnId: input.turnId,
+        phaseIndex: latestPhase.index,
+        text: latestPhase.text,
+        streaming: true,
+        activityCreatedAt: latestPhase.startedAt,
+        createdAt: input.createdAt,
+      });
+    });
+
+  const processInput = (input: RuntimeIngestionInput) => {
+    switch (input.source) {
+      case "runtime":
+        return processRuntimeEvent(input.event);
+      case "domain":
+        return processDomainEvent(input.event);
+      case "reasoning-flush":
+        return flushReasoningTrailingEdge(input.flush);
+    }
+  };
 
   const processInputSafely = (input: RuntimeIngestionInput) =>
     processInput(input).pipe(
@@ -2695,8 +2707,9 @@ const make = Effect.gen(function* () {
         }
         return Effect.logWarning("provider runtime ingestion failed to process event", {
           source: input.source,
-          eventId: input.event.eventId,
-          eventType: input.event.type,
+          ...(input.source === "reasoning-flush"
+            ? { threadId: input.flush.threadId, turnId: input.flush.turnId }
+            : { eventId: input.event.eventId, eventType: input.event.type }),
           cause: Cause.pretty(cause),
         });
       }),
@@ -2718,6 +2731,11 @@ const make = Effect.gen(function* () {
           }
           return worker.enqueue({ source: "domain", event });
         }),
+      );
+      yield* forkParked(
+        Stream.runForEach(Stream.fromQueue(dueReasoningFlushes), (flush) =>
+          worker.enqueue({ source: "reasoning-flush", flush }),
+        ),
       );
     });
 
