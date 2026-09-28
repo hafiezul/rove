@@ -189,11 +189,11 @@ function formatCloudStatus(status: CloudCliStatus, options?: { readonly json?: b
       ? "pending server startup"
       : "not provisioned";
   const nextStep = !status.authenticated
-    ? "Run `t3 connect link` to authorize and enable Rove Connect."
+    ? "Run `rove connect link` to authorize and enable Rove Connect."
     : !status.desired
-      ? "Run `t3 connect link` to enable Rove Connect."
+      ? "Run `rove connect link` to enable Rove Connect."
       : !status.linked
-        ? "Start T3 to provision the environment link and launch its managed tunnel."
+        ? "Start the Rove Code server to provision the environment link and launch its managed tunnel."
         : undefined;
 
   return [
@@ -205,7 +205,7 @@ function formatCloudStatus(status: CloudCliStatus, options?: { readonly json?: b
     `  Publish agent activity: ${status.publishAgentActivity ? "enabled" : "disabled"}`,
     ...formatRelayClientStatus(status.relayClient),
     "",
-    "This is saved setup, not a live connection check. Check the background service with `t3 service status`.",
+    "This is saved setup, not a live connection check. Check the background service with `rove service status`.",
     ...(nextStep ? ["", `Next: ${nextStep}`] : []),
   ].join("\n");
 }
@@ -272,7 +272,7 @@ const withCloudCliSessionToken = <A, E, R>(
     environmentAuth.issueSession({
       scopes: [AuthRelayWriteScope],
       subject: "cloud-cli",
-      label: "t3 connect cli",
+      label: "rove connect cli",
     }),
     (issued) => run(issued.token),
     (issued) => environmentAuth.revokeSession(issued.sessionId).pipe(Effect.ignore({ log: true })),
@@ -381,7 +381,7 @@ export const reportCloudDisconnectResults = Effect.fn("cloud.cli.report_disconne
       yield* Console.warn(
         input.clearAuthorization
           ? "Could not revoke the relay-side environment record before signing out.\nThe stored CLI authorization was still removed locally."
-          : "Could not revoke the relay-side environment record yet.\nRun `t3 connect unlink` again when the relay is reachable.",
+          : "Could not revoke the relay-side environment record yet.\nRun `rove connect unlink` again when the relay is reachable.",
       );
     } else if (input.relayResult.value.status === "revoked") {
       yield* Console.log("Revoked the relay-side environment record.");
@@ -410,7 +410,7 @@ const disconnectCloud = Effect.fn("cloud.cli.disconnect")(function* (options: {
 
   if (options.clearAuthorization) {
     yield* Console.log(
-      "Signed out of Rove Connect locally.\nThe background service is managed separately with `t3 service`.",
+      "Signed out of Rove Connect locally.\nThe background service is managed separately with `rove service`.",
     );
   }
 });
@@ -529,7 +529,7 @@ const connectLinkCommand = Command.make("link", {
           const serveCommand = yield* resolveCliCommand("serve");
           yield* Console.log(
             flags.publishOnly
-              ? `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start T3 to publish agent activity (no managed tunnel).`
+              ? `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start the Rove Code server to publish agent activity (no managed tunnel).`
               : `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start the server with \`${serveCommand}\` to make this machine reachable.`,
           );
         }
@@ -629,23 +629,23 @@ const connectPublishCommand = Command.make("publish", {
         // out of band without Rove Connect.
         if (!(yield* tokens.hasCredential)) {
           yield* Console.log(
-            "Run `t3 connect login` first so this environment can be authorized to publish.",
+            "Run `rove connect login` first so this environment can be authorized to publish.",
           );
           return;
         }
-        // A link may already be desired (e.g. `t3 connect link` before the
+        // A link may already be desired (e.g. `rove connect link` before the
         // server's first start). Never downgrade it: a desired managed link
         // also covers publishing, so only request a publish-only link when no
         // link is pending at all.
         if (yield* CliState.readCliDesiredCloudLink) {
           yield* Console.log(
-            "A Rove Connect link is already pending. Start T3 to finish provisioning it; publishing starts once it links.",
+            "A Rove Connect link is already pending. Start the Rove Code server to finish provisioning it; publishing starts once it links.",
           );
           return;
         }
         yield* CliState.setCliDesiredCloudLink(true, "publish_only");
         yield* Console.log(
-          "Restart T3 to finish authorizing this environment to publish (no managed tunnel is created).",
+          "Restart the Rove Code server to finish authorizing this environment to publish (no managed tunnel is created).",
         );
       }),
     ),

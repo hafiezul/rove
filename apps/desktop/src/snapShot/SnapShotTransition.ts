@@ -17,7 +17,7 @@ type SnapShotAnimationDetails = {
 
 export type SnapShotAnimationDestination = {
   readonly frame: Electron.Rectangle;
-  /** Unit coordinates in T3's content area; GNOME supplies the real compositor origin. */
+  /** Unit coordinates in Rove Code's content area; GNOME supplies the real compositor origin. */
   readonly relativeFrame?: Electron.Rectangle | undefined;
   readonly backgroundColor: string;
   readonly borderColor: string;

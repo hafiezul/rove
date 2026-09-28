@@ -38,7 +38,7 @@ vp run android:dev
 
 For an EAS build, provide the same configuration through each selected build environment, using an EAS file variable named `ROVE_ANDROID_GOOGLE_SERVICES_FILE` for the Google services file. Make the file available to fingerprint generation as well as the native build. FCM service-account credentials belong on the relay, not in EAS's app environment. If deploying a separate hosted relay, configure the build's Rove Connect public settings for that relay and Clerk application as described in [Rove Connect](../internals/rove-connect.md).
 
-Set `ROVE_MOBILE_UPDATES_ENABLED=0` before prebuild and bundling a private binary to disable the repository's configured Expo OTA update source. A debug development-client APK requires Metro; a bundled release build is needed to verify cold-start notification taps without Expo's development launcher.
+Expo OTA updates are disabled by default in source builds. To enable them for an owned Expo project, set `ROVE_EXPO_PROJECT_ID` and `ROVE_MOBILE_UPDATES_ENABLED=1` before prebuild and bundling. A debug development-client APK requires Metro; a bundled release build is needed to verify cold-start notification taps without Expo's development launcher.
 
 ## Clerk sign-in for private builds
 
@@ -52,7 +52,7 @@ The app already declares the matching callback receiver. A "redirect url ... doe
 
 Using T3's existing production publishable key selects the maintainers' Clerk instance. It grants no access to change that instance's allowlist. The chosen package's callback must already be allowed or be added by that instance's administrator. Android device registration and hosted delivery separately require the relay deployment below. A successful direct-pairing or FCM smoke test does not verify hosted sign-in or device registration.
 
-Building with `APP_VARIANT=production` selects `dev.rove.app` and its corresponding Clerk callback. Set the same variant during prebuild and bundling, and supply a Google services file that includes that package. Keep OTA updates disabled for a private binary. A locally signed build with this package cannot update an official installation signed by the maintainer or coexist with it; removing that installation also removes its app-local data. The development package remains a separate app.
+Building with `APP_VARIANT=production` selects `dev.rove.app` and its corresponding Clerk callback. Set the same variant during prebuild and bundling, and supply a Google services file that includes that package. Leave OTA updates disabled for a private binary. A locally signed build with this package cannot update an official installation signed by the maintainer or coexist with it; removing that installation also removes its app-local data. The development package remains a separate app.
 
 ## Focused delivery check
 

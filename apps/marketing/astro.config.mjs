@@ -1,7 +1,7 @@
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  site: "https://t3.codes",
+  site: process.env.ROVE_MARKETING_SITE_URL || undefined,
   server: {
     port: Number(process.env.PORT ?? 4173),
   },

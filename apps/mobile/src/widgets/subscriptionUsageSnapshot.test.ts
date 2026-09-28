@@ -166,6 +166,7 @@ describe("subscription widget snapshots", () => {
     const timeline = subscriptionUsageTimeline(snapshot, now);
     expect(timeline.map((entry) => entry.date.getTime())).toEqual([now, now + 10 * 60_000]);
     expect(timeline[1]?.props.providers[0]?.windows).toEqual([]);
+    expect(timeline[1]?.props.providers[0]?.detail).toBe("Open app to refresh");
     expect(subscriptionUsageTimeline(snapshot, now + 60 * 60_000)).toHaveLength(1);
   });
   it("expires providers independently without inventing a refill", () => {
@@ -198,7 +199,11 @@ describe("subscription widget snapshots", () => {
       deepLink,
     );
     expect(snapshot.checkedAt).toBe(0);
-    expect(snapshot.providers[0]).toMatchObject({ expiresAt: 0, windows: [] });
+    expect(snapshot.providers[0]).toMatchObject({
+      detail: "Open app to refresh",
+      expiresAt: 0,
+      windows: [],
+    });
     expect(subscriptionUsageTimeline(snapshot, now)).toHaveLength(1);
     expect(JSON.stringify(snapshot)).not.toContain("null");
   });

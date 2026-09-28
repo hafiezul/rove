@@ -283,4 +283,14 @@ describe("resolveServerEnvironmentLabel", () => {
       expect(result).toBe("rove");
     }),
   );
+
+  it.effect("uses Rove Code for an unnamed environment", () =>
+    Effect.gen(function* () {
+      const result = yield* ServerEnvironmentLabel.resolveServerEnvironmentLabel({
+        cwdBaseName: "",
+      }).pipe(Effect.provide(withHostPlatform(TestLayer, "win32", "   ")));
+
+      expect(result).toBe("Rove Code environment");
+    }),
+  );
 });

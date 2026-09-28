@@ -190,3 +190,30 @@ it.effect("keeps disconnect causes in structured logs and out of console warning
     ),
   );
 });
+
+it.effect(
+  "suggests rove connect unlink after a failed revocation when authorization remains",
+  () => {
+    const warnings: ReadonlyArray<unknown>[] = [];
+    const testConsole = {
+      ...globalThis.console,
+      warn: (...args: ReadonlyArray<unknown>) => {
+        warnings.push(args);
+      },
+    } satisfies Console.Console;
+
+    return reportCloudDisconnectResults({
+      clearAuthorization: false,
+      liveResult: { status: "not-running" },
+      relayResult: Exit.failCause(Cause.die(new Error("relay unavailable"))),
+    }).pipe(
+      Effect.provideService(Console.Console, testConsole),
+      Effect.provide(Logger.layer([Logger.make(() => undefined)], { mergeWithExisting: false })),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          assert.include(warnings.flat().map(String).join("\n"), "Run `rove connect unlink` again");
+        }),
+      ),
+    );
+  },
+);

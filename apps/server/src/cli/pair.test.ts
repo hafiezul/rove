@@ -144,7 +144,7 @@ const withDescriptorServer = <A, E, R>(run: (origin: string) => Effect.Effect<A,
     (server) => Effect.sync(() => server.close()),
   );
 
-describe("t3 pair", () => {
+describe("rove pair", () => {
   it.effect("mints a token and prints a QR pairing URL for a live server", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
@@ -178,7 +178,7 @@ describe("t3 pair", () => {
           // @effect-diagnostics-next-line preferSchemaOverJson:off - Test fixture intentionally parses CLI or transport JSON.
           credentials = JSON.parse(listed) as ReadonlyArray<{ readonly label?: string }>;
         assert.equal(credentials.length, 1);
-        assert.equal(credentials[0]?.label, "t3 pair");
+        assert.equal(credentials[0]?.label, "rove pair");
       }),
     ).pipe(
       Effect.provide(NodeServices.layer),
