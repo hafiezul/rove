@@ -1688,6 +1688,59 @@ describe("ProviderRuntimeIngestion", () => {
     expect(payload.detail).toBe("Interrupted mid-thought.");
   });
 
+  it("bounds persisted reasoning events while a long phase streams", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+    const turnId = asTurnId("turn-reasoning-long");
+    const line = `${"r".repeat(99)}\n`;
+    for (let index = 0; index < 300; index++) {
+      if (index > 0) harness.advanceClock(100);
+      await harness.emitAndDrain([
+        {
+          type: "content.delta",
+          eventId: asEventId(`evt-reasoning-long-${index}`),
+          provider: ProviderDriverKind.make("codex"),
+          createdAt: now,
+          threadId: asThreadId("thread-1"),
+          turnId,
+          payload: { streamKind: "reasoning_text", delta: line },
+        },
+      ]);
+    }
+    await harness.emitAndDrain([
+      {
+        type: "turn.completed",
+        eventId: asEventId("evt-reasoning-long-completed"),
+        provider: ProviderDriverKind.make("codex"),
+        createdAt: now,
+        threadId: asThreadId("thread-1"),
+        turnId,
+        payload: { state: "completed" },
+      },
+    ]);
+
+    const events = await Effect.runPromise(
+      Stream.runCollect(harness.engine.readEvents(0)).pipe(
+        Effect.map((chunk) => Array.from(chunk)),
+      ),
+    );
+    const reasoningPayloads = events.flatMap((event) =>
+      event.type === "thread.activity-appended" && event.payload.activity.kind === "turn.reasoning"
+        ? [event.payload.activity.payload as { detail: string; streaming: boolean }]
+        : [],
+    );
+    const streamed = reasoningPayloads.filter((payload) => payload.streaming);
+    // 30 seconds of reasoning. Each streaming event carries only the live tail.
+    expect(streamed.length).toBeLessThanOrEqual(25);
+    expect(streamed.reduce((total, payload) => total + payload.detail.length, 0)).toBeLessThan(
+      30_000,
+    );
+    const settled = reasoningPayloads.at(-1);
+    expect(settled?.streaming).toBe(false);
+    expect(settled?.detail.startsWith(line)).toBe(true);
+    expect(settled?.detail.endsWith(line.trim())).toBe(true);
+  });
+
   it("ignores reasoning_text deltas without a turn id", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";
