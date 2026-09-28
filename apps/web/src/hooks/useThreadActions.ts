@@ -382,7 +382,8 @@ export function useThreadActions() {
 
       await closeTerminal({
         environmentId: threadRef.environmentId,
-        input: { threadId: threadRef.threadId, deleteHistory: true },
+        // Keep history until the thread is deleted; ThreadDeletionReactor removes it then.
+        input: { threadId: threadRef.threadId, deleteHistory: false },
       });
 
       if (shouldDeleteWorktree && orphanedWorktreePath && threadProject) {
