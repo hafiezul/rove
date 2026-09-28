@@ -536,6 +536,49 @@ it.layer(NodeServices.layer)("settled thread decider", (it) => {
     }),
   );
 
+  it.effect("settles immediately after a completed manual compact", () =>
+    Effect.gen(function* () {
+      const messageId = MessageId.make("completed-compact-message");
+      const createdAt = "1969-12-31T23:59:30.000Z";
+      const result = yield* decideOrchestrationCommand({
+        command: {
+          type: "thread.settle",
+          commandId: CommandId.make("cmd-settle-completed-compact"),
+          threadId: ThreadId.make("thread-1"),
+        },
+        readModel: makeReadModel(
+          null,
+          null,
+          makeSession("ready"),
+          [
+            {
+              id: EventId.make("completed-compact-activity"),
+              kind: "context-compaction",
+              summary: "Context compacted",
+              tone: "info",
+              payload: { requestId: messageId, state: "compacted" },
+              turnId: null,
+              createdAt,
+            },
+          ],
+          [
+            {
+              id: messageId,
+              role: "user",
+              text: "/compact",
+              turnId: null,
+              streaming: false,
+              createdAt,
+              updatedAt: createdAt,
+            },
+          ],
+        ),
+      });
+      const events = Array.isArray(result) ? result : [result];
+      expect(events[0]?.type).toBe("thread.settled");
+    }),
+  );
+
   it.effect("rejects settling and unsettling archived threads", () =>
     Effect.gen(function* () {
       const settleError = yield* decideOrchestrationCommand({

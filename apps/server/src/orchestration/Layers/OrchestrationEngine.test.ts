@@ -566,6 +566,127 @@ describe("OrchestrationEngine", () => {
     }).pipe(Effect.provide(makeOrchestrationLayer())),
   );
 
+  effectIt.effect("settles a failed compact without waiting for the queued-turn grace period", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(Date.parse(now()));
+      const engine = yield* OrchestrationEngineService;
+      const receipts = yield* OrchestrationCommandReceipts.OrchestrationCommandReceiptRepository;
+      const snapshots = yield* ProjectionSnapshotQuery;
+      const projectId = ProjectId.make("project-failed-compact-settle");
+      const threadId = ThreadId.make("thread-failed-compact-settle");
+      const messageId = MessageId.make("message-failed-compact-settle");
+      const createdAt = now();
+
+      yield* engine.dispatch({
+        type: "project.create",
+        commandId: CommandId.make("cmd-failed-compact-project"),
+        projectId,
+        title: "Project",
+        workspaceRoot: "/tmp/project-failed-compact-settle",
+        createdAt,
+      });
+      yield* engine.dispatch({
+        type: "thread.create",
+        commandId: CommandId.make("cmd-failed-compact-thread"),
+        threadId,
+        projectId,
+        title: "Thread",
+        modelSelection: { instanceId: ProviderInstanceId.make("pi"), model: "gpt-5" },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "full-access",
+        branch: null,
+        worktreePath: null,
+        createdAt,
+      });
+      yield* engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.make("cmd-failed-compact-start"),
+        threadId,
+        message: { messageId, role: "user", text: "/compact", attachments: [] },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "full-access",
+        createdAt,
+      });
+      yield* engine.dispatch({
+        type: "thread.session.set",
+        commandId: CommandId.make("cmd-failed-compact-ready"),
+        threadId,
+        createdAt,
+        session: {
+          threadId,
+          status: "ready",
+          providerName: "pi",
+          providerInstanceId: ProviderInstanceId.make("pi"),
+          runtimeMode: "full-access",
+          activeTurnId: null,
+          lastError: null,
+          updatedAt: createdAt,
+        },
+      });
+
+      const pending = yield* engine
+        .dispatch({
+          type: "thread.settle",
+          commandId: CommandId.make("cmd-failed-compact-pending-settle"),
+          threadId,
+        })
+        .pipe(Effect.flip);
+      expect(pending._tag).toBe("OrchestrationThreadSettleBlockedError");
+
+      yield* engine.dispatch({
+        type: "thread.activity.append",
+        commandId: CommandId.make("cmd-unrelated-compact-failure"),
+        threadId,
+        createdAt,
+        activity: {
+          id: EventId.make("unrelated-compact-failure"),
+          kind: "provider.turn.start.failed",
+          summary: "Context compaction failed",
+          tone: "error",
+          payload: { requestId: "other-message", detail: "Response incomplete: content_filter" },
+          turnId: null,
+          createdAt,
+        },
+      });
+      const unrelated = yield* engine
+        .dispatch({
+          type: "thread.settle",
+          commandId: CommandId.make("cmd-unrelated-compact-settle"),
+          threadId,
+        })
+        .pipe(Effect.flip);
+      expect(unrelated._tag).toBe("OrchestrationThreadSettleBlockedError");
+
+      yield* engine.dispatch({
+        type: "thread.activity.append",
+        commandId: CommandId.make("cmd-matching-compact-failure"),
+        threadId,
+        createdAt,
+        activity: {
+          id: EventId.make("matching-compact-failure"),
+          kind: "provider.turn.start.failed",
+          summary: "Context compaction failed",
+          tone: "error",
+          payload: { requestId: messageId, detail: "Response incomplete: content_filter" },
+          turnId: null,
+          createdAt,
+        },
+      });
+      const settleCommandId = CommandId.make("cmd-settle-failed-compact");
+      yield* engine.dispatch({ type: "thread.settle", commandId: settleCommandId, threadId });
+      const snapshot = yield* snapshots.getSnapshot();
+      expect(snapshot.threads.find((thread) => thread.id === threadId)?.settledOverride).toBe(
+        "settled",
+      );
+      expect(
+        Option.getOrNull(yield* receipts.getByCommandId({ commandId: settleCommandId })),
+      ).toMatchObject({
+        status: "accepted",
+        aggregateId: threadId,
+      });
+    }).pipe(Effect.provide(makeOrchestrationLayer())),
+  );
+
   effectIt.effect(
     "rejects persisted changes and live background work without blocking unrelated threads",
     () =>

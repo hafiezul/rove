@@ -104,12 +104,13 @@ function openRequests(thread: Pick<OrchestrationThread, "activities">) {
   return requests;
 }
 
-/** Apply the shared shell-level rule to the detailed command read model. */
+/** The shell only sees timestamps; command decisions can also see terminal provider activity. */
 function hasQueuedTurnStartForThread(
-  thread: Pick<OrchestrationThread, "messages" | "latestTurn" | "session">,
+  thread: Pick<OrchestrationThread, "messages" | "activities" | "latestTurn" | "session">,
   now: string,
 ): boolean {
   let latestUserMessageAt: string | null = null;
+  let latestUserMessageId: MessageId | null = null;
   let latestUserMessageAtMs = Number.NEGATIVE_INFINITY;
   for (const message of thread.messages) {
     if (message.role !== "user" || isImportedAgentSessionMessageId(message.id)) continue;
@@ -117,15 +118,26 @@ function hasQueuedTurnStartForThread(
     latestUserMessageAtMs = Math.max(latestUserMessageAtMs, messageAtMs);
     if (messageAtMs === latestUserMessageAtMs) {
       latestUserMessageAt = message.createdAt;
+      latestUserMessageId = message.id;
     }
   }
-  return threadHasQueuedTurnStart(
+  const queued = threadHasQueuedTurnStart(
     {
       latestUserMessageAt: Number.isFinite(latestUserMessageAtMs) ? latestUserMessageAt : null,
       latestTurn: thread.latestTurn,
       session: thread.session,
     },
     now,
+  );
+  return (
+    queued &&
+    !thread.activities.some(
+      (activity) =>
+        (activity.kind === "provider.turn.start.failed" ||
+          activity.kind === "context-compaction") &&
+        Predicate.isObject(activity.payload) &&
+        activity.payload.requestId === latestUserMessageId,
+    )
   );
 }
 
