@@ -32,7 +32,8 @@ remote clients.
 Provider diagnostics report the Pi version bundled with Rove, not a separately
 installed Pi CLI. Session startup, catalog startup, and turn preparation waits are
 limited to 60 seconds; cleanup waits are limited to 5 seconds. Waiting for your
-answer to an extension question does not use the turn preparation deadline. A
+answer to an extension question, a running extension command, and context
+compaction do not use the turn preparation deadline. A
 startup timeout is reported as a failure, not a successful empty session. Each Pi
 instance runs separately from the server. If its runtime exits or becomes
 unresponsive, disable and re-enable the instance in provider settings, then resume
@@ -48,7 +49,7 @@ Rove uses Pi's standard resource loader for these sources:
 
 `PI_CODING_AGENT_DIR` overrides the global Pi directory. Pi's resource filters still apply. Extension changes take effect when Rove creates the next Pi session. Existing sessions keep their loaded extensions until their next turn after a settings change, such as disabling an extension in the extensions panel.
 
-Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. Extensions execute on the server machine with its permissions; this is not a security sandbox. A faulty extension can interrupt other threads in the same Pi instance, but does not share a runtime with other instances or the Rove server.
+Project resources are trusted within Rove sessions. This does not change Pi's global trust settings. A project's extensions and packages run as soon as a Pi thread starts in it, before the agent does anything, so only start Pi threads in repositories you trust. Extensions execute on the server machine with its permissions; this is not a security sandbox. An extension that crashes its process interrupts the other threads in the same Pi instance, but it does not share a runtime with other instances or the Rove server. A turn or Stop that an extension holds up fails on its own thread only.
 
 ## Models from extensions
 
