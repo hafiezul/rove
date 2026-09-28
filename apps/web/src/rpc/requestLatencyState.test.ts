@@ -87,6 +87,24 @@ describe("requestLatencyState", () => {
     expect(getSlowRpcAckRequests()).toEqual([]);
   });
 
+  it("waits longer before warning about a worktree removal", () => {
+    trackRpcRequestSent("1", WS_METHODS.vcsRemoveWorktree, "vcs.removeWorktree · env-1");
+    vi.advanceTimersByTime(68_000);
+    expect(getSlowRpcAckRequests()).toEqual([]);
+
+    vi.advanceTimersByTime(LONG_RUNNING_RPC_ACK_THRESHOLD_MS - 68_000);
+    expect(getSlowRpcAckRequests()).toMatchObject([
+      {
+        requestId: "1",
+        tag: "vcs.removeWorktree · env-1",
+        thresholdMs: LONG_RUNNING_RPC_ACK_THRESHOLD_MS,
+      },
+    ]);
+
+    acknowledgeRpcRequest("1");
+    expect(getSlowRpcAckRequests()).toEqual([]);
+  });
+
   it("gives provider updates a longer threshold before warning", () => {
     trackRpcRequestSent("1", WS_METHODS.serverUpdateProvider, "server.updateProvider · env-1");
     vi.advanceTimersByTime(LONG_RUNNING_RPC_ACK_THRESHOLD_MS - 1);
