@@ -24,7 +24,9 @@ import { GitCommandError, type ReviewDiffFileContentsInput } from "@t3tools/cont
 import { ServerConfig } from "../config.ts";
 import { gitCommandDuration } from "../observability/Metrics.ts";
 import {
+  describeCheckoutFailure,
   makeGitVcsDriverCore,
+  selectedAccountCredentialArgs,
   parseGitCheckoutProgressLine,
   splitNullSeparatedGitStdoutPaths,
 } from "./GitVcsDriverCore.ts";
@@ -1650,6 +1652,85 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
         const remoteDefault = refs.refs.find((ref) => ref.name === `origin/${initialBranch}`);
         assert.equal(remoteDefault?.isRemote, true);
         assert.equal(remoteDefault?.isDefault, true);
+      }),
+    );
+
+    it.effect.skipIf(HostProcessPlatform.defaultValue() === "win32")(
+      "authenticates HTTPS git as the selected GitHub account",
+      () =>
+        Effect.gen(function* () {
+          const cwd = yield* makeTmpDir();
+          const bin = yield* makeTmpDir("git-vcs-driver-gh-stub-");
+          yield* initRepoWithCommit(cwd);
+          // Stands in for `gh auth token --hostname <host> --user <login>`.
+          yield* writeTextFile(bin, "gh", '#!/bin/sh\necho "token-for-$6-on-$4"\n');
+          NodeFS.chmodSync(`${bin}/gh`, 0o755);
+          const args = selectedAccountCredentialArgs({ host: "github.com", login: "hafiezul" });
+
+          const filled = yield* (yield* GitVcsDriver.GitVcsDriver).execute({
+            operation: "GitVcsDriver.test.credentialFill",
+            cwd,
+            args: [...args, "credential", "fill"],
+            stdin: "protocol=https\nhost=github.com\npath=hafiezul/rove.git\n\n",
+            env: {
+              PATH: `${bin}:${process.env.PATH ?? ""}`,
+              GIT_TERMINAL_PROMPT: "0",
+            },
+            timeoutMs: 10_000,
+          });
+
+          assert.include(filled.stdout, "username=hafiezul");
+          assert.include(filled.stdout, "password=token-for-hafiezul-on-github.com");
+          // Nothing secret is carried in the arguments themselves.
+          assert.notInclude(args.join(" "), "token-for");
+          assert.deepEqual(
+            selectedAccountCredentialArgs({ host: "github.com", login: "bad; rm -rf ~" }),
+            [],
+          );
+          assert.deepEqual(selectedAccountCredentialArgs(null), []);
+        }),
+    );
+
+    it.effect("explains why a checkout was refused", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        yield* git(cwd, ["checkout", "-b", "feature/edits"]);
+        yield* writeTextFile(cwd, "README.md", "feature\n");
+        yield* git(cwd, ["commit", "-am", "feature edit"]);
+        yield* git(cwd, ["checkout", initialBranch]);
+        yield* writeTextFile(cwd, "README.md", "local edit\n");
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+
+        const dirty = yield* Effect.flip(driver.switchRef({ cwd, refName: "feature/edits" }));
+        assert.equal(
+          dirty.detail,
+          "Local changes would be overwritten by checkout: README.md. Commit, stash, or discard them first.",
+        );
+
+        const missing = yield* Effect.flip(driver.switchRef({ cwd, refName: "feature/nope" }));
+        assert.equal(missing.detail, "No branch or ref named feature/nope was found.");
+      }),
+    );
+
+    it.effect("keeps unrecognized checkout output out of the error", () =>
+      Effect.sync(() => {
+        assert.isNull(
+          describeCheckoutFailure(
+            "fatal: unable to access 'https://user:secret-token@example.com/repo.git/'",
+          ),
+        );
+        assert.equal(
+          describeCheckoutFailure("fatal: 'feature/x' is already used by worktree at '/tmp/wt'\n"),
+          "Branch feature/x is already checked out in another worktree at /tmp/wt.",
+        );
+        const many = Array.from({ length: 7 }, (_, index) => `\tsrc/file-${index}.ts`).join("\n");
+        assert.equal(
+          describeCheckoutFailure(
+            `error: The following untracked working tree files would be overwritten by checkout:\n${many}\nPlease move or remove them before you switch branches.\nAborting\n`,
+          ),
+          "Untracked files would be overwritten by checkout: src/file-0.ts, src/file-1.ts, src/file-2.ts, src/file-3.ts, src/file-4.ts and 2 more. Move or remove them first.",
+        );
       }),
     );
 

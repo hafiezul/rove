@@ -1,8 +1,14 @@
-import type { RepositoryIdentity, SourceControlProviderError } from "@t3tools/contracts";
+import {
+  DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
+  type RepositoryIdentity,
+  type RepositoryRemotePreference,
+  type SourceControlProviderError,
+} from "@t3tools/contracts";
 import {
   detectSourceControlProviderFromGitRemoteUrl,
   normalizeGitRemoteUrl,
 } from "@t3tools/shared/git";
+import { isSshRemoteUrl } from "@t3tools/shared/sourceControl";
 import * as Cache from "effect/Cache";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -30,7 +36,11 @@ export class RepositoryIdentityResolver extends Context.Service<
   {
     readonly resolve: (
       cwd: string,
-      options?: { readonly refresh?: boolean },
+      options?: {
+        readonly refresh?: boolean;
+        /** The remote that wins when a checkout has both; defaults to `origin`. */
+        readonly preferredRemote?: RepositoryRemotePreference;
+      },
     ) => Effect.Effect<RepositoryIdentity | null>;
   }
 >()("t3/project/RepositoryIdentityResolver") {}
@@ -51,10 +61,19 @@ function parseRemoteFetchUrls(stdout: string): Map<string, string> {
   return remotes;
 }
 
+const REMOTE_PREFERENCE_ORDER: Record<
+  RepositoryRemotePreference,
+  readonly RepositoryRemotePreference[]
+> = {
+  origin: ["origin", "upstream"],
+  upstream: ["upstream", "origin"],
+};
+
 function pickPrimaryRemote(
   remotes: ReadonlyMap<string, string>,
+  preference: RepositoryRemotePreference = DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
 ): { readonly remoteName: string; readonly remoteUrl: string } | null {
-  for (const preferredRemoteName of ["upstream", "origin"] as const) {
+  for (const preferredRemoteName of REMOTE_PREFERENCE_ORDER[preference]) {
     const remoteUrl = remotes.get(preferredRemoteName);
     if (remoteUrl) {
       return { remoteName: preferredRemoteName, remoteUrl };
@@ -70,10 +89,18 @@ function buildRepositoryIdentity(input: {
   readonly remoteName: string;
   readonly remoteUrl: string;
   readonly rootPath: string;
+  /** The real host behind an `~/.ssh/config` alias, when the remote uses one. */
+  readonly sshHostname?: string | null;
 }): RepositoryIdentity {
-  const canonicalKey = normalizeGitRemoteUrl(input.remoteUrl);
-  const sourceControlProvider = detectSourceControlProviderFromGitRemoteUrl(input.remoteUrl);
-  const repositoryPath = canonicalKey.split("/").slice(1).join("/");
+  const remoteKey = normalizeGitRemoteUrl(input.remoteUrl);
+  const repositoryPath = remoteKey.split("/").slice(1).join("/");
+  // The alias only means something to ssh. Everything keyed by the identity
+  // (hosts, accounts, `gh --repo`) needs the forge's real host instead.
+  const canonicalKey =
+    input.sshHostname && repositoryPath ? `${input.sshHostname}/${repositoryPath}` : remoteKey;
+  const sourceControlProvider = detectSourceControlProviderFromGitRemoteUrl(
+    input.sshHostname ? `ssh://${input.sshHostname}/${repositoryPath}` : input.remoteUrl,
+  );
   const repositoryPathSegments = repositoryPath.split("/").filter((segment) => segment.length > 0);
   const [owner] = repositoryPathSegments;
   const repositoryName = repositoryPathSegments.at(-1);
@@ -115,16 +142,82 @@ const resolveRepositoryIdentityCacheKey = Effect.fn("RepositoryIdentityResolver.
   },
 );
 
+const SCP_SSH_HOST_PATTERN = /^[^@/\s]+@([^:/]+):/;
+const SSH_ALIAS_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+
+function sshRemoteAlias(remoteUrl: string): string | null {
+  const trimmed = remoteUrl.trim();
+  if (!isSshRemoteUrl(trimmed)) return null;
+  // Known forge hosts are never aliases; only unrecognized hosts are worth asking ssh about.
+  if (detectSourceControlProviderFromGitRemoteUrl(trimmed)?.kind !== "unknown") return null;
+  let host = SCP_SSH_HOST_PATTERN.exec(trimmed)?.[1];
+  if (host === undefined) {
+    try {
+      host = new URL(trimmed).hostname;
+    } catch {
+      return null;
+    }
+  }
+  return host && SSH_ALIAS_PATTERN.test(host) ? host : null;
+}
+
+/**
+ * Multi-account setups point remotes at `~/.ssh/config` aliases such as
+ * `git@github-work:org/repo.git`. `ssh -G` prints the alias's effective
+ * hostname without connecting. Null when the host is not an alias.
+ */
+const resolveSshHostname = Effect.fn("RepositoryIdentityResolver.resolveSshHostname")(function* (
+  remoteUrl: string,
+  cwd: string,
+): Effect.fn.Return<string | null, never, ProcessRunner.ProcessRunner> {
+  const alias = sshRemoteAlias(remoteUrl);
+  if (alias === null) return null;
+  const processRunner = yield* ProcessRunner.ProcessRunner;
+  const result = yield* processRunner
+    .run({
+      command: "ssh",
+      args: ["-G", alias],
+      cwd,
+      timeout: Duration.seconds(5),
+      maxOutputBytes: 16_000,
+      timeoutBehavior: "timedOutResult",
+    })
+    .pipe(Effect.option);
+  if (result._tag === "None" || result.value.code !== 0) return null;
+  const hostname = /^hostname\s+(\S+)\s*$/im.exec(result.value.stdout)?.[1]?.toLowerCase();
+  return hostname === undefined || hostname === alias.toLowerCase() ? null : hostname;
+});
+
+interface IdentityCacheKey {
+  readonly rootPath: string;
+  readonly preferredRemote: RepositoryRemotePreference;
+}
+
+const identityCacheKey = (key: IdentityCacheKey) => `${key.preferredRemote}\u0000${key.rootPath}`;
+
+function parseIdentityCacheKey(key: string): IdentityCacheKey {
+  const separator = key.indexOf("\u0000");
+  return {
+    preferredRemote: key.slice(0, separator) as RepositoryRemotePreference,
+    rootPath: key.slice(separator + 1),
+  };
+}
+
 const resolveRepositoryIdentityFromCacheKey = Effect.fn(
   "RepositoryIdentityResolver.resolveFromCacheKey",
-)(function* (
-  cacheKey: string,
-): Effect.fn.Return<RepositoryIdentity | null, never, ProcessRunner.ProcessRunner> {
+)(function* ({
+  rootPath,
+  preferredRemote,
+}: IdentityCacheKey): Effect.fn.Return<
+  RepositoryIdentity | null,
+  never,
+  ProcessRunner.ProcessRunner
+> {
   const processRunner = yield* ProcessRunner.ProcessRunner;
   const remoteResult = yield* processRunner
     .run({
       command: "git",
-      args: ["-C", cacheKey, "remote", "-v"],
+      args: ["-C", rootPath, "remote", "-v"],
       timeoutBehavior: "timedOutResult",
     })
     .pipe(Effect.option);
@@ -132,8 +225,13 @@ const resolveRepositoryIdentityFromCacheKey = Effect.fn(
     return null;
   }
 
-  const remote = pickPrimaryRemote(parseRemoteFetchUrls(remoteResult.value.stdout));
-  return remote ? buildRepositoryIdentity({ ...remote, rootPath: cacheKey }) : null;
+  const remote = pickPrimaryRemote(
+    parseRemoteFetchUrls(remoteResult.value.stdout),
+    preferredRemote,
+  );
+  if (remote === null) return null;
+  const sshHostname = yield* resolveSshHostname(remote.remoteUrl, rootPath);
+  return buildRepositoryIdentity({ ...remote, rootPath, sshHostname });
 });
 
 export const make = Effect.fn("RepositoryIdentityResolver.make")(function* (
@@ -157,9 +255,11 @@ export const make = Effect.fn("RepositoryIdentityResolver.make")(function* (
     },
   );
 
+  // Keyed by root and remote preference, so projects sharing a checkout can
+  // prefer different remotes without evicting each other.
   const repositoryIdentityCache = yield* Cache.makeWith<string, RepositoryIdentity | null>(
     (cacheKey) =>
-      resolveRepositoryIdentityFromCacheKey(cacheKey).pipe(
+      resolveRepositoryIdentityFromCacheKey(parseIdentityCacheKey(cacheKey)).pipe(
         Effect.provideService(ProcessRunner.ProcessRunner, processRunner),
         Effect.flatMap((identity) =>
           identity !== null && options.refine
@@ -185,8 +285,21 @@ export const make = Effect.fn("RepositoryIdentityResolver.make")(function* (
     if (options?.refresh) yield* Cache.invalidate(repositoryRootCache, cwd);
     const cacheKey = yield* Cache.get(repositoryRootCache, cwd);
     if (cacheKey === null) return null;
-    if (options?.refresh) yield* Cache.invalidate(repositoryIdentityCache, cacheKey);
-    return yield* Cache.get(repositoryIdentityCache, cacheKey);
+    if (options?.refresh) {
+      for (const preferredRemote of ["origin", "upstream"] as const) {
+        yield* Cache.invalidate(
+          repositoryIdentityCache,
+          identityCacheKey({ rootPath: cacheKey, preferredRemote }),
+        );
+      }
+    }
+    return yield* Cache.get(
+      repositoryIdentityCache,
+      identityCacheKey({
+        rootPath: cacheKey,
+        preferredRemote: options?.preferredRemote ?? DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
+      }),
+    );
   });
 
   return RepositoryIdentityResolver.of({ resolve });

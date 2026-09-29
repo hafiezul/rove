@@ -321,7 +321,7 @@ export const make = Effect.gen(function* () {
     invalidateStatus: gitManager.invalidateStatus,
     pullCurrentBranch: (cwd) =>
       ensureGitCommand("GitWorkflowService.pullCurrentBranch", cwd).pipe(
-        Effect.andThen(git.pullCurrentBranch(cwd)),
+        Effect.andThen(gitManager.withProjectGitHubAccount(cwd, git.pullCurrentBranch(cwd))),
       ),
     runStackedAction: (input, options) =>
       ensureGit("GitWorkflowService.runStackedAction", input.cwd).pipe(

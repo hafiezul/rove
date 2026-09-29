@@ -54,6 +54,12 @@ export const ExecutionEnvironmentPlatform = Schema.Struct({
  */
 export const ThreadEnvMode = Schema.Literals(["local", "worktree"]);
 export type ThreadEnvMode = typeof ThreadEnvMode.Type;
+
+/** Which git remote names a project's repository when a checkout has both. */
+export const RepositoryRemotePreference = Schema.Literals(["origin", "upstream"]);
+export type RepositoryRemotePreference = typeof RepositoryRemotePreference.Type;
+export const DEFAULT_REPOSITORY_REMOTE_PREFERENCE: RepositoryRemotePreference = "origin";
+
 export type ExecutionEnvironmentPlatform = typeof ExecutionEnvironmentPlatform.Type;
 
 /** How a server can replace itself with another version when asked over RPC.

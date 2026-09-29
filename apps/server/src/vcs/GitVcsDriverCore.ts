@@ -37,6 +37,7 @@ import {
   parseRemoteRefWithRemoteNames,
 } from "../git/remoteRefs.ts";
 import { ServerConfig } from "../config.ts";
+import { SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const gitProcesses = Semaphore.makeUnsafe(8);
@@ -447,6 +448,107 @@ function isMissingWorktreeStderr(stderr: string): boolean {
     normalized.includes("is not a working tree") ||
     normalized.includes("cannot remove working tree")
   );
+}
+
+const GITHUB_LOGIN_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+const GITHUB_HOST_PATTERN = /^[a-z0-9.-]+(?::\d+)?$/i;
+
+/**
+ * `git -c` arguments that authenticate HTTPS traffic to the selected account's
+ * host as that account. The helper asks `gh` for the account's stored token
+ * when git needs it, so no token reaches argv, traces, or errors. Empty when
+ * the selection could not be quoted safely into the helper's shell command.
+ * SSH remotes never consult credential helpers and are unaffected.
+ */
+export function selectedAccountCredentialArgs(
+  selection: { readonly host: string; readonly login: string } | null,
+): readonly string[] {
+  if (
+    selection === null ||
+    !GITHUB_LOGIN_PATTERN.test(selection.login) ||
+    !GITHUB_HOST_PATTERN.test(selection.host)
+  ) {
+    return [];
+  }
+  const { host, login } = selection;
+  const key = `credential.https://${host}.helper`;
+  const helper =
+    `!f() { test "$1" = get || exit 0; echo username=${login}; ` +
+    `printf 'password=%s\\n' "$(gh auth token --hostname ${host} --user ${login})"; }; f`;
+  // The empty entry resets helpers inherited from user config (such as
+  // `gh auth git-credential`, which only knows gh's active account).
+  return ["-c", `${key}=`, "-c", `${key}=${helper}`];
+}
+
+const CHECKOUT_FILE_LIST_LIMIT = 5;
+
+/**
+ * The indented path list git prints under a checkout refusal, up to the
+ * "Please …" advice line. Paths are the user's own files, safe to surface.
+ */
+function checkoutRefusedPaths(stderr: string, header: string): readonly string[] {
+  const lines = stderr.split("\n");
+  const start = lines.findIndex((line) => line.toLowerCase().includes(header));
+  if (start === -1) return [];
+  const paths: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!/^\s/.test(line)) break;
+    const path = line.trim();
+    if (path.length > 0) paths.push(path);
+  }
+  return paths;
+}
+
+function listCheckoutPaths(paths: readonly string[]): string {
+  const shown = paths.slice(0, CHECKOUT_FILE_LIST_LIMIT).join(", ");
+  const hidden = paths.length - CHECKOUT_FILE_LIST_LIMIT;
+  return hidden > 0 ? `${shown} and ${hidden} more` : shown;
+}
+
+/**
+ * A readable reason for a failed `git checkout`, built only from what git
+ * reports about the working tree and refs. Raw stderr stays out of errors
+ * because git can echo arguments and remote URLs that carry credentials, so
+ * unrecognized failures return null and keep the generic detail.
+ */
+export function describeCheckoutFailure(stderr: string): string | null {
+  const normalized = stderr.toLowerCase();
+  const changed = checkoutRefusedPaths(stderr, "your local changes to the following files");
+  if (changed.length > 0 || normalized.includes("your local changes to the following files")) {
+    return changed.length > 0
+      ? `Local changes would be overwritten by checkout: ${listCheckoutPaths(changed)}. Commit, stash, or discard them first.`
+      : "Local changes would be overwritten by checkout. Commit, stash, or discard them first.";
+  }
+  const untracked = checkoutRefusedPaths(stderr, "untracked working tree files would be");
+  if (untracked.length > 0 || normalized.includes("untracked working tree files would be")) {
+    return untracked.length > 0
+      ? `Untracked files would be overwritten by checkout: ${listCheckoutPaths(untracked)}. Move or remove them first.`
+      : "Untracked files would be overwritten by checkout. Move or remove them first.";
+  }
+  const worktree = /'([^']+)' is already (?:used by worktree|checked out) at '([^']+)'/i.exec(
+    stderr,
+  );
+  if (worktree?.[1] && worktree[2]) {
+    return `Branch ${worktree[1]} is already checked out in another worktree at ${worktree[2]}.`;
+  }
+  if (
+    normalized.includes("you need to resolve your current index first") ||
+    normalized.includes("needs merge")
+  ) {
+    return "The checkout has unresolved merge conflicts. Resolve or abort the merge first.";
+  }
+  const existing = /a branch named '([^']+)' already exists/i.exec(stderr);
+  if (existing?.[1]) {
+    return `A local branch named ${existing[1]} already exists.`;
+  }
+  const missing = /pathspec '([^']+)' did not match/i.exec(stderr);
+  if (missing?.[1]) {
+    return `No branch or ref named ${missing[1]} was found.`;
+  }
+  if (normalized.includes("index.lock") && normalized.includes("file exists")) {
+    return "Another git process is running in this repository (index.lock exists).";
+  }
+  return null;
 }
 
 interface Trace2Monitor {
@@ -975,6 +1077,26 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     options: ExecuteGitOptions = {},
   ): Effect.Effect<void, GitCommandError> =>
     executeGit(operation, cwd, args, options).pipe(Effect.asVoid);
+
+  /**
+   * Pushes and pulls act as the project's selected GitHub account when a
+   * caller put one in scope (the commit/push/PR action does); otherwise git
+   * keeps the user's own credential setup.
+   */
+  const withSelectedAccountCredentials = Effect.fnUntraced(function* (args: readonly string[]) {
+    const selection = yield* SelectedGitHubAccount;
+    return [...selectedAccountCredentialArgs(selection), ...args];
+  });
+
+  const runRemoteGit = (
+    operation: string,
+    cwd: string,
+    args: readonly string[],
+    options: ExecuteGitOptions = {},
+  ): Effect.Effect<void, GitCommandError> =>
+    withSelectedAccountCredentials(args).pipe(
+      Effect.flatMap((withCredentials) => runGit(operation, cwd, withCredentials, options)),
+    );
 
   const runGitStdout = (
     operation: string,
@@ -2009,7 +2131,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     const requestedRemoteName = options?.remoteName?.trim() || null;
     if (requestedRemoteName) {
       const publishBranch = yield* resolvePublishBranchName(cwd, branch);
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushWithRequestedRemote",
         cwd,
         ["push", "-u", requestedRemoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2074,7 +2196,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         });
       }
       const publishBranch = yield* resolvePublishBranchName(cwd, branch);
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushWithUpstream",
         cwd,
         ["push", "-u", publishRemoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2127,7 +2249,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
             currentUpstream.branchName,
           ]);
         }
-        yield* runGit(
+        yield* runRemoteGit(
           "GitVcsDriver.pushCurrentBranch.pushOwnBranch",
           cwd,
           ["push", "-u", remoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2141,7 +2263,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         };
       }
 
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushUpstream",
         cwd,
         ["push", currentUpstream.remoteName, `HEAD:refs/heads/${currentUpstream.branchName}`],
@@ -2155,7 +2277,9 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       };
     }
 
-    yield* runGit("GitVcsDriver.pushCurrentBranch.push", cwd, ["push"], { timeoutMs: null });
+    yield* runRemoteGit("GitVcsDriver.pushCurrentBranch.push", cwd, ["push"], {
+      timeoutMs: null,
+    });
     return {
       status: "pushed" as const,
       branch,
@@ -2195,7 +2319,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       ["rev-parse", "HEAD"],
       true,
     ).pipe(Effect.map((stdout) => stdout.trim()));
-    yield* executeGit("GitVcsDriver.pullCurrentBranch.pull", cwd, ["pull", "--ff-only"], {
+    const pullArgs = yield* withSelectedAccountCredentials(["pull", "--ff-only"]);
+    yield* executeGit("GitVcsDriver.pullCurrentBranch.pull", cwd, pullArgs, {
       timeoutMs: 30_000,
       fallbackErrorDetail: "git pull failed",
     });
@@ -3581,10 +3706,25 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
               ? ["checkout", localTrackingBranch]
               : ["checkout", input.refName];
 
-      yield* executeGit("GitVcsDriver.switchRef.checkout", input.cwd, checkoutArgs, {
-        timeoutMs: 10_000,
-        fallbackErrorDetail: "git checkout failed",
-      });
+      const checkout = yield* executeGit(
+        "GitVcsDriver.switchRef.checkout",
+        input.cwd,
+        checkoutArgs,
+        { timeoutMs: 10_000, allowNonZeroExit: true },
+      );
+      if (checkout.exitCode !== 0) {
+        return yield* new GitCommandError({
+          ...gitCommandContext({
+            operation: "GitVcsDriver.switchRef.checkout",
+            cwd: input.cwd,
+            args: checkoutArgs,
+          }),
+          detail: describeCheckoutFailure(checkout.stderr) ?? "git checkout failed",
+          exitCode: checkout.exitCode,
+          stdoutLength: checkout.stdout.length,
+          stderrLength: checkout.stderr.length,
+        });
+      }
 
       const refName = yield* runGitStdout("GitVcsDriver.switchRef.currentBranch", input.cwd, [
         "branch",

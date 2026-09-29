@@ -595,6 +595,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     scope: "environment-defaults",
   },
   {
+    id: "repository-remote",
+    title: "Repository remote",
+    to: "/settings/source-control",
+    scope: "project-defaults",
+    searchTerms: ["origin upstream fork remote repository pull requests"],
+  },
+  {
     id: "github-account",
     title: "GitHub account",
     to: "/settings/source-control",

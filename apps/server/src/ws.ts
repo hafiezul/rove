@@ -80,8 +80,10 @@ import {
   WORKTREE_SETUP_ACTIVITY_KIND,
   worktreeSetupActivityId,
   type WorktreeSetupSnapshot,
+  type ServerSettings as ServerSettingsSchema,
 } from "@t3tools/contracts";
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
+import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { HttpRouter, HttpServerRequest, HttpServerRespondable } from "effect/unstable/http";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
@@ -734,6 +736,49 @@ const makeWsRpcLayer = (
       const serverEventId = randomUUID.pipe(Effect.map(EventId.make));
       const serverCommandId = (tag: string) =>
         randomUUID.pipe(Effect.map((uuid) => CommandId.make(`server:${tag}:${uuid}`)));
+
+      /**
+       * Project shells carry a repository identity picked by the remote
+       * preference, so re-emit the shells whose effective preference changed.
+       * Best effort: the settings write already succeeded.
+       */
+      const republishRepositoryRemoteChanges = (
+        previous: ServerSettingsSchema,
+        next: ServerSettingsSchema,
+      ) => {
+        const preferenceChanged = (projectId: ProjectId) =>
+          resolveProjectSettings(previous, projectId).settings.repositoryRemote !==
+          resolveProjectSettings(next, projectId).settings.repositoryRemote;
+        const overrideIds = new Set([
+          ...Object.keys(previous.projectSettingsOverrides),
+          ...Object.keys(next.projectSettingsOverrides),
+        ]);
+        if (
+          previous.repositoryRemote === next.repositoryRemote &&
+          ![...overrideIds].some((id) => preferenceChanged(ProjectId.make(id)))
+        ) {
+          return Effect.void;
+        }
+        return projectionSnapshotQuery.getProjectShells().pipe(
+          Effect.flatMap((projects) =>
+            Effect.forEach(
+              projects.filter((project) => preferenceChanged(project.id)),
+              (project) =>
+                Effect.gen(function* () {
+                  const command = yield* normalizeDispatchCommand({
+                    type: "project.meta.update",
+                    commandId: yield* serverCommandId("project-repository-remote"),
+                    projectId: project.id,
+                  });
+                  yield* dispatchNormalizedCommand(command);
+                }),
+              { discard: true },
+            ),
+          ),
+          Effect.provideContext(normalizerContext),
+          Effect.ignoreCause({ log: true }),
+        );
+      };
 
       const loadAuthAccessSnapshot = () =>
         Effect.all({
@@ -2534,10 +2579,12 @@ const makeWsRpcLayer = (
                     Effect.provide(deviceHostContext),
                   )
                 : undefined;
+              const previous = yield* serverSettings.getSettings;
               const settings = yield* serverSettings.updateSettings({
                 ...patch,
                 ...(deviceHosts ? { deviceHosts } : {}),
               });
+              yield* republishRepositoryRemoteChanges(previous, settings);
               return ServerSettings.redactServerSettingsForClient(settings);
             }),
             {
