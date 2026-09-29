@@ -117,7 +117,11 @@ export function parseClaudeLine(line: string): UsageRecord | null {
   } catch {
     return null;
   }
-  if (!RuntimePredicate.isObjectOrArray(parsed)) return null;
+  return parseClaudeRecord(parsed);
+}
+
+export function parseClaudeRecord(parsed: unknown): UsageRecord | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
 
   const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
     record = parsed as Record<string, SchemaJson>;
@@ -238,7 +242,11 @@ export function parseCodexLine(line: string, state: CodexScanState): UsageRecord
   } catch {
     return null;
   }
-  if (!RuntimePredicate.isObjectOrArray(parsed)) return null;
+  return parseCodexRecord(parsed, state);
+}
+
+export function parseCodexRecord(parsed: unknown, state: CodexScanState): UsageRecord | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
 
   const // SAFETY: The surrounding adapter has established this JSON-object view before field access.
     record = parsed as Record<string, SchemaJson>;
@@ -399,6 +407,10 @@ export function parseGrokLine(line: string): readonly UsageRecord[] {
   } catch {
     return [];
   }
+  return parseGrokRecord(parsed);
+}
+
+export function parseGrokRecord(parsed: unknown): readonly UsageRecord[] {
   if (typeof parsed !== "object" || parsed === null) return [];
 
   const record = parsed as Record<string, unknown>;
