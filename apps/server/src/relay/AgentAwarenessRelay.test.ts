@@ -1003,7 +1003,7 @@ describe.sequential("startup catch-up", () => {
           }),
           Layer.succeed(OrchestrationEngineService, {
             streamDomainEvents: Stream.never,
-          } as unknown as OrchestrationEngineShape),
+          } as unknown as OrchestrationEngineContract),
           Layer.succeed(ProjectionSnapshotQuery, {
             getShellSnapshot: () =>
               Effect.sync(() => {

@@ -423,7 +423,7 @@ it.effect("reports implemented tools separately from locally available executabl
             account: Option.none(),
             host: Option.some("bitbucket.org"),
             detail: Option.some(
-              "Set ROVE_BITBUCKET_EMAIL and ROVE_BITBUCKET_API_TOKEN, or ROVE_BITBUCKET_ACCESS_TOKEN.",
+              "Add a Bitbucket token in Settings → Source Control, or set the ROVE_BITBUCKET_* environment variables on the server.",
             ),
           }),
         },
