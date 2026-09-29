@@ -20,6 +20,7 @@ import { expect } from "vite-plus/test";
 import type {
   GitActionProgressEvent,
   GitPreparePullRequestThreadInput,
+  ProjectId,
   ThreadId,
 } from "@t3tools/contracts";
 
@@ -47,6 +48,7 @@ import * as ServerConfig from "../config.ts";
 import * as ProjectSetupScriptRunner from "../project/ProjectSetupScriptRunner.ts";
 import * as ProviderRegistry from "../provider/Services/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { ProjectionSnapshotQuery } from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import * as GitManager from "./GitManager.ts";
 
 const encodeCliJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
@@ -363,6 +365,7 @@ function createTextGeneration(
 function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
   service: GitHubCli.GitHubCli["Service"];
   ghCalls: string[];
+  ghAccounts: Array<string | null>;
 } {
   const prListQueue = [...(scenario.prListSequence ?? [])];
   const prListQueueByHeadSelector = new Map(
@@ -372,8 +375,9 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
     ]),
   );
   const ghCalls: string[] = [];
+  const ghAccounts: Array<string | null> = [];
 
-  const execute: GitHubCli.GitHubCli["Service"]["execute"] = (input) => {
+  const executeFake: GitHubCli.GitHubCli["Service"]["execute"] = (input) => {
     const args = [...input.args];
     ghCalls.push(args.join(" "));
 
@@ -505,6 +509,11 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
       }),
     );
   };
+  const execute: GitHubCli.GitHubCli["Service"]["execute"] = (input) =>
+    Effect.gen(function* () {
+      ghAccounts.push((yield* GitHubCli.SelectedGitHubAccount)?.login ?? null);
+      return yield* executeFake(input);
+    });
 
   return {
     service: {
@@ -591,6 +600,7 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
         }).pipe(Effect.asVoid),
     },
     ghCalls,
+    ghAccounts,
   };
 }
 
@@ -636,8 +646,9 @@ function makeManager(input?: {
   serverSettings?: Parameters<typeof ServerSettings.layerTest>[0];
   setupScriptRunner?: ProjectSetupScriptRunner.ProjectSetupScriptRunner["Service"];
   gitConfigReads?: string[];
+  projectIdByCwd?: Readonly<Record<string, ProjectId>>;
 }) {
-  const { service: gitHubCli, ghCalls } = createGitHubCliWithFakeGh(input?.ghScenario);
+  const { service: gitHubCli, ghCalls, ghAccounts } = createGitHubCliWithFakeGh(input?.ghScenario);
   const textGeneration = createTextGeneration(input?.textGeneration);
   const serverConfigLayer = ServerConfig.layerTest(process.cwd(), {
     prefix: "t3-git-manager-test-",
@@ -701,11 +712,17 @@ function makeManager(input?: {
     ),
     vcsDriverLayer,
     serverSettingsLayer,
+    input?.projectIdByCwd === undefined
+      ? Layer.empty
+      : Layer.mock(ProjectionSnapshotQuery)({
+          getActiveProjectIdByCwd: (cwd) =>
+            Effect.succeed(Option.fromNullishOr(input.projectIdByCwd?.[cwd])),
+        }),
   ).pipe(Layer.provideMerge(sourceControlRegistryLayer), Layer.provideMerge(NodeServices.layer));
 
   return GitManager.make.pipe(
     Effect.provide(managerLayer),
-    Effect.map((manager) => ({ manager, ghCalls })),
+    Effect.map((manager) => ({ manager, ghCalls, ghAccounts })),
   );
 }
 
@@ -800,6 +817,34 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         state: "open",
         updatedAt: null,
       });
+    }),
+  );
+
+  it.effect("status looks up pull requests as the owning project's selected GitHub account", () =>
+    Effect.gen(function* () {
+      const repoDir = yield* makeTempDir("rove-git-manager-");
+      yield* initRepo(repoDir);
+      yield* runGit(repoDir, ["checkout", "-b", "feature/status-selected-account"]);
+      const remoteDir = yield* createBareRemote();
+      yield* runGit(repoDir, ["remote", "add", "origin", remoteDir]);
+      yield* runGit(repoDir, ["push", "-u", "origin", "feature/status-selected-account"]);
+      const projectId = "project-work" as ProjectId;
+
+      const { manager, ghAccounts } = yield* makeManager({
+        ghScenario: { prListSequence: ["[]"] },
+        projectIdByCwd: { [NodeFS.realpathSync(repoDir)]: projectId },
+        serverSettings: {
+          githubAccount: { host: "github.com", login: "personal-login" },
+          projectSettingsOverrides: {
+            [projectId]: { githubAccount: { host: "github.com", login: "work-login" } },
+          },
+        },
+      });
+
+      yield* manager.status({ cwd: repoDir });
+
+      expect(ghAccounts.length).toBeGreaterThan(0);
+      expect(new Set(ghAccounts)).toEqual(new Set(["work-login"]));
     }),
   );
 
