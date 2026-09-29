@@ -10,7 +10,12 @@ import {
   TrimmedString,
 } from "./baseSchemas.ts";
 import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
-import { EnvironmentMachineKind, ThreadEnvMode } from "./environment.ts";
+import {
+  DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
+  EnvironmentMachineKind,
+  RepositoryRemotePreference,
+  ThreadEnvMode,
+} from "./environment.ts";
 import { KeybindingShortcut } from "./keybindings.ts";
 import {
   CustomModelSetting,
@@ -1063,6 +1068,7 @@ export const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
   "continueThreadsAfterServerUpdate",
   "responseStreamingMode",
   "githubAccount",
+  "repositoryRemote",
 ] as const;
 export type ProjectScopedServerSettingKey = (typeof PROJECT_SCOPED_SERVER_SETTING_KEYS)[number];
 
@@ -1089,6 +1095,7 @@ export const ProjectSettingsOverrides = Schema.Struct({
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
   githubAccount: Schema.optionalKey(GitHubAccountSelection),
+  repositoryRemote: Schema.optionalKey(RepositoryRemotePreference),
 } satisfies Record<ProjectScopedServerSettingKey, unknown>);
 export type ProjectSettingsOverrides = typeof ProjectSettingsOverrides.Type;
 
@@ -1250,6 +1257,14 @@ export const ServerSettings = Schema.Struct({
    * authenticated account. The token itself never travels through settings.
    */
   githubAccount: Schema.optionalKey(GitHubAccountSelection),
+  /**
+   * The remote that names a project's repository when a checkout has both
+   * `origin` and `upstream`: which repository the pull request page reads and
+   * thread links resolve against. A missing remote falls back to the other.
+   */
+  repositoryRemote: RepositoryRemotePreference.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_REPOSITORY_REMOTE_PREFERENCE)),
+  ),
 
   // Legacy single-instance-per-driver settings. Continues to be the source
   // of truth until `providerInstances` (below) lands per-driver migration
@@ -1507,6 +1522,7 @@ export const ServerSettingsPatch = Schema.Struct({
   sourceControlWriterModelSelection: Schema.optionalKey(Schema.NullOr(ModelSelection)),
   pullRequestMergeMethod: Schema.optionalKey(Schema.NullOr(PullRequestMergeMethod)),
   githubAccount: Schema.optionalKey(GitHubAccountSelection),
+  repositoryRemote: Schema.optionalKey(RepositoryRemotePreference),
   observability: Schema.optionalKey(
     Schema.Struct({
       otlpTracesUrl: Schema.optionalKey(TrimmedString),

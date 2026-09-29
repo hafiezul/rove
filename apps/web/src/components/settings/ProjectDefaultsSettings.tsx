@@ -79,6 +79,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const mixedAutoPull = useScopedSettingsMixed(["defaultAutoPull"]);
   const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
   const mixedGithubAccount = useScopedSettingsMixed(["githubAccount"]);
+  const mixedRepositoryRemote = useScopedSettingsMixed(["repositoryRemote"]);
   const clearScopedSettings = useClearScopedSettings();
   const modelSource = useScopedSettingSource(["defaultModelSelection"]);
   const workspaceSource = useScopedSettingSource(["defaultThreadEnvMode"]);
@@ -447,6 +448,45 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
                   <SelectItem value="merge">{PULL_REQUEST_MERGE_METHOD_LABELS.merge}</SelectItem>
                   <SelectItem value="squash">{PULL_REQUEST_MERGE_METHOD_LABELS.squash}</SelectItem>
                   <SelectItem value="rebase">{PULL_REQUEST_MERGE_METHOD_LABELS.rebase}</SelectItem>
+                </SelectPopup>
+              </Select>
+            }
+          />
+          <SettingsRow
+            serverScoped
+            settingKeys={["repositoryRemote"]}
+            mixed={mixedRepositoryRemote}
+            {...searchableSetting("repository-remote")}
+            description={
+              isProjectScope
+                ? "When this checkout has both origin and upstream, pull requests and links use this remote's repository."
+                : "When a checkout has both origin and upstream, pull requests and links use this remote's repository. Projects can override it."
+            }
+            resetAction={
+              settings.repositoryRemote !== DEFAULT_SERVER_SETTINGS.repositoryRemote ? (
+                <SettingResetButton
+                  label="repository remote"
+                  onClick={() =>
+                    updateSettings({ repositoryRemote: DEFAULT_SERVER_SETTINGS.repositoryRemote })
+                  }
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={mixedRepositoryRemote ? null : settings.repositoryRemote}
+                onValueChange={(value) => {
+                  if (value === "origin" || value === "upstream") {
+                    updateSettings({ repositoryRemote: value });
+                  }
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Repository remote">
+                  <SelectValue>{(value: string | null) => value ?? "Mixed"}</SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  <SelectItem value="origin">origin</SelectItem>
+                  <SelectItem value="upstream">upstream</SelectItem>
                 </SelectPopup>
               </Select>
             }

@@ -62,6 +62,14 @@ Rove Code only pulls when it can fast-forward and the checkout has no changed fi
 or local commits. It skips checkouts on another branch or without an upstream. If a checkout has
 local work, resolve it yourself before automatic pulls can resume.
 
+## Choose the repository remote
+
+When a checkout has both an `origin` and an `upstream` remote, **Repository remote** in Source
+Control decides which repository the pull request page reads and thread links resolve against. It
+defaults to `origin`, the usual choice when you open pull requests on your own fork; pick `upstream`
+if your pull requests target the repository you forked from. If the chosen remote is missing, the
+other one is used.
+
 ## Choose the GitHub account
 
 In Source Control, set **GitHub account** to decide whose `gh` sign-in a project's pull requests

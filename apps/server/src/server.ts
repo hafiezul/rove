@@ -451,7 +451,8 @@ const ProviderRuntimeLayerLive = ProviderSessionReaperLive.pipe(
   // telemetry instead of waiting for the next status probe.
   Layer.provideMerge(ProviderUsageLimitsIngestionLive),
   Layer.provideMerge(ProviderLayerLive),
-  Layer.provideMerge(OrchestrationLayerLive),
+  // Project shells resolve each project's repository remote preference.
+  Layer.provideMerge(OrchestrationLayerLive.pipe(Layer.provide(ServerSettingsLayerLive))),
 );
 
 const AntigravityInstallationRefreshLive = Layer.effectDiscard(

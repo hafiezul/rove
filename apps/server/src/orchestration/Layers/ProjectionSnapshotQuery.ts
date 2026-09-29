@@ -34,7 +34,10 @@ import {
   ThreadPullRequestSnapshot,
   ThreadPullRequestStack,
   type ThreadPullRequestLink,
+  DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
+  type RepositoryRemotePreference,
 } from "@t3tools/contracts";
+import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { legacyLinkedPullRequestOf } from "@t3tools/shared/threadPullRequests";
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
@@ -69,6 +72,7 @@ import {
 } from "../threadDetailCursor.ts";
 import { projectActivityPayload } from "../ActivityPayloadProjection.ts";
 import * as RepositoryIdentityResolver from "../../project/RepositoryIdentityResolver.ts";
+import * as ServerSettings from "../../serverSettings.ts";
 import { ORCHESTRATION_PROJECTOR_NAMES } from "./ProjectionPipeline.ts";
 import {
   ProjectionSnapshotQuery,
@@ -496,7 +500,29 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
   const threadPlanProgress = yield* ThreadPlanProgressService;
   const sql = yield* SqlClient.SqlClient;
   const repositoryIdentityResolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
+  // Optional so projection tests can run without settings; the live runtime provides it.
+  const serverSettings = yield* Effect.serviceOption(ServerSettings.ServerSettingsService);
   const repositoryIdentityResolutionConcurrency = 4;
+  /** Each project's remote preference, read once per batch of projects. */
+  const readRemotePreferences = Effect.gen(function* () {
+    if (Option.isNone(serverSettings)) {
+      return (_projectId: ProjectId) => DEFAULT_REPOSITORY_REMOTE_PREFERENCE;
+    }
+    const settings = yield* serverSettings.value.getSettings.pipe(Effect.option);
+    if (Option.isNone(settings)) {
+      return (_projectId: ProjectId) => DEFAULT_REPOSITORY_REMOTE_PREFERENCE;
+    }
+    return (projectId: ProjectId): RepositoryRemotePreference =>
+      resolveProjectSettings(settings.value, projectId).settings.repositoryRemote;
+  });
+  const resolveProjectRepositoryIdentity = (projectId: ProjectId, workspaceRoot: string) =>
+    readRemotePreferences.pipe(
+      Effect.flatMap((preferenceFor) =>
+        repositoryIdentityResolver.resolve(workspaceRoot, {
+          preferredRemote: preferenceFor(projectId),
+        }),
+      ),
+    );
   const resolveRepositoryIdentitiesForProjects = Effect.fn(
     "ProjectionSnapshotQuery.resolveRepositoryIdentitiesForProjects",
   )(function* (
@@ -509,14 +535,17 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
       options?.includeDeleted === true
         ? projectRows
         : projectRows.filter((row) => row.deletedAt === null);
-    const uniqueWorkspaceRoots = [...new Set(filteredProjectRows.map((row) => row.workspaceRoot))];
-    const repositoryIdentityByWorkspaceRoot = new Map(
+    const preferenceFor = yield* readRemotePreferences;
+    const lookupKey = (row: (typeof filteredProjectRows)[number]) =>
+      `${preferenceFor(row.projectId)}\u0000${row.workspaceRoot}`;
+    const uniqueLookups = new Map(filteredProjectRows.map((row) => [lookupKey(row), row]));
+    const repositoryIdentityByLookup = new Map(
       yield* Effect.forEach(
-        uniqueWorkspaceRoots,
-        (workspaceRoot) =>
+        uniqueLookups,
+        ([key, row]) =>
           repositoryIdentityResolver
-            .resolve(workspaceRoot)
-            .pipe(Effect.map((identity) => [workspaceRoot, identity] as const)),
+            .resolve(row.workspaceRoot, { preferredRemote: preferenceFor(row.projectId) })
+            .pipe(Effect.map((identity) => [key, identity] as const)),
         { concurrency: repositoryIdentityResolutionConcurrency },
       ),
     );
@@ -524,7 +553,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
     return new Map(
       filteredProjectRows.map((row) => [
         row.projectId,
-        repositoryIdentityByWorkspaceRoot.get(row.workspaceRoot) ?? null,
+        repositoryIdentityByLookup.get(lookupKey(row)) ?? null,
       ]),
     );
   });
@@ -3015,7 +3044,10 @@ pending_approval_requests AS (
         Effect.flatMap((option) =>
           Option.isNone(option)
             ? Effect.succeed(Option.none<OrchestrationProject>())
-            : repositoryIdentityResolver.resolve(option.value.workspaceRoot).pipe(
+            : resolveProjectRepositoryIdentity(
+                option.value.projectId,
+                option.value.workspaceRoot,
+              ).pipe(
                 Effect.map((repositoryIdentity) =>
                   Option.some({
                     id: option.value.projectId,
@@ -3067,13 +3099,14 @@ pending_approval_requests AS (
       Effect.flatMap((option) =>
         Option.isNone(option)
           ? Effect.succeed(Option.none<OrchestrationProjectShell>())
-          : repositoryIdentityResolver
-              .resolve(option.value.workspaceRoot)
-              .pipe(
-                Effect.map((repositoryIdentity) =>
-                  Option.some(mapProjectShellRow(option.value, repositoryIdentity)),
-                ),
+          : resolveProjectRepositoryIdentity(
+              option.value.projectId,
+              option.value.workspaceRoot,
+            ).pipe(
+              Effect.map((repositoryIdentity) =>
+                Option.some(mapProjectShellRow(option.value, repositoryIdentity)),
               ),
+            ),
       ),
     );
 

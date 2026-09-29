@@ -449,6 +449,77 @@ function isMissingWorktreeStderr(stderr: string): boolean {
   );
 }
 
+const CHECKOUT_FILE_LIST_LIMIT = 5;
+
+/**
+ * The indented path list git prints under a checkout refusal, up to the
+ * "Please …" advice line. Paths are the user's own files, safe to surface.
+ */
+function checkoutRefusedPaths(stderr: string, header: string): readonly string[] {
+  const lines = stderr.split("\n");
+  const start = lines.findIndex((line) => line.toLowerCase().includes(header));
+  if (start === -1) return [];
+  const paths: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!/^\s/.test(line)) break;
+    const path = line.trim();
+    if (path.length > 0) paths.push(path);
+  }
+  return paths;
+}
+
+function listCheckoutPaths(paths: readonly string[]): string {
+  const shown = paths.slice(0, CHECKOUT_FILE_LIST_LIMIT).join(", ");
+  const hidden = paths.length - CHECKOUT_FILE_LIST_LIMIT;
+  return hidden > 0 ? `${shown} and ${hidden} more` : shown;
+}
+
+/**
+ * A readable reason for a failed `git checkout`, built only from what git
+ * reports about the working tree and refs. Raw stderr stays out of errors
+ * because git can echo arguments and remote URLs that carry credentials, so
+ * unrecognized failures return null and keep the generic detail.
+ */
+export function describeCheckoutFailure(stderr: string): string | null {
+  const normalized = stderr.toLowerCase();
+  const changed = checkoutRefusedPaths(stderr, "your local changes to the following files");
+  if (changed.length > 0 || normalized.includes("your local changes to the following files")) {
+    return changed.length > 0
+      ? `Local changes would be overwritten by checkout: ${listCheckoutPaths(changed)}. Commit, stash, or discard them first.`
+      : "Local changes would be overwritten by checkout. Commit, stash, or discard them first.";
+  }
+  const untracked = checkoutRefusedPaths(stderr, "untracked working tree files would be");
+  if (untracked.length > 0 || normalized.includes("untracked working tree files would be")) {
+    return untracked.length > 0
+      ? `Untracked files would be overwritten by checkout: ${listCheckoutPaths(untracked)}. Move or remove them first.`
+      : "Untracked files would be overwritten by checkout. Move or remove them first.";
+  }
+  const worktree = /'([^']+)' is already (?:used by worktree|checked out) at '([^']+)'/i.exec(
+    stderr,
+  );
+  if (worktree?.[1] && worktree[2]) {
+    return `Branch ${worktree[1]} is already checked out in another worktree at ${worktree[2]}.`;
+  }
+  if (
+    normalized.includes("you need to resolve your current index first") ||
+    normalized.includes("needs merge")
+  ) {
+    return "The checkout has unresolved merge conflicts. Resolve or abort the merge first.";
+  }
+  const existing = /a branch named '([^']+)' already exists/i.exec(stderr);
+  if (existing?.[1]) {
+    return `A local branch named ${existing[1]} already exists.`;
+  }
+  const missing = /pathspec '([^']+)' did not match/i.exec(stderr);
+  if (missing?.[1]) {
+    return `No branch or ref named ${missing[1]} was found.`;
+  }
+  if (normalized.includes("index.lock") && normalized.includes("file exists")) {
+    return "Another git process is running in this repository (index.lock exists).";
+  }
+  return null;
+}
+
 interface Trace2Monitor {
   readonly env: NodeJS.ProcessEnv;
   readonly flush: Effect.Effect<void, never>;
@@ -3581,10 +3652,25 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
               ? ["checkout", localTrackingBranch]
               : ["checkout", input.refName];
 
-      yield* executeGit("GitVcsDriver.switchRef.checkout", input.cwd, checkoutArgs, {
-        timeoutMs: 10_000,
-        fallbackErrorDetail: "git checkout failed",
-      });
+      const checkout = yield* executeGit(
+        "GitVcsDriver.switchRef.checkout",
+        input.cwd,
+        checkoutArgs,
+        { timeoutMs: 10_000, allowNonZeroExit: true },
+      );
+      if (checkout.exitCode !== 0) {
+        return yield* new GitCommandError({
+          ...gitCommandContext({
+            operation: "GitVcsDriver.switchRef.checkout",
+            cwd: input.cwd,
+            args: checkoutArgs,
+          }),
+          detail: describeCheckoutFailure(checkout.stderr) ?? "git checkout failed",
+          exitCode: checkout.exitCode,
+          stdoutLength: checkout.stdout.length,
+          stderrLength: checkout.stderr.length,
+        });
+      }
 
       const refName = yield* runGitStdout("GitVcsDriver.switchRef.currentBranch", input.cwd, [
         "branch",

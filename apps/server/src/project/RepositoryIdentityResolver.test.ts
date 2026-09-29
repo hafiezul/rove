@@ -246,8 +246,93 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
 
+  it.effect("prefers origin by default and upstream when asked", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const cwd = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-repository-identity-preference-test-",
+      });
+
+      yield* git(cwd, ["init"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/rove.git"]);
+      yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/rove.git"]);
+
+      const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
+      const byDefault = yield* resolver.resolve(cwd);
+      const upstream = yield* resolver.resolve(cwd, { preferredRemote: "upstream" });
+
+      expect(byDefault?.locator.remoteName).toBe("origin");
+      expect(byDefault?.canonicalKey).toBe("github.com/julius/rove");
+      expect(upstream?.locator.remoteName).toBe("upstream");
+      expect(upstream?.canonicalKey).toBe("github.com/t3tools/rove");
+      // Both preferences stay cached side by side.
+      expect(yield* resolver.resolve(cwd)).toEqual(byDefault);
+
+      yield* git(cwd, ["remote", "remove", "upstream"]);
+      const fallback = yield* resolver.resolve(cwd, {
+        refresh: true,
+        preferredRemote: "upstream",
+      });
+      expect(fallback?.locator.remoteName).toBe("origin");
+    }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
+  );
+
+  it.effect("names the forge host behind an SSH config alias", () => {
+    const calls: Array<{ readonly command: string; readonly args: ReadonlyArray<string> }> = [];
+    let remoteUrl = "git@github-work:Acme/Mono.git";
+    const processRunner = Layer.succeed(ProcessRunner.ProcessRunner, {
+      run: (input) =>
+        Effect.sync(() => {
+          calls.push({ command: input.command, args: input.args });
+          const stdout =
+            input.command === "ssh"
+              ? "user git\nhostname github.com\nport 22\n"
+              : input.args.includes("rev-parse")
+                ? "/repo\n"
+                : `origin\t${remoteUrl} (fetch)\n`;
+          return {
+            stdout,
+            stderr: "",
+            code: ChildProcessSpawner.ExitCode(0),
+            timedOut: false,
+            stdoutTruncated: false,
+            stderrTruncated: false,
+            stdoutInvalidUtf8: false,
+            stderrInvalidUtf8: false,
+          };
+        }),
+    });
+
+    return Effect.gen(function* () {
+      const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
+      const aliased = yield* resolver.resolve("/repo");
+
+      expect(aliased?.canonicalKey).toBe("github.com/acme/mono");
+      expect(aliased?.provider).toBe("github");
+      expect(aliased?.displayName).toBe("acme/mono");
+      // Git keeps talking to the alias; only the identity names the real host.
+      expect(aliased?.locator.remoteUrl).toBe(remoteUrl);
+      expect(calls.filter((call) => call.command === "ssh")).toEqual([
+        { command: "ssh", args: ["-G", "github-work"] },
+      ]);
+
+      // Recognized hosts never ask ssh.
+      remoteUrl = "git@github.com:Acme/Mono.git";
+      const direct = yield* resolver.resolve("/repo", { refresh: true });
+      expect(direct?.canonicalKey).toBe("github.com/acme/mono");
+      expect(calls.filter((call) => call.command === "ssh")).toHaveLength(1);
+    }).pipe(
+      Effect.provide(
+        Layer.effect(
+          RepositoryIdentityResolver.RepositoryIdentityResolver,
+          RepositoryIdentityResolver.make(),
+        ).pipe(Layer.provide(processRunner)),
+      ),
+    );
+  });
+
   it.effect.each(["add", "replace"] as const)(
-    "refreshes the primary upstream after %s before cache expiry",
+    "refreshes the preferred upstream after %s before cache expiry",
     (change) =>
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
@@ -262,7 +347,8 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
         }
 
         const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
-        const initialIdentity = yield* resolver.resolve(cwd);
+        const preferUpstream = { preferredRemote: "upstream" } as const;
+        const initialIdentity = yield* resolver.resolve(cwd, preferUpstream);
         expect(initialIdentity?.canonicalKey).toBe(
           change === "add" ? "github.com/julius/rove" : "github.com/t3tools/previous",
         );
@@ -273,14 +359,14 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
           "upstream",
           "git@github.com:T3Tools/rove.git",
         ]);
-        expect(yield* resolver.resolve(cwd)).toEqual(initialIdentity);
-        const identity = yield* resolver.resolve(cwd, { refresh: true });
+        expect(yield* resolver.resolve(cwd, preferUpstream)).toEqual(initialIdentity);
+        const identity = yield* resolver.resolve(cwd, { ...preferUpstream, refresh: true });
 
         expect(identity).not.toBeNull();
         expect(identity?.locator.remoteName).toBe("upstream");
         expect(identity?.canonicalKey).toBe("github.com/t3tools/rove");
         expect(identity?.displayName).toBe("t3tools/rove");
-        expect(yield* resolver.resolve(cwd)).toEqual(identity);
+        expect(yield* resolver.resolve(cwd, preferUpstream)).toEqual(identity);
       }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
 
