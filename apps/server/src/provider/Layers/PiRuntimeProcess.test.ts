@@ -79,12 +79,15 @@ describe("isolated Pi instance runtime", () => {
   }
   function nextEvent(session: PiSessionLike, predicate: (event: PiSessionEventLike) => boolean) {
     return new Promise<PiSessionEventLike>((resolve) => {
-      const unsubscribe = session.subscribe((event) => {
-        if (predicate(event)) {
-          unsubscribe();
-          resolve(event);
-        }
+      let done = false;
+      let unsubscribe: (() => void) | undefined;
+      unsubscribe = session.subscribe((event) => {
+        if (done || !predicate(event)) return;
+        done = true;
+        unsubscribe?.();
+        resolve(event);
       });
+      if (done) unsubscribe();
     });
   }
 
@@ -323,5 +326,123 @@ describe("isolated Pi instance runtime", () => {
     await vi.advanceTimersByTimeAsync(4_000);
     await disposal;
     expect(await pending).toBeInstanceOf(Error);
+  });
+
+  function withCompaction(
+    agentDir: string,
+    compaction: { reserveTokens: number; keepRecentTokens: number },
+  ) {
+    const settingsPath = NodePath.join(agentDir, "settings.json");
+    const settings = JSON.parse(NodeFS.readFileSync(settingsPath, "utf8"));
+    NodeFS.writeFileSync(settingsPath, JSON.stringify({ ...settings, compaction }));
+    return agentDir;
+  }
+  async function expectInstanceAlive(runtime: PiRuntimeProcess, agentDir: string) {
+    const other = await session(runtime, agentDir);
+    await other.prompt("hello");
+    expect(other.messages.at(-1)).toMatchObject({
+      content: [{ type: "text", text: NodePath.basename(agentDir) }],
+    });
+  }
+
+  it("times out a stuck Stop without killing the instance's other sessions", async () => {
+    const agentDir = directory("stuck-stop");
+    const runtime = await create(agentDir);
+    const stuck = await session(runtime, agentDir);
+    const toolStarted = nextEvent(stuck, (event) => event.type === "tool_execution_start");
+    void stuck.prompt("hang-tool").catch(() => {});
+    await toolStarted;
+    vi.useFakeTimers();
+    const abort = stuck.abort().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(4_000);
+    vi.useRealTimers();
+    expect(await abort).toMatchObject({ message: expect.stringMatching(/abort timed out/) });
+    await stuck.dispose();
+    await expectInstanceAlive(runtime, agentDir);
+  });
+
+  it("lets a manual compaction outlive request deadlines", async () => {
+    const agentDir = withCompaction(directory("slow-compaction"), {
+      reserveTokens: 1,
+      keepRecentTokens: 1,
+    });
+    const runtime = await create(agentDir);
+    const compacting = await session(runtime, agentDir);
+    await compacting.prompt("stall-compaction");
+    await compacting.prompt("second");
+    const started = nextEvent(compacting, (event) => event.type === "compaction_start");
+    let settled = false;
+    vi.useFakeTimers();
+    void compacting
+      .compact?.()
+      .catch(() => {})
+      .finally(() => {
+        settled = true;
+      });
+    await started;
+    await vi.advanceTimersByTimeAsync(61_000);
+    vi.useRealTimers();
+    expect(settled).toBe(false);
+    await expectInstanceAlive(runtime, agentDir);
+  });
+
+  it("accepts a resumed prompt once pre-prompt compaction starts", async () => {
+    const agentDir = withCompaction(directory("prompt-compaction"), {
+      reserveTokens: 9_999,
+      keepRecentTokens: 1,
+    });
+    const runtime = await create(agentDir);
+    const stopped = await session(runtime, agentDir);
+    await stopped.prompt("hello");
+    const streaming = nextEvent(stopped, (event) => event.type === "message_start");
+    const aborted = stopped.prompt("stall-stream").catch(() => {});
+    await streaming;
+    await stopped.abort();
+    await aborted;
+    const cursor = { sessionId: stopped.sessionId, sessionFile: stopped.sessionFile };
+    await stopped.dispose();
+    const resumed = await runtime.createSession({
+      cwd: root,
+      agentDir,
+      interactive: true,
+      model: "instance-fixture/fixture",
+      thinkingLevel: "off",
+      resumeSessionId: cursor.sessionId,
+      resumeSessionFile: cursor.sessionFile,
+    });
+    const order: string[] = [];
+    resumed.subscribe((e) => order.push(e.type));
+    const started = nextEvent(resumed, (event) => event.type === "compaction_start");
+    const preflight = vi.fn();
+    vi.useFakeTimers();
+    void resumed
+      .prompt("next", {
+        preflightResult: (success) => {
+          order.push(`pre:${success}`);
+          preflight(success);
+        },
+      })
+      .catch(() => {});
+    await started;
+    await vi.waitFor(() => expect(preflight).toHaveBeenCalledWith(true));
+    await vi.advanceTimersByTimeAsync(61_000);
+    vi.useRealTimers();
+    expect(order.slice(0, 2)).toEqual(["compaction_start", "pre:true"]);
+    await expectInstanceAlive(runtime, agentDir);
+  });
+
+  it("accepts a long-running extension command before it finishes", async () => {
+    const agentDir = directory("slow-command");
+    const runtime = await create(agentDir);
+    const current = await session(runtime, agentDir);
+    const stalled = nextEvent(current, (event) => event.type === "rove_ui_notify");
+    const preflight = vi.fn();
+    vi.useFakeTimers();
+    void current.prompt("/stall-instance", { preflightResult: preflight }).catch(() => {});
+    await stalled;
+    await vi.waitFor(() => expect(preflight).toHaveBeenCalledWith(true));
+    await vi.advanceTimersByTimeAsync(61_000);
+    vi.useRealTimers();
+    await expectInstanceAlive(runtime, agentDir);
   });
 });

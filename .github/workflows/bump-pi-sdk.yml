@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Dispatches CI on the bump branch; the PR it opens cannot trigger CI itself.
+  actions: write
   contents: write
   pull-requests: write
 

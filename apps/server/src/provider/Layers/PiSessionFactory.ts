@@ -262,10 +262,20 @@ async function toPiSessionLike(
           agentStarted = true;
           preparingPrompt = false;
         }
+        // Pre-prompt compaction runs before Pi accepts the prompt and can take
+        // minutes. It only starts after validation, so the prompt is accepted.
+        if (event.type === "compaction_start" && !reported && !stopped) reportPreflight(true);
       });
       try {
         await bind();
         if (stopped) throw new Error("Pi session stopped during prompt preparation.");
+        // Pi runs an extension command to completion before accepting it, and
+        // treats a failing handler as handled, so the command is accepted up front.
+        if (text.startsWith("/")) {
+          const spaceIndex = text.indexOf(" ");
+          const commandName = text.slice(1, spaceIndex === -1 ? undefined : spaceIndex);
+          if (session.extensionRunner.getCommand(commandName)) reportPreflight(true);
+        }
         await session.prompt(text, {
           ...options,
           source: "rpc",
@@ -418,7 +428,6 @@ function isExtensionPathDisabled(
         // Path might not exist
       }
     }
-    if (NodePath.basename(extensionPath) === disabled) return true;
   }
   return false;
 }
@@ -458,9 +467,31 @@ interface DefaultResourceLoaderInternalAccess {
   resourceMetadataByPath?: Map<string, { source?: string; scope?: string }> | undefined;
 }
 
+/**
+ * Rove filters extensions through unexported loader members. A Pi SDK bump that
+ * renames them would silently stop disabling extensions, so fail loudly instead.
+ */
 function getLoaderInternals(loader: DefaultResourceLoader): DefaultResourceLoaderInternalAccess {
-  const // SAFETY: DefaultResourceLoader runtime instance contains unexported methods and state.
-    internals = loader as never;
+  const hasMethod = (owner: unknown, name: string) =>
+    RuntimePredicate.hasProperty(owner, name) && RuntimePredicate.isFunction(owner[name]);
+  const members: unknown = loader;
+  const packageManager = RuntimePredicate.hasProperty(members, "packageManager")
+    ? members.packageManager
+    : undefined;
+  const missing = [
+    hasMethod(members, "loadFinalExtensionSet") ? [] : ["loadFinalExtensionSet"],
+    hasMethod(members, "loadExtensionFactories") ? [] : ["loadExtensionFactories"],
+    hasMethod(packageManager, "resolve") && hasMethod(packageManager, "resolveExtensionSources")
+      ? []
+      : ["packageManager"],
+  ].flat();
+  if (missing.length > 0) {
+    throw new Error(
+      `Pi SDK resource loader internals changed (${missing.join(", ")}); update PiResourceLoader for this SDK version.`,
+    );
+  }
+  const // SAFETY: The members this file reads and replaces were checked above.
+    internals: DefaultResourceLoaderInternalAccess = loader as never;
   return internals;
 }
 

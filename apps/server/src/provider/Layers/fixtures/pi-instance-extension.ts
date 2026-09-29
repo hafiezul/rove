@@ -69,6 +69,19 @@ export default function (pi: ExtensionAPI) {
       while (true) {}
     },
   });
+  pi.registerCommand("stall-instance", {
+    handler: async (_args, ctx) => {
+      ctx.ui.notify("stalled", "info");
+      await new Promise(() => {});
+    },
+  });
+  pi.registerTool({
+    name: "fixture_hang",
+    label: "Fixture hang",
+    description: "Never finishes and ignores abort.",
+    parameters: { type: "object", properties: {} },
+    execute: () => new Promise<never>(() => {}),
+  });
   pi.registerCommand("fail-instance", {
     handler: async () => {
       throw new Error("fixture failure");
@@ -89,23 +102,44 @@ export default function (pi: ExtensionAPI) {
         maxTokens: 1000,
       },
     ],
-    streamSimple(model, context) {
+    streamSimple(model, context, options) {
+      const text = (entry: (typeof context.messages)[number]) =>
+        typeof entry.content === "string"
+          ? entry.content
+          : entry.content.map((part) => (part.type === "text" ? part.text : "")).join("");
+      const stream = createAssistantMessageEventStream();
+      const transcript = context.messages.map(text).join("\n");
+      if (
+        transcript.includes("context summarization assistant") &&
+        (transcript.includes("stall-compaction") || transcript.includes("[User]: stall-stream"))
+      ) {
+        return stream;
+      }
+      const lastUser = context.messages.findLast((entry) => entry.role === "user");
+      const hangTool =
+        lastUser !== undefined &&
+        text(lastUser) === "hang-tool" &&
+        context.messages.at(-1)?.role === "user";
       const callTool =
-        getCurrentTools(context.messages).some(
+        hangTool ||
+        (getCurrentTools(context.messages).some(
           (tool) => tool.name === "mcp__rove__preview_status",
-        ) && !context.messages.some((message) => message.role === "toolResult");
+        ) &&
+          !context.messages.some((message) => message.role === "toolResult"));
       const message: AssistantMessage = {
         role: "assistant",
         api: model.api,
         provider: model.provider,
         model: model.id,
-        timestamp: 0,
+        // Compaction ignores messages older than its latest boundary.
+        // @effect-diagnostics-next-line globalDate:off
+        timestamp: Date.now(),
         content: callTool
           ? [
               {
                 type: "toolCall",
                 id: "rove-call",
-                name: "mcp__rove__preview_status",
+                name: hangTool ? "fixture_hang" : "mcp__rove__preview_status",
                 arguments: {},
               },
             ]
@@ -120,7 +154,21 @@ export default function (pi: ExtensionAPI) {
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
         },
       };
-      const stream = createAssistantMessageEventStream();
+      if (lastUser !== undefined && text(lastUser) === "stall-stream") {
+        options?.signal?.addEventListener(
+          "abort",
+          () => {
+            stream.push({
+              type: "error",
+              reason: "aborted",
+              error: { ...message, content: [], stopReason: "aborted" },
+            });
+            stream.end();
+          },
+          { once: true },
+        );
+        return stream;
+      }
       stream.push({ type: "done", reason: callTool ? "toolUse" : "stop", message });
       stream.end();
       return stream;

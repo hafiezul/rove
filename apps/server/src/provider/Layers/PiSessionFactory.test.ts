@@ -260,6 +260,23 @@ describe("headless Pi extensions", () => {
     expect(inventory.find((extension) => extension.path === "<inline:2>")?.enabled).toBe(true);
   });
 
+  it("disables an extension by its path without disabling others that share its file name", async () => {
+    const entry = (name: string) => {
+      const directory = NodePath.join(cwd, ".pi", "extensions", name);
+      NodeFS.mkdirSync(directory);
+      const path = NodePath.join(directory, "index.ts");
+      NodeFS.writeFileSync(path, "export default () => {};");
+      return path;
+    };
+    const alpha = entry("alpha");
+    const beta = entry("beta");
+    const loader = new PiResourceLoader({ cwd, agentDir }, [alpha, "index.ts"]);
+    await loader.reload();
+    const loaded = loader.getExtensions().extensions.map((extension) => extension.resolvedPath);
+    expect(loaded).not.toContain(alpha);
+    expect(loaded).toContain(beta);
+  });
+
   it("rejects an unresolvable initial model instead of silently falling back", async () => {
     await expect(
       createPiSession({
