@@ -124,6 +124,15 @@ export class GitManager extends Context.Service<
     readonly preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,
     ) => Effect.Effect<GitPreparePullRequestThreadResult, GitManagerServiceError>;
+    /**
+     * Run `effect` acting as the owning project's selected GitHub account, so
+     * `gh` calls and HTTPS git pushes/pulls inside it authenticate as that
+     * account. A selection already in scope wins; none keeps ambient auth.
+     */
+    readonly withProjectGitHubAccount: <A, E, R>(
+      cwd: string,
+      effect: Effect.Effect<A, E, R>,
+    ) => Effect.Effect<A, E, R>;
     readonly runStackedAction: (
       input: GitRunStackedActionInput,
       options?: GitRunStackedActionOptions,
@@ -711,6 +720,20 @@ export const make = Effect.gen(function* () {
     );
     return provideSelectedGitHubAccount(provider, selection);
   });
+  const withProjectGitHubAccount: GitManager["Service"]["withProjectGitHubAccount"] = (
+    cwd,
+    effect,
+  ) =>
+    Effect.gen(function* () {
+      if ((yield* SelectedGitHubAccount) !== null) return yield* effect;
+      const selection = yield* projectSettingsFor({ cwd }).pipe(
+        Effect.map((settings) => settings.githubAccount ?? null),
+        Effect.orElseSucceed(() => null),
+      );
+      return yield* selection === null
+        ? effect
+        : Effect.provideService(effect, SelectedGitHubAccount, selection);
+    });
   const readRepositoryInstructions = (cwd: string, fileName: string) =>
     Effect.gen(function* () {
       const root = yield* fileSystem.realPath(cwd);
@@ -2836,6 +2859,7 @@ export const make = Effect.gen(function* () {
     invalidateStatus,
     resolvePullRequest,
     preparePullRequestThread,
+    withProjectGitHubAccount,
     runStackedAction,
   });
 });

@@ -37,6 +37,7 @@ import {
   parseRemoteRefWithRemoteNames,
 } from "../git/remoteRefs.ts";
 import { ServerConfig } from "../config.ts";
+import { SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const gitProcesses = Semaphore.makeUnsafe(8);
@@ -447,6 +448,36 @@ function isMissingWorktreeStderr(stderr: string): boolean {
     normalized.includes("is not a working tree") ||
     normalized.includes("cannot remove working tree")
   );
+}
+
+const GITHUB_LOGIN_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+const GITHUB_HOST_PATTERN = /^[a-z0-9.-]+(?::\d+)?$/i;
+
+/**
+ * `git -c` arguments that authenticate HTTPS traffic to the selected account's
+ * host as that account. The helper asks `gh` for the account's stored token
+ * when git needs it, so no token reaches argv, traces, or errors. Empty when
+ * the selection could not be quoted safely into the helper's shell command.
+ * SSH remotes never consult credential helpers and are unaffected.
+ */
+export function selectedAccountCredentialArgs(
+  selection: { readonly host: string; readonly login: string } | null,
+): readonly string[] {
+  if (
+    selection === null ||
+    !GITHUB_LOGIN_PATTERN.test(selection.login) ||
+    !GITHUB_HOST_PATTERN.test(selection.host)
+  ) {
+    return [];
+  }
+  const { host, login } = selection;
+  const key = `credential.https://${host}.helper`;
+  const helper =
+    `!f() { test "$1" = get || exit 0; echo username=${login}; ` +
+    `printf 'password=%s\\n' "$(gh auth token --hostname ${host} --user ${login})"; }; f`;
+  // The empty entry resets helpers inherited from user config (such as
+  // `gh auth git-credential`, which only knows gh's active account).
+  return ["-c", `${key}=`, "-c", `${key}=${helper}`];
 }
 
 const CHECKOUT_FILE_LIST_LIMIT = 5;
@@ -1046,6 +1077,26 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     options: ExecuteGitOptions = {},
   ): Effect.Effect<void, GitCommandError> =>
     executeGit(operation, cwd, args, options).pipe(Effect.asVoid);
+
+  /**
+   * Pushes and pulls act as the project's selected GitHub account when a
+   * caller put one in scope (the commit/push/PR action does); otherwise git
+   * keeps the user's own credential setup.
+   */
+  const withSelectedAccountCredentials = Effect.fnUntraced(function* (args: readonly string[]) {
+    const selection = yield* SelectedGitHubAccount;
+    return [...selectedAccountCredentialArgs(selection), ...args];
+  });
+
+  const runRemoteGit = (
+    operation: string,
+    cwd: string,
+    args: readonly string[],
+    options: ExecuteGitOptions = {},
+  ): Effect.Effect<void, GitCommandError> =>
+    withSelectedAccountCredentials(args).pipe(
+      Effect.flatMap((withCredentials) => runGit(operation, cwd, withCredentials, options)),
+    );
 
   const runGitStdout = (
     operation: string,
@@ -2080,7 +2131,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     const requestedRemoteName = options?.remoteName?.trim() || null;
     if (requestedRemoteName) {
       const publishBranch = yield* resolvePublishBranchName(cwd, branch);
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushWithRequestedRemote",
         cwd,
         ["push", "-u", requestedRemoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2145,7 +2196,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         });
       }
       const publishBranch = yield* resolvePublishBranchName(cwd, branch);
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushWithUpstream",
         cwd,
         ["push", "-u", publishRemoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2198,7 +2249,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
             currentUpstream.branchName,
           ]);
         }
-        yield* runGit(
+        yield* runRemoteGit(
           "GitVcsDriver.pushCurrentBranch.pushOwnBranch",
           cwd,
           ["push", "-u", remoteName, `HEAD:refs/heads/${publishBranch}`],
@@ -2212,7 +2263,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         };
       }
 
-      yield* runGit(
+      yield* runRemoteGit(
         "GitVcsDriver.pushCurrentBranch.pushUpstream",
         cwd,
         ["push", currentUpstream.remoteName, `HEAD:refs/heads/${currentUpstream.branchName}`],
@@ -2226,7 +2277,9 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       };
     }
 
-    yield* runGit("GitVcsDriver.pushCurrentBranch.push", cwd, ["push"], { timeoutMs: null });
+    yield* runRemoteGit("GitVcsDriver.pushCurrentBranch.push", cwd, ["push"], {
+      timeoutMs: null,
+    });
     return {
       status: "pushed" as const,
       branch,
@@ -2266,7 +2319,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       ["rev-parse", "HEAD"],
       true,
     ).pipe(Effect.map((stdout) => stdout.trim()));
-    yield* executeGit("GitVcsDriver.pullCurrentBranch.pull", cwd, ["pull", "--ff-only"], {
+    const pullArgs = yield* withSelectedAccountCredentials(["pull", "--ff-only"]);
+    yield* executeGit("GitVcsDriver.pullCurrentBranch.pull", cwd, pullArgs, {
       timeoutMs: 30_000,
       fallbackErrorDetail: "git pull failed",
     });

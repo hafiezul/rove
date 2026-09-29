@@ -26,6 +26,7 @@ import { gitCommandDuration } from "../observability/Metrics.ts";
 import {
   describeCheckoutFailure,
   makeGitVcsDriverCore,
+  selectedAccountCredentialArgs,
   parseGitCheckoutProgressLine,
   splitNullSeparatedGitStdoutPaths,
 } from "./GitVcsDriverCore.ts";
@@ -1652,6 +1653,42 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
         assert.equal(remoteDefault?.isRemote, true);
         assert.equal(remoteDefault?.isDefault, true);
       }),
+    );
+
+    it.effect.skipIf(HostProcessPlatform.defaultValue() === "win32")(
+      "authenticates HTTPS git as the selected GitHub account",
+      () =>
+        Effect.gen(function* () {
+          const cwd = yield* makeTmpDir();
+          const bin = yield* makeTmpDir("git-vcs-driver-gh-stub-");
+          yield* initRepoWithCommit(cwd);
+          // Stands in for `gh auth token --hostname <host> --user <login>`.
+          yield* writeTextFile(bin, "gh", '#!/bin/sh\necho "token-for-$6-on-$4"\n');
+          NodeFS.chmodSync(`${bin}/gh`, 0o755);
+          const args = selectedAccountCredentialArgs({ host: "github.com", login: "hafiezul" });
+
+          const filled = yield* (yield* GitVcsDriver.GitVcsDriver).execute({
+            operation: "GitVcsDriver.test.credentialFill",
+            cwd,
+            args: [...args, "credential", "fill"],
+            stdin: "protocol=https\nhost=github.com\npath=hafiezul/rove.git\n\n",
+            env: {
+              PATH: `${bin}:${process.env.PATH ?? ""}`,
+              GIT_TERMINAL_PROMPT: "0",
+            },
+            timeoutMs: 10_000,
+          });
+
+          assert.include(filled.stdout, "username=hafiezul");
+          assert.include(filled.stdout, "password=token-for-hafiezul-on-github.com");
+          // Nothing secret is carried in the arguments themselves.
+          assert.notInclude(args.join(" "), "token-for");
+          assert.deepEqual(
+            selectedAccountCredentialArgs({ host: "github.com", login: "bad; rm -rf ~" }),
+            [],
+          );
+          assert.deepEqual(selectedAccountCredentialArgs(null), []);
+        }),
     );
 
     it.effect("explains why a checkout was refused", () =>
