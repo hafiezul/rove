@@ -1265,7 +1265,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'full-access',
             'default',
             NULL,
-            NULL,
+            '/tmp/worktrees/second',
             NULL,
             '2026-03-01T00:00:07.000Z',
             '2026-03-01T00:00:08.000Z',
@@ -1280,7 +1280,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'full-access',
             'default',
             NULL,
-            NULL,
+            '/tmp/worktrees/deleted',
             NULL,
             '2026-03-01T00:00:09.000Z',
             '2026-03-01T00:00:10.000Z',
@@ -1303,6 +1303,23 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
 
         const missingProject = yield* snapshotQuery.getActiveProjectByWorkspaceRoot("/tmp/missing");
         assert.equal(missingProject._tag, "None");
+
+        assert.deepEqual(
+          yield* snapshotQuery.getActiveProjectIdByCwd("/tmp/workspace"),
+          Option.some(asProjectId("project-active")),
+        );
+        assert.deepEqual(
+          yield* snapshotQuery.getActiveProjectIdByCwd("/tmp/worktrees/second"),
+          Option.some(asProjectId("project-active")),
+        );
+        assert.deepEqual(
+          yield* snapshotQuery.getActiveProjectIdByCwd("/tmp/worktrees/deleted"),
+          Option.none(),
+        );
+        assert.deepEqual(
+          yield* snapshotQuery.getActiveProjectIdByCwd("/tmp/deleted"),
+          Option.none(),
+        );
 
         const firstThreadId = yield* snapshotQuery.getFirstActiveThreadIdByProjectId(
           asProjectId("project-active"),

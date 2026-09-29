@@ -67,7 +67,7 @@ import * as ServerSettings from "../serverSettings.ts";
 import type { GitManagerServiceError } from "@t3tools/contracts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
-import { SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
+import { provideSelectedGitHubAccount, SelectedGitHubAccount } from "../sourceControl/GitHubCli.ts";
 import { detectPrTemplate } from "../sourceControl/PrTemplateDetection.ts";
 import type { ChangeRequest } from "@t3tools/contracts";
 
@@ -676,7 +676,6 @@ export const make = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 
-  const sourceControlProvider = (cwd: string) => sourceControlProviders.resolve({ cwd });
   const serverSettingsService = yield* ServerSettings.ServerSettingsService;
   // Optional: git actions also run from the CLI and tests without orchestration.
   const projectionQuery = yield* Effect.serviceOption(
@@ -694,11 +693,23 @@ export const make = Effect.gen(function* () {
         ? projectionQuery.value
             .getThreadShellById(input.threadId)
             .pipe(Effect.map(Option.map((thread) => thread.projectId)))
-        : projectionQuery.value
-            .getActiveProjectByWorkspaceRoot(input.cwd)
-            .pipe(Effect.map(Option.map((project) => project.id)))
+        : projectionQuery.value.getActiveProjectIdByCwd(input.cwd)
     ).pipe(Effect.orElseSucceed(() => Option.none<ProjectId>()));
     return resolveProjectSettings(settings, Option.getOrNull(projectId)).settings;
+  });
+  /**
+   * The provider for a checkout, acting as the owning project's selected
+   * GitHub account. A selection already in scope (a thread's stacked action)
+   * wins; with none anywhere, `gh` keeps its active account.
+   */
+  const sourceControlProvider = Effect.fnUntraced(function* (cwd: string) {
+    const provider = yield* sourceControlProviders.resolve({ cwd });
+    if (provider.kind !== "github" || (yield* SelectedGitHubAccount) !== null) return provider;
+    const selection = yield* projectSettingsFor({ cwd }).pipe(
+      Effect.map((settings) => settings.githubAccount ?? null),
+      Effect.orElseSucceed(() => null),
+    );
+    return provideSelectedGitHubAccount(provider, selection);
   });
   const readRepositoryInstructions = (cwd: string, fileName: string) =>
     Effect.gen(function* () {

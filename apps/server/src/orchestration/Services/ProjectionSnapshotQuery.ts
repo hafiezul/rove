@@ -169,6 +169,14 @@ export interface ProjectionSnapshotQueryShape {
   ) => Effect.Effect<Option.Option<OrchestrationProject>, ProjectionRepositoryError>;
 
   /**
+   * Read the active project that owns a checkout: the project whose workspace
+   * root it is, else the project of a thread whose worktree it is.
+   */
+  readonly getActiveProjectIdByCwd: (
+    cwd: string,
+  ) => Effect.Effect<Option.Option<ProjectId>, ProjectionRepositoryError>;
+
+  /**
    * Read a single active project shell row by id.
    */
   readonly getProjectShellById: (
