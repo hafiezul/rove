@@ -119,6 +119,30 @@ it.effect("routes GitHub remotes to the GitHub provider", () =>
   }),
 );
 
+it.effect("routes SSH host aliases to the provider of their configured HostName", () =>
+  Effect.gen(function* () {
+    const registry = yield* makeRegistry({
+      remotes: [{ name: "origin", url: "git@github-work:acme/project.git" }],
+      process: {
+        run: (input) =>
+          Effect.succeed(
+            processOutput(
+              input.command === "ssh" && input.args.join(" ") === "-G github-work"
+                ? "user git\nhostname github.com\nport 22\n"
+                : "",
+            ),
+          ),
+      },
+    });
+
+    const handle = yield* registry.resolveHandle({ cwd: "/repo" });
+
+    assert.strictEqual(handle.provider.kind, "github");
+    assert.strictEqual(handle.context?.provider.baseUrl, "https://github.com");
+    assert.strictEqual(handle.context?.remoteUrl, "git@github-work:acme/project.git");
+  }),
+);
+
 it.effect("routes directly by provider kind for remote-first workflows", () =>
   Effect.gen(function* () {
     const registry = yield* makeRegistry({
