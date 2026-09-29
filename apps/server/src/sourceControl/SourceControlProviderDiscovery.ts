@@ -8,6 +8,10 @@ import type {
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import {
+  detectSourceControlProviderFromRemoteUrl,
+  isSshRemoteUrl,
+} from "@t3tools/shared/sourceControl";
 
 import type * as SourceControlProvider from "./SourceControlProvider.ts";
 import type * as VcsProcess from "../vcs/VcsProcess.ts";
@@ -301,6 +305,52 @@ export function probeSourceControlProvider(input: {
   );
 }
 
+const SCP_SSH_HOST_PATTERN = /^[^@/\s]+@([^:/]+):/;
+const SSH_ALIAS_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+
+function sshRemoteHost(remoteUrl: string): string | null {
+  const trimmed = remoteUrl.trim();
+  if (!isSshRemoteUrl(trimmed)) return null;
+  const scp = SCP_SSH_HOST_PATTERN.exec(trimmed)?.[1];
+  if (scp !== undefined) return scp;
+  try {
+    return new URL(trimmed).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Multi-account setups point remotes at `~/.ssh/config` aliases such as
+ * `git@github-work:org/repo.git`. `ssh -G` prints the alias's effective
+ * `hostname` without connecting, so the real forge host can be detected.
+ */
+const resolveSshHostAliasProvider = (input: {
+  readonly process: VcsProcess.VcsProcess["Service"];
+  readonly cwd: string;
+  readonly remoteUrl: string;
+}): Effect.Effect<SourceControlProviderInfo | null> => {
+  const alias = sshRemoteHost(input.remoteUrl);
+  if (alias === null || !SSH_ALIAS_PATTERN.test(alias)) return Effect.succeed(null);
+  return input.process
+    .run({
+      operation: "source-control.discovery.resolve-ssh-host-alias",
+      command: "ssh",
+      args: ["-G", alias],
+      cwd: input.cwd,
+      timeoutMs: DEFAULT_PROBE_TIMEOUT_MS,
+      maxOutputBytes: 16_000,
+    })
+    .pipe(
+      Effect.map((result) => {
+        const hostname = /^hostname\s+(\S+)\s*$/im.exec(result.stdout)?.[1]?.toLowerCase();
+        if (hostname === undefined || hostname === alias.toLowerCase()) return null;
+        return detectSourceControlProviderFromRemoteUrl(`ssh://${hostname}`);
+      }),
+      Effect.orElseSucceed(() => null),
+    );
+};
+
 export const refineUnknownRemoteProvider = Effect.fn("refineUnknownRemoteProvider")(
   function* (input: {
     readonly specs: ReadonlyArray<SourceControlProviderDiscoverySpec>;
@@ -312,6 +362,15 @@ export const refineUnknownRemoteProvider = Effect.fn("refineUnknownRemoteProvide
       return input.context;
     }
     const context = input.context;
+
+    const aliased = yield* resolveSshHostAliasProvider({
+      process: input.process,
+      cwd: input.cwd,
+      remoteUrl: context.remoteUrl,
+    });
+    if (aliased !== null && aliased.kind !== "unknown") {
+      return { ...context, provider: aliased };
+    }
 
     const providers = yield* Effect.forEach(input.specs, (spec) => {
       if (spec.type === "managed-cli") {
