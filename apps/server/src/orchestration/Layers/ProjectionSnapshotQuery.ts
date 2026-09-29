@@ -249,6 +249,12 @@ const ProjectionProjectLookupRowSchema = ProjectionProjectDbRowSchema;
 const ProjectionThreadIdLookupRowSchema = Schema.Struct({
   threadId: ThreadId,
 });
+const CwdLookupInput = Schema.Struct({
+  cwd: Schema.String,
+});
+const ProjectionProjectIdLookupRowSchema = Schema.Struct({
+  projectId: ProjectId,
+});
 const ProjectionThreadCheckpointContextThreadRowSchema = Schema.Struct({
   threadId: ThreadId,
   projectId: ProjectId,
@@ -1132,6 +1138,31 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
         FROM projection_projects
         WHERE project_id = ${projectId}
           AND deleted_at IS NULL
+        LIMIT 1
+      `,
+  });
+
+  const getActiveProjectIdRowByCwd = SqlSchema.findOneOption({
+    Request: CwdLookupInput,
+    Result: ProjectionProjectIdLookupRowSchema,
+    execute: ({ cwd }) =>
+      sql`
+        SELECT "projectId"
+        FROM (
+          SELECT project_id AS "projectId", 0 AS rank, created_at
+          FROM projection_projects
+          WHERE workspace_root = ${cwd}
+            AND deleted_at IS NULL
+          UNION ALL
+          SELECT threads.project_id AS "projectId", 1 AS rank, threads.created_at
+          FROM projection_threads AS threads
+          JOIN projection_projects AS projects
+            ON projects.project_id = threads.project_id
+            AND projects.deleted_at IS NULL
+          WHERE threads.worktree_path = ${cwd}
+            AND threads.deleted_at IS NULL
+        )
+        ORDER BY rank ASC, created_at ASC
         LIMIT 1
       `,
   });
@@ -3046,6 +3077,17 @@ pending_approval_requests AS (
       ),
     );
 
+  const getActiveProjectIdByCwd: ProjectionSnapshotQueryShape["getActiveProjectIdByCwd"] = (cwd) =>
+    getActiveProjectIdRowByCwd({ cwd }).pipe(
+      Effect.mapError(
+        toPersistenceSqlOrDecodeError(
+          "ProjectionSnapshotQuery.getActiveProjectIdByCwd:query",
+          "ProjectionSnapshotQuery.getActiveProjectIdByCwd:decodeRow",
+        ),
+      ),
+      Effect.map(Option.map((row) => row.projectId)),
+    );
+
   const getFirstActiveThreadIdByProjectId: ProjectionSnapshotQueryShape["getFirstActiveThreadIdByProjectId"] =
     (projectId) =>
       getFirstActiveThreadIdByProject({ projectId }).pipe(
@@ -3740,6 +3782,7 @@ pending_approval_requests AS (
     getCounts,
     getEventReplayStats,
     getActiveProjectByWorkspaceRoot,
+    getActiveProjectIdByCwd,
     getProjectShellById,
     getProjectShells,
     getFirstActiveThreadIdByProjectId,
