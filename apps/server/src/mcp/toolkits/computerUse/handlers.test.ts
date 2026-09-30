@@ -47,13 +47,43 @@ const catalog: CuaDriver.CuaCatalog = {
       inputSchema: { type: "object", properties: {} },
       readOnly: true,
     },
+    {
+      name: "list_windows",
+      description: "List windows.",
+      inputSchema: { type: "object", properties: {} },
+      readOnly: true,
+    },
+    {
+      name: "hotkey",
+      description: "Press keys.",
+      inputSchema: { type: "object", properties: {} },
+      readOnly: false,
+    },
   ],
+};
+
+const structuredResults: Readonly<Record<string, McpSchema.CallToolResult>> = {
+  list_windows: new McpSchema.CallToolResult({
+    content: [{ type: "text", text: "Found 1 window(s)." }],
+    structuredContent: { windows: [{ window_id: 42, title: "Untitled" }] },
+  }),
+  hotkey: new McpSchema.CallToolResult({
+    content: [{ type: "text", text: "Pressed." }],
+    structuredContent: {},
+  }),
+  list_apps: new McpSchema.CallToolResult({
+    content: [{ type: "text", text: "Found 2000 app(s)." }],
+    structuredContent: {
+      apps: Array.from({ length: 2000 }, (_, pid) => ({ pid, name: `App ${pid}` })),
+    },
+  }),
 };
 
 const makeLayer = (options: {
   readonly enabled: boolean;
   readonly calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }>;
   readonly unavailable?: boolean;
+  readonly results?: Readonly<Record<string, McpSchema.CallToolResult>>;
 }) => {
   const unavailable = new CuaDriver.CuaDriverUnavailableError({
     detail: "Cua Driver is not installed.",
@@ -67,6 +97,8 @@ const makeLayer = (options: {
       call: (name, args) =>
         Effect.sync(() => {
           options.calls.push({ name, args });
+          const canned = options.results?.[name];
+          if (canned) return canned;
           return new McpSchema.CallToolResult({
             isError: false,
             content: [{ type: "image", data: new Uint8Array([7]), mimeType: "image/png" }],
@@ -118,7 +150,7 @@ it.effect("lists operations by summary and describes one operation in full", () 
   Effect.gen(function* () {
     const listing = yield* callTool("computer_describe", { tool: null });
     expect(text(listing)).toBe(
-      "Snapshot a window before acting on it.\n\nOperations (run with computer_call):\n- click: Click against a target pid.\n- list_apps: List running apps.",
+      "Snapshot a window before acting on it.\n\nOperations (run with computer_call):\n- click: Click against a target pid.\n- list_apps: List running apps.\n- list_windows: List windows.\n- hotkey: Press keys.",
     );
 
     const click = yield* callTool("computer_describe", { tool: "click" });
@@ -156,6 +188,24 @@ it.effect("gives each thread its own Cua session unless the agent names one", ()
     expect(calls).toHaveLength(3);
   }).pipe(Effect.provide(makeLayer({ enabled: true, calls })));
 });
+
+it.effect("shows the model data Cua returns only as structured content", () =>
+  Effect.gen(function* () {
+    const windows = yield* callTool("computer_call", { tool: "list_windows" });
+    expect(text(windows)).toBe(
+      'Found 1 window(s).\nStructured result:\n{"windows":[{"window_id":42,"title":"Untitled"}]}',
+    );
+    expect(windows.structuredContent).toEqual({ windows: [{ window_id: 42, title: "Untitled" }] });
+
+    const noStructuredData = yield* callTool("computer_call", { tool: "hotkey" });
+    expect(text(noStructuredData)).toBe("Pressed.");
+
+    const large = yield* callTool("computer_call", { tool: "list_apps" });
+    const [, structured = ""] = text(large).split("Structured result:\n");
+    expect(structured.length).toBeLessThan(25_000);
+    expect(structured).toContain("Structured result cut at 24000 characters.");
+  }).pipe(Effect.provide(makeLayer({ enabled: true, calls: [], results: structuredResults }))),
+);
 
 it.effect("reports a missing driver as a tool error the agent can relay", () =>
   Effect.gen(function* () {

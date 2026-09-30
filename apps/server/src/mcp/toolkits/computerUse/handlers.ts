@@ -57,6 +57,34 @@ const encodeJsonText = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const textResult = (text: string, isError = false) =>
   new McpSchema.CallToolResult({ isError, content: [{ type: "text", text }] });
 
+const MAX_STRUCTURED_TEXT_CHARS = 24_000;
+
+/**
+ * Cua returns window ids, snapshot ids, and element lists only in
+ * `structuredContent`, with a one-line summary as text. Pi and other clients
+ * show the model only the text, so repeat the structured data there, bounded
+ * below Claude Code's result limit.
+ */
+const withStructuredText = (result: McpSchema.CallToolResult) => {
+  const structured = result.structuredContent;
+  if (
+    structured === undefined ||
+    structured === null ||
+    (typeof structured === "object" && Object.keys(structured).length === 0)
+  ) {
+    return result;
+  }
+  const json = encodeJsonText(structured);
+  const text =
+    json.length > MAX_STRUCTURED_TEXT_CHARS
+      ? `${json.slice(0, MAX_STRUCTURED_TEXT_CHARS)}…\nStructured result cut at ${MAX_STRUCTURED_TEXT_CHARS} characters. Narrow the call, for example with pid, window_id, query, or max_elements.`
+      : json;
+  return new McpSchema.CallToolResult({
+    ...result,
+    content: [...result.content, { type: "text", text: `Structured result:\n${text}` }],
+  });
+};
+
 const summary = (description: string) => {
   const firstLine = description.split("\n", 1)[0] ?? "";
   const sentence = /^.*?[.!?](?=\s|$)/.exec(firstLine)?.[0] ?? firstLine;
@@ -179,12 +207,14 @@ const registerComputerUseTools = Effect.gen(function* () {
                     );
                   }
                   const args = input.arguments ?? {};
-                  return driver.call(
-                    tool.name,
-                    hasSessionArgument(tool.inputSchema) && args.session === undefined
-                      ? { ...args, session: `rove-${invocation.threadId}` }
-                      : args,
-                  );
+                  return driver
+                    .call(
+                      tool.name,
+                      hasSessionArgument(tool.inputSchema) && args.session === undefined
+                        ? { ...args, session: `rove-${invocation.threadId}` }
+                        : args,
+                    )
+                    .pipe(Effect.map(withStructuredText));
                 }),
                 Effect.catchTag("CuaDriverUnavailableError", unavailable),
               ),
