@@ -445,7 +445,7 @@ it.effect.each([
         );
       expect(result.isError).toBe(false);
       expect(requests[0]?.tabId).toBeUndefined();
-      expect(JSON.parse(JSON.stringify(requests[0]?.input))).toEqual(expected);
+      expect(requests[0]?.input).toEqual(expected);
     }),
   ).pipe(Effect.provide(TestLayer)),
 );
