@@ -182,6 +182,62 @@ it.effect("treats empty non-open change request listing output as no results", (
   }),
 );
 
+it.effect("targets every GitHub PR operation at the bound repository", () =>
+  Effect.gen(function* () {
+    const calls: ReadonlyArray<string>[] = [];
+    const summary = {
+      number: 42,
+      title: "Selected repository PR",
+      url: "https://github.example.test/fork/project/pull/42",
+      baseRefName: "main",
+      headRefName: "feature/selected-remote",
+    };
+    const github = yield* GitHubCli.make.pipe(
+      Effect.provide(
+        Layer.mock(VcsProcess.VcsProcess)({
+          run: (input) => {
+            calls.push(input.args);
+            const stdout =
+              input.args[0] === "repo"
+                ? "main"
+                : input.args[1] === "list"
+                  ? JSON.stringify([summary])
+                  : input.args[1] === "view"
+                    ? JSON.stringify(summary)
+                    : summary.url;
+            return Effect.succeed(processResult(stdout));
+          },
+        }),
+      ),
+    );
+    const provider = yield* makeProvider(github);
+    const context = {
+      provider: { kind: "github" as const, baseUrl: "https://github.example.test" },
+      remoteName: "origin",
+      remoteUrl: "git@github-work:fork/project.git",
+    };
+    const input = { cwd: "/repo", context, headSelector: "feature/selected-remote" };
+
+    yield* provider.listChangeRequests({ ...input, state: "open" });
+    yield* provider.listChangeRequests({ ...input, state: "all" });
+    yield* provider.getChangeRequest({ ...input, reference: "42" });
+    yield* provider.createChangeRequest({
+      ...input,
+      baseRefName: "main",
+      title: summary.title,
+      bodyFile: "/tmp/body.md",
+    });
+    yield* provider.getDefaultBranch(input);
+    yield* provider.checkoutChangeRequest({ ...input, reference: "42" });
+
+    assert.equal(calls.length, 6);
+    for (const args of calls) {
+      const repository = args[0] === "repo" ? args[2] : args[args.indexOf("--repo") + 1];
+      assert.equal(repository, "github.example.test/fork/project", args.join(" "));
+    }
+  }),
+);
+
 it.effect("creates GitHub PRs through provider-neutral input names", () =>
   Effect.gen(function* () {
     let createInput: Parameters<GitHubCli.GitHubCli["Service"]["createPullRequest"]>[0] | null =
