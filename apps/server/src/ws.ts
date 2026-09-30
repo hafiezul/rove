@@ -2685,7 +2685,7 @@ const makeWsRpcLayer = (
             "rpc.aggregate": "computer-use",
           }),
         [WS_METHODS.computerUseControl]: (input) =>
-          observeRpcEffect(WS_METHODS.computerUseControl, cuaDriver.control(input.action), {
+          observeRpcEffect(WS_METHODS.computerUseControl, cuaDriver.control(input), {
             "rpc.aggregate": "computer-use",
           }),
         [WS_METHODS.cloudGetRelayClientStatus]: (_input) =>

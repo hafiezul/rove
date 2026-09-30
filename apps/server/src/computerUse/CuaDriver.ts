@@ -1,6 +1,6 @@
 import {
-  type ComputerUseAction,
   ComputerUseControlError,
+  type ComputerUseControlInput,
   type ComputerUseStatus,
 } from "@t3tools/contracts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
@@ -9,21 +9,30 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
+import * as Stream from "effect/Stream";
 import { McpSchema } from "effect/unstable/ai";
 
 import * as ProcessRunner from "../processRunner.ts";
+import * as ServerSettings from "../serverSettings.ts";
 
-/** Where Cua's canonical installer puts the app; its MCP proxy launches the daemon from here. */
-export const CUA_DRIVER_EXECUTABLE = "/Applications/CuaDriver.app/Contents/MacOS/cua-driver";
-const INSTALL_COMMAND = '/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"';
-const DOCS_URL = "https://cua.ai/docs/cua-driver";
+/** Cua's canonical installer places the app here; its MCP proxy launches the daemon from it. */
+export const CUA_DRIVER_APP = "/Applications/CuaDriver.app";
+/** Cua's official installer. It downloads from Cua's GitHub Releases and verifies the app signature. */
+const INSTALL_SCRIPT_URL = "https://cua.ai/driver/install.sh";
+/** Cua AI, Inc.'s Developer ID team. Rove runs no binary at the Cua path without it. */
+const CUA_SIGNING_REQUIREMENT =
+  'anchor apple generic and identifier "com.trycua.driver" and certificate leaf[subject.OU] = "YCK386LBJ7"';
+/** An idle Cua daemon costs ~57 MB and ~2% CPU; one Rove started quits after this long unused. */
+export const IDLE_TIMEOUT = Duration.minutes(5);
 const CONNECT_TIMEOUT = Duration.seconds(30);
 const CALL_TIMEOUT_MS = 120_000;
-const GRANT_TIMEOUT = Duration.minutes(10);
+const WAIT_FOR_USER_TIMEOUT = Duration.minutes(10);
 
 export interface CuaTool {
   readonly name: string;
@@ -58,16 +67,30 @@ const CheckPermissionsResult = Schema.Struct({
   }),
 });
 const decodePermissions = Schema.decodeUnknownOption(CheckPermissionsResult);
+const decodeTelemetry = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ enabled: Schema.Boolean })),
+);
 const decodeCallToolResult = Schema.decodeUnknownEffect(McpSchema.CallToolResult);
 
 const describeCause = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
+
+const lastLines = (output: ProcessRunner.ProcessRunOutput) =>
+  `${output.stdout}\n${output.stderr}`
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(-3)
+    .join(" ");
+
+const untrustedDetail = (appPath: string) =>
+  `The app at ${appPath} is not signed by Cua AI, Inc., so Rove will not run it. Reinstall Cua Driver from Settings → Integrations.`;
 
 export class CuaDriver extends Context.Service<
   CuaDriver,
   {
     readonly status: Effect.Effect<ComputerUseStatus>;
     readonly control: (
-      action: ComputerUseAction,
+      input: ComputerUseControlInput,
     ) => Effect.Effect<ComputerUseStatus, ComputerUseControlError>;
     /** Connects on first use, which launches the Cua daemon when it is not running. */
     readonly catalog: Effect.Effect<CuaCatalog, CuaDriverUnavailableError>;
@@ -79,22 +102,67 @@ export class CuaDriver extends Context.Service<
 >()("t3/computerUse/CuaDriver") {}
 
 export const make = Effect.fn("CuaDriver.make")(function* (options?: {
-  readonly executablePath?: string;
+  readonly appPath?: string;
 }) {
-  const executablePath = options?.executablePath ?? CUA_DRIVER_EXECUTABLE;
+  const appPath = options?.appPath ?? CUA_DRIVER_APP;
+  const executablePath = `${appPath}/Contents/MacOS/cua-driver`;
   const runner = yield* ProcessRunner.ProcessRunner;
   const fileSystem = yield* FileSystem.FileSystem;
   const platform = yield* HostProcessPlatform;
-  const connectLock = yield* Semaphore.make(1);
+  const settings = yield* ServerSettings.ServerSettingsService;
+  const scope = yield* Effect.scope;
+  // Serializes connecting, releasing, and reading the daemon so an idle release never
+  // races a status read or a new connection.
+  const lock = yield* Semaphore.make(1);
   let connection: Connection | undefined;
+  /** True only when Rove launched the running daemon; Rove never quits one it did not start. */
+  let ownsDaemon = false;
+  let signatureVerified = false;
+  let idleTimer: Fiber.Fiber<void> | undefined;
 
   const run = (args: ReadonlyArray<string>, timeout: Duration.Input = Duration.seconds(10)) =>
     runner.run({ command: executablePath, args, timeout });
 
-  const disconnect = Effect.promise(async () => {
+  const daemonRunning = run(["status"]).pipe(
+    Effect.map((output) => output.code === 0),
+    Effect.orElseSucceed(() => false),
+  );
+
+  const presence: Effect.Effect<"missing" | "untrusted" | "trusted"> = Effect.gen(function* () {
+    if (!(yield* fileSystem.exists(executablePath).pipe(Effect.orElseSucceed(() => false)))) {
+      return "missing";
+    }
+    if (signatureVerified) return "trusted";
+    const check = yield* runner
+      .run({
+        command: "/usr/bin/codesign",
+        args: ["--verify", "--deep", "--strict", `-R=${CUA_SIGNING_REQUIREMENT}`, appPath],
+        timeout: Duration.seconds(30),
+      })
+      .pipe(Effect.option);
+    signatureVerified = Option.isSome(check) && check.value.code === 0;
+    return signatureVerified ? "trusted" : "untrusted";
+  });
+
+  const releaseUnlocked = Effect.gen(function* () {
     const current = connection;
     connection = undefined;
-    await current?.client.close().catch(() => undefined);
+    if (current) yield* Effect.promise(() => current.client.close().catch(() => undefined));
+    if (ownsDaemon) {
+      ownsDaemon = false;
+      yield* run(["stop"]).pipe(Effect.ignore);
+    }
+  });
+
+  /** Ends Rove's Cua sessions, which removes their cursors, and quits a daemon Rove started. */
+  const release = lock.withPermit(releaseUnlocked).pipe(Effect.uninterruptible);
+
+  const touch = Effect.gen(function* () {
+    if (idleTimer) yield* Fiber.interrupt(idleTimer);
+    idleTimer = yield* Effect.sleep(IDLE_TIMEOUT).pipe(
+      Effect.andThen(release),
+      Effect.forkIn(scope),
+    );
   });
 
   const connect = Effect.tryPromise({
@@ -122,7 +190,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
         client,
         catalog: { instructions: client.getInstructions(), tools },
       };
-      // A stopped daemon or crashed proxy closes the transport; reconnect on the next call.
+      // A daemon quit from outside Rove closes the transport; reconnect on the next call.
       client.onclose = () => {
         if (connection === next) connection = undefined;
       };
@@ -142,93 +210,163 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     }),
   );
 
-  const installed =
-    platform === "darwin" ? fileSystem.exists(executablePath) : Effect.succeed(false);
+  const connectUnlocked = Effect.gen(function* () {
+    if (connection) return connection;
+    if (platform !== "darwin") {
+      return yield* new CuaDriverUnavailableError({
+        detail: `Computer use is only available on macOS, not ${platform}.`,
+      });
+    }
+    const found = yield* presence;
+    if (found !== "trusted") {
+      return yield* new CuaDriverUnavailableError({
+        detail:
+          found === "missing"
+            ? "Cua Driver is not installed. The user can install it from Settings → Integrations."
+            : untrustedDetail(appPath),
+      });
+    }
+    const wasRunning = yield* daemonRunning;
+    connection = yield* connect;
+    if (!wasRunning) ownsDaemon = true;
+    return connection;
+  });
 
-  const connected = connectLock.withPermit(
-    Effect.gen(function* () {
-      if (connection) return connection;
-      if (!(yield* installed.pipe(Effect.orElseSucceed(() => false)))) {
-        return yield* new CuaDriverUnavailableError({
-          detail:
-            platform === "darwin"
-              ? "Cua Driver is not installed. The user can install it from Settings → Integrations."
-              : `Computer use is only available on macOS, not ${platform}.`,
-        });
-      }
-      connection = yield* connect;
-      return connection;
-    }),
-  );
+  const connected = lock.withPermit(connectUnlocked).pipe(Effect.tap(() => touch));
 
-  const readPermissions = connected.pipe(
+  const permissionsUnlocked = connectUnlocked.pipe(
     Effect.flatMap(({ client }) =>
       Effect.tryPromise(() => client.callTool({ name: "check_permissions", arguments: {} })),
     ),
-    Effect.map((result) => {
-      const decoded = decodePermissions(result);
-      return decoded._tag === "Some"
-        ? {
-            accessibility: decoded.value.structuredContent.accessibility,
-            screenRecording: decoded.value.structuredContent.screen_recording,
-          }
-        : null;
-    }),
+    Effect.map((result) =>
+      Option.match(decodePermissions(result), {
+        onNone: () => null,
+        onSome: ({ structuredContent }) => ({
+          accessibility: structuredContent.accessibility,
+          screenRecording: structuredContent.screen_recording,
+        }),
+      }),
+    ),
     Effect.orElseSucceed(() => null),
   );
 
-  const status: Effect.Effect<ComputerUseStatus> = Effect.gen(function* () {
+  const statusUnlocked: Effect.Effect<ComputerUseStatus> = Effect.gen(function* () {
     if (platform !== "darwin") return { status: "unsupported", platform } as const;
-    if (!(yield* installed.pipe(Effect.orElseSucceed(() => false)))) {
-      return {
-        status: "not-installed",
-        installCommand: INSTALL_COMMAND,
-        docsUrl: DOCS_URL,
-      } as const;
-    }
-    const versionOutput = yield* run(["--version"]).pipe(Effect.option);
-    const version =
-      versionOutput._tag === "Some"
-        ? (/\d+\.\d+\.\d+\S*/.exec(versionOutput.value.stdout)?.[0] ?? "unknown")
-        : "unknown";
-    const daemon = yield* run(["status"]).pipe(Effect.option);
-    if (daemon._tag === "None" || daemon.value.code !== 0) {
-      return { status: "stopped", version } as const;
-    }
-    return { status: "running", version, permissions: yield* readPermissions } as const;
-  }).pipe(Effect.withSpan("CuaDriver.status"));
+    const found = yield* presence;
+    if (found === "missing") return { status: "not-installed" } as const;
+    if (found === "untrusted") return { status: "untrusted" } as const;
+    const [versionOutput, telemetryOutput, running] = yield* Effect.all(
+      [
+        run(["--version"]).pipe(Effect.option),
+        run(["telemetry", "status", "--json"]).pipe(Effect.option),
+        daemonRunning,
+      ],
+      { concurrency: "unbounded" },
+    );
+    const version = Option.match(versionOutput, {
+      onNone: () => "unknown",
+      onSome: ({ stdout }) => /\d+\.\d+\.\d+\S*/.exec(stdout)?.[0] ?? "unknown",
+    });
+    const telemetry = Option.match(
+      Option.flatMap(telemetryOutput, ({ stdout }) => decodeTelemetry(stdout)),
+      {
+        onNone: () => null,
+        onSome: ({ enabled }) => enabled,
+      },
+    );
+    if (!running) return { status: "stopped", version, telemetry } as const;
+    return {
+      status: "running",
+      version,
+      telemetry,
+      permissions: yield* permissionsUnlocked,
+    } as const;
+  });
 
-  const controlFailure = (action: ComputerUseAction) => (cause: unknown) =>
-    new ComputerUseControlError({ action, detail: describeCause(cause) });
+  const status = lock.withPermit(statusUnlocked).pipe(
+    Effect.tap(() => (connection ? touch : Effect.void)),
+    Effect.withSpan("CuaDriver.status"),
+  );
 
-  const control = Effect.fn("CuaDriver.control")(function* (action: ComputerUseAction) {
-    const current = yield* status;
-    if (current.status === "unsupported" || current.status === "not-installed") {
-      return yield* new ComputerUseControlError({
-        action,
-        detail:
-          current.status === "unsupported"
-            ? `Computer use is only available on macOS, not ${current.platform}.`
-            : "Cua Driver is not installed.",
-      });
+  const failWith =
+    (action: ComputerUseControlInput["action"]) =>
+    (detail: string): ComputerUseControlError =>
+      new ComputerUseControlError({ action, detail });
+
+  const install = Effect.gen(function* () {
+    const fail = failWith("install");
+    // Execute only a fully downloaded script, never a partial pipe.
+    const output = yield* runner
+      .run({
+        command: "/bin/bash",
+        args: ["-c", `script="$(curl -fsSL ${INSTALL_SCRIPT_URL})" && /bin/bash -c "$script"`],
+        env: { CUA_DRIVER_RS_NO_MODIFY_PATH: "1", CUA_DRIVER_RS_TELEMETRY_ENABLED: "false" },
+        timeout: WAIT_FOR_USER_TIMEOUT,
+      })
+      .pipe(Effect.mapError((cause) => fail(describeCause(cause))));
+    if (output.code !== 0) {
+      return yield* fail(lastLines(output) || `The Cua installer exited with ${output.code}.`);
     }
-    if (action === "start") {
-      yield* connected.pipe(Effect.mapError(controlFailure(action)));
-    } else if (action === "grant-permissions") {
-      // Cua launches its own app so macOS attributes the prompts to Cua Driver, then
-      // waits for the user; the status read afterwards reports what they allowed.
-      yield* run(["permissions", "grant"], GRANT_TIMEOUT).pipe(
-        Effect.mapError(controlFailure(action)),
+    signatureVerified = false;
+    const found = yield* presence;
+    if (found !== "trusted") {
+      return yield* fail(
+        found === "missing"
+          ? "The Cua installer finished without installing the app."
+          : untrustedDetail(appPath),
       );
+    }
+    // Clicking Install is not consent to Cua's own usage data; the user can turn it on in Settings.
+    yield* run(["telemetry", "disable"]).pipe(Effect.ignore);
+  });
+
+  const grantPermissions = Effect.gen(function* () {
+    const wasRunning = yield* daemonRunning;
+    // Cua launches its own app so macOS attributes the prompts to Cua Driver, then waits
+    // for the user; the status read afterwards reports what they allowed.
+    yield* run(["permissions", "grant"], WAIT_FOR_USER_TIMEOUT).pipe(
+      Effect.mapError((cause) => failWith("grant-permissions")(describeCause(cause))),
+    );
+    if (!wasRunning && (yield* daemonRunning)) {
+      yield* lock.withPermit(Effect.sync(() => (ownsDaemon = true)));
+      yield* touch;
+    }
+  });
+
+  const setTelemetry = (enabled: boolean) =>
+    run(["telemetry", enabled ? "enable" : "disable"]).pipe(
+      Effect.mapError((cause) => failWith("set-telemetry")(describeCause(cause))),
+      Effect.flatMap((output) =>
+        output.code === 0
+          ? Effect.void
+          : Effect.fail(
+              failWith("set-telemetry")(lastLines(output) || "Cua Driver refused the change."),
+            ),
+      ),
+    );
+
+  const control = Effect.fn("CuaDriver.control")(function* (input: ComputerUseControlInput) {
+    const fail = failWith(input.action);
+    if (platform !== "darwin") {
+      return yield* fail(`Computer use is only available on macOS, not ${platform}.`);
+    }
+    const found = yield* lock.withPermit(presence);
+    if (input.action === "install") {
+      if (found === "trusted") return yield* status;
+      yield* install;
+      return yield* status;
+    }
+    if (found !== "trusted") {
+      return yield* fail(
+        found === "missing" ? "Cua Driver is not installed." : untrustedDetail(appPath),
+      );
+    }
+    if (input.action === "start") {
+      yield* connected.pipe(Effect.mapError((error) => fail(error.detail)));
+    } else if (input.action === "grant-permissions") {
+      yield* grantPermissions;
     } else {
-      yield* disconnect;
-      const stopped = yield* run(["stop"]).pipe(Effect.mapError(controlFailure(action)));
-      if (stopped.code !== 0 && current.status === "running") {
-        return yield* new ComputerUseControlError({
-          action,
-          detail: stopped.stderr.trim() || `cua-driver stop exited with ${stopped.code}.`,
-        });
-      }
+      yield* setTelemetry(input.enabled);
     }
     return yield* status;
   });
@@ -258,10 +396,19 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
           ),
         ),
       ),
+      Effect.ensuring(touch),
       Effect.withSpan("CuaDriver.call", { attributes: { tool: name } }),
     );
 
-  yield* Effect.addFinalizer(() => disconnect);
+  // Turning agent computer use off quits the daemon at once rather than after the idle timeout.
+  yield* settings.streamChanges.pipe(
+    Stream.map((current) => current.enableAgentComputerUse),
+    Stream.changes,
+    Stream.filter((enabled) => !enabled),
+    Stream.runForEach(() => release),
+    Effect.forkIn(scope),
+  );
+  yield* Effect.addFinalizer(() => release);
 
   return CuaDriver.of({
     status,

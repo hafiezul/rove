@@ -513,8 +513,15 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/integrations",
     targetId: "computer-use",
     searchTerms: [
-      "computer use install accessibility screen recording permissions grant start stop",
+      "computer use install reinstall accessibility screen recording permissions grant",
     ],
+  },
+  {
+    id: "cua-telemetry",
+    title: "Share usage data with Cua",
+    to: "/settings/integrations",
+    targetId: "computer-use",
+    searchTerms: ["cua driver telemetry analytics privacy usage data"],
   },
   {
     id: "device-hub",
