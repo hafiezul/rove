@@ -450,6 +450,28 @@ it.effect.each([
   ).pipe(Effect.provide(TestLayer)),
 );
 
+it.effect.each([
+  { name: "preview_resize", input: { mode: null } },
+  { name: "preview_resize", input: { mode: "freeform", width: null, height: 800 } },
+  { name: "preview_press", input: { key: null } },
+  { name: "preview_type", input: { locator: "#name", text: null } },
+  { name: "preview_navigate", input: { target: { kind: "environment-port", port: null } } },
+  { name: "preview_click", input: { locator: null, selector: null, x: null, y: null } },
+  { name: "preview_click", input: { locator: "#submit", x: 12, y: null } },
+])("still rejects invalid arguments for $name", ({ name, input }) =>
+  Effect.gen(function* () {
+    const server = yield* McpServer.McpServer;
+    const failure = yield* server
+      .callTool({ name, arguments: input })
+      .pipe(
+        Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+        Effect.provideService(McpSchema.McpServerClient, client),
+        Effect.flip,
+      );
+    expect(failure._tag).toBe("InvalidParams");
+  }).pipe(Effect.provide(TestLayer)),
+);
+
 it.effect("saves the snapshot PNG on request and reports its path", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -531,6 +553,23 @@ it.effect(
       expect(denied.content).toEqual([
         { type: "text", text: "MCP credential does not grant the pull-requests capability." },
       ]);
+      for (const name of ["link_pull_request", "unlink_pull_request"]) {
+        const nullableTarget = yield* server
+          .callTool({
+            name,
+            arguments: {
+              url: "https://github.com/owner/repo/pull/123",
+              repository: null,
+              number: null,
+              host: null,
+            },
+          })
+          .pipe(
+            Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+            Effect.provideService(McpSchema.McpServerClient, client),
+          );
+        expect(nullableTarget.content).toEqual(denied.content);
+      }
     }).pipe(Effect.provide(PullRequestsTestLayer)),
 );
 

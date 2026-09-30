@@ -187,7 +187,7 @@ export type ListThreadPullRequestsResult = typeof ListThreadPullRequestsResult.T
 
 const LinkPullRequestTool = Tool.make("link_pull_request", {
   description: `${REGISTER_EVERY_PR} Links a pull request to this thread so Rove Code tracks it, shows its status beside the thread, and settles the thread when it merges. Pass the URL, or repository plus number. Linking an already-linked pull request succeeds with alreadyLinked=true.`,
-  parameters: PullRequestTargetInput,
+  parameters: Schema.toCodecJson(PullRequestTargetInput),
   success: LinkPullRequestResult,
   failure: PullRequestToolError,
   dependencies,
@@ -201,7 +201,7 @@ const LinkPullRequestTool = Tool.make("link_pull_request", {
 const UnlinkPullRequestTool = Tool.make("unlink_pull_request", {
   description:
     "Remove a pull request link from this thread, for example after closing a pull request you opened by mistake. Pass the URL, or repository plus number. Unlinking a pull request that is not linked succeeds with wasLinked=false.",
-  parameters: PullRequestTargetInput,
+  parameters: Schema.toCodecJson(PullRequestTargetInput),
   success: UnlinkPullRequestResult,
   failure: PullRequestToolError,
   dependencies,

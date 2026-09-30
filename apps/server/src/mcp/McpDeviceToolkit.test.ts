@@ -137,6 +137,39 @@ it.effect("registers the device tools and returns the screenshot as image conten
   ).pipe(Effect.provide(TestLayer)),
 );
 
+it.effect("accepts nullable optional arguments throughout the device lifecycle", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const server = yield* McpServer.McpServer;
+      const call = (name: string, args: Record<string, unknown>) =>
+        server
+          .callTool({ name, arguments: args })
+          .pipe(
+            Effect.provideService(
+              McpInvocationContext.McpInvocationContext,
+              invocation(["device"]),
+            ),
+            Effect.provideService(McpSchema.McpServerClient, client),
+          );
+      const listed = yield* call("device_list", { hostId: null });
+      expect(listed.isError).toBe(false);
+      expect(listed.structuredContent).toMatchObject({ devices: [device] });
+      const opened = yield* call("device_open", { deviceId: null, hostId: null, platform: "ios" });
+      expect(opened.isError).toBe(false);
+      expect(opened.structuredContent).toMatchObject({ device });
+      const screenshot = yield* call("device_screenshot", { deviceId: "UDID-1", hostId: null });
+      expect(screenshot.isError).toBe(false);
+      expect(screenshot.content.map((entry) => entry.type)).toEqual(["text", "image"]);
+      const closed = yield* call("device_close", {
+        deviceId: "UDID-1",
+        hostId: null,
+        shutdown: null,
+      });
+      expect(closed.isError).toBe(false);
+    }),
+  ).pipe(Effect.provide(TestLayer)),
+);
+
 it.effect("rejects unavailable agent access before booting or opening a device", () => {
   const unavailable = Layer.mock(DeviceService.DeviceService)({
     list: Effect.succeed(state),
