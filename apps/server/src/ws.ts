@@ -124,6 +124,7 @@ import * as ServerSettings from "./serverSettings.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { withTerminalOutputWindow } from "./terminal/OutputProtocol.ts";
 import * as PreviewAutomationBroker from "./mcp/PreviewAutomationBroker.ts";
+import * as CuaDriver from "./computerUse/CuaDriver.ts";
 import * as DeviceService from "./device/DeviceService.ts";
 import { remoteSshDeviceHosts } from "./device/localSshDeviceHost.ts";
 import * as PreviewManager from "./preview/Manager.ts";
@@ -668,6 +669,7 @@ const makeWsRpcLayer = (
       const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
       const usage = yield* UsageService.UsageService;
       const relayClient = yield* RelayClient.RelayClient;
+      const cuaDriver = yield* CuaDriver.CuaDriver;
       const authorizationError = (requiredScope: AuthEnvironmentScope) =>
         new EnvironmentAuthorizationError({
           message: `The authenticated token is missing required scope: ${requiredScope}.`,
@@ -2678,6 +2680,14 @@ const makeWsRpcLayer = (
           observeRpcEffect(WS_METHODS.serverGetBackgroundPolicy, backgroundPolicy.snapshot, {
             "rpc.aggregate": "server",
           }),
+        [WS_METHODS.computerUseStatus]: (_input) =>
+          observeRpcEffect(WS_METHODS.computerUseStatus, cuaDriver.status, {
+            "rpc.aggregate": "computer-use",
+          }),
+        [WS_METHODS.computerUseControl]: (input) =>
+          observeRpcEffect(WS_METHODS.computerUseControl, cuaDriver.control(input.action), {
+            "rpc.aggregate": "computer-use",
+          }),
         [WS_METHODS.cloudGetRelayClientStatus]: (_input) =>
           observeRpcEffect(WS_METHODS.cloudGetRelayClientStatus, relayClient.resolve, {
             "rpc.aggregate": "cloud",
@@ -3770,6 +3780,7 @@ export const websocketRpcRouteLayer = Layer.unwrap(
         ),
     });
     const pullRequests = yield* PullRequestService.PullRequestService;
+    const cuaDriver = yield* CuaDriver.CuaDriver;
     const sql = yield* SqlClient.SqlClient;
     return HttpRouter.add(
       "GET",
@@ -3818,6 +3829,7 @@ export const websocketRpcRouteLayer = Layer.unwrap(
               // One server-lifetime service means clients share the same PR caches, and a WS
               // mutation invalidates the HTTP diff cache that every client reads from.
               Layer.provide(Layer.succeed(PullRequestService.PullRequestService, pullRequests)),
+              Layer.provide(Layer.succeed(CuaDriver.CuaDriver, cuaDriver)),
               Layer.provide(
                 SourceControlDiscovery.layer.pipe(
                   Layer.provide(
