@@ -912,7 +912,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
             getEnvironmentId: Effect.succeed(environmentId),
             getDescriptor: Effect.die("unused descriptor"),
           }),
-          Layer.succeed(OrchestrationEngineService, {} as OrchestrationEngineShape),
+          Layer.succeed(OrchestrationEngineService, {} as OrchestrationEngineContract),
           Layer.succeed(ProjectionSnapshotQuery, {
             getThreadShellById: () => Effect.sync(() => Option.fromNullishOr(currentThread)),
             getProjectShellById: () => Effect.succeed(Option.some(project)),

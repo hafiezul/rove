@@ -339,7 +339,7 @@ function claudeHistoryMessage(input: {
 }
 
 const sendCompletedClaudeTurn = (
-  adapter: ClaudeAdapterShape,
+  adapter: ClaudeAdapterContract,
   harness: ReturnType<typeof makeHarness>,
   threadId: ThreadId,
   input: string,
