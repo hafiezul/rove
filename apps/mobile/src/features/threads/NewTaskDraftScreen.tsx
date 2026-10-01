@@ -27,12 +27,10 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useFontFamily } from "../../lib/useFontFamily";
-
 import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
   resolveEnvironmentMachineKind,
-  type EnvironmentId,
 } from "@t3tools/contracts";
 
 import {
@@ -51,6 +49,7 @@ import {
   ComposerToolbarRow,
 } from "../../components/ComposerToolbar";
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
+import { MaterialScreenContent } from "../../components/MaterialScreenContent";
 import { ComposerAttachmentButton } from "../../components/ComposerAttachmentButton";
 import { ComposerAttachmentStrip } from "../../components/ComposerAttachmentStrip";
 import { composerStripAttachments } from "../../lib/composerImages";
@@ -135,31 +134,41 @@ import { fileRoutePathSegments } from "../files/filePath";
 function NewTaskWorkspaceIcon(props: {
   readonly workspaceMode: "local" | "worktree";
   readonly worktreePath: string | null;
+  readonly size: number;
 }) {
   if (props.workspaceMode === "local" && props.worktreePath === null) {
     return (
       <SymbolView
         name="folder"
-        size={16}
-        tintColorClassName={"accent-icon-muted"}
+        size={props.size}
+        tintColorClassName="accent-icon-muted"
         type="monochrome"
       />
     );
   }
 
+  const boxSize = (14 * props.size) / 16;
   return (
-    <View className="size-4">
+    <View
+      className="size-4"
+      style={Platform.OS === "android" ? { width: boxSize, height: boxSize } : undefined}
+    >
       <SymbolView
         name="folder"
-        size={16}
-        tintColorClassName={"accent-icon-muted"}
+        size={props.size}
+        tintColorClassName="accent-icon-muted"
         type="monochrome"
       />
-      <View className="absolute -right-1 -bottom-1">
+      <View
+        className="absolute -right-1 -bottom-1"
+        style={
+          Platform.OS === "android" ? { right: -boxSize / 4, bottom: -boxSize / 4 } : undefined
+        }
+      >
         <SymbolView
           name="arrow.triangle.branch"
-          size={9}
-          tintColorClassName={"accent-icon-muted"}
+          size={Math.round((9 * props.size) / 16)}
+          tintColorClassName="accent-icon-muted"
           type="monochrome"
         />
       </View>
@@ -1323,7 +1332,11 @@ export function NewTaskDraftScreen(props: {
         {Platform.OS === "android" ? (
           <>
             <NativeStackScreenOptions options={{ headerShown: false }} />
-            <AndroidScreenHeader title="New Thread" onBack={() => navigation.goBack()} />
+            <AndroidScreenHeader
+              title="New thread"
+              hideBottomBorder
+              onBack={() => navigation.goBack()}
+            />
           </>
         ) : (
           <NativeStackScreenOptions options={{ title: "Loading task" }} />
@@ -1454,7 +1467,7 @@ export function NewTaskDraftScreen(props: {
           <Text className="text-2xl font-t3-medium tracking-tight text-foreground">in </Text>
           <Pressable
             accessibilityHint="Opens the project picker"
-            accessibilityLabel={`Change project from ${selectedProject.title}`}
+            accessibilityLabel={selectedProject.title}
             accessibilityRole="button"
             disabled={isComposerInteractionLocked}
             onPress={chooseProject}
@@ -1476,13 +1489,13 @@ export function NewTaskDraftScreen(props: {
         accessibilityLabel={`Environment: ${selectedEnvironmentLabel}`}
         chevronDirection="right"
         disabled={isComposerInteractionLocked || voiceInput.isBusy}
-        iconNode={
+        renderIcon={(size) => (
           <EnvironmentMachineSymbol
             kind={resolveEnvironmentMachineKind(selectedEnvironmentServerConfig)}
-            size={16}
+            size={size}
             tintColorClassName="accent-icon-muted"
           />
-        }
+        )}
         label={`on ${selectedEnvironmentLabel}`}
         maxWidth={260}
         onPress={
@@ -1517,12 +1530,13 @@ export function NewTaskDraftScreen(props: {
         accessibilityHint={`Switches to ${flow.workspaceMode === "local" ? "a new worktree" : "the current checkout"}`}
         accessibilityLabel={workspaceLabel}
         disabled={isComposerInteractionLocked || voiceInput.isBusy}
-        iconNode={
+        renderIcon={(size) => (
           <NewTaskWorkspaceIcon
             workspaceMode={flow.workspaceMode}
             worktreePath={flow.selectedWorktreePath}
+            size={size}
           />
-        }
+        )}
         label={workspaceLabel}
         maxWidth={flow.workspaceMode === "local" ? 220 : 148}
         onPress={() => flow.setWorkspaceMode(flow.workspaceMode === "local" ? "worktree" : "local")}
@@ -1542,7 +1556,12 @@ export function NewTaskDraftScreen(props: {
   );
 
   const composerDock = (
-    <View className="bg-sheet px-[12px] pt-1" style={{ paddingBottom: controlsBottomPadding }}>
+    <View
+      className={
+        Platform.OS === "android" ? "bg-sheet-solid px-[12px] pt-1" : "bg-sheet px-[12px] pt-1"
+      }
+      style={{ paddingBottom: controlsBottomPadding }}
+    >
       {!voiceInput.isBusy &&
       composerMenu.trigger &&
       (composerMenu.items.length > 0 || composerMenu.trigger.kind === "pull-request") ? (
@@ -1676,12 +1695,12 @@ export function NewTaskDraftScreen(props: {
                         accessibilityLabel="Model and reasoning settings"
                         disabled={isComposerInteractionLocked}
                         emphasized
-                        iconNode={
+                        renderIcon={(size) => (
                           <ProviderIcon
                             provider={flow.selectedModelOption?.providerDriver}
-                            size={16}
+                            size={size}
                           />
-                        }
+                        )}
                         label={flow.selectedModelOption?.label ?? "Choose model"}
                         maxWidth="100%"
                         onPress={settingsSheetPresentation.open}
@@ -1756,15 +1775,17 @@ export function NewTaskDraftScreen(props: {
     return (
       <View className="flex-1 bg-sheet" collapsable={false}>
         <NativeStackScreenOptions options={{ headerShown: false }} />
-        <AndroidScreenHeader title="New task" onBack={closeNewTask} />
-        {heroViewport}
+        <AndroidScreenHeader title="New thread" hideBottomBorder onBack={closeNewTask} />
+        <MaterialScreenContent>
+          {heroViewport}
 
-        <KeyboardStickyView
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
-          offset={{ closed: 0, opened: keyboardOpenedOffset }}
-        >
-          {composerDock}
-        </KeyboardStickyView>
+          <KeyboardStickyView
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
+            offset={{ closed: 0, opened: keyboardOpenedOffset }}
+          >
+            {composerDock}
+          </KeyboardStickyView>
+        </MaterialScreenContent>
       </View>
     );
   }

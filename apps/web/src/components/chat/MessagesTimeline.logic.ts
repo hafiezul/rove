@@ -1,3 +1,5 @@
+import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
+export { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import * as Equal from "effect/Equal";
 import { shallow } from "zustand/vanilla/shallow";
 import { renderCodexDirectivesForCopy } from "@t3tools/client-runtime/codex-markdown-directives";
@@ -40,7 +42,6 @@ import { formatWorkspaceRelativePath } from "../../filePathDisplay";
 const TIMELINE_MINIMAP_ITEM_SPACING = 8;
 export const TIMELINE_MINIMAP_MIN_ITEMS = 2;
 const TIMELINE_MINIMAP_MAX_HEIGHT_CSS = "calc(100vh - 18rem)";
-const TIMELINE_CONTENT_MAX_WIDTH = 768;
 const TIMELINE_MINIMAP_PERSISTENT_GUTTER = 48;
 
 function singleToolCallLabel(entry: WorkLogEntry): string {
@@ -231,14 +232,25 @@ export function resolveTimelineMinimapCurrentIndex(input: {
   return precedingIndex;
 }
 
-export function resolveTimelineMinimapHasPersistentGutter(viewportWidth: number): boolean {
-  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) {
-    return false;
+/**
+ * Side gutter between the viewport edge and the centered content column.
+ * `contentWidth` is the rendered column width, which follows the Chat width
+ * setting, so callers measure it rather than assume a fixed maximum.
+ */
+function resolveTimelineSideGutter(viewportWidth: number, contentWidth: number): number {
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0 || !Number.isFinite(contentWidth)) {
+    return 0;
   }
+  return Math.max(0, (viewportWidth - Math.min(viewportWidth, contentWidth)) / 2);
+}
 
-  const contentWidth = Math.min(viewportWidth, TIMELINE_CONTENT_MAX_WIDTH);
-  const sideGutter = Math.max(0, (viewportWidth - contentWidth) / 2);
-  return sideGutter >= TIMELINE_MINIMAP_PERSISTENT_GUTTER;
+export function resolveTimelineMinimapHasPersistentGutter(
+  viewportWidth: number,
+  contentWidth: number,
+): boolean {
+  return (
+    resolveTimelineSideGutter(viewportWidth, contentWidth) >= TIMELINE_MINIMAP_PERSISTENT_GUTTER
+  );
 }
 
 const TIMELINE_MINIMAP_HIT_STRIP_LEFT = 12;
@@ -247,18 +259,16 @@ const TIMELINE_MINIMAP_EXPANDED_HIT_STRIP_WIDTH = "22rem";
 
 /**
  * The minimap overlays the viewport's left edge while the content column is
- * centered, so the side gutter between them shrinks under browser zoom or a
- * narrow pane. A fixed-width hover strip would then sit on top of the message
+ * centered, so the side gutter between them shrinks under browser zoom, a
+ * narrow pane, or a wider Chat width setting. A fixed-width hover strip would then sit on top of the message
  * text and swallow its pointer events. Cap the strip's width so it never
  * extends past the gutter into the content column; 0 disables the strip.
  */
-export function resolveTimelineMinimapHitStripWidth(viewportWidth: number): number {
-  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) {
-    return 0;
-  }
-
-  const contentWidth = Math.min(viewportWidth, TIMELINE_CONTENT_MAX_WIDTH);
-  const sideGutter = Math.max(0, (viewportWidth - contentWidth) / 2);
+export function resolveTimelineMinimapHitStripWidth(
+  viewportWidth: number,
+  contentWidth: number,
+): number {
+  const sideGutter = resolveTimelineSideGutter(viewportWidth, contentWidth);
   return Math.max(
     0,
     Math.min(
@@ -266,6 +276,19 @@ export function resolveTimelineMinimapHitStripWidth(viewportWidth: number): numb
       Math.floor(sideGutter) - TIMELINE_MINIMAP_HIT_STRIP_LEFT,
     ),
   );
+}
+
+// The prev/next buttons are centered 4px into the strip and 20px wide, so
+// their hitbox reaches 14px past the strip's left edge.
+const TIMELINE_MINIMAP_NAVIGATION_REACH = 14;
+
+/**
+ * The prev/next buttons hang outside the strip's height, so the strip's own
+ * width cap does not cover them. Keep them inert to the pointer unless the
+ * gutter can hold them; keyboard focus still reaches them.
+ */
+export function resolveTimelineMinimapNavigationInteractive(collapsedWidth: number): boolean {
+  return collapsedWidth >= TIMELINE_MINIMAP_NAVIGATION_REACH;
 }
 
 /**
@@ -401,7 +424,11 @@ export type MessagesTimelineRow =
       id: string;
       createdAt: string | null;
       snapshot: WorktreeSetupSnapshot;
-      /** The agent already started; render only the script row under the turn header. */
+      /**
+       * The agent's turn is live and owns the "Working for" header, so the
+       * card drops its own header and settle-time actions. The stage list
+       * stays put so nothing jumps when the handoff happens.
+       */
       embedded: boolean;
     }
   | {
@@ -1273,67 +1300,63 @@ export function deriveMessagesTimelineRows(input: {
     });
   }
 
-  // Until the agent's turn is live, the setup card takes the place of the
-  // working and thinking placeholders. It stays after a failed or cancelled
-  // setup so the outcome and its actions remain visible until the thread
-  // state moves on. "Live" means the turn is in the timeline, not just that
-  // the server dispatched it: the card must not collapse in the gap between.
+  // Until the agent's turn is live, the setup card sits under the send with
+  // the working header above it (the header reads "Setting up worktree…" and
+  // later swaps its text in place, so nothing moves at the handoff). "Live"
+  // means the turn is in the timeline, not just that the server dispatched
+  // it: the card must not vanish in the gap between. Once the turn is live
+  // the stage list leaves the timeline; a script that is still running is
+  // surfaced by the working header itself. A failed or cancelled setup stays
+  // under the send so its outcome and actions remain reachable.
   const setupHandedOff =
     input.worktreeSetup !== null &&
     input.worktreeSetup !== undefined &&
     worktreeSetupAgentStarted(input.worktreeSetup) &&
     input.latestTurn?.startedAt != null;
-  if (input.worktreeSetup && !setupHandedOff) {
+  const setupRunning = !setupHandedOff && input.worktreeSetup?.phase === "running";
+  if (input.worktreeSetup && (!setupHandedOff || input.worktreeSetup.phase !== "running")) {
     const setupRow = {
       kind: "worktree-setup",
       id: WORKTREE_SETUP_ROW_ID,
       createdAt: input.worktreeSetup.startedAt,
       snapshot: input.worktreeSetup,
-      embedded: false,
+      embedded: setupHandedOff,
     } as const;
-    // Sit directly under the first user message: a finished snapshot can
-    // outlive the first assistant reply, and it belongs to the send, not the
-    // end of the thread.
     const firstUserRowIndex = nextRows.findIndex(
       (row) => row.kind === "message" && row.message.role === "user",
     );
-    if (firstUserRowIndex >= 0) {
-      nextRows.splice(firstUserRowIndex + 1, 0, setupRow);
-    } else {
-      nextRows.push(setupRow);
-    }
-    return attachTrailingToolGroupsToAssistant(nextRows);
-  }
-
-  if (input.isWorking && activeTurnHeaderIndex === input.timelineEntries.length) {
-    appendWorkingRow();
-  }
-  // An async setup script outlives the handoff. The turn owns the header, so
-  // the script's row sits first under it, ahead of the agent's own work. A
-  // script that already finished (or never ran) has nothing left to show.
-  const setupScriptStage = input.worktreeSetup?.stages.find((stage) => stage.id === "setup-script");
-  if (
-    input.worktreeSetup &&
-    setupHandedOff &&
-    (setupScriptStage?.status === "running" || setupScriptStage?.status === "failed")
-  ) {
-    const setupRow = {
-      kind: "worktree-setup",
-      id: WORKTREE_SETUP_ROW_ID,
-      createdAt: input.worktreeSetup.startedAt,
-      snapshot: input.worktreeSetup,
-      embedded: true,
-    } as const;
-    const workingRowIndex = nextRows.findIndex((row) => row.kind === "working");
+    // While the setup runs, the working header leads the card in the same
+    // slot it keeps once the agent's own turn takes over. The main pass may
+    // already have placed that header (a bootstrap counts as working).
+    const workingRowIndex = setupRunning ? nextRows.findIndex((row) => row.kind === "working") : -1;
     if (workingRowIndex >= 0) {
       nextRows.splice(workingRowIndex + 1, 0, setupRow);
     } else {
-      // The turn already finished (or has not been dispatched yet): the row
-      // trails the reply so a still-running script stays visible after it.
-      nextRows.push(setupRow);
+      const insertAt = firstUserRowIndex >= 0 ? firstUserRowIndex + 1 : nextRows.length;
+      nextRows.splice(
+        insertAt,
+        0,
+        ...(setupRunning
+          ? [
+              {
+                kind: "working",
+                id: "working-indicator-row",
+                createdAt: input.worktreeSetup.startedAt,
+              } as const,
+              setupRow,
+            ]
+          : [setupRow]),
+      );
     }
   }
-  if (input.isWorking && (!hasActivityRow || latestToolFailed)) {
+
+  // A running setup owns the working slot above its card and shows no
+  // activity row of its own; every other state gets the usual tail.
+  const hasWorkingRow = nextRows.some((row) => row.kind === "working");
+  if (input.isWorking && !hasWorkingRow && activeTurnHeaderIndex === input.timelineEntries.length) {
+    appendWorkingRow();
+  }
+  if (input.isWorking && !setupRunning && (!hasActivityRow || latestToolFailed)) {
     nextRows.push({
       kind: "thinking",
       id: LIVE_ACTIVITY_ROW_ID,
@@ -1354,11 +1377,6 @@ export function deriveMessagesTimelineRows(input: {
 }
 
 export const WORKTREE_SETUP_ROW_ID = "worktree-setup-row";
-
-/** True once the bootstrap handed off to the agent (async setup script may still run). */
-export function worktreeSetupAgentStarted(snapshot: WorktreeSetupSnapshot): boolean {
-  return snapshot.stages.some((stage) => stage.id === "agent" && stage.status === "done");
-}
 
 type MessagesTimelineRowsInput = Parameters<typeof deriveMessagesTimelineRows>[0];
 

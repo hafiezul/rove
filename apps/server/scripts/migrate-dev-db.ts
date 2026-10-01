@@ -508,19 +508,19 @@ const formatSize = (bytes: number): string =>
 export const migrateDevDbCommand = Command.make(
   "migrate-dev-db",
   {
-    projects: Flag.integer("projects").pipe(
+    projects: Flag.Int("projects").pipe(
       Flag.withDefault(5),
       Flag.withDescription("How many recently updated projects to keep."),
     ),
-    threadsPerProject: Flag.integer("threads-per-project").pipe(
+    threadsPerProject: Flag.Int("threads-per-project").pipe(
       Flag.withDefault(10),
       Flag.withDescription("How many recent stopped threads to keep per project."),
     ),
-    baseDir: Flag.string("base-dir").pipe(
+    baseDir: Flag.String("base-dir").pipe(
       Flag.optional,
       Flag.withDescription("Isolated .rove directory. Defaults to the current worktree's .rove."),
     ),
-    source: Flag.string("source").pipe(
+    source: Flag.String("source").pipe(
       Flag.optional,
       Flag.withDescription("Source database. Defaults to ~/.rove/userdata/state.sqlite."),
     ),

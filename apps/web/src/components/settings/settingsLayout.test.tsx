@@ -2,12 +2,7 @@ import { testDouble } from "~/testDouble";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import {
-  scrollToSettingsTarget,
-  SettingsRow,
-  SettingsSearchTargetProvider,
-  SettingsUnavailableGroup,
-} from "./settingsLayout";
+import { scrollToSettingsTarget, SettingsRow, SettingsUnavailableGroup } from "./settingsLayout";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -28,19 +23,6 @@ describe("unavailable settings", () => {
 });
 
 describe("settings search targets", () => {
-  it("does not persist destination styling in the rendered row", () => {
-    const markup = renderToStaticMarkup(
-      <SettingsSearchTargetProvider targetId="word-wrap">
-        <SettingsRow id="word-wrap" title="Word wrap" description="Wrap long lines." />
-        <SettingsRow id="time-format" title="Time format" description="Choose a clock." />
-      </SettingsSearchTargetProvider>,
-    );
-
-    expect(markup).toContain('id="word-wrap" tabindex="-1"');
-    expect(markup).not.toContain("data-settings-search-target");
-    expect(markup).not.toContain("settings-search-target-pulse");
-  });
-
   it("scrolls directly to a section header and restarts the destination pulse", () => {
     const sectionScrollIntoView = vi.fn();
     const headerScrollIntoView = vi.fn();

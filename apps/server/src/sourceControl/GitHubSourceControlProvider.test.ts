@@ -1,4 +1,6 @@
 import { assert, it } from "@effect/vitest";
+import * as SourceControlRateLimit from "./SourceControlRateLimit.ts";
+import * as GitHubGraphQlBudget from "./githubGraphQlBudget.ts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -29,6 +31,33 @@ function makeProvider(github: Partial<GitHubCli.GitHubCli["Service"]>) {
     Effect.provide(Layer.mock(GitHubCli.GitHubCli)(github)),
   );
 }
+
+it.effect("uses the enterprise quota for a current-repository default branch read", () =>
+  Effect.gen(function* () {
+    const provider = yield* GitHubSourceControlProvider.make.pipe(
+      Effect.provide(GitHubCli.layer),
+      Effect.provideService(VcsProcess.VcsProcess, {
+        run: (input) =>
+          Effect.sync(() => {
+            if (input.args[1] !== "rate_limit") return processResult("main");
+            assert.strictEqual(input.args[3], "enterprise.test");
+            return processResult(
+              '{"data":{"rateLimit":{"cost":1,"limit":5000,"remaining":5000,"resetAt":"2099-01-01T00:00:00Z"}}}',
+            );
+          }),
+      }),
+    );
+    const branch = yield* provider.getDefaultBranch({
+      cwd: "/enterprise-repo",
+      context: {
+        provider: { kind: "github", name: "GitHub Enterprise", baseUrl: "https://enterprise.test" },
+        remoteName: "origin",
+        remoteUrl: "https://enterprise.test/acme/web.git",
+      },
+    });
+    assert.strictEqual(branch, "main");
+  }),
+);
 
 it.effect("maps GitHub PR summaries into provider-neutral change requests", () =>
   Effect.gen(function* () {
@@ -185,6 +214,7 @@ it.effect("treats empty non-open change request listing output as no results", (
 it.effect("targets every GitHub PR operation at the bound repository", () =>
   Effect.gen(function* () {
     const calls: ReadonlyArray<string>[] = [];
+    const quotaHosts: Array<string | undefined> = [];
     const summary = {
       number: 42,
       title: "Selected repository PR",
@@ -196,6 +226,23 @@ it.effect("targets every GitHub PR operation at the bound repository", () =>
       Effect.provide(
         Layer.mock(VcsProcess.VcsProcess)({
           run: (input) => {
+            if (input.args[0] === "api") {
+              quotaHosts.push(input.args[input.args.indexOf("--hostname") + 1]);
+              return Effect.succeed(
+                processResult(
+                  JSON.stringify({
+                    data: {
+                      rateLimit: {
+                        cost: 1,
+                        limit: 5000,
+                        remaining: 5000,
+                        resetAt: "2099-01-01T00:00:00Z",
+                      },
+                    },
+                  }),
+                ),
+              );
+            }
             calls.push(input.args);
             const stdout =
               input.args[0] === "repo"
@@ -231,11 +278,12 @@ it.effect("targets every GitHub PR operation at the bound repository", () =>
     yield* provider.checkoutChangeRequest({ ...input, reference: "42" });
 
     assert.equal(calls.length, 6);
+    assert.deepStrictEqual([...new Set(quotaHosts)], ["github.example.test"]);
     for (const args of calls) {
       const repository = args[0] === "repo" ? args[2] : args[args.indexOf("--repo") + 1];
       assert.equal(repository, "github.example.test/fork/project", args.join(" "));
     }
-  }),
+  }).pipe(Effect.provide(Layer.merge(GitHubGraphQlBudget.layer, SourceControlRateLimit.layer))),
 );
 
 it.effect("creates GitHub PRs through provider-neutral input names", () =>

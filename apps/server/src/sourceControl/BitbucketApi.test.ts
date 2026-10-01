@@ -1,4 +1,3 @@
-import { testDouble } from "../testDouble.ts";
 import { assert, it, vi } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -17,6 +16,7 @@ import {
 
 import { GitCommandError } from "@t3tools/contracts";
 import * as BitbucketApi from "./BitbucketApi.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import type * as VcsDriver from "../vcs/VcsDriver.ts";
@@ -28,32 +28,32 @@ const bitbucketPullRequest = {
   updated_on: "2026-01-02T00:00:00.000Z",
   links: {
     html: {
-      href: "https://bitbucket.org/rovecode/rove/pull-requests/42",
+      href: "https://bitbucket.org/pingdotgg/t3code/pull-requests/42",
     },
   },
   source: {
     branch: { name: "feature/source-control" },
     repository: {
-      full_name: "octocat/rove",
+      full_name: "octocat/t3code",
       workspace: { slug: "octocat" },
     },
   },
   destination: {
     branch: { name: "main" },
     repository: {
-      full_name: "rovecode/rove",
+      full_name: "pingdotgg/t3code",
       workspace: { slug: "pingdotgg" },
     },
   },
 };
 
 const repositoryJson = {
-  full_name: "rovecode/rove",
+  full_name: "pingdotgg/t3code",
   links: {
-    html: { href: "https://bitbucket.org/rovecode/rove" },
+    html: { href: "https://bitbucket.org/pingdotgg/t3code" },
     clone: [
-      { name: "https", href: "https://bitbucket.org/rovecode/rove.git" },
-      { name: "ssh", href: "git@bitbucket.org:rovecode/rove.git" },
+      { name: "https", href: "https://bitbucket.org/pingdotgg/t3code.git" },
+      { name: "ssh", href: "git@bitbucket.org:pingdotgg/t3code.git" },
     ],
   },
   mainbranch: { name: "main" },
@@ -65,6 +65,7 @@ function makeLayer(input: {
     request: HttpClientRequest.HttpClientRequest,
   ) => HttpClientError.HttpClientError;
   readonly git?: Partial<GitVcsDriver.GitVcsDriver["Service"]>;
+  readonly env?: Record<string, string>;
 }) {
   const execute = vi.fn((request: HttpClientRequest.HttpClientRequest) =>
     input.requestFailure
@@ -73,7 +74,7 @@ function makeLayer(input: {
   );
   const gitMock = {
     readConfigValue: vi.fn<GitVcsDriver.GitVcsDriver["Service"]["readConfigValue"]>(() =>
-      Effect.succeed<string | null>("git@bitbucket.org:rovecode/rove.git"),
+      Effect.succeed<string | null>("git@bitbucket.org:pingdotgg/t3code.git"),
     ),
     resolvePrimaryRemoteName: vi.fn<
       GitVcsDriver.GitVcsDriver["Service"]["resolvePrimaryRemoteName"]
@@ -108,7 +109,7 @@ function makeLayer(input: {
         remotes: [
           {
             name: "origin",
-            url: "git@bitbucket.org:rovecode/rove.git",
+            url: "git@bitbucket.org:pingdotgg/t3code.git",
             pushUrl: Option.none(),
             isPrimary: true,
           },
@@ -121,47 +122,47 @@ function makeLayer(input: {
       }),
   } satisfies Partial<VcsDriver.VcsDriver["Service"]>;
 
-  const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-    layer = BitbucketApi.layer.pipe(
-      Layer.provide(
-        Layer.succeed(
-          HttpClient.HttpClient,
-          HttpClient.make((request) => execute(request)),
-        ),
+  const layer = BitbucketApi.layer.pipe(
+    Layer.provide(
+      Layer.succeed(
+        HttpClient.HttpClient,
+        HttpClient.make((request) => execute(request)),
       ),
-      Layer.provide(
-        Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
-          resolve: () =>
-            Effect.succeed({
+    ),
+    Layer.provide(
+      Layer.mock(VcsDriverRegistry.VcsDriverRegistry)({
+        resolve: () =>
+          Effect.succeed({
+            kind: "git",
+            repository: {
               kind: "git",
-              repository: {
-                kind: "git",
-                rootPath: "/repo",
-                metadataPath: null,
-                freshness: {
-                  source: "live-local" as const,
-                  observedAt: DateTime.makeUnsafe("1970-01-01T00:00:00.000Z"),
-                  expiresAt: Option.none(),
-                },
+              rootPath: "/repo",
+              metadataPath: null,
+              freshness: {
+                source: "live-local" as const,
+                observedAt: DateTime.makeUnsafe("1970-01-01T00:00:00.000Z"),
+                expiresAt: Option.none(),
               },
-              driver: testDouble<VcsDriver.VcsDriver["Service"]>(driver),
-            }),
+            },
+            driver: driver as unknown as VcsDriver.VcsDriver["Service"],
+          }),
+      }),
+    ),
+    Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)(git)),
+    Layer.provide(
+      ConfigProvider.layer(
+        ConfigProvider.fromEnv({
+          env: input.env ?? {
+            ROVE_BITBUCKET_API_BASE_URL: "https://api.test.local/2.0",
+            ROVE_BITBUCKET_EMAIL: "user@example.com",
+            ROVE_BITBUCKET_API_TOKEN: "token",
+          },
         }),
       ),
-      Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)(git)),
-      Layer.provide(
-        ConfigProvider.layer(
-          ConfigProvider.fromEnv({
-            env: {
-              ROVE_BITBUCKET_API_BASE_URL: "https://api.test.local/2.0",
-              ROVE_BITBUCKET_EMAIL: "user@example.com",
-              ROVE_BITBUCKET_API_TOKEN: "token",
-            },
-          }),
-        ),
-      ),
-      Layer.provideMerge(NodeServices.layer),
-    );
+    ),
+    Layer.provideMerge(ServerSettings.layerTest()),
+    Layer.provideMerge(NodeServices.layer),
+  );
 
   return { execute, git: gitMock, layer };
 }
@@ -184,18 +185,18 @@ it.effect("parses pull request responses from the Bitbucket REST API", () => {
     assert.deepStrictEqual(result, {
       number: 42,
       title: "Add Bitbucket provider",
-      url: "https://bitbucket.org/rovecode/rove/pull-requests/42",
+      url: "https://bitbucket.org/pingdotgg/t3code/pull-requests/42",
       baseRefName: "main",
       headRefName: "feature/source-control",
       state: "open",
       updatedAt: Option.some(DateTime.makeUnsafe("2026-01-02T00:00:00.000Z")),
       isCrossRepository: true,
-      headRepositoryNameWithOwner: "octocat/rove",
+      headRepositoryNameWithOwner: "octocat/t3code",
       headRepositoryOwnerLogin: "octocat",
     });
     assert.strictEqual(
       execute.mock.calls[0]?.[0].url,
-      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests/42",
+      "https://api.test.local/2.0/repositories/pingdotgg/t3code/pullrequests/42",
     );
   }).pipe(Effect.provide(layer));
 });
@@ -211,7 +212,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
             state: "MERGED",
             source: {
               branch: { name: "feature/merged" },
-              repository: { full_name: "rovecode/rove" },
+              repository: { full_name: "pingdotgg/t3code" },
             },
           },
         ],
@@ -231,7 +232,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests",
+      "https://api.test.local/2.0/repositories/pingdotgg/t3code/pullrequests",
     );
     assert.deepStrictEqual(request?.urlParams.params, [
       ["pagelen", "10"],
@@ -324,14 +325,14 @@ it.effect("reads repository clone URLs and default branch", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.getRepositoryCloneUrls({
       cwd: "/repo",
-      repository: "rovecode/rove",
+      repository: "pingdotgg/t3code",
     });
     const defaultBranch = yield* bitbucket.getDefaultBranch({ cwd: "/repo" });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "rovecode/rove",
-      url: "https://bitbucket.org/rovecode/rove.git",
-      sshUrl: "git@bitbucket.org:rovecode/rove.git",
+      nameWithOwner: "pingdotgg/t3code",
+      url: "https://bitbucket.org/pingdotgg/t3code.git",
+      sshUrl: "git@bitbucket.org:pingdotgg/t3code.git",
     });
     assert.strictEqual(defaultBranch, "main");
   }).pipe(Effect.provide(layer));
@@ -363,8 +364,8 @@ it.effect(
       assert.deepStrictEqual(
         execute.mock.calls.map((call) => call[0].url).toSorted(),
         [
-          "https://api.test.local/2.0/repositories/rovecode/rove",
-          "https://api.test.local/2.0/repositories/rovecode/rove/branching-model",
+          "https://api.test.local/2.0/repositories/pingdotgg/t3code",
+          "https://api.test.local/2.0/repositories/pingdotgg/t3code/branching-model",
         ].toSorted(),
       );
     }).pipe(Effect.provide(layer));
@@ -426,22 +427,21 @@ it.effect("creates repositories through the Bitbucket REST API", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.createRepository({
       cwd: "/repo",
-      repository: "rovecode/rove",
+      repository: "pingdotgg/t3code",
       visibility: "private",
     });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "rovecode/rove",
-      url: "https://bitbucket.org/rovecode/rove.git",
-      sshUrl: "git@bitbucket.org:rovecode/rove.git",
+      nameWithOwner: "pingdotgg/t3code",
+      url: "https://bitbucket.org/pingdotgg/t3code.git",
+      sshUrl: "git@bitbucket.org:pingdotgg/t3code.git",
     });
 
     const request = execute.mock.calls[0]?.[0];
-    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/rovecode/rove");
+    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/pingdotgg/t3code");
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
-    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-      rawBody = (request.body as { readonly body?: Uint8Array }).body;
+    const rawBody = (request.body as { readonly body?: Uint8Array }).body;
     assert.ok(rawBody);
     // @effect-diagnostics-next-line preferSchemaOverJson:off
     assert.deepStrictEqual(JSON.parse(new TextDecoder().decode(rawBody)), {
@@ -473,12 +473,11 @@ it.effect("creates pull requests using the official REST payload shape", () => {
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/rovecode/rove/pullrequests",
+      "https://api.test.local/2.0/repositories/pingdotgg/t3code/pullrequests",
     );
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
-    const // SAFETY: This fixture intentionally supplies the asserted collaborator contract.
-      rawBody = (request.body as { readonly body?: Uint8Array }).body;
+    const rawBody = (request.body as { readonly body?: Uint8Array }).body;
     assert.ok(rawBody);
     // @effect-diagnostics-next-line preferSchemaOverJson:off
     assert.deepStrictEqual(JSON.parse(new TextDecoder().decode(rawBody)), {
@@ -486,7 +485,7 @@ it.effect("creates pull requests using the official REST payload shape", () => {
       description: "PR body",
       source: {
         branch: { name: "feature/provider" },
-        repository: { full_name: "owner/rove" },
+        repository: { full_name: "owner/t3code" },
       },
       destination: {
         branch: { name: "main" },
@@ -509,6 +508,78 @@ it.effect("reports auth status through the Bitbucket REST /user endpoint", () =>
       account: Option.some("bitbucket-user"),
       host: Option.some("bitbucket.org"),
       detail: Option.none(),
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("prefers credentials saved in settings over the environment, without a restart", () => {
+  const { execute, layer } = makeLayer({
+    response: () => Response.json({ username: "bitbucket-user" }),
+  });
+  const lastAuthorization = () => execute.mock.calls.at(-1)?.[0].headers.authorization;
+  const basic = (user: string, password: string) => `Basic ${btoa(`${user}:${password}`)}`;
+
+  return Effect.gen(function* () {
+    const bitbucket = yield* BitbucketApi.BitbucketApi;
+    const settings = yield* ServerSettings.ServerSettingsService;
+
+    yield* bitbucket.probeAuth;
+    assert.strictEqual(lastAuthorization(), basic("user@example.com", "token"));
+
+    yield* settings.updateSettings({
+      bitbucket: { email: "saved@example.com", apiToken: "saved-api-token" },
+    });
+    yield* bitbucket.probeAuth;
+    assert.strictEqual(lastAuthorization(), basic("saved@example.com", "saved-api-token"));
+
+    yield* settings.updateSettings({ bitbucket: { accessToken: "saved-access-token" } });
+    yield* bitbucket.probeAuth;
+    assert.strictEqual(lastAuthorization(), "Bearer saved-access-token");
+
+    yield* settings.updateSettings({ bitbucket: { accessToken: "", apiToken: "" } });
+    yield* bitbucket.probeAuth;
+    assert.strictEqual(lastAuthorization(), basic("user@example.com", "token"));
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("never puts a saved token that is unsafe for an HTTP header on the wire", () => {
+  const { execute, layer } = makeLayer({
+    response: () => Response.json({ username: "bitbucket-user" }),
+  });
+
+  return Effect.gen(function* () {
+    const bitbucket = yield* BitbucketApi.BitbucketApi;
+    const settings = yield* ServerSettings.ServerSettingsService;
+
+    // Fetch would reject this header with an error quoting the token, and that error reaches
+    // clients. The unusable token is ignored, so the environment credential is used instead.
+    yield* settings.updateSettings({ bitbucket: { accessToken: "saved\ntoken" } });
+    yield* bitbucket.probeAuth;
+    assert.strictEqual(
+      execute.mock.calls.at(-1)?.[0].headers.authorization,
+      `Basic ${btoa("user@example.com:token")}`,
+    );
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("reports saved credentials as configured when Bitbucket cannot confirm them", () => {
+  const { layer } = makeLayer({
+    response: () => new Response(null, { status: 401 }),
+    env: { ROVE_BITBUCKET_API_BASE_URL: "https://api.test.local/2.0" },
+  });
+
+  return Effect.gen(function* () {
+    const bitbucket = yield* BitbucketApi.BitbucketApi;
+    const settings = yield* ServerSettings.ServerSettingsService;
+
+    assert.strictEqual((yield* bitbucket.probeAuth).status, "unauthenticated");
+
+    yield* settings.updateSettings({ bitbucket: { accessToken: "saved-access-token" } });
+    assert.deepStrictEqual(yield* bitbucket.probeAuth, {
+      status: "unknown",
+      account: Option.none(),
+      host: Option.some("bitbucket.org"),
+      detail: Option.some("An access token is configured."),
     });
   }).pipe(Effect.provide(layer));
 });
@@ -622,6 +693,30 @@ it.effect("preserves Bitbucket response body read failures as their immediate ca
   }).pipe(Effect.provide(layer));
 });
 
+it.effect("keeps the 429 retry time when the response body cannot be read", () => {
+  const { layer } = makeLayer({
+    response: () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start: (controller) => controller.error(new Error("response stream failed")),
+        }),
+        { status: 429, headers: { "Retry-After": "120" } },
+      ),
+  });
+
+  return Effect.gen(function* () {
+    yield* TestClock.setTime(1_000);
+    const bitbucket = yield* BitbucketApi.BitbucketApi;
+    const error = yield* bitbucket
+      .request({ method: "GET", url: "/repositories/acme/web" })
+      .pipe(Effect.flip);
+
+    assert.instanceOf(error, BitbucketApi.BitbucketResponseBodyReadError);
+    assert.strictEqual(error.status, 429);
+    assert.strictEqual(error.retryAt, 121_000);
+  }).pipe(Effect.provide(layer));
+});
+
 it.effect("checks out same-repository pull requests with the existing Bitbucket remote", () => {
   const { git, layer } = makeLayer({
     response: () =>
@@ -630,7 +725,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
         source: {
           branch: { name: "feature/source-control" },
           repository: {
-            full_name: "rovecode/rove",
+            full_name: "pingdotgg/t3code",
             workspace: { slug: "pingdotgg" },
           },
         },
@@ -648,7 +743,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
           baseUrl: "https://bitbucket.org",
         },
         remoteName: "origin",
-        remoteUrl: "git@bitbucket.org:rovecode/rove.git",
+        remoteUrl: "git@bitbucket.org:pingdotgg/t3code.git",
       },
       reference: "42",
       force: true,
@@ -688,7 +783,7 @@ it.effect("preserves Git checkout failures without deriving the domain message f
         source: {
           branch: { name: "feature/source-control" },
           repository: {
-            full_name: "rovecode/rove",
+            full_name: "pingdotgg/t3code",
             workspace: { slug: "pingdotgg" },
           },
         },
@@ -722,15 +817,15 @@ it.effect("preserves Git checkout failures without deriving the domain message f
 it.effect("checks out fork pull requests through an ensured fork remote", () => {
   const { git, layer } = makeLayer({
     response: (request) => {
-      if (request.url.endsWith("/repositories/octocat/rove")) {
+      if (request.url.endsWith("/repositories/octocat/t3code")) {
         return Response.json({
           ...repositoryJson,
-          full_name: "octocat/rove",
+          full_name: "octocat/t3code",
           links: {
-            html: { href: "https://bitbucket.org/octocat/rove" },
+            html: { href: "https://bitbucket.org/octocat/t3code" },
             clone: [
-              { name: "https", href: "https://bitbucket.org/octocat/rove.git" },
-              { name: "ssh", href: "git@bitbucket.org:octocat/rove.git" },
+              { name: "https", href: "https://bitbucket.org/octocat/t3code.git" },
+              { name: "ssh", href: "git@bitbucket.org:octocat/t3code.git" },
             ],
           },
         });
@@ -740,7 +835,7 @@ it.effect("checks out fork pull requests through an ensured fork remote", () => 
         source: {
           branch: { name: "main" },
           repository: {
-            full_name: "octocat/rove",
+            full_name: "octocat/t3code",
             workspace: { slug: "octocat" },
           },
         },
@@ -759,7 +854,7 @@ it.effect("checks out fork pull requests through an ensured fork remote", () => 
     assert.deepStrictEqual(git.ensureRemote.mock.calls[0]?.[0], {
       cwd: "/repo",
       preferredName: "octocat",
-      url: "git@bitbucket.org:octocat/rove.git",
+      url: "git@bitbucket.org:octocat/t3code.git",
     });
     assert.deepStrictEqual(git.fetchRemoteBranch.mock.calls[0]?.[0], {
       cwd: "/repo",

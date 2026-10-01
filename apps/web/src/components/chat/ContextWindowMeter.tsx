@@ -81,7 +81,7 @@ export function ContextWindowMeter(props: {
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            className="size-7 rounded-full hover:text-muted-foreground data-pressed:text-muted-foreground"
+            className="size-7"
             aria-label={
               isUnknownContextUsage
                 ? "Context window usage unavailable"
@@ -101,7 +101,7 @@ export function ContextWindowMeter(props: {
                   cy="12"
                   r={radius}
                   fill="none"
-                  stroke="color-mix(in oklab, var(--color-muted-foreground) 24%, transparent)"
+                  className="stroke-muted-foreground/24"
                   strokeWidth="3"
                 />
                 <circle
@@ -126,15 +126,15 @@ export function ContextWindowMeter(props: {
         tooltipStyle
         side="top"
         align="end"
-        viewportClassName="p-0"
+        padding="none"
         className="w-72 max-w-[calc(100vw-2rem)] text-left whitespace-normal"
       >
-        <div className="flex flex-col gap-3 p-[var(--floating-content-inset)]">
+        <div className="flex flex-col gap-3 p-(--floating-content-inset)">
           <div>
             <div className="flex items-baseline justify-between gap-3">
               <div className="font-medium text-secondary-label text-xs">Context window</div>
               {usageSummary ? (
-                <div className={`shrink-0 text-[11px] font-medium tabular-nums ${usageTone}`}>
+                <div className={`shrink-0 text-2xs font-medium tabular-nums ${usageTone}`}>
                   {usageSummary}
                 </div>
               ) : null}
@@ -170,7 +170,7 @@ export function ContextWindowMeter(props: {
             </div>
           ) : null}
           {showTotalProcessed ? (
-            <div className="flex items-center justify-between gap-3 text-[11px] leading-4">
+            <div className="flex items-center justify-between gap-3 text-2xs leading-4">
               <span className="text-secondary-label">{totalProcessedLabel}</span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {totalProcessedTokensLabel}
@@ -179,14 +179,14 @@ export function ContextWindowMeter(props: {
           ) : null}
           {tokenCounters.length > 0 ? (
             <div className="border-border/50 border-t pt-2.5">
-              <div className="flex items-baseline justify-between gap-2 text-secondary-label text-[11px]">
+              <div className="flex items-baseline justify-between gap-2 text-secondary-label text-2xs">
                 <span>Token activity</span>
                 {tokenScope ? <span>{tokenScope}</span> : null}
               </div>
               <dl className="mt-2 grid grid-cols-2 gap-x-5 gap-y-2.5">
                 {tokenCounters.map((counter) => (
                   <div key={counter.label} className="min-w-0">
-                    <dt className="text-secondary-label text-[11px] leading-4">{counter.label}</dt>
+                    <dt className="text-secondary-label text-2xs leading-4">{counter.label}</dt>
                     <dd className="font-medium text-foreground text-sm leading-5 tabular-nums">
                       {formatContextWindowTokens(counter.value)}
                     </dd>
@@ -196,13 +196,13 @@ export function ContextWindowMeter(props: {
             </div>
           ) : null}
           {isUnknownContextUsage ? (
-            <div className="text-pretty text-secondary-label text-[11px] leading-4">
+            <div className="text-pretty text-secondary-label text-2xs leading-4">
               {usage.contextUsageUnknownReason === "compacted"
                 ? "Context was compacted. A fresh estimate appears after the next response."
                 : "A fresh estimate appears after the next response."}
             </div>
           ) : usage.compactsAutomatically ? (
-            <div className="text-pretty text-secondary-label text-[11px] leading-4">
+            <div className="text-pretty text-secondary-label text-2xs leading-4">
               {formatContextWindowCompactionMessage(modelDisplayName, usage.autoCompactThreshold)}
             </div>
           ) : null}
@@ -219,7 +219,7 @@ export function ContextWindowMeter(props: {
                 Compact context
               </Button>
               {compactDisabled && compactDisabledReason ? (
-                <div className="text-pretty text-secondary-label text-[11px]">
+                <div className="text-pretty text-secondary-label text-2xs">
                   {compactDisabledReason}
                 </div>
               ) : null}

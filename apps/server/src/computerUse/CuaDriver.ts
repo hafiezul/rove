@@ -22,7 +22,7 @@ import * as ProcessRunner from "../processRunner.ts";
 import * as ServerSettings from "../serverSettings.ts";
 
 /** Cua's canonical installer places the app here; its MCP proxy launches the daemon from it. */
-export const CUA_DRIVER_APP = "/Applications/CuaDriver.app";
+const CUA_DRIVER_APP = "/Applications/CuaDriver.app";
 /** Cua's official installer. It downloads from Cua's GitHub Releases and verifies the app signature. */
 const INSTALL_SCRIPT_URL = "https://cua.ai/driver/install.sh";
 /** Cua AI, Inc.'s Developer ID team. Rove runs no binary at the Cua path without it. */

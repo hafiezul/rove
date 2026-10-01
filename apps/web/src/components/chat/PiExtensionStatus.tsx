@@ -44,11 +44,12 @@ export function PiExtensionStatus({
           side="top"
           align="end"
           sideOffset={6}
-          viewportClassName="p-0"
-          className="w-80 max-w-[calc(100vw-2rem)] text-left"
+          padding="none"
+          width="md"
+          className="max-w-[calc(100vw-2rem)] text-left"
         >
           <div className="p-3">
-            <PopoverTitle className="font-medium text-sm">Pi extension status</PopoverTitle>
+            <PopoverTitle>Pi extension status</PopoverTitle>
             <dl className="mt-2 max-h-80 space-y-0 overflow-y-auto">
               {statuses.map(({ key, text }) => (
                 <div

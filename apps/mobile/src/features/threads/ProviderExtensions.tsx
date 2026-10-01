@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
-import type { useProviderResources } from "../../lib/useProviderResources";
+import type { useProviderResources } from "../../state/use-provider-resources";
 
 const SCOPE_LABEL = {
   user: "User",

@@ -774,46 +774,45 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
       );
     });
 
-    const runTurnLivenessWatchdog = Effect.fn("GrokAdapter.runTurnLivenessWatchdog")(
-      function* (ctx: GrokSessionContext) {
-        while (true) {
-          if (ctx.stopped) {
-            return;
-          }
-          const turnId = ctx.livenessTurnId;
-          if (
-            turnId === undefined ||
-            ctx.interruptedTurnIds.has(turnId) ||
-            !isLiveTurn(ctx, turnId) ||
-            hasLivenessPause(ctx)
-          ) {
-            yield* Queue.take(ctx.livenessSignals);
-            continue;
-          }
-
-          const lastActivityAtNanos = ctx.lastTurnActivityAtNanos;
-          if (lastActivityAtNanos === undefined) {
-            yield* Queue.take(ctx.livenessSignals);
-            continue;
-          }
-          const nowNanos = yield* Clock.monotonicTimeNanos;
-          const remainingNanos = livenessTimeoutFor(ctx).nanos - (nowNanos - lastActivityAtNanos);
-          if (remainingNanos <= 0n) {
-            yield* settleStalledTurn(ctx, turnId);
-            continue;
-          }
-
-          const wakeReason = yield* Effect.raceFirst(
-            Effect.sleep(Duration.nanos(remainingNanos)).pipe(Effect.as("timeout" as const)),
-            Queue.take(ctx.livenessSignals).pipe(Effect.as("activity" as const)),
-          );
-          if (wakeReason === "timeout") {
-            yield* settleStalledTurn(ctx, turnId);
-          }
+    const runTurnLivenessWatchdog = Effect.fn("GrokAdapter.runTurnLivenessWatchdog")(function* (
+      ctx: GrokSessionContext,
+    ) {
+      while (true) {
+        if (ctx.stopped) {
+          return;
         }
-      },
-      Effect.catch(() => Effect.void),
-    );
+        const turnId = ctx.livenessTurnId;
+        if (
+          turnId === undefined ||
+          ctx.interruptedTurnIds.has(turnId) ||
+          !isLiveTurn(ctx, turnId) ||
+          hasLivenessPause(ctx)
+        ) {
+          yield* Queue.take(ctx.livenessSignals);
+          continue;
+        }
+
+        const lastActivityAtNanos = ctx.lastTurnActivityAtNanos;
+        if (lastActivityAtNanos === undefined) {
+          yield* Queue.take(ctx.livenessSignals);
+          continue;
+        }
+        const nowNanos = yield* Clock.monotonicTimeNanos;
+        const remainingNanos = livenessTimeoutFor(ctx).nanos - (nowNanos - lastActivityAtNanos);
+        if (remainingNanos <= 0n) {
+          yield* settleStalledTurn(ctx, turnId);
+          continue;
+        }
+
+        const wakeReason = yield* Effect.raceFirst(
+          Effect.sleep(Duration.nanos(remainingNanos)).pipe(Effect.as("timeout" as const)),
+          Queue.take(ctx.livenessSignals).pipe(Effect.as("activity" as const)),
+        );
+        if (wakeReason === "timeout") {
+          yield* settleStalledTurn(ctx, turnId);
+        }
+      }
+    }, Effect.ignore());
 
     const logNative = (threadId: ThreadId, method: string, payload: unknown) =>
       Effect.gen(function* () {
@@ -1505,6 +1504,13 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
 
     const sendTurn: GrokAdapterContract["sendTurn"] = (input) =>
       Effect.gen(function* () {
+        if (/^\/always-approve(?:\s|$)/i.test(input.input?.trim() ?? "")) {
+          return yield* new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: "session/prompt",
+            detail: "Change permissions with T3's permission selector instead of /always-approve.",
+          });
+        }
         const prepared = yield* withThreadLock(
           input.threadId,
           Effect.gen(function* () {
@@ -1616,11 +1622,15 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
               const displayModel = currentModelId
                 ? resolveGrokAcpBaseModelId(currentModelId)
                 : undefined;
-              const runtimeInstructions = buildRuntimeInstructions({
-                harness: "Grok",
-                model: displayModel,
-                reasoningEffort: normalizeGrokReasoningEffort(requestedTurnReasoningEffort),
-              });
+              // ACP slash commands must receive only their own arguments.
+              const runtimeInstructions =
+                text && /^\/[^\s/]+(?:\s|$)/.test(text)
+                  ? undefined
+                  : buildRuntimeInstructions({
+                      harness: "Grok",
+                      model: displayModel,
+                      reasoningEffort: normalizeGrokReasoningEffort(requestedTurnReasoningEffort),
+                    });
               for (let yieldAttempt = 0; yieldAttempt < 8; yieldAttempt += 1) {
                 yield* Effect.yieldNow;
               }
@@ -1737,7 +1747,9 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
                   {
                     prompt: [
                       ...prepared.promptParts,
-                      { type: "text", text: prepared.runtimeInstructions },
+                      ...(prepared.runtimeInstructions
+                        ? [{ type: "text" as const, text: prepared.runtimeInstructions }]
+                        : []),
                     ],
                   },
                   { dispatched },
@@ -1979,7 +1991,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
                   errorMessage: errorMessage ?? "Grok prompt request failed.",
                 }),
               );
-            }).pipe(Effect.catch(() => Effect.void)),
+            }).pipe(Effect.ignore),
           ),
         );
       });

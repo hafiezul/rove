@@ -280,7 +280,7 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
           Extensions
         </DialogTrigger>
         <DialogPopup className="overflow-y-auto">
-          <DialogHeader className="pb-4">
+          <DialogHeader>
             <DialogTitle>Pi provider catalog</DialogTitle>
             <DialogDescription>
               Global Pi extensions found on the server. Project extensions load in their threads.
