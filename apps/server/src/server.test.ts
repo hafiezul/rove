@@ -3700,7 +3700,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       };
       const requests = [
         [
-          "/api/t3-connect/health",
+          "/api/rove-connect/health",
           makeCloudEnvironmentHealthRequest({
             privateKey: cloudKeyPair.privateKey,
             environmentId: testEnvironmentDescriptor.environmentId,
@@ -3709,7 +3709,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           }),
         ],
         [
-          "/api/t3-connect/mint-credential",
+          "/api/rove-connect/mint-credential",
           makeCloudMintCredentialRequest({
             privateKey: cloudKeyPair.privateKey,
             environmentId: testEnvironmentDescriptor.environmentId,
