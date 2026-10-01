@@ -143,7 +143,7 @@ import {
   supportsServerUpdateThreadContinuation,
 } from "~/versionSkew";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
-import { RemoveT3ConnectEnvironmentDialog } from "../clerk/RemoveT3ConnectEnvironmentDialog";
+import { RemoveRoveConnectEnvironmentDialog } from "../clerk/RemoveRoveConnectEnvironmentDialog";
 import { useCloudLinkController } from "~/cloud/useCloudLinkController";
 import { authEnvironment } from "~/state/auth";
 import { environmentCatalog } from "~/connection/catalog";
@@ -2542,12 +2542,12 @@ export function ConnectionsSettings() {
   // device. Switching off is the reversible path, so removal always confirms.
   // Rove Connect environments get their own dialog: removing one here leaves its
   // account registration, so it points to where that can be deregistered.
-  const [pendingT3ConnectRemoval, setPendingT3ConnectRemoval] =
+  const [pendingRoveConnectRemoval, setPendingRoveConnectRemoval] =
     useState<EnvironmentPresentation | null>(null);
   const handleRemoveSavedBackend = useCallback(
     async (environment: EnvironmentPresentation) => {
       if (environment.relayManaged && hasCloudPublicConfig()) {
-        setPendingT3ConnectRemoval(environment);
+        setPendingRoveConnectRemoval(environment);
         return;
       }
       // Fail closed: no mounted confirm host means no removal.
@@ -3776,13 +3776,13 @@ export function ConnectionsSettings() {
         />
       </SettingsSection>
       {hasCloudPublicConfig() ? (
-        <RemoveT3ConnectEnvironmentDialog
-          environmentLabel={pendingT3ConnectRemoval?.label ?? null}
-          onCancel={() => setPendingT3ConnectRemoval(null)}
+        <RemoveRoveConnectEnvironmentDialog
+          environmentLabel={pendingRoveConnectRemoval?.label ?? null}
+          onCancel={() => setPendingRoveConnectRemoval(null)}
           onConfirm={() => {
-            if (!pendingT3ConnectRemoval) return;
-            setPendingT3ConnectRemoval(null);
-            void removeSavedBackend(pendingT3ConnectRemoval);
+            if (!pendingRoveConnectRemoval) return;
+            setPendingRoveConnectRemoval(null);
+            void removeSavedBackend(pendingRoveConnectRemoval);
           }}
         />
       ) : null}

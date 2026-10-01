@@ -3,8 +3,8 @@ import { LogInIcon } from "lucide-react";
 
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
-import { T3_CONNECT_ACCOUNT_PAGES } from "./T3ConnectAccountPages";
-import { useT3ConnectAuthPrompt } from "./useT3ConnectAuthPrompt";
+import { ROVE_CONNECT_ACCOUNT_PAGES } from "./RoveConnectAccountPages";
+import { useRoveConnectAuthPrompt } from "./useRoveConnectAuthPrompt";
 
 export function RoveConnectSidebarSignIn() {
   if (!hasCloudPublicConfig()) return null;
@@ -32,7 +32,7 @@ function ConfiguredRoveConnectSidebarAvatar() {
         },
       }}
     >
-      {T3_CONNECT_ACCOUNT_PAGES.map((page) => (
+      {ROVE_CONNECT_ACCOUNT_PAGES.map((page) => (
         <UserButton.UserProfilePage
           key={page.url}
           label={page.label}
