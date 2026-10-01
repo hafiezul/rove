@@ -18,7 +18,7 @@ import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import { OtlpHeadersFromString, OtlpProtocol, type SignalExport } from "./observability.ts";
 
-/** The signals T3 Code exports, spelled as the variable names spell them. */
+/** The signals Rove Code exports, spelled as the variable names spell them. */
 type OtlpSignalName = "TRACES" | "METRICS" | "LOGS";
 
 /**
@@ -188,7 +188,7 @@ const isExporter = (entry: string): entry is Exporter => EXPORTERS.has(entry);
 
 /**
  * `OTEL_<SIGNAL>_EXPORTER`, a case-insensitive list whose default is `otlp`.
- * Entries T3 Code has no exporter for are named in a warning and dropped, and
+ * Entries Rove Code has no exporter for are named in a warning and dropped, and
  * a list left with nothing to honor reads as unset, as the specification asks
  * of any enum value an implementation does not recognize.
  */
@@ -207,7 +207,7 @@ const exporter = (name: string): Config.Config<Setting<Exporter>> =>
         ? { value }
         : {
             value,
-            warning: `${name} names ${ignored.join(", ")}, which T3 Code does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
+            warning: `${name} names ${ignored.join(", ")}, which Rove Code does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
           };
     }),
   );
@@ -364,10 +364,10 @@ export interface SignalEndpoint {
 }
 
 /**
- * Where one signal exports and how. `T3CODE_OTLP_*_URL` wins outright with
- * T3 Code's own export, then an OTEL endpoint with its own headers and
- * protocol, since `T3CODE_OTLP_HEADERS` was written for a different
- * collector, then the first of `fallbackUrls` with T3 Code's own export.
+ * Where one signal exports and how. `ROVE_OTLP_*_URL` wins outright with
+ * Rove Code's own export, then an OTEL endpoint with its own headers and
+ * protocol, since `ROVE_OTLP_HEADERS` was written for a different
+ * collector, then the first of `fallbackUrls` with Rove Code's own export.
  */
 export const resolveSignalEndpoint = (
   otel: OtelEnvironment,

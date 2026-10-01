@@ -492,7 +492,7 @@ const makeBrowserOtlpPayload = (spanName: string) =>
         url: collector.url,
         exportInterval: "10 millis",
         resource: {
-          serviceName: "t3code-web",
+          serviceName: "rove-web",
           attributes: {
             "service.runtime": "t3-web",
             "service.mode": "browser",
@@ -5456,7 +5456,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               attributes: [
                 {
                   key: "service.name",
-                  value: { stringValue: "t3code-web" },
+                  value: { stringValue: "rove-web" },
                 },
               ],
             },
@@ -5598,7 +5598,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             "rpc.method": "server.getSettings",
           },
           resourceAttributes: {
-            "service.name": "t3code-web",
+            "service.name": "rove-web",
           },
           scope: {
             name: "effect",
@@ -5729,7 +5729,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       // the stub's utf8 decode even though the surrounding bytes don't.
       assert.notEqual(forwarded.body[0], "{");
       assert.include(forwarded.body, "client.protobuf.test");
-      assert.include(forwarded.body, "t3code-web");
+      assert.include(forwarded.body, "rove-web");
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -5830,7 +5830,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         assert.deepEqual(record.links, []);
         assert.equal(record.scope.name, scopeSpan.scope.name);
         assert.deepEqual(record.scope.attributes, {});
-        assert.equal(record.resourceAttributes["service.name"], "t3code-web");
+        assert.equal(record.resourceAttributes["service.name"], "rove-web");
         assert.equal(record.status?.code, String(span.status.code));
       }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );

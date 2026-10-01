@@ -26,7 +26,7 @@ export function resolveTracingConfig(): TracingConfig | null {
 
 export function makeTracingLayer(config: TracingConfig | null, resource: TracingResource) {
   return makeRelayClientTracingLayer(config, {
-    serviceName: "t3code-mobile",
+    serviceName: "rove-mobile",
     serviceVersion: resource.serviceVersion,
     runtime: "react-native",
     client: `mobile-${resource.appVariant}`,

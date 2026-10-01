@@ -1080,7 +1080,7 @@ describe.sequential("startup catch-up", () => {
       yield* TestClock.adjust("10 minutes");
       expect(counts.catchUpPublishes).toBe(0);
 
-      // `t3 connect publish` writes the opt-in without waking this process.
+      // `rove connect publish` writes the opt-in without waking this process.
       yield* enablePublishing;
       yield* TestClock.adjust("5 seconds");
       expect(counts.catchUpPublishes).toBe(1);

@@ -60,10 +60,10 @@ describe.skipIf(HostProcessPlatform.defaultValue() !== "linux")("installer termi
           ...process.env,
           TERM: "xterm",
           NO_COLOR: "1",
-          T3CODE_VERSION: version,
-          T3CODE_HOME: NodePath.join(root, "home"),
-          T3CODE_INSTALL_BIN_DIR: NodePath.join(root, "bin"),
-          T3CODE_RELEASE_BASE_URL: `http://127.0.0.1:${address.port}`,
+          ROVE_VERSION: version,
+          ROVE_HOME: NodePath.join(root, "home"),
+          ROVE_INSTALL_BIN_DIR: NodePath.join(root, "bin"),
+          ROVE_RELEASE_BASE_URL: `http://127.0.0.1:${address.port}`,
         },
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -86,14 +86,14 @@ describe.skipIf(HostProcessPlatform.defaultValue() !== "linux")("installer termi
           expect(code).not.toBe(0);
           expect(output).toContain("500");
           expect(output).not.toContain("100%");
-          expect(output).not.toContain("Installed T3 Code");
+          expect(output).not.toContain("Installed Rove Code");
           expect(await NodeFSP.readdir(versions)).toEqual([]);
         } else {
           expect(code).toBe(0);
           expect(sawPartialProgress).toBe(true);
           expect(output).toContain("100%");
           expect(output).toContain("0.1 / 0.1 MB");
-          expect(output).toContain("Installed T3 Code 1.2.3");
+          expect(output).toContain("Installed Rove Code 1.2.3");
           expect(
             await NodeFSP.readFile(NodePath.join(versions, version, ".install-complete"), "utf8"),
           ).toBe("1.2.3\n");

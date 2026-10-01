@@ -195,7 +195,7 @@ describe("OtelEnvironment", () => {
       {
         name: "the kill switch wins outright over a valid endpoint",
         env: {
-          T3CODE_OTEL_SDK_DISABLED: "true",
+          ROVE_OTEL_SDK_DISABLED: "true",
           OTEL_EXPORTER_OTLP_ENDPOINT: "https://collector:4318/base",
         },
         traces: "Unset",
@@ -243,7 +243,7 @@ describe("OtelEnvironment", () => {
         warnings: [],
       },
       {
-        name: "an exporter T3 Code does not have is ignored with a warning",
+        name: "an exporter Rove Code does not have is ignored with a warning",
         env: {
           OTEL_EXPORTER_OTLP_ENDPOINT: "https://collector:4318",
           OTEL_METRICS_EXPORTER: "prometheus",
@@ -252,7 +252,7 @@ describe("OtelEnvironment", () => {
         metrics: "https://collector:4318/v1/metrics",
         logs: "https://collector:4318/v1/logs",
         warnings: [
-          "OTEL_METRICS_EXPORTER names prometheus, which T3 Code does not export to, so it was ignored",
+          "OTEL_METRICS_EXPORTER names prometheus, which Rove Code does not export to, so it was ignored",
         ],
       },
       {
@@ -266,8 +266,8 @@ describe("OtelEnvironment", () => {
         metrics: "https://collector:4318/v1/metrics",
         logs: "https://collector:4318/v1/logs",
         warnings: [
-          "OTEL_TRACES_EXPORTER names console, which T3 Code does not export to, so it was ignored",
-          "OTEL_LOGS_EXPORTER names console, otlpp, which T3 Code does not export to, so they were ignored",
+          "OTEL_TRACES_EXPORTER names console, which Rove Code does not export to, so it was ignored",
+          "OTEL_LOGS_EXPORTER names console, otlpp, which Rove Code does not export to, so they were ignored",
         ],
       },
     ])("$name", ({ env, traces, metrics, logs, warnings }) =>
@@ -406,13 +406,13 @@ describe("OtelEnvironment", () => {
     });
     it.each([
       {
-        name: "T3CODE_OTLP_*_URL wins over an OTEL endpoint",
+        name: "ROVE_OTLP_*_URL wins over an OTEL endpoint",
         otel: withLogs(otelExport),
         t3Url: "http://t3:4318/v1/logs",
         expected: { url: "http://t3:4318/v1/logs", export: t3Export },
       },
       {
-        name: "T3CODE_OTLP_*_URL wins over a signal the OTEL variables turned off",
+        name: "ROVE_OTLP_*_URL wins over a signal the OTEL variables turned off",
         otel: withLogs(OtelEnvironment.OtelSignal.Off()),
         t3Url: "http://t3:4318/v1/logs",
         expected: { url: "http://t3:4318/v1/logs", export: t3Export },

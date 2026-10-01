@@ -43,7 +43,7 @@ const BOOT_SERVICE_UNIT_FILE = `${BOOT_SERVICE_NAME}.service`;
 const BOOT_SERVICE_LAUNCHD_LABEL = "io.github.hafiezul.rove.service";
 const BOOT_SERVICE_PLIST_FILE = `${BOOT_SERVICE_LAUNCHD_LABEL}.plist`;
 const BOOT_SERVICE_UNIT_ENV = "T3_BOOT_SERVICE_UNIT";
-/** File in the logs dir that receives the service's stdout and stderr. `t3 triage` points agents at it. */
+/** File in the logs dir that receives the service's stdout and stderr. `rove triage` points agents at it. */
 export const BOOT_SERVICE_LOG_FILE = "boot-service.log";
 
 /** systemd expands `%` specifiers, including in unquoted append-log paths. */

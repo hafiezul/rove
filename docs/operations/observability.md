@@ -64,7 +64,7 @@ request.
 
 #### Summarize the trace file
 
-`t3 trace summary` reads the trace file and its rotated backups directly, so it works while the
+`rove trace summary` reads the trace file and its rotated backups directly, so it works while the
 server is stalled or stopped. It prints counts, rates, and latency percentiles per span name. Use
 it to measure background work or to compare two builds.
 
@@ -92,7 +92,7 @@ If OTLP is not configured, metrics still exist in-process, but you will not have
 `apps/server/src/observability/EventLoopMonitor.ts` samples the server's event loop every 30 s. When
 the loop stalled for more than 2 s since the previous sample, it records a root
 `server.eventLoop.stall` span with a warning. The span has trace level `Warn`, so it stays when
-`T3CODE_TRACE_MIN_LEVEL` is `Warn`. The warning shows in Settings > Diagnostics unless OTLP logs are
+`ROVE_TRACE_MIN_LEVEL` is `Warn`. The warning shows in Settings > Diagnostics unless OTLP logs are
 on. The span time is when the sample ran, not when the stall happened.
 
 Some delay is not recorded:
@@ -632,7 +632,7 @@ OpenTelemetry specification and only `true` disables export, so `OTEL_SDK_DISABL
 Values are case-insensitive and trimmed. An unrecognized value is ignored with a startup warning.
 
 `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER`, or `OTEL_LOGS_EXPORTER` set to `none` turns off
-just that signal, overriding an OTEL endpoint and the Settings endpoint. A `T3CODE_OTLP_*_URL` still
+just that signal, overriding an OTEL endpoint and the Settings endpoint. A `ROVE_OTLP_*_URL` still
 wins for its signal. `otlp` is the default, and any other exporter name, such as `console` or
 `prometheus`, is ignored with a startup warning.
 
@@ -670,11 +670,11 @@ handler exits on `SIGUSR2`. After a crash the file can keep a stale pid that now
 different process, so check the pid first.
 
 ```bash
-pid="$(jq .pid "${T3CODE_HOME:-$HOME/.t3}/userdata/server-runtime.json")"
+pid="$(jq .pid "${ROVE_HOME:-$HOME/.t3}/userdata/server-runtime.json")"
 ps -p "$pid" -o command=
 ```
 
-If `ps` shows the T3 Code server, send the signal:
+If `ps` shows the Rove Code server, send the signal:
 
 ```bash
 kill -USR2 "$pid"

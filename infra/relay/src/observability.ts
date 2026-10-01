@@ -247,9 +247,9 @@ export const makeRelayTraceLayer = (input: {
     OtlpTracer.make({
       url: input.tracesEndpoint,
       resource: {
-        serviceName: "t3code-relay",
+        serviceName: "rove-relay",
         attributes: {
-          "service.namespace": "t3code",
+          "service.namespace": "rove",
           "service.runtime": "cloudflare-worker",
           "service.component": "relay",
         },
