@@ -128,7 +128,8 @@ const runRecentThreads = (input: ScannerTestInput & { readonly workspaceRoot: st
 
 const makeTempDir = Effect.fn("AgentSessionScanner.test.makeTempDir")(function* (prefix: string) {
   const fileSystem = yield* FileSystem.FileSystem;
-  return yield* fileSystem.makeTempDirectoryScoped({ prefix });
+  // Resolved, so macOS's /var -> /private/var link matches the realpaths the scanner compares.
+  return yield* fileSystem.realPath(yield* fileSystem.makeTempDirectoryScoped({ prefix }));
 });
 
 const writeTranscript = Effect.fn("AgentSessionScanner.test.writeTranscript")(function* (input: {

@@ -712,6 +712,8 @@ const buildAppUnderTest = (options?: {
       ...options?.layers?.gitVcsDriver,
     });
     const gitManagerLayer = Layer.mock(GitManager.GitManager)({
+      // Routes wrap every git call in the project's account; tests have none selected.
+      withProjectGitHubAccount: (_cwd, effect) => effect,
       ...options?.layers?.gitManager,
     });
     const workspaceEntriesLayer = WorkspaceEntries.layer.pipe(
