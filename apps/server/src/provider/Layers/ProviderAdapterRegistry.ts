@@ -33,21 +33,21 @@ import {
 } from "../Services/ProviderAdapterRegistry.ts";
 
 import type { ProviderInstance } from "../ProviderDriver.ts";
-import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
+import type { ProviderAdapterContract } from "../Services/ProviderAdapter.ts";
 
 const isSetupError = Schema.is(ProviderSetupError);
 
 const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(function* () {
   const registry = yield* ProviderInstanceRegistry;
   // Stable identity keeps ProviderService's event subscriptions attached once.
-  const guarded = new WeakMap<ProviderInstance, ProviderAdapterShape<ProviderAdapterError>>();
+  const guarded = new WeakMap<ProviderInstance, ProviderAdapterContract<ProviderAdapterError>>();
   const guard = (instance: ProviderInstance) => {
     const auth = instance.auth;
     if (!auth || (!auth.withAccess && !auth.isChangingCredentials && !auth.credentialBinding))
       return instance.adapter;
     const cached = guarded.get(instance);
     if (cached) return cached;
-    const adapter: ProviderAdapterShape<ProviderAdapterError> = {
+    const adapter: ProviderAdapterContract<ProviderAdapterError> = {
       ...instance.adapter,
       startSession: (input) => {
         const start = Effect.gen(function* () {
