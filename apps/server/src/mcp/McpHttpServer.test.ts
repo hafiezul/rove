@@ -1,7 +1,14 @@
 import { expect, it } from "@effect/vitest";
 import { NodeHttpServer } from "@effect/platform-node";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { EnvironmentId, PreviewTabId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  PREVIEW_AUTOMATION_OPERATIONS,
+  PreviewTabId,
+  ProviderInstanceId,
+  ThreadId,
+  type PreviewAutomationRequest,
+} from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -179,6 +186,7 @@ it.effect.each([{}, { includeImage: false }])(
 
 it.effect.each([
   { mode: "default", input: {}, images: true },
+  { mode: "null options", input: { includeImage: null, save: null }, images: true },
   { mode: "explicit image", input: { includeImage: true }, images: true },
   { mode: "text only", input: { includeImage: false }, images: false },
 ])("returns fresh $mode snapshots on repeated MCP calls", ({ input, images }) =>
@@ -297,7 +305,7 @@ it.effect.each([
 it.effect("rejects non-boolean snapshot image options before selecting a browser host", () =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
-    for (const includeImage of ["false", 0, null]) {
+    for (const includeImage of ["false", 0]) {
       const result = yield* server
         .callTool({
           name: "preview_snapshot",
@@ -313,6 +321,154 @@ it.effect("rejects non-boolean snapshot image options before selecting a browser
         error: { _tag: "AiError", operation: "snapshot", failureCount: 1 },
       });
     }
+  }).pipe(Effect.provide(TestLayer)),
+);
+
+it.effect.each([
+  {
+    name: "preview_status",
+    input: { tabId: null },
+    expected: {},
+  },
+  {
+    name: "preview_open",
+    input: {
+      tabId: null,
+      url: "http://example.test/",
+      open: false,
+      show: null,
+      reuseExistingTab: false,
+    },
+    expected: { url: "http://example.test/", open: false, show: false, reuseExistingTab: false },
+  },
+  {
+    name: "preview_resize",
+    input: {
+      tabId: null,
+      mode: "freeform",
+      width: 1280,
+      height: 800,
+      preset: null,
+      orientation: null,
+      timeoutMs: null,
+    },
+    expected: { mode: "freeform", width: 1280, height: 800 },
+  },
+  {
+    name: "preview_click",
+    input: {
+      tabId: null,
+      locator: "role=button[name='Submit']",
+      selector: null,
+      x: null,
+      y: null,
+      timeoutMs: null,
+    },
+    expected: { locator: "role=button[name='Submit']" },
+  },
+  {
+    name: "preview_type",
+    input: {
+      tabId: null,
+      locator: "role=textbox[name='Name']",
+      selector: null,
+      text: "Rove",
+      clear: false,
+      timeoutMs: null,
+    },
+    expected: { locator: "role=textbox[name='Name']", text: "Rove", clear: false },
+  },
+  {
+    name: "preview_navigate",
+    input: {
+      tabId: null,
+      url: null,
+      target: { kind: "environment-port", port: 5173, protocol: null, path: null },
+      readiness: null,
+      timeoutMs: null,
+    },
+    expected: { target: { kind: "environment-port", port: 5173 } },
+  },
+  {
+    name: "preview_scroll",
+    input: { tabId: null, locator: null, selector: null, deltaX: 0, deltaY: 0 },
+    expected: { deltaX: 0, deltaY: 0 },
+  },
+])("decodes nullable MCP arguments before executing $name", ({ name, input, expected }) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const server = yield* McpServer.McpServer;
+      const broker = yield* PreviewAutomationBroker.PreviewAutomationBroker;
+      const connected = yield* Deferred.make<void>();
+      const requests: PreviewAutomationRequest[] = [];
+      const status = {
+        available: true,
+        visible: false,
+        tabId: null,
+        url: null,
+        title: null,
+        loading: false,
+      };
+      const events = yield* broker.connect({
+        clientId: "mcp-null-arguments-client",
+        environmentId,
+        supportedOperations: [...PREVIEW_AUTOMATION_OPERATIONS],
+      });
+      yield* Stream.runForEach(events, (event) => {
+        if (event.type === "connected") return Deferred.succeed(connected, undefined);
+        requests.push(event.request);
+        const operation = event.request.operation;
+        return broker.respond({
+          clientId: "mcp-null-arguments-client",
+          connectionId: event.connectionId,
+          requestId: event.request.requestId,
+          ok: true,
+          result:
+            operation === "resize"
+              ? {
+                  tabId,
+                  setting: { _tag: "freeform", width: 1280, height: 800 },
+                  viewport: { width: 1280, height: 800 },
+                }
+              : ["status", "open", "navigate"].includes(operation)
+                ? status
+                : {},
+        });
+      }).pipe(Effect.forkScoped);
+      yield* Deferred.await(connected);
+
+      const result = yield* server
+        .callTool({ name, arguments: input })
+        .pipe(
+          Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+          Effect.provideService(McpSchema.McpServerClient, client),
+        );
+      expect(result.isError).toBe(false);
+      expect(requests[0]?.tabId).toBeUndefined();
+      expect(requests[0]?.input).toEqual(expected);
+    }),
+  ).pipe(Effect.provide(TestLayer)),
+);
+
+it.effect.each([
+  { name: "preview_resize", input: { mode: null } },
+  { name: "preview_resize", input: { mode: "freeform", width: null, height: 800 } },
+  { name: "preview_press", input: { key: null } },
+  { name: "preview_type", input: { locator: "#name", text: null } },
+  { name: "preview_navigate", input: { target: { kind: "environment-port", port: null } } },
+  { name: "preview_click", input: { locator: null, selector: null, x: null, y: null } },
+  { name: "preview_click", input: { locator: "#submit", x: 12, y: null } },
+])("still rejects invalid arguments for $name", ({ name, input }) =>
+  Effect.gen(function* () {
+    const server = yield* McpServer.McpServer;
+    const failure = yield* server
+      .callTool({ name, arguments: input })
+      .pipe(
+        Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+        Effect.provideService(McpSchema.McpServerClient, client),
+        Effect.flip,
+      );
+    expect(failure._tag).toBe("InvalidParams");
   }).pipe(Effect.provide(TestLayer)),
 );
 
@@ -397,6 +553,23 @@ it.effect(
       expect(denied.content).toEqual([
         { type: "text", text: "MCP credential does not grant the pull-requests capability." },
       ]);
+      for (const name of ["link_pull_request", "unlink_pull_request"]) {
+        const nullableTarget = yield* server
+          .callTool({
+            name,
+            arguments: {
+              url: "https://github.com/owner/repo/pull/123",
+              repository: null,
+              number: null,
+              host: null,
+            },
+          })
+          .pipe(
+            Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+            Effect.provideService(McpSchema.McpServerClient, client),
+          );
+        expect(nullableTarget.content).toEqual(denied.content);
+      }
     }).pipe(Effect.provide(PullRequestsTestLayer)),
 );
 
