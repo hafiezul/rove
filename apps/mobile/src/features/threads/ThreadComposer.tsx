@@ -88,7 +88,7 @@ import {
   groupByProvider,
   isModelSelectionUnavailable,
 } from "../../lib/modelOptions";
-import { useProviderResources } from "../../lib/useProviderResources";
+import { useProviderResources } from "../../state/use-provider-resources";
 import { ProviderExtensions } from "./ProviderExtensions";
 import { PiExtensionStatus } from "./PiExtensionStatus";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";

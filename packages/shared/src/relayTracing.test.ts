@@ -99,7 +99,7 @@ describe("withRelayClientTracing", () => {
           expect(payload).toContain("relay request failed");
           expect(payload).toContain("relay socket closed");
           expect(payload).toContain('"key":"service.name","value":{"stringValue":"relay-test"}');
-          expect(payload).toContain('"key":"service.namespace","value":{"stringValue":"t3code"}');
+          expect(payload).toContain('"key":"service.namespace","value":{"stringValue":"rove"}');
         }),
       ),
     );

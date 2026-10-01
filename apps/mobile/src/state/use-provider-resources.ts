@@ -5,10 +5,10 @@ import {
 } from "@t3tools/client-runtime/state/providerSettings";
 import { useCallback, useMemo, useState } from "react";
 import * as Cause from "effect/Cause";
-import { serverEnvironment } from "../state/server";
-import { useEnvironmentQuery } from "../state/query";
-import { useAtomCommand } from "../state/use-atom-command";
-import { useEnvironmentServerConfig } from "../state/entities";
+import { serverEnvironment } from "./server";
+import { useEnvironmentQuery } from "./query";
+import { useAtomCommand } from "./use-atom-command";
+import { useEnvironmentServerConfig } from "./entities";
 
 const EMPTY_STRING_LIST: ReadonlyArray<string> = [];
 

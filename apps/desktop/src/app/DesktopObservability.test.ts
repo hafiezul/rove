@@ -503,7 +503,7 @@ describe("DesktopObservability", () => {
       const body = requests[0]?.body ?? "";
       assert.include(body, '"stringValue":"rove-desktop"');
       assert.include(body, "deployment.environment.name");
-      assert.include(body, '"key":"service.namespace","value":{"stringValue":"t3code"}');
+      assert.include(body, '"key":"service.namespace","value":{"stringValue":"rove"}');
       assert.notInclude(body, "renamed");
     }).pipe(
       Effect.scoped,

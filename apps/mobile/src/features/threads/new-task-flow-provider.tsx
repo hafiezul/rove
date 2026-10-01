@@ -27,7 +27,7 @@ import { pipe } from "effect/Function";
 import { useEnvironmentServerConfig, useProjects, useThreadShells } from "../../state/entities";
 import type { TurnCommandMetadata } from "../../lib/commandMetadata";
 import type { DraftComposerAttachment } from "../../lib/composerImages";
-import { useProviderResources } from "../../lib/useProviderResources";
+import { useProviderResources } from "../../state/use-provider-resources";
 import type { ModelOption, ProviderGroup } from "../../lib/modelOptions";
 import {
   buildModelOptions,

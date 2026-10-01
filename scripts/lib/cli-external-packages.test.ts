@@ -157,6 +157,7 @@ describe("selectCliRuntimeExternalDependencies", () => {
         "diff",
         "jose",
         "node-pty",
+        "proper-lockfile",
         "ws",
         "yaml",
       ],
