@@ -212,7 +212,7 @@ it.effect("targets every GitHub PR operation at the bound repository", () =>
     );
     const provider = yield* makeProvider(github);
     const context = {
-      provider: { kind: "github" as const, baseUrl: "https://github.example.test" },
+      provider: { kind: "github" as const, name: "GitHub", baseUrl: "https://github.example.test" },
       remoteName: "origin",
       remoteUrl: "git@github-work:fork/project.git",
     };
