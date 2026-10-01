@@ -501,6 +501,29 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["allow simulator emulator ios android drive tools sessions"],
   },
   {
+    id: "agent-computer-use",
+    title: "Agent computer use",
+    to: "/settings/integrations",
+    targetId: "computer-use",
+    searchTerms: ["cua driver desktop native apps macos control click type screenshot allow"],
+  },
+  {
+    id: "cua-driver",
+    title: "Cua Driver",
+    to: "/settings/integrations",
+    targetId: "computer-use",
+    searchTerms: [
+      "computer use install reinstall accessibility screen recording permissions grant",
+    ],
+  },
+  {
+    id: "cua-telemetry",
+    title: "Share usage data with Cua",
+    to: "/settings/integrations",
+    targetId: "computer-use",
+    searchTerms: ["cua driver telemetry analytics privacy usage data"],
+  },
+  {
     id: "device-hub",
     title: "Device hub",
     to: "/settings/integrations",

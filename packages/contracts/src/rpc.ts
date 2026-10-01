@@ -141,6 +141,11 @@ import {
   PullRequestUpdateInput,
 } from "./pullRequest.ts";
 import {
+  ComputerUseControlError,
+  ComputerUseControlInput,
+  ComputerUseStatus,
+} from "./computerUse.ts";
+import {
   RelayClientInstallFailedError,
   RelayClientInstallProgressEventSchema,
   RelayClientStatusSchema,
@@ -354,6 +359,10 @@ export const WS_METHODS = {
   deviceShutdown: "device.shutdown",
   deviceDetail: "device.detail",
   deviceAction: "device.action",
+
+  // Computer use methods
+  computerUseStatus: "computerUse.status",
+  computerUseControl: "computerUse.control",
 
   // Server meta
   serverProbe: "server.probe",
@@ -658,6 +667,18 @@ const WsServerSignalProcessRpc = Rpc.make(WS_METHODS.serverSignalProcess, {
   payload: ServerSignalProcessInput,
   success: ServerSignalProcessResult,
   error: EnvironmentAuthorizationError,
+});
+
+const WsComputerUseStatusRpc = Rpc.make(WS_METHODS.computerUseStatus, {
+  payload: Schema.Struct({}),
+  success: ComputerUseStatus,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsComputerUseControlRpc = Rpc.make(WS_METHODS.computerUseControl, {
+  payload: ComputerUseControlInput,
+  success: ComputerUseStatus,
+  error: Schema.Union([ComputerUseControlError, EnvironmentAuthorizationError]),
 });
 
 const WsCloudGetRelayClientStatusRpc = Rpc.make(WS_METHODS.cloudGetRelayClientStatus, {
@@ -1406,6 +1427,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerGetUsageSummaryRpc,
   WsServerRefreshUsageRatesRpc,
   WsServerSignalProcessRpc,
+  WsComputerUseStatusRpc,
+  WsComputerUseControlRpc,
   WsServerReportClientActivityRpc,
   WsServerReportHostPowerStateRpc,
   WsServerGetBackgroundPolicyRpc,
