@@ -2602,6 +2602,49 @@ describe("PreviewManager", () => {
     ),
   );
 
+  effectIt.effect("inspects the page without capturing pixels for a text-only snapshot", () =>
+    withManager((manager) =>
+      Effect.gen(function* () {
+        const capturePage = vi.fn(() => new Promise<TestCapturedPreviewImage>(() => {}));
+        const wc = makeTestPreviewWebContents(capturePage);
+        Object.assign(wc, { isDevToolsOpened: () => false });
+        Object.assign(wc.debugger, {
+          sendCommand: vi.fn(async (method: string) => {
+            if (method === "Runtime.evaluate") {
+              return {
+                result: {
+                  value: {
+                    url: "https://example.com",
+                    title: "Example",
+                    loading: false,
+                    visibleText: "Example",
+                    interactiveElements: [],
+                  },
+                },
+              };
+            }
+            return method === "Accessibility.getFullAXTree" ? { nodes: [] } : undefined;
+          }),
+        });
+        fromId.mockReturnValue(wc);
+        yield* manager.createTab("tab_1");
+        yield* manager.registerWebview("tab_1", 42);
+        const fiber = yield* Effect.exit(
+          manager.automationSnapshot("tab_1", { includeImage: false }),
+        ).pipe(Effect.forkChild({ startImmediately: true }));
+        yield* TestClock.adjust(4_000);
+        const exit = yield* Fiber.join(fiber);
+        expect(Exit.isSuccess(exit)).toBe(true);
+        if (Exit.isSuccess(exit)) {
+          expect(exit.value.visibleText).toBe("Example");
+          expect(exit.value.screenshot).toBeUndefined();
+          expect(Schema.is(Schema.Json)(exit.value)).toBe(true);
+        }
+        expect(capturePage).not.toHaveBeenCalled();
+      }),
+    ),
+  );
+
   effectIt.effect("releases snapshot control when every capture attempt stalls", () =>
     withManager((manager) =>
       Effect.gen(function* () {

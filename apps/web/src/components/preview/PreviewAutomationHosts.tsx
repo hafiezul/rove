@@ -15,6 +15,7 @@ import {
   type PreviewAutomationHost as PreviewAutomationHostState,
   type PreviewAutomationRequest,
   type PreviewAutomationStatus,
+  PreviewAutomationSnapshotOptions,
   type PreviewRenderedViewportSize,
   type PreviewViewportSetting,
   type ScopedThreadRef,
@@ -22,6 +23,7 @@ import {
 import { resolvePreviewViewport } from "@t3tools/shared/previewViewport";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Atom } from "effect/unstable/reactivity";
+import * as Schema from "effect/Schema";
 
 import {
   applyPreviewServerSnapshot,
@@ -90,6 +92,7 @@ import { resolveHostWaitBudgetMs, waitForHostReadiness } from "./previewAutomati
 import { isPreviewViewportReady } from "./previewViewportReadiness";
 import { shouldRollbackPreviewViewport } from "./previewViewportRollback";
 
+const decodeSnapshotOptions = Schema.decodeUnknownSync(PreviewAutomationSnapshotOptions);
 const PREVIEW_PRESENTATION_SETTLE_TIMEOUT_MS = 500;
 
 const waitForPreviewPresentation = async (runtimeTabId: string): Promise<void> => {
@@ -655,7 +658,10 @@ function PreviewAutomationHost(props: { readonly environmentId: EnvironmentId })
           }
           case "snapshot": {
             const ready = await requireReadyTab();
-            return await ready.bridge.automation.snapshot(ready.runtimeTabId);
+            return await ready.bridge.automation.snapshot(
+              ready.runtimeTabId,
+              decodeSnapshotOptions(request.input),
+            );
           }
           case "click": {
             const ready = await requireReadyTab();

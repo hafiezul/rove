@@ -5,6 +5,7 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 import { RpcClientError } from "effect/unstable/rpc";
@@ -233,9 +234,17 @@ function subscribeDynamicMapped<TTag extends EnvironmentSubscriptionRpcTag, A>(
                         method: tag,
                         input,
                       });
-                      return mapStream(session, method(input)).pipe(
-                        Stream.ensuring(completeObservation),
-                      );
+                      const events = mapStream(session, method(input));
+                      // Host eviction ends only this RPC stream, not the WebSocket session.
+                      // Renew the lease without replaying requests from the retired connection.
+                      return (
+                        tag === WS_METHODS.previewAutomationConnect
+                          ? events.pipe(
+                              Stream.catchCauseIf(Cause.hasInterruptsOnly, () => Stream.empty),
+                              Stream.repeat(Schedule.spaced(250)),
+                            )
+                          : events
+                      ).pipe(Stream.ensuring(completeObservation));
                     }),
                   ).pipe(
                     Stream.tapCause((cause) =>

@@ -527,6 +527,15 @@ export const PreviewAutomationActionEvent = Schema.Struct({
 });
 export type PreviewAutomationActionEvent = typeof PreviewAutomationActionEvent.Type;
 
+export const PreviewAutomationSnapshotOptions = Schema.Struct({
+  includeImage: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include the PNG image. Defaults to true. Set false for text-only inspection.",
+    }),
+  ),
+});
+export type PreviewAutomationSnapshotOptions = typeof PreviewAutomationSnapshotOptions.Type;
+
 export const PreviewAutomationSnapshot = Schema.Struct({
   url: Schema.String,
   title: Schema.String,
@@ -537,12 +546,14 @@ export const PreviewAutomationSnapshot = Schema.Struct({
   consoleEntries: Schema.Array(PreviewAutomationConsoleEntry),
   networkEntries: Schema.Array(PreviewAutomationNetworkEntry),
   actionTimeline: Schema.Array(PreviewAutomationActionEvent),
-  screenshot: Schema.Struct({
-    mimeType: Schema.Literal("image/png"),
-    data: Schema.String,
-    width: Schema.Int,
-    height: Schema.Int,
-  }),
+  screenshot: Schema.optionalKey(
+    Schema.Struct({
+      mimeType: Schema.Literal("image/png"),
+      data: Schema.String,
+      width: Schema.Int,
+      height: Schema.Int,
+    }),
+  ),
 });
 export type PreviewAutomationSnapshot = typeof PreviewAutomationSnapshot.Type;
 

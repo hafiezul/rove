@@ -229,17 +229,17 @@ it.effect.each([
           tabId: alternateTabId,
           threadId,
         });
-        expect(event.request.input).toEqual({});
+        const captureImage = images || requests > 6;
+        expect(event.request.input).toEqual(captureImage ? {} : { includeImage: false });
+        const snapshotPage = { ...page, title: `Snapshot ${requests}` };
         return broker.respond({
           clientId: "mcp-image-option-client",
           connectionId: event.connectionId,
           requestId: event.request.requestId,
           ok: true,
-          result: {
-            ...page,
-            title: `Snapshot ${requests}`,
-            screenshot: { ...screenshot, data: png },
-          },
+          result: captureImage
+            ? { ...snapshotPage, screenshot: { ...screenshot, data: png } }
+            : snapshotPage,
         });
       }).pipe(Effect.forkScoped);
       yield* Deferred.await(connected);
@@ -254,7 +254,8 @@ it.effect.each([
             Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
             Effect.provideService(McpSchema.McpServerClient, client),
           );
-        const metadata = { ...page, title: `Snapshot ${call}`, screenshot };
+        const snapshotPage = { ...page, title: `Snapshot ${call}` };
+        const metadata = images ? { ...snapshotPage, screenshot } : snapshotPage;
         const { accessibilityTree: _tree, ...boundedMetadata } = metadata;
         expect(snapshot.isError).toBe(false);
         expect(snapshot.structuredContent).toEqual(metadata);
@@ -300,6 +301,23 @@ it.effect.each([
       expect(requests).toBe(7);
     }),
   ).pipe(Effect.provide(TestLayer)),
+);
+
+it.effect.each([{}, { includeImage: false, save: true }])(
+  "reports an unavailable image when a screenshot is required %#",
+  (input) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { screenshot: _screenshot, ...page } = snapshotResult;
+        const requests = yield* serveSnapshots("mcp-missing-image-client", page);
+        const result = yield* callSnapshot(input);
+        expect(result.isError).toBe(true);
+        expect(result.content).toEqual([
+          { type: "text", text: "Preview snapshot failed: PreviewSnapshotImageUnavailableError." },
+        ]);
+        expect(requests).toEqual([{}]);
+      }),
+    ).pipe(Effect.provide(TestLayer)),
 );
 
 it.effect("rejects non-boolean snapshot image options before selecting a browser host", () =>
@@ -472,34 +490,37 @@ it.effect.each([
   }).pipe(Effect.provide(TestLayer)),
 );
 
-it.effect("saves the snapshot PNG on request and reports its path", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const config = yield* ServerConfig.ServerConfig;
-      const fileSystem = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const inputs = yield* serveSnapshots("mcp-save-client", snapshotResult);
+it.effect.each([true, false])(
+  "saves the snapshot PNG with includeImage=%s and reports its path",
+  (includeImage) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const config = yield* ServerConfig.ServerConfig;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const inputs = yield* serveSnapshots("mcp-save-client", snapshotResult);
 
-      const snapshot = yield* callSnapshot({ save: true });
+        const snapshot = yield* callSnapshot({ save: true, includeImage });
 
-      expect(snapshot.isError).toBe(false);
-      // The browser never receives the server-only `save` flag.
-      expect(inputs).toEqual([{}]);
-      const structured = snapshot.structuredContent as { readonly screenshotPath?: string };
-      const screenshotPath = structured.screenshotPath;
-      expect(typeof screenshotPath).toBe("string");
-      expect(path.dirname(screenshotPath!)).toBe(config.browserArtifactsDir);
-      expect(path.basename(screenshotPath!)).toMatch(
-        /^browser-screenshot-example-test-[0-9a-z]+-[0-9a-f]{8}\.png$/,
-      );
-      expect(Buffer.from(yield* fileSystem.readFile(screenshotPath!)).toString()).toBe("png");
-      const [, text] = snapshot.content;
-      expect(text?.type === "text" ? text.text : "").toContain(screenshotPath);
+        expect(snapshot.isError).toBe(false);
+        expect(snapshot.content.some((item) => item.type === "image")).toBe(includeImage);
+        // The browser never receives the server-only `save` flag.
+        expect(inputs).toEqual([{}]);
+        const structured = snapshot.structuredContent as { readonly screenshotPath?: string };
+        const screenshotPath = structured.screenshotPath;
+        expect(typeof screenshotPath).toBe("string");
+        expect(path.dirname(screenshotPath!)).toBe(config.browserArtifactsDir);
+        expect(path.basename(screenshotPath!)).toMatch(
+          /^browser-screenshot-example-test-[0-9a-z]+-[0-9a-f]{8}\.png$/,
+        );
+        expect(Buffer.from(yield* fileSystem.readFile(screenshotPath!)).toString()).toBe("png");
+        const [, text] = snapshot.content;
+        expect(text?.type === "text" ? text.text : "").toContain(screenshotPath);
 
-      const unsaved = yield* callSnapshot({});
-      expect(unsaved.structuredContent).not.toHaveProperty("screenshotPath");
-    }),
-  ).pipe(Effect.provide(TestLayer)),
+        const unsaved = yield* callSnapshot({});
+        expect(unsaved.structuredContent).not.toHaveProperty("screenshotPath");
+      }),
+    ).pipe(Effect.provide(TestLayer)),
 );
 
 it.effect("reports a tagged error when the screenshot cannot be saved", () =>
