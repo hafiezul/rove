@@ -1,20 +1,16 @@
 # Rove Code
 
-Rove Code is an independent, open-source fork of [T3 Code](https://github.com/pingdotgg/t3code). It is a fast, remote-ready control surface for coding agents.
+Rove Code is an open-source app for running coding agents across web, desktop, and mobile. Use it on the computer where your agents run, or connect remotely.
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, Rove Code can control them.
-
-The fork has its own roadmap for how developers run, guide, and move between coding agents. Rove Code is not affiliated with or endorsed by T3 Tools or Ping Labs.
+It works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, Rove Code can control them.
 
 ## Current status
 
-Rove Code is at the beginning of its fork. Its applications and documentation use the Rove Code name, but some CLI, package, and storage identifiers still come from upstream. Do not treat upstream downloads or services as Rove Code releases.
-
-The inherited application supports Claude Code, Codex, Cursor, Grok Build, OpenCode, and Antigravity across web, desktop, and mobile clients.
+The applications and documentation use the Rove Code name, but some CLI, package, and storage identifiers still come from T3 Code. T3 Code downloads and services are not Rove Code releases.
 
 ## Run from source
 
-Rove Code currently has no separate binary distribution. To run the fork locally, install [Vite+](https://viteplus.dev/guide/) and use Node.js 24.13.1:
+Rove Code currently has no separate binary distribution. To run Rove Code locally, install [Vite+](https://viteplus.dev/guide/) and use Node.js 24.13.1:
 
 ```bash
 vp i
@@ -35,8 +31,8 @@ Useful starting points:
 - [Provider architecture](./docs/internals/providers.md)
 - [Contributing](./CONTRIBUTING.md)
 
-## Upstream
+## Origins and license
 
-This fork retains the upstream copyright notice under the [MIT License](./LICENSE).
+Rove Code started as a fork of [T3 Code](https://github.com/pingdotgg/t3code) and now has its own repository and roadmap. It retains T3 Tools' original copyright notice under the [MIT License](./LICENSE). Rove Code is not affiliated with or endorsed by T3 Tools or Ping Labs.
 
-When a change is broadly useful and fits Rove Code's direction, contributors should consider proposing it upstream as well.
+If a change would help T3 Code users too, consider proposing it upstream.
