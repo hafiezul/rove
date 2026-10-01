@@ -206,7 +206,9 @@ export const make = Effect.gen(function* () {
     const bounded = vcsProcesses.withPermits(1)(runUnbounded(input));
     if (
       input.command === "git" &&
-      input.operation === CHECKPOINT_CAPTURE_OPERATION &&
+      // Capture sub-steps (such as `.add`) carry their own names for timeout reports.
+      (input.operation === CHECKPOINT_CAPTURE_OPERATION ||
+        input.operation.startsWith(`${CHECKPOINT_CAPTURE_OPERATION}.`)) &&
       input.onStdoutChunk === undefined
     ) {
       // Retry the failed command, retaining the private index/tree and recovery's outer deadline.

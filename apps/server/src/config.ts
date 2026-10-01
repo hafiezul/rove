@@ -203,7 +203,9 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
   const fs = yield* FileSystem.FileSystem;
   const baseDir = RuntimePredicate.isString(baseDirOrPrefix)
     ? baseDirOrPrefix
-    : yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix });
+    : // Resolved, so macOS's /var -> /private/var temp link matches the realpaths
+      // the server compares, as a real home directory would.
+      yield* fs.realPath(yield* fs.makeTempDirectoryScoped({ prefix: baseDirOrPrefix.prefix }));
   const derivedPaths = yield* deriveServerPaths(baseDir, devUrl);
   yield* ensureServerDirectories(derivedPaths);
 
