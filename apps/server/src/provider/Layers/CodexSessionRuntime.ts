@@ -185,7 +185,7 @@ export interface CodexSessionRuntimeOptions {
   readonly appServerArgs?: ReadonlyArray<string>;
   /** The provider's model list; supplies the display name for runtime info. */
   readonly models?: Effect.Effect<ReadonlyArray<ServerProviderModel>>;
-  /** Capabilities the session's `t3-code` MCP credential grants; drives the prompt blocks. */
+  /** Capabilities the session's `rove` MCP credential grants; drives the prompt blocks. */
   readonly mcpCapabilities?: ReadonlySet<string>;
 }
 

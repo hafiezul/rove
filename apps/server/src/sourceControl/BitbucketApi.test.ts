@@ -864,13 +864,13 @@ it.effect("checks out fork pull requests through an ensured fork remote", () => 
     });
     assert.deepStrictEqual(git.setBranchUpstream.mock.calls[0]?.[0], {
       cwd: "/repo",
-      branch: "t3code/pr-42/main",
+      branch: "rove/pr-42/main",
       remoteName: "octocat",
       remoteBranch: "main",
     });
     assert.deepStrictEqual(git.switchRef.mock.calls[0]?.[0], {
       cwd: "/repo",
-      refName: "t3code/pr-42/main",
+      refName: "rove/pr-42/main",
     });
   }).pipe(Effect.provide(layer));
 });
