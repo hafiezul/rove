@@ -6,8 +6,9 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { expect, it } from "vite-plus/test";
 
-// oxlint-disable-next-line rove/no-global-process-runtime -- This test compiles against the host Foundation framework.
-it.skipIf(NodeOS.platform() !== "darwin")(
+import { threadSanitizerRuns } from "./threadSanitizer.ts";
+
+it.skipIf(!threadSanitizerRuns())(
   "registers and reads native permissions concurrently without corrupting the registry",
   () => {
     const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-permissions-test-"));
