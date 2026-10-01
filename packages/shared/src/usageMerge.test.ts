@@ -195,7 +195,7 @@ describe("mergeUsage", () => {
       {
         environmentId: "env-b",
         direction: "serverBehind",
-        contractVersion: USAGE_MERGE_COMPATIBLE_SINCE - 1,
+        contractVersion: USAGE_CONTRACT_VERSION - 2,
       },
     ]);
   });
