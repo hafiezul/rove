@@ -949,7 +949,6 @@ export function deriveMessagesTimelineRows(input: {
       entry.kind !== "work" ||
       entry.entry.questionAnswer !== undefined ||
       entry.entry.sourceActivityKind === "context-compaction" ||
-      entry.entry.sourceActivityKind === "turn.reasoning" ||
       entry.entry.tone === "error"
     ) {
       break;
@@ -1084,7 +1083,6 @@ export function deriveMessagesTimelineRows(input: {
       if (
         timelineEntry.entry.agentSpawn !== undefined ||
         timelineEntry.entry.questionAnswer !== undefined ||
-        timelineEntry.entry.sourceActivityKind === "turn.reasoning" ||
         timelineEntry.entry.tone === "error"
       ) {
         const spawn = timelineEntry.entry.agentSpawn;
@@ -1103,7 +1101,6 @@ export function deriveMessagesTimelineRows(input: {
         continue;
       }
       const groupedEntries = [timelineEntry.entry];
-      const startsReasoningPhase = timelineEntry.entry.sourceActivityKind === "turn.reasoning";
       let cursor = index + 1;
       while (cursor < input.timelineEntries.length) {
         const nextEntry = input.timelineEntries[cursor];
@@ -1116,9 +1113,7 @@ export function deriveMessagesTimelineRows(input: {
           nextEntry.entry.tone === "error" ||
           activeWorkEntryIds.has(nextEntry.id) ||
           collapsedEntryIds.has(nextEntry.id) ||
-          foldsByAnchorEntryId.has(nextEntry.id) ||
-          startsReasoningPhase ||
-          nextEntry.entry.sourceActivityKind === "turn.reasoning"
+          foldsByAnchorEntryId.has(nextEntry.id)
         ) {
           break;
         }

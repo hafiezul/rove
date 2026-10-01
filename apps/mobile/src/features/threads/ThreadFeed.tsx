@@ -143,7 +143,6 @@ import {
   resolveMarkdownLinkPresentation,
 } from "@t3tools/mobile-markdown-text/links";
 import {
-  deriveAssistantMessagePresentation,
   deriveThreadFeedPresentation,
   isContextCompactionActivityGroup,
   type ThreadFeedEntry,
@@ -163,7 +162,6 @@ import {
   ThreadThinkingRow,
   ThreadWorkLog,
   THREAD_DISCLOSURE_TRANSITION_MS,
-  workLogActivityIsExpanded,
   WORK_GROUP_TOGGLE_HEIGHT,
 } from "./thread-work-log";
 import { appendPendingThreadMessages, type PendingThreadFeedEntry } from "./pending-thread-feed";
@@ -1356,7 +1354,7 @@ function renderFeedEntry(
     readonly unsettledTurnId: TurnId | null;
     readonly onCopyWorkRow: (rowId: string, value: string) => void;
     readonly onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
-    readonly onToggleWorkRow: (rowId: string, anchorKey: string, defaultExpanded?: boolean) => void;
+    readonly onToggleWorkRow: (rowId: string, anchorKey: string) => void;
     readonly onToggleTurnFold: (turnId: TurnId) => void;
     readonly onPressPreview: (source: FilePreviewSource) => void;
     readonly onPressVideo: (attachment: ChatFileAttachment, sourceIdentifier: string) => void;
@@ -1720,35 +1718,6 @@ function renderFeedEntry(
     />
   );
 }
-
-const RenderedAssistantMarkdown = memo(function RenderedAssistantMarkdown(props: {
-  readonly text: string;
-  readonly markdownStyles: MarkdownStyleSet;
-  readonly skills: ReadonlyArray<SelectableMarkdownSkill> | undefined;
-  readonly onLinkPress: (href: string) => void;
-}) {
-  if (props.text.length === 0) {
-    return null;
-  }
-
-  return hasNativeSelectableMarkdownText() ? (
-    <SelectableMarkdownText
-      markdown={props.text}
-      skills={props.skills}
-      textStyle={props.markdownStyles.nativeTextStyle}
-      onLinkPress={props.onLinkPress}
-    />
-  ) : (
-    <Markdown
-      options={{ gfm: true }}
-      renderers={props.markdownStyles.renderers}
-      styles={props.markdownStyles.styles}
-      theme={props.markdownStyles.theme}
-    >
-      {props.text}
-    </Markdown>
-  );
-});
 
 type UserMessageContentProps = {
   readonly text: string;
@@ -2460,12 +2429,15 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       ),
     [presentedFeed, props.anchorMessageId, anchorTopInset],
   );
-  const assistantMessagePresentation = useMemo(
-    () => deriveAssistantMessagePresentation(props.feed),
-    [props.feed],
-  );
-  const terminalAssistantMessageIds = assistantMessagePresentation.terminalIds;
-  const hasStreamingText = assistantMessagePresentation.hasStreamingText;
+  const terminalAssistantMessageIds = useMemo(() => {
+    const terminalIdsByTurn = new Map<TurnId, string>();
+    for (const entry of props.feed) {
+      if (entry.type === "message" && entry.message.role === "assistant" && entry.message.turnId) {
+        terminalIdsByTurn.set(entry.message.turnId, entry.message.id);
+      }
+    }
+    return new Set(terminalIdsByTurn.values());
+  }, [props.feed]);
   useEffect(() => {
     const previous = previousLatestTurnRef.current;
     previousLatestTurnRef.current = props.latestTurn;
@@ -2599,13 +2571,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   );
 
   const onToggleWorkRow = useCallback(
-    (rowId: string, anchorKey: string, defaultExpanded = false) => {
+    (rowId: string, anchorKey: string) => {
       suspendEndScrollMaintenanceForDisclosure(anchorKey);
       setInteractionState((current) => ({
         ...current,
         expandedWorkRows: {
           ...current.expandedWorkRows,
-          [rowId]: !(current.expandedWorkRows[rowId] ?? defaultExpanded),
+          [rowId]: !(current.expandedWorkRows[rowId] ?? false),
         },
       }));
     },
@@ -2665,9 +2637,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           }
           // Expanded rows append a variable detail block — fall back to
           // measurement for those groups.
-          return entry.activities.some((activity) =>
-            workLogActivityIsExpanded(activity, expandedWorkRows),
-          )
+          return entry.activities.some((activity) => expandedWorkRows[activity.id])
             ? undefined
             : collapsedWorkLogHeight(entry.activities);
         default:

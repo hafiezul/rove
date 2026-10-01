@@ -29,7 +29,6 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
-import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 import { formatTokens } from "@t3tools/shared/usageFormat";
@@ -110,18 +109,6 @@ const BUFFERED_PROPOSED_PLAN_BY_ID_CACHE_CAPACITY = 10_000;
 const BUFFERED_PROPOSED_PLAN_BY_ID_TTL = Duration.minutes(120);
 const TASK_DESCRIPTION_BY_TASK_CACHE_CAPACITY = 10_000;
 const TASK_DESCRIPTION_BY_TASK_TTL = Duration.minutes(120);
-const REASONING_TEXT_BY_TURN_CACHE_CAPACITY = 10_000;
-const REASONING_TEXT_BY_TURN_TTL = Duration.minutes(120);
-// Reasoning streams are per-token floods, and every flush is a persisted event
-// broadcast to clients. The timeline activity re-dispatches at this cadence at
-// most, and always once more when the phase ends.
-const REASONING_ACTIVITY_FLUSH_INTERVAL_MS = 1_500;
-// Bound the rendered reasoning text: full stream can be tens of thousands of
-// chars on long turns. A finished phase keeps head (early plan) + tail (latest
-// reasoning); a streaming update carries only the live tail.
-const MAX_REASONING_ACTIVITY_HEAD_CHARS = 600;
-const MAX_REASONING_ACTIVITY_TAIL_CHARS = 4_000;
-const MAX_STREAMING_REASONING_TAIL_CHARS = 1_000;
 const MAX_BUFFERED_ASSISTANT_CHARS = 24_000;
 // Paragraphs that finish within this window after a delivery stay buffered
 // and land together on the next one. Keeps fast models from repainting the
@@ -135,13 +122,6 @@ type TurnStartRequestedDomainEvent = Extract<
   { type: "thread.turn-start-requested" }
 >;
 
-interface ReasoningTrailingFlush {
-  readonly threadId: ThreadId;
-  readonly turnId: TurnId;
-  readonly phaseIndex: number;
-  readonly createdAt: string;
-}
-
 type RuntimeIngestionInput =
   | {
       source: "runtime";
@@ -150,10 +130,6 @@ type RuntimeIngestionInput =
   | {
       source: "domain";
       event: TurnStartRequestedDomainEvent;
-    }
-  | {
-      source: "reasoning-flush";
-      flush: ReasoningTrailingFlush;
     };
 
 function toTurnId(value: TurnId | string | undefined): TurnId | undefined {
@@ -162,19 +138,6 @@ function toTurnId(value: TurnId | string | undefined): TurnId | undefined {
 
 function toApprovalRequestId(value: string | undefined): ApprovalRequestId | undefined {
   return value === undefined ? undefined : ApprovalRequestId.make(value);
-}
-
-/**
- * A tool start ends the current public reasoning phase. We intentionally do
- * not use tool completion: concurrent tools can finish after the model has
- * already begun reasoning about a later result.
- */
-function startsVisibleToolLifecycle(event: ProviderRuntimeEvent): boolean {
-  return (
-    event.type === "item.started" &&
-    isToolLifecycleItemType(event.payload.itemType) &&
-    event.payload.agentId === undefined
-  );
 }
 
 function sameId(left: string | null | undefined, right: string | null | undefined): boolean {
@@ -211,29 +174,6 @@ function maxCheckpointTurnCount(
 
 function truncateDetail(value: string, limit = 180): string {
   return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
-}
-
-/**
- * Present a bounded window of a turn's reasoning stream. A finished phase keeps
- * the head (early plan) and the tail; a streaming phase shows only the live
- * tail. Omitted text is marked so the reader knows it was elided, and the cut
- * starts on a line boundary so markdown blocks are not sliced in half.
- */
-function formatReasoningStreamWindow(text: string, streaming: boolean): string {
-  const maxHeadChars = streaming ? 0 : MAX_REASONING_ACTIVITY_HEAD_CHARS;
-  const maxTailChars = streaming
-    ? MAX_STREAMING_REASONING_TAIL_CHARS
-    : MAX_REASONING_ACTIVITY_TAIL_CHARS;
-  if (text.length <= maxHeadChars + maxTailChars) {
-    return text;
-  }
-  const head = text.slice(0, maxHeadChars);
-  let tail = text.slice(-maxTailChars);
-  const firstNewline = tail.indexOf("\n");
-  if (firstNewline >= 0 && firstNewline < tail.length - 1) {
-    tail = tail.slice(firstNewline + 1);
-  }
-  return head.length === 0 ? `…\n${tail}` : `${head}\n…\n${tail}`;
 }
 
 function normalizeProposedPlanMarkdown(planMarkdown: string | undefined): string | undefined {
@@ -1152,74 +1092,6 @@ const make = Effect.gen(function* () {
   const rememberTaskDescription = (threadId: ThreadId, taskId: string, description: string) =>
     Cache.set(taskDescriptionByTaskKey, providerTaskKey(threadId, taskId), description);
 
-  interface ReasoningPhaseBuffer {
-    readonly index: number;
-    readonly text: string;
-    /** First delta time: keeps the phase anchored before the following tool. */
-    readonly startedAt: string;
-    readonly lastFlushedAt: number;
-    readonly trailingFlushScheduled: boolean;
-  }
-
-  interface ReasoningTurnBuffer {
-    /** The next immutable timeline phase number for this turn. */
-    readonly nextPhaseIndex: number;
-    /** Present only while the model is continuously reasoning. */
-    readonly activePhase: ReasoningPhaseBuffer | null;
-  }
-
-  // Reasoning is a per-token stream, but the UI needs one mutable row per
-  // continuous thought phase rather than one row per token or one row per turn.
-  // Due trailing flushes wait here until the ingestion worker picks them up.
-  const dueReasoningFlushes = yield* Queue.unbounded<ReasoningTrailingFlush>();
-  const reasoningBufferByTurnKey = yield* Cache.make<string, ReasoningTurnBuffer>({
-    capacity: REASONING_TEXT_BY_TURN_CACHE_CAPACITY,
-    timeToLive: REASONING_TEXT_BY_TURN_TTL,
-    lookup: () => Effect.succeed({ nextPhaseIndex: 0, activePhase: null }),
-  });
-
-  const appendReasoningDelta = (input: {
-    readonly threadId: ThreadId;
-    readonly turnId: TurnId;
-    readonly delta: string;
-    readonly createdAt: string;
-  }) =>
-    Cache.get(reasoningBufferByTurnKey, providerTurnKey(input.threadId, input.turnId)).pipe(
-      Effect.flatMap((buffer) => {
-        const phase =
-          buffer.activePhase ??
-          ({
-            index: buffer.nextPhaseIndex,
-            text: "",
-            startedAt: input.createdAt,
-            lastFlushedAt: 0,
-            trailingFlushScheduled: false,
-          } satisfies ReasoningPhaseBuffer);
-        const nextBuffer = {
-          nextPhaseIndex:
-            buffer.activePhase === null ? buffer.nextPhaseIndex + 1 : buffer.nextPhaseIndex,
-          activePhase: {
-            ...phase,
-            text: phase.text + input.delta,
-          },
-        } satisfies ReasoningTurnBuffer;
-        return Cache.set(
-          reasoningBufferByTurnKey,
-          providerTurnKey(input.threadId, input.turnId),
-          nextBuffer,
-        ).pipe(Effect.as(nextBuffer.activePhase));
-      }),
-    );
-
-  const takeReasoningBuffer = (threadId: ThreadId, turnId: TurnId) =>
-    Cache.getOption(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId)).pipe(
-      Effect.tap((buffer) =>
-        Option.isSome(buffer)
-          ? Cache.invalidate(reasoningBufferByTurnKey, providerTurnKey(threadId, turnId))
-          : Effect.void,
-      ),
-    );
-
   // Entries are left in place after completion so replayed or duplicate
   // terminal events stay titled; TTL, capacity, and the session-exit sweep
   // bound the cache.
@@ -1697,120 +1569,6 @@ const make = Effect.gen(function* () {
           key.startsWith(prefix) ? Cache.invalidate(taskDescriptionByTaskKey, key) : Effect.void,
         { concurrency: 1 },
       ).pipe(Effect.asVoid);
-      const reasoningTurnKeys = Array.from(yield* Cache.keys(reasoningBufferByTurnKey));
-      yield* Effect.forEach(
-        reasoningTurnKeys,
-        (key) =>
-          key.startsWith(prefix) ? Cache.invalidate(reasoningBufferByTurnKey, key) : Effect.void,
-        { concurrency: 1 },
-      ).pipe(Effect.asVoid);
-    });
-
-  /**
-   * Upsert one continuous reasoning phase. Its stable id updates while text is
-   * streaming, but a later tool start creates a new phase instead of moving
-   * this row below that tool in the timeline.
-   */
-  const dispatchReasoningActivity = (input: {
-    commandTag: string;
-    threadId: ThreadId;
-    turnId: TurnId;
-    phaseIndex: number;
-    text: string;
-    streaming: boolean;
-    /** Stable timeline position for the phase's row. */
-    activityCreatedAt: string;
-    /** Event occurrence time for command ordering and thread freshness. */
-    createdAt: string;
-  }) =>
-    Effect.gen(function* () {
-      const detail = formatReasoningStreamWindow(input.text.trim(), input.streaming);
-      if (detail.length === 0) {
-        return;
-      }
-      yield* orchestrationEngine.dispatch({
-        type: "thread.activity.append",
-        commandId: CommandId.make(
-          `provider:${input.commandTag}:${input.threadId}:${input.turnId}:${yield* crypto.randomUUIDv4}`,
-        ),
-        threadId: input.threadId,
-        activity: {
-          id: EventId.make(`reasoning:${input.threadId}:${input.turnId}:${input.phaseIndex}`),
-          tone: "info",
-          kind: "turn.reasoning",
-          summary: input.streaming ? "Reasoning" : "Reasoned",
-          payload: { detail, streaming: input.streaming },
-          turnId: input.turnId,
-          createdAt: input.activityCreatedAt,
-        },
-        createdAt: input.createdAt,
-      });
-    });
-
-  const finalizeActiveReasoningPhase = (input: {
-    commandTag: string;
-    threadId: ThreadId;
-    turnId: TurnId;
-    createdAt: string;
-  }) =>
-    Cache.getOption(reasoningBufferByTurnKey, providerTurnKey(input.threadId, input.turnId)).pipe(
-      Effect.flatMap((buffer) =>
-        Option.match(buffer, {
-          onNone: () => Effect.void,
-          onSome: (turnBuffer) => {
-            const phase = turnBuffer.activePhase;
-            if (phase === null) {
-              return Effect.void;
-            }
-            // Clear first so a trailing flush that races this boundary cannot
-            // revive the completed phase after the tool row.
-            return Cache.set(
-              reasoningBufferByTurnKey,
-              providerTurnKey(input.threadId, input.turnId),
-              { ...turnBuffer, activePhase: null },
-            ).pipe(
-              Effect.andThen(
-                dispatchReasoningActivity({
-                  ...input,
-                  phaseIndex: phase.index,
-                  text: phase.text,
-                  streaming: false,
-                  activityCreatedAt: phase.startedAt,
-                }),
-              ),
-            );
-          },
-        }),
-      ),
-    );
-
-  /**
-   * Trailing edge for the reasoning-stream throttle: leading-only flushes
-   * would leave a burst shorter than the cadence (or the tail of a long
-   * stream) stale until the phase settles. A scheduled flush is scoped to a
-   * phase so a tool boundary cannot update an older thought row. The flush
-   * itself runs on the ingestion worker, serialized with tool boundaries and
-   * turn settlement, so it can never land after the phase ends.
-   */
-  const scheduleReasoningTrailingFlush = (input: ReasoningTrailingFlush) =>
-    Effect.gen(function* () {
-      const turnKey = providerTurnKey(input.threadId, input.turnId);
-      const buffered = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
-      if (Option.isNone(buffered)) {
-        return;
-      }
-      const phase = buffered.value.activePhase;
-      if (phase === null || phase.index !== input.phaseIndex || phase.trailingFlushScheduled) {
-        return;
-      }
-      yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
-        ...buffered.value,
-        activePhase: { ...phase, trailingFlushScheduled: true },
-      });
-      yield* Effect.sleep(REASONING_ACTIVITY_FLUSH_INTERVAL_MS).pipe(
-        Effect.andThen(Queue.offer(dueReasoningFlushes, input)),
-        Effect.forkScoped,
-      );
     });
 
   const getSourceProposedPlanReferenceForPendingTurnStart = Effect.fn(
@@ -1899,11 +1657,7 @@ const make = Effect.gen(function* () {
 
   const processRuntimeEvent = (event: ProviderRuntimeEvent) =>
     Effect.gen(function* () {
-      if (
-        event.type === "content.delta" &&
-        event.payload.streamKind !== "assistant_text" &&
-        event.payload.streamKind !== "reasoning_text"
-      ) {
+      if (event.type === "content.delta" && event.payload.streamKind !== "assistant_text") {
         return;
       }
 
@@ -2079,55 +1833,8 @@ const make = Effect.gen(function* () {
         event.type === "content.delta" && event.payload.streamKind === "assistant_text"
           ? event.payload.delta
           : undefined;
-      const reasoningDelta =
-        event.type === "content.delta" && event.payload.streamKind === "reasoning_text"
-          ? event.payload.delta
-          : undefined;
       const proposedPlanDelta =
         event.type === "turn.proposed.delta" ? event.payload.delta : undefined;
-
-      // Reasoning deltas coalesce within the current thought phase. A visible
-      // tool start closes that phase below, so the next delta begins a new row
-      // instead of extending the prior thought across tool activity.
-      if (reasoningDelta !== undefined && reasoningDelta.length > 0) {
-        const reasoningTurnId = toTurnId(event.turnId);
-        if (reasoningTurnId !== undefined && !conflictsWithActiveTurn) {
-          const phase = yield* appendReasoningDelta({
-            threadId: thread.id,
-            turnId: reasoningTurnId,
-            delta: reasoningDelta,
-            createdAt: now,
-          });
-          const nowMillis = yield* Clock.currentTimeMillis;
-          if (nowMillis - phase.lastFlushedAt >= REASONING_ACTIVITY_FLUSH_INTERVAL_MS) {
-            yield* dispatchReasoningActivity({
-              commandTag: "reasoning-activity",
-              threadId: thread.id,
-              turnId: reasoningTurnId,
-              phaseIndex: phase.index,
-              text: phase.text,
-              streaming: true,
-              activityCreatedAt: phase.startedAt,
-              createdAt: now,
-            });
-            const turnKey = providerTurnKey(thread.id, reasoningTurnId);
-            const buffer = yield* Cache.get(reasoningBufferByTurnKey, turnKey);
-            if (buffer.activePhase?.index === phase.index) {
-              yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
-                ...buffer,
-                activePhase: { ...buffer.activePhase, lastFlushedAt: nowMillis },
-              });
-            }
-          } else {
-            yield* scheduleReasoningTrailingFlush({
-              threadId: thread.id,
-              turnId: reasoningTurnId,
-              phaseIndex: phase.index,
-              createdAt: now,
-            });
-          }
-        }
-      }
 
       if (assistantDelta && assistantDelta.length > 0) {
         const turnId = toTurnId(event.turnId);
@@ -2306,28 +2013,6 @@ const make = Effect.gen(function* () {
           fallbackMarkdown: proposedPlanCompletion.planMarkdown,
           updatedAt: now,
         });
-      }
-
-      if (isTerminalTurn) {
-        const turnId = toTurnId(event.turnId);
-        if (turnId) {
-          // The active phase is the only one that can still be streaming. Tool
-          // boundaries already finalized earlier phases in chronological order.
-          const reasoningBuffer = yield* takeReasoningBuffer(thread.id, turnId);
-          const phase = Option.isSome(reasoningBuffer) ? reasoningBuffer.value.activePhase : null;
-          if (phase !== null) {
-            yield* dispatchReasoningActivity({
-              commandTag: "reasoning-settle",
-              threadId: thread.id,
-              turnId,
-              phaseIndex: phase.index,
-              text: phase.text,
-              streaming: false,
-              activityCreatedAt: phase.startedAt,
-              createdAt: now,
-            });
-          }
-        }
       }
 
       if (isTerminalTurn) {
@@ -2554,19 +2239,6 @@ const make = Effect.gen(function* () {
           break;
       }
 
-      if (
-        startsVisibleToolLifecycle(event) &&
-        eventTurnId !== undefined &&
-        !conflictsWithActiveTurn
-      ) {
-        yield* finalizeActiveReasoningPhase({
-          commandTag: "reasoning-tool-boundary",
-          threadId: thread.id,
-          turnId: eventTurnId,
-          createdAt: now,
-        });
-      }
-
       let taskTitle: string | undefined;
       if (event.type === "task.completed") {
         taskTitle = yield* lookupTaskDescription(thread.id, event.payload.taskId);
@@ -2657,47 +2329,8 @@ const make = Effect.gen(function* () {
 
   const processDomainEvent = (_event: TurnStartRequestedDomainEvent) => Effect.void;
 
-  const flushReasoningTrailingEdge = (input: ReasoningTrailingFlush) =>
-    Effect.gen(function* () {
-      const turnKey = providerTurnKey(input.threadId, input.turnId);
-      const latest = yield* Cache.getOption(reasoningBufferByTurnKey, turnKey);
-      if (Option.isNone(latest)) {
-        return;
-      }
-      const latestPhase = latest.value.activePhase;
-      if (latestPhase === null || latestPhase.index !== input.phaseIndex) {
-        return;
-      }
-      yield* Cache.set(reasoningBufferByTurnKey, turnKey, {
-        ...latest.value,
-        activePhase: {
-          ...latestPhase,
-          trailingFlushScheduled: false,
-          lastFlushedAt: yield* Clock.currentTimeMillis,
-        },
-      });
-      yield* dispatchReasoningActivity({
-        commandTag: "reasoning-trailing-flush",
-        threadId: input.threadId,
-        turnId: input.turnId,
-        phaseIndex: latestPhase.index,
-        text: latestPhase.text,
-        streaming: true,
-        activityCreatedAt: latestPhase.startedAt,
-        createdAt: input.createdAt,
-      });
-    });
-
-  const processInput = (input: RuntimeIngestionInput) => {
-    switch (input.source) {
-      case "runtime":
-        return processRuntimeEvent(input.event);
-      case "domain":
-        return processDomainEvent(input.event);
-      case "reasoning-flush":
-        return flushReasoningTrailingEdge(input.flush);
-    }
-  };
+  const processInput = (input: RuntimeIngestionInput) =>
+    input.source === "runtime" ? processRuntimeEvent(input.event) : processDomainEvent(input.event);
 
   const processInputSafely = (input: RuntimeIngestionInput) =>
     processInput(input).pipe(
@@ -2707,9 +2340,8 @@ const make = Effect.gen(function* () {
         }
         return Effect.logWarning("provider runtime ingestion failed to process event", {
           source: input.source,
-          ...(input.source === "reasoning-flush"
-            ? { threadId: input.flush.threadId, turnId: input.flush.turnId }
-            : { eventId: input.event.eventId, eventType: input.event.type }),
+          eventId: input.event.eventId,
+          eventType: input.event.type,
           cause: Cause.pretty(cause),
         });
       }),
@@ -2731,11 +2363,6 @@ const make = Effect.gen(function* () {
           }
           return worker.enqueue({ source: "domain", event });
         }),
-      );
-      yield* forkParked(
-        Stream.runForEach(Stream.fromQueue(dueReasoningFlushes), (flush) =>
-          worker.enqueue({ source: "reasoning-flush", flush }),
-        ),
       );
     });
 

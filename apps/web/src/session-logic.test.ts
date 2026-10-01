@@ -681,45 +681,6 @@ describe("deriveWorkLogEntries", () => {
     expect(entries.map((entry) => entry.id)).toEqual(["task-progress", "task-complete"]);
   });
 
-  it("renders turn.reasoning activities as thinking entries with expandable detail", () => {
-    const activities: OrchestrationThreadActivity[] = [
-      makeActivity({
-        id: "reasoning-streaming",
-        createdAt: "2026-02-23T00:00:01.000Z",
-        kind: "turn.reasoning",
-        summary: "Reasoning",
-        tone: "info",
-        payload: { detail: "First I check the adapter.", streaming: true },
-      }),
-      makeActivity({
-        id: "reasoning-settled",
-        createdAt: "2026-02-23T00:00:02.000Z",
-        kind: "turn.reasoning",
-        summary: "Reasoned",
-        tone: "info",
-        payload: { detail: "Done — reviewed and green.", streaming: false },
-      }),
-    ];
-
-    const entries = deriveWorkLogEntries(activities);
-    expect(entries).toHaveLength(2);
-    expect(entries[0]).toMatchObject({
-      id: "reasoning-streaming",
-      label: "Thinking",
-      tone: "thinking",
-      sourceActivityKind: "turn.reasoning",
-      reasoningStreaming: true,
-      detail: "First I check the adapter.",
-    });
-    expect(entries[1]).toMatchObject({
-      id: "reasoning-settled",
-      label: "Thinking",
-      tone: "thinking",
-      detail: "Done — reviewed and green.",
-    });
-    expect(workLogEntryIsToolLike(entries[0]!)).toBe(false);
-  });
-
   it("uses payload summary as label for task entries when available", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({
@@ -790,6 +751,20 @@ describe("deriveWorkLogEntries", () => {
     ]);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ id: "pi-retry", turnId: TurnId.make("turn-1") });
+  });
+
+  it("hides reasoning activities persisted by older builds", () => {
+    const entries = deriveWorkLogEntries([
+      makeActivity({
+        id: "reasoning:thread-1:turn-1:0",
+        turnId: "turn-1",
+        kind: "turn.reasoning",
+        tone: "info",
+        summary: "Reasoned",
+        payload: { detail: "Checking the adapter first.", streaming: false },
+      }),
+    ]);
+    expect(entries).toEqual([]);
   });
 
   it("omits checkpoint captured info entries", () => {
