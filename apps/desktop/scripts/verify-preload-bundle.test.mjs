@@ -42,6 +42,17 @@ describe("desktop preload bundle verifier", () => {
     );
   });
 
+  it("bounds window callback execution by the preload timeout", () => {
+    assert.throws(
+      () =>
+        verifyPreloadBundle(`
+          ${validPreload}
+          window.addEventListener("resize", () => { while (true) {} });
+        `),
+      /Script execution timed out/,
+    );
+  });
+
   it("rejects required API names that only appear in strings", () => {
     assert.throws(
       () =>
