@@ -576,8 +576,8 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
                     </SelectValue>
                   </SelectTrigger>
                   <SelectPopup align="end" alignItemWithTrigger={false}>
-                    <SelectItem value="default" className="min-w-64 py-2">
-                      <div className="grid gap-0.5">
+                    <SelectItem value="default" className="min-w-64">
+                      <div className="grid gap-0.5 py-1">
                         <span className="font-medium">Default</span>
                         <span className="text-xs leading-4 text-muted-foreground">
                           {serverAccount
@@ -590,9 +590,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
                       <SelectItem
                         key={`${account.host}/${account.login}`}
                         value={`${account.host}/${account.login}`}
-                        className="min-w-64 py-2"
+                        className="min-w-64"
                       >
-                        <div className="grid gap-0.5">
+                        <div className="grid gap-0.5 py-1">
                           <span className="font-medium">{account.login}</span>
                           <span className="text-xs leading-4 text-muted-foreground">
                             {account.host}

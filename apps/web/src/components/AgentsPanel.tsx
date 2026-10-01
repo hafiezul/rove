@@ -170,91 +170,95 @@ function AgentDetailsDialog({
         <DialogHeader>
           <div className="flex items-center gap-2 pr-8">
             <StatusDot status={agent.status} />
-            <DialogTitle className="truncate">{agent.title}</DialogTitle>
+            <DialogTitle>
+              <span className="block truncate">{agent.title}</span>
+            </DialogTitle>
           </div>
-          <DialogDescription className="text-xs">
+          <DialogDescription>
             {[agent.role, visuals.label, ...metrics].filter(Boolean).join(" · ")}
           </DialogDescription>
         </DialogHeader>
-        <DialogPanel className="space-y-5">
-          {outcome ? (
-            <section>
-              <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {agent.error ? "Error" : "Result"}
-              </h3>
-              <p
-                className={cn(
-                  "whitespace-pre-wrap break-words text-sm",
-                  agent.error && "text-destructive-foreground",
-                )}
-              >
-                {outcome}
-              </p>
-            </section>
-          ) : null}
+        <DialogPanel>
+          <div className="space-y-5">
+            {outcome ? (
+              <section>
+                <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {agent.error ? "Error" : "Result"}
+                </h3>
+                <p
+                  className={cn(
+                    "whitespace-pre-wrap break-words text-sm",
+                    agent.error && "text-destructive-foreground",
+                  )}
+                >
+                  {outcome}
+                </p>
+              </section>
+            ) : null}
 
-          <section>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Recent activity
-            </h3>
-            {agent.recentActivity.length > 0 ? (
-              <ol className="space-y-2 border-l border-border/60 pl-3">
-                {agent.recentActivity.map((entry) => (
-                  <li key={`${entry.at}:${entry.summary}`} className="min-w-0">
-                    <p className="whitespace-pre-wrap break-words text-sm">{entry.summary}</p>
-                    <time
-                      dateTime={entry.at}
-                      className="font-mono text-[.65rem] text-muted-foreground"
-                    >
-                      {entry.at}
-                    </time>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {agentActivityText(agent) ?? "No detailed activity was reported."}
-              </p>
-            )}
-          </section>
-
-          {handles ? (
             <section>
               <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Run
+                Recent activity
               </h3>
-              <dl className="space-y-2 text-xs">
-                {handles.runId ? (
-                  <div>
-                    <dt className="text-muted-foreground">Run ID</dt>
-                    <dd className="break-all font-mono">{handles.runId}</dd>
-                  </div>
-                ) : null}
-                {handles.transcriptDir ? (
-                  <div>
-                    <dt className="text-muted-foreground">Transcript location</dt>
-                    <dd className="break-all font-mono">{handles.transcriptDir}</dd>
-                  </div>
-                ) : null}
-                {handles.sessionUrl ? (
-                  <div>
-                    <dt className="text-muted-foreground">Session</dt>
-                    <dd>
-                      <a
-                        href={handles.sessionUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+              {agent.recentActivity.length > 0 ? (
+                <ol className="space-y-2 border-l border-border/60 pl-3">
+                  {agent.recentActivity.map((entry) => (
+                    <li key={`${entry.at}:${entry.summary}`} className="min-w-0">
+                      <p className="whitespace-pre-wrap break-words text-sm">{entry.summary}</p>
+                      <time
+                        dateTime={entry.at}
+                        className="font-mono text-3xs text-muted-foreground"
                       >
-                        Open session
-                        <ExternalLink aria-hidden className="size-3" />
-                      </a>
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
+                        {entry.at}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {agentActivityText(agent) ?? "No detailed activity was reported."}
+                </p>
+              )}
             </section>
-          ) : null}
+
+            {handles ? (
+              <section>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Run
+                </h3>
+                <dl className="space-y-2 text-xs">
+                  {handles.runId ? (
+                    <div>
+                      <dt className="text-muted-foreground">Run ID</dt>
+                      <dd className="break-all font-mono">{handles.runId}</dd>
+                    </div>
+                  ) : null}
+                  {handles.transcriptDir ? (
+                    <div>
+                      <dt className="text-muted-foreground">Transcript location</dt>
+                      <dd className="break-all font-mono">{handles.transcriptDir}</dd>
+                    </div>
+                  ) : null}
+                  {handles.sessionUrl ? (
+                    <div>
+                      <dt className="text-muted-foreground">Session</dt>
+                      <dd>
+                        <a
+                          href={handles.sessionUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                        >
+                          Open session
+                          <ExternalLink aria-hidden className="size-3" />
+                        </a>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </section>
+            ) : null}
+          </div>
         </DialogPanel>
       </DialogPopup>
     </Dialog>
@@ -427,7 +431,7 @@ function WorkflowScriptView({
           variant="ghost-muted"
           onClick={onClose}
           aria-label="Close script"
-          className="ml-auto cursor-pointer text-muted-foreground hover:text-foreground"
+          className="ml-auto cursor-pointer"
         >
           <X aria-hidden className="size-3" />
         </Button>
@@ -563,7 +567,7 @@ function ExpandedWorkflowSection({
           variant="ghost-muted"
           onClick={onCollapse}
           aria-label="Collapse workflow"
-          className="cursor-pointer text-muted-foreground hover:text-foreground"
+          className="cursor-pointer"
         >
           <ChevronDown aria-hidden className="size-3" />
         </Button>

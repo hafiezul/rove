@@ -42,8 +42,8 @@ function TopContextStrip({ className, ...props }: ComponentProps<"div">) {
       className={cn(
         composerSurfaceTokenClasses,
         "relative isolate z-0 mx-auto -mb-4 flex w-[calc(100%-2*var(--chat-composer-drawer-inset))] items-center gap-2 overflow-x-clip overflow-y-visible ps-1 pe-2 pt-1 pb-5",
-        "before:absolute before:inset-0 before:-z-1 before:rounded-t-[16px] before:border before:border-(--chat-composer-outline) before:bg-[color-mix(in_srgb,var(--chat-composer-glass-surface)_var(--glass-opacity),transparent)] before:backdrop-blur-(--glass-blur) before:backdrop-saturate-(--glass-saturation) before:mask-[linear-gradient(to_top,transparent_0_1rem,black_1rem)] before:shadow-[0_-12px_28px_-18px_rgb(0_0_0/40%)]",
-        "dark:before:border-white/7 dark:before:shadow-[0_-14px_32px_-18px_rgb(0_0_0/75%)]",
+        "before:absolute before:inset-0 before:-z-1 before:rounded-t-2xl before:border before:border-(--chat-composer-outline) before:bg-(--chat-composer-glass-surface)/(--glass-opacity) before:backdrop-blur-(--glass-blur) before:backdrop-saturate-(--glass-saturation) before:mask-t-from-transparent before:mask-t-from-4 before:mask-t-to-black before:mask-t-to-4 before:shadow-composer-above",
+        "dark:before:border-white/7 dark:before:shadow-composer-above-dark",
         "not-supports-[((backdrop-filter:blur(1px))_or_(-webkit-backdrop-filter:blur(1px)))]:before:bg-(--chat-composer-glass-surface)",
         className,
       )}
