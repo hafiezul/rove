@@ -16,6 +16,7 @@ Rove Code is an independent fork of an upstream coding-agent control surface. Th
 - [SnapShots](./user/snap-shot.md)
 - [Import browser sessions](./user/browser-import.md)
 - [Devices](./user/devices.md)
+- [Computer use](./user/computer-use.md)
 - [Usage and limits](./user/usage.md)
 - [Product usage data](./user/telemetry.md)
 - [Remote access](./user/remote-access.md)

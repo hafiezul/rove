@@ -1,5 +1,6 @@
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { ScopedSwitch } from "./ScopedSwitch";
+import { ComputerUseSettings } from "./ComputerUseSettings";
 import { DeviceHostsSettings } from "./DeviceHostsSettings";
 /**
  * Integrations settings - preferences for surfaces Rove Code embeds rather than
@@ -1346,6 +1347,7 @@ export function IntegrationsSettingsPanel() {
         )}
       </SettingsSection>
       <DeviceIntegrationSettings />
+      <ComputerUseSettings />
     </SettingsPageContainer>
   );
 }
