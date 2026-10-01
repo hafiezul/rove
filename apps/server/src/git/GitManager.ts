@@ -14,6 +14,7 @@ import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import {
+  DEFAULT_SERVER_SETTINGS,
   GitActionProgressEvent,
   GitActionProgressPhase,
   GitCommandError,
@@ -711,15 +712,25 @@ export const make = Effect.gen(function* () {
    * GitHub account. A selection already in scope (a thread's stacked action)
    * wins; with none anywhere, `gh` keeps its active account.
    */
-  const sourceControlProvider = Effect.fnUntraced(function* (cwd: string) {
-    const provider = yield* sourceControlProviders.resolve({ cwd });
-    if (provider.kind !== "github" || (yield* SelectedGitHubAccount) !== null) return provider;
-    const selection = yield* projectSettingsFor({ cwd }).pipe(
-      Effect.map((settings) => settings.githubAccount ?? null),
-      Effect.orElseSucceed(() => null),
+  const sourceControlContext = Effect.fnUntraced(function* (cwd: string) {
+    const settings = yield* projectSettingsFor({ cwd }).pipe(
+      Effect.orElseSucceed(() => DEFAULT_SERVER_SETTINGS),
     );
-    return provideSelectedGitHubAccount(provider, selection);
+    const handle = yield* sourceControlProviders.resolveHandle({
+      cwd,
+      preferredRemote: settings.repositoryRemote,
+    });
+    const provider =
+      handle.provider.kind === "github" && (yield* SelectedGitHubAccount) === null
+        ? provideSelectedGitHubAccount(handle.provider, settings.githubAccount ?? null)
+        : handle.provider;
+    return {
+      provider,
+      remoteName: handle.context?.remoteName ?? settings.repositoryRemote,
+    };
   });
+  const sourceControlProvider = (cwd: string) =>
+    sourceControlContext(cwd).pipe(Effect.map((context) => context.provider));
   const withProjectGitHubAccount: GitManager["Service"]["withProjectGitHubAccount"] = (
     cwd,
     effect,
@@ -1386,10 +1397,11 @@ export const make = Effect.gen(function* () {
     function* (cwd: string, branch: string, remoteNameOverride?: string) {
       const remoteName =
         remoteNameOverride ?? (yield* readConfigValueNullable(cwd, `branch.${branch}.remote`));
+      const targetContext = yield* sourceControlContext(cwd);
       const [headRemote, targetRemote] = yield* Effect.all(
         [
           resolveRemoteRepositoryContext(cwd, remoteName),
-          resolveRemoteRepositoryContext(cwd, "origin"),
+          resolveRemoteRepositoryContext(cwd, targetContext.remoteName),
         ],
         { concurrency: "unbounded" },
       );
@@ -1416,21 +1428,22 @@ export const make = Effect.gen(function* () {
     const shouldProbeLocalBranchSelector =
       headBranchFromUpstream.length === 0 || headBranch === details.branch;
 
-    const [remoteRepository, originRepository] = yield* Effect.all(
+    const targetContext = yield* sourceControlContext(cwd);
+    const [remoteRepository, targetRepository] = yield* Effect.all(
       [
         resolveRemoteRepositoryContext(cwd, remoteName),
-        resolveRemoteRepositoryContext(cwd, "origin"),
+        resolveRemoteRepositoryContext(cwd, targetContext.remoteName),
       ],
       { concurrency: "unbounded" },
     );
 
     const isCrossRepository =
       remoteRepository.repositoryNameWithOwner !== null &&
-      originRepository.repositoryNameWithOwner !== null
+      targetRepository.repositoryNameWithOwner !== null
         ? remoteRepository.repositoryNameWithOwner.toLowerCase() !==
-          originRepository.repositoryNameWithOwner.toLowerCase()
+          targetRepository.repositoryNameWithOwner.toLowerCase()
         : remoteName !== null &&
-          remoteName !== "origin" &&
+          remoteName !== targetContext.remoteName &&
           remoteRepository.repositoryNameWithOwner !== null;
 
     const ownerHeadSelector =
@@ -1440,7 +1453,7 @@ export const make = Effect.gen(function* () {
     const remoteAliasHeadSelector =
       remoteName && headBranch.length > 0 ? `${remoteName}:${headBranch}` : null;
     const shouldProbeRemoteOwnedSelectors =
-      isCrossRepository || (remoteName !== null && remoteName !== "origin");
+      isCrossRepository || (remoteName !== null && remoteName !== targetContext.remoteName);
 
     const headSelectors: string[] = [];
     if (isCrossRepository && shouldProbeRemoteOwnedSelectors) {
@@ -1471,8 +1484,8 @@ export const make = Effect.gen(function* () {
       remoteName,
       headRemoteUrlKey:
         remoteRepository.remoteUrlKey ??
-        (remoteName === null ? originRepository.remoteUrlKey : null),
-      targetRemoteUrlKey: originRepository.remoteUrlKey,
+        (remoteName === null ? targetRepository.remoteUrlKey : null),
+      targetRemoteUrlKey: targetRepository.remoteUrlKey,
       headRepositoryNameWithOwner: remoteRepository.repositoryNameWithOwner,
       headRepositoryOwnerLogin: remoteRepository.ownerLogin,
       isCrossRepository,
@@ -1808,8 +1821,8 @@ export const make = Effect.gen(function* () {
     // back to what the remote itself records before assuming a name. A repository
     // whose default branch is master would otherwise get a base branch that does
     // not exist.
-    const defaultFromRemote = yield* gitCore.resolvePrimaryRemoteName(cwd).pipe(
-      Effect.flatMap((remoteName) => gitCore.resolveDefaultBranchName(cwd, remoteName)),
+    const defaultFromRemote = yield* sourceControlContext(cwd).pipe(
+      Effect.flatMap((context) => gitCore.resolveDefaultBranchName(cwd, context.remoteName)),
       Effect.orElseSucceed(() => null),
     );
     if (defaultFromRemote) {
@@ -1823,9 +1836,10 @@ export const make = Effect.gen(function* () {
     cwd: string,
     baseBranch: string,
   ) {
-    const remoteName = yield* gitCore
-      .resolvePrimaryRemoteName(cwd)
-      .pipe(Effect.orElseSucceed(() => null));
+    const remoteName = yield* sourceControlContext(cwd).pipe(
+      Effect.map((context) => context.remoteName),
+      Effect.orElseSucceed(() => null),
+    );
     if (!remoteName) return baseBranch;
 
     return yield* gitCore

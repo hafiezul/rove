@@ -119,6 +119,36 @@ it.effect("routes GitHub remotes to the GitHub provider", () =>
   }),
 );
 
+it.effect("keeps origin and upstream repository selections separate in the cache", () =>
+  Effect.gen(function* () {
+    const registry = yield* makeRegistry({
+      remotes: [
+        { name: "origin", url: "git@github.com:fork/project.git" },
+        { name: "upstream", url: "git@github.com:owner/project.git" },
+      ],
+    });
+
+    const origin = yield* registry.resolveHandle({ cwd: "/repo" });
+    const upstream = yield* registry.resolveHandle({ cwd: "/repo", preferredRemote: "upstream" });
+    const originAgain = yield* registry.resolveHandle({ cwd: "/repo", preferredRemote: "origin" });
+
+    assert.equal(origin.context?.remoteName, "origin");
+    assert.equal(upstream.context?.remoteName, "upstream");
+    assert.equal(upstream.context?.remoteUrl, "git@github.com:owner/project.git");
+    assert.equal(originAgain.context?.remoteUrl, "git@github.com:fork/project.git");
+  }),
+);
+
+it.effect("falls back to origin when the preferred upstream remote is absent", () =>
+  Effect.gen(function* () {
+    const registry = yield* makeRegistry({
+      remotes: [{ name: "origin", url: "git@github.com:fork/project.git" }],
+    });
+    const handle = yield* registry.resolveHandle({ cwd: "/repo", preferredRemote: "upstream" });
+    assert.equal(handle.context?.remoteName, "origin");
+  }),
+);
+
 it.effect("routes SSH host aliases to the provider of their configured HostName", () =>
   Effect.gen(function* () {
     const registry = yield* makeRegistry({

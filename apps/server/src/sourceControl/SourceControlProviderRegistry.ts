@@ -5,7 +5,9 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import {
+  DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
   SourceControlProviderError,
+  type RepositoryRemotePreference,
   type SourceControlProviderDiscoveryItem,
 } from "@t3tools/contracts";
 import type { SourceControlProviderKind } from "@t3tools/contracts";
@@ -53,9 +55,11 @@ export class SourceControlProviderRegistry extends Context.Service<
     readonly resolveHandle: (input: {
       readonly cwd: string;
       readonly context?: SourceControlProvider.SourceControlProviderContext;
+      readonly preferredRemote?: RepositoryRemotePreference;
     }) => Effect.Effect<SourceControlProviderHandle, SourceControlProviderError>;
     readonly resolve: (input: {
       readonly cwd: string;
+      readonly preferredRemote?: RepositoryRemotePreference;
     }) => Effect.Effect<
       SourceControlProvider.SourceControlProvider["Service"],
       SourceControlProviderError
@@ -131,6 +135,7 @@ function selectProviderContext(
     readonly name: string;
     readonly url: string;
   }>,
+  preferredRemote: RepositoryRemotePreference,
 ): SourceControlProvider.SourceControlProviderContext | null {
   const candidates: Array<SourceControlProvider.SourceControlProviderContext> = [];
   for (const remote of remotes) {
@@ -145,7 +150,10 @@ function selectProviderContext(
   }
 
   return (
-    candidates.find((candidate) => candidate.remoteName === "origin") ??
+    candidates.find((candidate) => candidate.remoteName === preferredRemote) ??
+    candidates.find(
+      (candidate) => candidate.remoteName === "origin" || candidate.remoteName === "upstream",
+    ) ??
     candidates.find((candidate) => candidate.provider.kind !== "unknown") ??
     candidates[0] ??
     null
@@ -213,7 +221,7 @@ export const makeWithProviders = Effect.fn("makeSourceControlProviderRegistryWit
       Effect.succeed(providers.get(kind) ?? unsupportedProvider(kind));
 
     const detectProviderContext = Effect.fn("SourceControlProviderRegistry.detectProviderContext")(
-      function* (cwd: string) {
+      function* (cwd: string, preferredRemote: RepositoryRemotePreference) {
         const handle = yield* vcsRegistry.resolve({ cwd }).pipe(
           Effect.mapError(
             (error) =>
@@ -238,7 +246,7 @@ export const makeWithProviders = Effect.fn("makeSourceControlProviderRegistryWit
               }),
           ),
         );
-        const context = selectProviderContext(remotes.remotes);
+        const context = selectProviderContext(remotes.remotes, preferredRemote);
 
         return yield* refineUnknownRemoteProvider({
           specs: discoverySpecs,
@@ -249,18 +257,22 @@ export const makeWithProviders = Effect.fn("makeSourceControlProviderRegistryWit
       },
     );
 
-    const providerContextCache = yield* Cache.makeWith<
-      string,
-      SourceControlProvider.SourceControlProviderContext | null,
-      SourceControlProviderError
-    >(detectProviderContext, {
-      capacity: PROVIDER_DETECTION_CACHE_CAPACITY,
-      timeToLive: (exit) => (Exit.isSuccess(exit) ? PROVIDER_DETECTION_CACHE_TTL : Duration.zero),
+    const makeProviderContextCache = (preferredRemote: RepositoryRemotePreference) =>
+      Cache.makeWith((cwd: string) => detectProviderContext(cwd, preferredRemote), {
+        capacity: PROVIDER_DETECTION_CACHE_CAPACITY,
+        timeToLive: (exit) => (Exit.isSuccess(exit) ? PROVIDER_DETECTION_CACHE_TTL : Duration.zero),
+      });
+    const providerContextCaches = yield* Effect.all({
+      origin: makeProviderContextCache("origin"),
+      upstream: makeProviderContextCache("upstream"),
     });
 
     const resolveHandle: SourceControlProviderRegistry["Service"]["resolveHandle"] = (input) =>
       (input.context === undefined
-        ? Cache.get(providerContextCache, input.cwd)
+        ? Cache.get(
+            providerContextCaches[input.preferredRemote ?? DEFAULT_REPOSITORY_REMOTE_PREFERENCE],
+            input.cwd,
+          )
         : refineUnknownRemoteProvider({
             specs: discoverySpecs,
             process,

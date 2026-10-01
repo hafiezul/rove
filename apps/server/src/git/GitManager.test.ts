@@ -42,7 +42,10 @@ import {
   ForgejoPullRequestSchema,
   toForgejoChangeRequest,
 } from "../sourceControl/forgejoPullRequests.ts";
-import type { SourceControlProvider } from "../sourceControl/SourceControlProvider.ts";
+import type {
+  SourceControlProvider,
+  SourceControlProviderContext,
+} from "../sourceControl/SourceControlProvider.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProjectSetupScriptRunner from "../project/ProjectSetupScriptRunner.ts";
@@ -642,6 +645,7 @@ function preparePullRequestThread(
 function makeManager(input?: {
   ghScenario?: FakeGhScenario;
   sourceControlProvider?: SourceControlProvider["Service"];
+  sourceControlContexts?: Partial<Record<"origin" | "upstream", SourceControlProviderContext>>;
   textGeneration?: Partial<FakeGitTextGeneration>;
   serverSettings?: Parameters<typeof ServerSettings.layerTest>[0];
   setupScriptRunner?: ProjectSetupScriptRunner.ProjectSetupScriptRunner["Service"];
@@ -690,7 +694,11 @@ function makeManager(input?: {
         SourceControlProviderRegistry.SourceControlProviderRegistry.of({
           resolveLink: (input) => provider.resolveLink?.(input),
           get: () => Effect.succeed(provider),
-          resolveHandle: () => Effect.succeed({ provider, context: null }),
+          resolveHandle: (request) =>
+            Effect.succeed({
+              provider,
+              context: input?.sourceControlContexts?.[request.preferredRemote ?? "origin"] ?? null,
+            }),
           resolve: () => Effect.succeed(provider),
           discover: Effect.succeed([]),
         }),
@@ -3416,6 +3424,79 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
       ).toBe(true);
     }),
   );
+
+  for (const preferredRemote of ["origin", "upstream"] as const) {
+    it.effect(`create_pr honors the project's ${preferredRemote} remote and GitHub account`, () =>
+      Effect.gen(function* () {
+        const repoDir = yield* makeTempDir("rove-git-manager-");
+        yield* initRepo(repoDir);
+        const originDir = yield* createBareRemote();
+        const upstreamDir = yield* createBareRemote();
+        yield* runGit(repoDir, ["remote", "add", "origin", originDir]);
+        yield* runGit(repoDir, ["remote", "add", "upstream", upstreamDir]);
+        yield* runGit(repoDir, ["push", "origin", "main"]);
+        yield* runGit(repoDir, ["push", "upstream", "main:release"]);
+        yield* runGit(repoDir, ["checkout", "-b", "feature/selected-remote"]);
+        NodeFS.writeFileSync(NodePath.join(repoDir, "changes.txt"), "feature\n");
+        yield* runGit(repoDir, ["add", "changes.txt"]);
+        yield* runGit(repoDir, ["commit", "-m", "Feature commit"]);
+        yield* runGit(repoDir, ["push", "-u", "origin", "feature/selected-remote"]);
+        yield* configureVisibleRemoteUrlWithLocalRewrite(
+          repoDir,
+          "origin",
+          "https://github.com/fork/project.git",
+          originDir,
+        );
+        yield* configureVisibleRemoteUrlWithLocalRewrite(
+          repoDir,
+          "upstream",
+          "https://github.com/owner/project.git",
+          upstreamDir,
+        );
+        const projectId = "project-remote-preference" as ProjectId;
+        const { manager, ghCalls, ghAccounts } = yield* makeManager({
+          sourceControlContexts: {
+            origin: {
+              provider: { kind: "github", name: "GitHub", baseUrl: "https://github.com" },
+              remoteName: "origin",
+              remoteUrl: "https://github.com/fork/project.git",
+            },
+            upstream: {
+              provider: { kind: "github", name: "GitHub", baseUrl: "https://github.com" },
+              remoteName: "upstream",
+              remoteUrl: "https://github.com/owner/project.git",
+            },
+          },
+          ghScenario: { defaultBranch: preferredRemote === "upstream" ? "release" : "main" },
+          projectIdByCwd: { [repoDir]: projectId, [NodeFS.realpathSync(repoDir)]: projectId },
+          serverSettings: {
+            repositoryRemote: preferredRemote === "upstream" ? "origin" : "upstream",
+            projectSettingsOverrides: {
+              [projectId]: {
+                repositoryRemote: preferredRemote,
+                githubAccount: { host: "github.com", login: "fork" },
+              },
+            },
+          },
+        });
+        const result = yield* runStackedAction(manager, { cwd: repoDir, action: "create_pr" });
+        const baseBranch = preferredRemote === "upstream" ? "release" : "main";
+        const headSelector =
+          preferredRemote === "upstream"
+            ? "fork:feature/selected-remote"
+            : "feature/selected-remote";
+
+        expect(result.pr.status).toBe("created");
+        expect(result.pr.baseBranch).toBe(baseBranch);
+        expect(
+          ghCalls.some((call) =>
+            call.includes(`pr create --base ${baseBranch} --head ${headSelector}`),
+          ),
+        ).toBe(true);
+        expect(new Set(ghAccounts)).toEqual(new Set(["fork"]));
+      }),
+    );
+  }
 
   it.effect("create_pr falls back to main when source control provider detection fails", () =>
     Effect.gen(function* () {
