@@ -45,6 +45,10 @@ const ITEMS: ReadonlyArray<SettingsSearchItem> = [
 ];
 
 describe("searchSettings", () => {
+  it.each(["worktree activity", "disk usage", "abandoned", "worktree size"])(
+    "finds the manual inventory for %s",
+    (query) => expect(searchSettings(query).map((item) => item.id)).toContain("storage-inventory"),
+  );
   it.each(["send shortcut", "multiline", "new line"])("finds Send shortcut for %s", (query) => {
     expect(searchSettings(query).map((item) => item.id)).toContain("send-shortcut");
   });

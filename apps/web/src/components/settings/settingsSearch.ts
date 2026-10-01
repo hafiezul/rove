@@ -130,6 +130,13 @@ const KEYBINDING_SEARCH_ITEMS = STATIC_KEYBINDING_COMMANDS.toSorted((left, right
  */
 export const SETTINGS_SEARCH_ITEMS = [
   {
+    id: "storage-inventory",
+    title: "Worktree inventory",
+    to: "/settings/storage",
+    scope: "project-defaults",
+    searchTerms: ["worktree activity disk usage size unused abandoned review remove checkout"],
+  },
+  {
     id: "storage-worktrees",
     title: "Worktree cleanup",
     to: "/settings/storage",

@@ -11,6 +11,10 @@
       "types": "./src/device/hubAccess.ts",
       "default": "./src/device/hubAccess.ts"
     },
+    "./worktree-inventory": {
+      "types": "./src/worktreeInventory.ts",
+      "default": "./src/worktreeInventory.ts"
+    },
     "./worktree-setup": {
       "types": "./src/worktreeSetup.ts",
       "default": "./src/worktreeSetup.ts"

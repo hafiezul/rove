@@ -137,6 +137,7 @@ import { deletePendingAttachment, issueAttachmentUploadUrl } from "./assets/Atta
 import * as PortScanner from "./preview/PortScanner.ts";
 import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
 import * as WorkspaceFileSystem from "./workspace/WorkspaceFileSystem.ts";
+import { makeWorktreeInventory } from "./project/worktreeInventory.ts";
 import { readWorkflowScript } from "./orchestration/workflowScriptQuery.ts";
 import * as WorkspacePaths from "./workspace/WorkspacePaths.ts";
 import * as VcsStatusBroadcaster from "./vcs/VcsStatusBroadcaster.ts";
@@ -558,6 +559,7 @@ const makeWsRpcLayer = (
       const externalLauncher = yield* ExternalLauncher.ExternalLauncher;
       const remoteOpenTargets = yield* RemoteOpenTargets.RemoteOpenTargets;
       const gitWorkflow = yield* GitWorkflowService.GitWorkflowService;
+      const worktreeInventory = yield* makeWorktreeInventory;
       const review = yield* ReviewService.ReviewService;
       const vcsProvisioning = yield* VcsProvisioningService.VcsProvisioningService;
       const vcsStatusBroadcaster = yield* VcsStatusBroadcaster.VcsStatusBroadcaster;
@@ -3444,6 +3446,22 @@ const makeWsRpcLayer = (
               .pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
             { "rpc.aggregate": "git" },
           ),
+        [WS_METHODS.worktreeInventoryList]: (input) =>
+          observeRpcEffect(WS_METHODS.worktreeInventoryList, worktreeInventory.list(input), {
+            "rpc.aggregate": "worktreeInventory",
+          }),
+        [WS_METHODS.worktreeInventoryInspect]: (input) =>
+          observeRpcEffect(WS_METHODS.worktreeInventoryInspect, worktreeInventory.inspect(input), {
+            "rpc.aggregate": "worktreeInventory",
+          }),
+        [WS_METHODS.worktreeInventoryMeasure]: (input) =>
+          observeRpcEffect(WS_METHODS.worktreeInventoryMeasure, worktreeInventory.measure(input), {
+            "rpc.aggregate": "worktreeInventory",
+          }),
+        [WS_METHODS.worktreeInventoryRemove]: (input) =>
+          observeRpcEffect(WS_METHODS.worktreeInventoryRemove, worktreeInventory.remove(input), {
+            "rpc.aggregate": "worktreeInventory",
+          }),
         [WS_METHODS.vcsListRefs]: (input) =>
           observeRpcEffect(WS_METHODS.vcsListRefs, gitWorkflow.listRefs(input), {
             "rpc.aggregate": "vcs",

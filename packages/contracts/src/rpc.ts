@@ -58,6 +58,15 @@ import {
   AttachmentUploadSigningKeyError,
 } from "./assets.ts";
 import {
+  WorktreeInventoryError,
+  WorktreeInventoryInput,
+  WorktreeInventoryInspection,
+  WorktreeInventoryResult,
+  WorktreeInventoryTarget,
+  WorktreeInventoryRemoveInput,
+  WorktreeInventorySize,
+} from "./worktreeInventory.ts";
+import {
   WorktreeSetupCancelInput,
   WorktreeSetupCancelResult,
   WorktreeSetupStreamEvent,
@@ -332,6 +341,10 @@ export const WS_METHODS = {
   // VCS methods
   vcsPull: "vcs.pull",
   vcsRefreshStatus: "vcs.refreshStatus",
+  worktreeInventoryList: "worktreeInventory.list",
+  worktreeInventoryInspect: "worktreeInventory.inspect",
+  worktreeInventoryMeasure: "worktreeInventory.measure",
+  worktreeInventoryRemove: "worktreeInventory.remove",
   vcsListRefs: "vcs.listRefs",
   vcsCreateWorktree: "vcs.createWorktree",
   vcsRemoveWorktree: "vcs.removeWorktree",
@@ -1129,6 +1142,29 @@ const WsGitPreparePullRequestThreadRpc = Rpc.make(WS_METHODS.gitPreparePullReque
   error: Schema.Union([GitManagerServiceError, EnvironmentAuthorizationError]),
 });
 
+const WsWorktreeInventoryListRpc = Rpc.make(WS_METHODS.worktreeInventoryList, {
+  payload: WorktreeInventoryInput,
+  success: WorktreeInventoryResult,
+  error: Schema.Union([WorktreeInventoryError, EnvironmentAuthorizationError]),
+});
+
+const WsWorktreeInventoryInspectRpc = Rpc.make(WS_METHODS.worktreeInventoryInspect, {
+  payload: WorktreeInventoryTarget,
+  success: WorktreeInventoryInspection,
+  error: Schema.Union([WorktreeInventoryError, EnvironmentAuthorizationError]),
+});
+
+const WsWorktreeInventoryMeasureRpc = Rpc.make(WS_METHODS.worktreeInventoryMeasure, {
+  payload: WorktreeInventoryTarget,
+  success: WorktreeInventorySize,
+  error: Schema.Union([WorktreeInventoryError, EnvironmentAuthorizationError]),
+});
+
+const WsWorktreeInventoryRemoveRpc = Rpc.make(WS_METHODS.worktreeInventoryRemove, {
+  payload: WorktreeInventoryRemoveInput,
+  error: Schema.Union([WorktreeInventoryError, EnvironmentAuthorizationError]),
+});
+
 const WsVcsListRefsRpc = Rpc.make(WS_METHODS.vcsListRefs, {
   payload: VcsListRefsInput,
   success: VcsListRefsResult,
@@ -1565,6 +1601,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsGitRunStackedActionRpc,
   WsGitResolvePullRequestRpc,
   WsGitPreparePullRequestThreadRpc,
+  WsWorktreeInventoryListRpc,
+  WsWorktreeInventoryInspectRpc,
+  WsWorktreeInventoryMeasureRpc,
+  WsWorktreeInventoryRemoveRpc,
   WsVcsListRefsRpc,
   WsVcsCreateWorktreeRpc,
   WsVcsRemoveWorktreeRpc,
