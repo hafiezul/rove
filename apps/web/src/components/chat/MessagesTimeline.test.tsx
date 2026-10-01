@@ -1314,36 +1314,6 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain('data-user-message-footer="true"');
   });
 
-  it("renders provider reasoning as a Thinking disclosure instead of a work-log tool row", () => {
-    const markup = renderToStaticMarkup(
-      <MessagesTimeline
-        {...buildProps()}
-        timelineEntries={[
-          {
-            id: "reasoning-entry",
-            kind: "work" as const,
-            createdAt: MESSAGE_CREATED_AT,
-            entry: {
-              id: "reasoning-1",
-              createdAt: MESSAGE_CREATED_AT,
-              label: "Reasoned",
-              detail: "**Inspecting** the adapter before the next tool.",
-              tone: "thinking" as const,
-              sourceActivityKind: "turn.reasoning",
-              reasoningStreaming: true,
-            },
-          },
-        ]}
-      />,
-    );
-
-    expect(markup).toContain('data-thinking-chain="true"');
-    expect(markup).toContain("Thinking…");
-    expect(markup).toContain("Inspecting");
-    expect(markup).not.toContain("Reasoned");
-    expect(markup).not.toContain("Work Log");
-  });
-
   it("renders assistant text before a tool as standard assistant content", () => {
     const markup = renderToStaticMarkup(
       <MessagesTimeline

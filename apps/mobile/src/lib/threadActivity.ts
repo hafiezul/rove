@@ -77,10 +77,6 @@ export interface ThreadFeedActivity {
     | "wrench"
     | "zap";
   readonly toolLike: boolean;
-  /** True only for a provider reasoning phase; it separates work-log groups. */
-  readonly reasoning?: boolean;
-  /** True while this reasoning phase is still receiving provider deltas. */
-  readonly reasoningStreaming?: boolean;
   readonly status: "success" | "failure" | "neutral" | null;
   readonly lifecycleStatus?: WorkLogToolLifecycleStatus;
   readonly workEntry: WorkLogEntry;
@@ -126,7 +122,6 @@ export interface WorkLogEntry {
     }>;
   };
   toolData?: unknown;
-  reasoningStreaming?: boolean;
 }
 
 interface DerivedWorkLogEntry extends WorkLogEntry {
@@ -236,26 +231,6 @@ export type ThreadFeedLatestTurn = Pick<
   OrchestrationLatestTurn,
   "turnId" | "state" | "startedAt" | "completedAt"
 >;
-
-/** Finds terminal assistant responses and whether visible content is streaming. */
-export function deriveAssistantMessagePresentation(feed: ReadonlyArray<ThreadFeedEntry>) {
-  const terminalIdByTurn = new Map<TurnId, string>();
-  let hasStreamingText = false;
-  for (const entry of feed) {
-    if (
-      (entry.type === "message" && entry.message.role === "assistant" && entry.message.streaming) ||
-      (entry.type === "activity-group" &&
-        entry.activities.some((activity) => activity.reasoningStreaming === true))
-    ) {
-      hasStreamingText = true;
-    }
-    if (entry.type === "message" && entry.message.role === "assistant" && entry.message.turnId) {
-      terminalIdByTurn.set(entry.message.turnId, entry.message.id);
-    }
-  }
-
-  return { terminalIds: new Set(terminalIdByTurn.values()), hasStreamingText };
-}
 
 type ThreadFeedActivityGroup = Extract<ThreadFeedEntry, { readonly type: "activity-group" }>;
 
@@ -457,6 +432,8 @@ function deriveWorkLogEntries(
     if (activity.kind === "tool.progress") continue;
     if (activity.kind === "context-window.updated") continue;
     if (activity.kind === PI_EXTENSION_STATUS_ACTIVITY_KIND) continue;
+    // Older Rove builds persisted reasoning text as activities; it is no longer shown.
+    if (activity.kind === "turn.reasoning") continue;
     if (activity.summary === "Checkpoint captured") continue;
     if (isNoContentRuntimeWarning(activity)) continue;
     if (isPlanBoundaryToolActivity(activity)) continue;
@@ -519,7 +496,6 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       ? payload.detail
       : null;
   const taskLabel = taskSummary || taskDetailAsLabel;
-  const isReasoningActivity = activity.kind === "turn.reasoning";
   const taskId =
     isTaskActivity && typeof payload?.taskId === "string" && payload.taskId.length > 0
       ? payload.taskId
@@ -528,10 +504,10 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     id: activity.id,
     createdAt: activity.createdAt,
     turnId: activity.turnId,
-    ...(taskId ? { taskId } : undefined),
-    label: isReasoningActivity ? "Thinking" : taskLabel || activity.summary,
+    ...(taskId ? { taskId } : {}),
+    label: taskLabel || activity.summary,
     tone:
-      activity.kind === "task.progress" || isReasoningActivity
+      activity.kind === "task.progress"
         ? "thinking"
         : activity.tone === "approval"
           ? "info"
@@ -593,9 +569,6 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   }
   if (viewedImagePath) {
     entry.viewedImagePath = viewedImagePath;
-  }
-  if (isReasoningActivity && payload?.streaming === true) {
-    entry.reasoningStreaming = true;
   }
   if (commandPreview.command) {
     entry.command = commandPreview.command;
@@ -955,10 +928,7 @@ function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | un
   return [itemType, normalizedLabel, detail].join("\u001f");
 }
 
-function workEntryStatus(entry: DerivedWorkLogEntry): ThreadFeedActivity["status"] {
-  if (entry.sourceActivityKind === "turn.reasoning") {
-    return null;
-  }
+function workEntryStatus(entry: WorkLogEntry): ThreadFeedActivity["status"] {
   if (entry.agentSpawn) {
     switch (entry.toolLifecycleStatus) {
       case "failed":
@@ -1604,7 +1574,6 @@ function groupAdjacentActivities(entries: ReadonlyArray<RawThreadFeedEntry>): Th
     }
 
     const isStandalone =
-      entry.activity.reasoning === true ||
       entry.activity.workEntry.sourceActivityKind === "context-compaction" ||
       entry.activity.workEntry.questionAnswer !== undefined;
     if (isStandalone || firstActivityEntry?.turnId !== entry.turnId) {
@@ -1971,7 +1940,7 @@ function appendActivityGroupRows(
   };
   for (const activity of activities) {
     const spawn = activity.workEntry.agentSpawn;
-    if (activity.workEntry.tone !== "error" && spawn === undefined && !activity.reasoning) {
+    if (activity.workEntry.tone !== "error" && spawn === undefined) {
       groupableRun.push(activity);
       continue;
     }
@@ -2315,8 +2284,6 @@ function toThreadFeedActivityEntry(
       getFullDetail,
       getCopyText,
       icon: workEntryIcon(entry),
-      reasoning: entry.sourceActivityKind === "turn.reasoning",
-      reasoningStreaming: entry.reasoningStreaming,
       toolLike: workLogEntryIsToolLike(entry),
       status: workEntryStatus(entry),
       ...(entry.toolLifecycleStatus ? { lifecycleStatus: entry.toolLifecycleStatus } : {}),

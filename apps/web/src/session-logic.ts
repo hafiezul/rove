@@ -79,8 +79,6 @@ export interface WorkLogEntry {
   toolLifecycleStatus?: WorkLogToolLifecycleStatus;
   /** Originating orchestration activity kind (e.g. `user-input.requested`) for row chrome. */
   sourceActivityKind?: OrchestrationThreadActivity["kind"];
-  /** Whether this provider reasoning phase is still receiving deltas. */
-  reasoningStreaming?: boolean;
   /** Grouping key for subagent lifecycle rows (one row per agent). */
   taskId?: string;
   /** Agent role (subagent_type) for labeled timeline rows. */
@@ -174,11 +172,6 @@ export function workEntrySignalsSevereFailure(entry: WorkLogEntry): boolean {
 
 /** Tool-like row with neither clear success nor failure (empty, incomplete, in progress, etc.). */
 export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolean {
-  // Reasoning is an expandable, in-progress narrative row, not a tool status.
-  // Keep it visible while its turn runs instead of filtering it as neutral.
-  if (entry.sourceActivityKind === "turn.reasoning") {
-    return false;
-  }
   // Spawn CTA rows are never neutral-hidden: mid-run they derive from
   // task.progress (tone "thinking") and the neutral filter was swallowing
   // them exactly while the fleet ran — the one moment they matter most.
@@ -492,6 +485,8 @@ export function deriveWorkLogEntries(
     if (activity.kind === "tool.progress") continue;
     if (activity.kind === "context-window.updated") continue;
     if (activity.kind === PI_EXTENSION_STATUS_ACTIVITY_KIND) continue;
+    // Older Rove builds persisted reasoning text as activities; it is no longer shown.
+    if (activity.kind === "turn.reasoning") continue;
     if (activity.kind === "turn.plan.updated") continue;
     if (activity.summary === "Checkpoint captured") continue;
     if (isNoContentRuntimeWarning(activity)) continue;
@@ -577,7 +572,6 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       ? payload.detail
       : null;
   const taskLabel = taskSummary || taskDetailAsLabel;
-  const isReasoningActivity = activity.kind === "turn.reasoning";
   const detail = isTaskActivity
     ? !taskDetailAsLabel &&
       payload &&
@@ -591,9 +585,9 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     id: activity.id,
     createdAt: activity.createdAt,
     turnId: activity.turnId,
-    label: isReasoningActivity ? "Thinking" : taskLabel || activity.summary,
+    label: taskLabel || activity.summary,
     tone:
-      activity.kind === "task.progress" || isReasoningActivity
+      activity.kind === "task.progress"
         ? "thinking"
         : activity.tone === "approval"
           ? "info"
@@ -620,9 +614,6 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   }
   if (viewedImagePath) {
     entry.viewedImagePath = viewedImagePath;
-  }
-  if (isReasoningActivity && payload?.streaming === true) {
-    entry.reasoningStreaming = true;
   }
   if (commandPreview.command) {
     entry.command = commandPreview.command;
