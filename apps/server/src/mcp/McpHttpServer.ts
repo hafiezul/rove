@@ -1,4 +1,5 @@
 import * as NodeCrypto from "node:crypto";
+import { PreviewAutomationSnapshot } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -41,6 +42,8 @@ import {
   DeviceScreenshotToolkit,
   DeviceStandardToolkit,
 } from "./toolkits/device/tools.ts";
+
+const decodePreviewSnapshot = Schema.decodeUnknownEffect(PreviewAutomationSnapshot);
 
 const unauthorized = HttpServerResponse.jsonUnsafe(
   {
@@ -147,6 +150,11 @@ const hasLongString = (entry: unknown, max: number) =>
   typeof entry === "object" &&
   entry !== null &&
   Object.values(entry).some((value) => typeof value === "string" && value.length > max);
+
+class PreviewSnapshotImageUnavailableError extends Schema.TaggedError<PreviewSnapshotImageUnavailableError>()(
+  "PreviewSnapshotImageUnavailableError",
+  {},
+) {}
 
 type SnapshotMetadata = {
   readonly url: string;
@@ -384,28 +392,30 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
           Effect.flatMap(({ encodedResult }) =>
             Effect.gen(function* () {
-              const snapshot = encodedResult as SnapshotMetadata & {
-                readonly url: string;
-                readonly screenshot: {
-                  readonly mimeType: "image/png";
-                  readonly data: string;
-                  readonly width: number;
-                  readonly height: number;
-                };
-              };
+              const snapshot = yield* decodePreviewSnapshot(encodedResult);
               const { screenshot, ...page } = snapshot;
-              const png = new Uint8Array(Buffer.from(screenshot.data, "base64"));
+              if (!screenshot && (payload?.includeImage !== false || payload?.save === true)) {
+                return yield* Effect.fail(new PreviewSnapshotImageUnavailableError());
+              }
+              const png = screenshot
+                ? new Uint8Array(Buffer.from(screenshot.data, "base64"))
+                : undefined;
               const screenshotPath =
-                payload?.save === true ? yield* saveScreenshot(snapshot.url, png) : undefined;
-              const metadata = {
-                ...page,
-                screenshot: {
-                  mimeType: screenshot.mimeType,
-                  width: screenshot.width,
-                  height: screenshot.height,
-                },
-                ...(screenshotPath === undefined ? {} : { screenshotPath }),
-              };
+                payload?.save === true && png
+                  ? yield* saveScreenshot(snapshot.url, png)
+                  : undefined;
+              const pageMetadata = screenshot
+                ? {
+                    ...page,
+                    screenshot: {
+                      mimeType: screenshot.mimeType,
+                      width: screenshot.width,
+                      height: screenshot.height,
+                    },
+                  }
+                : page;
+              const metadata =
+                screenshotPath === undefined ? pageMetadata : { ...pageMetadata, screenshotPath };
               const bounded = boundSnapshotMetadata(metadata);
               return new McpSchema.CallToolResult({
                 isError: false,
@@ -427,9 +437,9 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
                           text: `Snapshot text was bounded. Omitted: ${bounded.omitted.join("; ")}.`,
                         },
                       ]),
-                  ...(payload?.includeImage === false
-                    ? []
-                    : [{ type: "image" as const, data: png, mimeType: screenshot.mimeType }]),
+                  ...(payload?.includeImage !== false && png && screenshot
+                    ? [{ type: "image" as const, data: png, mimeType: screenshot.mimeType }]
+                    : []),
                 ],
               });
             }),

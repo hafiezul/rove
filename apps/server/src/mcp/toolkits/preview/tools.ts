@@ -14,6 +14,7 @@ import {
   PreviewAutomationSetColorSchemeInput,
   PreviewAutomationSetColorSchemeResult,
   PreviewAutomationSnapshot,
+  PreviewAutomationSnapshotOptions,
   PreviewAutomationStatus,
   PreviewAutomationTabTargetInput,
   PreviewAutomationTypeInput,
@@ -123,12 +124,7 @@ export const PreviewSnapshotTool = readonlyBrowserTool(
     parameters: Schema.toCodecJson(
       Schema.Struct({
         ...PreviewAutomationTabTargetInput.fields,
-        includeImage: Schema.optional(
-          Schema.Boolean.annotate({
-            description:
-              "Include the PNG image in the tool response. Defaults to true. Set false for text-only output.",
-          }),
-        ),
+        ...PreviewAutomationSnapshotOptions.fields,
         save: Schema.optional(
           Schema.Boolean.annotate({
             description:

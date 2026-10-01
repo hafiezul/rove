@@ -1,6 +1,8 @@
 import {
   DEFAULT_SERVER_SETTINGS,
   EnvironmentId,
+  PreviewAutomationConnectionId,
+  type PreviewAutomationStreamEvent,
   type RelayClientInstallProgressEvent,
   type ServerConfigStreamEvent,
   type ServerLifecycleStreamEvent,
@@ -119,6 +121,53 @@ describe("environment RPC", () => {
       expect(received).toEqual(Option.some(event));
       expect(duplicateSubscriptions).toBe(0);
     }),
+  );
+
+  it.effect.each(["interrupted", "ended"])(
+    "reconnects a %s preview stream on the same session",
+    (completion) =>
+      Effect.gen(function* () {
+        const connections =
+          yield* Queue.unbounded<Queue.Queue<PreviewAutomationStreamEvent, Cause.Done>>();
+        let generation = 0;
+        // SAFETY: This fixture is used only by previewAutomation.connect.
+        const client = Object.assign({} as WsRpcProtocolClient, {
+          [WS_METHODS.previewAutomationConnect]: () =>
+            Stream.unwrap(
+              Effect.gen(function* () {
+                const events = yield* Queue.unbounded<PreviewAutomationStreamEvent, Cause.Done>();
+                generation += 1;
+                yield* Queue.offer(events, {
+                  type: "connected",
+                  connectionId: PreviewAutomationConnectionId.make(`connection-${generation}`),
+                });
+                yield* Queue.offer(connections, events);
+                return Stream.fromQueue(events);
+              }),
+            ),
+        });
+        const { activeSession, supervisor } = yield* makeHarness();
+        yield* SubscriptionRef.set(activeSession, Option.some(session(client)));
+        const received = yield* Queue.unbounded<string>();
+        const fiber = yield* subscribe(WS_METHODS.previewAutomationConnect, {
+          clientId: "preview-client",
+          environmentId: TARGET.environmentId,
+        }).pipe(
+          Stream.tap((event) => Queue.offer(received, event.connectionId)),
+          Stream.runDrain,
+          Effect.provideService(EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+          Effect.forkChild,
+        );
+        const first = yield* Queue.take(connections);
+        expect(yield* Queue.take(received)).toBe("connection-1");
+        yield* completion === "interrupted" ? Queue.shutdown(first) : Queue.end(first);
+        yield* TestClock.adjust(250);
+        expect(generation).toBe(2);
+        expect(yield* Queue.take(received)).toBe("connection-2");
+        yield* Fiber.interrupt(fiber);
+        yield* TestClock.adjust(1_000);
+        expect(generation).toBe(2);
+      }),
   );
 
   it.effect("observes unary requests until they complete", () =>

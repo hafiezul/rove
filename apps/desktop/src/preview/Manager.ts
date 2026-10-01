@@ -28,6 +28,7 @@ import type {
   PreviewAutomationNetworkEntry,
   PreviewAutomationScrollInput,
   PreviewAutomationSnapshot,
+  PreviewAutomationSnapshotOptions,
   PreviewAutomationTypeInput,
   PreviewAutomationWaitForInput,
 } from "@t3tools/contracts";
@@ -3551,7 +3552,12 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   });
 
   const captureAutomationSnapshot = Effect.fn("PreviewManager.captureAutomationSnapshot")(
-    function* (tabId: string, wc: Electron.WebContents, send: SendCommand) {
+    function* (
+      tabId: string,
+      wc: Electron.WebContents,
+      send: SendCommand,
+      input: PreviewAutomationSnapshotOptions,
+    ) {
       yield* Effect.all([send("Runtime.enable"), send("Accessibility.enable")], {
         concurrency: 2,
         discard: true,
@@ -3620,47 +3626,53 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
       );
       const [accessibility, sourceImage, diagnostics, timelines] = yield* Effect.all([
         send("Accessibility.getFullAXTree"),
-        capturePageWithRetry(
-          {
-            operation: "automationSnapshot.capturePage",
-            tabId,
-            webContentsId: wc.id,
-          },
-          tabId,
-          wc,
-        ),
+        input.includeImage === false
+          ? Effect.succeed(undefined)
+          : capturePageWithRetry(
+              {
+                operation: "automationSnapshot.capturePage",
+                tabId,
+                webContentsId: wc.id,
+              },
+              tabId,
+              wc,
+            ),
         Ref.get(diagnosticsRef),
         Ref.get(actionTimelineRef),
       ]);
-      const sourceSize = sourceImage.getSize();
       const image =
-        sourceSize.width > MAX_SCREENSHOT_WIDTH
+        sourceImage &&
+        (sourceImage.getSize().width > MAX_SCREENSHOT_WIDTH
           ? sourceImage.resize({ width: MAX_SCREENSHOT_WIDTH })
-          : sourceImage;
-      const size = image.getSize();
+          : sourceImage);
       const browserDiagnostics = diagnostics.get(wc.id);
-      return {
+      const snapshot = {
         ...page,
         accessibilityTree: accessibility,
         consoleEntries: [...(browserDiagnostics?.consoleEntries ?? [])],
         networkEntries: [...(browserDiagnostics?.networkEntries ?? [])],
         actionTimeline: [...(timelines.get(tabId) ?? [])],
-        screenshot: {
-          mimeType: "image/png" as const,
-          data: image.toPNG().toString("base64"),
-          width: size.width,
-          height: size.height,
-        },
       };
+      return image
+        ? {
+            ...snapshot,
+            screenshot: {
+              mimeType: "image/png" as const,
+              data: image.toPNG().toString("base64"),
+              ...image.getSize(),
+            },
+          }
+        : snapshot;
     },
   );
 
   const automationSnapshot = Effect.fn("PreviewManager.automationSnapshot")(function* (
     tabId: string,
+    input: PreviewAutomationSnapshotOptions = {},
   ) {
     const wc = yield* requireWebContents(tabId);
     return yield* withControlSession(tabId, wc, "snapshot", (send) =>
-      captureAutomationSnapshot(tabId, wc, send),
+      captureAutomationSnapshot(tabId, wc, send, input),
     );
   });
 
@@ -4892,6 +4904,7 @@ export class PreviewManager extends Context.Service<
     ) => Effect.Effect<DesktopPreviewAutomationStatus, PreviewManagerError>;
     readonly automationSnapshot: (
       tabId: string,
+      input?: PreviewAutomationSnapshotOptions,
     ) => Effect.Effect<PreviewAutomationSnapshot, PreviewManagerError>;
     readonly automationClick: (
       tabId: string,
