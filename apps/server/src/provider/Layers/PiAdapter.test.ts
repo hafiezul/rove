@@ -16,6 +16,7 @@ import * as TestClock from "effect/testing/TestClock";
 import {
   ApprovalRequestId,
   PiSettings,
+  type PiExtensionStatusSnapshot,
   ProviderInstanceId,
   ThreadId,
   TurnId,
@@ -902,6 +903,92 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(info[1]?.itemId, undefined);
       assert.strictEqual(info[1]?.turnId, turnId);
       assert.strictEqual(info[1]?.payload.message, "Done one thing");
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("clears extension statuses on startup, Stop, and session recovery", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const statusReceived = yield* Deferred.make<void>();
+      const recovered = yield* Deferred.make<void>();
+      const statuses: PiExtensionStatusSnapshot["statuses"][] = [];
+      let readyCount = 0;
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          if (event.type === "runtime.ui.status") {
+            statuses.push(event.payload.statuses);
+            if (event.payload.statuses.length > 0) {
+              return Deferred.succeed(statusReceived, undefined);
+            }
+          }
+          if (
+            event.type === "session.state.changed" &&
+            event.payload.state === "ready" &&
+            ++readyCount === 2
+          ) {
+            return Deferred.succeed(recovered, undefined);
+          }
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      fake.emit({ type: "rove_ui_status", statuses: [{ key: "fleet", text: "1 agent running" }] });
+      yield* Deferred.await(statusReceived);
+      yield* adapter.stopSession(threadId);
+      yield* adapter.startSession({
+        threadId,
+        runtimeMode: "full-access",
+        resumeCursor: { sessionId: fake.sessionId },
+      });
+      yield* Deferred.await(recovered);
+      assert.deepEqual(statuses, [[], [{ key: "fleet", text: "1 agent running" }], [], []]);
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("clears extension statuses when changed settings replace the session", () =>
+    Effect.gen(function* () {
+      const first = new FakePiSession();
+      const replacement = new FakePiSession();
+      const disabled = yield* Ref.make<ReadonlyArray<string>>([]);
+      let creates = 0;
+      const adapter = yield* makePiAdapter(decodePiSettings({}), {
+        getSettings: Ref.get(disabled).pipe(
+          Effect.map((disabledExtensions) => ({ ...decodePiSettings({}), disabledExtensions })),
+        ),
+        createSession: () => Promise.resolve(++creates === 1 ? first : replacement),
+      });
+      const statusReceived = yield* Deferred.make<void>();
+      const replacementReceived = yield* Deferred.make<void>();
+      const statuses: PiExtensionStatusSnapshot["statuses"][] = [];
+      yield* adapter.streamEvents.pipe(
+        Stream.runForEach((event) => {
+          if (event.type === "runtime.ui.status") {
+            statuses.push(event.payload.statuses);
+            if (event.payload.statuses.length > 0) {
+              return Deferred.succeed(statusReceived, undefined);
+            }
+          }
+          if (event.type === "runtime.info" && event.payload.message === "Replacement active") {
+            return Deferred.succeed(replacementReceived, undefined);
+          }
+          return Effect.void;
+        }),
+        Effect.forkChild({ startImmediately: true }),
+      );
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+      first.emit({ type: "rove_ui_status", statuses: [{ key: "fleet", text: "1 agent running" }] });
+      yield* Deferred.await(statusReceived);
+      yield* Ref.set(disabled, ["/path/to/disabled.ts"]);
+      yield* adapter.sendTurn({ threadId, input: "next" });
+      first.emit({ type: "rove_ui_status", statuses: [{ key: "fleet", text: "stale update" }] });
+      replacement.emit({ type: "rove_ui_notify", level: "info", message: "Replacement active" });
+      yield* Deferred.await(replacementReceived);
+      assert.isTrue(first.disposed);
+      assert.deepEqual(statuses, [[], [{ key: "fleet", text: "1 agent running" }], []]);
       yield* adapter.stopAll();
     }),
   );
