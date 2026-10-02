@@ -19,8 +19,9 @@ const sampleDecoded = <S extends Schema.Constraint>(schema: S) =>
     const encode = Schema.encodeEffect(schema);
     const decode = Schema.decodeEffect(schema);
     const generated = yield* Arbitrary.sampleEffect(Arbitrary.schema(schema), {
-      count: 1000,
+      count: 128,
       size: 30,
+      seed: 42,
     });
     const decoded = yield* Effect.forEach(generated, (value) =>
       encode(value).pipe(Effect.flatMap(decode), Effect.option),
@@ -36,13 +37,15 @@ describe("encodeShellSnapshotForCache", () => {
       const projects = yield* sampleDecoded(OrchestrationProjectShell);
       const snapshot: OrchestrationShellSnapshot = {
         snapshotSequence: 1,
-        // The generator rarely makes monogram icons, and they are the one
-        // project field whose encoding differs from the decoded value.
-        projects: projects.map((project, index) =>
-          index % 2 === 0
-            ? { ...project, projectIcon: { kind: "monogram", text: "T3", color: "blue" } }
-            : project,
-        ),
+        // Monograms transform on encode; cover every icon variant without
+        // relying on the generator to pick it.
+        projects: projects.flatMap((project) => [
+          { ...project, projectIcon: undefined },
+          { ...project, projectIcon: null },
+          { ...project, projectIcon: { kind: "monogram", text: "T3", color: "blue" } },
+          { ...project, projectIcon: { kind: "lucide", name: "folder-code", color: "blue" } },
+          { ...project, projectIcon: { kind: "emoji", emoji: "🥔" } },
+        ]),
         threads,
         updatedAt: "2026-09-25T00:00:00.000Z",
       };

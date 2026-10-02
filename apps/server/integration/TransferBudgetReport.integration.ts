@@ -10,6 +10,7 @@ import {
   TRANSFER_HISTORY_TURN_COUNT,
   TRANSFER_MEASURED_MCP_RESULT_BYTES,
   TRANSFER_MEASURED_TOOLS,
+  TRANSFER_PROVIDERS,
 } from "./fixtures/transferBudget.ts";
 
 /** Catch-up delivered to a resubscribing client, and which path the server chose. */
@@ -56,10 +57,7 @@ const TRANSFER_BUDGET = {
   measuredTurnWebSocketMessages: 21,
 } satisfies ProviderTransferBudget;
 
-const TRANSFER_BUDGETS: Readonly<Record<string, ProviderTransferBudget>> = {
-  codex: TRANSFER_BUDGET,
-  claudeAgent: TRANSFER_BUDGET,
-};
+const TRANSFER_BUDGETS = new Map(TRANSFER_PROVIDERS.map((provider) => [provider, TRANSFER_BUDGET]));
 
 function totalWireBytes(run: TransferBudgetRun): number {
   return run.threadSnapshot.wireBytes + run.measuredTurnWebSocket.wireBytes;
@@ -89,14 +87,14 @@ function observedTransfer(run: TransferBudgetRun) {
 export function formatTransferBudgetResult(runs: ReadonlyArray<TransferBudgetRun>): string {
   const providers = Object.fromEntries(
     runs.flatMap((run) => {
-      const ceiling = TRANSFER_BUDGETS[run.provider];
+      const ceiling = TRANSFER_BUDGETS.get(run.provider);
       return ceiling ? [[run.provider, { observed: observedTransfer(run), ceiling }]] : [];
     }),
   );
 
   return `${JSON.stringify(
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       scenario: {
         id: "thread-transfer-v1",
         historyTurns: TRANSFER_HISTORY_TURN_COUNT,
@@ -162,7 +160,7 @@ function webSocketRows(
 export function transferBudgetViolations(runs: ReadonlyArray<TransferBudgetRun>): string[] {
   const violations: string[] = [];
   for (const run of runs) {
-    const budget = TRANSFER_BUDGETS[run.provider];
+    const budget = TRANSFER_BUDGETS.get(run.provider);
     if (!budget) {
       violations.push(`${run.provider}: no transfer budget is configured`);
       continue;
@@ -206,7 +204,7 @@ export function formatTransferBudgetReport(runs: ReadonlyArray<TransferBudgetRun
     "| Provider | Total thread wire | Budget | Result |",
     "| --- | ---: | ---: | --- |",
     ...runs.flatMap((run) => {
-      const budget = TRANSFER_BUDGETS[run.provider];
+      const budget = TRANSFER_BUDGETS.get(run.provider);
       if (!budget) return [];
       const observed = observedTransfer(run).totalWireBytes;
       return [
@@ -221,7 +219,7 @@ export function formatTransferBudgetReport(runs: ReadonlyArray<TransferBudgetRun
   ];
 
   for (const run of runs) {
-    const budget = TRANSFER_BUDGETS[run.provider];
+    const budget = TRANSFER_BUDGETS.get(run.provider);
     if (!budget) continue;
     lines.push(
       row(
