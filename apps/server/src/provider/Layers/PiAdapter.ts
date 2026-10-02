@@ -915,7 +915,7 @@ export function makePiAdapter(
     const handleSdkEvent = (
       ctx: PiSessionContext,
       event: PiSessionEventLike,
-    ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+    ): Effect.Effect<void, ProviderAdapterRequestError> =>
       Effect.gen(function* () {
         if (sessions.get(ctx.threadId) !== ctx) return;
         const stamp = yield* makeEventStamp();
@@ -966,7 +966,7 @@ export function makePiAdapter(
         const offerTaskDescriptors = (
           turnId: TurnId,
           descriptors: ReadonlyArray<PiSubagentTaskDescriptor>,
-        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+        ): Effect.Effect<void, ProviderAdapterRequestError> =>
           Effect.gen(function* () {
             for (const descriptor of descriptors) {
               const taskStamp = yield* makeEventStamp();
@@ -1024,7 +1024,7 @@ export function makePiAdapter(
         const settleSingleFromNotify = (
           turnId: TurnId,
           parsed: PiNotifyReading,
-        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+        ): Effect.Effect<void, ProviderAdapterRequestError> =>
           Effect.gen(function* () {
             const terminal = piNotifyTerminalStatus(parsed.status);
             if (terminal === undefined) return;
@@ -1054,7 +1054,7 @@ export function makePiAdapter(
         const offerParsedNotify = (
           turnId: TurnId,
           parsed: PiNotifyReading,
-        ): Effect.Effect<void, ProviderAdapterRequestError, Crypto.Crypto> =>
+        ): Effect.Effect<void, ProviderAdapterRequestError> =>
           Effect.gen(function* () {
             if (parsed.workflowRunId !== undefined) {
               yield* offerTaskDescriptors(turnId, describeNotifyReading(parsed));
@@ -1760,6 +1760,7 @@ export function makePiAdapter(
           // synchronously inside subscribeToSession, and its membership guard
           // would drop them for a context that is not in the map yet.
           sessions.set(input.threadId, ctx);
+          yield* handleSdkEvent(ctx, { type: "rove_ui_status", statuses: [] });
           ctx.unsubscribe = subscribeToSession(ctx);
 
           // Load failures must never disappear: startup retried without the
@@ -1970,6 +1971,7 @@ export function makePiAdapter(
             // failure here fails the turn instead of recovering.
             ctx.recoveredFailedExtensions = [];
             ctx.toolCallArgs.clear();
+            yield* handleSdkEvent(ctx, { type: "rove_ui_status", statuses: [] });
             ctx.unsubscribe = subscribeToSession(ctx);
           }
           // Apply the composer's per-thread model options before prompting.
@@ -2323,6 +2325,8 @@ export function makePiAdapter(
         }
         const ctx = sessions.get(threadId);
         if (!ctx) return;
+        // Disposal unsubscribes first, so clear the client snapshot while the session is still routed.
+        yield* handleSdkEvent(ctx, { type: "rove_ui_status", statuses: [] });
         sessions.delete(threadId);
         ctx.unsubscribe();
         ctx.toolCallArgs.clear();

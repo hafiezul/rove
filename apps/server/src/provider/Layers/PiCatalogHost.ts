@@ -71,17 +71,20 @@ export class PiCatalogHost {
   private readonly resourceLoader: PiResourceLoader;
   private disabledExtensions: ReadonlyArray<string>;
   private readonly extensionProviderIds = new Set<string>();
+  private readonly extensionVirtualModels: Map<string, Set<string>>;
 
   private constructor(
     session: AgentSession,
     modelRuntime: ModelRuntime,
     resourceLoader: PiResourceLoader,
     disabledExtensions: ReadonlyArray<string>,
+    extensionVirtualModels: Map<string, Set<string>>,
   ) {
     this.session = session;
     this.modelRuntime = modelRuntime;
     this.resourceLoader = resourceLoader;
     this.disabledExtensions = disabledExtensions;
+    this.extensionVirtualModels = extensionVirtualModels;
   }
 
   static async create(options: PiCatalogHostOptions = {}): Promise<PiCatalogHost> {
@@ -110,6 +113,7 @@ export class PiCatalogHost {
       services.modelRuntime,
       services.resourceLoader,
       disabledExtensions,
+      services.extensionVirtualModels,
     );
     for (const { path, error } of services.resourceLoader.getExtensions().errors) {
       pushWarning(host.warnings, `${path}: ${error}`);
@@ -137,6 +141,22 @@ export class PiCatalogHost {
     host.modelRuntime.unregisterProvider = (...args) => {
       unregisterProvider(...args);
       host.extensionProviderIds.delete(args[0]);
+      notify();
+    };
+    const registerVirtualModel = host.modelRuntime.registerVirtualModel.bind(host.modelRuntime);
+    host.modelRuntime.registerVirtualModel = (definition) => {
+      registerVirtualModel(definition);
+      const ids = host.extensionVirtualModels.get(definition.provider) ?? new Set<string>();
+      ids.add(definition.id);
+      host.extensionVirtualModels.set(definition.provider, ids);
+      notify();
+    };
+    const unregisterVirtualModel = host.modelRuntime.unregisterVirtualModel.bind(host.modelRuntime);
+    host.modelRuntime.unregisterVirtualModel = (provider, id) => {
+      unregisterVirtualModel(provider, id);
+      const ids = host.extensionVirtualModels.get(provider);
+      ids?.delete(id);
+      if (ids?.size === 0) host.extensionVirtualModels.delete(provider);
       notify();
     };
     const refresh = host.modelRuntime.refresh.bind(host.modelRuntime);
@@ -319,6 +339,9 @@ export class PiCatalogHost {
     try {
       // Remove prior contributions, including providers registered by session_start
       // hooks. Rebinding the runner also retires old hooks and activates new ones.
+      for (const [provider, ids] of this.extensionVirtualModels) {
+        for (const id of ids) this.modelRuntime.unregisterVirtualModel(provider, id);
+      }
       for (const id of this.extensionProviderIds) this.modelRuntime.unregisterProvider(id);
       await this.session.reload({});
       for (const { path, error } of this.resourceLoader.getExtensions().errors) {

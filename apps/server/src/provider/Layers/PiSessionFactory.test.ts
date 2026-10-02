@@ -1454,6 +1454,61 @@ export default function (pi) {
     },
   );
 
+  it.each(["rove-router-test", "rove-extension-test"])(
+    "starts and resumes an interactive thread using the %s virtual model",
+    async (provider) => {
+      NodeFS.copyFileSync(
+        new URL("./fixtures/pi-virtual-models.ts", import.meta.url),
+        NodePath.join(cwd, ".pi", "extensions", "routers.ts"),
+      );
+      const session = await createPiSession({
+        cwd,
+        interactive: true,
+        model: `${provider}/auto`,
+        thinkingLevel: "off",
+        resumeSessionId: undefined,
+      });
+      sessions.push(session);
+      expect(session.getModel?.()).toMatchObject({ provider, id: "auto" });
+      await session.prompt("hello");
+      expect(session.messages).toContainEqual(
+        expect.objectContaining({
+          role: "assistant",
+          provider: "rove-extension-test",
+          model: "fixture",
+        }),
+      );
+      expect(session.getModel?.()).toMatchObject({ provider, id: "auto" });
+
+      const resumed = await createPiSession({
+        cwd,
+        interactive: true,
+        model: undefined,
+        thinkingLevel: undefined,
+        resumeSessionId: session.sessionId,
+        resumeSessionFile: session.sessionFile,
+      });
+      sessions.push(resumed);
+      expect(resumed.getModel?.()).toMatchObject({ provider, id: "auto" });
+      expect(resumed.modelFallbackMessage).toBeUndefined();
+    },
+  );
+
+  it("reports invalid virtual registrations before resolving the requested model", async () => {
+    NodeFS.writeFileSync(
+      NodePath.join(cwd, ".pi", "extensions", "invalid-router.ts"),
+      `export default function (pi) {
+        pi.registerVirtualModel({
+          provider: "rove-extension-test",
+          id: "fixture",
+          name: "Invalid router",
+          route() { throw new Error("must not route"); },
+        });
+      }`,
+    );
+    await expect(create()).rejects.toThrow("conflicts with a physical model");
+  });
+
   it("keeps extensions disabled for auxiliary text generation", async () => {
     NodeFS.writeFileSync(
       NodePath.join(cwd, ".pi", "extensions", "broken.ts"),

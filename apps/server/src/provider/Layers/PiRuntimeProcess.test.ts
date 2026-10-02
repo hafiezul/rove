@@ -168,6 +168,54 @@ describe("isolated Pi instance runtime", () => {
     expect(resumed.messages).toEqual([]);
   });
 
+  it("discovers, runs, resumes, and removes virtual models across the process boundary", async () => {
+    const agentDir = directory("routers");
+    const extensions = NodePath.join(agentDir, "extensions");
+    NodeFS.mkdirSync(extensions);
+    NodeFS.copyFileSync(
+      new URL("./fixtures/pi-extension.ts", import.meta.url),
+      NodePath.join(extensions, "fixture.ts"),
+    );
+    const routerPath = NodePath.join(extensions, "routers.ts");
+    NodeFS.copyFileSync(new URL("./fixtures/pi-virtual-models.ts", import.meta.url), routerPath);
+    const runtime = await create(agentDir);
+    expect(await runtime.getCatalogModels()).toContainEqual(
+      expect.objectContaining({ slug: "rove-router-test/auto" }),
+    );
+    const current = await runtime.createSession({
+      cwd: root,
+      agentDir,
+      interactive: true,
+      model: "rove-router-test/auto",
+      thinkingLevel: "off",
+      resumeSessionId: undefined,
+    });
+    await current.prompt("hello");
+    expect(current.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      provider: "rove-extension-test",
+      model: "fixture",
+      content: [{ type: "text", text: "done" }],
+    });
+    const cursor = { sessionId: current.sessionId, sessionFile: current.sessionFile };
+    await current.dispose();
+    const resumed = await runtime.createSession({
+      cwd: root,
+      agentDir,
+      model: undefined,
+      thinkingLevel: undefined,
+      resumeSessionId: cursor.sessionId,
+      resumeSessionFile: cursor.sessionFile,
+    });
+    expect(resumed.getModel?.()).toMatchObject({ provider: "rove-router-test", id: "auto" });
+    await resumed.dispose();
+    NodeFS.unlinkSync(routerPath);
+    await runtime.refreshCatalog();
+    const models = await runtime.getCatalogModels();
+    expect(models.some((model) => model.slug === "rove-router-test/auto")).toBe(false);
+    expect(models.some((model) => model.slug === "rove-extension-test/fixture")).toBe(true);
+  });
+
   it("shares extension model implementations with tool-free helper sessions", async () => {
     const agentDir = directory("helpers");
     const runtime = await create(agentDir);

@@ -395,6 +395,42 @@ describe("Pi catalog host", () => {
     }
   });
 
+  it("removes factory and hook virtual models when their extension is disabled and restores them on enable", async () => {
+    const routerPath = NodePath.join(root, "routers.ts");
+    NodeFS.copyFileSync(new URL("./fixtures/pi-virtual-models.ts", import.meta.url), routerPath);
+    const host = await create({ additionalExtensionPaths: [fixturePath, routerPath] });
+    const routerSlugs = [
+      "rove-router-test/auto",
+      "rove-router-test/late",
+      "rove-extension-test/auto",
+      "rove-extension-test/late",
+    ];
+    assert.deepEqual(
+      (await host.getCatalogModels())
+        .filter((model) => routerSlugs.includes(model.slug))
+        .map((model) => model.slug)
+        .sort(),
+      [...routerSlugs].sort(),
+    );
+
+    await host.setDisabledExtensions([routerPath]);
+    const disabledModels = await host.getCatalogModels();
+    assert.isFalse(disabledModels.some((model) => routerSlugs.includes(model.slug)));
+    assert.isTrue(disabledModels.some((model) => model.slug === "rove-extension-test/fixture"));
+
+    await host.setDisabledExtensions([]);
+    await host.refreshCatalog();
+    const enabledModels = await host.getCatalogModels();
+    assert.deepEqual(
+      enabledModels
+        .filter((model) => routerSlugs.includes(model.slug))
+        .map((model) => model.slug)
+        .sort(),
+      [...routerSlugs].sort(),
+    );
+    assert.isTrue(enabledModels.some((model) => model.slug === "rove-extension-test/fixture"));
+  });
+
   it("filters disabled extensions before factory execution and excludes their models from the catalog", async () => {
     const logPath = NodePath.join(root, "factory-side-effect.log");
     const customExtPath = NodePath.join(root, "custom-ext.ts");
