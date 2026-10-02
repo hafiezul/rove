@@ -17,6 +17,7 @@ import { Atom, AtomRegistry } from "effect/unstable/reactivity";
 
 import {
   createEnvironmentRpcCommand,
+  createEnvironmentRpcQueryAtomFamily,
   createEnvironmentRpcSubscriptionAtomFamily,
   createEnvironmentSubscriptionAtomFamily,
 } from "./runtime.ts";
@@ -280,6 +281,34 @@ export function createVcsEnvironmentAtoms<R, E>(
 
   return {
     listRefs,
+    worktreeInventory: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:worktree-inventory",
+      tag: WS_METHODS.worktreeInventoryList,
+      idleTtlMs: 0,
+    }),
+    inspectWorktree: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:worktree-inspection",
+      tag: WS_METHODS.worktreeInventoryInspect,
+      idleTtlMs: 0,
+    }),
+    measureWorktree: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:worktree-size",
+      tag: WS_METHODS.worktreeInventoryMeasure,
+    }),
+    removeInventoryWorktree: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:worktree-inventory-remove",
+      tag: WS_METHODS.worktreeInventoryRemove,
+      scheduler: vcsCommandScheduler,
+      concurrency: {
+        mode: "serial",
+        key: ({ environmentId, input }) => `${environmentId}:${input.path}`,
+      },
+      onSettled: (target, registry) =>
+        invalidateCachedVcsRefs(registry, {
+          environmentId: target.environmentId,
+          cwd: target.input.path,
+        }),
+    }),
     status: createEnvironmentSubscriptionAtomFamily(runtime, {
       label: "environment-data:vcs:status",
       idleTtlMs: VCS_STATUS_IDLE_TTL_MS,

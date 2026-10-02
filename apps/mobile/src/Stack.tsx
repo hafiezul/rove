@@ -69,6 +69,7 @@ import { NewTaskFlowProvider } from "./features/threads/new-task-flow-provider";
 import { NewTaskRouteScreen } from "./features/threads/NewTaskRouteScreen";
 import { SettingsAppearanceRouteScreen } from "./features/settings/SettingsAppearanceRouteScreen";
 import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsClientStorageRouteScreen";
+import { SettingsWorktreesRouteScreen } from "./features/settings/SettingsWorktreesRouteScreen";
 import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
 import { SettingsEnvironmentDetailRouteScreen } from "./features/settings/SettingsEnvironmentDetailRouteScreen";
@@ -213,6 +214,11 @@ const SettingsContentStack = createNativeStackNavigator({
       screen: SettingsEnvironmentAgentBehaviorRouteScreen,
       linking: "agent-behavior",
       options: { title: "Agent behavior" },
+    }),
+    SettingsWorktrees: createNativeStackScreen({
+      screen: SettingsWorktreesRouteScreen,
+      linking: "worktrees",
+      options: { title: "Worktrees" },
     }),
     SettingsEnvironmentMaintenance: createNativeStackScreen({
       screen: SettingsEnvironmentMaintenanceRouteScreen,

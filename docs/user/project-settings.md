@@ -62,6 +62,22 @@ itself, or **Skip** to leave them for a setup script. It resolves in the same or
 workspace default: a `"worktreeSubmodules"` value in the `t3.json` of the branch being checked out
 applies when the project and environment are both on **Inherit**.
 
+## Review worktree storage
+
+Open **Settings → Storage** on web or desktop, or **Settings → Worktrees** on mobile, to review
+linked worktrees in your projects' repositories on connected environments. Use the project and
+environment filters to narrow the list. Worktrees in those repositories with no linked thread still appear.
+
+Last activity reflects conversations and agent turns in Rove, not use in other apps.
+Calculate a worktree's size when you need an estimate. The estimate excludes shared Git history
+and symbolic links, and may differ from the disk space recovered.
+
+Review the checkout before choosing **Remove worktree**. Rove keeps the branch, commits, and
+thread history. Starting another turn recreates a linked thread's checkout. Removal is limited
+to Rove-managed worktrees. Stop active sessions and terminals, and save local changes or ignored
+files other than `node_modules`, before removing a checkout. Shared worktrees, project workspaces,
+locked worktrees, and detached checkouts cannot be removed here.
+
 ## Storage cleanup
 
 Open **Settings → Storage** to enable automatic cleanup on one machine or all connected

@@ -15,6 +15,7 @@ import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsL
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 import type { ScopedSettingsTarget } from "./scopedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";
+import { WorktreeInventoryPanel } from "./WorktreeInventory";
 import {
   useClearScopedSettings,
   useScopedSettings,
@@ -83,6 +84,15 @@ function RetentionControl({
 }
 
 export function StorageSettingsPanel() {
+  return (
+    <SettingsPageContainer>
+      <WorktreeInventoryPanel />
+      <StorageCleanupControls />
+    </SettingsPageContainer>
+  );
+}
+
+function StorageCleanupControls() {
   const { scope, connectedEnvironments, targets, target } = useSettingsScope();
   const scopedSettings = useScopedSettings();
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
@@ -150,8 +160,8 @@ export function StorageSettingsPanel() {
   }
 
   return (
-    <SettingsPageContainer>
-      <SettingsSection id="storage-worktrees" title="Worktrees">
+    <>
+      <SettingsSection id="storage-worktrees" title="Automatic worktree cleanup">
         {isProjectScope && (
           <SettingsRow
             title="Automatic worktree cleanup"
@@ -283,6 +293,6 @@ export function StorageSettingsPanel() {
           />
         </SettingsSection>
       )}
-    </SettingsPageContainer>
+    </>
   );
 }

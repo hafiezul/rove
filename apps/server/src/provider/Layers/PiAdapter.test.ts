@@ -10,6 +10,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
+import * as Scheduler from "effect/Scheduler";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import {
@@ -196,18 +197,14 @@ const writeAttachment = (
   return attachmentPath;
 };
 
-/**
- * Collect streamEvents into a ref, then yield once on the live clock so the
- * forked consumer's deferred PubSub subscription attaches before any adapter
- * call publishes (Stream.fromPubSub subscribes when the stream starts).
- */
+/** Start synchronously so publishing cannot outrun the PubSub subscription. */
 const collectEvents = (
   adapter: { streamEvents: Stream.Stream<ProviderRuntimeEvent> },
   eventsRef: Ref.Ref<ReadonlyArray<ProviderRuntimeEvent>>,
 ) =>
   Stream.runForEach(adapter.streamEvents, (event) =>
     Ref.update(eventsRef, (events) => [...events, event]),
-  ).pipe(Effect.forkChild, Effect.andThen(Effect.sleep("1 millis")), TestClock.withLive);
+  ).pipe(Effect.forkChild({ startImmediately: true }));
 
 /** Poll until the predicate matches or the deadline passes. */
 const waitFor = (
@@ -826,6 +823,45 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(
         events.find((event) => event.type === "user-input.resolved")?.requestId,
         "pi-question",
+      );
+      yield* adapter.stopAll();
+    }),
+  );
+
+  it.effect("collects SDK events even when the consumer's first scheduled task is deferred", () =>
+    Effect.gen(function* () {
+      const fake = new FakePiSession();
+      const adapter = yield* makeAdapter(fake);
+      const eventsRef = yield* Ref.make<ReadonlyArray<ProviderRuntimeEvent>>([]);
+      yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+
+      const dispatcher = new Scheduler.MixedScheduler().makeDispatcher();
+      let deferredTask: (() => void) | undefined;
+      let scheduledTasks = 0;
+      const scheduler: Scheduler.Scheduler = {
+        executionMode: "async",
+        shouldYield: () => false,
+        makeDispatcher: () => ({
+          scheduleTask: (task, priority) => {
+            if (scheduledTasks++ === 0) deferredTask = task;
+            else dispatcher.scheduleTask(task, priority);
+          },
+          flush: () => dispatcher.flush(),
+        }),
+      };
+      yield* collectEvents(adapter, eventsRef).pipe(
+        Effect.provideService(Scheduler.Scheduler, scheduler),
+      );
+      fake.emit({ type: "rove_ui_status", statuses: [{ key: "progress", text: "Ready" }] });
+      deferredTask?.();
+      dispatcher.flush();
+
+      const statuses = (yield* Ref.get(eventsRef)).filter(
+        (event) => event.type === "runtime.ui.status",
+      );
+      assert.deepEqual(
+        statuses.map((event) => event.payload.statuses),
+        [[{ key: "progress", text: "Ready" }]],
       );
       yield* adapter.stopAll();
     }),
