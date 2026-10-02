@@ -638,10 +638,12 @@ export interface CreatePiSessionServicesOptions {
   readonly noExtensions?: boolean | undefined;
 }
 
-export async function createPiSessionServices(
-  options: CreatePiSessionServicesOptions,
-): Promise<
-  AgentSessionServices & { resourceLoader: PiResourceLoader; extensionProviderIds: Set<string> }
+export async function createPiSessionServices(options: CreatePiSessionServicesOptions): Promise<
+  AgentSessionServices & {
+    resourceLoader: PiResourceLoader;
+    extensionProviderIds: Set<string>;
+    extensionVirtualModels: Map<string, Set<string>>;
+  }
 > {
   // pi-subagents caches this root while loading. Embedded Pi has no CLI path,
   // and the extension's separate npm install cannot resolve Rove's SDK.
@@ -682,6 +684,7 @@ export async function createPiSessionServices(
 
   const diagnostics: AgentSessionRuntimeDiagnostic[] = [];
   const extensionProviderIds = new Set<string>();
+  const extensionVirtualModels = new Map<string, Set<string>>();
   const extensionsResult = resourceLoader.getExtensions();
   for (const { name, config, extensionPath } of extensionsResult.runtime
     .pendingProviderRegistrations) {
@@ -711,6 +714,22 @@ export async function createPiSessionServices(
     }
   }
   extensionsResult.runtime.pendingNativeProviderRegistrations = [];
+  for (const { definition, extensionPath } of extensionsResult.runtime
+    .pendingVirtualModelRegistrations) {
+    try {
+      modelRuntime.registerVirtualModel(definition);
+      const ids = extensionVirtualModels.get(definition.provider) ?? new Set<string>();
+      ids.add(definition.id);
+      extensionVirtualModels.set(definition.provider, ids);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      diagnostics.push({
+        type: "error",
+        message: `Extension "${extensionPath}" error: ${message}`,
+      });
+    }
+  }
+  extensionsResult.runtime.pendingVirtualModelRegistrations = [];
   // A caller-provided runtime (the catalog host's) is already refreshed;
   // refreshing it here would only churn availability listeners.
   if (options.modelRuntime === undefined) {
@@ -725,6 +744,7 @@ export async function createPiSessionServices(
     resourceLoader,
     diagnostics,
     extensionProviderIds,
+    extensionVirtualModels,
   };
 }
 
