@@ -2,8 +2,12 @@
 
 Agents can see and control native Mac apps through [Cua Driver](https://cua.ai/docs/cua-driver).
 They can list windows, read a window's accessibility tree, click, type, and take
-screenshots. Cua usually acts on a window without moving your cursor. For web pages, agents
-keep using Rove Code's browser panel.
+screenshots. Rove allows background window actions and refuses desktop input and foreground
+escalation. For web pages, agents keep using Rove Code's browser panel.
+
+If an app requires foreground input, the agent can try an app API or continue other work.
+The GUI step remains blocked rather than taking over your desktop. This restriction applies
+to Computer Use tools, not shell commands or actions an app takes in response.
 
 Computer use is off by default and works only when the environment runs on macOS.
 

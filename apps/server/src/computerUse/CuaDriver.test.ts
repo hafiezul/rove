@@ -4,6 +4,7 @@ import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   DEFAULT_SERVER_SETTINGS,
+  ThreadId,
   type ServerSettings as ServerSettingsValue,
 } from "@t3tools/contracts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
@@ -13,6 +14,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Queue from "effect/Queue";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -21,6 +23,8 @@ import * as ServerSettings from "../serverSettings.ts";
 import * as CuaDriver from "./CuaDriver.ts";
 
 const require = NodeModule.createRequire(import.meta.url);
+const threadId = ThreadId.make("cua-driver-test");
+const decodeCapture = Schema.decodeUnknownSync(Schema.Struct({ capture_id: Schema.String }));
 
 /** A stand-in `cua-driver` whose daemon, grants, and telemetry are files in `stateDir`. */
 const fakeDriverScript = (stateDir: string) => `#!/usr/bin/env node
@@ -52,17 +56,31 @@ const server = new Server(
   { capabilities: { tools: {} }, instructions: "Snapshot, then act." },
 );
 const object = (properties = {}) => ({ type: "object", properties });
+const captures = new Map();
+let captureSequence = 0;
 server.setRequestHandler(types.ListToolsRequestSchema, async () => ({
   tools: [
     { name: "check_permissions", description: "Report grants.", inputSchema: object() },
     { name: "click", description: "Click a window element.", inputSchema: object({ pid: { type: "number" }, session: { type: "string" } }) },
     { name: "screenshot", description: "Capture the screen.", inputSchema: object(), annotations: { readOnlyHint: true } },
+    { name: "get_window_state", description: "Capture a window.", inputSchema: object({ session: { type: "string" } }) },
+    { name: "parse_visual_regions", description: "Parse a capture.", inputSchema: object({ capture_id: { type: "string" } }) },
   ],
 }));
 server.setRequestHandler(types.CallToolRequestSchema, async ({ params }) => {
   const ok = fs.existsSync(file("granted"));
+  if (params.name === "disconnect") process.exit(0);
   if (params.name === "check_permissions") {
     return { content: [{ type: "text", text: "grants" }], structuredContent: { accessibility: ok, screen_recording: ok } };
+  }
+  if (params.name === "get_window_state") {
+    const capture_id = "capture-" + process.pid + "-" + captureSequence++;
+    captures.set(capture_id, params.arguments?.session ?? "implicit");
+    return { content: [{ type: "text", text: "Captured." }], structuredContent: { capture_id } };
+  }
+  if (params.name === "parse_visual_regions") {
+    const valid = captures.get(params.arguments?.capture_id) === "implicit";
+    return { isError: !valid, content: [{ type: "text", text: valid ? "Parsed." : "Capture ownership mismatch." }], structuredContent: { code: valid ? "parsed" : "capture_generation_mismatch" } };
   }
   if (params.name === "click") {
     return { content: [{ type: "text", text: JSON.stringify(params.arguments) }], structuredContent: params.arguments };
@@ -174,7 +192,7 @@ it.effect("never runs an app at the Cua path that Cua did not sign", () =>
   withDriver({ installed: true, signed: false }, ({ driver, runs }) =>
     Effect.gen(function* () {
       expect(yield* driver.status).toEqual({ status: "untrusted" });
-      const error = yield* driver.call("click", {}).pipe(Effect.flip);
+      const error = yield* driver.call("click", {}, threadId).pipe(Effect.flip);
       expect(error.detail).toContain("not signed by Cua AI, Inc.");
       const refused = yield* driver.control({ action: "start" }).pipe(Effect.flip);
       expect(refused.detail).toContain("not signed by Cua AI, Inc.");
@@ -202,7 +220,7 @@ it.effect("quits a daemon it started after five idle minutes", () =>
       });
 
       yield* TestClock.adjust("4 minutes");
-      yield* driver.call("click", { pid: 1 });
+      yield* driver.call("click", { pid: 1 }, threadId);
       yield* TestClock.adjust("4 minutes");
       expect((yield* driver.status).status).toBe("running");
 
@@ -215,7 +233,7 @@ it.effect("quits a daemon it started after five idle minutes", () =>
 it.effect("leaves a daemon it did not start running", () =>
   withDriver({ installed: true, running: true }, ({ driver }) =>
     Effect.gen(function* () {
-      yield* driver.call("click", { pid: 1 });
+      yield* driver.call("click", { pid: 1 }, threadId);
       yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
       expect((yield* driver.status).status).toBe("running");
     }),
@@ -245,16 +263,79 @@ it.effect("forwards calls, keeps image content, and reconnects after an idle rel
         ["check_permissions", false],
         ["click", false],
         ["screenshot", true],
+        ["get_window_state", false],
+        ["parse_visual_regions", false],
       ]);
 
-      const click = yield* driver.call("click", { pid: 42, session: "thread-1" });
-      expect(click.structuredContent).toEqual({ pid: 42, session: "thread-1" });
+      const click = yield* driver.call("click", { pid: 42 }, threadId);
+      expect(click.structuredContent).toEqual({ pid: 42 });
 
       yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
-      const screenshot = yield* driver.call("screenshot", {});
+      const screenshot = yield* driver.call("screenshot", {}, threadId);
       expect(screenshot.content).toEqual([
         { type: "image", data: new Uint8Array([1, 2, 3]), mimeType: "image/png" },
       ]);
+    }),
+  ),
+);
+
+it.effect("keeps capture ownership on one thread transport and refuses a peer's capture", () =>
+  withDriver({ installed: true }, ({ driver }) =>
+    Effect.gen(function* () {
+      const first = ThreadId.make("first-cua-thread");
+      const second = ThreadId.make("second-cua-thread");
+      const capture = yield* driver.call("get_window_state", {}, first);
+      const captureId = decodeCapture(capture.structuredContent).capture_id;
+      const parsed = yield* driver.call("parse_visual_regions", { capture_id: captureId }, first);
+      expect(parsed.structuredContent).toEqual({ code: "parsed" });
+      const peer = yield* driver.call("parse_visual_regions", { capture_id: captureId }, second);
+      expect(peer.isError).toBe(true);
+      expect(peer.structuredContent).toEqual({ code: "capture_generation_mismatch" });
+      const next = yield* driver.call("get_window_state", {}, first);
+      expect(decodeCapture(next.structuredContent).capture_id).not.toBe(captureId);
+    }),
+  ),
+);
+
+it.effect("expires an idle thread without retiring an active thread's captures", () =>
+  withDriver({ installed: true }, ({ driver }) =>
+    Effect.gen(function* () {
+      const idle = ThreadId.make("idle-cua-thread");
+      const active = ThreadId.make("active-cua-thread");
+      const idleCapture = yield* driver.call("get_window_state", {}, idle);
+      yield* TestClock.adjust("3 minutes");
+      const activeCapture = yield* driver.call("get_window_state", {}, active);
+      yield* TestClock.adjust("2 minutes");
+      expect((yield* driver.status).status).toBe("running");
+      const activeParsed = yield* driver.call(
+        "parse_visual_regions",
+        {
+          capture_id: decodeCapture(activeCapture.structuredContent).capture_id,
+        },
+        active,
+      );
+      expect(activeParsed.structuredContent).toEqual({ code: "parsed" });
+      const idleParsed = yield* driver.call(
+        "parse_visual_regions",
+        {
+          capture_id: decodeCapture(idleCapture.structuredContent).capture_id,
+        },
+        idle,
+      );
+      expect(idleParsed.isError).toBe(true);
+      yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
+      expect((yield* driver.status).status).toBe("stopped");
+    }),
+  ),
+);
+
+it.effect("stops its idle daemon after a thread transport disconnects unexpectedly", () =>
+  withDriver({ installed: true }, ({ driver }) =>
+    Effect.gen(function* () {
+      const error = yield* driver.call("disconnect", {}, threadId).pipe(Effect.flip);
+      expect(error._tag).toBe("CuaDriverUnavailableError");
+      yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
+      expect((yield* driver.status).status).toBe("stopped");
     }),
   ),
 );

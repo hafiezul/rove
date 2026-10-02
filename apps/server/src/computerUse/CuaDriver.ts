@@ -2,10 +2,12 @@ import {
   ComputerUseControlError,
   type ComputerUseControlInput,
   type ComputerUseStatus,
+  type ThreadId,
 } from "@t3tools/contracts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { Tool as CuaMcpTool } from "@modelcontextprotocol/sdk/types.js";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -34,10 +36,12 @@ const CONNECT_TIMEOUT = Duration.seconds(30);
 const CALL_TIMEOUT_MS = 120_000;
 const WAIT_FOR_USER_TIMEOUT = Duration.minutes(10);
 
+export type CuaArguments = NonNullable<Parameters<Client["callTool"]>[0]["arguments"]>;
+
 export interface CuaTool {
   readonly name: string;
   readonly description: string;
-  readonly inputSchema: Readonly<Record<string, unknown>>;
+  readonly inputSchema: CuaMcpTool["inputSchema"];
   readonly readOnly: boolean;
 }
 
@@ -58,7 +62,10 @@ export class CuaDriverUnavailableError extends Schema.TaggedError<CuaDriverUnava
 interface Connection {
   readonly client: Client;
   readonly catalog: CuaCatalog;
+  idleTimer: Fiber.Fiber<void> | undefined;
 }
+
+const CONTROL_CONNECTION = "control";
 
 const CheckPermissionsResult = Schema.Struct({
   structuredContent: Schema.Struct({
@@ -96,7 +103,8 @@ export class CuaDriver extends Context.Service<
     readonly catalog: Effect.Effect<CuaCatalog, CuaDriverUnavailableError>;
     readonly call: (
       name: string,
-      args: Readonly<Record<string, unknown>>,
+      args: CuaArguments,
+      threadId: ThreadId,
     ) => Effect.Effect<McpSchema.CallToolResult, CuaDriverUnavailableError>;
   }
 >()("t3/computerUse/CuaDriver") {}
@@ -114,11 +122,11 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   // Serializes connecting, releasing, and reading the daemon so an idle release never
   // races a status read or a new connection.
   const lock = yield* Semaphore.make(1);
-  let connection: Connection | undefined;
+  // Cua's parser has no session argument, so capture ownership must be transport-local.
+  const connections = new Map<string, Connection>();
   /** True only when Rove launched the running daemon; Rove never quits one it did not start. */
   let ownsDaemon = false;
   let signatureVerified = false;
-  let idleTimer: Fiber.Fiber<void> | undefined;
 
   const run = (args: ReadonlyArray<string>, timeout: Duration.Input = Duration.seconds(10)) =>
     runner.run({ command: executablePath, args, timeout });
@@ -144,74 +152,108 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     return signatureVerified ? "trusted" : "untrusted";
   });
 
-  const releaseUnlocked = Effect.gen(function* () {
-    const current = connection;
-    connection = undefined;
-    if (current) yield* Effect.promise(() => current.client.close().catch(() => undefined));
-    if (ownsDaemon) {
+  const stopOwnedDaemon = Effect.gen(function* () {
+    if (ownsDaemon && connections.size === 0) {
       ownsDaemon = false;
       yield* run(["stop"]).pipe(Effect.ignore);
     }
   });
 
-  /** Ends Rove's Cua sessions, which removes their cursors, and quits a daemon Rove started. */
-  const release = lock.withPermit(releaseUnlocked).pipe(Effect.uninterruptible);
-
-  const touch = Effect.gen(function* () {
-    if (idleTimer) yield* Fiber.interrupt(idleTimer);
-    idleTimer = yield* Effect.sleep(IDLE_TIMEOUT).pipe(
-      Effect.andThen(release),
-      Effect.forkIn(scope),
-    );
+  const closeConnection = Effect.fn("CuaDriver.closeConnection")(function* (
+    key: string,
+    current: Connection,
+  ) {
+    if (connections.get(key) !== current) return yield* stopOwnedDaemon;
+    connections.delete(key);
+    if (current.idleTimer) yield* Fiber.interrupt(current.idleTimer);
+    yield* Effect.promise(() => current.client.close().catch(() => undefined));
+    yield* stopOwnedDaemon;
   });
 
-  const connect = Effect.tryPromise({
-    try: async (signal) => {
-      const client = new Client({ name: "rove-code", version: "1.0.0" });
-      signal.addEventListener("abort", () => void client.close(), { once: true });
-      await client.connect(
-        new StdioClientTransport({ command: executablePath, args: ["mcp"], stderr: "ignore" }),
-      );
-      const tools: Array<CuaTool> = [];
-      let cursor: string | undefined;
-      do {
-        const page = await client.listTools(cursor ? { cursor } : {});
-        for (const tool of page.tools) {
-          tools.push({
-            name: tool.name,
-            description: tool.description ?? tool.name,
-            inputSchema: tool.inputSchema,
-            readOnly: tool.annotations?.readOnlyHint === true,
-          });
-        }
-        cursor = page.nextCursor;
-      } while (cursor !== undefined);
-      const next: Connection = {
-        client,
-        catalog: { instructions: client.getInstructions(), tools },
-      };
-      // A daemon quit from outside Rove closes the transport; reconnect on the next call.
-      client.onclose = () => {
-        if (connection === next) connection = undefined;
-      };
-      return next;
-    },
-    catch: (cause) =>
-      new CuaDriverUnavailableError({
-        detail: `Could not connect to Cua Driver: ${describeCause(cause)}`,
+  /** Ends Rove's connections and quits only a daemon Rove started. */
+  const release = lock
+    .withPermit(
+      Effect.gen(function* () {
+        for (const [key, current] of connections) yield* closeConnection(key, current);
+        yield* stopOwnedDaemon;
       }),
-  }).pipe(
-    Effect.timeoutOrElse({
-      duration: CONNECT_TIMEOUT,
-      orElse: () =>
-        Effect.fail(
-          new CuaDriverUnavailableError({ detail: "Cua Driver did not start within 30 seconds." }),
-        ),
-    }),
-  );
+    )
+    .pipe(Effect.uninterruptible);
 
-  const connectUnlocked = Effect.gen(function* () {
-    if (connection) return connection;
+  const touch = (key: string, current: Connection) =>
+    lock.withPermit(
+      Effect.gen(function* () {
+        if (connections.get(key) !== current) return;
+        if (current.idleTimer) yield* Fiber.interrupt(current.idleTimer);
+        current.idleTimer = yield* Effect.sleep(IDLE_TIMEOUT).pipe(
+          Effect.andThen(
+            lock.withPermit(
+              Effect.gen(function* () {
+                current.idleTimer = undefined;
+                yield* closeConnection(key, current);
+              }),
+            ),
+          ),
+          Effect.forkIn(scope),
+        );
+      }),
+    );
+
+  const connect = (key: string) =>
+    Effect.tryPromise({
+      try: async (signal) => {
+        const client = new Client({ name: "rove-code", version: "1.0.0" });
+        signal.addEventListener("abort", () => void client.close(), { once: true });
+        await client.connect(
+          new StdioClientTransport({ command: executablePath, args: ["mcp"], stderr: "ignore" }),
+        );
+        const sharedCatalog = connections.get(CONTROL_CONNECTION)?.catalog;
+        const tools: Array<CuaTool> = [];
+        if (!sharedCatalog) {
+          let cursor: string | undefined;
+          do {
+            const page = await client.listTools(cursor ? { cursor } : {});
+            for (const tool of page.tools) {
+              tools.push({
+                name: tool.name,
+                description: tool.description ?? tool.name,
+                inputSchema: tool.inputSchema,
+                readOnly: tool.annotations?.readOnlyHint === true,
+              });
+            }
+            cursor = page.nextCursor;
+          } while (cursor !== undefined);
+        }
+        const next: Connection = {
+          client,
+          catalog: sharedCatalog ?? { instructions: client.getInstructions(), tools },
+          idleTimer: undefined,
+        };
+        // A daemon quit from outside Rove closes the transport; reconnect on the next call.
+        client.onclose = () => {
+          if (connections.get(key) === next) connections.delete(key);
+        };
+        return next;
+      },
+      catch: (cause) =>
+        new CuaDriverUnavailableError({
+          detail: `Could not connect to Cua Driver: ${describeCause(cause)}`,
+        }),
+    }).pipe(
+      Effect.timeoutOrElse({
+        duration: CONNECT_TIMEOUT,
+        orElse: () =>
+          Effect.fail(
+            new CuaDriverUnavailableError({
+              detail: "Cua Driver did not start within 30 seconds.",
+            }),
+          ),
+      }),
+    );
+
+  const connectUnlocked = Effect.fn("CuaDriver.connectUnlocked")(function* (key: string) {
+    const current = connections.get(key);
+    if (current) return current;
     if (platform !== "darwin") {
       return yield* new CuaDriverUnavailableError({
         detail: `Computer use is only available on macOS, not ${platform}.`,
@@ -227,14 +269,16 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
       });
     }
     const wasRunning = yield* daemonRunning;
-    connection = yield* connect;
+    const next = yield* connect(key);
+    connections.set(key, next);
     if (!wasRunning) ownsDaemon = true;
-    return connection;
+    return next;
   });
 
-  const connected = lock.withPermit(connectUnlocked).pipe(Effect.tap(() => touch));
+  const connected = (key: string) =>
+    lock.withPermit(connectUnlocked(key)).pipe(Effect.tap((current) => touch(key, current)));
 
-  const permissionsUnlocked = connectUnlocked.pipe(
+  const permissionsUnlocked = connectUnlocked(CONTROL_CONNECTION).pipe(
     Effect.flatMap(({ client }) =>
       Effect.tryPromise(() => client.callTool({ name: "check_permissions", arguments: {} })),
     ),
@@ -284,7 +328,10 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   });
 
   const status = lock.withPermit(statusUnlocked).pipe(
-    Effect.tap(() => (connection ? touch : Effect.void)),
+    Effect.tap(() => {
+      const current = connections.get(CONTROL_CONNECTION);
+      return current ? touch(CONTROL_CONNECTION, current) : Effect.void;
+    }),
     Effect.withSpan("CuaDriver.status"),
   );
 
@@ -329,7 +376,9 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     );
     if (!wasRunning && (yield* daemonRunning)) {
       yield* lock.withPermit(Effect.sync(() => (ownsDaemon = true)));
-      yield* touch;
+      yield* connected(CONTROL_CONNECTION).pipe(
+        Effect.mapError((error) => failWith("grant-permissions")(error.detail)),
+      );
     }
   });
 
@@ -362,7 +411,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
       );
     }
     if (input.action === "start") {
-      yield* connected.pipe(Effect.mapError((error) => fail(error.detail)));
+      yield* connected(CONTROL_CONNECTION).pipe(Effect.mapError((error) => fail(error.detail)));
     } else if (input.action === "grant-permissions") {
       yield* grantPermissions;
     } else {
@@ -371,12 +420,13 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     return yield* status;
   });
 
-  const call = (name: string, args: Readonly<Record<string, unknown>>) =>
-    connected.pipe(
-      Effect.flatMap(({ client }) =>
+  const call = (name: string, args: CuaArguments, threadId: ThreadId) => {
+    const key = `thread:${threadId}`;
+    return connected(key).pipe(
+      Effect.flatMap((current) =>
         Effect.tryPromise({
           try: (signal) =>
-            client.callTool({ name, arguments: { ...args } }, undefined, {
+            current.client.callTool({ name, arguments: { ...args } }, undefined, {
               signal,
               timeout: CALL_TIMEOUT_MS,
             }),
@@ -384,7 +434,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
             new CuaDriverUnavailableError({
               detail: `Cua Driver call failed: ${describeCause(cause)}`,
             }),
-        }),
+        }).pipe(Effect.ensuring(touch(key, current))),
       ),
       Effect.flatMap((result) =>
         decodeCallToolResult(result).pipe(
@@ -396,9 +446,9 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
           ),
         ),
       ),
-      Effect.ensuring(touch),
       Effect.withSpan("CuaDriver.call", { attributes: { tool: name } }),
     );
+  };
 
   // Turning agent computer use off quits the daemon at once rather than after the idle timeout.
   yield* settings.streamChanges.pipe(
@@ -413,7 +463,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   return CuaDriver.of({
     status,
     control,
-    catalog: Effect.map(connected, ({ catalog }) => catalog),
+    catalog: Effect.map(connected(CONTROL_CONNECTION), ({ catalog }) => catalog),
     call,
   });
 });

@@ -5,6 +5,7 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import { McpSchema, McpServer } from "effect/unstable/ai";
 
+import { BACKGROUND_ONLY_INSTRUCTIONS } from "../../../computerUse/BackgroundPolicy.ts";
 import * as CuaDriver from "../../../computerUse/CuaDriver.ts";
 import * as ServerSettings from "../../../serverSettings.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
@@ -62,7 +63,7 @@ const catalog: CuaDriver.CuaCatalog = {
   ],
 };
 
-const structuredResults: Readonly<Record<string, McpSchema.CallToolResult>> = {
+const structuredResults = {
   list_windows: new McpSchema.CallToolResult({
     content: [{ type: "text", text: "Found 1 window(s)." }],
     structuredContent: { windows: [{ window_id: 42, title: "Untitled" }] },
@@ -77,11 +78,13 @@ const structuredResults: Readonly<Record<string, McpSchema.CallToolResult>> = {
       apps: Array.from({ length: 2000 }, (_, pid) => ({ pid, name: `App ${pid}` })),
     },
   }),
-};
+} satisfies Readonly<Record<string, McpSchema.CallToolResult>>;
 
 const makeLayer = (options: {
   readonly enabled: boolean;
-  readonly calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }>;
+  readonly extraTools?: ReadonlyArray<CuaDriver.CuaTool>;
+  readonly threads?: Array<ThreadId>;
+  readonly calls: Array<{ name: string; args: CuaDriver.CuaArguments }>;
   readonly unavailable?: boolean;
   readonly results?: Readonly<Record<string, McpSchema.CallToolResult>>;
 }) => {
@@ -93,9 +96,12 @@ const makeLayer = (options: {
     CuaDriver.CuaDriver.of({
       status: Effect.die("unused"),
       control: () => Effect.die("unused"),
-      catalog: options.unavailable ? Effect.fail(unavailable) : Effect.succeed(catalog),
-      call: (name, args) =>
+      catalog: options.unavailable
+        ? Effect.fail(unavailable)
+        : Effect.succeed({ ...catalog, tools: [...catalog.tools, ...(options.extraTools ?? [])] }),
+      call: (name, args, thread) =>
         Effect.sync(() => {
+          options.threads?.push(thread);
           options.calls.push({ name, args });
           const canned = options.results?.[name];
           if (canned) return canned;
@@ -113,13 +119,13 @@ const makeLayer = (options: {
   );
 };
 
-const callTool = (name: string, args: Record<string, unknown>) =>
+const callTool = (name: string, args: CuaDriver.CuaArguments, scope = invocation) =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     return yield* server
       .callTool({ name, arguments: args })
       .pipe(
-        Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+        Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
         Effect.provideService(McpSchema.McpServerClient, client),
       );
   });
@@ -130,7 +136,7 @@ const text = (result: McpSchema.CallToolResult) =>
   result.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
 
 it.effect("refuses every call while computer use is off and stops agents already running", () => {
-  const calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }> = [];
+  const calls: Array<{ name: string; args: CuaDriver.CuaArguments }> = [];
   return Effect.gen(function* () {
     const settings = yield* ServerSettings.ServerSettingsService;
     yield* settings.updateSettings({ enableAgentComputerUse: true });
@@ -150,14 +156,14 @@ it.effect("lists operations by summary and describes one operation in full", () 
   Effect.gen(function* () {
     const listing = yield* callTool("computer_describe", { tool: null });
     expect(text(listing)).toBe(
-      "Snapshot a window before acting on it.\n\nOperations (run with computer_call):\n- click: Click against a target pid.\n- list_apps: List running apps.\n- list_windows: List windows.\n- hotkey: Press keys.",
+      `${BACKGROUND_ONLY_INSTRUCTIONS}\n\nSnapshot a window before acting on it.\n\nOperations (run with computer_call):\n- click: Click against a target pid.\n- list_apps: List running apps.\n- list_windows: List windows.\n- hotkey: Press keys.`,
     );
 
     const click = yield* callTool("computer_describe", { tool: "click" });
     expect(decodeJsonText(text(click))).toEqual({
       name: "click",
-      description: catalog.tools[0]?.description,
-      inputSchema: catalog.tools[0]?.inputSchema,
+      description: `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${catalog.tools[0]?.description}`,
+      inputSchema: { type: "object", properties: { pid: { type: "number" } } },
     });
 
     const unknown = yield* callTool("computer_describe", { tool: "teleport" });
@@ -165,28 +171,35 @@ it.effect("lists operations by summary and describes one operation in full", () 
   }).pipe(Effect.provide(makeLayer({ enabled: true, calls: [] }))),
 );
 
-it.effect("gives each thread its own Cua session unless the agent names one", () => {
-  const calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }> = [];
+it.effect("routes threads to distinct driver connections without named-session injection", () => {
+  const calls: Array<{ name: string; args: CuaDriver.CuaArguments }> = [];
+  const threads: Array<ThreadId> = [];
+  const peer = ThreadId.make("peer-cua-thread");
   return Effect.gen(function* () {
     const result = yield* callTool("computer_call", { tool: "click", arguments: { pid: 4 } });
     expect(result.content).toEqual([
       { type: "image", data: new Uint8Array([7]), mimeType: "image/png" },
     ]);
-    yield* callTool("computer_call", {
-      tool: "click",
-      arguments: { pid: 4, session: "mine" },
-    });
+    yield* callTool(
+      "computer_call",
+      {
+        tool: "click",
+        arguments: { pid: 4 },
+      },
+      { ...invocation, threadId: peer },
+    );
     yield* callTool("computer_call", { tool: "list_apps", arguments: null });
     expect(calls).toEqual([
-      { name: "click", args: { pid: 4, session: `rove-${threadId}` } },
-      { name: "click", args: { pid: 4, session: "mine" } },
+      { name: "click", args: { pid: 4 } },
+      { name: "click", args: { pid: 4 } },
       { name: "list_apps", args: {} },
     ]);
 
+    expect(threads).toEqual([threadId, peer, threadId]);
     const unknown = yield* callTool("computer_call", { tool: "teleport" });
     expect(unknown.isError).toBe(true);
     expect(calls).toHaveLength(3);
-  }).pipe(Effect.provide(makeLayer({ enabled: true, calls })));
+  }).pipe(Effect.provide(makeLayer({ enabled: true, calls, threads })));
 });
 
 it.effect("shows the model data Cua returns only as structured content", () =>
@@ -197,7 +210,10 @@ it.effect("shows the model data Cua returns only as structured content", () =>
     );
     expect(windows.structuredContent).toEqual({ windows: [{ window_id: 42, title: "Untitled" }] });
 
-    const noStructuredData = yield* callTool("computer_call", { tool: "hotkey" });
+    const noStructuredData = yield* callTool("computer_call", {
+      tool: "hotkey",
+      arguments: { pid: 4 },
+    });
     expect(text(noStructuredData)).toBe("Pressed.");
 
     const large = yield* callTool("computer_call", { tool: "list_apps" });
@@ -213,6 +229,52 @@ it.effect("reports a missing driver as a tool error the agent can relay", () =>
     expect(result.isError).toBe(true);
     expect(text(result)).toBe("Cua Driver is not installed.");
   }).pipe(Effect.provide(makeLayer({ enabled: true, calls: [], unavailable: true }))),
+);
+
+it.effect(
+  "refuses intrusive actions without dispatch and accepts the next background action",
+  () => {
+    const calls: Array<{ name: string; args: CuaDriver.CuaArguments }> = [];
+    const extraTools = ["bring_to_front", "set_config", "clipboard_write", "start_session"].map(
+      (name) => ({
+        name,
+        description: name,
+        inputSchema: { type: "object" as const },
+        readOnly: false,
+      }),
+    );
+    return Effect.gen(function* () {
+      for (const input of [
+        { tool: "click", arguments: { scope: "desktop", x: 2171, y: 14 } },
+        {
+          tool: "click",
+          arguments: { target: { kind: "desktop", display_id: "primary" }, x: 20, y: 20 },
+        },
+        { tool: "click", arguments: { pid: 4, delivery_mode: "foreground" } },
+        { tool: "hotkey", arguments: { key: "return" } },
+        { tool: "click", arguments: { pid: 4, delivery_mode: "auto" } },
+        { tool: "click", arguments: { pid: 4, session: "another-session" } },
+        ...extraTools.map(({ name }) => ({ tool: name })),
+      ]) {
+        const refused = yield* callTool("computer_call", input);
+        expect(refused.isError).toBe(true);
+        expect(refused.structuredContent).toMatchObject({
+          code: "background_only",
+          effect: "refused",
+        });
+        expect(text(refused)).toContain("No action was executed");
+      }
+      expect(calls).toEqual([]);
+      const listing = yield* callTool("computer_describe", {});
+      for (const { name } of extraTools) {
+        expect(text(listing)).not.toContain(`- ${name}:`);
+        expect((yield* callTool("computer_describe", { tool: name })).isError).toBe(true);
+      }
+      const result = yield* callTool("computer_call", { tool: "click", arguments: { pid: 4 } });
+      expect(result.isError).not.toBe(true);
+      expect(calls).toHaveLength(1);
+    }).pipe(Effect.provide(makeLayer({ enabled: true, calls, extraTools })));
+  },
 );
 
 it.effect("rejects calls without an operation name", () =>
