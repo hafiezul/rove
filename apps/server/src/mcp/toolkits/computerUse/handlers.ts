@@ -5,6 +5,11 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { McpSchema, McpServer, Tool } from "effect/unstable/ai";
 
+import {
+  BACKGROUND_ONLY_INSTRUCTIONS,
+  backgroundRefusal,
+  isBackgroundTool,
+} from "../../../computerUse/BackgroundPolicy.ts";
 import * as CuaDriver from "../../../computerUse/CuaDriver.ts";
 import * as ServerSettings from "../../../serverSettings.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
@@ -12,7 +17,8 @@ import * as McpInvocationContext from "../../McpInvocationContext.ts";
 const ComputerDescribeInput = Schema.Struct({
   tool: Schema.optional(
     Schema.String.annotate({
-      description: "Operation name. Omit to list every operation with Cua's workflow guidance.",
+      description:
+        "Operation name. Omit to list supported background operations and workflow guidance.",
     }),
   ),
 });
@@ -32,7 +38,7 @@ const ComputerCallInput = Schema.Struct({
  */
 const ComputerDescribeTool = Tool.make("computer_describe", {
   description:
-    "Control native apps on this environment's macOS host through Cua Driver: list apps and windows, read accessibility snapshots, click, type, scroll, and capture screenshots, usually without taking over the user's cursor. Call with no arguments for Cua's workflow guidance and every operation, or with `tool` for one operation's full description and input schema, then run it with computer_call. For web pages in Rove's browser panel, use the preview_* tools instead.",
+    "Control native Mac apps through background-only Cua Driver operations. List apps and windows, inspect accessibility snapshots, and act on a target window without desktop input or foreground escalation. Call with no arguments for supported operations, or with `tool` for its schema. For web pages in Rove's browser panel, use preview_* instead.",
   parameters: Schema.toCodecJson(ComputerDescribeInput),
 })
   .annotate(Tool.Title, "Describe computer use")
@@ -43,7 +49,7 @@ const ComputerDescribeTool = Tool.make("computer_describe", {
 
 const ComputerCallTool = Tool.make("computer_call", {
   description:
-    "Run one Cua Driver operation on this environment's macOS host. Read its schema with computer_describe first. When the operation takes a `session` and you omit it, each Rove thread gets its own Cua session.",
+    "Run one background-only Cua Driver operation. Read its schema with computer_describe first. Rove owns one persistent connection per thread. Do not pass session labels. Refused actions execute nothing and do not end the thread. Try a safe alternative or continue other work and report the GUI step as blocked.",
   parameters: Schema.toCodecJson(ComputerCallInput),
 })
   .annotate(Tool.Title, "Use computer")
@@ -91,8 +97,27 @@ const summary = (description: string) => {
   return sentence.length > 160 ? `${sentence.slice(0, 159)}…` : sentence;
 };
 
-const hasSessionArgument = ({ properties }: CuaDriver.CuaTool["inputSchema"]) =>
-  typeof properties === "object" && properties !== null && "session" in properties;
+const backgroundInputSchema = (schema: CuaDriver.CuaTool["inputSchema"]) => {
+  if (!schema.properties) return schema;
+  return {
+    ...schema,
+    properties: Object.fromEntries(
+      Object.entries(schema.properties).filter(([name]) => name !== "session"),
+    ),
+  };
+};
+
+const backgroundOnlyResult = (reason: string) =>
+  new McpSchema.CallToolResult({
+    isError: true,
+    structuredContent: { code: "background_only", effect: "refused", executed: false, reason },
+    content: [
+      {
+        type: "text",
+        text: `${reason} No action was executed. Retry with a background window action or use an app API. For web pages, use preview_*. If no safe route exists, continue other work and report the GUI step as blocked. Do not retry through foreground input or shell automation.`,
+      },
+    ],
+  });
 
 const toMcpTool = (tool: typeof ComputerDescribeTool | typeof ComputerCallTool) =>
   new McpSchema.Tool({
@@ -155,25 +180,28 @@ const registerComputerUseTools = Effect.gen(function* () {
               Effect.map((catalog) => {
                 if (input.tool === undefined) {
                   const operations = catalog.tools
+                    .filter(isBackgroundTool)
                     .map((tool) => `- ${tool.name}: ${summary(tool.description)}`)
                     .join("\n");
                   return textResult(
-                    `${catalog.instructions ?? ""}\n\nOperations (run with computer_call):\n${operations}`.trim(),
+                    `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${catalog.instructions ?? ""}\n\nOperations (run with computer_call):\n${operations}`.trim(),
                   );
                 }
                 const tool = catalog.tools.find((candidate) => candidate.name === input.tool);
-                return tool
-                  ? textResult(
-                      encodeJsonText({
-                        name: tool.name,
-                        description: tool.description,
-                        inputSchema: tool.inputSchema,
-                      }),
-                    )
-                  : textResult(
-                      `Cua Driver has no operation named ${input.tool}. Call computer_describe without arguments to list them.`,
-                      true,
-                    );
+                if (!tool)
+                  return textResult(
+                    `Cua Driver has no operation named ${input.tool}. Call computer_describe without arguments to list them.`,
+                    true,
+                  );
+                if (!isBackgroundTool(tool))
+                  return backgroundOnlyResult(`${tool.name} is not a background operation.`);
+                return textResult(
+                  encodeJsonText({
+                    name: tool.name,
+                    description: `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${tool.description}`,
+                    inputSchema: backgroundInputSchema(tool.inputSchema),
+                  }),
+                );
               }),
               Effect.catchTag("CuaDriverUnavailableError", unavailable),
             ),
@@ -207,13 +235,10 @@ const registerComputerUseTools = Effect.gen(function* () {
                     );
                   }
                   const args = input.arguments ?? {};
+                  const refusal = backgroundRefusal(tool, args);
+                  if (refusal) return Effect.succeed(backgroundOnlyResult(refusal));
                   return driver
-                    .call(
-                      tool.name,
-                      hasSessionArgument(tool.inputSchema) && args.session === undefined
-                        ? { ...args, session: `rove-${invocation.threadId}` }
-                        : args,
-                    )
+                    .call(tool.name, args, invocation.threadId)
                     .pipe(Effect.map(withStructuredText));
                 }),
                 Effect.catchTag("CuaDriverUnavailableError", unavailable),
