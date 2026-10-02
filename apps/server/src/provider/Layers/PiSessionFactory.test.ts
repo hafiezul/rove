@@ -843,6 +843,41 @@ describe("headless Pi extensions", () => {
     await expect(session.prompt("no restart")).rejects.toThrow("stopped");
   });
 
+  it.each(["hello", "handled", "/count"])(
+    "reports boolean acceptance and settlement for %s",
+    async (input) => {
+      const session = await create();
+      const preflight: boolean[] = [];
+      const events: PiSessionEventLike[] = [];
+      session.subscribe((event) => events.push(event));
+
+      await session.prompt(input, {
+        preflightResult: (accepted) => preflight.push(accepted),
+      });
+
+      expect(preflight).toEqual([true]);
+      expect(events.filter((event) => event.type === "agent_settled")).toHaveLength(1);
+      expect(events.some((event) => event.type === "prompt_error")).toBe(false);
+      expect(events.some((event) => event.type === "agent_start")).toBe(input === "hello");
+    },
+  );
+
+  it.each(["handled", "queued message"])(
+    "keeps follow-up dispositions internal for %s",
+    async (input) => {
+      const session = await create();
+      const sdkSession = (
+        await vi.mocked(PiSdk.createAgentSessionFromServices).mock.results.at(-1)!.value
+      ).session;
+
+      await expect(session.followUp(input)).resolves.toBeUndefined();
+      expect(sdkSession.getFollowUpMessages()).toEqual(input === "handled" ? [] : [input]);
+      await session.abort();
+      await expect(session.followUp("must not queue")).rejects.toThrow("stopped");
+      expect(sdkSession.getFollowUpMessages()).toEqual([]);
+    },
+  );
+
   it("reports a rejected accepted prompt before the SDK's finally-block settlement", async () => {
     const session = await create();
     const sdkSession = (

@@ -279,11 +279,12 @@ async function toPiSessionLike(
         await session.prompt(text, {
           ...options,
           source: "rpc",
-          preflightResult: reportPreflight,
+          preflightResult: () => reportPreflight(true),
         });
         // Commands and handled input can finish without emitting agent_settled.
         if (!agentStarted && session.isIdle) settlementPending = true;
       } catch (error) {
+        if (!reported && !stopped) reportPreflight(false);
         if (accepted && !stopped) {
           emit({
             type: "prompt_error",
@@ -302,9 +303,9 @@ async function toPiSessionLike(
         }
       }
     },
-    followUp: (text) => {
-      if (stopped) return Promise.reject(new Error("Pi session has been stopped."));
-      return session.followUp(text);
+    followUp: async (text) => {
+      if (stopped) throw new Error("Pi session has been stopped.");
+      await session.followUp(text);
     },
     respondToUserInput: (requestId, answers) => extensionUI?.respond(requestId, answers) ?? false,
     compact: async () => {
