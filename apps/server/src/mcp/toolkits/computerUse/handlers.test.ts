@@ -81,6 +81,7 @@ const structuredResults: Readonly<Record<string, McpSchema.CallToolResult>> = {
 
 const makeLayer = (options: {
   readonly enabled: boolean;
+  readonly extraTools?: ReadonlyArray<CuaDriver.CuaTool>;
   readonly calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }>;
   readonly unavailable?: boolean;
   readonly results?: Readonly<Record<string, McpSchema.CallToolResult>>;
@@ -93,7 +94,9 @@ const makeLayer = (options: {
     CuaDriver.CuaDriver.of({
       status: Effect.die("unused"),
       control: () => Effect.die("unused"),
-      catalog: options.unavailable ? Effect.fail(unavailable) : Effect.succeed(catalog),
+      catalog: options.unavailable
+        ? Effect.fail(unavailable)
+        : Effect.succeed({ ...catalog, tools: [...catalog.tools, ...(options.extraTools ?? [])] }),
       call: (name, args) =>
         Effect.sync(() => {
           options.calls.push({ name, args });
@@ -213,6 +216,42 @@ it.effect("reports a missing driver as a tool error the agent can relay", () =>
     expect(result.isError).toBe(true);
     expect(text(result)).toBe("Cua Driver is not installed.");
   }).pipe(Effect.provide(makeLayer({ enabled: true, calls: [], unavailable: true }))),
+);
+
+it.effect(
+  "refuses intrusive actions without dispatch and accepts the next background action",
+  () => {
+    const calls: Array<{ name: string; args: Readonly<Record<string, unknown>> }> = [];
+    const extraTools = ["bring_to_front", "set_config", "clipboard_write", "start_session"].map(
+      (name) => ({ name, description: name, inputSchema: {}, readOnly: false }),
+    );
+    return Effect.gen(function* () {
+      for (const input of [
+        { tool: "click", arguments: { scope: "desktop", x: 2171, y: 14 } },
+        {
+          tool: "click",
+          arguments: { target: { kind: "desktop", display_id: "primary" }, x: 20, y: 20 },
+        },
+        { tool: "click", arguments: { pid: 4, delivery_mode: "foreground" } },
+        { tool: "hotkey", arguments: { key: "return" } },
+        { tool: "click", arguments: { pid: 4, delivery_mode: "auto" } },
+        { tool: "click", arguments: { pid: 4, session: "another-session" } },
+        ...extraTools.map(({ name }) => ({ tool: name })),
+      ]) {
+        const refused = yield* callTool("computer_call", input);
+        expect(refused.isError).toBe(true);
+        expect(refused.structuredContent).toMatchObject({
+          code: "background_only",
+          effect: "refused",
+        });
+        expect(text(refused)).toContain("No action was executed");
+      }
+      expect(calls).toEqual([]);
+      const result = yield* callTool("computer_call", { tool: "click", arguments: { pid: 4 } });
+      expect(result.isError).not.toBe(true);
+      expect(calls).toHaveLength(1);
+    }).pipe(Effect.provide(makeLayer({ enabled: true, calls, extraTools })));
+  },
 );
 
 it.effect("rejects calls without an operation name", () =>

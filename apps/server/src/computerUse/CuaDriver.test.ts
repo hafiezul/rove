@@ -4,6 +4,7 @@ import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   DEFAULT_SERVER_SETTINGS,
+  ThreadId,
   type ServerSettings as ServerSettingsValue,
 } from "@t3tools/contracts";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
@@ -52,17 +53,30 @@ const server = new Server(
   { capabilities: { tools: {} }, instructions: "Snapshot, then act." },
 );
 const object = (properties = {}) => ({ type: "object", properties });
+const captures = new Map();
+let captureSequence = 0;
 server.setRequestHandler(types.ListToolsRequestSchema, async () => ({
   tools: [
     { name: "check_permissions", description: "Report grants.", inputSchema: object() },
     { name: "click", description: "Click a window element.", inputSchema: object({ pid: { type: "number" }, session: { type: "string" } }) },
     { name: "screenshot", description: "Capture the screen.", inputSchema: object(), annotations: { readOnlyHint: true } },
+    { name: "get_window_state", description: "Capture a window.", inputSchema: object({ session: { type: "string" } }) },
+    { name: "parse_visual_regions", description: "Parse a capture.", inputSchema: object({ capture_id: { type: "string" } }) },
   ],
 }));
 server.setRequestHandler(types.CallToolRequestSchema, async ({ params }) => {
   const ok = fs.existsSync(file("granted"));
   if (params.name === "check_permissions") {
     return { content: [{ type: "text", text: "grants" }], structuredContent: { accessibility: ok, screen_recording: ok } };
+  }
+  if (params.name === "get_window_state") {
+    const capture_id = "capture-" + process.pid + "-" + captureSequence++;
+    captures.set(capture_id, params.arguments?.session ?? "implicit");
+    return { content: [{ type: "text", text: "Captured." }], structuredContent: { capture_id } };
+  }
+  if (params.name === "parse_visual_regions") {
+    const valid = captures.get(params.arguments?.capture_id) === "implicit";
+    return { isError: !valid, content: [{ type: "text", text: valid ? "Parsed." : "Capture ownership mismatch." }], structuredContent: { code: valid ? "parsed" : "capture_generation_mismatch" } };
   }
   if (params.name === "click") {
     return { content: [{ type: "text", text: JSON.stringify(params.arguments) }], structuredContent: params.arguments };
@@ -255,6 +269,25 @@ it.effect("forwards calls, keeps image content, and reconnects after an idle rel
       expect(screenshot.content).toEqual([
         { type: "image", data: new Uint8Array([1, 2, 3]), mimeType: "image/png" },
       ]);
+    }),
+  ),
+);
+
+it.effect("keeps capture ownership on one thread transport and refuses a peer's capture", () =>
+  withDriver({ installed: true }, ({ driver }) =>
+    Effect.gen(function* () {
+      const first = ThreadId.make("first-cua-thread");
+      const second = ThreadId.make("second-cua-thread");
+      const capture = yield* driver.call("get_window_state", {}, first);
+      const captureId = capture.structuredContent?.capture_id;
+      expect(typeof captureId).toBe("string");
+      const parsed = yield* driver.call("parse_visual_regions", { capture_id: captureId }, first);
+      expect(parsed.structuredContent).toEqual({ code: "parsed" });
+      const peer = yield* driver.call("parse_visual_regions", { capture_id: captureId }, second);
+      expect(peer.isError).toBe(true);
+      expect(peer.structuredContent).toEqual({ code: "capture_generation_mismatch" });
+      const next = yield* driver.call("get_window_state", {}, first);
+      expect(next.structuredContent?.capture_id).not.toBe(captureId);
     }),
   ),
 );
