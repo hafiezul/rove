@@ -80,6 +80,38 @@ function environment(id: string, usageSummary: UsageSummary): EnvironmentUsage {
 }
 
 describe("mergeUsage", () => {
+  it("preserves Pi wire data and counts a shared Pi home once", () => {
+    const source = {
+      provider: "pi" as const,
+      hostId: "mac",
+      homePath: "/home/user/.pi/agent/sessions",
+    };
+    const usage = decodeSummary(
+      encodeSummary(
+        summary(
+          [
+            bucket({
+              provider: "pi",
+              model: "anthropic/claude-sonnet-4-5",
+              sourcePath: source.homePath,
+              costSource: "providerReported",
+            }),
+          ],
+          [source],
+        ),
+      ),
+    );
+    const merged = mergeUsage(
+      [environment("env-a", usage), environment("env-b", usage)],
+      USAGE_CONTRACT_VERSION,
+    );
+    expect(merged.costUsd).toBe(10);
+    expect(merged.totalTokens).toBe(1160);
+    expect(merged.sessions).toBe(1);
+    expect(merged.providers[0]?.provider).toBe("pi");
+    expect(merged.models[0]?.model).toBe("anthropic/claude-sonnet-4-5");
+    expect(merged.duplicateSources).toHaveLength(1);
+  });
   it("counts a Cursor account once across servers while retaining each server's other providers", () => {
     const account = {
       provider: "cursor" as const,

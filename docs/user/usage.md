@@ -6,7 +6,7 @@ desktop when the terminal is not focused. Customize `usage.open` in
 
 ## Understand your usage
 
-**Usage** combines Codex, Claude Code, Grok Build, OpenCode, Antigravity, and Cursor history from your connected
+**Usage** combines Codex, Claude Code, Grok Build, OpenCode, Antigravity, Cursor, and Pi history from your connected
 environments. It shows token use, cache savings, model breakdowns, and estimated API-equivalent
 cost. These estimates are not your subscription bill.
 
@@ -25,9 +25,15 @@ On macOS, choose **Enable Cursor usage** on Usage to allow T3 to read your exist
 from Keychain. You can turn it off in **Settings → Providers → Usage providers**. macOS may ask
 you to allow access on the server Mac.
 
+Pi reads saved sessions from its agent directory, including work outside Rove Code. Saved nonzero
+costs keep the prices used for each response. Records without a saved price use `models.json`
+pricing or public model rates. Models without known prices still count toward token totals.
+Pi model IDs include the API provider, such as `anthropic/claude-sonnet-4-5`. Use that full ID
+when setting a custom price.
+
 Usage includes each configured account's history, including disabled accounts. Custom homes follow
-the account's home setting or its `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, or `GROK_HOME` environment
-variable. Use absolute paths or `~/` paths in the account's environment settings; relative
+the account's home setting or its `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GROK_HOME`, or `PI_CODING_AGENT_DIR`
+environment variable. Use absolute paths or `~/` paths in the account's environment settings; relative
 environment paths depend on each project's working directory and cannot be reliably discovered
 by Usage. Accounts sharing a history directory count once.
 

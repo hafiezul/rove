@@ -17,6 +17,7 @@ import * as NodeOS from "node:os";
 import {
   ClaudeSettings,
   CodexSettings,
+  PiSettings,
   type ProviderInstanceConfig,
   ProviderInstanceId,
   USAGE_CONTRACT_VERSION,
@@ -68,6 +69,7 @@ import {
   type ScanCache,
 } from "./usageScanCache.ts";
 import type { UsageRecord } from "./usageTranscripts.ts";
+import { parsePiModelRates } from "./piUsage.ts";
 
 const LITELLM_RATES_URL =
   "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -90,6 +92,8 @@ const CACHE_RETENTION_DAYS = 90;
 
 const decodeCodexSettings = Schema.decodeOption(CodexSettings);
 const decodeClaudeSettings = Schema.decodeOption(ClaudeSettings);
+const decodePiSettings = Schema.decodeOption(PiSettings);
+const decodePiModelsFile = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
 
 /** On-disk shape of the rate snapshot. */
 const RatesCacheFile = Schema.Struct({
@@ -269,9 +273,10 @@ export const make = Effect.gen(function* () {
       dir: string;
       volumeId: string;
       fileName?: string;
+      piModelsPath?: string;
     }> = [];
     const seen = new Set<string>();
-    for (const driver of ["claudeAgent", "codex", "grok"] as const) {
+    for (const driver of ["claudeAgent", "codex", "grok", "pi"] as const) {
       // Disabled accounts still have history. Explicit default slots replace
       // the legacy settings, just as they do in the provider registry.
       const instances: Array<
@@ -310,6 +315,14 @@ export const make = Effect.gen(function* () {
           home = configured
             ? expandHomePath(configured)
             : environment.CLAUDE_CONFIG_DIR?.trim() || path.join(NodeOS.homedir(), ".claude");
+        } else if (driver === "pi") {
+          const decoded = decodePiSettings(instance.config ?? {});
+          if (Option.isNone(decoded)) continue;
+          home = expandHomePath(
+            decoded.value.agentDir.trim() ||
+              environment.PI_CODING_AGENT_DIR?.trim() ||
+              path.join(environment.HOME?.trim() || NodeOS.homedir(), ".pi", "agent"),
+          );
         } else {
           home = expandHomePath(
             environment.GROK_HOME?.trim() || path.join(NodeOS.homedir(), ".grok"),
@@ -350,6 +363,7 @@ export const make = Effect.gen(function* () {
           dir,
           volumeId,
           ...(provider === "grok" ? { fileName: "updates.jsonl" } : {}),
+          ...(provider === "pi" ? { piModelsPath: path.resolve(home, "models.json") } : undefined),
         });
       }
     }
@@ -470,6 +484,7 @@ export const make = Effect.gen(function* () {
     readonly status?: UsageSource["status"];
     readonly message?: string;
     readonly action?: UsageSource["action"];
+    readonly piModelsDocument?: unknown;
     /** Parsed records per file, or `null` when the directory does not exist. */
     readonly files:
       | readonly { readonly path: string; readonly records: readonly UsageRecord[] }[]
@@ -487,12 +502,25 @@ export const make = Effect.gen(function* () {
       Effect.provideService(Path.Path, path),
     );
     const scanned: ScannedDir[] = [];
-    for (const { provider, dir, volumeId, fileName } of dirs) {
+    for (const { provider, dir, volumeId, fileName, piModelsPath } of dirs) {
+      const modelsDocument =
+        piModelsPath === undefined
+          ? null
+          : yield* fileSystem.readFileString(piModelsPath).pipe(
+              Effect.flatMap(decodePiModelsFile),
+              Effect.catchCause(() => Effect.succeed(null)),
+            );
       const exists = yield* fileSystem
         .exists(dir)
         .pipe(Effect.catchCause(() => Effect.succeed(false)));
       if (!exists) {
-        scanned.push({ provider, dir, volumeId, files: null });
+        scanned.push({
+          provider,
+          dir,
+          volumeId,
+          files: null,
+          ...(piModelsPath ? { piModelsDocument: modelsDocument } : undefined),
+        });
         continue;
       }
       const files = yield* Effect.promise(() =>
@@ -503,7 +531,13 @@ export const make = Effect.gen(function* () {
         const records = yield* readFileRecords(file.path, file.size, file.mtimeMs, provider);
         parsedFiles.push({ path: file.path, records });
       }
-      scanned.push({ provider, dir, volumeId, files: parsedFiles });
+      scanned.push({
+        provider,
+        dir,
+        volumeId,
+        files: parsedFiles,
+        ...(piModelsPath ? { piModelsDocument: modelsDocument } : undefined),
+      });
     }
 
     const home = NodeOS.homedir();
@@ -755,7 +789,12 @@ export const make = Effect.gen(function* () {
       message,
       action,
       hostId: sourceHostId,
+      piModelsDocument,
     } of scannedDirs) {
+      const sourceRates =
+        piModelsDocument == null
+          ? rates
+          : new Map([...rates, ...parsePiModelRates(piModelsDocument, rates)]);
       const retainedFiles = [...(files ?? [])];
       const livePaths = new Set(retainedFiles.map((file) => file.path));
       // Cleanup may remove transcripts, but the usage we already saved still
@@ -801,7 +840,7 @@ export const make = Effect.gen(function* () {
           }
           // Only sessions contributing in-window count; the mtime slack can
           // admit boundary files whose records fall outside the range.
-          if (aggregator.add(usageRecord, dir) && record.sessionId.length > 0) {
+          if (aggregator.add(usageRecord, dir, sourceRates) && record.sessionId.length > 0) {
             sessionIds.add(record.sessionId);
           }
         }
