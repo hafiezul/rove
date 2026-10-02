@@ -186,7 +186,7 @@ export function lookupRate(table: RateTable, model: string): ModelRate | null {
 /** The parts of a transcript record that decide its price. */
 export type PricedRecord = Pick<
   UsageRecord,
-  "model" | "rateModel" | "totals" | "fast" | "reportedCostUsd"
+  "model" | "rateModel" | "totals" | "fast" | "reportedCostUsd" | "reportedCacheSavingsUsd"
 >;
 
 export interface PricedUsage {
@@ -211,7 +211,7 @@ export function priceUsage(
     return { costUsd: reportedCostUsd, costSource: "providerReported" };
   }
 
-  const rate = override ?? lookupRate(table, record.rateModel ?? model);
+  const rate = override ?? lookupRate(table, model) ?? lookupRate(table, record.rateModel ?? model);
   if (rate === null) return { costUsd: 0, costSource: "unpriced" };
 
   const standardCostUsd =
@@ -235,8 +235,14 @@ export function cacheSavingsUsd(
   record: PricedRecord,
   overrides?: RateTable,
 ): number {
+  const override = overrides?.get(record.model.trim());
+  if (override === undefined && record.reportedCacheSavingsUsd !== undefined) {
+    return record.reportedCacheSavingsUsd;
+  }
   const rate =
-    overrides?.get(record.model.trim()) ?? lookupRate(table, record.rateModel ?? record.model);
+    override ??
+    lookupRate(table, record.model) ??
+    lookupRate(table, record.rateModel ?? record.model);
   if (rate === null) return 0;
   return (
     record.totals.cachedInputTokens *

@@ -102,6 +102,21 @@ describe("scan cache round trip", () => {
     expect(restored.get("/codex.jsonl")).toEqual(original.get("/codex.jsonl"));
   });
 
+  it("keeps legacy cache rows without Pi pricing fields", () => {
+    const original = cacheWith([["/a.jsonl", 100, [record({ reportedCostUsd: 1.5 })]]]);
+    const encoded = encodeScanCache(original);
+    const legacy = {
+      ...encoded,
+      files: {
+        "/a.jsonl": {
+          ...encoded.files["/a.jsonl"]!,
+          r: encoded.files["/a.jsonl"]!.r.map((row) => row.slice(0, 11)),
+        },
+      },
+    };
+    expect(decodeScanCache(legacy).get("/a.jsonl")).toEqual(original.get("/a.jsonl"));
+  });
+
   it("drops an entry whose persisted parse state is corrupt", () => {
     // Resuming with a bad reducer state would attach appended usage to the
     // wrong model or replay fork-copied history; that entry must cold parse.

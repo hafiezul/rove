@@ -123,6 +123,230 @@ function totalOutputTokens(summary: { buckets: readonly { totals: { outputTokens
 describe("UsageService", () => {
   for (const explicitDefault of [true, false]) {
     it.live(
+      `reads ${explicitDefault ? "explicit" : "legacy"} Pi history once across disabled aliases`,
+      () =>
+        Effect.gen(function* () {
+          const { home, settings } = yield* setup;
+          const agentDir = NodePath.join(home, "pi");
+          const alias = NodePath.join(home, "pi-alias");
+          const sessions = NodePath.join(agentDir, "sessions", "--project--");
+          yield* Effect.promise(async () => {
+            await NodeFSP.mkdir(sessions, { recursive: true });
+            await NodeFSP.symlink(agentDir, alias, "dir");
+            await NodeFSP.writeFile(
+              NodePath.join(agentDir, "models.json"),
+              encodeUnknownJsonString({
+                providers: {
+                  custom: {
+                    models: [
+                      {
+                        id: "model-a",
+                        cost: { input: 99, output: 99, cacheRead: 99, cacheWrite: 99 },
+                      },
+                    ],
+                  },
+                },
+              }),
+            );
+            await NodeFSP.writeFile(
+              NodePath.join(sessions, "session.jsonl"),
+              [
+                { type: "session", id: "pi-session" },
+                {
+                  type: "message",
+                  id: "pi-message",
+                  timestamp: "2026-08-01T10:00:00Z",
+                  message: {
+                    role: "assistant",
+                    provider: "custom",
+                    model: "model-a",
+                    usage: {
+                      input: 100,
+                      output: 40,
+                      cacheRead: 200,
+                      cacheWrite: 30,
+                      cost: { total: 1.25 },
+                    },
+                  },
+                },
+                {
+                  type: "compaction",
+                  id: "pi-compact",
+                  timestamp: "2026-08-01T10:01:00Z",
+                  usage: { input: 10, output: 7, cost: { total: 0.25 } },
+                },
+              ]
+                .map((entry) => encodeUnknownJsonString(entry))
+                .join("\n") + "\n",
+            );
+          });
+          const layers = serviceLayers({
+            prefix: `usage-pi-${explicitDefault ? "explicit" : "legacy"}`,
+            home,
+            settings: {
+              ...settings,
+              providers: { ...settings.providers, pi: { agentDir } },
+              providerInstances: {
+                ...(explicitDefault
+                  ? {
+                      [ProviderInstanceId.make("pi")]: {
+                        driver: ProviderDriverKind.make("pi"),
+                        config: { agentDir },
+                      },
+                    }
+                  : {}),
+                [ProviderInstanceId.make("pi-disabled")]: {
+                  driver: ProviderDriverKind.make("pi"),
+                  enabled: false,
+                  environment: [{ name: "PI_CODING_AGENT_DIR", value: alias, sensitive: false }],
+                },
+              },
+            },
+          });
+          yield* Effect.gen(function* () {
+            const service = yield* UsageService.make;
+            const summary = yield* service.readSummary(WINDOW);
+            const piSources = summary.sources.filter(
+              (source) => source.fingerprint.provider === "pi",
+            );
+            assert.strictEqual(piSources.length, 1);
+            assert.strictEqual(
+              piSources[0]?.fingerprint.resolvedHomePath,
+              yield* Effect.promise(() => NodeFSP.realpath(NodePath.dirname(sessions))),
+            );
+            assert.strictEqual(piSources[0]?.distinctSessions, 1);
+            assert.strictEqual(
+              summary.buckets.find((bucket) => bucket.provider === "pi")?.costUsd,
+              1.5,
+            );
+            assert.strictEqual(totalOutputTokens(summary), 47);
+            yield* Effect.promise(() => NodeFSP.rm(sessions, { recursive: true }));
+            const restarted = yield* UsageService.make;
+            const retained = yield* restarted.readSummary(WINDOW);
+            assert.deepStrictEqual(retained.buckets, summary.buckets);
+            assert.strictEqual(
+              retained.sources.find((source) => source.fingerprint.provider === "pi")?.status,
+              "ok",
+            );
+          }).pipe(Effect.provide(layers));
+        }).pipe(Effect.scoped),
+    );
+  }
+
+  it.live(
+    "scopes Pi model prices to each home and distinguishes free from unpriced usage after restart",
+    () =>
+      Effect.gen(function* () {
+        const { home, settings } = yield* setup;
+        const agentDirs = [NodePath.join(home, "pi-first"), NodePath.join(home, "pi-second")];
+        for (const [index, agentDir] of agentDirs.entries()) {
+          yield* Effect.promise(async () => {
+            const sessions = NodePath.join(agentDir, "sessions");
+            await NodeFSP.mkdir(sessions, { recursive: true });
+            await NodeFSP.writeFile(
+              NodePath.join(agentDir, "models.json"),
+              encodeUnknownJsonString({
+                providers: {
+                  custom: {
+                    models: [
+                      {
+                        id: "model-a",
+                        cost: { input: index + 2, output: 0, cacheRead: 0, cacheWrite: 0 },
+                      },
+                      { id: "free", cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } },
+                    ],
+                  },
+                },
+              }),
+            );
+            await NodeFSP.writeFile(
+              NodePath.join(sessions, "session.jsonl"),
+              [
+                { type: "session", id: `pi-session-${index}` },
+                ...["model-a", "free", "unknown"].map((model) => ({
+                  type: "message",
+                  id: `${index}-${model}`,
+                  timestamp: "2026-08-01T10:00:00Z",
+                  message: {
+                    role: "assistant",
+                    provider: "custom",
+                    model,
+                    usage: {
+                      input: 1_000_000,
+                      output: 0,
+                      cacheRead: 0,
+                      cacheWrite: 0,
+                      cost: { total: 0 },
+                    },
+                  },
+                })),
+              ]
+                .map((entry) => encodeUnknownJsonString(entry))
+                .join("\n") + "\n",
+            );
+          });
+        }
+        const layers = serviceLayers({
+          prefix: "usage-pi-scoped-prices",
+          home,
+          settings: {
+            ...settings,
+            providers: { ...settings.providers, pi: { agentDir: agentDirs[0]! } },
+            providerInstances: {
+              [ProviderInstanceId.make("pi-second")]: {
+                driver: ProviderDriverKind.make("pi"),
+                enabled: false,
+                config: { agentDir: agentDirs[1]! },
+              },
+            },
+          },
+        });
+        yield* Effect.gen(function* () {
+          const service = yield* UsageService.make;
+          const first = yield* service.readSummary(WINDOW);
+          assert.strictEqual(
+            first.buckets.reduce((sum, bucket) => sum + bucket.costUsd, 0),
+            5,
+          );
+          assert.strictEqual(
+            first.buckets.filter(
+              (bucket) => bucket.model === "custom/free" && bucket.costSource === "modelPriced",
+            ).length,
+            2,
+          );
+          assert.strictEqual(
+            first.buckets.filter(
+              (bucket) => bucket.model === "custom/unknown" && bucket.unpricedRecords === 1,
+            ).length,
+            2,
+          );
+          const restarted = yield* UsageService.make;
+          assert.deepStrictEqual((yield* restarted.readSummary(WINDOW)).buckets, first.buckets);
+          yield* Effect.promise(() =>
+            NodeFSP.writeFile(
+              NodePath.join(agentDirs[0]!, "models.json"),
+              encodeUnknownJsonString({
+                providers: {
+                  custom: {
+                    models: [
+                      { id: "model-a", cost: { input: 7, output: 0, cacheRead: 0, cacheWrite: 0 } },
+                    ],
+                  },
+                },
+              }),
+            ),
+          );
+          const repriced = yield* restarted.readSummary(WINDOW);
+          assert.strictEqual(
+            repriced.buckets.reduce((sum, bucket) => sum + bucket.costUsd, 0),
+            10,
+          );
+        }).pipe(Effect.provide(layers));
+      }).pipe(Effect.scoped),
+  );
+
+  for (const explicitDefault of [true, false]) {
+    it.live(
       `reads shared managed ${explicitDefault ? "explicit" : "legacy"} default and disabled extra account history once`,
       () =>
         Effect.gen(function* () {

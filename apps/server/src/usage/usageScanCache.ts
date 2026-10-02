@@ -15,6 +15,11 @@
  * @module usageScanCache
  */
 import type { UsageProviderKind } from "@t3tools/contracts";
+import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
+import * as Schema from "effect/Schema";
+
+import { PiScanState } from "./piUsage.ts";
 
 import { GUARD_LENGTH, type TranscriptParsePosition } from "./usageTranscriptReader.ts";
 import type { CodexScanState, UsageRecord } from "./usageTranscripts.ts";
@@ -25,6 +30,7 @@ import type { CodexScanState, UsageRecord } from "./usageTranscripts.ts";
 // re-parses only its appended bytes instead of starting over.
 // v4: records carry Claude fast mode, which v3 rows never captured.
 const USAGE_SCAN_CACHE_VERSION = 4 as const;
+const decodePiState = Schema.decodeUnknownOption(PiScanState);
 
 export interface CachedFile {
   readonly size: number;
@@ -60,6 +66,8 @@ type SerializedRecord = readonly [
   dedupeKey: string | null,
   reportedCostUsd: number | null,
   fast: 0 | 1,
+  rateModel?: string | null,
+  reportedCacheSavingsUsd?: number | null,
 ];
 
 interface SerializedFile {
@@ -75,6 +83,7 @@ interface SerializedFile {
   readonly gh: number;
   /** Codex reducer state at `o`; `null` for stateless providers. */
   readonly cs: CodexScanState | null;
+  readonly ps?: PiScanState;
 }
 
 interface SerializedCache {
@@ -112,6 +121,8 @@ export function encodeScanCache(cache: ScanCache): SerializedCache {
     record.dedupeKey,
     record.reportedCostUsd,
     record.fast ? 1 : 0,
+    record.rateModel ?? null,
+    record.reportedCacheSavingsUsd ?? null,
   ];
 
   const files: Record<string, SerializedFile> = {};
@@ -126,6 +137,7 @@ export function encodeScanCache(cache: ScanCache): SerializedCache {
       gl: entry.position.guardLength,
       gh: entry.position.guardHash,
       cs: entry.position.codexState,
+      ...(entry.position.piState !== undefined ? { ps: entry.position.piState } : undefined),
     };
   }
 
@@ -181,6 +193,8 @@ export function decodeScanCache(document: unknown): ScanCache {
         dedupeKey,
         reportedCostUsd,
         fast,
+        rateModel,
+        reportedCacheSavingsUsd,
       ] = row as SerializedRecord;
 
       const model = typeof modelIndex === "number" ? models[modelIndex] : undefined;
@@ -193,7 +207,9 @@ export function decodeScanCache(document: unknown): ScanCache {
         !Number.isFinite(cacheCreation) ||
         !Number.isFinite(output) ||
         !Number.isFinite(reasoning) ||
-        (fast !== 0 && fast !== 1)
+        (fast !== 0 && fast !== 1) ||
+        (rateModel != null && !Predicate.isString(rateModel)) ||
+        (reportedCacheSavingsUsd != null && !Number.isFinite(reportedCacheSavingsUsd))
       ) {
         return null;
       }
@@ -202,6 +218,8 @@ export function decodeScanCache(document: unknown): ScanCache {
         provider,
         timestampMs,
         model,
+        ...(Predicate.isString(rateModel) ? { rateModel } : undefined),
+        ...(Predicate.isNumber(reportedCacheSavingsUsd) ? { reportedCacheSavingsUsd } : undefined),
         sessionId: (typeof sessionIndex === "number" ? sessions[sessionIndex] : undefined) ?? "",
         totals: {
           uncachedInputTokens: uncached,
@@ -222,7 +240,8 @@ export function decodeScanCache(document: unknown): ScanCache {
     if (typeof raw !== "object" || raw === null) continue;
     const entry = raw as Partial<SerializedFile>;
     if (typeof entry.s !== "number" || typeof entry.m !== "number") continue;
-    if (entry.p !== "claude" && entry.p !== "codex" && entry.p !== "grok") continue;
+    if (entry.p !== "claude" && entry.p !== "codex" && entry.p !== "grok" && entry.p !== "pi")
+      continue;
     if (!isRecordArray(entry.r) || !isRecordArray(entry.t)) continue;
     // Position fields feed byte offsets and a Buffer allocation in the reader,
     // so anything outside their real ranges must reject the entry: a bogus
@@ -244,6 +263,8 @@ export function decodeScanCache(document: unknown): ScanCache {
     }
     const codexState = decodeCodexState(entry.cs);
     if (codexState === undefined) continue;
+    const piState = decodePiState(entry.ps);
+    if (entry.p === "pi" && Option.isNone(piState)) continue;
 
     const provider: UsageProviderKind = entry.p;
     const records = decodeRecords(entry.r, provider);
@@ -261,6 +282,7 @@ export function decodeScanCache(document: unknown): ScanCache {
         guardLength: entry.gl,
         guardHash: entry.gh,
         codexState,
+        ...(Option.isSome(piState) ? { piState: piState.value } : undefined),
       },
     });
   }
