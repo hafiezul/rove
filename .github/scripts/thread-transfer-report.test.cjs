@@ -25,7 +25,7 @@ function result(overrides = {}) {
     measuredTurnWebSocketMessages: 20,
   };
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scenario: {
       id: "thread-transfer-v1",
       historyTurns: 10,
@@ -37,12 +37,13 @@ function result(overrides = {}) {
     providers: {
       codex: { observed: { ...observed, ...overrides }, ceiling },
       claudeAgent: { observed, ceiling },
+      pi: { observed: { ...observed }, ceiling: { ...ceiling } },
     },
   };
 }
 
 test("validates the fixed artifact schema", () => {
-  assert.equal(validateResult(result()).schemaVersion, 1);
+  assert.equal(validateResult(result()).schemaVersion, 2);
   assert.throws(
     () => validateResult({ ...result(), injectedMarkdown: "@everyone" }),
     /unexpected fields/,
@@ -51,6 +52,73 @@ test("validates the fixed artifact schema", () => {
     () => validateResult(result({ totalWireBytes: "lots" })),
     /non-negative safe integer/,
   );
+});
+
+test("accepts historical artifacts without Pi and rejects unknown or invalid providers", () => {
+  const legacy = result();
+  legacy.schemaVersion = 1;
+  delete legacy.providers.pi;
+  assert.equal(validateResult(legacy), legacy);
+  assert.equal(validateResult(result()).providers.pi.observed.totalWireBytes, 2_200_000);
+
+  const unknown = result();
+  unknown.providers.unrecognized = unknown.providers.pi;
+  assert.throws(() => validateResult(unknown), /unexpected fields/);
+
+  const invalid = result();
+  invalid.providers.pi.observed.totalWireBytes = -1;
+  assert.throws(() => validateResult(invalid), /non-negative safe integer/);
+
+  const missing = result();
+  delete missing.providers.codex;
+  assert.throws(() => validateResult(missing), /unexpected fields/);
+
+  const missingPi = result();
+  delete missingPi.providers.pi;
+  assert.throws(() => validateResult(missingPi), /unexpected fields/);
+
+  assert.throws(() => validateResult({ ...result(), schemaVersion: 3 }), /must be 1 or 2/);
+});
+
+test("reports Pi without losing existing provider comparisons against an older baseline", () => {
+  const baseline = result();
+  baseline.schemaVersion = 1;
+  delete baseline.providers.pi;
+  const comment = renderComment({
+    current: result({ measuredTurnWebSocketWireBytes: 260_000 }),
+    baseline,
+    currentRun: { sha: "bbbbbbbb", conclusion: "success", url: "https://example.com/current" },
+    baselineRun: { sha: "aaaaaaaa", matchesBase: true, url: "https://example.com/baseline" },
+  });
+  assert.match(comment, /\| Codex \| Live turn WebSocket wire .*\+9\.8 KiB \(\+4\.0%\)/);
+  assert.match(comment, /\| Pi \| Live turn WebSocket wire \| — \| 244\.1 KiB \| — \|/);
+  assert.match(comment, /Pi has no .*baseline measurement/);
+  assert.match(comment, /Pi decoded thread snapshot/);
+  assert.doesNotMatch(comment, /fixture changed/);
+
+  const legacyComment = renderComment({
+    current: baseline,
+    baseline,
+    currentRun: { sha: "aaaaaaaa", conclusion: "success", url: "https://example.com/legacy" },
+    baselineRun: { sha: "aaaaaaaa", matchesBase: true, url: "https://example.com/baseline" },
+  });
+  assert.doesNotMatch(legacyComment, /\| Pi \|/);
+});
+
+test("compares Pi metrics and fails its exceeded ceiling", () => {
+  const current = result();
+  current.providers.pi.observed.measuredTurnWebSocketWireBytes = 340_000;
+  current.providers.pi.ceiling.measuredTurnWebSocketWireBytes = 330_000;
+  const comment = renderComment({
+    current,
+    baseline: result(),
+    currentRun: { sha: "bbbbbbbb", conclusion: "failure", url: "https://example.com/current" },
+    baselineRun: { sha: "aaaaaaaa", matchesBase: true, url: "https://example.com/baseline" },
+  });
+  assert.match(comment, /\| Pi \| Live turn WebSocket wire .*\+87\.9 KiB \(\+36\.0%\).*❌/);
+  assert.match(comment, /One or more thread transfer ceilings were exceeded/);
+  assert.match(comment, /Pi Live turn WebSocket wire: 312\.5 KiB → 322\.3 KiB/);
+  assert.doesNotMatch(comment, /Pi has no .*baseline measurement/);
 });
 
 test("renders baseline, impact, ceiling, and ceiling changes", () => {

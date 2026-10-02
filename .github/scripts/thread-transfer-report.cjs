@@ -4,7 +4,11 @@ const path = require("node:path");
 const ARTIFACT_NAME = "thread-transfer-results";
 const RESULT_FILE = "thread-transfer-result.json";
 const COMMENT_MARKER = "<!-- t3-thread-transfer-report -->";
-const PROVIDERS = ["codex", "claudeAgent"];
+const PROVIDERS = new Map([
+  ["codex", "Codex"],
+  ["claudeAgent", "Claude"],
+  ["pi", "Pi"],
+]);
 const OBSERVED_KEYS = [
   "totalWireBytes",
   "threadSnapshotWireBytes",
@@ -56,8 +60,8 @@ function assertMetric(value, label) {
 
 function validateResult(value) {
   assertExactKeys(value, ["schemaVersion", "scenario", "providers"], "result");
-  if (value.schemaVersion !== 1) {
-    throw new Error("result.schemaVersion must be 1");
+  if (![1, 2].includes(value.schemaVersion)) {
+    throw new Error("result.schemaVersion must be 1 or 2");
   }
 
   assertExactKeys(value.scenario, SCENARIO_KEYS, "result.scenario");
@@ -68,8 +72,9 @@ function validateResult(value) {
     assertMetric(value.scenario[key], `result.scenario.${key}`);
   }
 
-  assertExactKeys(value.providers, PROVIDERS, "result.providers");
-  for (const provider of PROVIDERS) {
+  const providers = value.schemaVersion === 1 ? ["codex", "claudeAgent"] : [...PROVIDERS.keys()];
+  assertExactKeys(value.providers, providers, "result.providers");
+  for (const provider of providers) {
     const entry = value.providers[provider];
     assertExactKeys(entry, ["observed", "ceiling"], `result.providers.${provider}`);
     assertExactKeys(entry.observed, OBSERVED_KEYS, `result.providers.${provider}.observed`);
@@ -140,26 +145,28 @@ function renderComment(input) {
   const current = input.current;
   const baseline = input.baseline;
   const comparable = baseline !== undefined && sameScenario(current.scenario, baseline.scenario);
+  const providers = [...PROVIDERS].filter(([provider]) =>
+    Object.hasOwn(current.providers, provider),
+  );
   const rows = [];
   const ceilingChanges = [];
   let failed = false;
 
-  for (const provider of PROVIDERS) {
+  for (const [provider, label] of providers) {
+    const baselineProvider = comparable ? baseline.providers[provider] : undefined;
     for (const metric of METRICS) {
       const observed = current.providers[provider].observed[metric.key];
       const ceiling = current.providers[provider].ceiling[metric.key];
-      const baselineObserved = comparable
-        ? baseline.providers[provider].observed[metric.key]
-        : undefined;
+      const baselineObserved = baselineProvider?.observed[metric.key];
       const pass = observed <= ceiling;
       failed ||= !pass;
       rows.push(
-        `| ${provider === "codex" ? "Codex" : "Claude"} | ${metric.label} | ${baselineObserved === undefined ? "—" : formatValue(baselineObserved, metric.kind)} | ${formatValue(observed, metric.kind)} | ${formatImpact(observed, baselineObserved, metric.kind)} | ${formatValue(ceiling, metric.kind)} | ${pass ? "✅" : "❌"} |`,
+        `| ${label} | ${metric.label} | ${baselineObserved === undefined ? "—" : formatValue(baselineObserved, metric.kind)} | ${formatValue(observed, metric.kind)} | ${formatImpact(observed, baselineObserved, metric.kind)} | ${formatValue(ceiling, metric.kind)} | ${pass ? "✅" : "❌"} |`,
       );
 
-      if (comparable && baseline.providers[provider].ceiling[metric.key] !== ceiling) {
+      if (baselineProvider && baselineProvider.ceiling[metric.key] !== ceiling) {
         ceilingChanges.push(
-          `- ${provider === "codex" ? "Codex" : "Claude"} ${metric.label}: ${formatValue(baseline.providers[provider].ceiling[metric.key], metric.kind)} → ${formatValue(ceiling, metric.kind)}`,
+          `- ${label} ${metric.label}: ${formatValue(baselineProvider.ceiling[metric.key], metric.kind)} → ${formatValue(ceiling, metric.kind)}`,
         );
       }
     }
@@ -182,6 +189,13 @@ function renderComment(input) {
     notices.push(
       "> ℹ️ The exact PR base did not have a successful artifact. Baseline uses the latest successful `main` measurement shown below.",
     );
+  }
+  if (comparable) {
+    for (const [provider, label] of providers) {
+      if (!Object.hasOwn(baseline.providers, provider)) {
+        notices.push(`> ℹ️ ${label} has no main baseline measurement yet.`);
+      }
+    }
   }
   if (ceilingChanges.length > 0) {
     notices.push(
@@ -210,9 +224,9 @@ function renderComment(input) {
     "",
     `${current.scenario.historyTurns} historical turns, ${current.scenario.historyCommandToolsPerTurn} command tools per turn, ${formatBytes(current.scenario.historyMcpResultBytes)} retained MCP result per historical turn, and a ${formatBytes(current.scenario.measuredMcpResultBytes)} retained result in the measured turn.`,
     "",
-    ...PROVIDERS.map(
-      (provider) =>
-        `- ${provider === "codex" ? "Codex" : "Claude"} decoded thread snapshot: ${formatBytes(current.providers[provider].observed.threadSnapshotDecodedBytes)}`,
+    ...providers.map(
+      ([provider, label]) =>
+        `- ${label} decoded thread snapshot: ${formatBytes(current.providers[provider].observed.threadSnapshotDecodedBytes)}`,
     ),
     "",
     "</details>",

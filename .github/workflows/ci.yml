@@ -17,8 +17,24 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Preserve the required status names while their work runs independently.
   check:
     name: Check
+    needs: [check_static, desktop_build]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require static checks and desktop build
+        env:
+          STATIC_RESULT: ${{ needs.check_static.result }}
+          BUILD_RESULT: ${{ needs.desktop_build.result }}
+        run: |
+          test "$STATIC_RESULT" = success
+          test "$BUILD_RESULT" = success
+
+  check_static:
+    name: Static Checks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -58,6 +74,29 @@ jobs:
       - name: Typecheck
         run: vpr typecheck
 
+  desktop_build:
+    name: Desktop Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      - name: Ensure Electron runtime is installed
+        run: vp run --filter @t3tools/desktop ensure:electron
+
       - uses: ./.github/actions/setup-apt-mirrors
 
       - name: Install browser secret helper build libraries
@@ -71,13 +110,27 @@ jobs:
       - name: Verify preload bundle output
         run: node apps/desktop/scripts/verify-preload-bundle.mjs
 
-  # Everything except `t3` (apps/server). `--parallel` drops the package
-  # dependency ordering that `vp run` applies by default: these `test` tasks
-  # declare no `dependsOn` and resolve workspace deps from source, so ordering
-  # only bought us idle runners between dependency layers. The concurrency
-  # limit stays at the default 4 so peak load per runner is unchanged.
+  # Large client suites get their own runners so they cannot queue behind
+  # desktop and script tests or compete with each other's isolated workers.
   test:
     name: Test
+    needs: [test_packages, test_client, test_server]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require package, client, and server tests
+        env:
+          PACKAGES_RESULT: ${{ needs.test_packages.result }}
+          CLIENT_RESULT: ${{ needs.test_client.result }}
+          SERVER_RESULT: ${{ needs.test_server.result }}
+        run: |
+          test "$PACKAGES_RESULT" = success
+          test "$CLIENT_RESULT" = success
+          test "$SERVER_RESULT" = success
+
+  test_packages:
+    name: Test Packages
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -113,9 +166,52 @@ jobs:
         run: node --test .github/scripts/check-nightly-release.test.cjs
 
       - name: Test
-        run: vp run --parallel --concurrency-limit 4 --filter '!t3' --filter '!@t3tools/monorepo' test
+        run: >-
+          vp run --parallel --concurrency-limit 4
+          --filter '!t3' --filter '!@t3tools/monorepo'
+          --filter '!@t3tools/web' --filter '!@t3tools/mobile'
+          --filter '!@t3tools/client-runtime' test
 
-  # apps/server sets `fileParallelism: false`, so its 239 files run strictly
+  test_client:
+    name: Test ${{ matrix.workspace }} ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: web
+            shard: 1
+            shards: 2
+          - workspace: web
+            shard: 2
+            shards: 2
+          - workspace: mobile
+            shard: 1
+            shards: 1
+          - workspace: client-runtime
+            shard: 1
+            shards: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      - name: Test
+        run: vp run --filter @t3tools/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
+
+  # apps/server sets `fileParallelism: false`, so its files run strictly
   # one at a time. Sharding spreads them over separate runners instead of
   # separate workers, so no two server test files ever share a machine and the
   # isolation that flag buys is preserved exactly.
@@ -126,7 +222,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

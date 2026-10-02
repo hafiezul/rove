@@ -203,6 +203,7 @@ import {
   transferDelta,
 } from "../integration/NetworkTransferMeasurement.integration.ts";
 import { makeSqlStatementCounter } from "../integration/SqlStatementCounter.integration.ts";
+import { TRANSFER_PROVIDERS } from "../integration/fixtures/transferBudget.ts";
 import {
   awaitSubscriptionSynchronized,
   collectQueueUntil,
@@ -12836,13 +12837,8 @@ it.live(
   "reports thread HTTP and WebSocket transfer budgets",
   () =>
     Effect.gen(function* () {
-      const providers = [
-        ProviderDriverKind.make("codex"),
-        ProviderDriverKind.make("claudeAgent"),
-      ] as const;
-
       const runs = yield* Effect.forEach(
-        providers,
+        TRANSFER_PROVIDERS,
         (provider) => {
           // One counter for the orchestration runtime and the HTTP/WS handlers,
           // so reactor writes and subscription reads land in the same total.

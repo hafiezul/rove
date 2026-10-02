@@ -8,6 +8,47 @@ import type {
 const FIXTURE_THREAD_ID = "transfer-budget-thread";
 const FIXTURE_TURN_ID = "transfer-budget-turn";
 
+const fixtureProfiles = new Map([
+  [
+    ProviderDriverKind.make("codex"),
+    {
+      name: "Codex",
+      seed: 0x43_4f_44_45,
+      model: "gpt-5.4",
+      effort: "high",
+      commandPrefix: "vp test transfer-budget-",
+    },
+  ],
+  [
+    ProviderDriverKind.make("claudeAgent"),
+    {
+      name: "Claude",
+      seed: 0x43_4c_41_55,
+      model: "claude-opus-4-1",
+      effort: "default",
+      commandPrefix: "review transfer budget ",
+    },
+  ],
+  [
+    ProviderDriverKind.make("pi"),
+    {
+      name: "Pi",
+      seed: 0x50_49_00_00,
+      model: "gpt-5.4",
+      effort: "high",
+      commandPrefix: "vp test transfer-budget-",
+    },
+  ],
+]);
+
+export const TRANSFER_PROVIDERS = [...fixtureProfiles.keys()];
+
+function fixtureProfileFor(provider: ProviderDriverKind) {
+  const profile = fixtureProfiles.get(provider);
+  if (!profile) throw new Error(`No transfer fixture is configured for ${provider}`);
+  return profile;
+}
+
 export const TRANSFER_HISTORY_TURN_COUNT = 10;
 export const TRANSFER_HISTORY_TOOLS_PER_TURN = 5;
 export const TRANSFER_MEASURED_TOOLS = 20;
@@ -69,7 +110,7 @@ function diagnosticOutput(input: {
   readonly targetBytes: number;
 }): string {
   const chunks: string[] = [];
-  const providerSeed = input.provider === "codex" ? 0x43_4f_44_45 : 0x43_4c_41_55;
+  const providerSeed = fixtureProfileFor(input.provider).seed;
   let length = 0;
   let lineIndex = 0;
 
@@ -90,7 +131,7 @@ function diagnosticOutput(input: {
 }
 
 function assistantChunks(provider: ProviderDriverKind, turnIndex: number): ReadonlyArray<string> {
-  const providerName = provider === "codex" ? "Codex" : "Claude";
+  const providerName = fixtureProfileFor(provider).name;
   const paragraphs: string[] = [
     `I traced the ${providerName} request through the environment connection and orchestration layers. `,
   ];
@@ -154,6 +195,7 @@ export function makeRecordedTransferTurn(
   provider: ProviderDriverKind,
   turnIndex: number,
 ): TestTurnResponse {
+  const profile = fixtureProfileFor(provider);
   const measuredTurn = turnIndex >= TRANSFER_HISTORY_TURN_COUNT;
   const toolCount = measuredTurn ? TRANSFER_MEASURED_TOOLS : TRANSFER_HISTORY_TOOLS_PER_TURN;
   const turnId = `${FIXTURE_TURN_ID}-${turnIndex + 1}`;
@@ -165,17 +207,14 @@ export function makeRecordedTransferTurn(
     ...baseEvent(provider, turnIndex, eventIndex++),
     turnId,
     payload: {
-      model: provider === "codex" ? "gpt-5.4" : "claude-opus-4-1",
-      effort: provider === "codex" ? "high" : "default",
+      model: profile.model,
+      effort: profile.effort,
     },
   });
 
   for (let toolIndex = 0; toolIndex < toolCount; toolIndex += 1) {
     const itemId = `tool-${turnIndex + 1}-${toolIndex + 1}`;
-    const command =
-      provider === "codex"
-        ? `vp test transfer-budget-${toolIndex + 1}`
-        : `review transfer budget ${toolIndex + 1}`;
+    const command = `${profile.commandPrefix}${toolIndex + 1}`;
     events.push(
       {
         type: "item.started",
