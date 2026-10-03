@@ -1,6 +1,8 @@
 import {
   EventId,
   MAX_SCRIPT_ID_LENGTH,
+  MAX_LIMIT_RECOVERY_ATTEMPTS,
+  type CommandId,
   SCRIPT_RUN_COMMAND_PATTERN,
   MessageId,
   ThreadLinkedPullRequest,
@@ -46,6 +48,7 @@ import {
 } from "./commandInvariants.ts";
 import { projectEvent } from "./projector.ts";
 import { threadHasQueuedTurnStart } from "./ThreadSettlementPolicy.ts";
+import { currentLimitRecovery, sameLimitRecoveryModel } from "@t3tools/shared/limitRecovery";
 
 const monogramSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
@@ -224,10 +227,14 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
   command,
   readModel,
   userInputActivity,
+  checkedRecoveryRequestId,
+  autoResumeEnabled = true,
 }: {
   readonly command: OrchestrationCommand;
   readonly readModel: OrchestrationReadModel;
   readonly userInputActivity?: OrchestrationThreadActivity;
+  readonly checkedRecoveryRequestId?: CommandId;
+  readonly autoResumeEnabled?: boolean;
 }): Effect.fn.Return<
   DecideOrchestrationCommandResult,
   OrchestrationCommandRejection | PlatformError.PlatformError,
@@ -1399,6 +1406,168 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
       };
     }
 
+    case "thread.limit-recovery.checked": {
+      const thread = yield* requireThread({ readModel, command, threadId: command.threadId });
+      const recovery = currentLimitRecovery(thread);
+      if (recovery === null || recovery.requestId !== command.requestId) {
+        return yield* new OrchestrationCommandInvariantError({
+          commandType: command.type,
+          detail: "This quota check is stale.",
+        });
+      }
+      const attempts = (recovery.attempts ?? 0) + (command.automatic ? 1 : 0);
+      const resetAt =
+        command.resetAt !== null && Date.parse(command.resetAt) > Date.parse(command.createdAt)
+          ? command.resetAt
+          : null;
+      const meta = {
+        ...(yield* withEventBase({
+          aggregateKind: "thread",
+          aggregateId: command.threadId,
+          occurredAt: command.createdAt,
+          commandId: command.commandId,
+        })),
+        type: "thread.meta-updated" as const,
+        payload: {
+          threadId: command.threadId,
+          limitRecovery: {
+            ...recovery,
+            requestId: command.commandId,
+            attempts,
+            resetAt,
+            resumeAt: command.resume && attempts < MAX_LIMIT_RECOVERY_ATTEMPTS ? resetAt : null,
+          },
+          updatedAt: command.createdAt,
+        },
+      };
+      if (thread.session === null) return meta;
+      return [
+        meta,
+        {
+          ...(yield* withEventBase({
+            aggregateKind: "thread",
+            aggregateId: command.threadId,
+            occurredAt: command.createdAt,
+            commandId: command.commandId,
+          })),
+          type: "thread.session-set" as const,
+          payload: {
+            threadId: command.threadId,
+            session: {
+              ...thread.session,
+              status: "error" as const,
+              lastError: command.error,
+              // A quota observation is not a new provider failure that should wake snoozed work.
+              updatedAt: thread.session.updatedAt,
+            },
+          },
+        },
+      ];
+    }
+
+    case "thread.limit-recovery.record": {
+      const thread = yield* requireThread({ readModel, command, threadId: command.threadId });
+      if (
+        thread.latestTurn?.turnId !== command.turnId ||
+        thread.latestTurn.state !== "error" ||
+        thread.archivedAt !== null ||
+        thread.settledOverride === "settled" ||
+        !sameLimitRecoveryModel(thread.modelSelection, command.modelSelection) ||
+        hasQueuedTurnStartForThread(thread, command.createdAt)
+      ) {
+        return yield* new OrchestrationCommandInvariantError({
+          commandType: command.type,
+          detail: "The limited turn is no longer current.",
+        });
+      }
+      const resetMs = command.limit.resetAt === null ? NaN : Date.parse(command.limit.resetAt);
+      const resetAt =
+        Number.isFinite(resetMs) && resetMs > Date.parse(command.createdAt)
+          ? command.limit.resetAt
+          : null;
+      const recovery =
+        thread.limitRecovery?.turnId === command.turnId
+          ? {
+              ...thread.limitRecovery,
+              resetAt: thread.limitRecovery.resetAt ?? resetAt,
+              resumeAt:
+                thread.limitRecovery.resetAt === null &&
+                thread.limitRecovery.manual !== true &&
+                command.autoResume &&
+                (thread.limitRecovery.attempts ?? 0) < MAX_LIMIT_RECOVERY_ATTEMPTS
+                  ? resetAt
+                  : thread.limitRecovery.resumeAt,
+            }
+          : {
+              requestId: command.commandId,
+              turnId: command.turnId,
+              modelSelection: thread.modelSelection,
+              resetAt,
+              attempts: thread.limitRecovery?.attempts ?? 0,
+              resumeAt:
+                command.autoResume &&
+                (thread.limitRecovery?.attempts ?? 0) < MAX_LIMIT_RECOVERY_ATTEMPTS
+                  ? resetAt
+                  : null,
+            };
+      return {
+        ...(yield* withEventBase({
+          aggregateKind: "thread",
+          aggregateId: command.threadId,
+          occurredAt: command.createdAt,
+          commandId: command.commandId,
+        })),
+        type: "thread.meta-updated",
+        payload: {
+          threadId: command.threadId,
+          limitRecovery: recovery,
+          updatedAt: command.createdAt,
+        },
+      };
+    }
+
+    case "thread.limit-recovery.set": {
+      const thread = yield* requireThread({ readModel, command, threadId: command.threadId });
+      const recovery = currentLimitRecovery(thread);
+      const now = yield* nowIso;
+      if (
+        recovery === null ||
+        recovery.requestId !== command.requestId ||
+        (command.resumeAt !== null &&
+          (recovery.resetAt === null ||
+            !Number.isFinite(Date.parse(command.resumeAt)) ||
+            Date.parse(command.resumeAt) <= Date.parse(now)))
+      ) {
+        return yield* new OrchestrationCommandInvariantError({
+          commandType: command.type,
+          detail: "This recovery request is stale or its retry time is not in the future.",
+        });
+      }
+      return {
+        ...(yield* withEventBase({
+          aggregateKind: "thread",
+          aggregateId: command.threadId,
+          occurredAt: now,
+          commandId: command.commandId,
+        })),
+        type: "thread.meta-updated",
+        payload: {
+          threadId: command.threadId,
+          limitRecovery: {
+            ...recovery,
+            requestId: command.commandId,
+            manual: true,
+            attempts: command.resumeAt === null ? (recovery.attempts ?? 0) : 0,
+            resumeAt:
+              command.resumeAt === null
+                ? null
+                : DateTime.formatIso(DateTime.makeUnsafe(command.resumeAt)),
+          },
+          updatedAt: now,
+        },
+      };
+    }
+
     case "thread.turn.start": {
       if (isImportedAgentSessionMessageId(command.message.messageId)) {
         return yield* new OrchestrationCommandInvariantError({
@@ -1411,6 +1580,54 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         command,
         threadId: command.threadId,
       });
+      const currentRecovery = currentLimitRecovery(targetThread);
+      if (
+        checkedRecoveryRequestId !== undefined &&
+        currentRecovery?.requestId !== checkedRecoveryRequestId
+      ) {
+        return yield* new OrchestrationCommandInvariantError({
+          commandType: command.type,
+          detail: "The usage-limit check is stale. Your prompt was not sent.",
+        });
+      }
+      if (
+        currentRecovery !== null &&
+        (currentRecovery.resetAt !== null || currentRecovery.resumeAt !== null) &&
+        (autoResumeEnabled || currentRecovery.resumeAt !== null) &&
+        (command.modelSelection === undefined ||
+          sameLimitRecoveryModel(command.modelSelection, targetThread.modelSelection)) &&
+        checkedRecoveryRequestId !== currentRecovery.requestId
+      ) {
+        return yield* new OrchestrationCommandInvariantError({
+          commandType: command.type,
+          detail: "A fresh usage-limit check is required before this prompt can be sent.",
+        });
+      }
+      if (command.limitRecoveryRequestId !== undefined) {
+        const recovery = currentRecovery;
+        const now = yield* nowIso;
+        if (
+          recovery === null ||
+          recovery.requestId !== command.limitRecoveryRequestId ||
+          recovery.resumeAt === null ||
+          recovery.resetAt === null ||
+          (!autoResumeEnabled && recovery.manual !== true) ||
+          (recovery.attempts ?? 0) >= MAX_LIMIT_RECOVERY_ATTEMPTS ||
+          Date.parse(recovery.resumeAt) > Date.parse(now) ||
+          targetThread.session?.activeTurnId != null ||
+          targetThread.session?.status === "starting" ||
+          targetThread.session?.status === "running" ||
+          openRequests(targetThread).size > 0 ||
+          hasQueuedTurnStartForThread(targetThread, now) ||
+          (targetThread.snoozedUntil != null &&
+            Date.parse(targetThread.snoozedUntil) > Date.parse(now))
+        ) {
+          return yield* new OrchestrationCommandInvariantError({
+            commandType: command.type,
+            detail: "The scheduled continuation is no longer eligible.",
+          });
+        }
+      }
       const sourceProposedPlan = command.sourceProposedPlan;
       const sourceThread = sourceProposedPlan
         ? yield* requireThread({
@@ -1480,6 +1697,16 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         payload: {
           threadId: command.threadId,
           messageId: command.message.messageId,
+          ...(command.limitRecoveryRequestId !== undefined && currentRecovery !== null
+            ? {
+                limitRecovery: {
+                  ...currentRecovery,
+                  requestId: command.commandId,
+                  resumeAt: null,
+                  attempts: (currentRecovery.attempts ?? 0) + 1,
+                },
+              }
+            : {}),
           ...(command.modelSelection !== undefined
             ? { modelSelection: command.modelSelection }
             : {}),

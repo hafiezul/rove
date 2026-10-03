@@ -124,6 +124,8 @@ export async function runPiRuntimeWorker(): Promise<void> {
         host.onChange(() => post({ type: "catalogChanged" }));
         return;
       }
+      case "getUsageLimit":
+        return getHost().getUsageLimit(...request.args);
       case "getCatalog":
         return getHost().getCatalog();
       case "refreshCatalog":
@@ -217,6 +219,8 @@ export async function runPiRuntimeWorker(): Promise<void> {
               post({ type: "state", key, update: update(false) });
               return await prompt;
             }
+            case "getUsageLimitReset":
+              return (await session.getUsageLimitReset?.(request.args[1])) ?? null;
             case "followUp":
               return await session.followUp(request.args[1]);
             case "abort":

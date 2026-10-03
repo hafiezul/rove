@@ -43,6 +43,7 @@ export type PinThreadInput = CommandInput<"thread.pin">;
 export type UnpinThreadInput = CommandInput<"thread.unpin">;
 export type ReorderPinnedThreadInput = CommandInput<"thread.pin.reorder">;
 export type SetThreadAutoSettleInput = CommandInput<"thread.auto-settle.set">;
+export type SetThreadLimitRecoveryInput = CommandInput<"thread.limit-recovery.set">;
 export type ReorderActiveThreadInput = CommandInput<"thread.active.reorder">;
 export type UpdateThreadMetadataInput = CommandInput<"thread.meta.update">;
 export type LinkThreadPullRequestInput = CommandInput<"thread.pull-request.link">;
@@ -92,6 +93,15 @@ function timestampedCommandMetadata(input: {
 function dispatch(command: ClientOrchestrationCommand) {
   return request(ORCHESTRATION_WS_METHODS.dispatchCommand, command);
 }
+
+export const setThreadLimitRecovery: (input: SetThreadLimitRecoveryInput) => CommandEffect =
+  Effect.fn("EnvironmentCommands.setThreadLimitRecovery")(function* (input) {
+    return yield* dispatch({
+      ...input,
+      type: "thread.limit-recovery.set",
+      commandId: yield* commandId(input),
+    });
+  });
 
 export const createProject: (input: CreateProjectInput) => CommandEffect = Effect.fn(
   "EnvironmentCommands.createProject",

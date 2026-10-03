@@ -9,6 +9,11 @@ import {
 } from "@t3tools/contracts";
 import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
 import * as Effect from "effect/Effect";
+import {
+  clearsLimitRecovery,
+  cancelsLimitRecoverySchedule,
+  cancelLimitRecovery,
+} from "@t3tools/shared/limitRecovery";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -604,6 +609,37 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
     const applyThreadsProjection: ProjectorDefinition["apply"] = Effect.fn(
       "applyThreadsProjection",
     )(function* (event, attachmentSideEffects) {
+      if (
+        (clearsLimitRecovery(event) ||
+          cancelsLimitRecoverySchedule(event) ||
+          (event.type === "thread.session-set" &&
+            (event.payload.session.status === "running" ||
+              event.payload.session.status === "starting"))) &&
+        event.aggregateKind === "thread"
+      ) {
+        const row = yield* projectionThreadRepository.getById({
+          threadId: ThreadId.make(event.aggregateId),
+        });
+        if (Option.isSome(row)) {
+          const clear = clearsLimitRecovery(event, row.value.limitRecovery);
+          const cancel = !clear && cancelsLimitRecoverySchedule(event);
+          if (clear || cancel) {
+            const recovery = clear
+              ? event.type === "thread.turn-start-requested"
+                ? (event.payload.limitRecovery ?? null)
+                : null
+              : (cancelLimitRecovery(
+                  row.value.limitRecovery,
+                  event,
+                  row.value.latestTurnId === null
+                    ? undefined
+                    : { turnId: row.value.latestTurnId, modelSelection: row.value.modelSelection },
+                ) ?? null);
+            if (row.value.limitRecovery != null || recovery !== null)
+              yield* projectionThreadRepository.upsert({ ...row.value, limitRecovery: recovery });
+          }
+        }
+      }
       switch (event.type) {
         case "thread.created":
           // A draft retry can re-create this id; links belong to the old incarnation.
@@ -825,6 +861,9 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             ...(event.payload.title !== undefined ? { title: event.payload.title } : {}),
             ...(event.payload.activeOrderKey !== undefined
               ? { activeOrderKey: event.payload.activeOrderKey }
+              : {}),
+            ...(event.payload.limitRecovery !== undefined
+              ? { limitRecovery: event.payload.limitRecovery }
               : {}),
             ...(event.payload.titleState !== undefined
               ? { titleState: event.payload.titleState }

@@ -26,6 +26,7 @@ import {
 import { createModelSelection } from "@t3tools/shared/model";
 import { assert, describe, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
+import * as DateTime from "effect/DateTime";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -2400,56 +2401,64 @@ describe("ClaudeAdapterLive", () => {
     },
   );
 
-  it.effect("fails a usage-limited turn with the limit it parked on", () => {
-    const harness = makeHarness();
-    return Effect.gen(function* () {
-      const adapter = yield* ClaudeAdapter;
+  it.effect.each(["five_hour", "seven_day"])(
+    "fails a usage-limited turn with its %s reset",
+    (window) => {
+      const harness = makeHarness();
+      return Effect.gen(function* () {
+        const adapter = yield* ClaudeAdapter;
 
-      const runtimeEventsFiber = yield* adapter.streamEvents.pipe(
-        Stream.takeUntil((event) => event.type === "turn.completed"),
-        Stream.runCollect,
-        Effect.forkChild,
+        const runtimeEventsFiber = yield* adapter.streamEvents.pipe(
+          Stream.takeUntil((event) => event.type === "turn.completed"),
+          Stream.runCollect,
+          Effect.forkChild,
+        );
+
+        const session = yield* adapter.startSession({
+          threadId: THREAD_ID,
+          provider: ProviderDriverKind.make("claudeAgent"),
+          runtimeMode: "full-access",
+        });
+        yield* adapter.sendTurn({ threadId: session.threadId, input: "hello", attachments: [] });
+
+        const nowMs = yield* Clock.currentTimeMillis;
+        harness.query.emit({
+          type: "rate_limit_event",
+          rate_limit_info: {
+            status: "rejected",
+            rateLimitType: window,
+            resetsAt: Math.floor(nowMs / 1000) + 2 * 60 * 60,
+          },
+          session_id: "sdk-session-limit",
+          uuid: "rate-limit-rejected",
+        } as unknown as SDKMessage);
+        harness.query.emit({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          terminal_reason: "api_error",
+          errors: [],
+          session_id: "sdk-session-limit",
+          uuid: "result-limit",
+        } as unknown as SDKMessage);
+
+        const payload = completedTurn(Array.from(yield* Fiber.join(runtimeEventsFiber)));
+        assert.equal(payload.state, "failed");
+        assert.deepStrictEqual(payload.usageLimit, {
+          resetAt: DateTime.formatIso(
+            DateTime.makeUnsafe((Math.floor(nowMs / 1000) + 7200) * 1000),
+          ),
+        });
+        assert.equal(
+          payload.errorMessage,
+          "Claude usage limit reached. Send the message again once the limit resets.",
+        );
+      }).pipe(
+        Effect.provideService(Random.Random, makeDeterministicRandomService()),
+        Effect.provide(harness.layer),
       );
-
-      const session = yield* adapter.startSession({
-        threadId: THREAD_ID,
-        provider: ProviderDriverKind.make("claudeAgent"),
-        runtimeMode: "full-access",
-      });
-      yield* adapter.sendTurn({ threadId: session.threadId, input: "hello", attachments: [] });
-
-      const nowMs = yield* Clock.currentTimeMillis;
-      harness.query.emit({
-        type: "rate_limit_event",
-        rate_limit_info: {
-          status: "rejected",
-          rateLimitType: "five_hour",
-          resetsAt: Math.floor(nowMs / 1000) + 2 * 60 * 60,
-        },
-        session_id: "sdk-session-limit",
-        uuid: "rate-limit-rejected",
-      } as unknown as SDKMessage);
-      harness.query.emit({
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        terminal_reason: "api_error",
-        errors: [],
-        session_id: "sdk-session-limit",
-        uuid: "result-limit",
-      } as unknown as SDKMessage);
-
-      const payload = completedTurn(Array.from(yield* Fiber.join(runtimeEventsFiber)));
-      assert.equal(payload.state, "failed");
-      assert.equal(
-        payload.errorMessage,
-        "Claude usage limit reached. Send the message again once the limit resets.",
-      );
-    }).pipe(
-      Effect.provideService(Random.Random, makeDeterministicRandomService()),
-      Effect.provide(harness.layer),
-    );
-  });
+    },
+  );
 
   const usageLimitMessage =
     "Claude usage limit reached. Send the message again once the limit resets.";

@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./limitRecovery": {
+      "types": "./src/limitRecovery.ts",
+      "import": "./src/limitRecovery.ts"
+    },
     "./delimitedPreview": {
       "types": "./src/delimitedPreview.ts",
       "import": "./src/delimitedPreview.ts"

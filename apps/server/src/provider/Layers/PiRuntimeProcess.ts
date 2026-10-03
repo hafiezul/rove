@@ -233,6 +233,9 @@ export class PiRuntimeProcess {
       this.listeners.delete(listener);
     };
   }
+  getUsageLimit(...args: PiRuntimeCalls["getUsageLimit"]["args"]) {
+    return this.request("getUsageLimit", args);
+  }
   getCatalogModels(...args: PiRuntimeCalls["getCatalogModels"]["args"]) {
     return this.request("getCatalogModels", args);
   }
@@ -332,6 +335,9 @@ class RemotePiSession implements PiSessionLike {
   }
   get autoCompactionEnabled() {
     return this.state.autoCompactionEnabled;
+  }
+  getUsageLimitReset(observedAt: string) {
+    return this.runtime.request("getUsageLimitReset", [this.key, observedAt]);
   }
   getThinkingLevel() {
     return this.state.thinkingLevel ?? "off";

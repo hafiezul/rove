@@ -272,7 +272,7 @@ interface ClaudeTurnState {
   hasSubagents: boolean;
   nextSyntheticAssistantBlockIndex: number;
   authenticationFailureMessage: string | undefined;
-  rejectedRateLimitTypes: Set<string>;
+  rejectedRateLimits: Map<string, number | null>;
   latestAssistantRateLimited: boolean;
 }
 
@@ -2744,6 +2744,20 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     });
 
     const stamp = yield* makeEventStamp();
+    const resets = [...turnState.rejectedRateLimits.values()];
+    const resetMs =
+      resets.length > 0 &&
+      resets.every(
+        (reset) => reset !== null && Number.isFinite(reset) && reset > Date.parse(stamp.createdAt),
+      )
+        ? Math.max(...resets.filter((reset) => reset !== null))
+        : null;
+    const usageLimit =
+      status === "failed" &&
+      turnState.authenticationFailureMessage === undefined &&
+      (resets.length > 0 || turnState.latestAssistantRateLimited)
+        ? { resetAt: resetMs === null ? null : DateTime.formatIso(DateTime.makeUnsafe(resetMs)) }
+        : null;
     yield* offerRuntimeEvent({
       type: "turn.completed",
       eventId: stamp.eventId,
@@ -2760,6 +2774,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
           ? { totalCostUsd: result.total_cost_usd }
           : {}),
         ...(errorMessage ? { errorMessage } : {}),
+        ...(usageLimit === null ? {} : { usageLimit }),
         tokenUsage: normalizeClaudeTurnTokenUsage(result, turnState.hasSubagents, status),
       },
       providerRefs: nativeProviderRefs(context),
@@ -3307,7 +3322,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         hasSubagents: false,
         nextSyntheticAssistantBlockIndex: -1,
         authenticationFailureMessage: undefined,
-        rejectedRateLimitTypes: new Set(),
+        rejectedRateLimits: new Map(),
         latestAssistantRateLimited: false,
       };
       context.session = {
@@ -3407,7 +3422,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     const turn = context.turnState;
     const failureHint =
       turn?.authenticationFailureMessage ??
-      (turn && (turn.rejectedRateLimitTypes.size > 0 || turn.latestAssistantRateLimited)
+      (turn && (turn.rejectedRateLimits.size > 0 || turn.latestAssistantRateLimited)
         ? "Claude usage limit reached. Send the message again once the limit resets."
         : undefined);
     const { status, errorMessage } = resultOutcome(message, failureHint);
@@ -4025,13 +4040,17 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         // Current blocking evidence is independent of whether its warning has
         // already been shown. A recovery can omit or advance the reset time;
         // its window type remains stable without clearing another window.
-        if (blocked) context.turnState.rejectedRateLimitTypes.add(limitType);
+        if (blocked)
+          context.turnState.rejectedRateLimits.set(
+            limitType,
+            rateLimitInfo.resetsAt == null ? null : rateLimitInfo.resetsAt * 1000,
+          );
         else if (
           rateLimitInfo.status === "allowed" ||
           rateLimitInfo.status === "allowed_warning" ||
           overageAllowed
         ) {
-          context.turnState.rejectedRateLimitTypes.delete(limitType);
+          context.turnState.rejectedRateLimits.delete(limitType);
         }
       }
       if (blocked && context.turnState !== undefined) {
@@ -5113,7 +5132,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         hasSubagents: false,
         nextSyntheticAssistantBlockIndex: -1,
         authenticationFailureMessage: undefined,
-        rejectedRateLimitTypes: new Set(),
+        rejectedRateLimits: new Map(),
         latestAssistantRateLimited: false,
       };
 

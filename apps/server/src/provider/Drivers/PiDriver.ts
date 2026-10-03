@@ -316,6 +316,10 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         displayName,
         accentColor,
         enabled,
+        checkUsageLimit: (model, observedAt) =>
+          Effect.tryPromise(() => getCatalogHost().getUsageLimit(model, observedAt)).pipe(
+            Effect.orElseSucceed(() => ({ type: "unavailable" as const })),
+          ),
         snapshot,
         snapshotForCwd: (cwd) =>
           Effect.gen(function* () {

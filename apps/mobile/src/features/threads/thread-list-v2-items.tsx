@@ -66,6 +66,7 @@ const STATUS_LABEL_BY_STATUS: Partial<
   input: { label: "Input", className: "text-adaptive-indigo-600-300" },
   working: { label: "Working", className: "text-adaptive-sky-600-400" },
   failed: { label: "Failed", className: "text-danger-foreground" },
+  "auto-resume": { label: "Auto-resume", className: "text-adaptive-sky-600-400" },
 };
 
 // Menus keep lifecycle and title regeneration together. Archive keeps its
@@ -921,17 +922,27 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             type="monochrome"
           />
         ) : null}
-        <Text
-          className={cn(
-            "text-xs tabular-nums",
-            statusLabel?.className ??
-              (selected
-                ? selectedThreadRowColors.foregroundClassName
-                : rowAppearance.tertiaryForegroundClassName),
-          )}
-        >
-          {statusLabel?.label ?? timeLabel}
-        </Text>
+        <View className="flex-row items-center gap-1">
+          {status === "auto-resume" ? (
+            <SymbolView
+              name="clock"
+              size={12}
+              type="monochrome"
+              tintColorClassName="accent-icon-muted"
+            />
+          ) : null}
+          <Text
+            className={cn(
+              "text-xs tabular-nums",
+              statusLabel?.className ??
+                (selected
+                  ? selectedThreadRowColors.foregroundClassName
+                  : rowAppearance.tertiaryForegroundClassName),
+            )}
+          >
+            {statusLabel?.label ?? timeLabel}
+          </Text>
+        </View>
       </View>
       <Text
         className={cn(

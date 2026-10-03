@@ -58,6 +58,8 @@ import { createPiRoveTools } from "./PiRoveTools.ts";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
+import { readPiSubscriptionStatus } from "../piUsageLimitRecovery.ts";
+import type { UsageLimitStatus } from "../usageLimitStatus.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 
 export { PiExtensionLoadError } from "./PiAdapter.ts";
@@ -81,6 +83,26 @@ export function resolvePiModelForSession(modelRuntime: ModelRuntime, slug: strin
     throw new Error(resolved.error ?? `Unknown Pi model "${slug}".`);
   }
   return resolved.model;
+}
+
+export async function readPiModelUsageLimit(
+  modelRuntime: ModelRuntime,
+  slug: string,
+  observedAt: string,
+): Promise<UsageLimitStatus> {
+  const model = resolvePiModelForSession(modelRuntime, slug);
+  if (!modelRuntime.isUsingSubscription(model.provider)) return { type: "unavailable" };
+  const signal = AbortSignal.timeout(3000);
+  const resolved = await modelRuntime.getAuth(model, { signal });
+  if (!resolved?.auth.apiKey) return { type: "unavailable" };
+  return readPiSubscriptionStatus({
+    baseUrl: resolved.auth.baseUrl ?? model.baseUrl ?? "",
+    apiKey: resolved.auth.apiKey,
+    ...(resolved.auth.headers === undefined ? {} : { headers: resolved.auth.headers }),
+    observedAt,
+    signal,
+    model: model.id,
+  });
 }
 
 /**
@@ -319,6 +341,18 @@ async function toPiSessionLike(
     // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     getThinkingLevel: () => session.thinkingLevel,
+    getUsageLimitReset: async (observedAt) => {
+      const model = session.model;
+      if (model === undefined) return null;
+      const status = await readPiModelUsageLimit(
+        modelRuntime,
+        `${model.provider}/${model.id}`,
+        observedAt,
+      );
+      return status.type === "limited" && status.resetAt !== null
+        ? { resetAt: status.resetAt }
+        : null;
+    },
     getModel: () => {
       const model = session.model;
       return model ? { id: model.id, provider: model.provider, input: model.input } : undefined;

@@ -26,6 +26,7 @@ import {
   RuntimeTaskId,
   UserInputRequestedPayload,
   type ProviderUserInputAnswers,
+  type ProviderUsageLimit,
   TurnId,
   type ProviderRuntimeEvent,
   type ProviderSendTurnInput,
@@ -54,6 +55,7 @@ import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 
 import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { usageLimitFromError } from "../usageLimitError.ts";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 import { acquirePiResource, disposePiResource, PI_STARTUP_TIMEOUT_MS } from "./PiLifecycle.ts";
 
@@ -232,6 +234,7 @@ export interface PiSessionLike {
   setModel?(model: string): Promise<void>;
   setThinkingLevel?(level: string): void | Promise<void>;
   getThinkingLevel?(): string;
+  getUsageLimitReset?(observedAt: string): Promise<ProviderUsageLimit | null>;
   /**
    * Current model for image-input capability checks; undefined when no model
    * is selected yet. Sessions without the accessor (test fakes) skip checks.
@@ -1562,6 +1565,21 @@ export function makePiAdapter(
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
+              let usageLimit =
+                errorMessage === undefined
+                  ? null
+                  : usageLimitFromError(errorMessage, base.createdAt);
+              const probeReset = ctx.session.getUsageLimitReset;
+              if (
+                usageLimit?.resetAt === null &&
+                probeReset !== undefined &&
+                !ctx.pendingTurnAborted
+              ) {
+                usageLimit =
+                  (yield* Effect.tryPromise(() => probeReset(base.createdAt)).pipe(
+                    Effect.orElseSucceed(() => null),
+                  )) ?? usageLimit;
+              }
               const aborted = ctx.pendingTurnAborted;
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;
@@ -1582,7 +1600,11 @@ export function makePiAdapter(
                   turnId,
                   payload:
                     errorMessage !== undefined
-                      ? { state: "failed", errorMessage }
+                      ? {
+                          state: "failed",
+                          errorMessage,
+                          ...(usageLimit === null ? {} : { usageLimit }),
+                        }
                       : { state: "completed" },
                 });
               }

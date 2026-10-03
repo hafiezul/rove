@@ -39,6 +39,7 @@ import type { ProviderAdapterError, ProviderDriverError } from "./Errors.ts";
 import type { ProviderAdapterContract } from "./Services/ProviderAdapter.ts";
 import type { ServerProviderContract } from "./Services/ServerProvider.ts";
 import type { ProviderAuthController } from "./Services/ProviderAuthService.ts";
+import type { UsageLimitStatus } from "./usageLimitStatus.ts";
 
 /**
  * Static metadata advertised by a driver. Used for default presentation
@@ -73,6 +74,7 @@ export interface ProviderInstance {
   readonly displayName: string | undefined;
   readonly accentColor?: string | undefined;
   readonly enabled: boolean;
+  readonly checkUsageLimit?: (model: string, observedAt: string) => Effect.Effect<UsageLimitStatus>;
   readonly snapshot: ServerProviderContract;
   readonly snapshotForCwd?: (cwd: string) => Effect.Effect<ServerProvider, ProviderDriverError>;
   readonly refreshModels?: () => Effect.Effect<void, ProviderDriverError>;

@@ -5,6 +5,7 @@ import * as NodePath from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
@@ -2684,7 +2685,10 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect("surfaces Pi assistant errors as failed turns", () =>
+  it.effect.each([
+    "OAuth auth derivation failed for openai-codex",
+    "You have hit your ChatGPT usage limit (plus plan). Try again in ~123 min.",
+  ])("surfaces Pi assistant errors as failed turns: %s", (errorMessage) =>
     Effect.gen(function* () {
       const fake = new FakePiSession();
       const adapter = yield* makeAdapter(fake);
@@ -2693,6 +2697,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
       yield* collectEvents(adapter, eventsRef);
 
       const { turnId } = yield* adapter.sendTurn({ threadId, input: "hello pi" });
+      const expectedReset = DateTime.formatIso(DateTime.add(yield* DateTime.now, { minutes: 124 }));
       fake.emit({ type: "turn_start" });
       fake.emit({
         type: "message_end",
@@ -2700,7 +2705,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
           role: "assistant",
           content: [],
           stopReason: "error",
-          errorMessage: "OAuth auth derivation failed for openai-codex",
+          errorMessage,
         },
       });
       // Non-retryable errors (auth, context overflow) get willRetry: false.
@@ -2713,9 +2718,52 @@ it.layer(testLayer)("PiAdapter", (it) => {
       assert.strictEqual(completed[0]?.turnId, turnId);
       assert.deepStrictEqual(completed[0]?.payload, {
         state: "failed",
-        errorMessage: "OAuth auth derivation failed for openai-codex",
+        errorMessage,
+        ...(errorMessage.includes("usage limit") ? { usageLimit: { resetAt: expectedReset } } : {}),
       });
     }),
+  );
+
+  it.effect.each(["available", "unavailable", "failed"] as const)(
+    "uses quota evidence for an untimed Pi limit: %s",
+    (scenario) =>
+      Effect.gen(function* () {
+        const fake = Object.assign(new FakePiSession(), {
+          getUsageLimitReset: async () => {
+            if (scenario === "failed") throw new Error("Synthetic quota endpoint unavailable");
+            return scenario === "available" ? { resetAt: "1970-01-08T00:00:00.000Z" } : null;
+          },
+        });
+        const adapter = yield* makeAdapter(fake);
+        const completion = yield* Deferred.make<ProviderRuntimeEvent>();
+        yield* adapter.streamEvents.pipe(
+          Stream.runForEach((event) =>
+            event.type === "turn.completed" ? Deferred.succeed(completion, event) : Effect.void,
+          ),
+          Effect.forkChild({ startImmediately: true }),
+        );
+        yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
+        yield* adapter.sendTurn({ threadId, input: "Synthetic request" });
+        fake.emit({ type: "turn_start" });
+        fake.emit({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [],
+            stopReason: "error",
+            errorMessage: "Codex error: The usage limit has been reached",
+          },
+        });
+        fake.emit({ type: "agent_end", willRetry: false });
+        fake.emit({ type: "agent_settled" });
+        const event = yield* Deferred.await(completion);
+        assert.isTrue(event.type === "turn.completed");
+        if (event.type === "turn.completed") {
+          assert.deepStrictEqual(event.payload.usageLimit, {
+            resetAt: scenario === "available" ? "1970-01-08T00:00:00.000Z" : null,
+          });
+        }
+      }),
   );
 
   it.effect(

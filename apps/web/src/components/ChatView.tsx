@@ -400,6 +400,7 @@ import {
   shouldShowThreadErrorBanner,
   ThreadErrorBanner,
 } from "./chat/ThreadErrorBanner";
+import { useUsageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryNotice";
 import type { ComposerBannerStackItem } from "./chat/ComposerBannerStack";
 import { ComposerSurface } from "./chat/ComposerSurface";
 import { PiExtensionStatus } from "./chat/PiExtensionStatus";
@@ -6524,7 +6525,14 @@ export default function ChatView(props: ChatViewProps) {
       }),
     [feedbackSubmissions, routeThreadKey],
   );
+  const limitRecoveryBannerItem = useUsageLimitRecoveryBannerItem(
+    environmentId,
+    serverConfig?.environment.capabilities.threadUsageLimitRecovery === true
+      ? activeThreadShell
+      : null,
+  );
   const composerBannerItems = useMemo<ComposerBannerStackItem[]>(() => {
+    const recoveryItems = limitRecoveryBannerItem === null ? [] : [limitRecoveryBannerItem];
     const backgroundLivenessItems =
       backgroundLivenessBannerItem === null ? [] : [backgroundLivenessBannerItem];
     const resumeCompactionItems =
@@ -6536,6 +6544,7 @@ export default function ChatView(props: ChatViewProps) {
     const projectCloneItems = projectCloneBannerItem === null ? [] : [projectCloneBannerItem];
     if (!localCheckoutBranchMismatch || !showBranchMismatchBanner || !activeBranchMismatchKey) {
       return [
+        ...recoveryItems,
         ...feedbackBannerItems,
         ...usageLimitsItems,
         ...projectCloneItems,
@@ -6547,6 +6556,7 @@ export default function ChatView(props: ChatViewProps) {
       ];
     }
     return [
+      ...recoveryItems,
       ...feedbackBannerItems,
       ...usageLimitsItems,
       ...projectCloneItems,
@@ -6602,6 +6612,7 @@ export default function ChatView(props: ChatViewProps) {
     isRestoringThreadBranch,
     localCheckoutBranchMismatch,
     parkedThreadBannerItem,
+    limitRecoveryBannerItem,
     projectCloneBannerItem,
     resumeCompactionBannerItem,
     showBranchMismatchBanner,
@@ -9826,7 +9837,7 @@ export default function ChatView(props: ChatViewProps) {
                 onOpenProviderSetup={openProviderSetup}
               />
               <ThreadErrorBanner
-                error={visibleThreadError}
+                error={limitRecoveryBannerItem !== null ? null : visibleThreadError}
                 chatGptUsageLimit={isChatGptUsageLimitError(threadActivities, visibleThreadError)}
                 onDismiss={() => {
                   setThreadError(activeThread.id, null);

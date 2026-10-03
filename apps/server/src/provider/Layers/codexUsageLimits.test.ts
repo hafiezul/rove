@@ -7,6 +7,7 @@ import {
   codexRateLimitsToUpdate,
   codexResetCreditsToContract,
   codexUsageLimitMessage,
+  codexUsageLimitResetAt,
   mergeCodexRateLimits,
 } from "./codexUsageLimits.ts";
 
@@ -201,6 +202,28 @@ describe("codexResetCreditsToContract", () => {
         resetCredits: { availableCount: 1 },
       }).resetCredits,
     ).toEqual({ availableCount: 1 });
+  });
+});
+
+describe("codexUsageLimitResetAt", () => {
+  const at = "2026-01-01T00:00:00.000Z";
+  const seconds = Date.parse(at) / 1000;
+  it("keeps exact timestamps and waits for all exhausted windows", () => {
+    expect(
+      codexUsageLimitResetAt(
+        {
+          primary: { usedPercent: 100, resetsAt: seconds + 30 },
+          secondary: { usedPercent: 100, resetsAt: seconds + 7 * 86400 + 37 },
+        },
+        at,
+      ),
+    ).toBe("2026-01-08T00:00:37.000Z");
+  });
+  it("does not guess when a blocking window has no usable reset", () => {
+    expect(codexUsageLimitResetAt({ primary: { usedPercent: 100 } }, at)).toBeNull();
+    expect(
+      codexUsageLimitResetAt({ primary: { usedPercent: 100, resetsAt: seconds - 1 } }, at),
+    ).toBeNull();
   });
 });
 
