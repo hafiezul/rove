@@ -86,3 +86,32 @@ export function usageLimitFromError(
   }
   return { resetAt: futureReset(resetMs, observedMs) };
 }
+
+/**
+ * Reads a provider HTTP 429. The body covers Codex's `usage_limit_reached`;
+ * Anthropic subscriptions only report the rejected window and its reset in
+ * `anthropic-ratelimit-unified-[<claim>-]status` / `-reset` headers.
+ */
+export function usageLimitFromHttpError(
+  headers: Headers,
+  body: unknown,
+  observedAt: string,
+): ProviderUsageLimit | null {
+  const fromBody = usageLimitFromErrorPayload(body, observedAt);
+  if (fromBody !== null && fromBody.resetAt !== null) return fromBody;
+  const observedMs = Date.parse(observedAt);
+  let rejected = false;
+  const resets: number[] = [];
+  for (const [name, value] of headers) {
+    const claim = /^anthropic-ratelimit-unified-(?:(.+)-)?status$/.exec(name);
+    if (claim === null || value.trim().toLowerCase() !== "rejected") continue;
+    rejected = true;
+    const prefix = claim[1] === undefined ? "" : `${claim[1]}-`;
+    const reset = Number(headers.get(`anthropic-ratelimit-unified-${prefix}reset`)) * 1000;
+    if (Number.isFinite(reset) && reset > observedMs) resets.push(reset);
+  }
+  if (!rejected || !Number.isFinite(observedMs)) return fromBody;
+  return {
+    resetAt: resets.length === 0 ? null : futureReset(Math.max(...resets), observedMs),
+  };
+}

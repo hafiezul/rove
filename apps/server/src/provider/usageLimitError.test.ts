@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { usageLimitFromError, usageLimitFromErrorPayload } from "./usageLimitError.ts";
+import {
+  usageLimitFromError,
+  usageLimitFromErrorPayload,
+  usageLimitFromHttpError,
+} from "./usageLimitError.ts";
 
 const now = "2026-10-01T00:00:00.000Z";
 
@@ -56,6 +60,41 @@ describe("usageLimitFromError", () => {
     expect(
       usageLimitFromErrorPayload({ type: "error", error: { type: "server_error" } }, now),
     ).toBeNull();
+  });
+  it("reads HTTP 429 limits from Codex bodies and Anthropic rejected windows", () => {
+    const at = Date.parse(now) / 1000;
+    expect(
+      usageLimitFromHttpError(
+        new Headers(),
+        { error: { type: "usage_limit_reached", resets_at: at + 600 } },
+        now,
+      ),
+    ).toEqual({ resetAt: "2026-10-01T00:10:00.000Z" });
+    const anthropicBody = { type: "error", error: { type: "rate_limit_error", message: "Error" } };
+    expect(
+      usageLimitFromHttpError(
+        new Headers({
+          "anthropic-ratelimit-unified-status": "rejected",
+          "anthropic-ratelimit-unified-reset": String(at + 3600),
+          "anthropic-ratelimit-unified-5h-status": "allowed",
+          "anthropic-ratelimit-unified-5h-reset": String(at + 4 * 86400),
+          "anthropic-ratelimit-unified-7d_oi-status": "rejected",
+          "anthropic-ratelimit-unified-7d_oi-reset": String(at + 86400),
+        }),
+        anthropicBody,
+        now,
+      ),
+    ).toEqual({ resetAt: "2026-10-02T00:00:00.000Z" });
+    expect(usageLimitFromHttpError(new Headers({ "retry-after": "30" }), anthropicBody, now)).toBe(
+      null,
+    );
+    expect(
+      usageLimitFromHttpError(
+        new Headers({ "anthropic-ratelimit-unified-status": "rejected" }),
+        anthropicBody,
+        now,
+      ),
+    ).toEqual({ resetAt: null });
   });
   it("does not invent times for missing, expired, malformed, or zero windows", () => {
     for (const error of [

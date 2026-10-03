@@ -63,7 +63,11 @@ import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { readPiSubscriptionStatus } from "../piUsageLimitRecovery.ts";
 import type { UsageLimitStatus } from "../usageLimitStatus.ts";
-import { usageLimitFromError, usageLimitFromErrorPayload } from "../usageLimitError.ts";
+import {
+  usageLimitFromError,
+  usageLimitFromErrorPayload,
+  usageLimitFromHttpError,
+} from "../usageLimitError.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 
 export { PiExtensionLoadError } from "./PiAdapter.ts";
@@ -129,28 +133,48 @@ interface PiUiCompatibility {
 }
 
 /**
- * Pi keeps only the message of a provider stream error, which drops the reset
- * time Codex sends in its WebSocket `usage_limit_reached` event. This hidden
- * extension reads the raw event before Pi normalizes it.
+ * Pi keeps only the message of a provider error, which drops the reset time.
+ * Codex sends it in its WebSocket `usage_limit_reached` event, read by this
+ * hidden extension, and in HTTP 429 bodies or Anthropic's rate-limit headers,
+ * read by the fetch `observe` gives the session's provider requests.
  */
 function createUsageLimitCapture() {
   let last: ProviderUsageLimit | null = null;
+  const now = () => DateTime.formatIso(DateTime.nowUnsafe());
   const extension: InlineExtension = {
     name: "rove-usage-limit",
     hidden: true,
     factory: (pi) => {
       pi.on("provider_stream_event", (event) => {
-        last =
-          usageLimitFromErrorPayload(event.data, DateTime.formatIso(DateTime.nowUnsafe())) ?? last;
+        last = usageLimitFromErrorPayload(event.data, now()) ?? last;
       });
     },
+  };
+  const observe = (agent: AgentSession["agent"]) => {
+    const stream = agent.streamFunction;
+    agent.streamFunction = (model, context, options) => {
+      const send = options?.fetch ?? globalThis.fetch;
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const response = await send(input, init);
+        if (response.ok) last = null;
+        else if (response.status === 429) {
+          const body: unknown = await response
+            .clone()
+            .json()
+            .catch(() => null);
+          last = usageLimitFromHttpError(response.headers, body, now()) ?? last;
+        }
+        return response;
+      };
+      return stream(model, context, { ...options, fetch });
+    };
   };
   const take = () => {
     const value = last;
     last = null;
     return value;
   };
-  return { extension, take };
+  return { extension, observe, take };
 }
 
 async function toPiSessionLike(
@@ -981,6 +1005,7 @@ export async function createPiSession(
       await roveTools.dispose();
       throw error;
     });
+  usageLimits.observe(session.agent);
 
   // Collect every way the effective model/reasoning selection differs from the
   // requested one: fuzzy-match warnings, the SDK's restore fallback, and
