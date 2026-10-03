@@ -2,8 +2,10 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import * as KeyValueStore from "effect/unstable/persistence/KeyValueStore";
 import { assert, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -3276,6 +3278,216 @@ it.effect("answers a repeated listing from cache, and concurrent readers share o
     // A different filter is a different answer, not a cache hit.
     yield* service.list({ state: "all" });
     assert.strictEqual(hostCalls, 2);
+  }),
+);
+
+it.effect("restarts a listing that joins a cancelled lookup during provider cleanup", () =>
+  Effect.gen(function* () {
+    const started = yield* Deferred.make<void>();
+    const stopping = yield* Deferred.make<void>();
+    const releaseCleanup = yield* Deferred.make<void>();
+    let reads = 0;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          listChangeRequests: () =>
+            Effect.gen(function* () {
+              reads++;
+              if (reads === 1) {
+                return yield* Deferred.succeed(started, undefined).pipe(
+                  Effect.andThen(Effect.never),
+                  Effect.ensuring(
+                    Deferred.succeed(stopping, undefined).pipe(
+                      Effect.andThen(Deferred.await(releaseCleanup)),
+                    ),
+                  ),
+                );
+              }
+              return {
+                items: [changeRequest(1, "2026-07-02T00:00:00Z")],
+                truncated: false,
+                continues: false,
+              };
+            }),
+        }),
+      ],
+    });
+    const original = yield* service
+      .list({ state: "open" })
+      .pipe(Effect.forkChild({ startImmediately: true }));
+    yield* Deferred.await(started);
+    const cancellation = yield* Fiber.interrupt(original).pipe(
+      Effect.forkChild({ startImmediately: true }),
+    );
+    yield* Deferred.await(stopping);
+    const replacement = yield* service
+      .list({ state: "open" })
+      .pipe(Effect.forkChild({ startImmediately: true }));
+    yield* Deferred.succeed(releaseCleanup, undefined);
+    const result = yield* Fiber.await(replacement);
+    yield* Fiber.join(cancellation);
+
+    assert.strictEqual(
+      result._tag,
+      "Success",
+      Exit.isFailure(result) ? Cause.pretty(result.cause) : undefined,
+    );
+    if (Exit.isSuccess(result)) {
+      assert.deepStrictEqual(
+        result.value.entries.map((entry) => entry.number),
+        [1],
+      );
+    }
+    assert.strictEqual(reads, 2);
+    yield* service.list({ state: "open" });
+    assert.strictEqual(reads, 2);
+  }),
+);
+
+it.effect("does not restart a listing when its own reader cancels", () =>
+  Effect.gen(function* () {
+    const started = yield* Deferred.make<void>();
+    let reads = 0;
+    let cleanedUp = false;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          listChangeRequests: () =>
+            Effect.sync(() => {
+              reads++;
+            }).pipe(
+              Effect.andThen(Deferred.succeed(started, undefined)),
+              Effect.andThen(Effect.never),
+              Effect.ensuring(
+                Effect.sync(() => {
+                  cleanedUp = true;
+                }),
+              ),
+            ),
+        }),
+      ],
+    });
+    const reader = yield* service
+      .list({ state: "open" })
+      .pipe(Effect.forkChild({ startImmediately: true }));
+    yield* Deferred.await(started);
+    yield* Fiber.interrupt(reader);
+    const result = yield* Fiber.await(reader);
+    assert.isTrue(Exit.isFailure(result) && Cause.hasInterruptsOnly(result.cause));
+    assert.strictEqual(reads, 1);
+    assert.isTrue(cleanedUp);
+  }),
+);
+
+it.effect("keeps a shared listing alive when only one reader cancels", () =>
+  Effect.gen(function* () {
+    const started = yield* Deferred.make<void>();
+    const finish = yield* Deferred.make<void>();
+    let reads = 0;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          listChangeRequests: () =>
+            Effect.sync(() => {
+              reads++;
+            }).pipe(
+              Effect.andThen(Deferred.succeed(started, undefined)),
+              Effect.andThen(Deferred.await(finish)),
+              Effect.as({
+                items: [changeRequest(1, "2026-07-02T00:00:00Z")],
+                truncated: false,
+                continues: false,
+              }),
+            ),
+        }),
+      ],
+    });
+    const original = yield* service
+      .list({ state: "open" })
+      .pipe(Effect.forkChild({ startImmediately: true }));
+    yield* Deferred.await(started);
+    const remaining = yield* service
+      .list({ state: "open" })
+      .pipe(Effect.forkChild({ startImmediately: true }));
+    yield* Fiber.interrupt(original);
+    yield* Deferred.succeed(finish, undefined);
+    const result = yield* Fiber.join(remaining);
+    assert.deepStrictEqual(
+      result.entries.map((entry) => entry.number),
+      [1],
+    );
+    assert.strictEqual(reads, 1);
+  }),
+);
+
+it.effect("does not loop when a replacement listing also interrupts", () =>
+  Effect.gen(function* () {
+    let reads = 0;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          listChangeRequests: () =>
+            Effect.sync(() => {
+              reads++;
+            }).pipe(Effect.andThen(Effect.interrupt)),
+        }),
+      ],
+    });
+    const result = yield* Effect.exit(service.list({ state: "open" }));
+    assert.isTrue(Exit.isFailure(result) && Cause.hasInterruptsOnly(result.cause));
+    assert.strictEqual(reads, 2);
+  }),
+);
+
+it.effect("does not retry genuine listing failures or defects", () =>
+  Effect.gen(function* () {
+    let failedReads = 0;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          getViewer: () =>
+            Effect.sync(() => {
+              failedReads++;
+            }).pipe(
+              Effect.andThen(
+                new PullRequestProviderError({
+                  provider: "github",
+                  operation: "getViewer",
+                  reason: "failed",
+                  detail: "HTTP 500",
+                }),
+              ),
+            ),
+        }),
+      ],
+    });
+    const error = yield* Effect.flip(service.list({ state: "open" }));
+    assert.strictEqual(error._tag, "PullRequestOperationError");
+    if (error._tag === "PullRequestOperationError") assert.strictEqual(error.operation, "list");
+    assert.strictEqual(failedReads, 1);
+
+    let reads = 0;
+    const defect = new Error("viewer lookup defect");
+    const defective = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          getViewer: () =>
+            Effect.sync(() => {
+              reads++;
+            }).pipe(Effect.andThen(Effect.die(defect))),
+        }),
+      ],
+    });
+    const result = yield* Effect.exit(defective.list({ state: "open" }));
+    assert.isTrue(Exit.isFailure(result));
+    if (Exit.isFailure(result)) assert.strictEqual(Cause.squash(result.cause), defect);
+    assert.strictEqual(reads, 1);
   }),
 );
 
