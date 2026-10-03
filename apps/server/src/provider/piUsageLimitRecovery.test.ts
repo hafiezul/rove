@@ -143,4 +143,32 @@ describe("Pi subscription quota recovery", () => {
       ),
     ).toBeNull();
   });
+  it("honors a model-specific Codex limit while the account windows are open", async () => {
+    const quotaFetch = vi.fn<typeof fetch>(async () =>
+      Response.json({
+        rate_limit: {
+          allowed: true,
+          limit_reached: false,
+          primary_window: { used_percent: 10, reset_at: at + 3600 },
+        },
+        model_usage: {
+          "gpt-limited": { available: false, available_at: at + 7200 },
+          "gpt-open": { available: true, available_at: null },
+        },
+      }),
+    );
+    const input = {
+      baseUrl: "https://chatgpt.com/backend-api",
+      apiKey: token,
+      observedAt: now,
+      signal: new AbortController().signal,
+    };
+    expect(await readPiSubscriptionStatus({ ...input, model: "gpt-limited" }, quotaFetch)).toEqual({
+      type: "limited",
+      resetAt: "2026-10-03T02:00:00.000Z",
+    });
+    expect(await readPiSubscriptionStatus({ ...input, model: "gpt-open" }, quotaFetch)).toEqual({
+      type: "available",
+    });
+  });
 });
