@@ -90,6 +90,7 @@ export class PiRuntimeProcess {
   static async create(
     options: PiCatalogHostOptions & { agentDir: string },
     executable = NodeSea.isSea(),
+    environment: NodeJS.ProcessEnv = process.env,
   ): Promise<PiRuntimeProcess> {
     const entry = NodeURL.fileURLToPath(
       new URL(
@@ -101,7 +102,7 @@ export class PiRuntimeProcess {
       process.execPath,
       executable ? ["__pi-runtime"] : [entry],
       {
-        env: { ...process.env, PI_CODING_AGENT_DIR: options.agentDir, ELECTRON_RUN_AS_NODE: "1" },
+        env: { ...environment, PI_CODING_AGENT_DIR: options.agentDir, ELECTRON_RUN_AS_NODE: "1" },
         stdio: ["ignore", "inherit", "inherit", "ipc"],
         serialization: "advanced",
         windowsHide: true,

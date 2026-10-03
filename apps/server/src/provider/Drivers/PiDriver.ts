@@ -27,6 +27,7 @@ import type { ServerSettings } from "@t3tools/contracts";
 
 import { acquirePiResource, disposePiResource } from "../Layers/PiLifecycle.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
+import { mergeProviderInstanceEnvironment } from "../ProviderInstanceEnvironment.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
@@ -167,15 +168,16 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
   },
   configSchema: PiSettings,
   defaultConfig: (): PiSettings => decodePiSettings({}),
-  create: ({ instanceId, displayName, accentColor, enabled, config }) =>
+  create: ({ instanceId, displayName, accentColor, environment, enabled, config }) =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsService;
+      const processEnv = mergeProviderInstanceEnvironment(environment);
       const effectiveConfig = { ...config, enabled } satisfies PiSettings;
       // Sessions, the catalog host, and discovery all share this directory, so
       // instances with different agent directories keep auth, models, sessions,
       // and extensions separate — and instances sharing one stay cross-continuable.
       const effectiveAgentDir = NodePath.resolve(
-        effectiveConfig.agentDir ? expandHomePath(effectiveConfig.agentDir) : getAgentDir(),
+        expandHomePath(effectiveConfig.agentDir || processEnv.PI_CODING_AGENT_DIR || getAgentDir()),
       );
       const continuationIdentity = {
         driverKind: DRIVER_KIND,
@@ -192,30 +194,39 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // snapshot here, so every picker lists them with no per-thread work.
       // Thread sessions keep full per-thread loading for tools and hooks.
       const executable = yield* HostProcessIsExecutable;
-      const catalogHost = yield* Effect.acquireRelease(
-        acquirePiResource(
-          () =>
-            PiRuntimeProcess.create(
-              {
-                disabledExtensions: effectiveConfig.disabledExtensions,
-                agentDir: effectiveAgentDir,
-              },
-              executable,
+      const catalogHost = enabled
+        ? yield* Effect.acquireRelease(
+            acquirePiResource(
+              () =>
+                PiRuntimeProcess.create(
+                  {
+                    disabledExtensions: effectiveConfig.disabledExtensions,
+                    agentDir: effectiveAgentDir,
+                  },
+                  executable,
+                  processEnv,
+                ),
+              (host) => host.dispose(),
+            ).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDriverError({
+                    driver: DRIVER_KIND,
+                    instanceId,
+                    detail: `Failed to load Pi extensions: ${cause.message}`,
+                    cause,
+                  }),
+              ),
             ),
-          (host) => host.dispose(),
-        ).pipe(
-          Effect.mapError(
-            (cause) =>
-              new ProviderDriverError({
-                driver: DRIVER_KIND,
-                instanceId,
-                detail: `Failed to load Pi extensions: ${cause.message}`,
-                cause,
-              }),
-          ),
-        ),
-        (host) => disposePiResource(() => host.dispose()),
-      );
+            (host) => disposePiResource(() => host.dispose()),
+          )
+        : undefined;
+      const getCatalogHost = () => {
+        if (catalogHost === undefined) {
+          throw new Error("Pi is disabled in Rove Code settings.");
+        }
+        return catalogHost;
+      };
       const snapshotSettings = makeProviderSnapshotSettingsSource(effectiveConfig, serverSettings);
       const readCurrentPiSettings = (settings: ServerSettings): PiSettings => {
         const instance = settings.providerInstances[instanceId];
@@ -230,7 +241,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       const adapter = yield* makePiAdapter(effectiveConfig, {
         instanceId,
         createSession: (input) =>
-          catalogHost.createSession({ ...input, agentDir: effectiveAgentDir }),
+          getCatalogHost().createSession({ ...input, agentDir: effectiveAgentDir }),
         getSettings: serverSettings.getSettings.pipe(
           Effect.map(readCurrentPiSettings),
           Effect.orElseSucceed(() => effectiveConfig),
@@ -242,7 +253,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       yield* Effect.addFinalizer(() => adapter.shutdown());
       const textGeneration = yield* makePiTextGeneration(effectiveConfig, {
         createSession: ({ cwd, model, thinkingLevel }) =>
-          catalogHost.createSession(
+          getCatalogHost().createSession(
             { cwd, model, thinkingLevel, agentDir: effectiveAgentDir, resumeSessionId: undefined },
             // Tool-free helper sessions share the catalog's model implementations inside the child.
             true,
@@ -250,10 +261,10 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       });
 
       const probeClient: PiProbeClient = {
-        getCatalogModels: (thinkingLevel) => catalogHost.getCatalogModels(thinkingLevel),
+        getCatalogModels: (thinkingLevel) => getCatalogHost().getCatalogModels(thinkingLevel),
       };
       const discoveryClient = makeSdkDiscoveryClient(
-        () => catalogHost.getExtensionSlashCommands(),
+        () => getCatalogHost().getExtensionSlashCommands(),
         effectiveAgentDir,
       );
       const checkProvider = checkPiProviderStatus(
@@ -285,16 +296,18 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // Catalog registrations (including background refreshes) republish the
       // snapshot. The refresh semaphore serializes bursts; the health
       // interval backstops a missed push.
-      const catalogChanges = yield* Queue.unbounded<void>();
-      const unsubscribeCatalog = catalogHost.onChange(() => {
-        Queue.offerUnsafe(catalogChanges, undefined);
-      });
-      yield* Effect.addFinalizer(() => Effect.sync(unsubscribeCatalog));
-      yield* Queue.take(catalogChanges).pipe(
-        Effect.flatMap(() => snapshot.refresh.pipe(Effect.asVoid)),
-        Effect.forever,
-        Effect.forkScoped,
-      );
+      if (catalogHost !== undefined) {
+        const catalogChanges = yield* Queue.unbounded<void>();
+        const unsubscribeCatalog = catalogHost.onChange(() => {
+          Queue.offerUnsafe(catalogChanges, undefined);
+        });
+        yield* Effect.addFinalizer(() => Effect.sync(unsubscribeCatalog));
+        yield* Queue.take(catalogChanges).pipe(
+          Effect.flatMap(() => snapshot.refresh.pipe(Effect.asVoid)),
+          Effect.forever,
+          Effect.forkScoped,
+        );
+      }
 
       return {
         instanceId,
@@ -332,7 +345,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
         piCatalog: {
           getCatalog: () =>
             Effect.tryPromise({
-              try: () => catalogHost.getCatalog(),
+              try: () => getCatalogHost().getCatalog(),
               catch: (cause) =>
                 new PiCatalogError({
                   message: cause instanceof Error ? cause.message : String(cause),
@@ -340,7 +353,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
             }),
           refreshCatalog: () =>
             Effect.tryPromise({
-              try: () => catalogHost.refreshCatalog(),
+              try: () => getCatalogHost().refreshCatalog(),
               catch: (cause) =>
                 new PiCatalogError({
                   message: cause instanceof Error ? cause.message : String(cause),
