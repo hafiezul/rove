@@ -154,6 +154,7 @@ describe("Pi subscription quota recovery", () => {
         model_usage: {
           "gpt-limited": { available: false, available_at: at + 7200 },
           "gpt-open": { available: true, available_at: null },
+          "gpt-unknown-format": { available: false, available_at: "tomorrow" },
         },
       }),
     );
@@ -170,5 +171,8 @@ describe("Pi subscription quota recovery", () => {
     expect(await readPiSubscriptionStatus({ ...input, model: "gpt-open" }, quotaFetch)).toEqual({
       type: "available",
     });
+    expect(
+      await readPiSubscriptionStatus({ ...input, model: "gpt-unknown-format" }, quotaFetch),
+    ).toEqual({ type: "limited", resetAt: null });
   });
 });
