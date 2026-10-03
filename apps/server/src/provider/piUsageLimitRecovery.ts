@@ -18,6 +18,20 @@ const QuotaResponse = Schema.Struct({
   }),
 });
 const decodeQuota = Schema.decodeUnknownOption(QuotaResponse);
+// Decoded apart from `rate_limit` so an unexpected entry cannot hide the account windows.
+const decodeModelUsage = Schema.decodeUnknownOption(
+  Schema.Struct({
+    model_usage: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        available: Schema.Boolean,
+        // Undocumented; only epoch seconds, like every other wham timestamp, yields a reset.
+        available_at: Schema.optional(Schema.Unknown),
+      }),
+    ),
+  }),
+);
+const decodeEpochSeconds = Schema.decodeUnknownOption(Schema.Number);
 const decodeAccount = Schema.decodeUnknownOption(
   Schema.Struct({
     "https://api.openai.com/auth": Schema.Struct({ chatgpt_account_id: Schema.String }),
@@ -61,7 +75,39 @@ const decodeClaudeQuota = Schema.decodeUnknownOption(
   }),
 );
 
-export function piQuotaStatus(payload: unknown, observedAt: string): UsageLimitStatus {
+export function piQuotaStatus(
+  payload: unknown,
+  observedAt: string,
+  model?: string,
+): UsageLimitStatus {
+  const account = accountQuotaStatus(payload, observedAt);
+  if (model === undefined) return account;
+  const usage = decodeModelUsage(payload);
+  const entry = Option.isSome(usage) ? usage.value.model_usage[model] : undefined;
+  if (entry === undefined || entry.available) return account;
+  const availableMs = Option.match(decodeEpochSeconds(entry.available_at), {
+    onNone: () => NaN,
+    onSome: (seconds) => seconds * 1000,
+  });
+  const modelReset =
+    Number.isFinite(availableMs) &&
+    availableMs > Date.parse(observedAt) &&
+    availableMs <= 8640000000000000
+      ? DateTime.formatIso(DateTime.makeUnsafe(availableMs))
+      : null;
+  if (account.type !== "limited") return { type: "limited", resetAt: modelReset };
+  return {
+    type: "limited",
+    resetAt:
+      account.resetAt === null || modelReset === null
+        ? null
+        : account.resetAt > modelReset
+          ? account.resetAt
+          : modelReset,
+  };
+}
+
+function accountQuotaStatus(payload: unknown, observedAt: string): UsageLimitStatus {
   const decoded = decodeQuota(payload);
   if (Option.isNone(decoded)) return { type: "unavailable" };
   const windows = [
@@ -133,7 +179,7 @@ export async function readPiSubscriptionStatus(
     redirect: "error",
   });
   return response.ok
-    ? piQuotaStatus(await response.json(), input.observedAt)
+    ? piQuotaStatus(await response.json(), input.observedAt, input.model)
     : { type: "unavailable" };
 }
 

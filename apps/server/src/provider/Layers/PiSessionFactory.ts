@@ -20,6 +20,7 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as RuntimePredicate from "effect/Predicate";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
 import {
@@ -39,6 +40,8 @@ import {
   type InlineExtension,
   type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
+
+import type { ProviderUsageLimit } from "@t3tools/contracts";
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -60,6 +63,11 @@ import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { readPiSubscriptionStatus } from "../piUsageLimitRecovery.ts";
 import type { UsageLimitStatus } from "../usageLimitStatus.ts";
+import {
+  usageLimitFromError,
+  usageLimitFromErrorPayload,
+  usageLimitFromHttpError,
+} from "../usageLimitError.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 
 export { PiExtensionLoadError } from "./PiAdapter.ts";
@@ -124,6 +132,51 @@ interface PiUiCompatibility {
   readonly dispose: () => void;
 }
 
+/**
+ * Pi keeps only the message of a provider error, which drops the reset time.
+ * Codex sends it in its WebSocket `usage_limit_reached` event, read by this
+ * hidden extension, and in HTTP 429 bodies or Anthropic's rate-limit headers,
+ * read by the fetch `observe` gives the session's provider requests.
+ */
+function createUsageLimitCapture() {
+  let last: ProviderUsageLimit | null = null;
+  const now = () => DateTime.formatIso(DateTime.nowUnsafe());
+  const extension: InlineExtension = {
+    name: "rove-usage-limit",
+    hidden: true,
+    factory: (pi) => {
+      pi.on("provider_stream_event", (event) => {
+        last = usageLimitFromErrorPayload(event.data, now()) ?? last;
+      });
+    },
+  };
+  const observe = (agent: AgentSession["agent"]) => {
+    const stream = agent.streamFunction;
+    agent.streamFunction = (model, context, options) => {
+      const send = options?.fetch ?? globalThis.fetch;
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const response = await send(input, init);
+        if (response.ok) last = null;
+        else if (response.status === 429) {
+          const body: unknown = await response
+            .clone()
+            .json()
+            .catch(() => null);
+          last = usageLimitFromHttpError(response.headers, body, now()) ?? last;
+        }
+        return response;
+      };
+      return stream(model, context, { ...options, fetch });
+    };
+  };
+  const take = () => {
+    const value = last;
+    last = null;
+    return value;
+  };
+  return { extension, observe, take };
+}
+
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
@@ -133,6 +186,7 @@ async function toPiSessionLike(
   disposeRoveTools: () => Promise<void> = async () => {},
   interactive = false,
   compatibility?: PiUiCompatibility,
+  takeStreamUsageLimit: () => ProviderUsageLimit | null = () => null,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -291,6 +345,7 @@ async function toPiSessionLike(
       try {
         await bind();
         if (stopped) throw new Error("Pi session stopped during prompt preparation.");
+        takeStreamUsageLimit();
         // Pi runs an extension command to completion before accepting it, and
         // treats a failing handler as handled, so the command is accepted up front.
         if (text.startsWith("/")) {
@@ -341,17 +396,18 @@ async function toPiSessionLike(
     // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     getThinkingLevel: () => session.thinkingLevel,
-    getUsageLimitReset: async (observedAt) => {
+    getTurnUsageLimit: async (errorMessage, observedAt) => {
+      const limit = takeStreamUsageLimit() ?? usageLimitFromError(errorMessage, observedAt);
       const model = session.model;
-      if (model === undefined) return null;
+      if (limit?.resetAt !== null || model === undefined) return limit;
       const status = await readPiModelUsageLimit(
         modelRuntime,
         `${model.provider}/${model.id}`,
         observedAt,
-      );
+      ).catch(() => ({ type: "unavailable" as const }));
       return status.type === "limited" && status.resetAt !== null
         ? { resetAt: status.resetAt }
-        : null;
+        : limit;
     },
     getModel: () => {
       const model = session.model;
@@ -670,6 +726,7 @@ export interface CreatePiSessionServicesOptions {
   readonly disabledExtensions?: ReadonlyArray<string> | undefined;
   readonly additionalExtensionPaths?: ReadonlyArray<string> | undefined;
   readonly noExtensions?: boolean | undefined;
+  readonly extensionFactories?: ReadonlyArray<InlineExtension> | undefined;
 }
 
 export async function createPiSessionServices(options: CreatePiSessionServicesOptions): Promise<
@@ -706,6 +763,7 @@ export async function createPiSessionServices(options: CreatePiSessionServicesOp
       agentDir,
       settingsManager,
       noExtensions: options.noExtensions ?? false,
+      extensionFactories: [...(options.extensionFactories ?? [])],
       ...(options.additionalExtensionPaths !== undefined
         ? { additionalExtensionPaths: [...options.additionalExtensionPaths] }
         : undefined),
@@ -838,6 +896,7 @@ export async function createPiSession(
   const disabledExtensions = [...(input.disabledExtensions ?? [])];
   const startupErrors: PiSessionEventLike[] = [];
 
+  const usageLimits = createUsageLimitCapture();
   let services = await createPiSessionServices({
     cwd,
     agentDir,
@@ -845,6 +904,7 @@ export async function createPiSession(
     disabledExtensions,
     noExtensions: options.extensions === false,
     modelRuntime: options.modelRuntime,
+    extensionFactories: [usageLimits.extension],
   });
 
   const getErrors = (s: AgentSessionServices) => [
@@ -875,6 +935,7 @@ export async function createPiSession(
           disabledExtensions: recoveredDisabled,
           noExtensions: false,
           modelRuntime: options.modelRuntime,
+          extensionFactories: [usageLimits.extension],
         });
         for (const { path, error } of services.resourceLoader.getExtensions().errors) {
           startupErrors.push({
@@ -944,6 +1005,7 @@ export async function createPiSession(
       await roveTools.dispose();
       throw error;
     });
+  usageLimits.observe(session.agent);
 
   // Collect every way the effective model/reasoning selection differs from the
   // requested one: fuzzy-match warnings, the SDK's restore fallback, and
@@ -971,5 +1033,6 @@ export async function createPiSession(
     roveTools.dispose,
     input.interactive === true && !options.textGeneration,
     options.compatibility,
+    usageLimits.take,
   );
 }

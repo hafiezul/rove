@@ -234,7 +234,11 @@ export interface PiSessionLike {
   setModel?(model: string): Promise<void>;
   setThinkingLevel?(level: string): void | Promise<void>;
   getThinkingLevel?(): string;
-  getUsageLimitReset?(observedAt: string): Promise<ProviderUsageLimit | null>;
+  /**
+   * Usage limit behind a failed turn: structured provider evidence first, then
+   * the error text, then a quota probe when the reset time is still unknown.
+   */
+  getTurnUsageLimit?(errorMessage: string, observedAt: string): Promise<ProviderUsageLimit | null>;
   /**
    * Current model for image-input capability checks; undefined when no model
    * is selected yet. Sessions without the accessor (test fakes) skip checks.
@@ -1565,21 +1569,19 @@ export function makePiAdapter(
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
-              let usageLimit =
+              const getTurnUsageLimit = ctx.session.getTurnUsageLimit;
+              const usageLimit =
                 errorMessage === undefined
                   ? null
-                  : usageLimitFromError(errorMessage, base.createdAt);
-              const probeReset = ctx.session.getUsageLimitReset;
-              if (
-                usageLimit?.resetAt === null &&
-                probeReset !== undefined &&
-                !ctx.pendingTurnAborted
-              ) {
-                usageLimit =
-                  (yield* Effect.tryPromise(() => probeReset(base.createdAt)).pipe(
-                    Effect.orElseSucceed(() => null),
-                  )) ?? usageLimit;
-              }
+                  : getTurnUsageLimit === undefined || ctx.pendingTurnAborted
+                    ? usageLimitFromError(errorMessage, base.createdAt)
+                    : yield* Effect.tryPromise(() =>
+                        getTurnUsageLimit(errorMessage, base.createdAt),
+                      ).pipe(
+                        Effect.orElseSucceed(() =>
+                          usageLimitFromError(errorMessage, base.createdAt),
+                        ),
+                      );
               const aborted = ctx.pendingTurnAborted;
               yield* publishPiTokenUsage(ctx, "settled");
               ctx.activeTurnId = undefined;

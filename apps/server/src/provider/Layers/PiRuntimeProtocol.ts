@@ -16,7 +16,7 @@ type SessionMethod =
   | "setThinkingLevel"
   | "respondToUserInput"
   | "fork"
-  | "getUsageLimitReset";
+  | "getTurnUsageLimit";
 type SessionCalls = {
   [K in SessionMethod]: {
     args: [key: number, ...Parameters<NonNullable<PiSessionLike[K]>>];
