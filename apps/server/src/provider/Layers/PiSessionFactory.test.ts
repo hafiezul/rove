@@ -1,5 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
+import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
+import * as NodeHttp from "node:http";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
@@ -8,6 +10,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 
 import { ServerConfig } from "../../config.ts";
 import * as Deferred from "effect/Deferred";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -350,6 +353,88 @@ describe("headless Pi extensions", () => {
     });
     sessions.push(supported);
     assert.isUndefined(supported.modelFallbackMessage);
+  });
+
+  it("keeps the reset time from a Codex WebSocket usage-limit event", async () => {
+    const now = DateTime.nowUnsafe();
+    const resetsAt = Math.floor(DateTime.toEpochMillis(now) / 1000) + 2 * 3600;
+    const event = Buffer.from(
+      JSON.stringify({
+        type: "error",
+        status: 429,
+        error: {
+          type: "usage_limit_reached",
+          message: "The usage limit has been reached",
+          plan_type: "plus",
+          resets_at: resetsAt,
+        },
+        headers: { "x-codex-primary-used-percent": "100.0" },
+      }),
+    );
+    const server = NodeHttp.createServer();
+    server.on("upgrade", (request, socket) => {
+      const accept = NodeCrypto.createHash("sha1")
+        .update(`${request.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+        .digest("base64");
+      socket.write(
+        `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
+      );
+      socket.once("data", () =>
+        socket.write(
+          Buffer.concat([Buffer.from([0x81, 126, event.length >> 8, event.length & 255]), event]),
+        ),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      // SAFETY: A TCP listen address is an AddressInfo, never a pipe path.
+      const { port } = server.address() as { port: number };
+      const claims = Buffer.from(
+        JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "account" } }),
+      ).toString("base64url");
+      NodeFS.writeFileSync(
+        NodePath.join(agentDir, "models.json"),
+        JSON.stringify({
+          providers: {
+            "synthetic-codex": {
+              baseUrl: `http://127.0.0.1:${port}`,
+              apiKey: `header.${claims}.signature`,
+              api: "openai-codex-responses",
+              models: [
+                {
+                  id: "synthetic",
+                  name: "Synthetic",
+                  reasoning: false,
+                  input: ["text"],
+                  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                  contextWindow: 128_000,
+                  maxTokens: 8_192,
+                },
+              ],
+            },
+          },
+        }),
+      );
+      const session = await createPiSession(
+        {
+          cwd,
+          model: "synthetic-codex/synthetic",
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { extensions: false },
+      );
+      sessions.push(session);
+      await session.prompt("Synthetic request");
+      // SAFETY: The failed prompt leaves Pi's error assistant message last.
+      const failure = session.messages.at(-1) as { errorMessage?: string };
+      assert.strictEqual(failure.errorMessage, "Codex error: The usage limit has been reached");
+      expect(await session.getUsageLimitReset?.(DateTime.formatIso(now))).toEqual({
+        resetAt: DateTime.formatIso(DateTime.makeUnsafe(resetsAt * 1000)),
+      });
+    } finally {
+      server.close();
+    }
   });
 
   it("surfaces the SDK's model fallback when a saved model cannot be restored", async () => {
