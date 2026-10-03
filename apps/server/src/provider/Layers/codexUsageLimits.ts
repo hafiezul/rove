@@ -209,6 +209,25 @@ function codexUsageLimitNextStep(rateLimitReachedType: string | null | undefined
   }
 }
 
+export function codexUsageLimitResetAt(
+  snapshot: CodexRateLimitSnapshot | undefined,
+  atIso: string,
+): string | null {
+  if (snapshot === undefined) return null;
+  const atMs = Date.parse(atIso);
+  const blocked = codexRateLimitsToWindows(snapshot).filter((window) => window.usedPercent >= 100);
+  const resets = blocked.map((window) =>
+    window.resetsAt === undefined ? NaN : Date.parse(window.resetsAt),
+  );
+  if (
+    blocked.length === 0 ||
+    !Number.isFinite(atMs) ||
+    resets.some((reset) => !Number.isFinite(reset) || reset <= atMs)
+  )
+    return null;
+  return DateTime.formatIso(DateTime.makeUnsafe(Math.max(...resets)));
+}
+
 /**
  * The message a usage-limit stop shows instead of the provider sentence, which
  * on a Business workspace blames credits for a window that simply ran out. The

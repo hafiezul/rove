@@ -124,6 +124,36 @@ describe("resolveThreadListV2SnoozeMenuSelection", () => {
 });
 
 describe("resolveThreadListV2Status", () => {
+  it("shows a scheduled continuation and restores failure when cancelled", () => {
+    const id = ThreadId.make("limited");
+    const thread = makeThread({
+      id,
+      title: "Limited",
+      session: {
+        threadId: id,
+        status: "error",
+        providerName: "pi",
+        runtimeMode: "full-access",
+        activeTurnId: null,
+        lastError: "Usage limit reached",
+        updatedAt: "2026-10-03T00:00:00.000Z",
+      },
+    });
+    const recovery = {
+      requestId: CommandId.make("recovery"),
+      turnId: TurnId.make("limited-turn"),
+      modelSelection: thread.modelSelection,
+      resetAt: "2026-10-05T00:00:00.000Z",
+      resumeAt: "2026-10-05T00:00:00.000Z",
+    };
+    const limited = { ...thread, limitRecovery: recovery };
+    expect(resolveThreadListV2Status(limited)).toBe("auto-resume");
+    expect(
+      resolveThreadListV2Status({ ...limited, limitRecovery: { ...recovery, resumeAt: null } }),
+    ).toBe("failed");
+    expect(resolveThreadListV2Status({ ...limited, hasPendingApprovals: true })).toBe("approval");
+    expect(resolveThreadListV2Status({ ...limited, hasPendingUserInput: true })).toBe("input");
+  });
   it("prioritizes approval over a running session", () => {
     const thread = makeThread({
       id: ThreadId.make("t"),

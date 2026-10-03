@@ -23,6 +23,11 @@ import {
 } from "@t3tools/shared/threadPullRequests";
 import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
 import * as Effect from "effect/Effect";
+import {
+  clearsLimitRecovery,
+  cancelsLimitRecoverySchedule,
+  cancelLimitRecovery,
+} from "@t3tools/shared/limitRecovery";
 import * as Schema from "effect/Schema";
 import * as Predicate from "effect/Predicate";
 
@@ -342,10 +347,38 @@ export function projectEvent(
   model: OrchestrationReadModel,
   event: OrchestrationEvent,
 ): Effect.Effect<OrchestrationReadModel, OrchestrationProjectorDecodeError> {
+  const clearRecovery = clearsLimitRecovery(
+    event,
+    event.type === "thread.session-set" ||
+      (event.type === "thread.meta-updated" && event.payload.modelSelection !== undefined)
+      ? model.threads.find((thread) => thread.id === event.aggregateId)?.limitRecovery
+      : undefined,
+  );
+  const cancelRecovery = !clearRecovery && cancelsLimitRecoverySchedule(event);
   const nextBase: OrchestrationReadModel = {
     ...model,
     snapshotSequence: event.sequence,
     updatedAt: event.occurredAt,
+    threads:
+      clearRecovery || cancelRecovery
+        ? model.threads.map((thread) => {
+            if (thread.id !== event.aggregateId) return thread;
+            const recovery = clearRecovery
+              ? event.type === "thread.turn-start-requested"
+                ? (event.payload.limitRecovery ?? null)
+                : null
+              : (cancelLimitRecovery(
+                  thread.limitRecovery,
+                  event,
+                  thread.latestTurn === null
+                    ? undefined
+                    : { turnId: thread.latestTurn.turnId, modelSelection: thread.modelSelection },
+                ) ?? null);
+            return recovery === thread.limitRecovery
+              ? thread
+              : { ...thread, limitRecovery: recovery };
+          })
+        : model.threads,
   };
 
   switch (event.type) {
@@ -644,6 +677,9 @@ export function projectEvent(
             threads: updateThread(nextBase.threads, payload.threadId, {
               ...(payload.title !== undefined ? { title: payload.title } : {}),
               ...(payload.titleState !== undefined ? { titleState: payload.titleState } : {}),
+              ...(payload.limitRecovery !== undefined
+                ? { limitRecovery: payload.limitRecovery }
+                : {}),
               ...(payload.titleRegeneration !== undefined
                 ? { titleRegeneration: payload.titleRegeneration }
                 : {}),

@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
+import { ProviderUsageLimit } from "./usageLimitRecovery.ts";
 import {
   EventId,
   IsoDateTime,
@@ -397,6 +398,7 @@ export const TurnTokenUsage = Schema.Union([
 export type TurnTokenUsage = typeof TurnTokenUsage.Type;
 
 const TurnCompletedPayload = Schema.Struct({
+  usageLimit: Schema.optional(ProviderUsageLimit),
   state: RuntimeTurnState,
   stopReason: Schema.optional(Schema.NullOr(TrimmedNonEmptyStringSchema)),
   usage: Schema.optional(Schema.Unknown),

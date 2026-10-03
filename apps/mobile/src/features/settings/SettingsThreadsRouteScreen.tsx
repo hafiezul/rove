@@ -43,11 +43,44 @@ export function SettingsThreadsRouteScreen() {
           contentContainerClassName="gap-6 px-5 pt-4"
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
         >
+          <LimitRecoverySettingsRow />
           <AutoSettleSettingsRows />
           <LegacySettingsSection />
         </ScrollView>
       </SettingsScreen>
     </>
+  );
+}
+
+function LimitRecoverySettingsRow() {
+  const { selectedTargets, selectedProjectKey } = useSettingsEnvironmentFilter();
+  const update = useAtomCommand(serverEnvironment.updateSettings, "usage-limit recovery settings");
+  const [busy, setBusy] = useState(false);
+  const targets = selectedTargets.filter(
+    (target) => target.serverConfig?.environment.capabilities.threadUsageLimitRecovery === true,
+  );
+  if (selectedProjectKey !== null || targets.length === 0) return null;
+  return (
+    <SettingsSection title="Usage limits">
+      <SettingsSwitchRow
+        icon="clock"
+        label="Auto-resume limited threads"
+        subtitle="Resume at a known reset time after checking fresh quota. Turning this off cancels pending schedules."
+        value={targets[0]?.serverConfig.settings.autoResumeLimitedThreads ?? false}
+        disabled={busy}
+        onValueChange={(value) => {
+          setBusy(true);
+          void Promise.allSettled(
+            targets.map((target) =>
+              update({
+                environmentId: target.environmentId,
+                input: { patch: { autoResumeLimitedThreads: value } },
+              }),
+            ),
+          ).finally(() => setBusy(false));
+        }}
+      />
+    </SettingsSection>
   );
 }
 

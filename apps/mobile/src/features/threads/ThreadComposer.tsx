@@ -1,4 +1,5 @@
 import { ChatGptUsageLimitNotice } from "./ChatGptUsageLimitNotice";
+import { UsageLimitRecoveryNotice } from "./UsageLimitRecoveryNotice";
 import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useAtomValue } from "@effect/atom-react";
@@ -656,10 +657,18 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         className="relative w-full self-center"
         style={{ maxWidth: props.contentMaxWidth }}
       >
-        <ChatGptUsageLimitNotice
-          environmentId={props.environmentId}
-          thread={props.selectedThread}
-        />
+        {props.serverConfig?.environment.capabilities.threadUsageLimitRecovery === true ? (
+          <UsageLimitRecoveryNotice
+            key={props.selectedThread.id}
+            environmentId={props.environmentId}
+            thread={props.selectedThread}
+          />
+        ) : (
+          <ChatGptUsageLimitNotice
+            environmentId={props.environmentId}
+            thread={props.selectedThread}
+          />
+        )}
         {!voiceInput.isBusy &&
         composerMenu.trigger &&
         (composerMenu.items.length > 0 || composerMenu.trigger.kind === "pull-request") ? (

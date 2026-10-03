@@ -15,7 +15,8 @@ type SessionMethod =
   | "setModel"
   | "setThinkingLevel"
   | "respondToUserInput"
-  | "fork";
+  | "fork"
+  | "getUsageLimitReset";
 type SessionCalls = {
   [K in SessionMethod]: {
     args: [key: number, ...Parameters<NonNullable<PiSessionLike[K]>>];
@@ -26,7 +27,8 @@ type CatalogMethod =
   | "getCatalog"
   | "refreshCatalog"
   | "getCatalogModels"
-  | "getExtensionSlashCommands";
+  | "getExtensionSlashCommands"
+  | "getUsageLimit";
 type CatalogCalls = {
   [K in CatalogMethod]: {
     args: Parameters<PiCatalogHost[K]>;

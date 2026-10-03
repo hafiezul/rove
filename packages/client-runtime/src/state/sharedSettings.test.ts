@@ -119,6 +119,14 @@ describe("splitSharedServerPatch", () => {
 });
 
 describe("pickSharedServerSettings", () => {
+  it("only shares automatic recovery with capable environments", () => {
+    const settings = { ...DEFAULT_SERVER_SETTINGS, autoResumeLimitedThreads: true };
+    expect(
+      pickSharedServerSettings(settings, { threadUsageLimitRecovery: true })
+        .autoResumeLimitedThreads,
+    ).toBe(true);
+    expect(filterSharedServerPatch({ autoResumeLimitedThreads: true }, {})).toEqual({});
+  });
   it("returns only the shared keys", () => {
     expect(
       Object.keys(pickSharedServerSettings(DEFAULT_SERVER_SETTINGS, restartCapabilities)).sort(),

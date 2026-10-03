@@ -16,6 +16,7 @@ import {
   RuntimeMode,
   ThreadLinkedPullRequest,
   ThreadTitleState,
+  ThreadLimitRecovery,
   ThreadId,
   TurnId,
 } from "@t3tools/contracts";
@@ -27,6 +28,7 @@ import type * as Effect from "effect/Effect";
 import type { ProjectionRepositoryError } from "../Errors.ts";
 
 export const ProjectionThread = Schema.Struct({
+  limitRecovery: Schema.optional(Schema.NullOr(ThreadLimitRecovery)),
   threadId: ThreadId,
   projectId: ProjectId,
   title: Schema.String,

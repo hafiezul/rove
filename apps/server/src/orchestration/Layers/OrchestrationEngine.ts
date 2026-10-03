@@ -5,7 +5,9 @@ import type {
   ProjectId,
   ThreadId,
 } from "@t3tools/contracts";
-import { OrchestrationCommand } from "@t3tools/contracts";
+import { CommandId, OrchestrationCommand } from "@t3tools/contracts";
+import { currentLimitRecovery, sameLimitRecoveryModel } from "@t3tools/shared/limitRecovery";
+import { UsageLimitChecks } from "../../provider/UsageLimitChecks.ts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
@@ -59,6 +61,7 @@ interface CommandEnvelope {
   origin: OrchestrationClientOrigin | undefined;
   result: Deferred.Deferred<{ sequence: number }, OrchestrationDispatchError>;
   startedAtMs: number;
+  checkedRecoveryRequestId: CommandId | undefined;
 }
 
 function commandToAggregateRef(command: OrchestrationCommand): {
@@ -89,6 +92,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
   const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
   const threadBackgroundLiveness = yield* ThreadBackgroundLivenessService;
   const crypto = yield* Crypto.Crypto;
+  const usageChecks = yield* UsageLimitChecks;
 
   const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
   let commandReadModel = createEmptyReadModel(yield* nowIso);
@@ -245,6 +249,10 @@ const makeOrchestrationEngine = Effect.gen(function* () {
         const eventBase = yield* decideOrchestrationCommand({
           command: envelope.command,
           readModel: commandReadModel,
+          autoResumeEnabled: yield* usageChecks.enabled,
+          ...(envelope.checkedRecoveryRequestId === undefined
+            ? {}
+            : { checkedRecoveryRequestId: envelope.checkedRecoveryRequestId }),
           ...(Option.isSome(userInputActivity)
             ? { userInputActivity: userInputActivity.value }
             : {}),
@@ -437,16 +445,64 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       aggregateId: threadId,
     });
 
-  const dispatch: OrchestrationEngineContract["dispatch"] = (command, options) =>
+  const enqueue = (
+    command: OrchestrationCommand,
+    options?: Parameters<OrchestrationEngineContract["dispatch"]>[1],
+    checkedRecoveryRequestId?: CommandId,
+  ) =>
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, {
         command,
         origin: options?.origin,
+        checkedRecoveryRequestId,
         result,
         startedAtMs: yield* Clock.currentTimeMillis,
       });
       return yield* Deferred.await(result);
+    });
+
+  const dispatch: OrchestrationEngineContract["dispatch"] = (command, options) =>
+    Effect.gen(function* () {
+      if (command.type === "thread.turn.start") {
+        const thread = commandReadModel.threads.find((entry) => entry.id === command.threadId);
+        const recovery = thread === undefined ? null : currentLimitRecovery(thread);
+        const enabled = yield* usageChecks.enabled;
+        if (
+          thread !== undefined &&
+          recovery !== null &&
+          (recovery.resetAt !== null || recovery.resumeAt !== null) &&
+          (enabled || recovery.resumeAt !== null) &&
+          (command.modelSelection === undefined ||
+            sameLimitRecoveryModel(command.modelSelection, thread.modelSelection))
+        ) {
+          const observedAt = yield* nowIso;
+          const status = yield* usageChecks.check(thread.modelSelection, observedAt);
+          if (status.type !== "available") {
+            const error =
+              status.type === "limited"
+                ? "Usage limit is still active. Your prompt was not sent."
+                : "Could not verify the usage limit. Your prompt was not sent. Retry manually or choose another model.";
+            yield* enqueue({
+              type: "thread.limit-recovery.checked",
+              commandId: CommandId.make(`limit-check:${command.commandId}:${recovery.requestId}`),
+              threadId: thread.id,
+              requestId: recovery.requestId,
+              resetAt: status.type === "limited" ? status.resetAt : null,
+              automatic: command.limitRecoveryRequestId !== undefined,
+              resume: recovery.resumeAt !== null || (enabled && recovery.manual !== true),
+              error,
+              createdAt: yield* nowIso,
+            });
+            return yield* new OrchestrationCommandInvariantError({
+              commandType: command.type,
+              detail: error,
+            });
+          }
+          return yield* enqueue(command, options, recovery.requestId);
+        }
+      }
+      return yield* enqueue(command, options);
     });
 
   return {

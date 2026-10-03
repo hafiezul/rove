@@ -1,5 +1,7 @@
 import {
   EnvironmentId,
+  CommandId,
+  TurnId,
   ProjectId,
   ProviderInstanceId,
   ThreadId,
@@ -241,6 +243,32 @@ describe("environment entity projections", () => {
       unsettledAt: "2026-03-09T12:00:00.000Z",
     });
     expect(merged?.messages).toBe(messages);
+  });
+
+  it("shows a cancelled recovery even while thread detail still has the old schedule", () => {
+    const recovery = {
+      requestId: CommandId.make("recovery"),
+      turnId: TurnId.make("turn"),
+      modelSelection: THREAD_SHELL.modelSelection,
+      resetAt: "2026-03-10T00:00:00.000Z",
+      resumeAt: "2026-03-10T00:00:00.000Z",
+    };
+    const detail = {
+      ...THREAD_SHELL,
+      environmentId: ENVIRONMENT_ID,
+      limitRecovery: recovery,
+      deletedAt: null,
+      messages: [],
+      proposedPlans: [],
+      activities: [],
+      checkpoints: [],
+    };
+    const shell = {
+      ...THREAD_SHELL,
+      environmentId: ENVIRONMENT_ID,
+      limitRecovery: { ...recovery, resumeAt: null },
+    };
+    expect(mergeEnvironmentThread(detail, shell)?.limitRecovery?.resumeAt).toBeNull();
   });
 
   it("preserves untouched project and thread identities across unrelated shell updates", () => {

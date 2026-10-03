@@ -17,6 +17,11 @@ import {
 import { threadPullRequestKeysEqual } from "@t3tools/shared/threadPullRequests";
 import { isImportedAgentSessionMessageId } from "@t3tools/contracts";
 import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
+import {
+  clearsLimitRecovery,
+  cancelsLimitRecoverySchedule,
+  cancelLimitRecovery,
+} from "@t3tools/shared/limitRecovery";
 
 export type ThreadDetailReducerResult =
   | { readonly kind: "updated"; readonly thread: OrchestrationThread }
@@ -97,6 +102,26 @@ export function applyThreadDetailEvent(
   thread: OrchestrationThread,
   event: OrchestrationEvent,
 ): ThreadDetailReducerResult {
+  const originalThread = thread;
+  if (clearsLimitRecovery(event, thread.limitRecovery) && thread.limitRecovery != null) {
+    thread = { ...thread, limitRecovery: null };
+  }
+  if (cancelsLimitRecoverySchedule(event)) {
+    thread = {
+      ...thread,
+      limitRecovery:
+        cancelLimitRecovery(
+          thread.limitRecovery,
+          event,
+          thread.latestTurn === null
+            ? undefined
+            : { turnId: thread.latestTurn.turnId, modelSelection: thread.modelSelection },
+        ) ?? null,
+    };
+  }
+  if (event.type === "thread.turn-start-requested" && event.payload.limitRecovery !== undefined) {
+    thread = { ...thread, limitRecovery: event.payload.limitRecovery };
+  }
   switch (event.type) {
     // ── Project events (irrelevant to thread detail) ────────────────
     case "project.created":
@@ -262,6 +287,9 @@ export function applyThreadDetailEvent(
         thread: {
           ...thread,
           ...(event.payload.title !== undefined ? { title: event.payload.title } : {}),
+          ...(event.payload.limitRecovery !== undefined
+            ? { limitRecovery: event.payload.limitRecovery }
+            : {}),
           ...(event.payload.titleState !== undefined
             ? { titleState: event.payload.titleState }
             : {}),
@@ -359,11 +387,11 @@ export function applyThreadDetailEvent(
 
     case "thread.turn-interrupt-requested": {
       if (event.payload.turnId === undefined) {
-        return { kind: "unchanged" };
+        return thread === originalThread ? { kind: "unchanged" } : { kind: "updated", thread };
       }
       const latestTurn = thread.latestTurn;
       if (latestTurn === null || latestTurn.turnId !== event.payload.turnId) {
-        return { kind: "unchanged" };
+        return thread === originalThread ? { kind: "unchanged" } : { kind: "updated", thread };
       }
       return {
         kind: "updated",
@@ -533,7 +561,9 @@ export function applyThreadDetailEvent(
 
     case "thread.session-stop-requested":
       return thread.session === null
-        ? { kind: "unchanged" }
+        ? thread === originalThread
+          ? { kind: "unchanged" }
+          : { kind: "updated", thread }
         : {
             kind: "updated",
             thread: {

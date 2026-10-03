@@ -91,6 +91,18 @@ describe("isolated Pi instance runtime", () => {
     });
   }
 
+  it("carries quota reads across the isolated runtime without prompting", async () => {
+    const agentDir = directory("quota-read");
+    const runtime = await create(agentDir);
+    const current = await session(runtime, agentDir);
+    const before = [...current.messages];
+    expect(
+      await runtime.getUsageLimit("instance-fixture/fixture", "2026-10-03T00:00:00.000Z"),
+    ).toEqual({ type: "unavailable" });
+    expect(await current.getUsageLimitReset?.("2026-10-03T00:00:00.000Z")).toBeNull();
+    expect(current.messages).toEqual(before);
+  });
+
   it("keeps concurrent catalogs, SDK children, and spawned children in their own agent directories", async () => {
     const a = directory("instance-a");
     const b = directory("instance-b");

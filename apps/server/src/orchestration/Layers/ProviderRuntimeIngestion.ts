@@ -25,6 +25,7 @@ import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
+import { usageLimitFromError } from "../../provider/usageLimitError.ts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -1860,6 +1861,39 @@ const make = Effect.gen(function* () {
               lastError,
               updatedAt: now,
             },
+            createdAt: now,
+          });
+        }
+      }
+
+      if (
+        event.type === "turn.completed" &&
+        shouldApplyThreadLifecycle &&
+        eventTurnId !== undefined &&
+        normalizeRuntimeTurnState(event.payload.state) === "failed"
+      ) {
+        const limit =
+          event.payload.usageLimit ?? usageLimitFromError(event.payload.errorMessage ?? "", now);
+        const limitedThread =
+          limit === null
+            ? Option.none()
+            : yield* projectionSnapshotQuery.getThreadShellById(thread.id);
+        const failureInstanceId =
+          event.providerInstanceId ?? thread.session?.providerInstanceId ?? event.provider;
+        if (
+          limit !== null &&
+          Option.isSome(limitedThread) &&
+          limitedThread.value.modelSelection.instanceId === failureInstanceId
+        ) {
+          const preferences = yield* serverSettingsService.getSettings;
+          yield* orchestrationEngine.dispatch({
+            type: "thread.limit-recovery.record",
+            modelSelection: limitedThread.value.modelSelection,
+            commandId: yield* providerCommandId(event, "limit-recovery-record"),
+            threadId: thread.id,
+            turnId: eventTurnId,
+            limit,
+            autoResume: preferences.autoResumeLimitedThreads,
             createdAt: now,
           });
         }

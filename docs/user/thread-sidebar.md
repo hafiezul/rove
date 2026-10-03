@@ -136,6 +136,25 @@ and copying a thread reference. A copied reference uses the thread's pull reques
 link when available, otherwise its thread ID. See [keybindings](./keybindings.md)
 for custom configuration.
 
+## Continue after a usage limit
+
+Enable **Auto-resume limited threads** in **Settings → General** on web and desktop,
+or **Settings → Thread behavior** on mobile. New limit stops schedule a continuation
+at the reported reset time. The duration can be minutes, days, or another quota window.
+Pi with subscription authentication can read account quota when the error omits
+the reset time. Unknown reset times show the normal error without recovery controls.
+
+Cancel a scheduled continuation from the thread. Turning off auto-resume cancels
+pending schedules. Stop, archival, and settlement also cancel recovery. Choosing a
+model changes your draft; sending with a different model clears the old schedule.
+
+The environment must be running to continue. Saved schedules survive restarts.
+Rove checks fresh quota before an automatic continuation or a same-model retry
+with auto-resume enabled. If the check fails or allowance is still exhausted, your
+prompt is not sent. Early allowance resets let you retry before the old reset time.
+Automatic recovery pauses after three attempts. You can re-enable a known-time
+schedule to start another recovery cycle.
+
 ## Inspect agent work
 
 On web and desktop, use **Agents** to follow work delegated to subagents.

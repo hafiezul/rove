@@ -24,6 +24,7 @@ import {
   TurnId,
 } from "./baseSchemas.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
+import { ThreadLimitRecoverySetCommand, ProviderUsageLimit } from "./usageLimitRecovery.ts";
 import {
   PullRequestActor,
   PullRequestChecksState,
@@ -124,6 +125,17 @@ export const ModelSelection = ModelSelectionSource.pipe(
   ),
 );
 export type ModelSelection = typeof ModelSelection.Type;
+
+export const ThreadLimitRecovery = Schema.Struct({
+  requestId: CommandId,
+  turnId: TurnId,
+  modelSelection: ModelSelection,
+  resetAt: Schema.NullOr(IsoDateTime),
+  resumeAt: Schema.NullOr(IsoDateTime),
+  attempts: Schema.optional(NonNegativeInt),
+  manual: Schema.optional(Schema.Boolean),
+});
+export type ThreadLimitRecovery = typeof ThreadLimitRecovery.Type;
 
 export const RuntimeMode = Schema.Literals([
   "approval-required",
@@ -791,6 +803,7 @@ export const ThreadPullRequestLink = Schema.Struct({
 export type ThreadPullRequestLink = typeof ThreadPullRequestLink.Type;
 
 export const OrchestrationThread = Schema.Struct({
+  limitRecovery: Schema.optional(Schema.NullOr(ThreadLimitRecovery)),
   id: ThreadId,
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
@@ -882,6 +895,7 @@ export const OrchestrationProjectShell = Schema.Struct({
 export type OrchestrationProjectShell = typeof OrchestrationProjectShell.Type;
 
 export const OrchestrationThreadShell = Schema.Struct({
+  limitRecovery: Schema.optional(Schema.NullOr(ThreadLimitRecovery)),
   id: ThreadId,
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
@@ -1315,6 +1329,7 @@ const ThreadTurnStartBootstrap = Schema.Struct({
 export type ThreadTurnStartBootstrap = typeof ThreadTurnStartBootstrap.Type;
 
 export const ThreadTurnStartCommand = Schema.Struct({
+  limitRecoveryRequestId: Schema.optional(CommandId),
   type: Schema.Literal("thread.turn.start"),
   commandId: CommandId,
   threadId: ThreadId,
@@ -1423,6 +1438,7 @@ const ThreadSessionStopCommand = Schema.Struct({
 });
 
 const DispatchableClientOrchestrationCommand = Schema.Union([
+  ThreadLimitRecoverySetCommand,
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,
@@ -1457,6 +1473,7 @@ export type DispatchableClientOrchestrationCommand =
   typeof DispatchableClientOrchestrationCommand.Type;
 
 export const ClientOrchestrationCommand = Schema.Union([
+  ThreadLimitRecoverySetCommand,
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,
@@ -1637,7 +1654,32 @@ const ThreadPullRequestLinkSyncCommand = Schema.Struct({
   stack: Schema.NullOr(ThreadPullRequestStack),
 });
 
+const ThreadLimitRecoveryRecordCommand = Schema.Struct({
+  type: Schema.Literal("thread.limit-recovery.record"),
+  commandId: CommandId,
+  threadId: ThreadId,
+  turnId: TurnId,
+  modelSelection: ModelSelection,
+  limit: ProviderUsageLimit,
+  autoResume: Schema.Boolean,
+  createdAt: IsoDateTime,
+});
+
+const ThreadLimitRecoveryCheckedCommand = Schema.Struct({
+  type: Schema.Literal("thread.limit-recovery.checked"),
+  commandId: CommandId,
+  threadId: ThreadId,
+  requestId: CommandId,
+  resetAt: Schema.NullOr(IsoDateTime),
+  automatic: Schema.Boolean,
+  resume: Schema.Boolean,
+  error: TrimmedNonEmptyString,
+  createdAt: IsoDateTime,
+});
+
 const InternalOrchestrationCommand = Schema.Union([
+  ThreadLimitRecoveryCheckedCommand,
+  ThreadLimitRecoveryRecordCommand,
   ThreadAutoSettleCommand,
   ThreadPullRequestSyncCommand,
   ThreadPullRequestLinkSyncCommand,
@@ -1826,6 +1868,7 @@ export const ThreadAutoSettleSetPayload = Schema.Struct({
 });
 
 export const ThreadMetaUpdatedPayload = Schema.Struct({
+  limitRecovery: Schema.optional(Schema.NullOr(ThreadLimitRecovery)),
   threadId: ThreadId,
   // Order updates use this existing event so older clients can ignore the
   // new field while continuing to decode the event stream.
@@ -1901,6 +1944,7 @@ export const ThreadMessageSentPayload = Schema.Struct({
 });
 
 export const ThreadTurnStartRequestedPayload = Schema.Struct({
+  limitRecovery: Schema.optional(ThreadLimitRecovery),
   threadId: ThreadId,
   messageId: MessageId,
   modelSelection: Schema.optional(ModelSelection),

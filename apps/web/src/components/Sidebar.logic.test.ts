@@ -55,6 +55,8 @@ import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-searc
 import { sortSettledThreads } from "@t3tools/client-runtime/state/thread-sort";
 import {
   EnvironmentId,
+  CommandId,
+  TurnId,
   OrchestrationLatestTurn,
   ProjectId,
   ProviderInstanceId,
@@ -70,6 +72,14 @@ import {
 } from "../types";
 
 const localEnvironmentId = EnvironmentId.make("environment-local");
+
+const scheduledRecovery = {
+  requestId: CommandId.make("scheduled-recovery"),
+  turnId: TurnId.make("limited-turn"),
+  modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+  resetAt: "2026-10-05T00:00:00.000Z",
+  resumeAt: "2026-10-05T00:00:00.000Z",
+};
 
 describe("resolveSidebarRowAccessibility", () => {
   it.each([
@@ -839,6 +849,24 @@ describe("resolveSidebarThreadStatus", () => {
         session: { ...session, status: "starting" as const },
       }),
     ).toBe("working");
+  });
+
+  it("shows scheduled recovery instead of a failure and returns to failure on cancellation", () => {
+    const thread = {
+      ...idle,
+      session: { ...session, status: "error" as const },
+      limitRecovery: scheduledRecovery,
+    };
+    expect(resolveSidebarThreadStatus(thread)).toBe("auto-resume");
+    expect(
+      resolveSidebarThreadStatus({
+        ...thread,
+        limitRecovery: { ...scheduledRecovery, resumeAt: null },
+      }),
+    ).toBe("failed");
+    expect(resolveSidebarThreadStatus({ ...thread, hasPendingApprovals: true })).toBe("approval");
+    expect(resolveSidebarThreadStatus({ ...thread, hasPendingUserInput: true })).toBe("input");
+    expect(resolveSidebarThreadStatus({ ...thread, session })).toBe("working");
   });
 
   it("reports failed only while the session status is error", () => {
@@ -1958,6 +1986,26 @@ describe("resolveThreadStatusPill", () => {
       updatedAt: "2026-03-09T10:00:00.000Z",
     },
   };
+
+  it("keeps recovery visible without marking it as active work", () => {
+    const thread = {
+      ...baseThread,
+      session: { ...baseThread.session, status: "error" as const },
+      limitRecovery: scheduledRecovery,
+    };
+    expect(resolveThreadStatusPill({ thread })).toMatchObject({
+      label: "Auto-resume",
+      pulse: false,
+    });
+    expect(
+      resolveThreadStatusPill({ thread: { ...thread, hasPendingApprovals: true } }),
+    ).toMatchObject({ label: "Pending Approval" });
+    expect(
+      resolveThreadStatusPill({
+        thread: { ...thread, limitRecovery: { ...scheduledRecovery, resumeAt: null } },
+      }),
+    ).toBeNull();
+  });
 
   it("shows pending approval before all other statuses", () => {
     expect(

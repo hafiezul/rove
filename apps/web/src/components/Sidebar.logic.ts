@@ -21,6 +21,7 @@ import {
   type ThreadSortInput,
 } from "../lib/threadSort";
 import type { SidebarThreadSummary, Thread } from "../types";
+import { scheduledLimitResumeAt } from "@t3tools/shared/limitRecovery";
 import { cn } from "../lib/utils";
 import { isLatestTurnSettled } from "../session-logic";
 
@@ -528,7 +529,8 @@ export interface ThreadStatusPill {
     | "Completed"
     | "Pending Approval"
     | "Awaiting Input"
-    | "Plan Ready";
+    | "Plan Ready"
+    | "Auto-resume";
   colorClass: string;
   dotClass: string;
   pulse: boolean;
@@ -544,6 +546,7 @@ const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
   Connecting: 4,
   "Plan Ready": 3,
   Monitoring: 2,
+  "Auto-resume": 2,
   Completed: 1,
 };
 
@@ -556,6 +559,8 @@ type ThreadStatusInput = Pick<
   | "latestTurn"
   | "session"
   | "backgroundLiveness"
+  | "limitRecovery"
+  | "snoozedUntil"
 > & {
   lastVisitedAt?: string | undefined;
 };
@@ -796,6 +801,7 @@ export type SidebarThreadStatus =
   | "working"
   | "monitoring"
   | "failed"
+  | "auto-resume"
   | "ready";
 
 export function shouldRecedeSidebarThread(input: {
@@ -806,7 +812,8 @@ export function shouldRecedeSidebarThread(input: {
   isSelected: boolean;
 }): boolean {
   if (input.isActive || input.isSelected || input.status === "input") return false;
-  if (input.status === "working" || input.status === "monitoring") return true;
+  if (input.status === "working" || input.status === "monitoring" || input.status === "auto-resume")
+    return true;
   if (input.status === "ready" || input.status === "approval") {
     return !input.isUnread && !input.isWoke;
   }
@@ -815,7 +822,12 @@ export function shouldRecedeSidebarThread(input: {
 
 type SidebarThreadStatusInput = Pick<
   SidebarThreadSummary,
-  "hasPendingApprovals" | "hasPendingUserInput" | "session" | "backgroundLiveness"
+  | "hasPendingApprovals"
+  | "hasPendingUserInput"
+  | "session"
+  | "backgroundLiveness"
+  | "limitRecovery"
+  | "snoozedUntil"
 >;
 
 export function resolveSidebarThreadStatus(thread: SidebarThreadStatusInput): SidebarThreadStatus {
@@ -828,6 +840,7 @@ export function resolveSidebarThreadStatus(thread: SidebarThreadStatusInput): Si
   if (thread.session?.status === "running" || thread.session?.status === "starting") {
     return "working";
   }
+  if (scheduledLimitResumeAt(thread) !== null) return "auto-resume";
   // A failed session outranks lingering background liveness: the user must
   // see the failure, not a stale Working (review finding).
   if (thread.session?.status === "error") {
@@ -1015,6 +1028,14 @@ export function resolveThreadStatusPill(input: {
     };
   }
 
+  if (scheduledLimitResumeAt(thread) !== null) {
+    return {
+      label: "Auto-resume",
+      colorClass: "text-sky-700 dark:text-sky-300",
+      dotClass: "bg-sky-500 dark:bg-sky-300",
+      pulse: false,
+    };
+  }
   // An actionable plan prompt outranks lingering background work: it needs
   // the user's decision, while liveness merely reports (review finding).
   const hasPlanReadyPrompt =

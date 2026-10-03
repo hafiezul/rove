@@ -536,6 +536,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays
         ? ["Auto-settle inactive threads"]
         : []),
+      ...(settings.autoResumeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads
+        ? ["Automatic limit recovery"]
+        : []),
       ...(settings.sidebarAutoSettleOnMerge !== DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge
         ? ["Auto-settle merged threads"]
         : []),
@@ -652,6 +655,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.continueThreadsAfterServerUpdate,
       settings.sidebarAutoSettleAfterDays,
       settings.sidebarAutoSettleOnMerge,
+      settings.autoResumeLimitedThreads,
       settings.sidebarProjectGroupingMode,
       settings.sidebarThreadPreviewCount,
       settings.showSkillsInSlashMenu,
@@ -752,6 +756,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarAutoSettleAfterDays: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays,
       sidebarAutoSettleOnMerge: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
+      autoResumeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads,
       responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
       enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
       continueThreadsAfterServerUpdate: DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate,
@@ -2140,6 +2145,11 @@ export function GeneralSettingsPanel() {
     connectedEnvironments.every(
       (target) => target.serverConfig?.environment.capabilities.threadAutoSettlement === true,
     );
+  const supportsLimitRecovery =
+    connectedEnvironments.length > 0 &&
+    connectedEnvironments.every(
+      (target) => target.serverConfig?.environment.capabilities.threadUsageLimitRecovery === true,
+    );
   const supportsRestartContinuation =
     connectedEnvironments.length > 0 &&
     connectedEnvironments.every(
@@ -2238,6 +2248,32 @@ export function GeneralSettingsPanel() {
           }
         />
 
+        {supportsLimitRecovery ? (
+          <SettingsRow
+            serverScoped
+            {...searchableSetting("auto-resume-limited-threads")}
+            description="Resume limited threads at a known reset time after checking fresh quota. Turning this off cancels pending schedules."
+            settingKeys={["autoResumeLimitedThreads"]}
+            resetAction={
+              settings.autoResumeLimitedThreads ? (
+                <SettingResetButton
+                  label="automatic limit recovery"
+                  onClick={() => updateSettings({ autoResumeLimitedThreads: false })}
+                />
+              ) : null
+            }
+            control={
+              <ScopedSwitch
+                settingKeys={["autoResumeLimitedThreads"]}
+                checked={settings.autoResumeLimitedThreads}
+                onCheckedChange={(checked) =>
+                  updateSettings({ autoResumeLimitedThreads: Boolean(checked) })
+                }
+                aria-label="Auto-resume limited threads"
+              />
+            }
+          />
+        ) : null}
         {supportsAutoSettlement ? (
           <>
             <SettingsRow

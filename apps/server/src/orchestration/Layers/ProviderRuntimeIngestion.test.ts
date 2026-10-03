@@ -444,6 +444,61 @@ describe("ProviderRuntimeIngestion", () => {
     };
   }
 
+  it.each([true, false])(
+    "records Pi SDK limit evidence with auto-resume %s",
+    async (autoResume) => {
+      const harness = await createHarness({
+        serverSettings: { autoResumeLimitedThreads: autoResume },
+      });
+      const threadId = asThreadId("thread-1");
+      const turnId = asTurnId("pi-limited-turn");
+      const selection = {
+        instanceId: ProviderInstanceId.make("pi"),
+        model: "openai-codex/gpt-5.4",
+      };
+      await harness.dispatch({
+        type: "thread.meta.update",
+        commandId: CommandId.make("select-pi"),
+        threadId,
+        modelSelection: selection,
+      });
+      await harness.emitAndDrain([
+        {
+          type: "turn.started",
+          eventId: asEventId("pi-limit-start"),
+          provider: ProviderDriverKind.make("pi"),
+          providerInstanceId: selection.instanceId,
+          threadId,
+          turnId,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          payload: {},
+        },
+        {
+          type: "turn.completed",
+          eventId: asEventId("pi-limit-end"),
+          provider: ProviderDriverKind.make("pi"),
+          providerInstanceId: selection.instanceId,
+          threadId,
+          turnId,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          payload: {
+            state: "failed",
+            errorMessage:
+              "You have hit your ChatGPT usage limit (plus plan). Try again in ~123 min.",
+          },
+        },
+      ]);
+      const thread = (await harness.readModel()).threads[0]!;
+      expect(thread.limitRecovery).toMatchObject({
+        turnId,
+        modelSelection: selection,
+        resetAt: "2026-01-01T02:04:00.000Z",
+        resumeAt: autoResume ? "2026-01-01T02:04:00.000Z" : null,
+      });
+      expect((await harness.readThreadShell()).limitRecovery).toEqual(thread.limitRecovery);
+    },
+  );
+
   it("maps turn started/completed events into thread session updates", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";

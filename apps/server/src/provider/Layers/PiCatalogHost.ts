@@ -39,7 +39,11 @@ import {
 import { buildSelectOptionDescriptor } from "../providerSnapshot.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
 import { PI_THINKING_DESCRIPTOR_ID, PI_THINKING_LEVEL_LABELS } from "./PiProvider.ts";
-import { createPiSessionServices, type PiResourceLoader } from "./PiSessionFactory.ts";
+import {
+  createPiSessionServices,
+  readPiModelUsageLimit,
+  type PiResourceLoader,
+} from "./PiSessionFactory.ts";
 
 export interface PiCatalogHostOptions {
   readonly agentDir?: string | undefined;
@@ -186,6 +190,10 @@ export class PiCatalogHost {
       throw error;
     }
     return host;
+  }
+
+  getUsageLimit(model: string, observedAt: string) {
+    return readPiModelUsageLimit(this.modelRuntime, model, observedAt);
   }
 
   private emit(): void {

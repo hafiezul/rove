@@ -213,6 +213,7 @@ export const make = Effect.gen(function* () {
       requiredWorktreeBootstrap: true,
       threadSettlement: true,
       threadAutoSettlement: true,
+      threadUsageLimitRecovery: true,
       storageCleanup: true,
       worktreeInventory: true,
       projectWorktreeCleanup: true,
