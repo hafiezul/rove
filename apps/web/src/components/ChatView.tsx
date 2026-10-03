@@ -6528,7 +6528,7 @@ export default function ChatView(props: ChatViewProps) {
   const limitRecoveryBannerItem = useUsageLimitRecoveryBannerItem(
     environmentId,
     serverConfig?.environment.capabilities.threadUsageLimitRecovery === true
-      ? (activeServerThread ?? null)
+      ? activeThreadShell
       : null,
   );
   const composerBannerItems = useMemo<ComposerBannerStackItem[]>(() => {

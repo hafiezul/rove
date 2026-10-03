@@ -144,9 +144,14 @@ at the reported reset time. The duration can be minutes, days, or another quota 
 Pi with subscription authentication can read account quota when the error omits
 the reset time. Unknown reset times show the normal error without recovery controls.
 
-Cancel a scheduled continuation from the thread. Turning off auto-resume cancels
-pending schedules. Stop, archival, and settlement also cancel recovery. Choosing a
-model changes your draft; sending with a different model clears the old schedule.
+Use **Snooze until reset** to hide a limited thread while you wait. Snoozing does
+not enable or cancel auto-resume. Use **Wake now** to show the thread without
+changing its continuation schedule.
+
+Cancel a scheduled continuation from the thread. Cancellation does not wake a
+snoozed thread. Turning off auto-resume cancels pending schedules. Stop, archival,
+and settlement also cancel recovery. Choosing a model changes your draft; sending
+with a different model clears the old schedule.
 
 The environment must be running to continue. Saved schedules survive restarts.
 Rove checks fresh quota before an automatic continuation or a same-model retry

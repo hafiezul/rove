@@ -27,6 +27,7 @@ import { OrchestrationEventStoreLive } from "../persistence/Layers/Orchestration
 import { SqlitePersistenceMemory } from "../persistence/Layers/Sqlite.ts";
 import * as RepositoryIdentityResolver from "../project/RepositoryIdentityResolver.ts";
 import { usageLimitFromError } from "../provider/usageLimitError.ts";
+import { isAutoSettlementCandidate } from "./ThreadSettlementPolicy.ts";
 import { OrchestrationEngineLive } from "./Layers/OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./Layers/ProjectionPipeline.ts";
 import { OrchestrationProjectionSnapshotQueryLive } from "./Layers/ProjectionSnapshotQuery.ts";
@@ -812,6 +813,128 @@ describe("durable usage-limit recovery without provider requests", () => {
       expect((yield* snapshots.getSnapshot()).threads[0]?.messages).toHaveLength(2);
     }).pipe(Effect.provide(layer)),
   );
+  it.effect("cancelling recovery preserves snooze and waking does not re-arm recovery", () =>
+    Effect.gen(function* () {
+      const engine = yield* record();
+      yield* engine.dispatch({
+        type: "thread.snooze",
+        commandId: CommandId.make("snooze-before-cancel"),
+        threadId,
+        snoozedUntil: "1970-01-01T00:03:00.000Z",
+      });
+      yield* TestClock.adjust("1 minute");
+      yield* engine.dispatch({
+        type: "thread.limit-recovery.set",
+        commandId: CommandId.make("cancel-while-snoozed"),
+        threadId,
+        requestId: CommandId.make("recovery"),
+        resumeAt: null,
+      });
+      const snapshots = yield* ProjectionSnapshotQuery;
+      const cancelled = (yield* snapshots.getSnapshot()).threads[0]!;
+      expect(cancelled.limitRecovery?.resumeAt).toBeNull();
+      expect(cancelled.snoozedUntil).toBe("1970-01-01T00:03:00.000Z");
+      const cancelledShell = Option.getOrThrow(yield* snapshots.getThreadShellById(threadId));
+      expect(isAutoSettlementCandidate(cancelledShell, "1970-01-01T00:01:00.000Z")).toBe(false);
+      yield* engine.dispatch({
+        type: "thread.unsnooze",
+        commandId: CommandId.make("wake-after-cancel"),
+        threadId,
+        reason: "user",
+      });
+      yield* TestClock.adjust("3 minutes");
+      const sweep = yield* make;
+      yield* sweep();
+      const awake = (yield* snapshots.getSnapshot()).threads[0]!;
+      expect(awake.snoozedUntil).toBeNull();
+      expect(awake.limitRecovery?.resumeAt).toBeNull();
+      expect(awake.messages).toHaveLength(1);
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("waking a limited thread preserves recovery and still waits for reset", () =>
+    Effect.gen(function* () {
+      const engine = yield* record();
+      yield* engine.dispatch({
+        type: "thread.snooze",
+        commandId: CommandId.make("snooze-before-wake"),
+        threadId,
+        snoozedUntil: "1970-01-02T00:00:00.000Z",
+      });
+      yield* TestClock.adjust("1 minute");
+      yield* engine.dispatch({
+        type: "thread.unsnooze",
+        commandId: CommandId.make("wake-before-reset"),
+        threadId,
+        reason: "user",
+      });
+      const snapshots = yield* ProjectionSnapshotQuery;
+      const awake = (yield* snapshots.getSnapshot()).threads[0]!;
+      expect(awake.snoozedUntil).toBeNull();
+      expect(awake.limitRecovery?.requestId).toBe(CommandId.make("recovery"));
+      expect(awake.limitRecovery?.resumeAt).toBe("1970-01-01T00:03:00.000Z");
+      const sweep = yield* make;
+      yield* sweep();
+      expect((yield* snapshots.getSnapshot()).threads[0]?.messages).toHaveLength(1);
+      yield* TestClock.adjust("2 minutes");
+      yield* sweep();
+      yield* sweep();
+      expect((yield* snapshots.getSnapshot()).threads[0]?.messages).toHaveLength(2);
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect.each(["available", "limited", "unavailable"] as const)(
+    "a quota check finishing %s after snooze cannot send a prompt or wake the thread",
+    (status) =>
+      Effect.gen(function* () {
+        const started = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        yield* Effect.gen(function* () {
+          const engine = yield* record();
+          yield* TestClock.adjust("3 minutes");
+          const sweep = yield* make;
+          const running = yield* sweep().pipe(Effect.forkScoped);
+          yield* Deferred.await(started);
+          yield* engine.dispatch({
+            type: "thread.snooze",
+            commandId: CommandId.make("snooze-during-quota-check"),
+            threadId,
+            snoozedUntil: "1970-01-01T00:10:00.000Z",
+          });
+          yield* TestClock.adjust("1 second");
+          yield* Deferred.succeed(release, undefined);
+          yield* Fiber.join(running);
+          const snapshots = yield* ProjectionSnapshotQuery;
+          const snoozed = (yield* snapshots.getSnapshot()).threads[0]!;
+          expect(snoozed.messages).toHaveLength(1);
+          expect(snoozed.snoozedUntil).toBe("1970-01-01T00:10:00.000Z");
+          const snoozedShell = Option.getOrThrow(yield* snapshots.getThreadShellById(threadId));
+          expect(isAutoSettlementCandidate(snoozedShell, "1970-01-01T00:03:01.000Z")).toBe(false);
+          if (status !== "unavailable") {
+            yield* TestClock.adjust("7 minutes");
+            yield* sweep();
+            yield* sweep();
+            expect((yield* snapshots.getSnapshot()).threads[0]?.messages).toHaveLength(2);
+          }
+        }).pipe(
+          Effect.provide(
+            withChecks((_model, observedAt) =>
+              Deferred.succeed(started, undefined).pipe(
+                Effect.andThen(Deferred.await(release)),
+                Effect.as(
+                  status === "limited" && Date.parse(observedAt) < 600000
+                    ? { type: "limited" as const, resetAt: "1970-01-01T00:05:00.000Z" }
+                    : status === "unavailable"
+                      ? { type: "unavailable" as const }
+                      : { type: "available" as const },
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+  );
+
   it.effect("rejects stale configuration and invalid retry times", () =>
     Effect.gen(function* () {
       const engine = yield* record();

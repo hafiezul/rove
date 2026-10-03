@@ -1457,7 +1457,8 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
               ...thread.session,
               status: "error" as const,
               lastError: command.error,
-              updatedAt: command.createdAt,
+              // A quota observation is not a new provider failure that should wake snoozed work.
+              updatedAt: thread.session.updatedAt,
             },
           },
         },
