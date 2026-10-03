@@ -167,11 +167,18 @@ describe("GhosttyTerminalSurface visibility", () => {
       resize() {
         for (const callback of resizeCallbacks) callback();
       },
-      pointer(type: string, clientX: number, buttons: number, shiftKey = false, button = 0) {
+      pointer(
+        type: string,
+        clientX: number,
+        buttons: number,
+        shiftKey = false,
+        button = 0,
+        clientY = 5,
+      ) {
         canvas.dispatchEvent(
           Object.assign(new Event(type, { cancelable: true }), {
             clientX,
-            clientY: 5,
+            clientY,
             pointerId: 1,
             button,
             buttons,
@@ -303,6 +310,58 @@ describe("GhosttyTerminalSurface visibility", () => {
     surface.clearSelection();
     harness.pointer("pointerdown", 5, 4, false, 1);
     expect(readText).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["https://example.com", "https://example.com"],
+    [
+      "\x1b]8;;https://example.com/docs?view=full#intro\x1b\\docs\x1b]8;;\x1b\\",
+      "https://example.com/docs?view=full#intro",
+    ],
+    ["~/project/file.ts", "~/project/file.ts"],
+    ["plain text", null],
+  ])("resolves the context-click target in %j", async (text, target) => {
+    const harness = createHarness();
+    const onContextMenu = vi.fn();
+    const onLinkActivate = vi.fn();
+    const surface = await harness.create({ onContextMenu, onLinkActivate });
+    surface.write(text);
+    harness.flushFrame();
+
+    harness.pointer("contextmenu", 5, 0, false, 2);
+
+    expect(onContextMenu).toHaveBeenCalledOnce();
+    const [event, link] = onContextMenu.mock.calls[0]!;
+    expect(event.clientX).toBe(5);
+    expect(link).toEqual(target === null ? null : expect.objectContaining({ text: target }));
+    expect(onLinkActivate).not.toHaveBeenCalled();
+  });
+
+  it("resolves context clicks on the continuation of a wrapped URL", async () => {
+    const harness = createHarness();
+    const onContextMenu = vi.fn();
+    const surface = await harness.create({ onContextMenu });
+    const url = "https://example.com/docs?view=full#intro";
+    surface.write(url);
+    harness.flushFrame();
+
+    harness.pointer("contextmenu", 5, 0, false, 2, 23);
+
+    expect(onContextMenu.mock.calls[0]?.[1]?.text).toBe(url);
+  });
+
+  it("leaves context clicks to mouse-tracking terminal applications", async () => {
+    const harness = createHarness();
+    const onContextMenu = vi.fn();
+    const surface = await harness.create({ onContextMenu });
+    surface.write("https://example.com\x1b[?1000h");
+    harness.flushFrame();
+
+    harness.pointer("contextmenu", 5, 0, false, 2);
+    expect(onContextMenu).not.toHaveBeenCalled();
+
+    harness.pointer("contextmenu", 5, 0, true, 2);
+    expect(onContextMenu.mock.calls[0]?.[1]?.text).toBe("https://example.com");
   });
 
   it("starts a selection when dragging from a link", async () => {
