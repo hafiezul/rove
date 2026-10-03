@@ -20,6 +20,7 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as RuntimePredicate from "effect/Predicate";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
 import {
@@ -39,6 +40,8 @@ import {
   type InlineExtension,
   type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
+
+import type { ProviderUsageLimit } from "@t3tools/contracts";
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -60,6 +63,7 @@ import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
 import { readPiSubscriptionStatus } from "../piUsageLimitRecovery.ts";
 import type { UsageLimitStatus } from "../usageLimitStatus.ts";
+import { usageLimitFromError, usageLimitFromErrorPayload } from "../usageLimitError.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 
 export { PiExtensionLoadError } from "./PiAdapter.ts";
@@ -124,6 +128,31 @@ interface PiUiCompatibility {
   readonly dispose: () => void;
 }
 
+/**
+ * Pi keeps only the message of a provider stream error, which drops the reset
+ * time Codex sends in its WebSocket `usage_limit_reached` event. This hidden
+ * extension reads the raw event before Pi normalizes it.
+ */
+function createUsageLimitCapture() {
+  let last: ProviderUsageLimit | null = null;
+  const extension: InlineExtension = {
+    name: "rove-usage-limit",
+    hidden: true,
+    factory: (pi) => {
+      pi.on("provider_stream_event", (event) => {
+        last =
+          usageLimitFromErrorPayload(event.data, DateTime.formatIso(DateTime.nowUnsafe())) ?? last;
+      });
+    },
+  };
+  const take = () => {
+    const value = last;
+    last = null;
+    return value;
+  };
+  return { extension, take };
+}
+
 async function toPiSessionLike(
   session: AgentSession,
   modelRuntime: ModelRuntime,
@@ -133,6 +162,7 @@ async function toPiSessionLike(
   disposeRoveTools: () => Promise<void> = async () => {},
   interactive = false,
   compatibility?: PiUiCompatibility,
+  takeStreamUsageLimit: () => ProviderUsageLimit | null = () => null,
 ): Promise<PiSessionLike> {
   const listeners = new Set<(event: PiSessionEventLike) => void>();
   const startupErrors: PiSessionEventLike[] = [...initialStartupErrors];
@@ -291,6 +321,7 @@ async function toPiSessionLike(
       try {
         await bind();
         if (stopped) throw new Error("Pi session stopped during prompt preparation.");
+        takeStreamUsageLimit();
         // Pi runs an extension command to completion before accepting it, and
         // treats a failing handler as handled, so the command is accepted up front.
         if (text.startsWith("/")) {
@@ -341,17 +372,18 @@ async function toPiSessionLike(
     // SAFETY: The composer supplies Pi thinking levels; the SDK clamps to model capabilities.
     setThinkingLevel: (level) => session.setThinkingLevel(level as PiThinkingLevel),
     getThinkingLevel: () => session.thinkingLevel,
-    getUsageLimitReset: async (observedAt) => {
+    getTurnUsageLimit: async (errorMessage, observedAt) => {
+      const limit = takeStreamUsageLimit() ?? usageLimitFromError(errorMessage, observedAt);
       const model = session.model;
-      if (model === undefined) return null;
+      if (limit?.resetAt !== null || model === undefined) return limit;
       const status = await readPiModelUsageLimit(
         modelRuntime,
         `${model.provider}/${model.id}`,
         observedAt,
-      );
+      ).catch(() => ({ type: "unavailable" as const }));
       return status.type === "limited" && status.resetAt !== null
         ? { resetAt: status.resetAt }
-        : null;
+        : limit;
     },
     getModel: () => {
       const model = session.model;
@@ -670,6 +702,7 @@ export interface CreatePiSessionServicesOptions {
   readonly disabledExtensions?: ReadonlyArray<string> | undefined;
   readonly additionalExtensionPaths?: ReadonlyArray<string> | undefined;
   readonly noExtensions?: boolean | undefined;
+  readonly extensionFactories?: ReadonlyArray<InlineExtension> | undefined;
 }
 
 export async function createPiSessionServices(options: CreatePiSessionServicesOptions): Promise<
@@ -706,6 +739,7 @@ export async function createPiSessionServices(options: CreatePiSessionServicesOp
       agentDir,
       settingsManager,
       noExtensions: options.noExtensions ?? false,
+      extensionFactories: [...(options.extensionFactories ?? [])],
       ...(options.additionalExtensionPaths !== undefined
         ? { additionalExtensionPaths: [...options.additionalExtensionPaths] }
         : undefined),
@@ -838,6 +872,7 @@ export async function createPiSession(
   const disabledExtensions = [...(input.disabledExtensions ?? [])];
   const startupErrors: PiSessionEventLike[] = [];
 
+  const usageLimits = createUsageLimitCapture();
   let services = await createPiSessionServices({
     cwd,
     agentDir,
@@ -845,6 +880,7 @@ export async function createPiSession(
     disabledExtensions,
     noExtensions: options.extensions === false,
     modelRuntime: options.modelRuntime,
+    extensionFactories: [usageLimits.extension],
   });
 
   const getErrors = (s: AgentSessionServices) => [
@@ -875,6 +911,7 @@ export async function createPiSession(
           disabledExtensions: recoveredDisabled,
           noExtensions: false,
           modelRuntime: options.modelRuntime,
+          extensionFactories: [usageLimits.extension],
         });
         for (const { path, error } of services.resourceLoader.getExtensions().errors) {
           startupErrors.push({
@@ -971,5 +1008,6 @@ export async function createPiSession(
     roveTools.dispose,
     input.interactive === true && !options.textGeneration,
     options.compatibility,
+    usageLimits.take,
   );
 }

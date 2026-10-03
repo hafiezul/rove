@@ -2724,14 +2724,14 @@ it.layer(testLayer)("PiAdapter", (it) => {
     }),
   );
 
-  it.effect.each(["available", "unavailable", "failed"] as const)(
-    "uses quota evidence for an untimed Pi limit: %s",
+  it.effect.each(["evidence", "failed"] as const)(
+    "asks the session for an untimed Pi limit's reset: %s",
     (scenario) =>
       Effect.gen(function* () {
         const fake = Object.assign(new FakePiSession(), {
-          getUsageLimitReset: async () => {
+          getTurnUsageLimit: async () => {
             if (scenario === "failed") throw new Error("Synthetic quota endpoint unavailable");
-            return scenario === "available" ? { resetAt: "1970-01-08T00:00:00.000Z" } : null;
+            return { resetAt: "1970-01-08T00:00:00.000Z" };
           },
         });
         const adapter = yield* makeAdapter(fake);
@@ -2760,7 +2760,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
         assert.isTrue(event.type === "turn.completed");
         if (event.type === "turn.completed") {
           assert.deepStrictEqual(event.payload.usageLimit, {
-            resetAt: scenario === "available" ? "1970-01-08T00:00:00.000Z" : null,
+            resetAt: scenario === "evidence" ? "1970-01-08T00:00:00.000Z" : null,
           });
         }
       }),

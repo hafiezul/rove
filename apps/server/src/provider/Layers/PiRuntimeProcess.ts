@@ -336,8 +336,8 @@ class RemotePiSession implements PiSessionLike {
   get autoCompactionEnabled() {
     return this.state.autoCompactionEnabled;
   }
-  getUsageLimitReset(observedAt: string) {
-    return this.runtime.request("getUsageLimitReset", [this.key, observedAt]);
+  getTurnUsageLimit(errorMessage: string, observedAt: string) {
+    return this.runtime.request("getTurnUsageLimit", [this.key, errorMessage, observedAt]);
   }
   getThinkingLevel() {
     return this.state.thinkingLevel ?? "off";

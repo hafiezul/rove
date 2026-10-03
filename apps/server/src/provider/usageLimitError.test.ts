@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { usageLimitFromError } from "./usageLimitError.ts";
+import { usageLimitFromError, usageLimitFromErrorPayload } from "./usageLimitError.ts";
 
 const now = "2026-10-01T00:00:00.000Z";
 
@@ -36,6 +36,26 @@ describe("usageLimitFromError", () => {
         now,
       )?.resetAt,
     ).toBe("2026-10-01T00:01:30.000Z");
+  });
+  it("reads Codex WebSocket limit events and ignores other stream events", () => {
+    expect(
+      usageLimitFromErrorPayload(
+        {
+          type: "error",
+          status: 429,
+          error: {
+            type: "usage_limit_reached",
+            message: "The usage limit has been reached",
+            resets_at: Date.parse(now) / 1000 + 3600,
+          },
+        },
+        now,
+      ),
+    ).toEqual({ resetAt: "2026-10-01T01:00:00.000Z" });
+    expect(usageLimitFromErrorPayload({ type: "response.created" }, now)).toBeNull();
+    expect(
+      usageLimitFromErrorPayload({ type: "error", error: { type: "server_error" } }, now),
+    ).toBeNull();
   });
   it("does not invent times for missing, expired, malformed, or zero windows", () => {
     for (const error of [

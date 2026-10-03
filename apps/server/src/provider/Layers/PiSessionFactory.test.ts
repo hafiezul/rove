@@ -429,7 +429,9 @@ describe("headless Pi extensions", () => {
       // SAFETY: The failed prompt leaves Pi's error assistant message last.
       const failure = session.messages.at(-1) as { errorMessage?: string };
       assert.strictEqual(failure.errorMessage, "Codex error: The usage limit has been reached");
-      expect(await session.getUsageLimitReset?.(DateTime.formatIso(now))).toEqual({
+      expect(
+        await session.getTurnUsageLimit?.(failure.errorMessage!, DateTime.formatIso(now)),
+      ).toEqual({
         resetAt: DateTime.formatIso(DateTime.makeUnsafe(resetsAt * 1000)),
       });
     } finally {

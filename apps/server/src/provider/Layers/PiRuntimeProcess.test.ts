@@ -99,7 +99,9 @@ describe("isolated Pi instance runtime", () => {
     expect(
       await runtime.getUsageLimit("instance-fixture/fixture", "2026-10-03T00:00:00.000Z"),
     ).toEqual({ type: "unavailable" });
-    expect(await current.getUsageLimitReset?.("2026-10-03T00:00:00.000Z")).toBeNull();
+    expect(
+      await current.getTurnUsageLimit?.("Request failed", "2026-10-03T00:00:00.000Z"),
+    ).toBeNull();
     expect(current.messages).toEqual(before);
   });
 
