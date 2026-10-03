@@ -54,6 +54,7 @@ import {
 import {
   GhosttyTerminalSurface,
   type GhosttyTerminalSurfaceOptions,
+  type TerminalLinkWithRange,
 } from "~/terminal/ghostty/surface";
 import { type GhosttyColor, type GhosttyTheme } from "~/terminal/ghostty/core";
 import { useOpenInPreferredEditor } from "../editorPreferences";
@@ -82,6 +83,10 @@ import { serverEnvironment } from "../state/server";
 import { previewEnvironment } from "../state/preview";
 import { terminalEnvironment } from "../state/terminal";
 import { openTerminalLinkInPreview } from "./preview/openTerminalLinkInPreview";
+import { showExternalLinkContextMenu } from "./chat/externalLinkContextMenu";
+import { canOpenLinksInApp, isWebUrl } from "~/browser/browserLinkTarget";
+import { openUrlInPreview } from "~/browser/openFileInPreview";
+import { recordVisitForThread } from "~/browserHistoryStore";
 import { useAtomCommand } from "../state/use-atom-command";
 import { preventTerminalCloseShortcut } from "../lib/terminalCloseShortcut";
 import {
@@ -504,8 +509,8 @@ export function TerminalViewport({
         // The surface listens from construction, so a right-click can land
         // while `create` is still awaiting WASM — before the handler below it
         // exists. The ref is only assigned once that setup has run.
-        onContextMenu: (event) => {
-          if (terminalRef.current) void showTerminalContextMenu(event);
+        onContextMenu: (event, link) => {
+          if (terminalRef.current) void showTerminalContextMenu(event, link);
         },
       };
       const terminal = await GhosttyTerminalSurface.create(mount, terminalOptions);
@@ -649,7 +654,10 @@ export function TerminalViewport({
         focusIfCurrent(requestId);
       };
 
-      const showTerminalContextMenu = async (event: MouseEvent) => {
+      const showTerminalContextMenu = async (
+        event: MouseEvent,
+        link: TerminalLinkWithRange | null,
+      ) => {
         if (!localApi || !terminalRef.current) return;
         // Own the gesture before anything async: leaving the default alive lets
         // the browser (or Electron's editing menu) answer with a Paste entry
@@ -657,8 +665,32 @@ export function TerminalViewport({
         event.preventDefault();
         // A right-click supersedes a selection popup that is pending or open.
         clearSelectionAction();
-        const selectionAction = readSelectionAction();
         const requestId = selectionActionRequestIdRef.current;
+        if (link && isWebUrl(link.text)) {
+          await showExternalLinkContextMenu({
+            href: link.text,
+            canOpenInPreview: canOpenLinksInApp(threadRef.threadId.length > 0),
+            position: { x: event.clientX, y: event.clientY },
+            showContextMenu: async (items, position) => {
+              const action = await localApi.contextMenu.show(items, position);
+              return requestId === selectionActionRequestIdRef.current ? action : null;
+            },
+            openInPreview: async (url) => {
+              const result = await openUrlInPreview({ threadRef, url, openPreview });
+              if (isAtomCommandInterrupted(result)) return;
+              if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+              recordVisitForThread(threadRef, url);
+            },
+            openExternal: (url) => localApi.shell.openExternal(url),
+            copyLink: (url) => writeTextToClipboard(url, "link"),
+            reportFailure: (_operation, error) => {
+              reportIfCurrent(requestId, error, "Unable to complete the link action");
+              focusIfCurrent(requestId);
+            },
+          });
+          return;
+        }
+        const selectionAction = readSelectionAction();
         let clicked: TerminalContextMenuAction | null;
         try {
           clicked = await localApi.contextMenu.show(

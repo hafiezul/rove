@@ -40,9 +40,9 @@ describe("external chat link context menu", () => {
 
     expect(harness.showContextMenu).toHaveBeenCalledWith(
       [
-        { id: "open-in-preview", label: "Open in integrated browser" },
-        { id: "open-external", label: "Open in system browser" },
-        { id: "copy-link", label: "Copy Link" },
+        { id: "open-in-preview", label: "Open in Rove Code" },
+        { id: "open-external", label: "Open in default browser" },
+        { id: "copy-link", label: "Copy link" },
       ],
       { x: 12, y: 24 },
     );
@@ -63,8 +63,8 @@ describe("external chat link context menu", () => {
 
     expect(harness.showContextMenu).toHaveBeenCalledWith(
       [
-        { id: "open-external", label: "Open in system browser" },
-        { id: "copy-link", label: "Copy Link" },
+        { id: "open-external", label: "Open in default browser" },
+        { id: "copy-link", label: "Copy link" },
       ],
       { x: 4, y: 8 },
     );
