@@ -439,6 +439,79 @@ describe("headless Pi extensions", () => {
     }
   });
 
+  it("keeps the rejected window's reset from an Anthropic subscription 429", async () => {
+    const now = DateTime.nowUnsafe();
+    const seconds = Math.floor(DateTime.toEpochMillis(now) / 1000);
+    const server = NodeHttp.createServer((_request, response) => {
+      response.writeHead(429, {
+        "content-type": "application/json",
+        "retry-after": "86400",
+        "anthropic-ratelimit-unified-status": "rejected",
+        "anthropic-ratelimit-unified-reset": String(seconds + 3600),
+        "anthropic-ratelimit-unified-5h-status": "allowed",
+        "anthropic-ratelimit-unified-5h-reset": String(seconds + 3600),
+        "anthropic-ratelimit-unified-7d-status": "rejected",
+        "anthropic-ratelimit-unified-7d-reset": String(seconds + 86400),
+      });
+      response.end(
+        JSON.stringify({ type: "error", error: { type: "rate_limit_error", message: "Error" } }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      // SAFETY: A TCP listen address is an AddressInfo, never a pipe path.
+      const { port } = server.address() as { port: number };
+      NodeFS.writeFileSync(
+        NodePath.join(agentDir, "settings.json"),
+        JSON.stringify({ retry: { enabled: false } }),
+      );
+      NodeFS.writeFileSync(
+        NodePath.join(agentDir, "models.json"),
+        JSON.stringify({
+          providers: {
+            "synthetic-anthropic": {
+              baseUrl: `http://127.0.0.1:${port}`,
+              apiKey: "sk-ant-oat-synthetic",
+              api: "anthropic-messages",
+              models: [
+                {
+                  id: "synthetic",
+                  name: "Synthetic",
+                  reasoning: false,
+                  input: ["text"],
+                  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                  contextWindow: 128_000,
+                  maxTokens: 8_192,
+                },
+              ],
+            },
+          },
+        }),
+      );
+      const session = await createPiSession(
+        {
+          cwd,
+          model: "synthetic-anthropic/synthetic",
+          thinkingLevel: undefined,
+          resumeSessionId: undefined,
+        },
+        { extensions: false },
+      );
+      sessions.push(session);
+      await session.prompt("Synthetic request");
+      // SAFETY: The failed prompt leaves Pi's error assistant message last.
+      const failure = session.messages.at(-1) as { errorMessage?: string };
+      assert.include(failure.errorMessage ?? "", "rate_limit_error");
+      expect(
+        await session.getTurnUsageLimit?.(failure.errorMessage!, DateTime.formatIso(now)),
+      ).toEqual({
+        resetAt: DateTime.formatIso(DateTime.makeUnsafe((seconds + 86400) * 1000)),
+      });
+    } finally {
+      server.close();
+    }
+  });
+
   it("surfaces the SDK's model fallback when a saved model cannot be restored", async () => {
     // A second provider gives the SDK somewhere to fall back to when the
     // session's saved model (the fixture extension's) is no longer loadable.
