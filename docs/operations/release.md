@@ -8,6 +8,8 @@
 
 The first release is **self-hosted desktop and CLI, with local or LAN pairing**. Leave `ROVE_CLOUD_READY` unset: relay deployment and configuration are skipped, and desktop/CLI builds omit Rove Connect. Apple and Azure signing credentials may be omitted for unsigned builds. Signed macOS previews require `ROVE_MACOS_SIGNING_READY=true`; mobile production requires `ROVE_MOBILE_STORES_READY=true` because store distribution needs paid developer accounts. Hosted web, AUR, and marketing retain separate readiness controls; those controls indicate release readiness, not necessarily a paid service.
 
+The static browser app has a separate manual [Cloudflare deployment procedure](./cloudflare-web.md). It does not require the relay or Vercel release gates. Keep those gates disabled when using this path.
+
 ## Before enabling publication
 
 1. Confirm that the repository, domains, npm scope, signing accounts, vulnerability reporting, and legal/support contacts belong to this project. Preserve upstream MIT attribution. In particular, verify ownership of the `@rove-code` npm scope and configure trusted publishing for `@rove-code/cli` and every `@rove-code/cli-<platform>` package; a package-name lookup alone does not prove control.

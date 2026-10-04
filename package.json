@@ -22,6 +22,7 @@
     "icons:export:android": "node scripts/export-android-icons.ts",
     "build": "vp run --filter './apps/*' build",
     "build:marketing": "vp run --filter @t3tools/marketing build",
+    "build:web:hosted": "vp run --filter @t3tools/web build --mode hosted && node scripts/apply-web-brand-assets.ts --channel latest && node scripts/check-cloudflare-web.mjs",
     "build:desktop": "vp run --filter @t3tools/desktop --filter t3 build",
     "build:resource-monitor": "cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml",
     "typecheck": "vp run --parallel -r --concurrency-limit 2 typecheck",

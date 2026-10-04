@@ -14,6 +14,7 @@ import { DEV_PROXIED_PATH_PREFIXES } from "@t3tools/shared/devProxy";
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
+import { hostedBuildDefines } from "./vite/hostedBuild";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -153,7 +154,11 @@ const configuredAllowedHosts = (process.env.ROVE_DEV_ALLOWED_HOSTS ?? "")
   .filter((entry) => entry.length > 0);
 const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 
-export default defineConfig(() => {
+export default defineConfig(({ command, mode }) => {
+  const isHostedBuild = command === "build" && mode === "hosted";
+  const sourcemap = isHostedBuild ? false : buildSourcemap;
+  const hostedDefines = isHostedBuild ? hostedBuildDefines(configuredHostedAppUrl) : undefined;
+
   return {
     assetsInclude: ["**/*.wasm"],
     plugins: [
@@ -216,6 +221,7 @@ export default defineConfig(() => {
       "import.meta.env.VITE_HOSTED_APP_URL": JSON.stringify(configuredHostedAppUrl ?? ""),
       "import.meta.env.VITE_HOSTED_APP_CHANNEL": JSON.stringify(configuredHostedAppChannel),
       "import.meta.env.APP_VERSION": JSON.stringify(configuredAppVersion),
+      ...hostedDefines,
     },
     resolve: {
       tsconfigPaths: true,
@@ -275,13 +281,13 @@ export default defineConfig(() => {
     // @tailwindcss/vite only emits a CSS sourcemap when devSourcemap is on; without it
     // rolldown flags the transform as SOURCEMAP_BROKEN on every sourcemapped build.
     css: {
-      devSourcemap: buildSourcemap !== false,
+      devSourcemap: sourcemap !== false,
     },
     build: {
       outDir: "dist",
       emptyOutDir: true,
       manifest: true,
-      sourcemap: buildSourcemap,
+      sourcemap,
     },
     test: {
       projects: [defineProject(unitTestProject)],
