@@ -26,7 +26,7 @@ export const DEFAULT_SERVICE_LAUNCH_CONFIG: ServiceLaunchConfig = {
 };
 
 export const ServiceLaunchConfigJson = Schema.fromJsonString(ServiceLaunchConfig);
-export const decodeServiceLaunchConfig = Schema.decodeUnknownEffect(ServiceLaunchConfigJson);
+const decodeServiceLaunchConfig = Schema.decodeUnknownEffect(ServiceLaunchConfigJson);
 export const validateServiceLaunchConfig = Schema.decodeUnknownEffect(ServiceLaunchConfig);
 export const encodeServiceLaunchConfig = Schema.encodeEffect(ServiceLaunchConfigJson);
 

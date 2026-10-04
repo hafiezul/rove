@@ -45,8 +45,10 @@ it.layer(NodeServices.layer)("persistent host launch configuration", (it) => {
       );
       const resolve = (input = flags(baseDir)) =>
         resolveServerConfig(input, Option.none()).pipe(
-          Effect.provide(NetService.layer),
-          Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))),
+          Effect.provide([
+            NetService.layer,
+            ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })),
+          ]),
         );
       for (const config of [yield* resolve(), yield* resolve()]) {
         expect(config.host).toBe("100.117.60.97");
@@ -85,8 +87,10 @@ it.layer(NodeServices.layer)("persistent host launch configuration", (it) => {
         }),
       );
       const result = yield* resolveServerConfig(flags(baseDir), Option.none()).pipe(
-        Effect.provide(NetService.layer),
-        Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))),
+        Effect.provide([
+          NetService.layer,
+          ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })),
+        ]),
         Effect.exit,
       );
       expect(result._tag).toBe("Failure");

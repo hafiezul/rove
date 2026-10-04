@@ -116,17 +116,17 @@ export function applyThreadDetailEvent(
     thread = { ...thread, limitRecovery: null };
   }
   if (cancelsLimitRecoverySchedule(event)) {
-    thread = {
-      ...thread,
-      limitRecovery:
-        cancelLimitRecovery(
-          thread.limitRecovery,
-          event,
-          thread.latestTurn === null
-            ? undefined
-            : { turnId: thread.latestTurn.turnId, modelSelection: thread.modelSelection },
-        ) ?? null,
-    };
+    const limitRecovery =
+      cancelLimitRecovery(
+        thread.limitRecovery,
+        event,
+        thread.latestTurn === null
+          ? undefined
+          : { turnId: thread.latestTurn.turnId, modelSelection: thread.modelSelection },
+      ) ?? null;
+    if (limitRecovery !== (thread.limitRecovery ?? null)) {
+      thread = { ...thread, limitRecovery };
+    }
   }
   if (event.type === "thread.turn-start-requested" && event.payload.limitRecovery !== undefined) {
     thread = { ...thread, limitRecovery: event.payload.limitRecovery };
