@@ -17,6 +17,7 @@ import packageJson from "../../package.json" with { type: "json" };
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import { readAgentActivityPublishingActive } from "../cloud/config.ts";
 import * as ServerConfig from "../config.ts";
+import * as ServiceLauncherClient from "../cloud/serviceLauncherClient.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
 import { detectServerEnvironmentMachineKind } from "./ServerEnvironmentMachine.ts";
@@ -186,11 +187,18 @@ export const make = Effect.gen(function* () {
   const hostPlatform = yield* HostProcessPlatform;
   const hostArchitecture = yield* HostProcessArchitecture;
   const environmentId = yield* identity.getEnvironmentId;
+  const launcher = yield* ServiceLauncherClient.ServiceLauncherClient;
+  const updateOwner =
+    serverConfig.mode === "desktop"
+      ? ("desktop-managed" as const)
+      : launcher.managed
+        ? ("boot-service" as const)
+        : null;
+  const desktopUpdateAvailable =
+    serverConfig.mode === "desktop" && serverConfig.desktopTelemetryControlFd !== undefined;
   const cwdBaseName = path.basename(serverConfig.cwd).trim();
   const label = yield* resolveServerEnvironmentLabel({ cwdBaseName });
   const machine = yield* detectServerEnvironmentMachineKind();
-  // No Rove-owned CLI or desktop update artifacts exist yet. Advertise an
-  // update path only after the corresponding downloaded artifacts are tested.
 
   const descriptor: ExecutionEnvironmentDescriptor = {
     environmentId,
@@ -233,6 +241,14 @@ export const make = Effect.gen(function* () {
       threadPullRequestLinking: true,
       environmentIcon: true,
       projectCloneTracking: true,
+      ...(updateOwner === null ? {} : { serverSelfUpdate: updateOwner }),
+      ...(launcher.managed || desktopUpdateAvailable
+        ? {
+            serverSelfUpdateProgress: true,
+            serverUpdateThreadContinuation: true,
+          }
+        : {}),
+      ...(desktopUpdateAvailable ? { desktopAppUpdate: true } : {}),
     },
   };
 
@@ -261,4 +277,5 @@ export const identityLayer = Layer.effect(ServerEnvironmentIdentity, makeIdentit
 export const layer = Layer.effect(ServerEnvironment, make).pipe(
   Layer.provideMerge(identityLayer),
   Layer.provide(ProcessRunner.layer),
+  Layer.provide(ServiceLauncherClient.layer),
 );

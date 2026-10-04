@@ -1,74 +1,63 @@
-# Remote access
+# Connect to another environment
 
-Rove Code connects directly over your LAN or private tailnet. The host must stay
-running and reachable while you work. Maintainers can deploy a static browser
-app, but this fork does not provide a managed cloud relay or mobile store build.
+Each environment owns its repositories, provider credentials, and thread history. Desktop and web clients can connect to several environments at once. Install and authenticate your coding agents on each host.
+
+Packaged hosting requires a published Rove CLI release or a staged release candidate. Do not use an upstream package to install this fork.
+
+## Add a persistent CLI host
+
+Install the CLI following [installation](./install.md), then install its [background service](./background-service.md). On a private tailnet, run:
+
+```sh
+rove service install --tailscale-serve
+rove pair --tailscale
+```
+
+Both devices must belong to the tailnet. Tailscale must run where the server and its loopback endpoint are reachable. Installing Tailscale only on Windows does not establish that a WSL distribution owns the Windows Tailscale address.
+
+For direct LAN or tailnet access, bind to an address available on the host:
+
+```sh
+rove service install --host <private-ip> --port 3773
+rove pair
+```
+
+On the receiving client, open **Settings → Connections → Add environment** and use the pairing URL. Create a separate one-time link for each client. Pairing expires, but a paired client's saved session allows it to reconnect without the original link.
+
+The service retains its connection settings across restarts and updates. Keep the machine and, for WSL, the distribution running. A sleeping host is offline.
+
+## Add a host through desktop SSH
+
+In the desktop app, add an SSH environment using a host or SSH alias your computer can reach. Tailscale SSH addresses use the same path.
+
+Rove downloads its exact-version CLI archive and installs a persistent host service if needed. An existing service is reused, or restarted if stopped. Disconnecting or removing the saved SSH connection closes the local forward, not the host service. Update the host through its connection row or `rove update`.
+
+Linux hosts require systemd and user-service prerequisites. macOS requires an available graphical login session for its launch agent. SSH requires the server to be reachable on the host's loopback interface. A browser cannot provision a host through SSH. It can pair with that host through a reachable HTTPS endpoint.
+
+## Share a desktop host
+
+On the desktop host, open **Settings → Connections**, enable **Network access**, and create a pairing link using an address the other device can reach. Turning network access off removes that route. The desktop application must stay running because it supervises the environment.
 
 ## Use a hosted browser app
 
-Open your maintainer's hosted app and add an environment under
-**Settings → Connections**. Enter the environment's reachable HTTPS address
-and a one-time pairing code from its administrator. The browser app connects
-directly to that environment. It does not run coding agents on the hosting
-service.
+Open the hosted app and add each environment under **Settings → Connections**. The app connects directly to the backend. It does not run agents or proxy environment traffic.
 
-The environment must stay online. Use an HTTPS endpoint, such as a private
-Tailscale address or an authenticated server exposed through Cloudflare Tunnel.
-A plain HTTP LAN endpoint does not work from a public HTTPS app. Never share
-your environment's pairing code with visitors to a public website.
+Use a reachable HTTPS backend, such as Tailscale HTTPS or an operator-managed Cloudflare Tunnel. A plain HTTP LAN endpoint does not work from a public HTTPS app. A loopback URL refers to the device opening it, not the remote host.
 
-## Pair over a LAN or private network
+## Use configured Rove Connect
 
-On the desktop host, open **Settings → Connections**, enable **Network access**,
-and create a pairing link using an address the other device can reach. Turning
-network access off in the same place removes the route.
+Rove Connect links an environment to a cloud account and manages its tunnel. It is available only in builds configured for an operator's Clerk instance and relay. Direct pairing, Tailscale, and SSH do not require it.
 
-For a [source installation](./install.md#run-from-source), build the client
-(`vp run build:desktop`) and start a headless server on the host's LAN or
-tailnet address:
+Connect does not replace host installation or updates. Keep the host's background service installed and use `rove update` for its runtime. Operators configure cloud deployment using the [Connect setup procedure](../operations/connect-setup.md).
 
-```bash
-node apps/server/src/bin.ts serve --host <private-ip>
-```
+## Balance new threads across hosts
 
-In another terminal in the same checkout, create a fresh link for the running
-server:
+On web and desktop, **Settings → Connections → Load balancing** appears when two or more machines are connected. Set a machine to **Prefer**, **Less often**, or **Manual only** to influence new-thread placement. Existing threads remain on their original environment. Mobile selects a machine manually.
 
-```bash
-node apps/server/src/bin.ts pair
-```
-
-Scan the QR code on your phone or paste the pairing URL into **Add environment**
-on the receiving device. A loopback address such as `127.0.0.1` only reaches
-the device that opens the link. Create a separate one-time link for each device.
-Paired devices can reconnect without the original link. On web and desktop,
-manage paired clients in **Settings → Connections**; on a mobile source build,
-open **Settings → Environments**.
-
-If you use Tailscale, join both devices to the same tailnet. The desktop host
-can enable **Tailscale HTTPS** in **Settings → Connections**. On a headless
-source server, start with `--tailscale-serve`, then create the link with
-`node apps/server/src/bin.ts pair --tailscale`. Disable Tailscale HTTPS in
-Settings, or remove the default-port mapping with
-`tailscale serve --https=443 off`.
-
-## Balance new threads across machines
-
-On web and desktop, **Settings → Connections → Load balancing** appears when
-two or more machines are connected. Enable it to choose among machines for
-new threads. Set a machine to **Prefer**, **Less often**, or **Manual only** to
-influence the choice. These are preferences, not fixed traffic percentages.
-Existing threads stay on their original machine; mobile selects a machine
-manually.
+Clone the repository and authenticate an eligible provider on each machine before balancing work across them. Project grouping does not synchronize files between machines.
 
 ## Revoke access
 
-On the host, **Settings → Connections** lets authorized administrators revoke
-pairing links and client sessions. Revoking a link prevents new pairings;
-revoking a session removes a device's existing access. Treat pairing URLs and
-authorization codes as passwords and keep them out of screenshots, logs, and
-bug reports.
+On the host, authorized administrators can revoke pairing links and client sessions in **Settings → Connections**. Revoking a link prevents new pairings. Revoking a session removes a client's existing access.
 
-Desktop-managed SSH and Rove Connect are not part of this first self-hosted
-release. Their managed server downloads, identities, and service infrastructure
-must be replaced before those paths can be supported.
+Treat pairing URLs and authorization codes as passwords. Keep them out of screenshots, logs, and bug reports.

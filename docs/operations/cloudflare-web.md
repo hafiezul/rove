@@ -62,33 +62,33 @@ To update the website, repeat the workflow on the desired branch. To stop servin
 
 Keep the Rove backend private until you are ready to expose it. The backend provides access to repositories, terminals, and installed coding agents.
 
-1. Install the source checkout and authenticate at least one provider following [the installation guide](../user/install.md#run-from-source).
-2. Build the local browser assets from the repository root:
+1. Install a published Rove CLI or a verified staged executable and authenticate at least one provider following [the installation guide](../user/install.md#install-a-cli-host).
+2. Install the persistent host on loopback:
 
    ```sh
-   vp run --filter @t3tools/web build
+   rove service install --host 127.0.0.1 --port 3773
    ```
 
-3. Start the backend on loopback:
+3. Confirm that the host is running:
 
    ```sh
-   node apps/server/src/bin.ts serve --host 127.0.0.1 --port 3773
+   rove service status
    ```
 
 4. In Cloudflare, create a named [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/).
 5. Install and run `cloudflared` on the computer running Rove using the connector command provided by Cloudflare. Treat the connector token as a secret.
 6. Add a published application route for `rove-host.hafiezulzikry.com` with service URL `http://127.0.0.1:3773`.
-7. In a second terminal in the same checkout, create a one-time pairing code:
+7. Create a one-time pairing code on the host:
 
    ```sh
-   node apps/server/src/bin.ts auth pairing create
+   rove auth pairing create
    ```
 
 8. Open `https://rove.hafiezulzikry.com` and add an environment under **Settings → Connections**.
 9. Enter `https://rove-host.hafiezulzikry.com` as the host and paste the pairing code.
 10. Confirm that your projects load. Start a thread and verify streaming responses from your provider.
 
-Keep Rove, `cloudflared`, and the computer running while you work. The static website stays available when the computer is off, but its environment is offline. Keep pairing authentication enabled. Do not give visitors a pairing code for your own computer.
+Keep the Rove service, `cloudflared`, and the computer running while you work. Update the host with `rove update`. The static website stays available when the computer is off, but its environment is offline. Keep pairing authentication enabled. Do not give visitors a pairing code for your own computer.
 
 Users of the public browser app connect their own environments. They do not need your tunnel or domain. A private Tailscale HTTPS endpoint also works for devices on the same tailnet. A plain HTTP LAN endpoint cannot be used from the public HTTPS app.
 

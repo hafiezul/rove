@@ -2,6 +2,8 @@ import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import * as Terminal from "effect/Terminal";
 import { Command, Flag, GlobalFlag, Prompt } from "effect/unstable/cli";
 import { FetchHttpClient } from "effect/unstable/http";
@@ -11,13 +13,20 @@ import * as BootService from "../cloud/bootService.ts";
 import { compareExactServiceVersions } from "../cloud/serviceProtocol.ts";
 import type * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
-import { projectLocationFlags, resolveCliAuthConfig } from "./config.ts";
+import { projectLocationFlags, resolveCliAuthConfig, serviceLaunchFlags } from "./config.ts";
+import type { ServiceLaunchPatch } from "../cloud/serviceLaunchConfig.ts";
 
 export const bootServiceLayer = (config: ServerConfig.ServerConfig["Service"]) =>
   BootService.layer({
     baseDir: config.baseDir,
     logsDir: config.logsDir,
     cliVersion: packageJson.version,
+    launchDefaults: {
+      host: config.host ?? "127.0.0.1",
+      port: config.port,
+      tailscaleServeEnabled: config.tailscaleServeEnabled,
+      tailscaleServePort: config.tailscaleServePort,
+    },
   }).pipe(
     Layer.provide(ProcessRunner.layer),
     // Archive-distributed versions download the release archive here.
@@ -39,10 +48,16 @@ export type ServiceReconcileResult =
 export const reconcileService = Effect.fn("cli.service.reconcile")(function* (options?: {
   readonly allowDowngrade?: boolean;
   readonly start?: boolean;
+  readonly launch?: ServiceLaunchPatch;
 }) {
   const service = yield* BootService.BootService;
   const status = yield* service.status;
-  if (status.installed && status.current) {
+  const launchMatches = (
+    ["host", "port", "tailscaleServeEnabled", "tailscaleServePort"] as const
+  ).every(
+    (key) => options?.launch?.[key] === undefined || options.launch[key] === status.launch?.[key],
+  );
+  if (status.installed && status.current && launchMatches) {
     return { changed: false, status } satisfies ServiceReconcileResult;
   }
   if (
@@ -118,13 +133,29 @@ const serviceReconcileFlags = {
   ),
 };
 
-const serviceInstallCommand = Command.make("install", serviceReconcileFlags).pipe(
+const serviceInstallCommand = Command.make("install", {
+  ...serviceReconcileFlags,
+  ...serviceLaunchFlags,
+}).pipe(
   Command.withDescription("Install Rove Code as a background service for this user."),
   Command.withHandler((flags) =>
     runServiceCommand(
       flags,
       Effect.gen(function* () {
-        const result = yield* reconcileService({ allowDowngrade: flags.allowDowngrade });
+        const launch: ServiceLaunchPatch = {
+          ...(Option.isSome(flags.host) ? { host: flags.host.value } : {}),
+          ...(Option.isSome(flags.port) ? { port: flags.port.value } : {}),
+          ...(Option.isSome(flags.tailscaleServeEnabled)
+            ? { tailscaleServeEnabled: flags.tailscaleServeEnabled.value }
+            : {}),
+          ...(Option.isSome(flags.tailscaleServePort)
+            ? { tailscaleServePort: flags.tailscaleServePort.value }
+            : {}),
+        };
+        const result = yield* reconcileService({
+          allowDowngrade: flags.allowDowngrade,
+          ...(Object.keys(launch).length === 0 ? {} : { launch }),
+        });
         if (!result.changed) {
           yield* Console.log(
             `Rove Code service is already installed with rove@${packageJson.version}.`,
@@ -201,14 +232,24 @@ const serviceUninstallCommand = Command.make("uninstall", projectLocationFlags).
   ),
 );
 
-const serviceStatusCommand = Command.make("status", projectLocationFlags).pipe(
+const encodeServiceStatus = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+
+const serviceStatusCommand = Command.make("status", {
+  ...projectLocationFlags,
+  json: Flag.Boolean("json").pipe(Flag.withDefault(false)),
+}).pipe(
   Command.withDescription("Show whether the Rove Code background service is installed."),
   Command.withHandler((flags) =>
     runServiceCommand(
       flags,
       Effect.gen(function* () {
         const service = yield* BootService.BootService;
-        yield* Console.log(formatServiceStatus(yield* service.status, packageJson.version));
+        const status = yield* service.status;
+        yield* Console.log(
+          flags.json
+            ? yield* encodeServiceStatus(status)
+            : formatServiceStatus(status, packageJson.version),
+        );
       }),
     ),
   ),

@@ -1,22 +1,37 @@
-# Updating Rove Code
+# Update Rove Code
 
-This fork currently runs from source and does not publish a managed updater. If
-you use more than one machine, update the source checkout on the machine running
-the server as well as the client you use to reach it. An older server may show
-a version-mismatch notice in the conversation or **Settings → Connections**;
-it cannot update itself in this build.
+Desktop clients and remote hosts update independently. Updating the Mac application does not replace a Linux host's runtime.
 
-Finish active agent work and terminal commands before stopping the server. In
-each checkout, pull the desired revision, run `vp i`, and restart the process
-using the same host and pairing settings you used before. For a desktop source
-build, rebuild and relaunch the desktop app. Your state remains under
-`~/.rove-code`, or the worktree-local `.rove` in a linked development worktree.
+## Update a CLI host
 
-**Settings → General → Continue threads after restarts** can resume supported
-active threads after an update or crash when Rove Code starts again. Terminal
-commands may still be interrupted, and threads without saved provider resume
-state need a new message. The setting does not start the server for you.
+For a host installed as a background service, run:
 
-Desktop installers, a self-update feed, and mobile store releases will have
-separate update instructions once this project publishes and verifies its own
-artifacts.
+```sh
+rove update
+```
+
+The CLI downloads a Rove release and offers to restart the service. To select an exact version, pass it to `rove update`. If you decline the restart, run `rove service restart` when ready.
+
+You can also invoke the updater through the published npm launcher:
+
+```sh
+npx @rove-code/cli@latest update
+```
+
+The service uses its own pinned runtime. Updating the npm launcher alone does not replace a running server. No Git checkout or dependency installation is required for a packaged host update.
+
+Use the same data directory when installing, pairing, or updating an environment. Its identity, authorization, thread history, and saved connection route remain there across versions.
+
+## Update from a client
+
+On web and desktop, open **Settings → Connections** and update a connected host. A launcher-managed CLI host supports remote updates. A desktop-managed host updates through the desktop application supervising it.
+
+A server started by hand has no update owner. Install the background service before expecting remote updates. A development checkout is not a packaged host.
+
+The client verifies the resulting version after reconnecting. If a trial service update fails before committing, the launcher restores the previous runtime and database. A reconnect alone does not mean the update succeeded.
+
+## Protect active work
+
+Finish active terminal commands before restarting. **Settings → General → Continue threads after restarts** can resume supported threads with saved provider state. Terminal commands can still be interrupted. The setting does not start a stopped host.
+
+Release commands require published Rove artifacts. Do not substitute an upstream package or change the host's data directory to work around a missing release.

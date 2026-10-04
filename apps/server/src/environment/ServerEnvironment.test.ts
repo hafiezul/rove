@@ -10,6 +10,13 @@ import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 
 import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
+import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import packageJson from "../../package.json" with { type: "json" };
+import {
+  SERVICE_LAUNCHER_CONTEXT_ENV,
+  SERVICE_LAUNCHER_PROTOCOL,
+} from "../cloud/serviceProtocol.ts";
+import { ServiceLauncherHostProcess } from "../cloud/serviceLauncherClient.ts";
 import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
@@ -229,7 +236,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
     }),
   );
 
-  it.effect("does not advertise self-update until this fork publishes its own artifacts", () =>
+  it.effect("advertises updates only for the runtime that owns the server lifecycle", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
@@ -238,7 +245,10 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
       const serverConfig = yield* makeServerConfig(baseDir);
       yield* fileSystem.makeDirectory(serverConfig.stateDir, { recursive: true });
 
-      const describeWith = (overrides: Partial<ServerConfig.ServerConfig["Service"]>) =>
+      const describeWith = (
+        overrides: Partial<ServerConfig.ServerConfig["Service"]>,
+        managed = false,
+      ) =>
         Effect.gen(function* () {
           const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
           return yield* serverEnvironment.getDescriptor;
@@ -249,17 +259,40 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
               Layer.provide(ServerConfig.layer({ ...serverConfig, ...overrides })),
             ),
           ),
+          Effect.provideService(
+            HostProcessEnvironment,
+            managed
+              ? {
+                  [SERVICE_LAUNCHER_CONTEXT_ENV]: JSON.stringify({
+                    protocol: SERVICE_LAUNCHER_PROTOCOL,
+                    childVersion: packageJson.version,
+                  }),
+                }
+              : {},
+          ),
+          Effect.provideService(ServiceLauncherHostProcess, {
+            connected: managed,
+            send: () => true,
+            on: () => {},
+            off: () => {},
+          }),
         );
 
       const withFd = yield* describeWith({ mode: "desktop", desktopTelemetryControlFd: 5 });
       const withoutFd = yield* describeWith({ mode: "desktop" });
       const web = yield* describeWith({ mode: "web", desktopTelemetryControlFd: 5 });
-      for (const descriptor of [withFd, withoutFd, web]) {
-        expect(descriptor.capabilities.serverSelfUpdate).toBeUndefined();
-        expect(descriptor.capabilities.desktopAppUpdate).toBeUndefined();
-        expect(descriptor.capabilities.serverSelfUpdateProgress).toBeUndefined();
-        expect(descriptor.capabilities.serverUpdateThreadContinuation).toBeUndefined();
-      }
+      expect(withFd.capabilities.serverSelfUpdate).toBe("desktop-managed");
+      expect(withFd.capabilities.desktopAppUpdate).toBe(true);
+      expect(withFd.capabilities.serverSelfUpdateProgress).toBe(true);
+      expect(withFd.capabilities.serverUpdateThreadContinuation).toBe(true);
+      expect(withoutFd.capabilities.serverSelfUpdate).toBe("desktop-managed");
+      expect(withoutFd.capabilities.desktopAppUpdate).toBeUndefined();
+      expect(web.capabilities.serverSelfUpdate).toBeUndefined();
+      expect(web.capabilities.desktopAppUpdate).toBeUndefined();
+      const service = yield* describeWith({ mode: "web" }, true);
+      expect(service.capabilities.serverSelfUpdate).toBe("boot-service");
+      expect(service.capabilities.serverSelfUpdateProgress).toBe(true);
+      expect(service.capabilities.serverUpdateThreadContinuation).toBe(true);
     }),
   );
 
