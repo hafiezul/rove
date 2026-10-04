@@ -48,10 +48,36 @@ function processSample(
 }
 
 const scenarios = [
-  { name: "15m default chart", seconds: 900, bucketMs: 30_000, churn: false },
-  { name: "1h default chart", seconds: 3_600, bucketMs: 120_000, churn: false },
-  { name: "1h with short-lived processes", seconds: 3_600, bucketMs: 120_000, churn: true },
-  { name: "1h with one-second buckets", seconds: 3_600, bucketMs: 1_000, churn: false },
+  { name: "15m default chart", seconds: 900, bucketMs: 30_000, churn: false, processCount: 4 },
+  { name: "1h default chart", seconds: 3_600, bucketMs: 120_000, churn: false, processCount: 4 },
+  {
+    name: "1h with short-lived processes",
+    seconds: 3_600,
+    bucketMs: 120_000,
+    churn: true,
+    processCount: 4,
+  },
+  {
+    name: "1h with one-second buckets",
+    seconds: 3_600,
+    bucketMs: 1_000,
+    churn: false,
+    processCount: 4,
+  },
+  {
+    name: "1h with 32 processes",
+    seconds: 3_600,
+    bucketMs: 120_000,
+    churn: false,
+    processCount: 32,
+  },
+  {
+    name: "1h with 32 short-lived processes",
+    seconds: 3_600,
+    bucketMs: 120_000,
+    churn: true,
+    processCount: 32,
+  },
 ];
 
 describe("resource history replay", () => {
@@ -64,8 +90,8 @@ describe("resource history replay", () => {
         sequence: index + 1,
         sampledAtUnixMs: start + index * 1_000,
         collectionDurationMicros: 100,
-        scannedProcessCount: 4,
-        retainedProcessCount: 4,
+        scannedProcessCount: scenario.processCount,
+        retainedProcessCount: scenario.processCount,
         inaccessibleProcessCount: 0,
         externalProcesses: [{ pid: 200, startTimeMs: 200_000 }],
         processes: [
@@ -78,6 +104,17 @@ describe("resource history replay", () => {
             scenario.churn ? index % 20 : index,
             "codex",
             "codex app-server",
+          ),
+          ...Array.from({ length: scenario.processCount - 4 }, (_, processIndex) =>
+            processSample(
+              1_000 +
+                processIndex +
+                (scenario.churn ? Math.floor(index / 20) * scenario.processCount : 0),
+              100,
+              scenario.churn ? index % 20 : index,
+              "codex",
+              "codex app-server",
+            ),
           ),
         ],
       }),

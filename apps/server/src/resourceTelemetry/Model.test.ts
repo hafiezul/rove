@@ -111,6 +111,63 @@ function merge(input: {
 }
 
 describe("resource telemetry process model", () => {
+  it("can advance process baselines and rates without accumulating counters", () => {
+    const first = merge({
+      native: nativeSnapshot(BASE_TIME_MS, [
+        processSample({ pid: SERVER_PID, ppid: 1, startTimeMs: 1_000, cpuTimeMs: 100 }),
+        processSample({ pid: 200, ppid: SERVER_PID, startTimeMs: 2_000 }),
+      ]),
+    });
+    const input = {
+      serverPid: SERVER_PID,
+      sidecarPid: Option.none<number>(),
+      fallbackSampledAtMs: BASE_TIME_MS + 1_000,
+      nativeSnapshot: Option.some(
+        nativeSnapshot(BASE_TIME_MS + 1_000, [
+          processSample({
+            pid: SERVER_PID,
+            ppid: 1,
+            startTimeMs: 1_000,
+            cpuTimeMs: 350,
+            ioReadBytes: 1_024,
+            ioWriteBytes: 2_048,
+          }),
+          processSample({ pid: 300, ppid: SERVER_PID, startTimeMs: 3_000 }),
+        ]),
+      ),
+      desktopSnapshot: Option.none<DesktopHostTelemetrySnapshot>(),
+      previous: first.previous,
+      counters: first.counters,
+      updatePrevious: true,
+    };
+    const cumulative = mergeProcesses(input);
+    const sampled = mergeProcesses({ ...input, accumulateCounters: false });
+
+    expect(sampled.processes).toEqual(cumulative.processes);
+    expect(sampled.previous).toEqual(cumulative.previous);
+    expect(sampled.deltas).toEqual(cumulative.deltas);
+    expect(sampled.processes[0]).toMatchObject({
+      cpuPercent: 25,
+      ioReadBytesPerSecond: 1_024,
+      ioWriteBytesPerSecond: 2_048,
+    });
+    expect(sampled.counters).toBe(first.counters);
+    expect(sampled.groups.allT3).toMatchObject({
+      currentCpuPercent: cumulative.groups.allT3.currentCpuPercent,
+      currentRssBytes: cumulative.groups.allT3.currentRssBytes,
+      processCount: cumulative.groups.allT3.processCount,
+      ...first.counters.allT3,
+    });
+    expect(cumulative.counters.allT3).toMatchObject({
+      cpuTimeMs: 250,
+      ioReadBytes: 1_024,
+      ioWriteBytes: 2_048,
+      processStarts: 3,
+      processExits: 1,
+    });
+    expect(first.counters.allT3).toMatchObject({ processStarts: 2, processExits: 0, cpuTimeMs: 0 });
+  });
+
   it("builds complete descendant depths and isolates monitor overhead", () => {
     const result = merge({
       sidecarPid: 900,

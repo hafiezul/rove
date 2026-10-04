@@ -197,6 +197,62 @@ describe("buildResourceTelemetryHistory", () => {
     });
   });
 
+  it("summarizes chronological samples while preserving equal-time order and latest metadata", () => {
+    const samples = [
+      { offsetMs: 0, cpuTimeMs: 0, cpuPercent: 4, residentBytes: 100, name: "first" },
+      { offsetMs: 1_000, cpuTimeMs: 200, cpuPercent: 3, residentBytes: 300, name: "middle" },
+      { offsetMs: 1_000, cpuTimeMs: 350, cpuPercent: 6, residentBytes: 200, name: "duplicate" },
+      { offsetMs: 2_000, cpuTimeMs: 450, cpuPercent: 1, residentBytes: 250, name: "latest" },
+    ].map((sample, index) => {
+      const native = snapshot(
+        index + 1,
+        STARTED_AT_MS + sample.offsetMs,
+        sample.cpuTimeMs,
+        index * 1_000,
+      );
+      return {
+        ...native,
+        processes: native.processes.map((process) =>
+          process.pid === CHILD_PID
+            ? {
+                ...process,
+                cpuPercent: sample.cpuPercent,
+                residentBytes: sample.residentBytes,
+                name: sample.name,
+              }
+            : process,
+        ),
+      };
+    });
+    const history = buildResourceTelemetryHistory({
+      readAt: DateTime.makeUnsafe(STARTED_AT_MS + 3_000),
+      windowMs: 3_000,
+      bucketMs: 1_000,
+      sampleIntervalMs: 1_000,
+      serverPid: SERVER_PID,
+      sidecarPid: Option.none(),
+      desktopSnapshot: Option.none(),
+      snapshots: [samples[3]!, samples[1]!, samples[0]!, samples[2]!],
+      health,
+    });
+
+    expect(history.retainedSampleCount).toBe(16);
+    expect(history.topProcesses[0]).toMatchObject({
+      identity: { pid: CHILD_PID, startTimeMs: 30 },
+      name: "latest",
+      firstSeenAt: DateTime.makeUnsafe(STARTED_AT_MS),
+      lastSeenAt: DateTime.makeUnsafe(STARTED_AT_MS + 2_000),
+      currentCpuPercent: 10,
+      avgCpuPercent: 10,
+      maxCpuPercent: 20,
+      cpuTimeMs: 300,
+      currentRssBytes: 250,
+      peakRssBytes: 300,
+      ioWriteBytes: 2_000,
+      sampleCount: 4,
+    });
+  });
+
   it("keeps empty buckets and a partial final bucket", () => {
     const readAtMs = STARTED_AT_MS + 5_500;
     const history = buildResourceTelemetryHistory({
