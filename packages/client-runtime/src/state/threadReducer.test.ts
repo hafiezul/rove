@@ -567,6 +567,111 @@ describe("applyThreadDetailEvent", () => {
   });
 
   describe("thread.message-sent", () => {
+    function sendDelta(thread: OrchestrationThread, messageId: MessageId, text: string) {
+      const result = applyThreadDetailEvent(thread, {
+        ...baseEventFields,
+        sequence: 6,
+        occurredAt: baseThread.updatedAt,
+        aggregateKind: "thread",
+        aggregateId: thread.id,
+        type: "thread.message-sent",
+        payload: {
+          threadId: thread.id,
+          messageId,
+          role: "assistant",
+          text,
+          turnId: null,
+          streaming: true,
+          createdAt: baseThread.createdAt,
+          updatedAt: baseThread.updatedAt,
+        },
+      });
+      expect(result.kind).toBe("updated");
+      if (result.kind !== "updated") throw new Error("Message delta did not update the thread.");
+      return result.thread;
+    }
+
+    describe.each([0, 128])("with %i historical messages", (historyCount) => {
+      function withHistory(thread: OrchestrationThread) {
+        const template = sendDelta(baseThread, MessageId.make("history"), "history").messages[0]!;
+        const history = Array.from({ length: historyCount }, (_, index) =>
+          Object.freeze({
+            ...template,
+            id: MessageId.make(`history-${index}`),
+          }),
+        );
+        return { ...thread, messages: Object.freeze([...history, ...thread.messages]) };
+      }
+
+      function messageTexts(thread: OrchestrationThread) {
+        return thread.messages
+          .filter((entry) => !entry.id.startsWith("history-"))
+          .map((entry) => entry.text);
+      }
+
+      it("updates every duplicate ID across repeated deltas without mutating history", () => {
+        const seed = sendDelta(baseThread, MessageId.make("duplicate"), "first");
+        const other = sendDelta(baseThread, MessageId.make("other"), "other").messages[0]!;
+        const message = Object.freeze(seed.messages[0]!);
+        const original = withHistory({
+          ...baseThread,
+          messages: [message, other, { ...message, text: "second" }],
+        });
+        const first = sendDelta(original, message.id, "+");
+        Object.freeze(first.messages);
+        const second = sendDelta(first, message.id, "+");
+        expect(messageTexts(second)).toEqual(["first++", "other", "second++"]);
+        expect(second.messages[historyCount + 1]).toBe(other);
+        expect(messageTexts(first)).toEqual(["first+", "other", "second+"]);
+        expect(messageTexts(original)).toEqual(["first", "other", "second"]);
+        for (let index = 0; index < historyCount; index += 1)
+          expect(second.messages[index]).toBe(original.messages[index]);
+      });
+
+      it("keeps branched histories and replacement arrays independent", () => {
+        const targetId = MessageId.make("target");
+        const seeded = withHistory(sendDelta(baseThread, targetId, "seed"));
+        const warmed = sendDelta(seeded, targetId, "+");
+        const otherBranch = sendDelta(warmed, MessageId.make("other"), "other");
+        const otherMessage = otherBranch.messages.at(-1)!;
+        const prepended = {
+          ...warmed,
+          messages: Object.freeze([otherMessage, ...warmed.messages]),
+        };
+        const reordered = {
+          ...otherBranch,
+          messages: Object.freeze(otherBranch.messages.toReversed()),
+        };
+        expect(messageTexts(sendDelta(prepended, targetId, "page"))).toEqual([
+          "other",
+          "seed+page",
+        ]);
+        expect(messageTexts(sendDelta(reordered, targetId, "snapshot"))).toEqual([
+          "other",
+          "seed+snapshot",
+        ]);
+        expect(messageTexts(sendDelta(otherBranch, targetId, "branch"))).toEqual([
+          "seed+branch",
+          "other",
+        ]);
+        expect(messageTexts(sendDelta(warmed, targetId, "original"))).toEqual(["seed+original"]);
+        expect(warmed.messages.at(-1)?.text).toBe("seed+");
+      });
+
+      it("preserves updates after switching among more targets than the recent index retains", () => {
+        const ids = Array.from({ length: 20 }, (_, index) => MessageId.make(`target-${index}`));
+        let thread = withHistory(baseThread);
+        for (const id of ids) thread = sendDelta(thread, id, "seed");
+        for (let pass = 0; pass < 3; pass += 1) {
+          for (const id of ids) thread = sendDelta(thread, id, "+");
+        }
+        expect(thread.messages.slice(historyCount).map((entry) => [entry.id, entry.text])).toEqual(
+          ids.map((id) => [id, "seed+++"]),
+        );
+        expect(baseThread.messages).toEqual([]);
+      });
+    });
+
     it.each([
       ["first", ["first+", "middle", "last"]],
       ["middle", ["first", "middle+", "last"]],

@@ -1629,9 +1629,11 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           // assistant messages per turn (commentary between tool calls), and
           // the turn must stay unsettled until the provider reports turn end
           // (projected as thread.session-set leaving the "running" status).
-          const session = yield* projectionThreadSessionRepository.getByThreadId({
-            threadId: event.payload.threadId,
-          });
+          const session = event.payload.streaming
+            ? Option.none()
+            : yield* projectionThreadSessionRepository.getByThreadId({
+                threadId: event.payload.threadId,
+              });
           const turnStillRunning =
             Option.isSome(session) &&
             session.value.status === "running" &&
@@ -1642,6 +1644,13 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             turnId: event.payload.turnId,
           });
           if (Option.isSome(existingTurn)) {
+            if (
+              event.payload.streaming &&
+              existingTurn.value.assistantMessageId === event.payload.messageId &&
+              existingTurn.value.startedAt !== null
+            ) {
+              return;
+            }
             yield* projectionTurnRepository.upsertByTurnId({
               ...existingTurn.value,
               assistantMessageId: event.payload.messageId,

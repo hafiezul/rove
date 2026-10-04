@@ -51,6 +51,15 @@ function withPullRequests(
   };
 }
 
+// Frequently changing targets make indexing short histories slower than scanning.
+// A full index would make each new-message append copy history-sized metadata.
+const MIN_INDEXED_MESSAGE_COUNT = 128;
+const MAX_RECENT_MESSAGE_IDS = 8;
+const messageUpdateIndices = new WeakMap<
+  ReadonlyArray<OrchestrationMessage>,
+  ReadonlyArray<{ readonly messageId: MessageId; readonly indices: ReadonlyArray<number> }>
+>();
+
 const proposedPlanOrder = O.combine<OrchestrationThread["proposedPlans"][number]>(
   O.mapInput(O.String, (p) => p.createdAt),
   O.mapInput(O.String, (p) => p.id),
@@ -424,11 +433,8 @@ export function applyThreadDetailEvent(
         updatedAt: event.payload.updatedAt,
       };
 
-      let found = false;
-      const messages = thread.messages.map((entry) => {
-        if (entry.id !== message.id) return entry;
-        found = true;
-        return {
+      const updateMessage = (entry: OrchestrationMessage) => {
+        const updated = {
           ...entry,
           text: message.streaming
             ? `${entry.text}${message.text}`
@@ -436,13 +442,39 @@ export function applyThreadDetailEvent(
               ? message.text
               : entry.text,
           streaming: message.streaming,
-          ...(message.turnId !== undefined ? { turnId: message.turnId } : {}),
-          ...(message.streaming ? {} : { updatedAt: message.updatedAt }),
-          ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),
-          ...(message.context !== undefined ? { context: message.context } : {}),
         };
-      });
-      if (!found) messages.push(message);
+        if (message.turnId !== undefined) updated.turnId = message.turnId;
+        if (!message.streaming) updated.updatedAt = message.updatedAt;
+        if (message.attachments !== undefined) updated.attachments = message.attachments;
+        if (message.context !== undefined) updated.context = message.context;
+        return updated;
+      };
+      const messages = thread.messages.slice();
+      const previousIndices = messageUpdateIndices.get(thread.messages);
+      const cachedIndices = previousIndices?.find(
+        (update) => update.messageId === message.id,
+      )?.indices;
+      if (previousIndices !== undefined && cachedIndices !== undefined) {
+        for (const index of cachedIndices) messages[index] = updateMessage(messages[index]!);
+        messageUpdateIndices.set(messages, previousIndices);
+      } else {
+        const indices: number[] = [];
+        for (let index = 0; index < messages.length; index += 1) {
+          const entry = messages[index];
+          if (entry?.id !== message.id) continue;
+          indices.push(index);
+          messages[index] = updateMessage(entry);
+        }
+        if (indices.length === 0) {
+          indices.push(messages.length);
+          messages.push(message);
+        }
+        if (messages.length >= MIN_INDEXED_MESSAGE_COUNT) {
+          const nextIndices = previousIndices?.slice(1 - MAX_RECENT_MESSAGE_IDS) ?? [];
+          nextIndices.push({ messageId: message.id, indices });
+          messageUpdateIndices.set(messages, nextIndices);
+        }
+      }
       // Update latestTurn for assistant messages bound to a turn. A completed
       // assistant message only settles the turn once the session is no longer
       // running it — providers may emit several assistant messages per turn

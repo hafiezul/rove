@@ -138,7 +138,7 @@ const delta: OrchestrationEvent = {
 };
 
 describe("remote message replay", () => {
-  for (const count of [100, 1_000]) {
+  for (const count of [100, 1_000, 10_000]) {
     const loaded = {
       ...thread,
       messages: Array.from({ length: count }, (_, index) => ({
@@ -146,20 +146,32 @@ describe("remote message replay", () => {
         id: MessageId.make(`message-${index}`),
       })),
     };
-    const event = {
-      ...delta,
-      payload: { ...delta.payload, messageId: loaded.messages.at(-1)!.id },
-    };
-    bench(
-      `apply 200 text deltas to ${count} loaded messages`,
-      () => {
-        let current: OrchestrationThread = loaded;
-        for (let index = 0; index < 200; index += 1) {
-          const result = applyThreadDetailEvent(current, event);
-          if (result.kind === "updated") current = result.thread;
-        }
-      },
-      { warmupTime: 1_000, time: 1_500 },
-    );
+    for (const target of ["tail", "alternating", "rotating", "append"] as const) {
+      const events = Array.from({ length: 200 }, (_, index) => ({
+        ...delta,
+        payload: {
+          ...delta.payload,
+          messageId:
+            target === "append"
+              ? MessageId.make(`new-message-${index}`)
+              : loaded.messages[
+                  count -
+                    1 -
+                    (target === "alternating" ? index % 2 : target === "rotating" ? index % 20 : 0)
+                ]!.id,
+        },
+      }));
+      bench(
+        `apply 200 ${target} message updates to ${count} loaded messages`,
+        () => {
+          let current: OrchestrationThread = loaded;
+          for (const event of events) {
+            const result = applyThreadDetailEvent(current, event);
+            if (result.kind === "updated") current = result.thread;
+          }
+        },
+        { warmupTime: 1_000, time: 1_500 },
+      );
+    }
   }
 });
