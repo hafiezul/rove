@@ -148,7 +148,7 @@ export const CLI_EXTERNAL_PACKAGE_UNPACK_GLOBS = [
  * `regionCount` is reported so the caller can tell "nothing was inlined" apart
  * from "the marker format changed and this scan no longer sees anything".
  *
- * `inlinedPackages` is every package seen in a region, which lets the caller
+ * `inlinedPackages` is every package with bundled runtime code, which lets the caller
  * check the opposite direction too. Verifying only that externals are absent
  * would still pass if the bundler reverted to leaving everything external: the
  * scan would see source-file regions, report nothing inlined, and the packaged
@@ -166,6 +166,8 @@ export function findInlinedExternalPackages(source: string) {
   for (const region of source.matchAll(regionPattern)) {
     regionCount += 1;
     const regionPath = region[1] ?? "";
+    // Manifest metadata cannot load native binaries or initialize a package runtime.
+    if (regionPath.endsWith("/package.json")) continue;
     for (const candidate of regionPath.matchAll(packagePattern)) {
       const name = candidate[1];
       if (name === undefined || name === ".pnpm") continue;
