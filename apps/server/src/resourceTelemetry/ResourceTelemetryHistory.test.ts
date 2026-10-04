@@ -165,6 +165,65 @@ describe("buildResourceTelemetryHistory", () => {
     expect(history.buckets.reduce((total, bucket) => total + bucket.ioWriteBytes, 0)).toBe(4_000);
   });
 
+  it("assigns boundary samples once and includes the read time in the final bucket", () => {
+    const history = buildResourceTelemetryHistory({
+      readAt: DateTime.makeUnsafe(STARTED_AT_MS + 3_000),
+      windowMs: 3_000,
+      bucketMs: 1_000,
+      sampleIntervalMs: 1_000,
+      serverPid: SERVER_PID,
+      sidecarPid: Option.none(),
+      desktopSnapshot: Option.none(),
+      snapshots: [
+        snapshot(4, STARTED_AT_MS + 3_000, 700, 5_000),
+        snapshot(1, STARTED_AT_MS, 0, 0),
+        snapshot(3, STARTED_AT_MS + 2_000, 400, 4_000),
+        snapshot(2, STARTED_AT_MS + 1_000, 100, 1_000),
+      ],
+      health,
+    });
+
+    for (const buckets of [history.buckets, history.legacyBackendBuckets]) {
+      expect(buckets.map((bucket) => bucket.avgCpuPercent)).toEqual([0, 10, 30]);
+      expect(buckets.map((bucket) => bucket.ioWriteBytes)).toEqual([0, 1_000, 4_000]);
+      expect(buckets.map((bucket) => bucket.maxProcessCount)).toEqual([3, 3, 3]);
+    }
+    expect(
+      history.topProcesses.find((process) => process.identity.pid === CHILD_PID),
+    ).toMatchObject({
+      sampleCount: 4,
+      cpuTimeMs: 700,
+      ioWriteBytes: 5_000,
+    });
+  });
+
+  it("keeps empty buckets and a partial final bucket", () => {
+    const readAtMs = STARTED_AT_MS + 5_500;
+    const history = buildResourceTelemetryHistory({
+      readAt: DateTime.makeUnsafe(readAtMs),
+      windowMs: 5_500,
+      bucketMs: 1_000,
+      sampleIntervalMs: 1_000,
+      serverPid: SERVER_PID,
+      sidecarPid: Option.none(),
+      desktopSnapshot: Option.none(),
+      snapshots: [
+        snapshot(3, readAtMs, 500, 5_000),
+        snapshot(1, STARTED_AT_MS + 1_000, 100, 1_000),
+        snapshot(2, STARTED_AT_MS + 3_500, 300, 3_000),
+      ],
+      health,
+    });
+
+    for (const buckets of [history.buckets, history.legacyBackendBuckets]) {
+      expect(buckets.map((bucket) => bucket.ioWriteBytes)).toEqual([0, 0, 0, 2_000, 0, 2_000]);
+      expect(buckets.map((bucket) => bucket.maxProcessCount)).toEqual([0, 3, 0, 3, 0, 3]);
+      expect(buckets[0]).toMatchObject({ avgCpuPercent: 0, maxCpuPercent: 0, maxRssBytes: 0 });
+      expect(DateTime.toEpochMillis(buckets[5]!.startedAt)).toBe(STARTED_AT_MS + 5_000);
+      expect(DateTime.toEpochMillis(buckets[5]!.endedAt)).toBe(readAtMs);
+    }
+  });
+
   it("uses observed RSS for the history-window peak instead of the lifetime process peak", () => {
     const first = snapshot(1, STARTED_AT_MS, 100, 1_000);
     const second = snapshot(2, STARTED_AT_MS + 1_000, 200, 2_000);
@@ -228,6 +287,43 @@ describe("buildResourceTelemetryHistory", () => {
     const child = history.topProcesses.find((process) => process.identity.pid === CHILD_PID);
     expect(child?.cpuTimeMs).toBe(250);
     expect(child?.ioWriteBytes).toBe(4_000);
+  });
+
+  it("keeps process baselines private to each history read", () => {
+    const snapshots = [
+      snapshot(1, STARTED_AT_MS, 100, 1_000),
+      snapshot(2, STARTED_AT_MS + 1_000, 350, 5_000),
+    ];
+    for (const sample of snapshots) {
+      for (const process of sample.processes) Object.freeze(process);
+      Object.freeze(sample.processes);
+      Object.freeze(sample);
+    }
+    Object.freeze(snapshots);
+    const input = {
+      readAt: DateTime.makeUnsafe(STARTED_AT_MS + 2_000),
+      windowMs: 10_000,
+      bucketMs: 10_000,
+      sampleIntervalMs: 1_000,
+      serverPid: SERVER_PID,
+      sidecarPid: Option.none<number>(),
+      desktopSnapshot: Option.none<DesktopHostTelemetrySnapshot>(),
+      snapshots,
+      health,
+    };
+    const first = buildResourceTelemetryHistory(input);
+    const later = buildResourceTelemetryHistory({
+      ...input,
+      readAt: DateTime.makeUnsafe(STARTED_AT_MS + 4_000),
+      snapshots: [snapshot(3, STARTED_AT_MS + 3_500, 10_000, 20_000)],
+    });
+
+    expect(buildResourceTelemetryHistory(input)).toEqual(first);
+    expect(later.topProcesses.find((process) => process.identity.pid === CHILD_PID)).toMatchObject({
+      firstSeenAt: DateTime.makeUnsafe(STARTED_AT_MS + 3_500),
+      cpuTimeMs: 0,
+      ioWriteBytes: 0,
+    });
   });
 
   it("uses an exact current Electron identity for slightly older native samples", () => {

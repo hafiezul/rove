@@ -118,27 +118,44 @@ function buildBuckets(input: {
 }): ReadonlyArray<ResourceTelemetryHistoryBucket> {
   const windowStartMs = input.nowMs - input.windowMs;
   const buckets: ResourceTelemetryHistoryBucket[] = [];
+  // History replay appends samples chronologically, so each sample belongs to one bucket.
+  let sampleIndex = 0;
   for (let startedAtMs = windowStartMs; startedAtMs < input.nowMs; startedAtMs += input.bucketMs) {
     const endedAtMs = Math.min(input.nowMs, startedAtMs + input.bucketMs);
-    const samples = input.samples.filter(
-      (sample) =>
-        sample.sampledAtMs >= startedAtMs &&
-        (endedAtMs === input.nowMs
-          ? sample.sampledAtMs <= endedAtMs
-          : sample.sampledAtMs < endedAtMs),
-    );
-    const cpuTotal = samples.reduce((total, sample) => total + sample.cpuPercent, 0);
+    let sampleCount = 0;
+    let cpuTotal = 0;
+    let maxCpuPercent = Number.NEGATIVE_INFINITY;
+    let maxRssBytes = Number.NEGATIVE_INFINITY;
+    let ioReadBytes = 0;
+    let ioWriteBytes = 0;
+    let maxProcessCount = Number.NEGATIVE_INFINITY;
+    while (sampleIndex < input.samples.length) {
+      const sample = input.samples[sampleIndex]!;
+      if (
+        sample.sampledAtMs > endedAtMs ||
+        (sample.sampledAtMs === endedAtMs && endedAtMs !== input.nowMs)
+      ) {
+        break;
+      }
+      sampleIndex += 1;
+      if (sample.sampledAtMs < startedAtMs) continue;
+      sampleCount += 1;
+      cpuTotal += sample.cpuPercent;
+      maxCpuPercent = Math.max(maxCpuPercent, sample.cpuPercent);
+      maxRssBytes = Math.max(maxRssBytes, sample.rssBytes);
+      ioReadBytes += sample.ioReadBytes;
+      ioWriteBytes += sample.ioWriteBytes;
+      maxProcessCount = Math.max(maxProcessCount, sample.processCount);
+    }
     buckets.push({
       startedAt: DateTime.makeUnsafe(startedAtMs),
       endedAt: DateTime.makeUnsafe(endedAtMs),
-      avgCpuPercent: samples.length === 0 ? 0 : cpuTotal / samples.length,
-      maxCpuPercent:
-        samples.length === 0 ? 0 : Math.max(...samples.map((sample) => sample.cpuPercent)),
-      maxRssBytes: samples.length === 0 ? 0 : Math.max(...samples.map((sample) => sample.rssBytes)),
-      ioReadBytes: samples.reduce((total, sample) => total + sample.ioReadBytes, 0),
-      ioWriteBytes: samples.reduce((total, sample) => total + sample.ioWriteBytes, 0),
-      maxProcessCount:
-        samples.length === 0 ? 0 : Math.max(...samples.map((sample) => sample.processCount)),
+      avgCpuPercent: sampleCount === 0 ? 0 : cpuTotal / sampleCount,
+      maxCpuPercent: sampleCount === 0 ? 0 : maxCpuPercent,
+      maxRssBytes: sampleCount === 0 ? 0 : maxRssBytes,
+      ioReadBytes,
+      ioWriteBytes,
+      maxProcessCount: sampleCount === 0 ? 0 : maxProcessCount,
     });
   }
   return buckets;
@@ -167,7 +184,7 @@ export function buildResourceTelemetryHistory(
   const aggregateSamples: AggregateSample[] = [];
   const legacyBackendAggregateSamples: AggregateSample[] = [];
   const processSamples: ProcessSample[] = [];
-  let previous: ReadonlyMap<string, ProcessState> = new Map();
+  const previous = new Map<string, ProcessState>();
   let counters: TelemetryCounters = emptyTelemetryCounters();
   let previousSnapshotAtMs: number | undefined;
 
@@ -217,7 +234,9 @@ export function buildResourceTelemetryHistory(
       counters,
       updatePrevious: true,
     });
-    previous = new Map([...previous, ...merged.previous]);
+    for (const [identityKey, processState] of merged.previous) {
+      previous.set(identityKey, processState);
+    }
     counters = merged.counters;
     if (snapshot.sampledAtUnixMs < windowStartMs) {
       continue;
