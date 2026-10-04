@@ -12,6 +12,8 @@ Use Cloudflare's free plan. Static asset requests are [free and unlimited](https
 4. At your domain registrar, replace the domain's nameservers with the two Cloudflare nameservers.
 5. Wait until Cloudflare shows the zone as active.
 
+The deployment uses only your custom domain. You do not need to register a `workers.dev` subdomain.
+
 The deployment creates the `rove.hafiezulzikry.com` DNS record and HTTPS certificate. Do not create a separate CNAME for that hostname. If the hostname already has a DNS record, resolve the conflict before deploying. Cloudflare requires an active zone for [Workers custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
 To use another hostname, change the custom-domain `pattern` in `apps/web/wrangler.json`. The workflow reads the browser app's public origin from that configuration.
