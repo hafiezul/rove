@@ -54,7 +54,8 @@ import {
   shouldShowResourceMonitorRetry,
   visibleResourceTelemetryProcesses,
 } from "./ResourceTelemetryDiagnostics.logic";
-import { SettingsSection, useRelativeTimeTick } from "./settingsLayout";
+import { SettingsSection } from "./settingsLayout";
+import { useRelativeTimeTick } from "../../hooks/useRelativeTimeTick";
 
 const HISTORY_WINDOWS = [
   { label: "5m", windowMs: 5 * 60_000, bucketMs: 15_000 },

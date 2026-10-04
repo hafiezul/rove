@@ -60,12 +60,8 @@ import {
   isWslSettingsRowVisible,
   selectQrEndpointOption,
 } from "./ConnectionsSettings.logic";
-import {
-  SettingsPageContainer,
-  SettingsRow,
-  SettingsSection,
-  useRelativeTimeTick,
-} from "./settingsLayout";
+import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
+import { useRelativeTimeTick } from "../../hooks/useRelativeTimeTick";
 import { LocalEnvironmentSetting } from "./LocalEnvironmentSetting";
 import { searchableSetting } from "./settingsSearch";
 import { EnvironmentIconMenu } from "./EnvironmentIconPicker";
@@ -599,7 +595,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   revokingPairingLinkId,
   onRevoke,
 }: PairingLinkListRowProps) {
-  const nowMs = useRelativeTimeTick(1_000);
+  const nowMs = useRelativeTimeTick();
   const expiresAtMs = useMemo(
     () => new Date(pairingLink.expiresAt).getTime(),
     [pairingLink.expiresAt],
@@ -977,7 +973,7 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
   revokingClientSessionId,
   onRevokeSession,
 }: ConnectedClientListRowProps) {
-  const nowMs = useRelativeTimeTick(1_000);
+  const nowMs = useRelativeTimeTick();
   const isLive = clientSession.current || clientSession.connected;
   const lastConnectedAt = clientSession.lastConnectedAt;
   const statusTooltip = isLive

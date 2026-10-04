@@ -101,9 +101,9 @@ import {
   SettingsPageContainer,
   SettingsRow,
   SettingsSection,
-  useRelativeTimeTick,
   useSettingsSearchTargetId,
 } from "./settingsLayout";
+import { useRelativeTimeTick } from "../../hooks/useRelativeTimeTick";
 import {
   buildProviderEnvironmentOptions,
   classifyProviderEnvironmentAccess,
