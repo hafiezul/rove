@@ -38,7 +38,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { buildSelectOptionDescriptor } from "../providerSnapshot.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
-import { PI_THINKING_DESCRIPTOR_ID, PI_THINKING_LEVEL_LABELS } from "./PiProvider.ts";
+import {
+  PI_THINKING_DESCRIPTOR_ID,
+  PI_THINKING_LEVEL_LABELS,
+  type PiDiscoveryClient,
+} from "./PiProvider.ts";
+import { makeSdkDiscoveryClient } from "./PiDiscovery.ts";
 import {
   createPiSessionServices,
   readPiModelUsageLimit,
@@ -73,6 +78,7 @@ export class PiCatalogHost {
   /** Share registered model implementations with tool-free metadata sessions. */
   readonly modelRuntime: ModelRuntime;
   private readonly resourceLoader: PiResourceLoader;
+  private readonly discoveryClient: PiDiscoveryClient;
   private disabledExtensions: ReadonlyArray<string>;
   private readonly extensionProviderIds = new Set<string>();
   private readonly extensionVirtualModels: Map<string, Set<string>>;
@@ -81,12 +87,14 @@ export class PiCatalogHost {
     session: AgentSession,
     modelRuntime: ModelRuntime,
     resourceLoader: PiResourceLoader,
+    agentDir: string,
     disabledExtensions: ReadonlyArray<string>,
     extensionVirtualModels: Map<string, Set<string>>,
   ) {
     this.session = session;
     this.modelRuntime = modelRuntime;
     this.resourceLoader = resourceLoader;
+    this.discoveryClient = makeSdkDiscoveryClient(() => this.getExtensionSlashCommands(), agentDir);
     this.disabledExtensions = disabledExtensions;
     this.extensionVirtualModels = extensionVirtualModels;
   }
@@ -116,6 +124,7 @@ export class PiCatalogHost {
       session,
       services.modelRuntime,
       services.resourceLoader,
+      agentDir,
       disabledExtensions,
       services.extensionVirtualModels,
     );
@@ -301,6 +310,10 @@ export class PiCatalogHost {
         ? { description: command.description }
         : undefined),
     }));
+  }
+
+  discover(input: Parameters<PiDiscoveryClient["discover"]>[0]) {
+    return this.discoveryClient.discover(input);
   }
 
   async getCatalog(): Promise<PiCatalogSnapshot> {

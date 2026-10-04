@@ -14,7 +14,8 @@ import { afterEach, beforeEach, describe, vi } from "vite-plus/test";
 import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
-import { makeSdkDiscoveryClient, PiDriver } from "./PiDriver.ts";
+import { PiDriver } from "./PiDriver.ts";
+import { makeSdkDiscoveryClient } from "../Layers/PiDiscovery.ts";
 import { parsePiResumeCursor } from "../Layers/PiAdapter.ts";
 
 const decodeEnvironmentRecord = Schema.decodeUnknownSync(
@@ -241,6 +242,30 @@ describe("Pi SDK discovery client", () => {
         );
         assert.strictEqual(process.env.PI_CODING_AGENT_DIR, agentDir);
       }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
+
+  it.effect("discovers project resources through the isolated instance runtime", () =>
+    Effect.gen(function* () {
+      const project = NodePath.join(root, "project-discovery");
+      NodeFS.mkdirSync(NodePath.join(project, ".pi", "prompts"), { recursive: true });
+      NodeFS.writeFileSync(NodePath.join(project, ".pi", "prompts", "local.md"), "Local prompt");
+      const instance = yield* PiDriver.create({
+        instanceId: ProviderInstanceId.make("pi-project-discovery"),
+        displayName: undefined,
+        enabled: true,
+        environment: [],
+        config: { ...PiDriver.defaultConfig(), agentDir },
+      });
+      const global = yield* instance.snapshot.refresh;
+      const scoped = yield* instance.snapshotForCwd!(project);
+
+      assert.isTrue(global.skills.some((skill) => skill.name === "fixture-skill"));
+      assert.isFalse(global.slashCommands.some((command) => command.name === "local"));
+      assert.isTrue(scoped.slashCommands.some((command) => command.name === "local"));
+      assert.isTrue(scoped.slashCommands.some((command) => command.name === "greet"));
+      assert.strictEqual(process.env.PI_CODING_AGENT_DIR, agentDir);
+      assert.isFalse(NodeFS.existsSync(NodePath.join(agentDir, "settings.json")));
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 
   it.effect("does not load extensions or admit work when the instance is disabled", () =>

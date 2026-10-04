@@ -18,8 +18,8 @@ import type {
   PiSessionUpdate,
 } from "./PiRuntimeProtocol.ts";
 
-/** Calls on one session. A timeout rejects the call; it never terminates the instance. */
-const SESSION_METHODS: ReadonlySet<keyof PiRuntimeCalls> = new Set<keyof PiRuntimeCalls>([
+/** Session work and resource scans can time out without terminating the instance. */
+const NON_FATAL_METHODS: ReadonlySet<keyof PiRuntimeCalls> = new Set<keyof PiRuntimeCalls>([
   "prompt",
   "followUp",
   "compact",
@@ -29,6 +29,7 @@ const SESSION_METHODS: ReadonlySet<keyof PiRuntimeCalls> = new Set<keyof PiRunti
   "setThinkingLevel",
   "respondToUserInput",
   "fork",
+  "discover",
 ]);
 
 /**
@@ -179,12 +180,11 @@ export class PiRuntimeProcess {
           ? undefined
           : setTimeout(() => {
               const error = new Error(
-                SESSION_METHODS.has(method)
-                  ? `Pi session ${method} timed out after ${timeout / 1000} seconds.`
+                NON_FATAL_METHODS.has(method)
+                  ? `Pi ${method === "discover" ? "resource discovery" : `session ${method}`} timed out after ${timeout / 1000} seconds.`
                   : `Pi instance ${method} timed out. Disable and re-enable this Pi instance to continue.`,
               );
-              // A stuck session must not take the instance's other sessions down with it.
-              if (!SESSION_METHODS.has(method)) return this.fail(error);
+              if (!NON_FATAL_METHODS.has(method)) return this.fail(error);
               this.pending.delete(id);
               reject(error);
             }, timeout);
@@ -239,8 +239,8 @@ export class PiRuntimeProcess {
   getCatalogModels(...args: PiRuntimeCalls["getCatalogModels"]["args"]) {
     return this.request("getCatalogModels", args);
   }
-  getExtensionSlashCommands() {
-    return this.request("getExtensionSlashCommands", []);
+  discover(...args: PiRuntimeCalls["discover"]["args"]) {
+    return this.request("discover", args);
   }
   getCatalog() {
     return this.request("getCatalog", []);
