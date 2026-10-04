@@ -1,8 +1,21 @@
 # Remote access
 
 Rove Code connects directly over your LAN or private tailnet. The host must stay
-running and reachable while you work. This fork does not provide a hosted web
-app, cloud relay, or mobile store build.
+running and reachable while you work. Maintainers can deploy a static browser
+app, but this fork does not provide a managed cloud relay or mobile store build.
+
+## Use a hosted browser app
+
+Open your maintainer's hosted app and add an environment under
+**Settings → Connections**. Enter the environment's reachable HTTPS address
+and a one-time pairing code from its administrator. The browser app connects
+directly to that environment. It does not run coding agents on the hosting
+service.
+
+The environment must stay online. Use an HTTPS endpoint, such as a private
+Tailscale address or an authenticated server exposed through Cloudflare Tunnel.
+A plain HTTP LAN endpoint does not work from a public HTTPS app. Never share
+your environment's pairing code with visitors to a public website.
 
 ## Pair over a LAN or private network
 
