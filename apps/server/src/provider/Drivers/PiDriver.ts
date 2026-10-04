@@ -11,13 +11,12 @@
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodePath from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import * as NodeOS from "node:os";
 import {
   PiCatalogError,
   PiSettings,
   ProviderDriverKind,
   type ServerProvider,
-  type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -32,6 +31,7 @@ import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { PiRuntimeProcess } from "../Layers/PiRuntimeProcess.ts";
+import { PI_CONFIG_DIR } from "../PiSdkMetadata.ts";
 import { HostProcessIsExecutable } from "@t3tools/shared/hostProcess";
 import { registerPiBundledOAuthFlows } from "./PiOAuth.ts";
 import {
@@ -65,75 +65,6 @@ const DRIVER_KIND = ProviderDriverKind.make("pi");
 const MAINTENANCE = makeManualOnlyProviderMaintenanceCapabilities({
   provider: DRIVER_KIND,
   packageName: "@earendil-works/pi-coding-agent",
-});
-
-/**
- * Discovery client backed by the SDK's `DefaultResourceLoader` — the same
- * loader sessions use, but without executing extensions during probes. Slash
- * commands come from two sources: prompt templates from the loader, and
- * commands registered by the instance's loaded global extensions (the catalog
- * host is the only place extensions load outside a thread). The loader runs
- * from the agent directory by default — the same neutral working directory the
- * catalog host uses — so the instance-global snapshot describes user-scope
- * resources only and never leaks the server process's cwd into the pickers.
- * Project resources are thread-scoped and keep living in their own sessions.
- */
-export const makeSdkDiscoveryClient = (
-  getExtensionCommands?: () =>
-    | ReadonlyArray<ServerProviderSlashCommand>
-    | Promise<ReadonlyArray<ServerProviderSlashCommand>>,
-  agentDir?: string,
-): PiDiscoveryClient => ({
-  discover: async ({ cwd }) => {
-    const { DefaultResourceLoader, getAgentDir, SettingsManager } =
-      await import("@earendil-works/pi-coding-agent");
-    const resolvedAgentDir = agentDir ? NodePath.resolve(expandHomePath(agentDir)) : getAgentDir();
-    const settingsManager = SettingsManager.create(cwd ?? resolvedAgentDir, resolvedAgentDir);
-    if (cwd !== undefined) settingsManager.setProjectTrusted(true);
-    const loader = new DefaultResourceLoader({
-      cwd: cwd ?? resolvedAgentDir,
-      agentDir: resolvedAgentDir,
-      settingsManager,
-      noExtensions: true,
-    });
-    // Resources populate lazily: getSkills()/getPrompts() return empty until
-    // reload() has scanned the configured roots.
-    await loader.reload();
-    const [{ skills }, { prompts }] = [loader.getSkills(), loader.getPrompts()];
-    // Extension commands win name collisions, mirroring the session's own
-    // command resolution order (extension commands come first).
-    let extensionCommands: ReadonlyArray<ServerProviderSlashCommand> = [];
-    try {
-      extensionCommands = (await getExtensionCommands?.()) ?? [];
-    } catch {
-      // Discovery is best-effort; a catalog host hiccup must not drop templates.
-    }
-    const slashCommandsByName = new Map<string, ServerProviderSlashCommand>();
-    for (const command of [
-      ...extensionCommands,
-      ...prompts.map((prompt) => ({
-        name: prompt.name,
-        ...(prompt.description.trim().length > 0 ? { description: prompt.description } : undefined),
-        ...(prompt.argumentHint !== undefined && prompt.argumentHint.trim().length > 0
-          ? { input: { hint: prompt.argumentHint } }
-          : undefined),
-      })),
-    ]) {
-      if (!slashCommandsByName.has(command.name)) slashCommandsByName.set(command.name, command);
-    }
-    return {
-      skills: skills.map((skill) => ({
-        name: skill.name,
-        ...(skill.description.trim().length > 0 ? { description: skill.description } : undefined),
-        path: skill.filePath,
-        // "temporary" (e.g. in-memory extension resources) maps to "user":
-        // it is not project content, and the composer only renders the label.
-        scope: skill.sourceInfo.scope === "project" ? "project" : "user",
-        enabled: true,
-      })),
-      slashCommands: [...slashCommandsByName.values()],
-    };
-  },
 });
 
 const withInstanceIdentity =
@@ -177,7 +108,11 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       // instances with different agent directories keep auth, models, sessions,
       // and extensions separate — and instances sharing one stay cross-continuable.
       const effectiveAgentDir = NodePath.resolve(
-        expandHomePath(effectiveConfig.agentDir || processEnv.PI_CODING_AGENT_DIR || getAgentDir()),
+        expandHomePath(
+          effectiveConfig.agentDir ||
+            processEnv.PI_CODING_AGENT_DIR ||
+            NodePath.join(NodeOS.homedir(), PI_CONFIG_DIR, "agent"),
+        ),
       );
       const continuationIdentity = {
         driverKind: DRIVER_KIND,
@@ -263,10 +198,9 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
       const probeClient: PiProbeClient = {
         getCatalogModels: (thinkingLevel) => getCatalogHost().getCatalogModels(thinkingLevel),
       };
-      const discoveryClient = makeSdkDiscoveryClient(
-        () => getCatalogHost().getExtensionSlashCommands(),
-        effectiveAgentDir,
-      );
+      const discoveryClient: PiDiscoveryClient = {
+        discover: (input) => getCatalogHost().discover(input),
+      };
       const checkProvider = checkPiProviderStatus(
         effectiveConfig,
         probeClient,

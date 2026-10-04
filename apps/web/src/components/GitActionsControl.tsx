@@ -1148,6 +1148,9 @@ export default function GitActionsControl({
     : null;
 
   useEffect(() => {
+    if (!runImmediateGitAction.isPending) {
+      return;
+    }
     const interval = window.setInterval(() => {
       if (!activeGitActionProgressRef.current) {
         return;
@@ -1158,7 +1161,7 @@ export default function GitActionsControl({
     return () => {
       window.clearInterval(interval);
     };
-  }, [updateActiveProgressToast]);
+  }, [runImmediateGitAction.isPending, updateActiveProgressToast]);
 
   useEffect(() => {
     if (gitCwd === null) {

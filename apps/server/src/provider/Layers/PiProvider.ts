@@ -1,7 +1,7 @@
 /**
  * PiProvider — snapshot and status probe for the Pi driver.
  *
- * Pi runs in-process via the SDK, so "installed" means the SDK loaded and a
+ * Pi runs in its instance process, so "installed" means the SDK loaded and a
  * model runtime could be created against the user's global config, and the
  * model list is the user's configured Pi catalog (settings/auth/models.json).
  * There is no binary to probe and no per-instance version: the Pi version is
@@ -16,7 +16,7 @@ import {
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
-import { VERSION as PI_SDK_VERSION } from "@earendil-works/pi-coding-agent";
+import { PI_SDK_VERSION } from "../PiSdkMetadata.ts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
@@ -93,12 +93,7 @@ export interface PiProbeClient {
   ): Promise<ReadonlyArray<ServerProviderModel>>;
 }
 
-/**
- * Discovers the Pi resources the composer pickers render: skills for `$`,
- * prompt templates for `/`. Backed by the SDK's `DefaultResourceLoader` in
- * the driver (same loader sessions use, so the pickers match what the agent
- * sees); injected here so the probe stays testable.
- */
+/** Resource discovery stays in the instance process so the server does not load the SDK. */
 export interface PiDiscoveryClient {
   discover(input: { cwd: string | undefined }): Promise<{
     skills: ReadonlyArray<ServerProviderSkill>;

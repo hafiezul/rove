@@ -27,7 +27,7 @@ type CatalogMethod =
   | "getCatalog"
   | "refreshCatalog"
   | "getCatalogModels"
-  | "getExtensionSlashCommands"
+  | "discover"
   | "getUsageLimit";
 type CatalogCalls = {
   [K in CatalogMethod]: {

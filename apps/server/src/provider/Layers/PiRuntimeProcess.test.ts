@@ -407,6 +407,20 @@ describe("isolated Pi instance runtime", () => {
     });
   }
 
+  it("times out resource discovery without terminating the instance", async () => {
+    const agentDir = directory("discovery-timeout");
+    const runtime = await create(agentDir);
+    vi.useFakeTimers();
+    const discovery = runtime.discover({ cwd: root }).catch((error: unknown) => error);
+    vi.advanceTimersByTime(60_000);
+    vi.useRealTimers();
+
+    expect(await discovery).toMatchObject({
+      message: "Pi resource discovery timed out after 60 seconds.",
+    });
+    await expectInstanceAlive(runtime, agentDir);
+  });
+
   it("times out a stuck Stop without killing the instance's other sessions", async () => {
     const agentDir = directory("stuck-stop");
     const runtime = await create(agentDir);

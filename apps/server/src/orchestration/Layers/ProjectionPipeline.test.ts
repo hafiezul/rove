@@ -115,6 +115,161 @@ it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("t3-projection-curs
   },
 );
 
+it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("t3-streaming-turn-metadata-")))(
+  "streaming turn metadata projection",
+  (it) => {
+    it.effect(
+      "projects text deltas without rereading the session or rewriting an unchanged turn",
+      () =>
+        Effect.gen(function* () {
+          const pipeline = yield* OrchestrationProjectionPipeline;
+          const eventStore = yield* OrchestrationEventStore;
+          const sql = yield* SqlClient.SqlClient;
+          const threadId = ThreadId.make("thread-streaming-metadata");
+          const projectId = ProjectId.make("project-streaming-metadata");
+          const turnId = TurnId.make("turn-streaming-metadata");
+          const now = "2026-09-01T00:00:00.000Z";
+          const fields = {
+            aggregateKind: "thread" as const,
+            aggregateId: threadId,
+            occurredAt: now,
+            commandId: null,
+            causationEventId: null,
+            correlationId: null,
+            metadata: {},
+          };
+          const appendAndProject = (event: Parameters<typeof eventStore.append>[0]) =>
+            eventStore.append(event).pipe(Effect.flatMap(pipeline.projectEvent));
+          yield* appendAndProject({
+            ...fields,
+            aggregateKind: "project",
+            aggregateId: projectId,
+            type: "project.created",
+            eventId: EventId.make("evt-streaming-metadata-project"),
+            payload: {
+              projectId,
+              title: "Streaming metadata",
+              workspaceRoot: "/tmp/streaming-metadata",
+              defaultModelSelection: null,
+              scripts: [],
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.created",
+            eventId: EventId.make("evt-streaming-metadata-thread"),
+            payload: {
+              threadId,
+              projectId,
+              title: "Streaming metadata",
+              modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+              runtimeMode: "full-access",
+              interactionMode: "default",
+              branch: null,
+              worktreePath: null,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+          const session = {
+            threadId,
+            providerName: "codex" as const,
+            status: "running" as const,
+            runtimeMode: "full-access" as const,
+            activeTurnId: turnId,
+            lastError: null,
+            updatedAt: now,
+          };
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.session-set",
+            eventId: EventId.make("evt-streaming-metadata-session"),
+            payload: { threadId, session },
+          });
+          const message = {
+            threadId,
+            messageId: MessageId.make("message-streaming-metadata"),
+            role: "assistant" as const,
+            text: "Hello",
+            turnId,
+            streaming: true,
+            createdAt: now,
+            updatedAt: now,
+          };
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.message-sent",
+            eventId: EventId.make("evt-streaming-metadata-message"),
+            payload: message,
+          });
+          yield* sql`CREATE TRIGGER reject_streaming_turn_rewrite BEFORE UPDATE ON projection_turns
+          BEGIN SELECT RAISE(FAIL, 'unchanged streaming turn was rewritten'); END`;
+          const counter = makeSqlStatementCounter();
+          for (let index = 0; index < 3; index += 1) {
+            const event = yield* eventStore.append({
+              ...fields,
+              type: "thread.message-sent",
+              eventId: EventId.make(`evt-streaming-metadata-delta-${index}`),
+              payload: { ...message, text: "+" },
+            });
+            yield* pipeline.projectEvent(event).pipe(Effect.withTracer(counter.tracer));
+          }
+          assert.strictEqual(counter.count(), 15);
+          assert.deepEqual(
+            yield* sql`SELECT text FROM projection_thread_messages WHERE thread_id = ${threadId}`,
+            [{ text: "Hello+++" }],
+          );
+          yield* sql`DROP TRIGGER reject_streaming_turn_rewrite`;
+          yield* sql`UPDATE projection_turns SET started_at = NULL WHERE thread_id = ${threadId}`;
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.message-sent",
+            eventId: EventId.make("evt-streaming-metadata-fill-start"),
+            payload: { ...message, text: "!" },
+          });
+          assert.deepEqual(
+            yield* sql`SELECT started_at AS "startedAt" FROM projection_turns WHERE thread_id = ${threadId}`,
+            [{ startedAt: now }],
+          );
+          const nextMessageId = MessageId.make("message-streaming-metadata-next");
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.message-sent",
+            eventId: EventId.make("evt-streaming-metadata-next-message"),
+            payload: { ...message, messageId: nextMessageId, text: "Next" },
+          });
+          yield* appendAndProject({
+            ...fields,
+            type: "thread.message-sent",
+            eventId: EventId.make("evt-streaming-metadata-message-complete"),
+            payload: { ...message, messageId: nextMessageId, streaming: false, text: "" },
+          });
+          assert.deepEqual(
+            yield* sql`SELECT state FROM projection_turns WHERE thread_id = ${threadId}`,
+            [{ state: "running" }],
+          );
+          const completedAt = "2026-09-01T00:00:30.000Z";
+          yield* appendAndProject({
+            ...fields,
+            occurredAt: completedAt,
+            type: "thread.session-set",
+            eventId: EventId.make("evt-streaming-metadata-session-complete"),
+            payload: {
+              threadId,
+              session: { ...session, status: "ready", activeTurnId: null, updatedAt: completedAt },
+            },
+          });
+          assert.deepEqual(
+            yield* sql`SELECT assistant_message_id AS "messageId", state, completed_at AS "completedAt" FROM projection_turns WHERE thread_id = ${threadId}`,
+            [{ messageId: nextMessageId, state: "completed", completedAt }],
+          );
+        }),
+    );
+  },
+);
+
 it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("t3-projection-cleanup-span-")))(
   "OrchestrationProjectionPipeline attachment cleanup span",
   (it) => {

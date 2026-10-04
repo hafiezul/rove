@@ -132,8 +132,8 @@ export async function runPiRuntimeWorker(): Promise<void> {
         return getHost().refreshCatalog();
       case "getCatalogModels":
         return getHost().getCatalogModels(...request.args);
-      case "getExtensionSlashCommands":
-        return getHost().getExtensionSlashCommands();
+      case "discover":
+        return getHost().discover(...request.args);
       case "createSession": {
         const [key, input, textGeneration, mcp] = request.args;
         const compatibility = getHost().observeThreadUI();
