@@ -26,6 +26,15 @@ import {
   PinnedRuntimeInstallError,
 } from "./pinnedRuntime.ts";
 import {
+  DEFAULT_SERVICE_LAUNCH_CONFIG,
+  readServiceLaunchConfig,
+  SERVICE_LAUNCH_CONFIG_FILE,
+  encodeServiceLaunchConfig,
+  validateServiceLaunchConfig,
+  type ServiceLaunchConfig,
+  type ServiceLaunchPatch,
+} from "./serviceLaunchConfig.ts";
+import {
   SERVICE_LAUNCHER_PROTOCOL,
   SERVICE_RESTART_PENDING_FILE,
   SERVICE_STATE_FILE,
@@ -91,6 +100,7 @@ export interface BootServicePlan {
   readonly baseDir: string;
   readonly logPath: string;
   readonly unitPath: string;
+  readonly environmentPath?: string;
 }
 
 /** Pure renderer: service units cannot rely on the user's shell or PATH. */
@@ -106,6 +116,9 @@ export function renderBootServiceUnit(plan: BootServicePlan): string {
     "Type=simple",
     "WorkingDirectory=%h",
     `Environment=ROVE_HOME=${quoteSystemdValue(plan.baseDir)}`,
+    ...(plan.environmentPath === undefined
+      ? []
+      : [`Environment=PATH=${quoteSystemdValue(plan.environmentPath)}`]),
     `Environment=${BOOT_SERVICE_UNIT_ENV}=${BOOT_SERVICE_UNIT_FILE}`,
     `ExecStart=${plan.program.map(quoteSystemdValue).join(" ")}`,
     // Let the launcher mark an explicit stop before it signals the server.
@@ -327,7 +340,7 @@ function launchdManager(input: {
     render: (plan) =>
       renderBootServicePlist(plan, {
         homeDir: input.homeDir,
-        environmentPath: input.environmentPath,
+        environmentPath: plan.environmentPath ?? input.environmentPath,
       }),
     // Without --wait, bootout returns in milliseconds while the job drains
     // for up to ExitTimeOut, and a bootstrap during the drain fails EIO.
@@ -519,6 +532,7 @@ export interface BootServiceStatus {
    * server of the machine it ran on.
    */
   readonly installedBaseDir?: string;
+  readonly launch?: ServiceLaunchConfig;
   readonly problems?: ReadonlyArray<BootServiceProblem>;
   readonly unitPath: string;
   readonly logPath: string;
@@ -535,6 +549,7 @@ export class BootService extends Context.Service<
        * restart, so a later `rove service restart` lands on the new version.
        */
       readonly start?: boolean;
+      readonly launch?: ServiceLaunchPatch;
     }) => Effect.Effect<BootServicePlan, BootServiceError>;
     /**
      * Stop and start the installed service on the version its unit names.
@@ -557,6 +572,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
   readonly logsDir: string;
   readonly cliVersion: string;
   readonly host?: BootServiceHost;
+  readonly launchDefaults?: ServiceLaunchPatch;
 }) {
   const hostExecPath = yield* HostProcessExecutablePath;
   const platform = yield* HostProcessPlatform;
@@ -580,18 +596,27 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
         return code >= 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
       }),
   );
-  const environmentPath = Array.from(
-    new Set([
-      ...xmlSafeInstallerDirectories,
-      path.dirname(host.execPath),
-      "/opt/homebrew/bin",
-      "/usr/local/bin",
-      "/usr/bin",
-      "/bin",
-      "/usr/sbin",
-      "/sbin",
-    ]),
-  ).join(":");
+  const readLaunch = readServiceLaunchConfig(input.baseDir).pipe(
+    Effect.provideService(FileSystem.FileSystem, fs),
+    Effect.provideService(Path.Path, path),
+  );
+  const savedLaunch = yield* readLaunch.pipe(
+    Effect.mapError((cause) => new BootServiceInstallError({ cause })),
+  );
+  const environmentPath =
+    Option.getOrUndefined(savedLaunch)?.environmentPath ??
+    Array.from(
+      new Set([
+        ...xmlSafeInstallerDirectories,
+        path.dirname(host.execPath),
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+      ]),
+    ).join(":");
 
   const detectedManager = selectBootServiceManager({
     platform,
@@ -631,6 +656,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     baseDir: input.baseDir,
     logPath,
     unitPath,
+    environmentPath,
   };
 
   const requireManager = Effect.suspend(() =>
@@ -749,8 +775,22 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
   const install = Effect.fn("cloud.boot_service.install")(function* (options?: {
     readonly allowDowngrade?: boolean;
     readonly start?: boolean;
+    readonly launch?: ServiceLaunchPatch;
   }) {
     const manager = yield* requireManager;
+    const previousLaunch = yield* readLaunch.pipe(
+      Effect.mapError((cause) => new BootServiceInstallError({ cause })),
+    );
+    const launch = yield* validateServiceLaunchConfig({
+      ...Option.getOrElse(previousLaunch, () => ({
+        ...DEFAULT_SERVICE_LAUNCH_CONFIG,
+        ...input.launchDefaults,
+      })),
+      ...options?.launch,
+      environmentPath,
+    }).pipe(Effect.mapError((cause) => new BootServiceInstallError({ cause })));
+    const launchPath = path.join(input.baseDir, "runtime", SERVICE_LAUNCH_CONFIG_FILE);
+    let launchWritten = false;
     yield* fs
       .makeDirectory(input.logsDir, { recursive: true })
       .pipe(Effect.mapError((cause) => new BootServiceInstallError({ cause })));
@@ -884,6 +924,13 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
           return yield* new BootServiceUpdatePendingError();
         }
       }
+      yield* writeDurably(
+        launchPath,
+        yield* encodeServiceLaunchConfig(launch).pipe(
+          Effect.mapError((cause) => new BootServiceInstallError({ cause })),
+        ),
+      );
+      launchWritten = true;
       yield* writeDurably(unitPath, manager.render(plan));
 
       if (start) {
@@ -895,7 +942,19 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
         cause._tag === "PlatformError" ? new BootServiceInstallError({ cause }) : cause,
       ),
       Effect.tapError(() =>
-        installed && start ? runSteps(manager.restart).pipe(Effect.ignore) : Effect.void,
+        Effect.gen(function* () {
+          if (launchWritten) {
+            if (Option.isSome(previousLaunch)) {
+              yield* writeDurably(
+                launchPath,
+                yield* encodeServiceLaunchConfig(previousLaunch.value),
+              );
+            } else {
+              yield* fs.remove(launchPath, { force: true });
+            }
+          }
+          if (installed && start) yield* runSteps(manager.restart);
+        }).pipe(Effect.ignore),
       ),
     );
     return plan;
@@ -950,6 +1009,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     if (!(yield* fs.exists(unitPath))) {
       return { supported: true, installed: false, current: false, unitPath, logPath };
     }
+    const currentLaunch = yield* readLaunch;
     const [unit, runtimeEntryExists, runtimeSentinel, stateText] = yield* Effect.all([
       fs.readFileString(unitPath),
       fs.exists(runtimePaths.entryPath),
@@ -973,6 +1033,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
       installed: true,
       ...(installedVersion === undefined ? {} : { installedVersion }),
       ...(installedBaseDir === undefined ? {} : { installedBaseDir }),
+      ...(Option.isNone(currentLaunch) ? {} : { launch: currentLaunch.value }),
       problems,
       current:
         problems.length === 0 &&
@@ -998,4 +1059,5 @@ export const layer = (input: {
   readonly logsDir: string;
   readonly cliVersion: string;
   readonly host?: BootServiceHost;
+  readonly launchDefaults?: ServiceLaunchPatch;
 }) => Layer.effect(BootService, make(input));

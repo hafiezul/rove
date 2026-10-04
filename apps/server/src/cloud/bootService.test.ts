@@ -216,6 +216,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
     environmentPath: string | undefined = installerPath,
     cliVersion = "1.2.3",
     serviceBaseDir = baseDir,
+    launchDefaults?: Parameters<typeof BootService.make>[0]["launchDefaults"],
   ) =>
     Effect.gen(function* () {
       // Every version the tests install is present and verified on disk, so
@@ -229,6 +230,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
         logsDir: path.join(serviceBaseDir, "userdata", "logs"),
         cliVersion,
         host: { execPath: "/usr/bin/t3" },
+        ...(launchDefaults === undefined ? {} : { launchDefaults }),
       });
     }).pipe(
       Effect.provideService(ProcessRunner.ProcessRunner, runner),
@@ -255,10 +257,61 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       ),
     );
   const service = yield* makeService();
-  return { service, makeService, fs, statePath, commands, timeouts, control, runtime };
+  return { service, makeService, fs, baseDir, statePath, commands, timeouts, control, runtime };
 });
 
 it.layer(NodeServices.layer)("boot service install", (it) => {
+  it.effect(
+    "pins the port chosen at first installation instead of choosing again during repair",
+    () =>
+      Effect.gen(function* () {
+        const { makeService, baseDir } = yield* makeHarness();
+        const first = yield* makeService(undefined, "1.2.3", baseDir, { port: 4777 });
+        yield* first.install();
+        const repaired = yield* makeService(undefined, "1.2.3", baseDir, { port: 5777 });
+        yield* repaired.install();
+        expect((yield* repaired.status).launch?.port).toBe(4777);
+      }),
+  );
+
+  it.effect.each(["linux", "darwin"] as const)(
+    "preserves %s routes and provider PATH when installing an update",
+    (platform) =>
+      Effect.gen(function* () {
+        const { service, makeService, fs } = yield* makeHarness(platform);
+        const launch = {
+          host: "100.117.60.97",
+          port: 4773,
+          tailscaleServeEnabled: true,
+          tailscaleServePort: 8443,
+        };
+        const first = yield* service.install({ launch });
+        const configPath = `${first.baseDir}/runtime/service-config.json`;
+        const before = yield* fs.readFileString(configPath);
+        const updated = yield* makeService("/usr/bin:/bin", "1.2.4");
+        const next = yield* updated.install();
+        expect(yield* fs.readFileString(configPath)).toBe(before);
+        expect((yield* updated.status).launch).toMatchObject(launch);
+        expect((yield* updated.status).current).toBe(true);
+        expect(yield* fs.readFileString(next.unitPath)).toContain("/Users/theo/.npm-global/bin");
+      }),
+  );
+
+  it.effect("restores the old route when activating a changed configuration fails", () =>
+    Effect.gen(function* () {
+      const { service, fs, control } = yield* makeHarness();
+      const plan = yield* service.install({ launch: { host: "127.0.0.1", port: 4773 } });
+      const configPath = `${plan.baseDir}/runtime/service-config.json`;
+      const before = yield* fs.readFileString(configPath);
+      control.failCommand = "systemctl --user daemon-reload";
+      const failed = yield* service
+        .install({ launch: { host: "0.0.0.0", port: 5773 } })
+        .pipe(Effect.exit);
+      expect(failed._tag).toBe("Failure");
+      expect(yield* fs.readFileString(configPath)).toBe(before);
+    }),
+  );
+
   it.effect(
     "fails before installing files or validating a runtime when lingering needs an administrator",
     () =>

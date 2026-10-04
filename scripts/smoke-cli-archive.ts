@@ -23,7 +23,44 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import * as NetService from "@t3tools/shared/Net";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { windowsSystemTar } from "./build-cli-archive.ts";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "effect/unstable/http";
+
+const descriptorSchema = Schema.Struct({
+  environmentId: Schema.String,
+  serverVersion: Schema.String,
+  capabilities: Schema.Struct({ serverSelfUpdate: Schema.optionalKey(Schema.String) }),
+});
+const credentialJson = Schema.fromJsonString(Schema.Struct({ credential: Schema.String }));
+const decodeCredential = Schema.decodeUnknownEffect(credentialJson);
+const accessTokenSchema = Schema.Struct({ access_token: Schema.String });
+const sessionSchema = Schema.Struct({
+  authenticated: Schema.Boolean,
+  sessionMethod: Schema.optionalKey(Schema.String),
+});
+const EXPECTED_LAUNCHER_PROTOCOL = 3;
+const encodeServiceState = Schema.encodeEffect(
+  Schema.fromJsonString(
+    Schema.Struct({
+      protocol: Schema.Literal(EXPECTED_LAUNCHER_PROTOCOL),
+      activeVersion: Schema.String,
+    }),
+  ),
+);
+const encodeLaunchConfig = Schema.encodeEffect(
+  Schema.fromJsonString(
+    Schema.Struct({
+      host: Schema.String,
+      port: Schema.Int,
+      tailscaleServeEnabled: Schema.Boolean,
+      tailscaleServePort: Schema.Int,
+    }),
+  ),
+);
 
 export class CliArchiveSmokeError extends Schema.TaggedError<CliArchiveSmokeError>()(
   "CliArchiveSmokeError",
@@ -113,31 +150,45 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
     });
   }
 
-  // Starting the server is what actually opens sqlite, loads the terminal
-  // and search stacks (node-pty, fff, msgpackr-extract), and serves the
-  // client, so probe a real `serve` in a scratch home rather than a
-  // command that only reads package metadata.
+  yield* Effect.log(`[cli-smoke] ${root}: executable version matched.`);
   const net = yield* NetService.NetService;
   const port = yield* net.findAvailablePort(47700);
   const home = path.join(scratch, "home");
-  const server = yield* spawner.spawn(
-    ChildProcess.make(
-      executable,
-      ["serve", "--host", "127.0.0.1", "--port", String(port), "--no-browser"],
-      {
-        cwd: contentDir,
-        env: {
-          PATH: "",
-          HOME: home,
-          USERPROFILE: home,
-          TMPDIR: scratch,
-          TEMP: scratch,
-          ROVE_HOME: home,
-        },
-        extendEnv: false,
-      },
-    ),
+  yield* fs.makeDirectory(path.join(home, "runtime"), { recursive: true });
+  yield* fs.writeFileString(
+    path.join(home, "runtime", "service-config.json"),
+    yield* encodeLaunchConfig({
+      host: "127.0.0.1",
+      port,
+      tailscaleServeEnabled: false,
+      tailscaleServePort: 443,
+    }),
   );
+  const runtimeDir = path.join(home, "runtime", "versions", input.expectVersion);
+  yield* fs.copy(contentDir, runtimeDir);
+  yield* fs.writeFileString(path.join(runtimeDir, ".install-complete"), `${input.expectVersion}\n`);
+  yield* fs.writeFileString(
+    path.join(home, "runtime", "service-state.json"),
+    yield* encodeServiceState({
+      protocol: EXPECTED_LAUNCHER_PROTOCOL,
+      activeVersion: input.expectVersion,
+    }),
+  );
+  const startServer = spawner.spawn(
+    ChildProcess.make(executable, ["__service-launcher"], {
+      cwd: contentDir,
+      env: {
+        PATH: "",
+        HOME: home,
+        USERPROFILE: home,
+        TMPDIR: scratch,
+        TEMP: scratch,
+        ROVE_HOME: home,
+      },
+      extendEnv: false,
+    }),
+  );
+  const server = yield* startServer;
   const output = yield* Effect.forkScoped(
     Effect.all([collect(server.stdout), collect(server.stderr)]),
   );
@@ -145,7 +196,7 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
   // A request that connects while the server is still initializing can hang,
   // so each probe gets its own deadline, like the SSH readiness probe.
   const probe = httpClient.execute(HttpClientRequest.get(`http://127.0.0.1:${String(port)}/`)).pipe(
-    Effect.map((response) => response.status === 200),
+    Effect.flatMap((response) => response.arrayBuffer.pipe(Effect.as(response.status === 200))),
     Effect.timeout(Duration.seconds(2)),
     Effect.orElseSucceed(() => false),
   );
@@ -159,19 +210,98 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
     Effect.timeout(Duration.seconds(30)),
     Effect.orElseSucceed(() => false),
   );
-  yield* server.kill({ killSignal: "SIGTERM" }).pipe(Effect.ignore);
-  yield* server.exitCode.pipe(Effect.timeout(Duration.seconds(10)), Effect.ignore);
-  const [stdout, stderr] = yield* Fiber.join(output).pipe(
-    Effect.timeout(Duration.seconds(5)),
-    Effect.orElseSucceed(() => ["", ""] as const),
-  );
   if (!ready) {
+    yield* server.kill({ killSignal: "SIGTERM" }).pipe(Effect.ignore);
+    yield* server.exitCode.pipe(Effect.timeout(Duration.seconds(30)));
+    const [stdout, stderr] = yield* Fiber.join(output);
     return yield* new CliArchiveSmokeError({
-      step: "serving from the extracted archive",
-      detail: `no 200 from / within 30s\n${stdout}${stderr}`,
+      step: "starting the persistent host",
+      detail: `the saved connection route did not become reachable\n${stdout}${stderr}`,
     });
   }
-  yield* Effect.log(`[cli-smoke] ${root}: --version passed and serve answered on ${String(port)}.`);
+  const origin = `http://127.0.0.1:${port}`;
+  const readDescriptor = httpClient
+    .execute(HttpClientRequest.get(`${origin}/.well-known/t3/environment`))
+    .pipe(
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(descriptorSchema)),
+      Effect.timeout(Duration.seconds(10)),
+    );
+  const before = yield* readDescriptor;
+  yield* Effect.log(`[cli-smoke] ${root}: launcher-managed host answered on its saved port.`);
+  const pairing = yield* runExecutable(
+    executable,
+    ["auth", "pairing", "create", "--base-dir", home, "--json"],
+    contentDir,
+  ).pipe(Effect.timeout(Duration.seconds(30)));
+  if (pairing.exitCode !== 0) {
+    return yield* new CliArchiveSmokeError({
+      step: "pairing the host",
+      detail: `CLI exited with ${pairing.exitCode}`,
+    });
+  }
+  const credential = yield* decodeCredential(pairing.stdout);
+  const tokenRequest = HttpClientRequest.post(`${origin}/oauth/token`).pipe(
+    HttpClientRequest.bodyUrlParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+      subject_token: credential.credential,
+      subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
+      requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+    }),
+  );
+  const token = yield* httpClient
+    .execute(tokenRequest)
+    .pipe(
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(accessTokenSchema)),
+      Effect.timeout(Duration.seconds(10)),
+    );
+  yield* Effect.log(`[cli-smoke] ${root}: paired-client authorization issued.`);
+  yield* server.kill({ killSignal: "SIGTERM" });
+  yield* server.exitCode.pipe(Effect.timeout(Duration.seconds(30)));
+  yield* Fiber.join(output);
+  yield* Effect.log(`[cli-smoke] ${root}: original host process stopped.`);
+  const restarted = yield* startServer;
+  yield* Effect.forkScoped(Effect.all([collect(restarted.stdout), collect(restarted.stderr)]));
+  const resumed = yield* pollUntilReady.pipe(
+    Effect.timeout(Duration.seconds(30)),
+    Effect.orElseSucceed(() => false),
+  );
+  if (!resumed) {
+    return yield* new CliArchiveSmokeError({
+      step: "restarting the host",
+      detail: "the saved route did not return",
+    });
+  }
+  const after = yield* readDescriptor;
+  const session = yield* httpClient
+    .execute(
+      HttpClientRequest.get(`${origin}/api/auth/session`).pipe(
+        HttpClientRequest.setHeader("authorization", `Bearer ${token.access_token}`),
+      ),
+    )
+    .pipe(
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(sessionSchema)),
+      Effect.timeout(Duration.seconds(10)),
+    );
+  if (
+    before.environmentId !== after.environmentId ||
+    after.capabilities.serverSelfUpdate !== "boot-service" ||
+    after.serverVersion !== input.expectVersion ||
+    !session.authenticated ||
+    session.sessionMethod !== "bearer-access-token"
+  ) {
+    return yield* new CliArchiveSmokeError({
+      step: "retaining the paired environment",
+      detail: "identity, version, or authentication changed after restart",
+    });
+  }
+  yield* restarted.kill({ killSignal: "SIGTERM" });
+  yield* restarted.exitCode.pipe(Effect.timeout(Duration.seconds(30)));
+  yield* Effect.log(
+    `[cli-smoke] ${root}: saved route, identity, and client authorization survived restart.`,
+  );
 });
 
 const command = Command.make(

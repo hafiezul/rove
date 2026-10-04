@@ -723,6 +723,39 @@ fi
 printf '{"remotePort":%s,"serverKind":"%s"}\\n' "$REMOTE_PORT" "\${REMOTE_MANAGED:-managed}"
 `;
 
+const REMOTE_SERVICE_LAUNCH_SCRIPT = `set -eu
+@@T3_NODE_ENV_SCRIPT@@
+STATE_KEY="$1"
+STATE_DIR="$HOME/.rove-code/ssh-launch/$STATE_KEY"
+DEFAULT_SERVER_HOME="$HOME/.rove-code"
+DEFAULT_RUNTIME_FILE="$DEFAULT_SERVER_HOME/userdata/server-runtime.json"
+RUNNER_FILE="$STATE_DIR/run-rove.sh"
+mkdir -p "$STATE_DIR"
+cat >"$RUNNER_FILE" <<'SH'
+@@T3_RUNNER_SCRIPT@@
+SH
+chmod 700 "$RUNNER_FILE"
+"$RUNNER_FILE" --version >/dev/null
+ensure_remote_node_path >/dev/null 2>&1 || true
+RUNTIME_INFO="$("$RUNNER_FILE" __ssh-helper runtime-port "$DEFAULT_RUNTIME_FILE" --service 2>/dev/null || true)"
+if [ -z "$RUNTIME_INFO" ] || ! "$RUNNER_FILE" __ssh-helper wait-ready "\${RUNTIME_INFO#* }" "@@T3_REUSE_READY_TIMEOUT_MS@@" "@@T3_READY_PROBE_TIMEOUT_MS@@"; then
+  SERVICE_STATUS="$("$RUNNER_FILE" service status --base-dir "$DEFAULT_SERVER_HOME" --json)"
+  case "$SERVICE_STATUS" in
+    *'"installed":true'*) "$RUNNER_FILE" service restart --base-dir "$DEFAULT_SERVER_HOME" >&2 ;;
+    *) "$RUNNER_FILE" service install --base-dir "$DEFAULT_SERVER_HOME" >&2 ;;
+  esac
+  if ! RUNTIME_INFO="$("$RUNNER_FILE" __ssh-helper wait-service "$DEFAULT_RUNTIME_FILE" "@@T3_READY_TIMEOUT_MS@@" "@@T3_READY_PROBE_TIMEOUT_MS@@")"; then
+    printf 'The persistent Rove service did not become ready. Run rove service status and rove triage on the host. SSH requires a loopback-reachable server.\\n' >&2
+    exit 1
+  fi
+fi
+REMOTE_PORT="\${RUNTIME_INFO#* }"
+rm -f "$STATE_DIR/pid"
+printf '%s\\n' "$REMOTE_PORT" >"$STATE_DIR/port"
+printf 'external\\n' >"$STATE_DIR/managed"
+printf '{"remotePort":%s,"serverKind":"external"}\\n' "$REMOTE_PORT"
+`;
+
 const REMOTE_PAIRING_SCRIPT = `set -eu
 STATE_DIR="$HOME/.rove-code/ssh-launch/@@T3_STATE_KEY@@"
 DEFAULT_SERVER_HOME="$HOME/.rove-code"
@@ -828,18 +861,21 @@ export function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string 
 }
 
 export function buildRemoteLaunchScript(input?: RemoteT3RunnerOptions): string {
-  return applyScriptPlaceholders(REMOTE_LAUNCH_SCRIPT, {
-    T3_ARCHIVE_MODE: isNodeScriptRunner(input) ? "0" : "1",
-    T3_NODE_ENV_SCRIPT: buildRemoteNodeEnvScript(input),
-    T3_RUNNER_SCRIPT: stripTrailingNewlines(buildRemoteT3RunnerScript(input)),
-    T3_PICK_PORT_SCRIPT: stripTrailingNewlines(REMOTE_PICK_PORT_SCRIPT),
-    T3_WAIT_READY_SCRIPT: stripTrailingNewlines(REMOTE_WAIT_READY_SCRIPT),
-    T3_DEFAULT_REMOTE_PORT: String(DEFAULT_REMOTE_PORT),
-    T3_REMOTE_PORT_SCAN_WINDOW: String(REMOTE_PORT_SCAN_WINDOW),
-    T3_READY_TIMEOUT_MS: String(REMOTE_READY_TIMEOUT_MS),
-    T3_REUSE_READY_TIMEOUT_MS: String(REMOTE_REUSE_READY_TIMEOUT_MS),
-    T3_READY_PROBE_TIMEOUT_MS: String(SSH_READY_PROBE_TIMEOUT_MS),
-  });
+  return applyScriptPlaceholders(
+    isNodeScriptRunner(input) ? REMOTE_LAUNCH_SCRIPT : REMOTE_SERVICE_LAUNCH_SCRIPT,
+    {
+      T3_ARCHIVE_MODE: isNodeScriptRunner(input) ? "0" : "1",
+      T3_NODE_ENV_SCRIPT: buildRemoteNodeEnvScript(input),
+      T3_RUNNER_SCRIPT: stripTrailingNewlines(buildRemoteT3RunnerScript(input)),
+      T3_PICK_PORT_SCRIPT: stripTrailingNewlines(REMOTE_PICK_PORT_SCRIPT),
+      T3_WAIT_READY_SCRIPT: stripTrailingNewlines(REMOTE_WAIT_READY_SCRIPT),
+      T3_DEFAULT_REMOTE_PORT: String(DEFAULT_REMOTE_PORT),
+      T3_REMOTE_PORT_SCAN_WINDOW: String(REMOTE_PORT_SCAN_WINDOW),
+      T3_READY_TIMEOUT_MS: String(REMOTE_READY_TIMEOUT_MS),
+      T3_REUSE_READY_TIMEOUT_MS: String(REMOTE_REUSE_READY_TIMEOUT_MS),
+      T3_READY_PROBE_TIMEOUT_MS: String(SSH_READY_PROBE_TIMEOUT_MS),
+    },
+  );
 }
 
 export function buildRemotePairingScript(

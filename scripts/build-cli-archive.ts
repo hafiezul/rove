@@ -208,7 +208,14 @@ const stageRuntimeExternals = Effect.fn("stageRuntimeExternals")(function* (inpu
     yield* fs.copy(path.join(input.repoRoot, "patches"), path.join(input.stageDir, "patches"));
   }
 
-  const install = yield* resolveSpawnCommand("vp", [...STAGE_INSTALL_ARGS]);
+  const install = yield* resolveSpawnCommand("vp", [
+    "env",
+    "exec",
+    "--package-manager",
+    rootPackageJson.packageManager,
+    "pnpm",
+    ...STAGE_INSTALL_ARGS,
+  ]);
   yield* runCommand(
     ChildProcess.make(install.command, install.args, {
       cwd: input.stageDir,
@@ -216,7 +223,7 @@ const stageRuntimeExternals = Effect.fn("stageRuntimeExternals")(function* (inpu
       stdout: "inherit",
       stderr: "inherit",
     }),
-    "vp install --prod (cli archive runtime externals)",
+    "pinned package-manager install (cli archive runtime externals)",
   );
 
   // pnpm's bookkeeping and the manifest only matter to pnpm; the runtime

@@ -24,6 +24,7 @@ import { readBootstrapEnvelope } from "../bootstrap.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
 import * as RuntimePredicate from "effect/Predicate";
+import { readServiceLaunchConfig } from "../cloud/serviceLaunchConfig.ts";
 
 const modeFlag = Flag.Literals("mode", ServerConfig.RuntimeMode.literals).pipe(
   Flag.withDescription("Runtime mode. `desktop` keeps loopback defaults unless overridden."),
@@ -82,6 +83,13 @@ const tailscaleServePortFlag = Flag.Int("tailscale-serve-port").pipe(
   Flag.withDescription("HTTPS port for Tailscale Serve when --tailscale-serve is enabled."),
   Flag.optional,
 );
+
+export const serviceLaunchFlags = {
+  host: hostFlag,
+  port: portFlag,
+  tailscaleServeEnabled: tailscaleServeFlag,
+  tailscaleServePort: tailscaleServePortFlag,
+};
 
 // Trace file location, shared by the server and `rove trace summary`.
 export const traceFileConfig = Config.String("ROVE_TRACE_FILE").pipe(
@@ -288,11 +296,29 @@ export const resolveServerConfig = (
       () => "web",
     );
 
+    const devUrl = Option.getOrElse(
+      resolveOptionPrecedence(normalizedFlags.devUrl, Option.fromUndefinedOr(env.devUrl)),
+      () => undefined,
+    );
+    const explicitBaseDir = resolveOptionPrecedence(
+      normalizedFlags.baseDir,
+      Option.fromUndefinedOr(env.t3Home),
+    ).pipe(Option.filter((value) => value.trim().length > 0));
+    const baseDir = yield* resolveBaseDir(
+      Option.getOrUndefined(
+        resolveOptionPrecedence(explicitBaseDir, Option.fromUndefinedOr(bootstrap?.t3Home)),
+      ),
+    );
+    const savedLaunch =
+      mode === "web" && devUrl === undefined
+        ? Option.getOrUndefined(yield* readServiceLaunchConfig(baseDir))
+        : undefined;
     const port = yield* Option.match(
       resolveOptionPrecedence(
         normalizedFlags.port,
         Option.fromUndefinedOr(env.port),
         Option.fromUndefinedOr(bootstrap?.port),
+        Option.fromUndefinedOr(savedLaunch?.port),
       ),
       {
         onSome: (value) => Effect.succeed(value),
@@ -304,21 +330,8 @@ export const resolveServerConfig = (
         },
       },
     );
-    const devUrl = Option.getOrElse(
-      resolveOptionPrecedence(normalizedFlags.devUrl, Option.fromUndefinedOr(env.devUrl)),
-      () => undefined,
-    );
     const devAuthToken =
       mode === "web" && devUrl !== undefined ? yield* DevAuthTokenConfig : undefined;
-    const explicitBaseDir = resolveOptionPrecedence(
-      normalizedFlags.baseDir,
-      Option.fromUndefinedOr(env.t3Home),
-    ).pipe(Option.filter((value) => value.trim().length > 0));
-    const baseDir = yield* resolveBaseDir(
-      Option.getOrUndefined(
-        resolveOptionPrecedence(explicitBaseDir, Option.fromUndefinedOr(bootstrap?.t3Home)),
-      ),
-    );
     const rawCwd = Option.getOrElse(normalizedFlags.cwd, () => process.cwd());
     const cwd = path.resolve(yield* expandHomePath(rawCwd.trim()));
     yield* fs.makeDirectory(cwd, { recursive: true });
@@ -367,6 +380,7 @@ export const resolveServerConfig = (
         normalizedFlags.tailscaleServeEnabled,
         Option.fromUndefinedOr(env.tailscaleServeEnabled),
         Option.fromUndefinedOr(bootstrap?.tailscaleServeEnabled),
+        Option.fromUndefinedOr(savedLaunch?.tailscaleServeEnabled),
       ),
       () => false,
     );
@@ -375,6 +389,7 @@ export const resolveServerConfig = (
         normalizedFlags.tailscaleServePort,
         Option.fromUndefinedOr(env.tailscaleServePort),
         Option.fromUndefinedOr(bootstrap?.tailscaleServePort),
+        Option.fromUndefinedOr(savedLaunch?.tailscaleServePort),
       ),
       () => 443,
     );
@@ -384,6 +399,7 @@ export const resolveServerConfig = (
         normalizedFlags.host,
         Option.fromUndefinedOr(env.host),
         Option.fromUndefinedOr(bootstrap?.host),
+        Option.fromUndefinedOr(savedLaunch?.host),
       ),
       () => (mode === "desktop" ? "127.0.0.1" : undefined),
     );

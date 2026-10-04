@@ -1,28 +1,44 @@
 # Install Rove Code
 
-Rove Code currently runs from source. This fork has not published a desktop
-installer, npm package, hosted web app, or store mobile app. Do not use an
-upstream download or package expecting it to install this fork.
+Use Rove-owned desktop installers and CLI packages. This fork has not published
+its first release yet. The commands below require a published release or a
+verified staged release candidate. Do not substitute an upstream package.
 
-## Run from source
+## Install a CLI host
 
-Install Node.js 24.13.1 and [Vite+](https://viteplus.dev/guide/). Then run:
+With Node.js and npm available for installation, run:
 
-```bash
-git clone https://github.com/hafiezul/rove.git
-cd rove
-vp i
-vp run dev
+```sh
+npm install -g @rove-code/cli
+rove service install
+rove service status
 ```
 
-The development server prints the local web address and pairing information.
-For a development desktop app, run `vp run dev:desktop` from the same checkout.
-You need an installed, authenticated coding-agent provider before starting a
-thread. You can configure providers after opening Rove Code.
+The npm package contains the platform executable. Service installation places
+an exact-version runtime outside npm's cache. The running service does not
+require a Git checkout or a system Node.js installation.
 
-This source build has no managed updater. To get changes, pull from this fork
-and rebuild. Installers and an update feed will be documented here after this
-project publishes and tests its own release artifacts.
+To bootstrap without a global npm installation, run:
+
+```sh
+npx @rove-code/cli@latest service install --tailscale-serve
+npx @rove-code/cli@latest pair --tailscale
+```
+
+Use the pairing URL in **Settings → Connections → Add environment** on your
+client. Tailscale must run on the host and receiving device. See
+[remote access](./remote-access.md) for direct LAN, SSH, and browser connections.
+
+Persistent CLI hosts support Linux x64 and arm64, including systemd-enabled WSL,
+and Apple Silicon macOS with launchd. Intel macOS CLI archives and native Windows
+background services are not supported. Desktop clients have a separate platform matrix. See [background hosting](./background-service.md)
+for prerequisites, restart, and removal.
+
+Update a packaged host with `rove update`, or
+`npx @rove-code/cli@latest update`. See [updates](./updating.md).
+
+Contributor source setup lives in the [development guide](../operations/development.md).
+It is not the installation or update procedure for a persistent host.
 
 Outside a development worktree, Rove Code uses `~/.rove-code` for its data.
 The inherited installation's `~/.rove` is left untouched. Do not point both

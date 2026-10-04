@@ -169,10 +169,8 @@ describe("ssh tunnel scripts", () => {
       ...ARCHIVE,
       releaseBaseUrl: "https://mirror.example/rove/",
     });
-    assert.include(launch, "T3_ARCHIVE_MODE=1");
     assert.include(launch, "T3_RELEASE_BASE_URL='https://mirror.example/rove'");
-    assert.include(launch, '"$RUNNER_FILE" __ssh-helper pick-port "$PORT_FILE"');
-    assert.include(launch, '"$RUNNER_FILE" __ssh-helper wait-ready "$REMOTE_PORT"');
+    assert.include(launch, '"$RUNNER_FILE" __ssh-helper wait-service "$DEFAULT_RUNTIME_FILE"');
     assert.include(launch, '"$RUNNER_FILE" __ssh-helper runtime-port "$DEFAULT_RUNTIME_FILE"');
     assert.include(buildRemoteLaunchScript(NODE_SCRIPT), "T3_ARCHIVE_MODE=0");
   });
@@ -245,18 +243,18 @@ describe("ssh tunnel scripts", () => {
     assert.notInclude(script, "npx");
   });
 
-  it("uses the remote rove runner for launch and pairing scripts", () => {
+  it("keeps the disposable launch path only for source development", () => {
     const target = {
       alias: "devbox",
       hostname: "devbox.example.com",
       username: "julius",
       port: 2222,
     } as const;
-    const launch = buildRemoteLaunchScript(ARCHIVE);
-    const devLaunch = buildRemoteLaunchScript({
+    const launch = buildRemoteLaunchScript({
       ...NODE_SCRIPT,
       nodeEngineRange: TEST_NODE_ENGINE_RANGE,
     });
+    const devLaunch = launch;
 
     assert.include(
       launch,
@@ -276,7 +274,7 @@ describe("ssh tunnel scripts", () => {
     assert.include(launch, 'wait_ready "60000"');
     assert.include(launch, 'if [ -s "$LOG_FILE" ]; then');
     assert.include(launch, "It wrote nothing to %s");
-    assert.include(launch, "T3_ARCHIVE_VERSION='1.2.3-preview.20260911.4'");
+
     assert.include(
       buildRemotePairingScript(target, ARCHIVE),
       '"$RUNNER_FILE" auth pairing create --base-dir "$PAIRING_BASE_DIR" --json',
@@ -316,6 +314,18 @@ describe("ssh tunnel scripts", () => {
       launch.indexOf('DEFAULT_RUNTIME_INFO="$(resolve_default_runtime_port'),
       launch.indexOf('elif [ -n "$REMOTE_PID" ]'),
     );
+  });
+
+  it("provisions a persistent service for release SSH connections", () => {
+    const launch = buildRemoteLaunchScript(ARCHIVE);
+    assert.include(launch, 'service install --base-dir "$DEFAULT_SERVER_HOME"');
+    assert.include(launch, 'service restart --base-dir "$DEFAULT_SERVER_HOME"');
+    assert.include(launch, '__ssh-helper runtime-port "$DEFAULT_RUNTIME_FILE" --service');
+    assert.include(launch, '__ssh-helper wait-service "$DEFAULT_RUNTIME_FILE"');
+    assert.include(launch, '"serverKind":"external"');
+    assert.notInclude(launch, "nohup");
+    assert.notInclude(launch, 'kill "$REMOTE_PID"');
+    assert.notInclude(launch, "pick_port()");
   });
 
   it.effect("accepts launch JSON after remote shell startup noise", () => {
