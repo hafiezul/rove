@@ -348,6 +348,37 @@ var x = 1;
     assert.deepStrictEqual(result.inlined, ["@ff-labs/fff-node"]);
   });
 
+  it("does not treat bundled package manifests as runtime code", () => {
+    const source =
+      region("../../node_modules/@earendil-works/pi-coding-agent/package.json") +
+      region("../../node_modules/node-pty/package.json");
+    const result = findInlinedExternalPackages(source);
+
+    assert.strictEqual(result.regionCount, 2);
+    assert.deepStrictEqual(result.inlined, []);
+    assert.deepStrictEqual(result.inlinedPackages, []);
+  });
+
+  it("still flags runtime code alongside a bundled manifest", () => {
+    const source =
+      region("../../node_modules/@earendil-works/pi-coding-agent/package.json") +
+      region("../../node_modules/@earendil-works/pi-coding-agent/dist/index.js");
+    const result = findInlinedExternalPackages(source);
+
+    assert.strictEqual(result.regionCount, 2);
+    assert.deepStrictEqual(result.inlined, ["@earendil-works/pi-coding-agent"]);
+    assert.deepStrictEqual(result.inlinedPackages, ["@earendil-works/pi-coding-agent"]);
+  });
+
+  it("does not count a manifest as proof of a self-contained runtime", () => {
+    const result = findInlinedExternalPackages(
+      region("../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/package.json"),
+    );
+
+    assert.strictEqual(result.regionCount, 1);
+    assert.deepStrictEqual(result.inlinedPackages, []);
+  });
+
   it("ignores packages that are meant to be bundled", () => {
     const source =
       region("../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/index.js") +
@@ -456,15 +487,16 @@ it("bundles the server CLI without inlining Pi SDK sources", { timeout: 240000 }
       timeout: 180_000,
     });
     assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
+    let totalRegions = 0;
     for (const file of NodeFS.readdirSync(dist).filter((name) => name.endsWith(".mjs"))) {
       const result = findInlinedExternalPackages(
         NodeFS.readFileSync(NodePath.join(dist, file), "utf8"),
       );
-      assert.isAtLeast(result.regionCount, 1, file);
-      // SAFETY: findInlinedExternalPackages returns string names; the filter only narrows to the Pi scope.
+      totalRegions += result.regionCount;
       const piPackages = result.inlined.filter((name) => name.startsWith("@earendil-works/"));
       assert.deepStrictEqual(piPackages, [], file);
     }
+    assert.isAtLeast(totalRegions, 1);
   } finally {
     NodeFS.rmSync(dist, { recursive: true, force: true });
   }
