@@ -1149,6 +1149,19 @@ describe("applyThreadDetailEvent", () => {
   });
 
   describe("thread.session-stop-requested", () => {
+    const stopEvent = {
+      ...baseEventFields,
+      sequence: 10,
+      occurredAt: "2026-04-01T09:00:00.000Z",
+      aggregateKind: "thread",
+      aggregateId: ThreadId.make("thread-1"),
+      type: "thread.session-stop-requested",
+      payload: {
+        threadId: ThreadId.make("thread-1"),
+        createdAt: "2026-04-01T09:00:00.000Z",
+      },
+    } as const;
+
     it("marks session as stopped", () => {
       const threadWithSession: OrchestrationThread = {
         ...baseThread,
@@ -1163,18 +1176,7 @@ describe("applyThreadDetailEvent", () => {
         },
       };
 
-      const result = applyThreadDetailEvent(threadWithSession, {
-        ...baseEventFields,
-        sequence: 10,
-        occurredAt: "2026-04-01T09:00:00.000Z",
-        aggregateKind: "thread",
-        aggregateId: ThreadId.make("thread-1"),
-        type: "thread.session-stop-requested",
-        payload: {
-          threadId: ThreadId.make("thread-1"),
-          createdAt: "2026-04-01T09:00:00.000Z",
-        },
-      });
+      const result = applyThreadDetailEvent(threadWithSession, stopEvent);
 
       expect(result.kind).toBe("updated");
       if (result.kind === "updated") {
@@ -1183,20 +1185,65 @@ describe("applyThreadDetailEvent", () => {
       }
     });
 
-    it("returns unchanged when no session exists", () => {
-      const result = applyThreadDetailEvent(baseThread, {
-        ...baseEventFields,
-        sequence: 10,
-        occurredAt: "2026-04-01T09:00:00.000Z",
-        aggregateKind: "thread",
-        aggregateId: ThreadId.make("thread-1"),
-        type: "thread.session-stop-requested",
-        payload: {
-          threadId: ThreadId.make("thread-1"),
-          createdAt: "2026-04-01T09:00:00.000Z",
+    it.each([undefined, null])(
+      "returns unchanged when no session or recovery exists (%s)",
+      (limitRecovery) => {
+        const result = applyThreadDetailEvent({ ...baseThread, limitRecovery }, stopEvent);
+        expect(result.kind).toBe("unchanged");
+      },
+    );
+
+    it("cancels scheduled recovery even when no session exists", () => {
+      const recovery = {
+        requestId: CommandId.make("recovery-command"),
+        turnId: TurnId.make("turn-1"),
+        modelSelection: baseThread.modelSelection,
+        resetAt: "2026-04-01T10:00:00.000Z",
+        resumeAt: "2026-04-01T10:00:00.000Z",
+      };
+      const result = applyThreadDetailEvent({ ...baseThread, limitRecovery: recovery }, stopEvent);
+
+      expect(result.kind).toBe("updated");
+      if (result.kind === "updated") {
+        expect(result.thread.session).toBeNull();
+        expect(result.thread.limitRecovery).toEqual({
+          ...recovery,
+          requestId: CommandId.make("limit-cancel:event-1"),
+          resumeAt: null,
+          manual: true,
+        });
+        expect(recovery.resumeAt).toBe("2026-04-01T10:00:00.000Z");
+      }
+    });
+
+    it("retains the latest turn binding so late evidence cannot reschedule recovery", () => {
+      const turnId = TurnId.make("turn-1");
+      const result = applyThreadDetailEvent(
+        {
+          ...baseThread,
+          latestTurn: {
+            turnId,
+            state: "error",
+            requestedAt: "2026-04-01T08:00:00.000Z",
+            startedAt: null,
+            completedAt: "2026-04-01T08:30:00.000Z",
+            assistantMessageId: null,
+          },
         },
-      });
-      expect(result.kind).toBe("unchanged");
+        stopEvent,
+      );
+
+      expect(result.kind).toBe("updated");
+      if (result.kind === "updated") {
+        expect(result.thread.limitRecovery).toEqual({
+          requestId: CommandId.make("limit-cancel:event-1"),
+          turnId,
+          modelSelection: baseThread.modelSelection,
+          resetAt: null,
+          resumeAt: null,
+          manual: true,
+        });
+      }
     });
   });
 

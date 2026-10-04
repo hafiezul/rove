@@ -49,7 +49,7 @@ jobs:
       - name: Test hosted build configuration
         run: |
           vp test run apps/web/vite/hostedBuild.test.ts
-          node --test scripts/check-cloudflare-web.test.mjs
+          vp test run scripts/check-cloudflare-web.test.mjs
 
       - name: Build
         run: vp run build:web:hosted
