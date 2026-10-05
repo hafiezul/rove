@@ -88,13 +88,13 @@ export function ProjectActionsSettings() {
   // A project's t3.json can declare actions to import. Read it from the
   // representative checkout; the imported action still fans out.
   const representativeMember = target?.projectId ? memberById.get(target.projectId) : undefined;
-  const t3File = useRoveProjectFileState(
+  const roveFile = useRoveProjectFileState(
     representativeMember?.environmentId ?? EnvironmentId.make("none"),
     representativeMember?.workspaceRoot ?? null,
   );
   const importableScripts = useMemo(
     () =>
-      t3File.scripts.filter(
+      roveFile.scripts.filter(
         (fileScript) =>
           !scripts.some(
             (script) =>
@@ -102,7 +102,7 @@ export function ProjectActionsSettings() {
               script.name.toLowerCase() === fileScript.name.toLowerCase(),
           ),
       ),
-    [scripts, t3File.scripts],
+    [scripts, roveFile.scripts],
   );
   const importFileScript = useCallback(
     async (fileScript: RoveProjectFileScript) => {
@@ -206,7 +206,7 @@ export function ProjectActionsSettings() {
           onEdit={(script) => setRequest(editorRequestForScript(script, keybindings))}
         />
       )}
-      {t3File.status === "invalid" ? (
+      {roveFile.status === "invalid" ? (
         <SettingsRow
           title="t3.json is invalid"
           description="A t3.json exists in this checkout but fails to parse, so every action and icon it declares is ignored. Check the JSON syntax and icon values."

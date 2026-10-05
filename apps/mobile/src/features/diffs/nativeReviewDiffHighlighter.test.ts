@@ -84,6 +84,37 @@ function highlight(
 }
 
 describe("highlightNativeReviewDiffVisibleRows", () => {
+  it.each([
+    { scheme: "light" as const, keywordColor: "#FC2B73" },
+    { scheme: "dark" as const, keywordColor: "#FF678D" },
+  ])(
+    "preserves $scheme token content and colors across engines",
+    async ({ scheme, keywordColor }) => {
+      const row = makeLine({
+        id: "theme-colors",
+        content: "export const answer = 42;",
+        change: "add",
+        oldLineNumber: null,
+        newLineNumber: 1,
+      });
+      for (const engine of ["javascript", "native"] as const) {
+        const result = await highlightNativeReviewDiffVisibleRows({
+          rows: [row],
+          files: [TYPESCRIPT_FILE],
+          scheme,
+          engine,
+          firstRowIndex: 0,
+          lastRowIndex: 0,
+        });
+        const tokens = result.tokensByRowId[row.id];
+        expect(tokens?.map((token) => token.content).join("")).toBe(row.content);
+        expect(tokens).toContainEqual(
+          expect.objectContaining({ content: "export", color: keywordColor }),
+        );
+      }
+    },
+  );
+
   it("does not carry grammar state across hunk boundaries", async () => {
     const exportRow = makeLine({
       id: "export-row",

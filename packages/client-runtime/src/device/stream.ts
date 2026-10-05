@@ -3,7 +3,7 @@
 
 /**
  * Framework-free client for expo-device-hub's per-device streams, reached
- * through the T3 proxy. One class handles both platforms because the hub
+ * through the Rove proxy. One class handles both platforms because the hub
  * vendors two servers with different wire formats:
  *
  * - iOS (serve-sim): video is an HTTP `stream.avcc` body of length-prefixed

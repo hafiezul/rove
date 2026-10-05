@@ -1,8 +1,4 @@
-import type {
-  ModelCapabilities,
-  ModelSelection,
-  ServerConfig as T3ServerConfig,
-} from "@rove-code/contracts";
+import type { ModelCapabilities, ModelSelection, ServerConfig } from "@rove-code/contracts";
 import {
   buildExplicitProviderOptionSelectionsFromDescriptors,
   getProviderOptionDescriptors,
@@ -65,7 +61,7 @@ function normalizeSelectionOptions(
 }
 
 export function normalizePiModelSelection(
-  config: T3ServerConfig | null | undefined,
+  config: ServerConfig | null | undefined,
   selection: ModelSelection,
 ): ModelSelection {
   const provider = config?.providers.find(
@@ -78,7 +74,7 @@ export function normalizePiModelSelection(
 
 /** Whether a known Antigravity selection needs setup or a different model. */
 export function isModelSelectionUnavailable(
-  config: T3ServerConfig | null | undefined,
+  config: ServerConfig | null | undefined,
   selection: ModelSelection | null | undefined,
 ): boolean {
   if (!config || !selection) {
@@ -106,7 +102,7 @@ export function isModelSelectionUnavailable(
  * are disabled, missing, or signed out. Without config, keep stored selections.
  */
 export function resolveSelectableModelSelection(
-  config: T3ServerConfig | null | undefined,
+  config: ServerConfig | null | undefined,
   selection: ModelSelection | null,
 ): ModelSelection | null {
   if (!selection || !config) {
@@ -134,7 +130,7 @@ export function resolveSelectableModelSelection(
  * the settings sheet are unaffected.
  */
 export function resolveDefaultableModelSelection(
-  config: T3ServerConfig | null | undefined,
+  config: ServerConfig | null | undefined,
   selection: ModelSelection | null,
 ): ModelSelection | null {
   const usable = resolveSelectableModelSelection(config, selection);
@@ -163,7 +159,7 @@ export function resolveNewTaskModelSelection(input: {
 }
 
 export function buildModelOptions(
-  config: T3ServerConfig | null | undefined,
+  config: ServerConfig | null | undefined,
   fallbackModelSelection: ModelSelection | null,
 ): ReadonlyArray<ModelOption> {
   const options = new Map<string, ModelOption>();

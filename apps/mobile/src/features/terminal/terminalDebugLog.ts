@@ -1,7 +1,7 @@
 import { createDebugLogger } from "../../lib/debugLog";
 
 /**
- * Debug logging for the mobile terminal pipeline. Prefix: `[t3-terminal]`.
+ * Debug logging for the mobile terminal pipeline. Prefix: `[rove-terminal]`.
  *
  * Enabled when `__DEV__` is true, or set `globalThis.__ROVE_TERMINAL_DEBUG__`
  * (or the shared `globalThis.__ROVE_DEBUG__` filter) in a JS debugger / Metro

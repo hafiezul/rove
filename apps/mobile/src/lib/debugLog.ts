@@ -4,7 +4,7 @@
  * Ordinary, expected conditions — a queued send failing while the device is
  * offline, for example — go through a debug logger instead of `console.warn`
  * so warning output stays reserved for failures someone can act on. Output
- * uses `console.log` with a `[t3-<namespace>]` prefix, matching the existing
+ * uses `console.log` with a `[rove-<namespace>]` prefix, matching the existing
  * cloud and terminal debug logs. (client-runtime cannot host this: its
  * tooling bans `console.*` in favor of Effect logging.)
  *

@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.version = package['version']
   s.summary = 'Native terminal surface for Rove Code mobile.'
   s.description = 'Native terminal surface bridge used by the Rove Code React Native app.'
-  s.homepage = 'https://t3tools.com'
+  s.homepage = 'https://rove.hafiezulzikry.com'
   s.license = { :type => 'UNLICENSED' }
   s.author = { 'T3 Tools' => 'hello@t3tools.com' }
   s.platforms = { :ios => '16.1' }

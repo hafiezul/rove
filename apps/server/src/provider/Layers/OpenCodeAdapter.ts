@@ -995,7 +995,7 @@ export function makeOpenCodeAdapter(
     );
     let messageIdEpochMillis = -1;
     let messageIdCounter = 0;
-    // T3 supplies the message ID to match prompt admission events. Keep OpenCode's sortable native shape so equal-time messages retain their upstream order.
+    // Rove supplies the message ID to match prompt admission events. Keep OpenCode's sortable native shape so equal-time messages retain their upstream order.
     const makeOpenCodeMessageId = Effect.fn("makeOpenCodeMessageId")(function* () {
       const epochMillis = DateTime.toEpochMillis(yield* DateTime.now);
       if (epochMillis !== messageIdEpochMillis) {
@@ -3948,7 +3948,7 @@ export function makeOpenCodeAdapter(
               .slice(0, targetMessageIndex + 1)
               .findLast((entry) => entry.info.role === "user") ?? entries[targetMessageIndex]!;
           // Native revert also rewrites workspace files. Fork only the retained
-          // conversation so T3 alone decides whether filesystem changes survive.
+          // conversation so Rove alone decides whether filesystem changes survive.
           const fork = yield* runOpenCodeSdk("session.fork", () =>
             context.client.session.fork({
               sessionID: context.openCodeSessionId,

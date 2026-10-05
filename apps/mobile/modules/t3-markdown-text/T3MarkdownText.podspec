@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.version = package["version"]
   s.summary = "Native selectable markdown renderer for Rove Code mobile."
   s.description = "Fabric-backed attributed text and markdown rendering primitives owned by Rove Code."
-  s.homepage = "https://t3tools.com"
+  s.homepage = "https://rove.hafiezulzikry.com"
   s.license = { :type => "MIT", :file => "LICENSE" }
   s.author = { "T3 Tools" => "hello@t3tools.com" }
   s.platforms = { :ios => min_ios_version_supported }
