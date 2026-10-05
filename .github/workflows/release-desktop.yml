@@ -217,12 +217,20 @@ jobs:
           name: cli-linux-${{ inputs.arch }}
           path: wsl-runtime
 
-      - name: Install Spectre-mitigated MSVC libs
+      - name: Ensure Spectre-mitigated MSVC libs
         if: inputs.platform == 'win'
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $installPath = & $vswhere -products * -latest -property installationPath
+          $msvcToolset = Get-ChildItem (Join-Path $installPath 'VC\Tools\MSVC') -Directory |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          $spectreArch = "${{ inputs.arch }}"
+          if ($msvcToolset -and (Test-Path (Join-Path $msvcToolset.FullName "lib\spectre\$spectreArch\libcmt.lib"))) {
+            Write-Host "Spectre-mitigated MSVC libraries already installed for $spectreArch."
+            exit 0
+          }
           $setupExe = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
           $proc = Start-Process -FilePath $setupExe `
             -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", `

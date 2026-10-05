@@ -216,12 +216,56 @@ jobs:
 
   quality:
     name: Release quality checks
+    needs: [preflight, quality_checks]
+    if: ${{ always() && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every quality check
+        env:
+          QUALITY_RESULT: ${{ needs.quality_checks.result }}
+        run: test "$QUALITY_RESULT" = success
+
+  quality_checks:
+    name: Release quality ${{ matrix.suite }} ${{ matrix.workspace }} ${{ matrix.shard }}
     needs: [preflight]
     if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' }}
     runs-on: ubuntu-24.04
-    # Unlike CI, this runs the whole suite (including the serial server tests)
-    # on one runner. CI's sharded jobs each fit in 10 minutes; this cannot.
-    timeout-minutes: 45
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: static
+          - suite: packages
+          - suite: client
+            workspace: web
+            shard: 1
+            shards: 2
+          - suite: client
+            workspace: web
+            shard: 2
+            shards: 2
+          - suite: client
+            workspace: mobile
+            shard: 1
+            shards: 1
+          - suite: client
+            workspace: client-runtime
+            shard: 1
+            shards: 1
+          - suite: server
+            shard: 1
+            shards: 4
+          - suite: server
+            shard: 2
+            shards: 4
+          - suite: server
+            shard: 3
+            shards: 4
+          - suite: server
+            shard: 4
+            shards: 4
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -237,24 +281,55 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
-          run-install: true
+          run-install: false
+
+      - name: Download dependency verification
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: release-dependency-verification
+          path: ${{ runner.temp }}/pnpm-metadata
+
+      - name: Install quality dependencies
+        env:
+          pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
+        run: vp install
 
       - name: Ensure Electron runtime is installed
+        if: matrix.suite == 'static' || matrix.suite == 'packages'
         run: vp run --filter @t3tools/desktop ensure:electron
 
       - name: Check
+        if: matrix.suite == 'static'
         run: vp check
 
       - name: Typecheck
+        if: matrix.suite == 'static'
         run: vp run typecheck
 
       - uses: ./.github/actions/setup-apt-mirrors
+        if: matrix.suite == 'packages'
 
       - name: Install browser secret helper build libraries
+        if: matrix.suite == 'packages'
         run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
 
-      - name: Test
-        run: vp run test
+      - name: Test packages
+        if: matrix.suite == 'packages'
+        run: >-
+          vp run --parallel --concurrency-limit 4
+          --filter '!t3' --filter '!@t3tools/monorepo'
+          --filter '!@t3tools/web' --filter '!@t3tools/mobile'
+          --filter '!@t3tools/client-runtime' test
+
+      - name: Test client
+        if: matrix.suite == 'client'
+        run: vp run --filter @t3tools/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
+
+      # Server test files stay serial within each runner, as in CI.
+      - name: Test server
+        if: matrix.suite == 'server'
+        run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ matrix.shards }}
 
   relay_public_config:
     name: Resolve Rove Connect public config
@@ -544,7 +619,7 @@ jobs:
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       relay_client_tracing: ${{ needs.relay_public_config.result == 'success' }}
       label: Linux arm64
-      runner: blacksmith-16vcpu-ubuntu-2404-arm
+      runner: ubuntu-24.04-arm
       platform: linux
       target: AppImage
       arch: arm64
