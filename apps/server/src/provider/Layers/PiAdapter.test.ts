@@ -2728,12 +2728,16 @@ it.layer(testLayer)("PiAdapter", (it) => {
     "asks the session for an untimed Pi limit's reset: %s",
     (scenario) =>
       Effect.gen(function* () {
-        const fake = Object.assign(new FakePiSession(), {
-          getTurnUsageLimit: async () => {
+        // A prototype method that reads `this`, like the worker proxy, so a
+        // detached call cannot pass.
+        class QuotaPiSession extends FakePiSession {
+          readonly quotaReset = "1970-01-08T00:00:00.000Z";
+          async getTurnUsageLimit() {
             if (scenario === "failed") throw new Error("Synthetic quota endpoint unavailable");
-            return { resetAt: "1970-01-08T00:00:00.000Z" };
-          },
-        });
+            return { resetAt: this.quotaReset };
+          }
+        }
+        const fake = new QuotaPiSession();
         const adapter = yield* makeAdapter(fake);
         const completion = yield* Deferred.make<ProviderRuntimeEvent>();
         yield* adapter.streamEvents.pipe(

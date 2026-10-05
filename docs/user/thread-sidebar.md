@@ -141,8 +141,11 @@ for custom configuration.
 Enable **Auto-resume limited threads** in **Settings → General** on web and desktop,
 or **Settings → Thread behavior** on mobile. New limit stops schedule a continuation
 at the reported reset time. The duration can be minutes, days, or another quota window.
-Pi with subscription authentication can read account quota when the error omits
-the reset time. Unknown reset times show the normal error without recovery controls.
+Codex and Claude report reset times directly. Pi has full support when it's signed in with a
+ChatGPT subscription (`openai-codex`) or a Claude subscription (`anthropic`), because Rove can
+read those accounts' quotas when the error omits the reset time. Other Pi providers recover only
+when their error message states the wait, such as "try again in 20 minutes". Unknown reset times
+show the normal error without recovery controls.
 
 Use **Snooze until reset** to hide a limited thread while you wait. Snoozing does
 not enable or cancel auto-resume. Use **Wake now** to show the thread without
