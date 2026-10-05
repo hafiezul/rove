@@ -25,13 +25,14 @@ const decodeModelUsage = Schema.decodeUnknownOption(
       Schema.String,
       Schema.Struct({
         available: Schema.Boolean,
-        // Undocumented; only epoch seconds, like every other wham timestamp, yields a reset.
+        // Undocumented; observed as an ISO string, while other wham timestamps are epoch seconds.
         available_at: Schema.optional(Schema.Unknown),
       }),
     ),
   }),
 );
 const decodeEpochSeconds = Schema.decodeUnknownOption(Schema.Number);
+const decodeTimestamp = Schema.decodeUnknownOption(Schema.String);
 const decodeAccount = Schema.decodeUnknownOption(
   Schema.Struct({
     "https://api.openai.com/auth": Schema.Struct({ chatgpt_account_id: Schema.String }),
@@ -85,10 +86,12 @@ export function piQuotaStatus(
   const usage = decodeModelUsage(payload);
   const entry = Option.isSome(usage) ? usage.value.model_usage[model] : undefined;
   if (entry === undefined || entry.available) return account;
-  const availableMs = Option.match(decodeEpochSeconds(entry.available_at), {
-    onNone: () => NaN,
-    onSome: (seconds) => seconds * 1000,
-  });
+  const availableAt = entry.available_at;
+  const availableMs = decodeEpochSeconds(availableAt).pipe(
+    Option.map((seconds) => seconds * 1000),
+    Option.orElse(() => decodeTimestamp(availableAt).pipe(Option.map(Date.parse))),
+    Option.getOrElse(() => NaN),
+  );
   const modelReset =
     Number.isFinite(availableMs) &&
     availableMs > Date.parse(observedAt) &&
