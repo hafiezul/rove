@@ -1,8 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off globalFetchInEffect:off - Hosted handoff test uses a real localhost listener without an OpenAI account.
 import * as NodeHttp from "node:http";
-import { codexAuthHandoffUrl, readCodexAuthDelivery } from "@t3tools/shared/codexAuthHandoff";
-import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
-import { HostProcessArguments } from "@t3tools/shared/hostProcess";
+import { codexAuthHandoffUrl, readCodexAuthDelivery } from "@rove-code/shared/codexAuthHandoff";
+import { EnvironmentId, ProviderInstanceId } from "@rove-code/contracts";
+import { HostProcessArguments } from "@rove-code/shared/hostProcess";
 import { testDouble } from "../testDouble.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";

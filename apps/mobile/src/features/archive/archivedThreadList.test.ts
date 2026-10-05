@@ -1,6 +1,6 @@
-import type { ArchivedSnapshotEntry } from "@t3tools/client-runtime/state/threads";
-import type { OrchestrationProjectShell, OrchestrationThreadShell } from "@t3tools/contracts";
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import type { ArchivedSnapshotEntry } from "@rove-code/client-runtime/state/threads";
+import type { OrchestrationProjectShell, OrchestrationThreadShell } from "@rove-code/contracts";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildArchivedThreadGroups } from "./archivedThreadList";

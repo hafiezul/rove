@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 
 import {
   buildSshAskpassHelperDescriptor,
@@ -45,10 +45,13 @@ describe("ssh auth", () => {
       const askpassPath = path.join(directory, "ssh-askpass.sh");
       assert.equal(env.SSH_ASKPASS, askpassPath);
       assert.equal(env.SSH_ASKPASS_REQUIRE, "force");
-      assert.equal(env.T3_SSH_AUTH_SECRET, "super-secret");
+      assert.equal(env.ROVE_SSH_AUTH_SECRET, "super-secret");
       assert.equal(env.DISPLAY, "rove");
       assert.equal(yield* fs.exists(askpassPath), true);
-      assert.include(yield* fs.readFileString(askpassPath), 'printf "%s\\n" "$T3_SSH_AUTH_SECRET"');
+      assert.include(
+        yield* fs.readFileString(askpassPath),
+        'printf "%s\\n" "$ROVE_SSH_AUTH_SECRET"',
+      );
     }).pipe(
       Effect.provide(Layer.merge(NodeServices.layer, Layer.succeed(HostProcessPlatform, "linux"))),
       Effect.scoped,

@@ -19,7 +19,7 @@ import {
   type ProviderRuntimeEvent,
   type ResponseStreamingMode,
   RuntimeRequestId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Cache from "effect/Cache";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
@@ -32,8 +32,8 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Stream from "effect/Stream";
-import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
-import { formatTokens } from "@t3tools/shared/usageFormat";
+import { makeDrainableWorker } from "@rove-code/shared/DrainableWorker";
+import { formatTokens } from "@rove-code/shared/usageFormat";
 
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
 import { ProjectionTurnRepository } from "../../persistence/Services/ProjectionTurns.ts";
@@ -56,7 +56,7 @@ import {
 import { projectActivityPayload } from "../ActivityPayloadProjection.ts";
 import { forkParked } from "../../serverActivation.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 import { canReplaceThreadTitle } from "../threadTitles.ts";
 
 const providerTurnKey = (threadId: ThreadId, turnId: TurnId) => `${threadId}:${turnId}`;

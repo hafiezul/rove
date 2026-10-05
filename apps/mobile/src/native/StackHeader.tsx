@@ -5,7 +5,7 @@ import type {
 } from "@react-navigation/native-stack";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ColorValue } from "react-native";
-import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+import { runtimeValueKind } from "@rove-code/shared/runtimeValueKind";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

@@ -1,4 +1,4 @@
-import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
+import { tokenizeCliArgs } from "@rove-code/shared/cliArgs";
 
 const ROVE_CODEX_LAUNCH_ARGS_ENV = "ROVE_CODEX_LAUNCH_ARGS";
 

@@ -11,14 +11,14 @@ import type {
   ProjectId,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type {
   RelayAgentActivityPublishProofPayload,
   RelayAgentActivityState,
-} from "@t3tools/contracts/relay";
-import { CommandId, ProviderInstanceId } from "@t3tools/contracts";
-import { RelayClientTracer } from "@t3tools/shared/relayTracing";
-import { RELAY_ACTIVITY_PUBLISH_TYP, verifyRelayJwt } from "@t3tools/shared/relayJwt";
+} from "@rove-code/contracts/relay";
+import { CommandId, ProviderInstanceId } from "@rove-code/contracts";
+import { RelayClientTracer } from "@rove-code/shared/relayTracing";
+import { RELAY_ACTIVITY_PUBLISH_TYP, verifyRelayJwt } from "@rove-code/shared/relayJwt";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";

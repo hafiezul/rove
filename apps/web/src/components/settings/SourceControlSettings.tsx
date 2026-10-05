@@ -9,12 +9,12 @@ import type {
   SourceControlProviderAuth,
   SourceControlProviderDiscoveryItem,
   VcsDiscoveryItem,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   getBackgroundActivityBaseProfile,
   getBackgroundActivityPresetSettings,
   resolveServerBackgroundActivitySettings,
-} from "@t3tools/shared/backgroundActivitySettings";
+} from "@rove-code/shared/backgroundActivitySettings";
 
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";

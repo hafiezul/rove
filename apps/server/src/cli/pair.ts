@@ -13,16 +13,16 @@ import {
   AuthStandardClientScopes,
   ExecutionEnvironmentDescriptor,
   PortSchema,
-} from "@t3tools/contracts";
-import { resolveWorktreeRoveHome } from "@t3tools/shared/devHome";
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+} from "@rove-code/contracts";
+import { resolveWorktreeRoveHome } from "@rove-code/shared/devHome";
+import { DEFAULT_SIGNAL_EXPORT } from "@rove-code/shared/observability";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
 import {
   buildTailscaleHttpsBaseUrl,
   DEFAULT_TAILSCALE_SERVE_PORT,
   ensureTailscaleServe,
   readTailscaleStatus,
-} from "@t3tools/tailscale";
+} from "@rove-code/tailscale";
 import * as Config from "effect/Config";
 import * as Console from "effect/Console";
 import * as DateTime from "effect/DateTime";

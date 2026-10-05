@@ -11,7 +11,7 @@ import type {
   DesktopCaptureConfigApplied,
   DesktopCaptureConfigPreview,
   DesktopCaptureConfigRequest,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   captureConfigKeys,
   editCaptureConfig,

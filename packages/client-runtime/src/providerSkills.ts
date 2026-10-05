@@ -2,7 +2,7 @@ import type {
   ServerProvider,
   ServerProviderSkill,
   ServerProviderSlashCommand,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 export type ProviderSkillSourceKind = "app" | "repo" | "project" | "personal" | "system" | "other";
 

@@ -12,7 +12,7 @@ import {
   ProviderRuntimeEvent,
   ProviderSession,
   ProviderInstanceId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   CommandId,
   CheckpointRef,
@@ -22,7 +22,7 @@ import {
   ProjectId,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import type { Json as SchemaJson } from "effect/Schema";
 import * as Clock from "effect/Clock";

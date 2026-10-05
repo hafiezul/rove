@@ -1,5 +1,5 @@
-import type { OrchestrationThreadShell } from "@t3tools/contracts";
-import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
+import type { OrchestrationThreadShell } from "@rove-code/contracts";
+import { visibleThreadPullRequests } from "@rove-code/shared/threadPullRequests";
 
 export interface SettlementPullRequest {
   readonly state: "open" | "closed" | "merged";

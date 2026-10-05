@@ -2,12 +2,12 @@ import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  buildT3ProjectFileJsonSchema,
-  parseT3ProjectFile,
-  T3ProjectFileFromJson,
-} from "./t3ProjectFile.ts";
+  buildRoveProjectFileJsonSchema,
+  parseRoveProjectFile,
+  RoveProjectFileFromJson,
+} from "./roveProjectFile.ts";
 
-const decodeJson = Schema.decodeUnknownSync(T3ProjectFileFromJson);
+const decodeJson = Schema.decodeUnknownSync(RoveProjectFileFromJson);
 const decodeProjectJsonSchema = Schema.decodeUnknownSync(
   Schema.Struct({
     properties: Schema.Record(
@@ -26,9 +26,9 @@ const decodeProjectJsonSchema = Schema.decodeUnknownSync(
   }),
 );
 
-describe("buildT3ProjectFileJsonSchema", () => {
+describe("buildRoveProjectFileJsonSchema", () => {
   it("emits a draft 2020-12 schema with the published $id", () => {
-    const schema = buildT3ProjectFileJsonSchema();
+    const schema = buildRoveProjectFileJsonSchema();
 
     expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
     expect(schema.$id).toBe("https://t3.codes/schema/t3.json");
@@ -37,7 +37,7 @@ describe("buildT3ProjectFileJsonSchema", () => {
   });
 
   it("documents every supported field", () => {
-    const schema = decodeProjectJsonSchema(buildT3ProjectFileJsonSchema());
+    const schema = decodeProjectJsonSchema(buildRoveProjectFileJsonSchema());
 
     expect(Object.keys(schema.properties).sort()).toEqual([
       "$schema",
@@ -64,12 +64,12 @@ describe("buildT3ProjectFileJsonSchema", () => {
   });
 
   it("stays JSON-serializable", () => {
-    const schema = buildT3ProjectFileJsonSchema();
+    const schema = buildRoveProjectFileJsonSchema();
     expect(JSON.parse(JSON.stringify(schema))).toEqual(schema);
   });
 });
 
-describe("T3ProjectFileFromJson", () => {
+describe("RoveProjectFileFromJson", () => {
   it("decodes lenient JSONC with comments and trailing commas", () => {
     const decoded = decodeJson(`{
       // team scripts
@@ -88,15 +88,15 @@ describe("T3ProjectFileFromJson", () => {
   });
 });
 
-describe("parseT3ProjectFile", () => {
+describe("parseRoveProjectFile", () => {
   it("returns the decoded file for valid contents", () => {
-    expect(parseT3ProjectFile('{ "defaultThreadEnvMode": "worktree" }')).toEqual({
+    expect(parseRoveProjectFile('{ "defaultThreadEnvMode": "worktree" }')).toEqual({
       defaultThreadEnvMode: "worktree",
     });
   });
 
   it("returns null for malformed or invalid contents", () => {
-    expect(parseT3ProjectFile("{ not json")).toBeNull();
-    expect(parseT3ProjectFile('{ "defaultThreadEnvMode": "spaceship" }')).toBeNull();
+    expect(parseRoveProjectFile("{ not json")).toBeNull();
+    expect(parseRoveProjectFile('{ "defaultThreadEnvMode": "spaceship" }')).toBeNull();
   });
 });

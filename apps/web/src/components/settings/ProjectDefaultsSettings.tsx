@@ -3,10 +3,10 @@ import {
   type ModelSelection,
   type ProviderInstanceId,
   type WorktreeSubmodules,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
-import { createModelSelection } from "@t3tools/shared/model";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import { createModelSelection } from "@rove-code/shared/model";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 import { useNavigate } from "@tanstack/react-router";
 
 import { getCustomModelOptionsByInstance } from "../../modelSelection";

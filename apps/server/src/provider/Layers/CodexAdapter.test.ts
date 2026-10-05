@@ -17,8 +17,8 @@ import {
   type ProviderUserInputAnswers,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
-import { createModelSelection } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { createModelSelection } from "@rove-code/shared/model";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, vi } from "@effect/vitest";
 
@@ -51,7 +51,7 @@ const decodeCodexSettings = Schema.decodeSync(CodexSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* CodexAdapter`.
 class CodexAdapter extends Context.Service<CodexAdapter, CodexAdapterContract>()(
-  "t3/provider/Layers/CodexAdapter.test/CodexAdapter",
+  "@rove-code/server/provider/Layers/CodexAdapter.test/CodexAdapter",
 ) {}
 
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);

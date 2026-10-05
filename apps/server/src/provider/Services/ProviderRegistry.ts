@@ -14,7 +14,7 @@ import type {
   ProviderDriverKind,
   ServerProvider,
   ServerProviderUpdateState,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Stream from "effect/Stream";
@@ -91,5 +91,5 @@ export interface ProviderRegistryContract {
 }
 
 export class ProviderRegistry extends Context.Service<ProviderRegistry, ProviderRegistryContract>()(
-  "t3/provider/Services/ProviderRegistry",
+  "@rove-code/server/provider/Services/ProviderRegistry",
 ) {}

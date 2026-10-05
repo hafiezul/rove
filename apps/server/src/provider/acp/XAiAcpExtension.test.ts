@@ -286,7 +286,7 @@ describe("XAiAcpExtension", () => {
   it.effect("resolves a hung standard prompt from xAI prompt completion", () =>
     Effect.gen(function* () {
       const runtime = yield* makePromptCompletionRuntime({
-        T3_ACP_EMIT_XAI_PROMPT_COMPLETE_THEN_HANG: "1",
+        ROVE_ACP_EMIT_XAI_PROMPT_COMPLETE_THEN_HANG: "1",
       });
       yield* runtime.start();
 
@@ -310,7 +310,7 @@ describe("XAiAcpExtension", () => {
   it.effect("fails a hung standard prompt from an xAI rate-limit completion", () =>
     Effect.gen(function* () {
       const runtime = yield* makePromptCompletionRuntime({
-        T3_ACP_EMIT_XAI_RATE_LIMIT_THEN_HANG: "1",
+        ROVE_ACP_EMIT_XAI_RATE_LIMIT_THEN_HANG: "1",
       });
       yield* runtime.start();
 
@@ -331,7 +331,7 @@ describe("XAiAcpExtension", () => {
   it.effect("ignores stale xAI completion from an already settled prompt", () =>
     Effect.gen(function* () {
       const runtime = yield* makePromptCompletionRuntime({
-        T3_ACP_EMIT_STALE_XAI_PROMPT_COMPLETE_BEFORE_SECOND_HANG: "1",
+        ROVE_ACP_EMIT_STALE_XAI_PROMPT_COMPLETE_BEFORE_SECOND_HANG: "1",
       });
       yield* runtime.start();
 

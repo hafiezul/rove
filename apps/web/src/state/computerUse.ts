@@ -1,4 +1,4 @@
-import { createComputerUseEnvironmentAtoms } from "@t3tools/client-runtime/state/computer-use";
+import { createComputerUseEnvironmentAtoms } from "@rove-code/client-runtime/state/computer-use";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 

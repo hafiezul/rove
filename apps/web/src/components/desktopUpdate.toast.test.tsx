@@ -1,6 +1,6 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { DesktopUpdateState } from "@t3tools/contracts";
+import type { DesktopUpdateState } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 
 const testState = vi.hoisted(() => ({

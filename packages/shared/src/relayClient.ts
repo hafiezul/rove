@@ -2,7 +2,7 @@ import * as Clock from "effect/Clock";
 import type {
   RelayClientInstallProgressEvent,
   RelayClientInstallProgressStage,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
@@ -136,7 +136,7 @@ export interface RelayClientContract {
 }
 
 export class RelayClient extends Context.Service<RelayClient, RelayClientContract>()(
-  "@t3tools/shared/relayClient",
+  "@rove-code/shared/relayClient",
 ) {}
 
 function executableFileName(platform: NodeJS.Platform): string {

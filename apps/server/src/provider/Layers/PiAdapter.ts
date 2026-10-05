@@ -36,7 +36,7 @@ import {
   type ThreadId,
   type ThreadTokenUsageSnapshot,
   type ToolLifecycleItemType,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Crypto from "effect/Crypto";
 import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
@@ -54,7 +54,7 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 
-import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { getModelSelectionStringOptionValue } from "@rove-code/shared/model";
 import { usageLimitFromError } from "../usageLimitError.ts";
 import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 import { acquirePiResource, disposePiResource, PI_STARTUP_TIMEOUT_MS } from "./PiLifecycle.ts";

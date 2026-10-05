@@ -1,6 +1,6 @@
 import * as NodeOS from "node:os";
-import type { HostResourcesSnapshot } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import type { HostResourcesSnapshot } from "@rove-code/contracts";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Cache from "effect/Cache";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -12,7 +12,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 export class HostResources extends Context.Service<
   HostResources,
   { readonly read: Effect.Effect<HostResourcesSnapshot> }
->()("t3/resourceTelemetry/HostResources") {}
+>()("@rove-code/server/resourceTelemetry/HostResources") {}
 
 function readCpu() {
   const cpus = NodeOS.cpus();

@@ -1,4 +1,4 @@
-import { ProviderDriverKind } from "@t3tools/contracts";
+import { ProviderDriverKind } from "@rove-code/contracts";
 import {
   AntigravityIcon,
   ClaudeAI,

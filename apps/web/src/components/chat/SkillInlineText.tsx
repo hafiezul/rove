@@ -1,6 +1,6 @@
 import { Children, cloneElement, isValidElement, type ReactNode } from "react";
-import type { ServerProviderSkill } from "@t3tools/contracts";
-import { formatProviderSkillDisplayName } from "@t3tools/client-runtime/providerSkills";
+import type { ServerProviderSkill } from "@rove-code/contracts";
+import { formatProviderSkillDisplayName } from "@rove-code/client-runtime/providerSkills";
 
 import { SKILL_CHIP_ICON_SVG } from "../composerInlineChip";
 import { ContextChip, ContextChipLabel } from "../ContextChip";

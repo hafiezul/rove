@@ -6,7 +6,7 @@ import {
   EventId,
   type OrchestrationThreadActivity,
   UsageLimitSourceId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

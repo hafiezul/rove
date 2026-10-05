@@ -7,7 +7,7 @@ import * as NodeURL from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 
 import { isEntrypoint } from "./entrypoint.ts";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 
 // Resolved, so macOS's /var -> /private/var link matches the realpaths Node reports.
 const makeTempDir = () =>

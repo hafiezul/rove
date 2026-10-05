@@ -6,7 +6,7 @@ import {
   ThreadId,
   type OrchestrationEvent,
   type OrchestrationThreadActivity,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import { it as effectIt } from "@effect/vitest";
 import { describe, expect, it } from "vite-plus/test";

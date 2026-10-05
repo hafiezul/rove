@@ -1,4 +1,4 @@
-import { PiSettings, type ServerProviderModel } from "@t3tools/contracts";
+import { PiSettings, type ServerProviderModel } from "@rove-code/contracts";
 import { assert, it } from "@effect/vitest";
 import { VERSION } from "@earendil-works/pi-coding-agent";
 import * as Effect from "effect/Effect";

@@ -7,7 +7,7 @@ import {
   ThreadId,
   type OrchestrationEvent,
   type OrchestrationThread,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";

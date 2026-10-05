@@ -4,9 +4,9 @@ import type {
   OrchestrationReadModel,
   ProjectId,
   ThreadId,
-} from "@t3tools/contracts";
-import { CommandId, OrchestrationCommand } from "@t3tools/contracts";
-import { currentLimitRecovery, sameLimitRecoveryModel } from "@t3tools/shared/limitRecovery";
+} from "@rove-code/contracts";
+import { CommandId, OrchestrationCommand } from "@rove-code/contracts";
+import { currentLimitRecovery, sameLimitRecoveryModel } from "@rove-code/shared/limitRecovery";
 import { UsageLimitChecks } from "../../provider/UsageLimitChecks.ts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";

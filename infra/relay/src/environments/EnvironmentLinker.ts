@@ -2,13 +2,13 @@ import {
   RelayEnvironmentLinkProofPayload,
   RelayEnvironmentLinkProofInvalidReason,
   type RelayEnvironmentLinkRequest,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import {
   decodeRelayJwt,
   normalizeRelayIssuer,
   RELAY_LINK_PROOF_TYP,
   verifyRelayJwt,
-} from "@t3tools/shared/relayJwt";
+} from "@rove-code/shared/relayJwt";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";

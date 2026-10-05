@@ -1,5 +1,5 @@
 import * as NodeCrypto from "node:crypto";
-import { PreviewAutomationSnapshot } from "@t3tools/contracts";
+import { PreviewAutomationSnapshot } from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -14,7 +14,7 @@ import * as Stream from "effect/Stream";
 import type * as Types from "effect/Types";
 import { McpProtocol, McpSchema, McpServer, Tool } from "effect/unstable/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
-import { PreviewAutomationError } from "@t3tools/contracts";
+import { PreviewAutomationError } from "@rove-code/contracts";
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";

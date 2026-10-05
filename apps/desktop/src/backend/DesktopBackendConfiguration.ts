@@ -1,6 +1,6 @@
 import * as NodeOS from "node:os";
 
-import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
+import { parsePersistedServerObservabilitySettings } from "@rove-code/shared/serverSettings";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -62,7 +62,7 @@ export class DesktopBackendConfiguration extends Context.Service<
     // backend that actually resolved to Windows.
     readonly resolvePrimaryLabel: Effect.Effect<string>;
   }
->()("@t3tools/desktop/backend/DesktopBackendConfiguration") {}
+>()("@rove-code/desktop/backend/DesktopBackendConfiguration") {}
 
 interface BackendObservabilitySettings {
   readonly otlpTracesUrl: Option.Option<string>;
@@ -178,7 +178,7 @@ const logBackendObservabilitySettingsReadFailure = (
 };
 
 function resourceMonitorBinaryName(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
+  return platform === "win32" ? "rove-resource-monitor.exe" : "rove-resource-monitor";
 }
 
 const resolveResourceMonitorPath = Effect.fn(
@@ -262,7 +262,7 @@ interface SharedBootstrapInput {
 }
 
 // What the launch runs inside the distro. The staged runtime is the release's
-// self-contained `t3` executable (Node inside); the mounted server tree is a
+// self-contained `rove` executable (Node inside); the mounted server tree is a
 // script that needs the distro's own Node.
 type WslPreflightRuntime =
   | {

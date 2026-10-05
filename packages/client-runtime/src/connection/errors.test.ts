@@ -1,8 +1,8 @@
-import { EnvironmentAuthInvalidError } from "@t3tools/contracts";
+import { EnvironmentAuthInvalidError } from "@rove-code/contracts";
 import {
   RelayAuthInvalidError,
   RelayEnvironmentEndpointTimedOutError,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 
 import {

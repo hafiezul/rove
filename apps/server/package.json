@@ -1,5 +1,5 @@
 {
-  "name": "t3",
+  "name": "@rove-code/server",
   "version": "0.0.2",
   "private": true,
   "license": "MIT",
@@ -47,11 +47,11 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
-    "@t3tools/ssh": "workspace:*",
-    "@t3tools/tailscale": "workspace:*",
-    "@t3tools/web": "workspace:*",
+    "@rove-code/contracts": "workspace:*",
+    "@rove-code/shared": "workspace:*",
+    "@rove-code/ssh": "workspace:*",
+    "@rove-code/tailscale": "workspace:*",
+    "@rove-code/web": "workspace:*",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
     "@types/yauzl": "^3.4.0",

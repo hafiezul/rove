@@ -1,8 +1,8 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@rove-code/contracts";
 import {
   RelayEnvironmentConnectScope,
   RelayEnvironmentStatusScope,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";

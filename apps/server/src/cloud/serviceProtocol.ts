@@ -1,4 +1,4 @@
-import type { ServerSelfUpdateOutcome } from "@t3tools/contracts";
+import type { ServerSelfUpdateOutcome } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

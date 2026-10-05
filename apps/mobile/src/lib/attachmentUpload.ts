@@ -1,19 +1,19 @@
-import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
+import { resolveAssetUrl } from "@rove-code/client-runtime/state/assets";
 import {
   clampFileAttachmentUploadBytes,
   fileAttachmentTooLargeMessage,
   isAssetAttachmentNotFoundFailure,
   runAttachmentUploadCycle,
   verifyPersistedAttachmentUpload,
-} from "@t3tools/client-runtime/state/attachments";
-import { runAtomCommand, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+} from "@rove-code/client-runtime/state/attachments";
+import { runAtomCommand, squashAtomCommandFailure } from "@rove-code/client-runtime/state/runtime";
 import type {
   ChatFileAttachment,
   ChatImageAttachment,
   EnvironmentId,
   UploadChatImageAttachment,
-} from "@t3tools/contracts";
-import { PROVIDER_SEND_TURN_SUPPORTED_IMAGE_MIME_TYPES } from "@t3tools/contracts";
+} from "@rove-code/contracts";
+import { PROVIDER_SEND_TURN_SUPPORTED_IMAGE_MIME_TYPES } from "@rove-code/contracts";
 import * as Option from "effect/Option";
 
 import { appAtomRegistry } from "../state/atom-registry";
@@ -28,7 +28,7 @@ import {
   type DraftComposerAttachment,
   type DraftComposerImageAttachment,
 } from "./composerImages";
-import { imageMimeType } from "@t3tools/shared/image";
+import { imageMimeType } from "@rove-code/shared/image";
 import { uuidv4 } from "./uuid";
 
 /**

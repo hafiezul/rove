@@ -1,4 +1,4 @@
-import { CommandId, ProviderInstanceId, TurnId } from "@t3tools/contracts";
+import { CommandId, ProviderInstanceId, TurnId } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import { scheduledLimitResumeAt, visibleLimitRecovery } from "./limitRecovery.ts";
 

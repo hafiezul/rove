@@ -12,29 +12,29 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(root) {
   animation: none;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-group(t3-mobile-composer) {
+html[data-mobile-composer-route-transition="true"]::view-transition-group(rove-mobile-composer) {
   animation-duration: var(--mobile-composer-transition-duration);
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-image-pair(t3-mobile-composer) {
+html[data-mobile-composer-route-transition="true"]::view-transition-image-pair(rove-mobile-composer) {
   isolation: isolate;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobile-composer) {
-  animation: t3-mobile-composer-old var(--mobile-composer-transition-duration) linear both;
+html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mobile-composer) {
+  animation: rove-mobile-composer-old var(--mobile-composer-transition-duration) linear both;
   mix-blend-mode: normal;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobile-composer) {
-  animation: t3-mobile-composer-new var(--mobile-composer-transition-duration) linear both;
+html[data-mobile-composer-route-transition="true"]::view-transition-new(rove-mobile-composer) {
+  animation: rove-mobile-composer-new var(--mobile-composer-transition-duration) linear both;
   mix-blend-mode: normal;
 }
 
 /* The expanded and compact composers have different internal layouts. Use a
    brief crossfade while their shared wrapper moves so the layout change does
    not read as a single-frame cut. */
-@keyframes t3-mobile-composer-old {
+@keyframes rove-mobile-composer-old {
   0%,
   35% {
     opacity: 1;
@@ -45,7 +45,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobil
   }
 }
 
-@keyframes t3-mobile-composer-new {
+@keyframes rove-mobile-composer-new {
   0%,
   35% {
     opacity: 0;
@@ -56,17 +56,17 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobil
   }
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-group(t3-mobile-draft-headline) {
+html[data-mobile-composer-route-transition="true"]::view-transition-group(rove-mobile-draft-headline) {
   animation-duration: var(--mobile-composer-transition-duration);
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobile-draft-headline) {
-  animation: t3-mobile-draft-headline-exit var(--mobile-composer-transition-duration)
+html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mobile-draft-headline) {
+  animation: rove-mobile-draft-headline-exit var(--mobile-composer-transition-duration)
     cubic-bezier(0.4, 0, 1, 1) both;
   mix-blend-mode: normal;
 }
 
-@keyframes t3-mobile-draft-headline-exit {
+@keyframes rove-mobile-draft-headline-exit {
   from {
     opacity: 1;
     transform: translateY(0);
@@ -607,14 +607,14 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 @layer base {
-  ::highlight(t3-assistant-citation) {
+  ::highlight(rove-assistant-citation) {
     background-color: color-mix(
       in oklab,
       var(--primary) calc(var(--assistant-citation-highlight-opacity) * 100%),
       transparent
     );
   }
-  ::highlight(t3-assistant-citation-comment) {
+  ::highlight(rove-assistant-citation-comment) {
     background-color: color-mix(in oklab, var(--primary) 45%, transparent);
   }
   :root {

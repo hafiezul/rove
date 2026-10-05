@@ -6,7 +6,7 @@
  *
  * @module OrchestrationProjectionPipeline
  */
-import type { OrchestrationEvent } from "@t3tools/contracts";
+import type { OrchestrationEvent } from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 
@@ -48,4 +48,6 @@ export interface OrchestrationProjectionPipelineContract {
 export class OrchestrationProjectionPipeline extends Context.Service<
   OrchestrationProjectionPipeline,
   OrchestrationProjectionPipelineContract
->()("t3/orchestration/Services/ProjectionPipeline/OrchestrationProjectionPipeline") {}
+>()(
+  "@rove-code/server/orchestration/Services/ProjectionPipeline/OrchestrationProjectionPipeline",
+) {}

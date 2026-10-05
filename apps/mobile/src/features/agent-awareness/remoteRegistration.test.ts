@@ -15,10 +15,10 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from "effect/unstable/http";
-import { ManagedRelay } from "@t3tools/client-runtime/relay";
+import { ManagedRelay } from "@rove-code/client-runtime/relay";
 
-import type { EnvironmentId } from "@t3tools/contracts";
-import { verifyDpopProof } from "@t3tools/shared/dpop";
+import type { EnvironmentId } from "@rove-code/contracts";
+import { verifyDpopProof } from "@rove-code/shared/dpop";
 import type { SavedRemoteConnection } from "../../lib/connection";
 import { testDouble } from "../../testDouble";
 import { cryptoLayer } from "../cloud/dpop";

@@ -1,4 +1,4 @@
-import type { ModelSelection } from "@t3tools/contracts";
+import type { ModelSelection } from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,7 +12,7 @@ export const UsageLimitChecks = Context.Reference<{
     selection: ModelSelection,
     observedAt: string,
   ) => Effect.Effect<UsageLimitStatus>;
-}>("t3/provider/UsageLimitChecks", {
+}>("@rove-code/server/provider/UsageLimitChecks", {
   defaultValue: () => ({
     enabled: Effect.succeed(true),
     check: () => Effect.succeed({ type: "unavailable" }),

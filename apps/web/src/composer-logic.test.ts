@@ -1,10 +1,10 @@
-import { filterComposerPullRequestMatches } from "@t3tools/shared/composerPullRequestMatches";
-import { EnvironmentId, MessageId, ThreadId, type AssistantCitation } from "@t3tools/contracts";
+import { filterComposerPullRequestMatches } from "@rove-code/shared/composerPullRequestMatches";
+import { EnvironmentId, MessageId, ThreadId, type AssistantCitation } from "@rove-code/contracts";
 import {
   collectAssistantCitations,
   expandAssistantCitationsForProvider,
   serializeAssistantCitation,
-} from "@t3tools/shared/assistantCitations";
+} from "@rove-code/shared/assistantCitations";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

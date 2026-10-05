@@ -1,5 +1,5 @@
-import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
-import { derivePendingRequests } from "@t3tools/client-runtime/pending-requests";
+import { parseScopedThreadKey } from "@rove-code/client-runtime/environment";
+import { derivePendingRequests } from "@rove-code/client-runtime/pending-requests";
 import { useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 

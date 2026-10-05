@@ -8,7 +8,7 @@ import * as References from "effect/References";
 import type { ReadonlyRecord } from "effect/Record";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
-import { HostProcessHostname, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessHostname, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { vi } from "vite-plus/test";
 
 import * as ProcessRunner from "../processRunner.ts";

@@ -3,7 +3,7 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeOS from "node:os";
-import { fromJsonStringPretty } from "@t3tools/shared/schemaJson";
+import { fromJsonStringPretty } from "@rove-code/shared/schemaJson";
 import * as Console from "effect/Console";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -14,7 +14,7 @@ import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as NodeSqliteClient from "@rove-code/shared/nodeSqliteClient";
 
 export const SqliteStateOperation = Schema.Literals(["query", "exec"]);
 export type SqliteStateOperation = typeof SqliteStateOperation.Type;
@@ -245,8 +245,8 @@ export const runSqliteState = Effect.fn("runSqliteState")(function* (
   );
 });
 
-const t3SqliteStateCommand = Command.make(
-  "t3-sqlite-state",
+const roveSqliteStateCommand = Command.make(
+  "rove-sqlite-state",
   {
     operation: Argument.Literals("operation", SqliteStateOperation.literals).pipe(
       Argument.withDescription("Run a read-only query or a backed-up fixture mutation."),
@@ -277,7 +277,7 @@ const t3SqliteStateCommand = Command.make(
 );
 
 if (import.meta.main) {
-  Command.run(t3SqliteStateCommand, { version: "0.0.0" }).pipe(
+  Command.run(roveSqliteStateCommand, { version: "0.0.0" }).pipe(
     Effect.provide(NodeServices.layer),
     NodeRuntime.runMain,
   );

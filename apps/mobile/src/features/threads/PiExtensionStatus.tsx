@@ -1,4 +1,4 @@
-import type { PiExtensionStatusSnapshot } from "@t3tools/contracts";
+import type { PiExtensionStatusSnapshot } from "@rove-code/contracts";
 import { ScrollView, View } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 

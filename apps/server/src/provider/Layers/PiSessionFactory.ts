@@ -41,7 +41,7 @@ import {
   type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
 
-import type { ProviderUsageLimit } from "@t3tools/contracts";
+import type { ProviderUsageLimit } from "@rove-code/contracts";
 
 type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 

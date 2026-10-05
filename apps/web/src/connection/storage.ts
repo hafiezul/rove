@@ -13,8 +13,8 @@ import {
   removeConnectionFromCatalog,
   setConnectionEnabledInCatalog,
   replaceCatalogValue,
-} from "@t3tools/client-runtime/platform";
-import { TokenStore } from "@t3tools/client-runtime/authorization";
+} from "@rove-code/client-runtime/platform";
+import { TokenStore } from "@rove-code/client-runtime/authorization";
 import {
   ConnectionTransientError,
   ConnectionBlockedError,
@@ -24,7 +24,7 @@ import {
   StoredGitHubRoutingPermission,
   gitHubRoutingConnectionKey,
   gitHubRoutingPermissionFor,
-} from "@t3tools/client-runtime/connection";
+} from "@rove-code/client-runtime/connection";
 import {
   EnvironmentId,
   OrchestrationShellSnapshot,
@@ -32,7 +32,7 @@ import {
   ServerConfig,
   ThreadId,
   VcsListRefsResult,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

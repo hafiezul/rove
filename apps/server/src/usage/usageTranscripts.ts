@@ -6,7 +6,7 @@
  *
  * @module usageTranscripts
  */
-import type { UsageProviderKind, UsageTokenTotals } from "@t3tools/contracts";
+import type { UsageProviderKind, UsageTokenTotals } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

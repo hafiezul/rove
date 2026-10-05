@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { ORCHESTRATION_PROTOCOL_VERSION } from "@t3tools/contracts";
+import { ORCHESTRATION_PROTOCOL_VERSION } from "@rove-code/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";
@@ -9,15 +9,15 @@ import * as Layer from "effect/Layer";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import { DEFAULT_SIGNAL_EXPORT } from "@rove-code/shared/observability";
+import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
 import packageJson from "../../package.json" with { type: "json" };
 import {
   SERVICE_LAUNCHER_CONTEXT_ENV,
   SERVICE_LAUNCHER_PROTOCOL,
 } from "../cloud/serviceProtocol.ts";
 import { ServiceLauncherHostProcess } from "../cloud/serviceLauncherClient.ts";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import {

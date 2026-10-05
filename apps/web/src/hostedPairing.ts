@@ -1,4 +1,4 @@
-import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
+import { DEFAULT_HOSTED_APP_URL } from "@rove-code/shared/connectAuth";
 
 import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "./pairingUrl";
 

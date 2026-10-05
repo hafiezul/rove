@@ -1,4 +1,4 @@
-import type { PullRequestCheckStatus } from "@t3tools/contracts";
+import type { PullRequestCheckStatus } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";

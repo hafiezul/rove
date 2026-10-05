@@ -38,4 +38,4 @@ export interface CheckpointReactorContract {
 export class CheckpointReactor extends Context.Service<
   CheckpointReactor,
   CheckpointReactorContract
->()("t3/orchestration/Services/CheckpointReactor") {}
+>()("@rove-code/server/orchestration/Services/CheckpointReactor") {}

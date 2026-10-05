@@ -16,20 +16,20 @@ import {
   type EnvironmentId,
   ServerSettings,
   type ServerSettingsPatch,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   type ClientSettingsPatch,
   type ClientSettings,
   DEFAULT_CLIENT_SETTINGS,
   type EnvironmentIdentificationMode,
   type UnifiedSettings,
-} from "@t3tools/contracts/settings";
-import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
+} from "@rove-code/contracts/settings";
+import { safeErrorLogAttributes } from "@rove-code/client-runtime/errors";
 import {
   filterSharedServerPatch,
   splitSharedServerPatch,
   supportsSharedSettingsSync,
-} from "@t3tools/client-runtime/state/shared-settings";
+} from "@rove-code/client-runtime/state/shared-settings";
 import { ensureLocalApi } from "~/localApi";
 import {
   getThemeDefinition,

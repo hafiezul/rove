@@ -12,7 +12,7 @@ import {
   ProviderSession,
   ProviderInstanceId,
   RuntimeItemId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   ApprovalRequestId,
   CommandId,
@@ -26,7 +26,7 @@ import {
   type ServerSettings,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";

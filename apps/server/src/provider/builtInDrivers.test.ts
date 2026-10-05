@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { ProviderDriverKind } from "@t3tools/contracts";
+import { ProviderDriverKind } from "@rove-code/contracts";
 
 import { BUILT_IN_DRIVERS } from "./builtInDrivers.ts";
 

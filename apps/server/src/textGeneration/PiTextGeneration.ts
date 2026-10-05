@@ -9,13 +9,13 @@
  *
  * @module textGeneration/PiTextGeneration
  */
-import { TextGenerationError, type ModelSelection, type PiSettings } from "@t3tools/contracts";
+import { TextGenerationError, type ModelSelection, type PiSettings } from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
-import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
-import { extractJsonObject } from "@t3tools/shared/schemaJson";
-import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@t3tools/shared/git";
+import { getModelSelectionStringOptionValue } from "@rove-code/shared/model";
+import { extractJsonObject } from "@rove-code/shared/schemaJson";
+import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@rove-code/shared/git";
 
 import type { PiSessionLike } from "../provider/Layers/PiAdapter.ts";
 import { acquirePiResource, disposePiResource } from "../provider/Layers/PiLifecycle.ts";

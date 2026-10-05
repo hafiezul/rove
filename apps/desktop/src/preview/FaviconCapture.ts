@@ -1,4 +1,4 @@
-import { FAVICON_DATA_URL_MAX_LENGTH } from "@t3tools/contracts";
+import { FAVICON_DATA_URL_MAX_LENGTH } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 
 export const MAX_FAVICON_RESPONSE_BYTES = 100_000;

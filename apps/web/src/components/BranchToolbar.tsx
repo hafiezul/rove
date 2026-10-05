@@ -1,5 +1,5 @@
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@rove-code/client-runtime/environment";
+import type { EnvironmentId, ThreadId } from "@rove-code/contracts";
 import {
   ChevronDownIcon,
   FolderGit2Icon,

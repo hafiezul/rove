@@ -3,12 +3,12 @@ import type {
   ProjectId,
   WorktreeInventoryEntry,
   WorktreeInventoryInspection,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   filterWorktrees,
   formatWorktreeSize,
   type WorktreeSizeState,
-} from "@t3tools/client-runtime/worktree-inventory";
+} from "@rove-code/client-runtime/worktree-inventory";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, GitBranchIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";

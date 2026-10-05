@@ -38,10 +38,10 @@ import {
   ClaudeSettings,
   CodexSettings,
   ProviderInstanceId,
-} from "@t3tools/contracts";
-import { makeKeyedCoalescingWorker } from "@t3tools/shared/KeyedCoalescingWorker";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
+} from "@rove-code/contracts";
+import { makeKeyedCoalescingWorker } from "@rove-code/shared/KeyedCoalescingWorker";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { getTerminalLabel } from "@rove-code/shared/terminalLabels";
 import * as DateTime from "effect/DateTime";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -227,7 +227,7 @@ export class TerminalManager extends Context.Service<
       listener: (event: TerminalMetadataStreamEvent) => Effect.Effect<void>,
     ) => Effect.Effect<() => void>;
   }
->()("t3/terminal/Manager/TerminalManager") {}
+>()("@rove-code/server/terminal/Manager/TerminalManager") {}
 
 interface TerminalSubprocessInspectResult {
   readonly hasRunningSubprocess: boolean;

@@ -1,4 +1,4 @@
-import type { ComputerUseControlInput } from "@t3tools/contracts";
+import type { ComputerUseControlInput } from "@rove-code/contracts";
 import { useState } from "react";
 
 import { computerUseEnvironment } from "~/state/computerUse";

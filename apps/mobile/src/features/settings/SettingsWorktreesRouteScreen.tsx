@@ -3,12 +3,12 @@ import type {
   ProjectId,
   WorktreeInventoryEntry,
   WorktreeInventoryInspection,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   filterWorktrees,
   formatWorktreeSize,
   type WorktreeSizeState,
-} from "@t3tools/client-runtime/worktree-inventory";
+} from "@rove-code/client-runtime/worktree-inventory";
 import { useNavigation } from "@react-navigation/native";
 import * as Cause from "effect/Cause";
 import { useState } from "react";
@@ -241,7 +241,7 @@ function WorktreeRow({
         onPress={() => setExpanded(!expanded)}
         className="gap-1 p-4 active:opacity-70"
       >
-        <Text className="text-base font-t3-medium text-foreground" numberOfLines={2}>
+        <Text className="text-base font-rove-medium text-foreground" numberOfLines={2}>
           {entry.branch ?? "Detached HEAD"}
         </Text>
         <Text className="text-sm text-foreground-muted">

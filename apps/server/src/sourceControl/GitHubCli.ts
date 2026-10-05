@@ -16,7 +16,7 @@ import {
   TrimmedNonEmptyString,
   type SourceControlRepositoryVisibility,
   type VcsError,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as GitHubGraphQlBudget from "./githubGraphQlBudget.ts";
@@ -34,7 +34,7 @@ export const PinnedGitHubCredential = Context.Reference<{
   readonly host: string;
   readonly token: Redacted.Redacted<string>;
   readonly credentialFingerprint: string;
-} | null>("t3/sourceControl/PinnedGitHubCredential", { defaultValue: () => null });
+} | null>("@rove-code/server/sourceControl/PinnedGitHubCredential", { defaultValue: () => null });
 
 /**
  * The acting project's selected GitHub account (`host` + `login`), provided by
@@ -45,7 +45,7 @@ export const PinnedGitHubCredential = Context.Reference<{
 export const SelectedGitHubAccount = Context.Reference<{
   readonly host: string;
   readonly login: string;
-} | null>("t3/sourceControl/SelectedGitHubAccount", { defaultValue: () => null });
+} | null>("@rove-code/server/sourceControl/SelectedGitHubAccount", { defaultValue: () => null });
 
 /**
  * Turn any object of effect-returning methods into one whose calls run with
@@ -72,7 +72,7 @@ export function provideSelectedGitHubAccount<T extends object>(
 }
 
 export const AllowGitHubReserve = Context.Reference<boolean>(
-  "t3/sourceControl/AllowGitHubReserve",
+  "@rove-code/server/sourceControl/AllowGitHubReserve",
   { defaultValue: () => false },
 );
 
@@ -383,7 +383,7 @@ export class GitHubCli extends Context.Service<
       readonly force?: boolean;
     }) => Effect.Effect<void, GitHubCliError>;
   }
->()("t3/sourceControl/GitHubCli") {}
+>()("@rove-code/server/sourceControl/GitHubCli") {}
 
 const RawGitHubRepositoryCloneUrlsSchema = Schema.Struct({
   nameWithOwner: TrimmedNonEmptyString,

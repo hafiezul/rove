@@ -7,18 +7,18 @@ import {
   type OrchestrationSessionStatus,
   type ThreadRevertMessageBoundary,
   ThreadId,
-} from "@t3tools/contracts";
-import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
+} from "@rove-code/contracts";
+import { compareDateTimeStrings } from "@rove-code/shared/dateTime";
 import {
   retainThreadMessagesAfterRevert,
   retainThreadTurnItemsAfterRevert,
-} from "@t3tools/shared/threadRevert";
+} from "@rove-code/shared/threadRevert";
 import * as Effect from "effect/Effect";
 import {
   clearsLimitRecovery,
   cancelsLimitRecoverySchedule,
   cancelLimitRecovery,
-} from "@t3tools/shared/limitRecovery";
+} from "@rove-code/shared/limitRecovery";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -29,7 +29,7 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 import {
   legacyThreadPullRequestKey,
   threadPullRequestKeysEqual,
-} from "@t3tools/shared/threadPullRequests";
+} from "@rove-code/shared/threadPullRequests";
 
 import { toPersistenceSqlError, type ProjectionRepositoryError } from "../../persistence/Errors.ts";
 import { OrchestrationEventStore } from "../../persistence/Services/OrchestrationEventStore.ts";

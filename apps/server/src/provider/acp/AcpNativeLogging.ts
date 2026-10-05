@@ -1,6 +1,6 @@
-import type { ProviderDriverKind, ThreadId } from "@t3tools/contracts";
-import { causeErrorTag, errorTag } from "@t3tools/shared/observability";
-import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+import type { ProviderDriverKind, ThreadId } from "@rove-code/contracts";
+import { causeErrorTag, errorTag } from "@rove-code/shared/observability";
+import { runtimeValueKind } from "@rove-code/shared/runtimeValueKind";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";

@@ -1,4 +1,4 @@
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -44,7 +44,7 @@ export interface SshPasswordPromptContract {
 export class SshPasswordPrompt extends Context.Service<
   SshPasswordPrompt,
   SshPasswordPromptContract
->()("@t3tools/ssh/auth/SshPasswordPrompt") {
+>()("@rove-code/ssh/auth/SshPasswordPrompt") {
   static readonly disabledLayer = Layer.succeed(
     SshPasswordPrompt,
     SshPasswordPrompt.of({
@@ -75,12 +75,12 @@ function joinSshAskpassPath(
 const ASKPASS_POSIX_SCRIPT = `#!/bin/sh
 # Invoked by ssh via SSH_ASKPASS when Rove Code re-runs ssh with a cached password
 # from the renderer's in-app prompt. We never expose a native dialog here - if
-# T3_SSH_AUTH_SECRET is missing, that's a caller bug and we fail loudly.
-if [ "\${T3_SSH_AUTH_SECRET+x}" = "x" ]; then
-  printf "%s\\n" "$T3_SSH_AUTH_SECRET"
+# ROVE_SSH_AUTH_SECRET is missing, that's a caller bug and we fail loudly.
+if [ "\${ROVE_SSH_AUTH_SECRET+x}" = "x" ]; then
+  printf "%s\\n" "$ROVE_SSH_AUTH_SECRET"
   exit 0
 fi
-printf 'Rove Code ssh-askpass invoked without T3_SSH_AUTH_SECRET.\\n' >&2
+printf 'Rove Code ssh-askpass invoked without ROVE_SSH_AUTH_SECRET.\\n' >&2
 exit 1
 `;
 
@@ -90,13 +90,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ssh-askpass.ps1" %*\r
 
 const ASKPASS_WINDOWS_SCRIPT = `# Invoked by ssh via SSH_ASKPASS (through ssh-askpass.cmd) when Rove Code re-runs\r
 # ssh with a cached password from the renderer's in-app prompt. We never expose\r
-# a native dialog here - if T3_SSH_AUTH_SECRET is missing, that's a caller bug\r
+# a native dialog here - if ROVE_SSH_AUTH_SECRET is missing, that's a caller bug\r
 # and we fail loudly.\r
-if ($null -ne $env:T3_SSH_AUTH_SECRET) {\r
-  [Console]::Out.WriteLine($env:T3_SSH_AUTH_SECRET)\r
+if ($null -ne $env:ROVE_SSH_AUTH_SECRET) {\r
+  [Console]::Out.WriteLine($env:ROVE_SSH_AUTH_SECRET)\r
   exit 0\r
 }\r
-[Console]::Error.WriteLine("Rove Code ssh-askpass invoked without T3_SSH_AUTH_SECRET.")\r
+[Console]::Error.WriteLine("Rove Code ssh-askpass invoked without ROVE_SSH_AUTH_SECRET.")\r
 exit 1\r
 `;
 
@@ -200,7 +200,7 @@ export const buildSshChildEnvironment = Effect.fn("ssh/auth.buildSshChildEnviron
     SSH_ASKPASS_REQUIRE: "force",
     ...(input.authSecret === undefined
       ? undefined
-      : { T3_SSH_AUTH_SECRET: input.authSecret ?? "" }),
+      : { ROVE_SSH_AUTH_SECRET: input.authSecret ?? "" }),
     ...(platform === "win32" || baseEnv.DISPLAY || hostDisplay ? undefined : { DISPLAY: "rove" }),
   };
 });

@@ -49,7 +49,7 @@ describe("DesktopEnvironment", () => {
           ROVE_COMMIT_HASH: " 0123456789abcdef ",
           ROVE_PORT: "4949",
           VITE_DEV_SERVER_URL: "http://localhost:5173",
-          ROVE_DEV_REMOTE_T3_SERVER_ENTRY_PATH: " /remote/server.mjs ",
+          ROVE_DEV_REMOTE_SERVER_ENTRY_PATH: " /remote/server.mjs ",
           ROVE_OTLP_TRACES_URL: " http://127.0.0.1:4318/v1/traces ",
           ROVE_OTLP_METRICS_URL: " http://127.0.0.1:4318/v1/metrics ",
           ROVE_OTLP_LOGS_URL: " http://127.0.0.1:4318/v1/logs ",
@@ -87,7 +87,7 @@ describe("DesktopEnvironment", () => {
         Option.map(environment.devServerUrl, (url) => url.href),
         Option.some("http://localhost:5173/"),
       );
-      assert.deepEqual(environment.devRemoteT3ServerEntryPath, Option.some("/remote/server.mjs"));
+      assert.deepEqual(environment.devRemoteServerEntryPath, Option.some("/remote/server.mjs"));
       assert.deepEqual(environment.configuredBackendPort, Option.some(4949));
       assert.deepEqual(environment.commitHashOverride, Option.some("0123456789abcdef"));
       assert.deepEqual(environment.otlpTracesUrl, Option.some("http://127.0.0.1:4318/v1/traces"));

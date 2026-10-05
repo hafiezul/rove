@@ -9,7 +9,7 @@ import {
   type OrchestrationThreadShell,
   type ProviderSession,
   type TerminalSummary,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

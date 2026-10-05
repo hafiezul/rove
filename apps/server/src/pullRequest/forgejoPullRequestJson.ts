@@ -9,7 +9,7 @@ import type {
   PullRequestReaction,
   PullRequestReactionContent,
   PullRequestReviewThread,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type { ProviderChangeRequest } from "./PullRequestProvider.ts";
 import { dedupeChecks } from "./pullRequestChecks.ts";
 

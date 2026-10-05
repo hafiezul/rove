@@ -5,7 +5,7 @@ import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 import * as SqlSchema from "effect/unstable/sql/SqlSchema";
 
-import { SourceControlProviderKind } from "@t3tools/contracts";
+import { SourceControlProviderKind } from "@rove-code/contracts";
 
 import {
   PersistenceDecodeError,
@@ -80,7 +80,7 @@ export class PullRequestFilesViewedRepository extends Context.Service<
       input: SetPullRequestFilesViewedInput,
     ) => Effect.Effect<void, PullRequestFilesViewedRepositoryError>;
   }
->()("t3/persistence/PullRequestFilesViewed/PullRequestFilesViewedRepository") {}
+>()("@rove-code/server/persistence/PullRequestFilesViewed/PullRequestFilesViewedRepository") {}
 
 function toSqlOrDecodeError(sqlOperation: string, decodeOperation: string) {
   return (cause: unknown): PullRequestFilesViewedRepositoryError =>

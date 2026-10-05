@@ -7,8 +7,8 @@ import {
   EnvironmentHttpApi,
   ProviderDriverKind,
   type RepositoryIdentity,
-} from "@t3tools/contracts";
-import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
+} from "@rove-code/contracts";
+import type { RelayManagedEndpointRuntimeConfig } from "@rove-code/contracts/relay";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Duration from "effect/Duration";
@@ -103,7 +103,7 @@ import { ProviderRegistryLive } from "./provider/Layers/ProviderRegistry.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as NativeAppIconResolver from "./assets/NativeAppIconResolver.ts";
 import * as ProjectFaviconResolver from "./project/ProjectFaviconResolver.ts";
-import * as T3ProjectFileLoader from "./project/T3ProjectFileLoader.ts";
+import * as RoveProjectFileLoader from "./project/RoveProjectFileLoader.ts";
 import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
 import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
 import * as WorkspaceFileSystem from "./workspace/WorkspaceFileSystem.ts";
@@ -173,9 +173,9 @@ import {
   persistServerRuntimeState,
 } from "./serverRuntimeState.ts";
 import { orchestrationHttpApiLayer } from "./orchestration/http.ts";
-import * as NetService from "@t3tools/shared/Net";
-import * as RelayClient from "@t3tools/shared/relayClient";
-import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
+import * as NetService from "@rove-code/shared/Net";
+import * as RelayClient from "@rove-code/shared/relayClient";
+import { disableTailscaleServe, ensureTailscaleServe } from "@rove-code/tailscale";
 import { forkParked, ServerActivation } from "./serverActivation.ts";
 import * as RuntimePredicate from "effect/Predicate";
 
@@ -453,7 +453,7 @@ const WorkspaceLayerLive = Layer.mergeAll(
 
 const ProjectFaviconResolverLayerLive = ProjectFaviconResolver.layer.pipe(
   Layer.provide(WorkspacePaths.layer),
-  Layer.provide(T3ProjectFileLoader.layer),
+  Layer.provide(RoveProjectFileLoader.layer),
 );
 
 const ServerEnvironmentLayerLive = ServerEnvironment.layer.pipe(

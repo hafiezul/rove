@@ -10,7 +10,7 @@
  * channel via prototype pollution) would otherwise throw deep in the
  * renderer and the chip silently never appears.
  */
-import type { PickedElementPayload, PreviewAnnotationPayload } from "@t3tools/contracts";
+import type { PickedElementPayload, PreviewAnnotationPayload } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

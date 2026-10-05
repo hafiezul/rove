@@ -1,4 +1,4 @@
-import type { ApprovalRequestId, EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { ApprovalRequestId, EnvironmentId, ThreadId } from "@rove-code/contracts";
 import { Atom } from "effect/unstable/reactivity";
 import { appAtomRegistry } from "./atom-registry";
 

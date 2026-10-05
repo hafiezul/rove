@@ -17,12 +17,12 @@ import {
   PiSettings,
   ProviderDriverKind,
   type ServerProvider,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
-import type { ServerSettings } from "@t3tools/contracts";
+import type { ServerSettings } from "@rove-code/contracts";
 
 import { acquirePiResource, disposePiResource } from "../Layers/PiLifecycle.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
@@ -32,7 +32,7 @@ import { ServerConfig } from "../../config.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { PiRuntimeProcess } from "../Layers/PiRuntimeProcess.ts";
 import { PI_CONFIG_DIR } from "../PiSdkMetadata.ts";
-import { HostProcessIsExecutable } from "@t3tools/shared/hostProcess";
+import { HostProcessIsExecutable } from "@rove-code/shared/hostProcess";
 import { registerPiBundledOAuthFlows } from "./PiOAuth.ts";
 import {
   buildInitialPiProviderSnapshot,

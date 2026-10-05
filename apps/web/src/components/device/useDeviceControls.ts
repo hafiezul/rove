@@ -1,10 +1,10 @@
-import type { DeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
+import type { DeviceHubAccess } from "@rove-code/client-runtime/state/deviceHubAccess";
 import type {
   DeviceActionInput,
   DeviceDetail,
   DeviceSummary,
   EnvironmentId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deviceEnvironment } from "~/state/device";
 import { formatEnvironmentQueryError } from "~/state/query";

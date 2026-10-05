@@ -17,9 +17,9 @@ import {
   type ServerProviderModel,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
-import { normalizeModelSlug } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
+import { normalizeModelSlug } from "@rove-code/shared/model";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";

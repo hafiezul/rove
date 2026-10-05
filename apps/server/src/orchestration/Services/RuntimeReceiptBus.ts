@@ -14,7 +14,7 @@
  *
  * @module RuntimeReceiptBus
  */
-import { CheckpointRef, IsoDateTime, NonNegativeInt, ThreadId, TurnId } from "@t3tools/contracts";
+import { CheckpointRef, IsoDateTime, NonNegativeInt, ThreadId, TurnId } from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
@@ -64,4 +64,4 @@ export interface RuntimeReceiptBusContract {
 export class RuntimeReceiptBus extends Context.Service<
   RuntimeReceiptBus,
   RuntimeReceiptBusContract
->()("t3/orchestration/Services/RuntimeReceiptBus") {}
+>()("@rove-code/server/orchestration/Services/RuntimeReceiptBus") {}

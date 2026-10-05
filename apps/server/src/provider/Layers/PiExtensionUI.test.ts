@@ -1,5 +1,5 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
-import { UserInputRequestedPayload } from "@t3tools/contracts";
+import { UserInputRequestedPayload } from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";

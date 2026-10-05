@@ -1,8 +1,8 @@
-import type { AssistantCitation } from "@t3tools/contracts";
+import type { AssistantCitation } from "@rove-code/contracts";
 import {
   formatAssistantCitationHref,
   parseAssistantCitationHref,
-} from "@t3tools/shared/assistantCitations";
+} from "@rove-code/shared/assistantCitations";
 import * as Encoding from "effect/Encoding";
 import * as Result from "effect/Result";
 

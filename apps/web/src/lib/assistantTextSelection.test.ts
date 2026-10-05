@@ -4,11 +4,11 @@ import {
   EnvironmentId,
   MessageId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   formatAssistantCitationHref,
   parseAssistantCitationHref,
-} from "@t3tools/shared/assistantCitations";
+} from "@rove-code/shared/assistantCitations";
 
 import {
   type AssistantTextSelector,

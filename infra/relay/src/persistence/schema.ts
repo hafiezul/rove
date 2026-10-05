@@ -3,7 +3,7 @@ import type {
   RelayAgentActivityState,
   RelayAgentAwarenessPreferences,
   RelayManagedEndpointOrigin,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import {
   boolean,
   index,

@@ -1,5 +1,8 @@
-import type { OrchestrationThreadShell, ProjectId } from "@t3tools/contracts";
-import type { SidebarProjectSortOrder, SidebarThreadSortOrder } from "@t3tools/contracts/settings";
+import type { OrchestrationThreadShell, ProjectId } from "@rove-code/contracts";
+import type {
+  SidebarProjectSortOrder,
+  SidebarThreadSortOrder,
+} from "@rove-code/contracts/settings";
 
 export interface ThreadSortInput {
   readonly createdAt: string;

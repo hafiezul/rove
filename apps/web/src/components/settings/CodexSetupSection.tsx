@@ -2,17 +2,17 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
   type AtomCommandResult,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@rove-code/client-runtime/state/runtime";
 import type {
   ChatGptHandoffInput,
   ChatGptTransferredProfile,
   EnvironmentId,
   ProviderInstanceId,
   ServerProvider,
-} from "@t3tools/contracts";
-import { codexAuthHandoffUrl } from "@t3tools/shared/codexAuthHandoff";
-import { providerAuthReturnUrl } from "@t3tools/shared/providerAuthReturnUrl";
-import { isLoopbackHost } from "@t3tools/shared/preview";
+} from "@rove-code/contracts";
+import { codexAuthHandoffUrl } from "@rove-code/shared/codexAuthHandoff";
+import { providerAuthReturnUrl } from "@rove-code/shared/providerAuthReturnUrl";
+import { isLoopbackHost } from "@rove-code/shared/preview";
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { Children, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 

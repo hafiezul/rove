@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { makeRelayClientTracingLayer } from "@t3tools/shared/relayTracing";
+import { makeRelayClientTracingLayer } from "@rove-code/shared/relayTracing";
 
 import { hasTracingPublicConfig, resolveCloudPublicConfig } from "../cloud/publicConfig";
 import * as RuntimePredicate from "effect/Predicate";

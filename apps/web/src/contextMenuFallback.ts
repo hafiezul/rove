@@ -1,4 +1,4 @@
-import type { ContextMenuItem } from "@t3tools/contracts";
+import type { ContextMenuItem } from "@rove-code/contracts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 

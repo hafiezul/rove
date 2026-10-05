@@ -13,9 +13,9 @@ import {
   type ModelSelection,
   type ServerProviderModel,
   TextGenerationError,
-} from "@t3tools/contracts";
-import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@t3tools/shared/git";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+} from "@rove-code/contracts";
+import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@rove-code/shared/git";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
 
 import { resolveAttachmentPath } from "../attachmentStore.ts";
 import * as ServerConfig from "../config.ts";
@@ -35,7 +35,7 @@ import {
   sanitizeThreadTitle,
   toJsonSchemaObject,
 } from "./TextGenerationUtils.ts";
-import { codexModelFamily, getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { codexModelFamily, getModelSelectionStringOptionValue } from "@rove-code/shared/model";
 import { getCodexServiceTierOptionValue } from "../codexModelOptions.ts";
 import * as RuntimePredicate from "effect/Predicate";
 
@@ -51,7 +51,7 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
   getModels: Effect.Effect<ReadonlyArray<ServerProviderModel>> = Effect.succeed([]),
   resolveRuntime?: Effect.Effect<
     import("../provider/CodexManagedRuntime.ts").CodexEffectiveRuntime,
-    import("@t3tools/contracts").ProviderSetupError,
+    import("@rove-code/contracts").ProviderSetupError,
     Scope.Scope
   >,
 ) {

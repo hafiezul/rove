@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/mobile-markdown-text",
+  "name": "@rove-code/mobile-markdown-text",
   "version": "0.0.0",
   "private": true,
   "source": "./index.ts",
@@ -29,8 +29,8 @@
     "./types": "./src/SelectableMarkdownText.types.ts"
   },
   "peerDependencies": {
-    "@t3tools/client-runtime": "*",
-    "@t3tools/shared": "*",
+    "@rove-code/client-runtime": "*",
+    "@rove-code/shared": "*",
     "expo": "*",
     "expo-asset": "*",
     "expo-clipboard": "*",

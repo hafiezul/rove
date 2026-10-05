@@ -77,7 +77,7 @@ export function AndroidScreenHeader(props: {
             <Text
               numberOfLines={1}
               style={subtitleTypography}
-              className="mt-px text-[13px] font-t3-medium text-foreground-muted"
+              className="mt-px text-[13px] font-rove-medium text-foreground-muted"
             >
               {props.subtitle}
             </Text>

@@ -34,7 +34,7 @@ const REPO_ROOT = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import
 const MOBILE_ROOT = NodePath.join(REPO_ROOT, "apps/mobile");
 const ANDROID_PACKAGE = "dev.rove.app";
 const APP_SCHEME = "rove";
-const IOS_READY_FILENAME = "T3ShowcaseReadyScene";
+const IOS_READY_FILENAME = "RoveShowcaseReadyScene";
 const SERVER_HOST = "0.0.0.0";
 const IOS_SIMULATOR_ARCH = NodeProcess.arch === "arm64" ? "arm64" : "x86_64";
 const IOS_APP_PATH = NodePath.join(
@@ -64,7 +64,7 @@ const MOBILE_BUILD_ENV = {
   EXPO_NO_GIT_STATUS: "1",
   // Lets the capture build require full screen on iPad so the app can rotate
   // itself to landscape (see app.config.ts).
-  T3_SHOWCASE_CAPTURE_BUILD: "1",
+  ROVE_SHOWCASE_CAPTURE_BUILD: "1",
   JAVA_HOME:
     NodeProcess.env.JAVA_HOME ??
     (NodeProcess.platform === "darwin"
@@ -413,7 +413,7 @@ function printUsage(config: ShowcaseConfig): void {
   NodeProcess.stdout.write(`App screenshot showcase
 
 Usage:
-  pnpm --filter @t3tools/mobile screenshots [options]
+  pnpm --filter @rove-code/mobile screenshots [options]
 
 Options:
   --platform ios|android|all  Capture one platform (repeatable)
@@ -988,7 +988,7 @@ async function captureIos(
   const metroUrl = `http://${metroHost}:${config.metroPort}?disableOnboarding=1`;
   const scenePath = NodePath.join(
     await iosAppContainer(simulator.udid),
-    "Library/Caches/T3ShowcaseScene",
+    "Library/Caches/RoveShowcaseScene",
   );
   const readyPath = NodePath.join(
     await iosAppContainer(simulator.udid),

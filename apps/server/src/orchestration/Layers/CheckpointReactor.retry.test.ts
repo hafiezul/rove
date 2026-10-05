@@ -1,4 +1,4 @@
-import { VcsProcessExitError, VcsProcessTimeoutError } from "@t3tools/contracts";
+import { VcsProcessExitError, VcsProcessTimeoutError } from "@rove-code/contracts";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Schedule from "effect/Schedule";

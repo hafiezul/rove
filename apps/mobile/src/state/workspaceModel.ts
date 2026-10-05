@@ -1,7 +1,7 @@
-import { type EnvironmentShellSummary } from "@t3tools/client-runtime/state/shell";
-import { type NetworkStatus } from "@t3tools/client-runtime/connection";
-import { type EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import type { EnvironmentId, ServerConfig } from "@t3tools/contracts";
+import { type EnvironmentShellSummary } from "@rove-code/client-runtime/state/shell";
+import { type NetworkStatus } from "@rove-code/client-runtime/connection";
+import { type EnvironmentConnectionPhase } from "@rove-code/client-runtime/connection";
+import type { EnvironmentId, ServerConfig } from "@rove-code/contracts";
 
 import type { EnvironmentPresentation } from "./environments";
 

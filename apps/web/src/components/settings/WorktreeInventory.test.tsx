@@ -5,7 +5,7 @@ import {
   ThreadId,
   WorktreeInventoryError,
   type WorktreeInventoryEntry,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import {
   createMemoryHistory,

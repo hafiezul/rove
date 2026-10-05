@@ -6,13 +6,13 @@ import { ProjectScriptIcon } from "./orchestration.ts";
 import type { ProjectScopedServerSettingKey, ServerSettings } from "./settings.ts";
 
 /** File name of the checked-in T3 project file, resolved at the workspace root. */
-export const T3_PROJECT_FILE_NAME = "t3.json";
+export const ROVE_PROJECT_FILE_NAME = "t3.json";
 
-/** Public URL of the published JSON Schema for {@link T3ProjectFile}. */
-export const T3_PROJECT_FILE_SCHEMA_URL = "https://t3.codes/schema/t3.json";
+/** Public URL of the published JSON Schema for {@link RoveProjectFile}. */
+export const ROVE_PROJECT_FILE_SCHEMA_URL = "https://t3.codes/schema/t3.json";
 
-const T3_PROJECT_FILE_PATH_MAX_LENGTH = 512;
-const T3_PROJECT_FILE_MAX_SCRIPTS = 50;
+const ROVE_PROJECT_FILE_PATH_MAX_LENGTH = 512;
+const ROVE_PROJECT_FILE_MAX_SCRIPTS = 50;
 
 // Annotations go on the encoded (string) side so they survive into the
 // published JSON Schema; decoding still trims and re-validates non-emptiness.
@@ -25,7 +25,7 @@ const trimmedNonEmpty = (annotations: { readonly description: string }, maxLengt
   return encoded.pipe(Schema.decodeTo(encoded, SchemaTransformation.trim()));
 };
 
-export const T3ProjectFileScript = Schema.Struct({
+export const RoveProjectFileScript = Schema.Struct({
   name: trimmedNonEmpty({
     description: "Display name for the script, shown in the Rove Code scripts menu.",
   }),
@@ -64,12 +64,12 @@ export const T3ProjectFileScript = Schema.Struct({
 }).annotate({
   description: "A project script that team members can import into Rove Code.",
 });
-export type T3ProjectFileScript = typeof T3ProjectFileScript.Type;
+export type RoveProjectFileScript = typeof RoveProjectFileScript.Type;
 
-export const T3ProjectFile = Schema.Struct({
+export const RoveProjectFile = Schema.Struct({
   $schema: Schema.optionalKey(
     Schema.String.annotate({
-      description: `URL of the JSON Schema for this file, typically "${T3_PROJECT_FILE_SCHEMA_URL}".`,
+      description: `URL of the JSON Schema for this file, typically "${ROVE_PROJECT_FILE_SCHEMA_URL}".`,
     }),
   ),
   iconPath: Schema.optionalKey(
@@ -78,7 +78,7 @@ export const T3ProjectFile = Schema.Struct({
         description:
           'Workspace-relative path to the project icon (e.g. "assets/logo.svg"). Checked before Rove Code\'s built-in icon locations.',
       },
-      T3_PROJECT_FILE_PATH_MAX_LENGTH,
+      ROVE_PROJECT_FILE_PATH_MAX_LENGTH,
     ),
   ),
   defaultThreadEnvMode: Schema.optionalKey(
@@ -94,18 +94,18 @@ export const T3ProjectFile = Schema.Struct({
     }),
   ),
   scripts: Schema.optionalKey(
-    Schema.Array(T3ProjectFileScript)
+    Schema.Array(RoveProjectFileScript)
       .annotate({
         description: "Project scripts shared with everyone who opens this repository in Rove Code.",
       })
-      .check(Schema.isMaxLength(T3_PROJECT_FILE_MAX_SCRIPTS)),
+      .check(Schema.isMaxLength(ROVE_PROJECT_FILE_MAX_SCRIPTS)),
   ),
 }).annotate({
   title: "Rove Code project file",
   description:
     "Checked-in project configuration for Rove Code (t3.json at the repository root). See https://github.com/hafiezul/rove/blob/main/docs/user/project-settings.md for documentation.",
 });
-export type T3ProjectFile = typeof T3ProjectFile.Type;
+export type RoveProjectFile = typeof RoveProjectFile.Type;
 
 /**
  * Settings a repository can also declare in t3.json. A key here must be
@@ -122,12 +122,12 @@ export const PROJECT_FILE_BACKED_SETTINGS = {
 } as const satisfies {
   readonly [K in ProjectScopedServerSettingKey]?: {
     readonly field: {
-      readonly [F in keyof T3ProjectFile]: T3ProjectFile[F] extends
+      readonly [F in keyof RoveProjectFile]: RoveProjectFile[F] extends
         | Exclude<ServerSettings[K], null>
         | undefined
         ? F
         : never;
-    }[keyof T3ProjectFile];
+    }[keyof RoveProjectFile];
     readonly builtIn: Exclude<ServerSettings[K], null>;
   };
 };

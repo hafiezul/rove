@@ -39,4 +39,4 @@ export interface ProviderCommandReactorContract {
 export class ProviderCommandReactor extends Context.Service<
   ProviderCommandReactor,
   ProviderCommandReactorContract
->()("t3/orchestration/Services/ProviderCommandReactor") {}
+>()("@rove-code/server/orchestration/Services/ProviderCommandReactor") {}

@@ -1,7 +1,7 @@
 import {
   COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS,
   COMPOSER_CONTEXT_REVIEW_TEXT_MAX_CHARS,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type {
   ComposerContextId,
   ComposerContextRecord,
@@ -16,13 +16,13 @@ import type {
   ReviewCommentContextRecord,
   TerminalContextRecord,
   ThreadId,
-} from "@t3tools/contracts";
-import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
-import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
+} from "@rove-code/contracts";
+import { upgradeLegacyContextMessage } from "@rove-code/shared/composerContextLegacy";
+import { encodeComposerContextFragment } from "@rove-code/shared/composerContextClipboard";
 import {
   collectComposerContextReferences,
   sanitizeComposerContextLabel,
-} from "@t3tools/shared/composerContextReferences";
+} from "@rove-code/shared/composerContextReferences";
 
 import {
   type ComposerContextReference,

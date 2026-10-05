@@ -2,8 +2,8 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeHttpPlatform from "@effect/platform-node/NodeHttpPlatform";
 import * as NodeFSP from "node:fs/promises";
-import { AssetAccessError, AssetPreviewTypeValidationError, ThreadId } from "@t3tools/contracts";
-import { PROJECT_FAVICON_FALLBACK_MARKER } from "@t3tools/shared/projectFavicon";
+import { AssetAccessError, AssetPreviewTypeValidationError, ThreadId } from "@rove-code/contracts";
+import { PROJECT_FAVICON_FALLBACK_MARKER } from "@rove-code/shared/projectFavicon";
 import { describe, expect, it } from "@effect/vitest";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -20,13 +20,13 @@ import { vi } from "vite-plus/test";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProjectFaviconResolver from "../project/ProjectFaviconResolver.ts";
-import * as T3ProjectFileLoader from "../project/T3ProjectFileLoader.ts";
+import * as RoveProjectFileLoader from "../project/RoveProjectFileLoader.ts";
 import * as WorkspacePaths from "../workspace/WorkspacePaths.ts";
 import { assetFileResponse } from "../http.ts";
 import { ASSET_ROUTE_PREFIX, issueAssetUrl, resolveAsset } from "./AssetAccess.ts";
 import * as NativeAppIconResolver from "./NativeAppIconResolver.ts";
 import { openMediaFile } from "./MediaFile.ts";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 import * as GitHubCli from "../sourceControl/GitHubCli.ts";
 import { githubMediaResponse } from "./GitHubMediaFetch.ts";
 
@@ -44,7 +44,7 @@ const testLayer = Layer.mergeAll(
   WorkspacePaths.layer,
   ProjectFaviconResolver.layer.pipe(
     Layer.provide(WorkspacePaths.layer),
-    Layer.provide(T3ProjectFileLoader.layer),
+    Layer.provide(RoveProjectFileLoader.layer),
   ),
   NativeAppIconResolver.layer.pipe(Layer.provide(configLayer)),
   ServerSecretStore.layer.pipe(Layer.provide(configLayer)),

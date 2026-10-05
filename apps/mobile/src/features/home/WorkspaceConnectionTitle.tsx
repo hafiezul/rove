@@ -147,7 +147,7 @@ export function WorkspaceConnectionTitle(props: {
           />
         )}
         <Text
-          className="font-t3-bold text-foreground-muted"
+          className="font-rove-bold text-foreground-muted"
           numberOfLines={1}
           style={{ flexShrink: 1, fontSize: (size === "pageTitle" ? 20 : 16) * scale }}
         >

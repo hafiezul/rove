@@ -11,7 +11,7 @@ import {
   sanitizeThreadTitle,
   toJsonSchemaObject,
 } from "./TextGenerationUtils.ts";
-import { TextGenerationError } from "@t3tools/contracts";
+import { TextGenerationError } from "@rove-code/contracts";
 
 describe("buildCommitMessagePrompt", () => {
   it("includes staged patch and summary in the prompt", () => {

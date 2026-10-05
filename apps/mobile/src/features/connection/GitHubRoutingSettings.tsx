@@ -4,7 +4,7 @@ import {
   gitHubRoutingConnectionKey,
   gitHubRoutingPermissionFor,
   type GitHubRoutingPermission,
-} from "@t3tools/client-runtime/connection";
+} from "@rove-code/client-runtime/connection";
 import { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 
@@ -57,7 +57,7 @@ export function GitHubRoutingSettings() {
                 onPress={() => setExpanded(expanded === environmentId ? null : environmentId)}
               >
                 <View className="min-w-0 flex-1 gap-0.5">
-                  <Text className="text-base font-t3-bold text-foreground">
+                  <Text className="text-base font-rove-bold text-foreground">
                     {entry.target.label}
                   </Text>
                   <Text className="text-xs text-foreground-muted" numberOfLines={1}>

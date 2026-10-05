@@ -16,7 +16,7 @@ import {
   cliArchiveTarCommand,
   cliReleaseDownloadBaseUrl,
   parseChecksums,
-} from "@t3tools/shared/cliRelease";
+} from "@rove-code/shared/cliRelease";
 
 import * as ProcessRunner from "../processRunner.ts";
 

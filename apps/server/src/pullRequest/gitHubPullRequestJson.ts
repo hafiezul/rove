@@ -31,9 +31,9 @@ import type {
   PullRequestLabelCandidateList,
   PullRequestState,
   PullRequestThreadComment,
-} from "@t3tools/contracts";
-import { quoteGitPatchPath } from "@t3tools/shared/gitPatchPath";
-import { decodeJsonResult } from "@t3tools/shared/schemaJson";
+} from "@rove-code/contracts";
+import { quoteGitPatchPath } from "@rove-code/shared/gitPatchPath";
+import { decodeJsonResult } from "@rove-code/shared/schemaJson";
 
 import { dedupeChecks } from "./pullRequestChecks.ts";
 import * as RuntimePredicate from "effect/Predicate";

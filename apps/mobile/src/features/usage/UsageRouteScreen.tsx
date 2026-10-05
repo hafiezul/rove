@@ -1,14 +1,14 @@
 import { ChatGptUsageSummary } from "./ChatGptUsageSummary";
 import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
-import { EnvironmentId, USAGE_CONTRACT_VERSION } from "@t3tools/contracts";
+import { EnvironmentId, USAGE_CONTRACT_VERSION } from "@rove-code/contracts";
 import { type RouteProp, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
-import { cursorKeychainAccessEnvironments } from "@t3tools/client-runtime/state/usage";
+import { cursorKeychainAccessEnvironments } from "@rove-code/client-runtime/state/usage";
 import {
   isCompatibleUsageContractVersion,
   isModelCostUnknown,
   type DailyTotals,
   type MergedUsage,
-} from "@t3tools/shared/usageMerge";
+} from "@rove-code/shared/usageMerge";
 import {
   enumerateDays,
   enumerateHourStarts,
@@ -20,7 +20,7 @@ import {
   formatUsageContractMismatch,
   formatUsd,
   makeWindow,
-} from "@t3tools/shared/usageFormat";
+} from "@rove-code/shared/usageFormat";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, RefreshControl, View } from "react-native";
 import Animated, { FadeIn, ReduceMotion } from "react-native-reanimated";
@@ -455,7 +455,7 @@ function CursorEnableLimits({
     <View className="gap-3">
       <View className="flex-row items-center gap-2 px-1">
         <ProviderIcon provider="cursor" size={18} />
-        <Text className="text-base font-t3-medium text-foreground">Cursor</Text>
+        <Text className="text-base font-rove-medium text-foreground">Cursor</Text>
       </View>
       <View className="items-start gap-3 rounded-[24px] border-continuous bg-card p-4">
         <Text className="text-xs text-foreground-muted">{CURSOR_KEYCHAIN_COPY}</Text>
@@ -496,7 +496,7 @@ function ChartCard(props: {
         <Text className="text-sm text-foreground-muted">
           {metric === "cost" ? "Raw token cost" : "Processed tokens"}
         </Text>
-        <Text className="text-4xl font-t3-bold tabular-nums text-foreground">
+        <Text className="text-4xl font-rove-bold tabular-nums text-foreground">
           {metric === "cost" ? `${formatUsd(merged.costUsd)}*` : formatTokens(merged.totalTokens)}
         </Text>
         <Text className="text-sm text-foreground-muted">
@@ -696,7 +696,7 @@ function MetricCell(props: {
   return (
     <View className="w-1/2 gap-0.5 p-4">
       <Text className="text-sm text-foreground-muted">{props.label}</Text>
-      <Text className="text-xl font-t3-medium tabular-nums text-foreground">{props.value}</Text>
+      <Text className="text-xl font-rove-medium tabular-nums text-foreground">{props.value}</Text>
       <Text className="text-xs text-foreground-tertiary">{props.detail}</Text>
     </View>
   );

@@ -1,5 +1,5 @@
-import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentConnectionPhase } from "@rove-code/client-runtime/connection";
+import { EnvironmentId } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { resolveAddProjectEnvironment } from "./AddProjectScreen.logic";

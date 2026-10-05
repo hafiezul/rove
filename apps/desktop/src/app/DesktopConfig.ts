@@ -1,4 +1,4 @@
-import { OtlpHeadersFromString, OtlpProtocol } from "@t3tools/shared/observability";
+import { OtlpHeadersFromString, OtlpProtocol } from "@rove-code/shared/observability";
 import * as Config from "effect/Config";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Option from "effect/Option";
@@ -40,7 +40,7 @@ export const DesktopConfig = Config.all({
   t3Home: trimmedString("ROVE_HOME"),
   devServerUrl: Config.URL("VITE_DEV_SERVER_URL").pipe(Config.option),
   appUserModelIdOverride: trimmedString("ROVE_DESKTOP_APP_USER_MODEL_ID"),
-  devRemoteT3ServerEntryPath: trimmedString("ROVE_DEV_REMOTE_T3_SERVER_ENTRY_PATH"),
+  devRemoteServerEntryPath: trimmedString("ROVE_DEV_REMOTE_SERVER_ENTRY_PATH"),
   configuredBackendPort: Config.Port("ROVE_PORT").pipe(Config.option),
   commitHashOverride: trimmedString("ROVE_COMMIT_HASH"),
   desktopLanHostOverride: trimmedString("ROVE_DESKTOP_LAN_HOST"),

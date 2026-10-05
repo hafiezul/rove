@@ -14,7 +14,7 @@
  *
  * @module usageScanCache
  */
-import type { UsageProviderKind } from "@t3tools/contracts";
+import type { UsageProviderKind } from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";

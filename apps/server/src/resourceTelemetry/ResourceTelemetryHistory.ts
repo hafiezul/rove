@@ -6,7 +6,7 @@ import type {
   ResourceTelemetryHistoryBucket,
   ResourceTelemetryProcess,
   ResourceTelemetryProcessSummary,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 

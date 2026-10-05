@@ -6,7 +6,7 @@ import {
   ProviderInstanceId,
   ThreadId,
   type ProviderRuntimeEvent,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -334,8 +334,8 @@ it.layer(layer)("AntigravityAdapter", (it) => {
                 cwd: input.cwd,
                 env: {
                   ...process.env,
-                  T3_ACP_ANTIGRAVITY: "1",
-                  T3_ACP_REQUEST_LOG_PATH: requestLog,
+                  ROVE_ACP_ANTIGRAVITY: "1",
+                  ROVE_ACP_REQUEST_LOG_PATH: requestLog,
                 },
                 extendEnv: false,
               },

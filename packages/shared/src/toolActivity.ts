@@ -1,4 +1,4 @@
-import type { ToolLifecycleItemType } from "@t3tools/contracts";
+import type { ToolLifecycleItemType } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

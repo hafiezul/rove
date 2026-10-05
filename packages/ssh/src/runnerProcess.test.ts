@@ -1,6 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -11,7 +11,7 @@ import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import * as NodeNet from "node:net";
 
-import { buildRemoteStopScript, buildRemoteT3RunnerScript } from "./tunnel.ts";
+import { buildRemoteStopScript, buildRemoteRoveRunnerScript } from "./tunnel.ts";
 
 const Started = Schema.Struct({
   pid: Schema.Number,
@@ -66,7 +66,9 @@ server.listen(Number(process.env.T3_TEST_PORT ?? 0), "127.0.0.1", () => {
                 },
                 detached: false,
                 stdin: Stream.make(
-                  new TextEncoder().encode(buildRemoteT3RunnerScript({ nodeScriptPath: cliPath })),
+                  new TextEncoder().encode(
+                    buildRemoteRoveRunnerScript({ nodeScriptPath: cliPath }),
+                  ),
                 ),
               }),
             );

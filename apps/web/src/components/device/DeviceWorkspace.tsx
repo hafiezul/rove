@@ -1,9 +1,9 @@
-import type { DeviceSummary, EnvironmentId } from "@t3tools/contracts";
+import type { DeviceSummary, EnvironmentId } from "@rove-code/contracts";
 import { useEffect, useRef, useState } from "react";
 import {
   captureDeviceScreenshot,
   DeviceScreenshotError,
-} from "@t3tools/client-runtime/device/screenshot";
+} from "@rove-code/client-runtime/device/screenshot";
 import { refreshDeviceHubAccess, useDeviceHubAccess } from "~/state/device";
 import { DeviceControlsRail } from "./DeviceControlsRail";
 import { DeviceStreamView, type DeviceStreamHandle } from "./DeviceStreamView";

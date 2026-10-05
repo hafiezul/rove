@@ -350,7 +350,7 @@ export interface EnvironmentSessionPrincipalContract {
 export class EnvironmentAuthenticatedPrincipal extends Context.Service<
   EnvironmentAuthenticatedPrincipal,
   EnvironmentSessionPrincipalContract
->()("@t3tools/contracts/environmentHttp/EnvironmentAuthenticatedPrincipal") {}
+>()("@rove-code/contracts/environmentHttp/EnvironmentAuthenticatedPrincipal") {}
 
 export class EnvironmentAuthenticatedAuth extends HttpApiMiddleware.Service<
   EnvironmentAuthenticatedAuth,

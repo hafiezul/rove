@@ -6,7 +6,7 @@ import { expect, it } from "vite-plus/test";
 import { checkReleaseIdentity, findUpstreamPublicIdentity } from "./check-release-identity.mjs";
 
 it("flags public upstream identities, not compatibility names or attribution", () => {
-  expect(findUpstreamPublicIdentity('import "@t3tools/contracts"; // read t3.json')).toEqual([]);
+  expect(findUpstreamPublicIdentity('import "@rove-code/contracts"; // read t3.json')).toEqual([]);
   expect(findUpstreamPublicIdentity("The fork is based on T3 Code.")).toEqual([]);
   expect(
     findUpstreamPublicIdentity("npx t3@nightly\nhttps://t3.codes/install.sh\nowner: 'pingdotgg'"),

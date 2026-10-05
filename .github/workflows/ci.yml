@@ -62,7 +62,7 @@ jobs:
           run-install: true
 
       - name: Ensure Electron runtime is installed
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @rove-code/desktop ensure:electron
 
       # Files/dependencies are repo-wide; export checks cover clean workspaces only.
       - name: Check unused code
@@ -95,7 +95,7 @@ jobs:
           run-install: true
 
       - name: Ensure Electron runtime is installed
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @rove-code/desktop ensure:electron
 
       - uses: ./.github/actions/setup-apt-mirrors
 
@@ -150,7 +150,7 @@ jobs:
           run-install: true
 
       - name: Ensure Electron runtime is installed
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @rove-code/desktop ensure:electron
 
       - uses: ./.github/actions/setup-apt-mirrors
 
@@ -168,9 +168,9 @@ jobs:
       - name: Test
         run: >-
           vp run --parallel --concurrency-limit 4
-          --filter '!t3' --filter '!@t3tools/monorepo'
-          --filter '!@t3tools/web' --filter '!@t3tools/mobile'
-          --filter '!@t3tools/client-runtime' test
+          --filter '!@rove-code/server' --filter '!@rove-code/monorepo'
+          --filter '!@rove-code/web' --filter '!@rove-code/mobile'
+          --filter '!@rove-code/client-runtime' test
 
   test_client:
     name: Test ${{ matrix.workspace }} ${{ matrix.shard }}
@@ -209,7 +209,7 @@ jobs:
           run-install: true
 
       - name: Test
-        run: vp run --filter @t3tools/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
+        run: vp run --filter @rove-code/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
 
   # apps/server sets `fileParallelism: false`, so its files run strictly
   # one at a time. Sharding spreads them over separate runners instead of
@@ -239,14 +239,14 @@ jobs:
           cache: true
           run-install: true
 
-      # No Electron setup here: `t3` (apps/server) has no Electron dependency
+      # No Electron setup here: `@rove-code/server` (apps/server) has no Electron dependency
       # and none of its tests touch the runtime. Only the non-server `test`
-      # job, which covers @t3tools/desktop, needs the download.
+      # job, which covers @rove-code/desktop, needs the download.
       - name: Test
         env:
           ROVE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/rove-transfer-budget.md
           ROVE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
-        run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: vp run --filter @rove-code/server test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
       # src/server.test.ts writes the budget report, so exactly one shard
       # produces these files. Gating the upload on their presence keeps a
@@ -414,7 +414,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
+              - --filter=@rove-code/scripts...
 
       - name: Install mobile native static analysis tools
         run: brew bundle install --file apps/mobile/Brewfile
@@ -442,7 +442,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
+              - --filter=@rove-code/scripts...
 
       - name: Exercise release-only workflow steps
         run: node scripts/release-smoke.ts

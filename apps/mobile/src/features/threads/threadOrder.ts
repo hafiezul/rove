@@ -1,11 +1,11 @@
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentThreadShell } from "@rove-code/client-runtime/state/shell";
 import {
   generateSpreadPinOrderKeys,
   pinOrderKeyBetween,
   planPinnedReorder,
-} from "@t3tools/client-runtime/state/thread-sort";
-import { effectiveSnoozed } from "@t3tools/client-runtime/state/thread-settled";
-import type { EnvironmentId } from "@t3tools/contracts";
+} from "@rove-code/client-runtime/state/thread-sort";
+import { effectiveSnoozed } from "@rove-code/client-runtime/state/thread-settled";
+import type { EnvironmentId } from "@rove-code/contracts";
 
 export type ThreadMoveDestination =
   | "up"

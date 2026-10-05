@@ -51,8 +51,8 @@ import {
   type SidebarSection,
   resolveSidebarDropVerb,
 } from "./Sidebar.logic";
-import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
-import { sortSettledThreads } from "@t3tools/client-runtime/state/thread-sort";
+import { threadSearchMatchKey } from "@rove-code/client-runtime/state/thread-search";
+import { sortSettledThreads } from "@rove-code/client-runtime/state/thread-sort";
 import {
   EnvironmentId,
   CommandId,
@@ -61,7 +61,7 @@ import {
   ProjectId,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import {
   DEFAULT_INTERACTION_MODE,

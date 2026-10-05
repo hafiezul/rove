@@ -1,12 +1,12 @@
-import { projectQuestionToolInput } from "@t3tools/shared/toolActivity";
+import { projectQuestionToolInput } from "@rove-code/shared/toolActivity";
 import {
   isContextWindowSnapshotPayload,
   type OrchestrationEvent,
   type OrchestrationThreadActivity,
   type OrchestrationThreadDetailSnapshot,
-} from "@t3tools/contracts";
-import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
-import { extractJsonObject } from "@t3tools/shared/schemaJson";
+} from "@rove-code/contracts";
+import { isWorkspaceImagePreviewPath } from "@rove-code/shared/filePreview";
+import { extractJsonObject } from "@rove-code/shared/schemaJson";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { OrchestrationThreadActivity } from "@t3tools/contracts";
+import type { OrchestrationThreadActivity } from "@rove-code/contracts";
 import { projectActivityPayload } from "./ActivityPayloadProjection.ts";
 import type { Json as SchemaJson } from "effect/Schema";
 

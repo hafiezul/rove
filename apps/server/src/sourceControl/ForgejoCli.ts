@@ -11,8 +11,8 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { ChildProcessSpawner } from "effect/unstable/process";
-import { decodeJsonResult } from "@t3tools/shared/schemaJson";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { decodeJsonResult } from "@rove-code/shared/schemaJson";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
 import type { SourceControlProviderContext } from "./SourceControlProvider.ts";
@@ -150,7 +150,7 @@ export class ForgejoCli extends Context.Service<
       input: ForgejoApiInput,
     ) => Effect.Effect<VcsProcess.VcsProcessOutput, ForgejoCliError>;
   }
->()("t3/sourceControl/ForgejoCli") {}
+>()("@rove-code/server/sourceControl/ForgejoCli") {}
 
 export function parseForgejoRemote(value: string) {
   if (/^(?:https?|ssh):\/\//i.test(value)) {

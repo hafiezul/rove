@@ -1,5 +1,5 @@
-import type { AssistantCitation } from "@t3tools/contracts";
-import { serializeAssistantCitation } from "@t3tools/shared/assistantCitations";
+import type { AssistantCitation } from "@rove-code/contracts";
+import { serializeAssistantCitation } from "@rove-code/shared/assistantCitations";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { PencilIcon, QuoteIcon } from "lucide-react";
 import {

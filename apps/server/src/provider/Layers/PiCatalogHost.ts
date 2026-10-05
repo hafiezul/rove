@@ -24,8 +24,8 @@ import type {
   PiThinkingLevel,
   ServerProviderModel,
   ServerProviderSlashCommand,
-} from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { createModelCapabilities } from "@rove-code/shared/model";
 import * as Effect from "effect/Effect";
 
 import {

@@ -1,17 +1,17 @@
-import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
+import { upgradeLegacyContextMessage } from "@rove-code/shared/composerContextLegacy";
 import { buildProjectThreadStartTurnInput } from "./projectThreadStartTurn";
 import {
   ProjectId,
   ProviderInstanceId,
   ComposerContextId,
   type OrchestrationMessageContext,
-} from "@t3tools/contracts";
-import { collectComposerInlineTokens } from "@t3tools/shared/composerInlineTokens";
+} from "@rove-code/contracts";
+import { collectComposerInlineTokens } from "@rove-code/shared/composerInlineTokens";
 import {
   collectComposerContextReferences,
   formatComposerContextReference,
   projectComposerContextForProvider,
-} from "@t3tools/shared/composerContextReferences";
+} from "@rove-code/shared/composerContextReferences";
 import { describe, expect, it } from "vite-plus/test";
 import {
   composerContextEditorTokens,

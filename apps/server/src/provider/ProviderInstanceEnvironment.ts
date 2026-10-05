@@ -1,4 +1,4 @@
-import type { ProviderInstanceEnvironment } from "@t3tools/contracts";
+import type { ProviderInstanceEnvironment } from "@rove-code/contracts";
 
 import { expandHomePath } from "../pathExpansion.ts";
 

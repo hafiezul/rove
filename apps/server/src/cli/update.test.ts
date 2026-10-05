@@ -9,7 +9,7 @@ import {
   HostProcessInvokedAs,
   HostProcessPlatform,
   HostProcessWorkingDirectory,
-} from "@t3tools/shared/hostProcess";
+} from "@rove-code/shared/hostProcess";
 
 import { repointLauncher, resolveLauncherPath } from "./update.ts";
 

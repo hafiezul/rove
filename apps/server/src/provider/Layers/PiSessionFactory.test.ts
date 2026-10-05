@@ -20,10 +20,10 @@ import {
   PiSettings,
   ThreadId,
   type ProviderRuntimeEvent,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { ModelRuntime, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import * as PiSdk from "@earendil-works/pi-coding-agent";
-import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
+import { EnvironmentId, ProviderInstanceId } from "@rove-code/contracts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
 import * as PiRoveTools from "./PiRoveTools.ts";
 import { afterEach, beforeEach, describe, expect, vi } from "vite-plus/test";

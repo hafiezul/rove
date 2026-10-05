@@ -1,5 +1,5 @@
-import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
-import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { scopeThreadRef, scopedThreadKey } from "@rove-code/client-runtime/environment";
+import { EnvironmentId, ProviderInstanceId, ThreadId } from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import { act, createElement } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
@@ -19,8 +19,8 @@ const io = vi.hoisted(() => ({
 const config = {
   environment: { capabilities: { attachmentUploads: true, inlineMessageContext: true } },
 };
-vi.mock("@t3tools/client-runtime/state/runtime", async (load) => ({
-  ...(await load<typeof import("@t3tools/client-runtime/state/runtime")>()),
+vi.mock("@rove-code/client-runtime/state/runtime", async (load) => ({
+  ...(await load<typeof import("@rove-code/client-runtime/state/runtime")>()),
   runAtomCommand: (...args: unknown[]) => io.run(...args),
 }));
 vi.mock("../rpc/atomRegistry", () => ({

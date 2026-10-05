@@ -37,4 +37,4 @@ export interface ThreadDeletionReactorContract {
 export class ThreadDeletionReactor extends Context.Service<
   ThreadDeletionReactor,
   ThreadDeletionReactorContract
->()("t3/orchestration/Services/ThreadDeletionReactor") {}
+>()("@rove-code/server/orchestration/Services/ThreadDeletionReactor") {}

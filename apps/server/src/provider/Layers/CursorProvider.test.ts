@@ -12,8 +12,8 @@ import * as Stream from "effect/Stream";
 import type * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import { describe, expect, it } from "vite-plus/test";
 import type * as EffectAcpSchema from "effect-acp/schema";
-import { ProviderDriverKind, ProviderInstanceId, type CursorSettings } from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+import { ProviderDriverKind, ProviderInstanceId, type CursorSettings } from "@rove-code/contracts";
+import { createModelCapabilities } from "@rove-code/shared/model";
 
 import {
   buildCursorProviderSnapshot,
@@ -36,7 +36,7 @@ import {
   rewriteCursorSkillMentions,
 } from "../Drivers/CursorSkills.ts";
 import { execScriptSource, writeFakeCli } from "../../testUtils/fakeCli.ts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
 // Resolved, so macOS's /var -> /private/var link matches the realpaths skill discovery reports.
@@ -166,7 +166,7 @@ const makeExitLogFixture = Effect.fn("makeExitLogFixture")(function* (prefix: st
   return {
     exitLogPath,
     wrapperPath: yield* makeMockAgentWrapper({
-      T3_ACP_EXIT_LOG_PATH: exitLogPath,
+      ROVE_ACP_EXIT_LOG_PATH: exitLogPath,
     }),
   };
 });
@@ -720,7 +720,7 @@ describe("checkCursorProviderStatus", () => {
         },
         {
           ...process.env,
-          T3_ACP_REQUEST_LOG_PATH: requestLogPath,
+          ROVE_ACP_REQUEST_LOG_PATH: requestLogPath,
         },
       ),
     );
@@ -749,7 +749,7 @@ describe("discoverCursorModelsViaAcp", () => {
         };
         const { discover, invalidate } = yield* makeCursorModelDiscovery(settings, {
           ...process.env,
-          T3_ACP_REQUEST_LOG_PATH: requestLogPath,
+          ROVE_ACP_REQUEST_LOG_PATH: requestLogPath,
         });
         const about = {
           version: "2026.08.11",

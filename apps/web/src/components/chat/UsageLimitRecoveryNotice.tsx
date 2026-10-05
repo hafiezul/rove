@@ -3,10 +3,10 @@ import type {
   EnvironmentId,
   OrchestrationThreadShell,
   ThreadLimitRecovery,
-} from "@t3tools/contracts";
-import { MAX_LIMIT_RECOVERY_ATTEMPTS } from "@t3tools/contracts";
-import { visibleLimitRecovery, scheduledLimitResumeAt } from "@t3tools/shared/limitRecovery";
-import { canSnooze, effectiveSnoozed } from "@t3tools/client-runtime/state/thread-settled";
+} from "@rove-code/contracts";
+import { MAX_LIMIT_RECOVERY_ATTEMPTS } from "@rove-code/contracts";
+import { visibleLimitRecovery, scheduledLimitResumeAt } from "@rove-code/shared/limitRecovery";
+import { canSnooze, effectiveSnoozed } from "@rove-code/client-runtime/state/thread-settled";
 import { ClockIcon } from "lucide-react";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";

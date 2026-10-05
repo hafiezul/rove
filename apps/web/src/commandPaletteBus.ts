@@ -1,4 +1,4 @@
-import type { EnvironmentId, PullRequestLinkedThreadsResult } from "@t3tools/contracts";
+import type { EnvironmentId, PullRequestLinkedThreadsResult } from "@rove-code/contracts";
 
 export interface CommandPaletteLinkedThreads {
   readonly environmentId: EnvironmentId;

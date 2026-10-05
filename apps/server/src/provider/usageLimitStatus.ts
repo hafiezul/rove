@@ -1,4 +1,4 @@
-import type { ServerProviderUsageLimits } from "@t3tools/contracts";
+import type { ServerProviderUsageLimits } from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 
 export type UsageLimitStatus =

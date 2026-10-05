@@ -297,7 +297,7 @@ jobs:
 
       - name: Ensure Electron runtime is installed
         if: matrix.suite == 'static' || matrix.suite == 'packages'
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @rove-code/desktop ensure:electron
 
       - name: Check
         if: matrix.suite == 'static'
@@ -318,18 +318,18 @@ jobs:
         if: matrix.suite == 'packages'
         run: >-
           vp run --parallel --concurrency-limit 4
-          --filter '!t3' --filter '!@t3tools/monorepo'
-          --filter '!@t3tools/web' --filter '!@t3tools/mobile'
-          --filter '!@t3tools/client-runtime' test
+          --filter '!@rove-code/server' --filter '!@rove-code/monorepo'
+          --filter '!@rove-code/web' --filter '!@rove-code/mobile'
+          --filter '!@rove-code/client-runtime' test
 
       - name: Test client
         if: matrix.suite == 'client'
-        run: vp run --filter @t3tools/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
+        run: vp run --filter @rove-code/${{ matrix.workspace }} test --shard ${{ matrix.shard }}/${{ matrix.shards }} --maxWorkers 2
 
       # Server test files stay serial within each runner, as in CI.
       - name: Test server
         if: matrix.suite == 'server'
-        run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ matrix.shards }}
+        run: vp run --filter @rove-code/server test --shard ${{ matrix.shard }}/${{ matrix.shards }}
 
   relay_public_config:
     name: Resolve Rove Connect public config
@@ -474,7 +474,7 @@ jobs:
       - name: Install bundle dependencies
         env:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
-        run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+        run: vp install --filter=@rove-code/server... --filter=@rove-code/web... --filter=@rove-code/desktop... --filter=@rove-code/scripts...
 
       - name: Download relay client tracing config
         if: needs.relay_public_config.result == 'success'
@@ -497,13 +497,13 @@ jobs:
 
       - uses: ./.github/actions/setup-apt-mirrors
 
-      # @t3tools/desktop#build compiles the Linux browser secret helper on a
+      # @rove-code/desktop#build compiles the Linux browser secret helper on a
       # Linux host before packing, and that needs libsecret headers.
       - name: Install browser secret helper build libraries
         run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
 
-      # Runs t3#build (which depends on @t3tools/web#build) and
-      # @t3tools/desktop#build, so apps/server/dist holds the server bundle
+      # Runs @rove-code/server#build (which depends on @rove-code/web#build) and
+      # @rove-code/desktop#build, so apps/server/dist holds the server bundle
       # plus the web client and apps/desktop/dist-electron the Electron main.
       - name: Build JS bundle
         run: vp run build:desktop
@@ -718,8 +718,8 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3...
-              - --filter=@t3tools/scripts...
+              - --filter=@rove-code/server...
+              - --filter=@rove-code/scripts...
 
       - name: Download all CLI archives
         uses: actions/download-artifact@v8
@@ -783,7 +783,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
+              - --filter=@rove-code/scripts...
 
       - name: Download all desktop artifacts
         uses: actions/download-artifact@v8
@@ -978,8 +978,8 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
-              - --filter=@t3tools/web...
+              - --filter=@rove-code/scripts...
+              - --filter=@rove-code/web...
 
       - name: Download relay client tracing config
         uses: actions/download-artifact@v8
@@ -1095,7 +1095,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/marketing...
+              - --filter=@rove-code/marketing...
 
       - name: Deploy marketing site to Vercel
         shell: bash
@@ -1166,8 +1166,8 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
-              - --filter=@t3tools/oxlint-plugin-rove...
+              - --filter=@rove-code/scripts...
+              - --filter=@rove-code/oxlint-plugin-rove...
 
       - id: update_versions
         name: Update version strings
@@ -1231,7 +1231,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=@t3tools/scripts...
+              - --filter=@rove-code/scripts...
 
       - name: Announce prerelease on Discord
         if: needs.preflight.outputs.is_prerelease == 'true'

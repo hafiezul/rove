@@ -4,13 +4,13 @@ import {
   ANTIGRAVITY_DEFAULT_MODEL,
   ProviderInstanceId,
   type AntigravitySettings,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   HostProcessEnvironment,
   HostProcessExecutablePath,
   HostProcessIsExecutable,
   HostProcessPlatform,
-} from "@t3tools/shared/hostProcess";
+} from "@rove-code/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
 import * as Fiber from "effect/Fiber";
@@ -195,8 +195,8 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     config: { ...AntigravityDriver.defaultConfig(), ...options.config },
     environment: [
       { name: "PATH", value: instancePath },
-      { name: "T3_ACP_ANTIGRAVITY", value: "1" },
-      { name: "T3_ACP_REQUEST_LOG_PATH", value: requestLog },
+      { name: "ROVE_ACP_ANTIGRAVITY", value: "1" },
+      { name: "ROVE_ACP_REQUEST_LOG_PATH", value: requestLog },
       { name: "GEMINI_API_KEY", value: "must-not-be-used" },
       { name: "google_api_key", value: "must-not-be-used" },
       { name: "GOOGLE_APPLICATION_CREDENTIALS", value: "/must-not-be-used.json" },

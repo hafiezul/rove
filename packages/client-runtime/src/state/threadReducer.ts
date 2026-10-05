@@ -13,17 +13,17 @@ import {
   type OrchestrationThreadActivity,
   type TurnId,
   type ThreadPullRequestLink,
-} from "@t3tools/contracts";
-import { threadPullRequestKeysEqual } from "@t3tools/shared/threadPullRequests";
+} from "@rove-code/contracts";
+import { threadPullRequestKeysEqual } from "@rove-code/shared/threadPullRequests";
 import {
   retainThreadMessagesAfterRevert,
   retainThreadTurnItemsAfterRevert,
-} from "@t3tools/shared/threadRevert";
+} from "@rove-code/shared/threadRevert";
 import {
   clearsLimitRecovery,
   cancelsLimitRecoverySchedule,
   cancelLimitRecovery,
-} from "@t3tools/shared/limitRecovery";
+} from "@rove-code/shared/limitRecovery";
 
 export type ThreadDetailReducerResult =
   | { readonly kind: "updated"; readonly thread: OrchestrationThread }

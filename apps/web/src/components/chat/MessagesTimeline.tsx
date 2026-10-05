@@ -5,7 +5,7 @@ import {
   getQuestionAnswerPreview,
   getQuestionAnswerText,
   hasQuestionAnswer,
-} from "@t3tools/client-runtime/work-log/user-input";
+} from "@rove-code/client-runtime/work-log/user-input";
 import {
   deriveTimelineMinimapItems,
   resolveTimelineMinimapPreview,
@@ -21,28 +21,28 @@ import {
   type ToolActivityIcon,
   type TurnId,
   type WorktreeSetupSnapshot,
-} from "@t3tools/contracts";
-import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
-import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
-import type { CodexArtifactTemplate } from "@t3tools/client-runtime/codex-artifact-templates";
+} from "@rove-code/contracts";
+import { parseScopedThreadKey } from "@rove-code/client-runtime/environment";
+import { replaceComposerContextReferences } from "@rove-code/shared/composerContextReferences";
+import type { CodexArtifactTemplate } from "@rove-code/client-runtime/codex-artifact-templates";
 import {
   resolveWorkEntryToolPresentation,
   resolveViewedImageAsset,
   workEntryViewedImagePath,
-} from "@t3tools/client-runtime/work-log/presentation";
-import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
+} from "@rove-code/client-runtime/work-log/presentation";
+import { resolveWorkGroupScrollAnchor } from "@rove-code/client-runtime/work-log/scroll-anchor";
 import type {
   AgentPanelModel,
   RuntimeSubagent,
-} from "@t3tools/client-runtime/state/subagentRuntime";
-import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
+} from "@rove-code/client-runtime/state/subagentRuntime";
+import { formatAttachmentSize } from "@rove-code/client-runtime/state/attachments";
 import {
   emptyAgentPanelModel,
   formatSubagentModelLabel,
   formatSubagentTokenCount,
   isActiveSubagentStatus,
   isTerminalSubagentStatus,
-} from "@t3tools/client-runtime/state/subagentRuntime";
+} from "@rove-code/client-runtime/state/subagentRuntime";
 
 const EMPTY_AGENT_PANEL_MODEL = emptyAgentPanelModel();
 const NOOP_OPEN_AGENTS = () => {};
@@ -50,10 +50,10 @@ const EMPTY_QUEUED_MESSAGES: ReadonlyArray<QueuedComposerMessage> = [];
 const NOOP_QUEUED_MESSAGE_ACTION = (_id: string) => {};
 const NOOP_USE_ARTIFACT_TEMPLATE = () => {};
 const NOOP_OPEN_ATTACHMENT = (_attachment: ChatFileAttachment) => {};
-import { resolveChatListAnchoredEndSpace } from "@t3tools/shared/chatList";
-import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
-import { formatDuration } from "@t3tools/shared/orchestrationTiming";
-import { getProjectFaviconCacheKey } from "@t3tools/shared/projectFavicon";
+import { resolveChatListAnchoredEndSpace } from "@rove-code/shared/chatList";
+import { toolActivityFaviconUrl } from "@rove-code/shared/favicon";
+import { formatDuration } from "@rove-code/shared/orchestrationTiming";
+import { getProjectFaviconCacheKey } from "@rove-code/shared/projectFavicon";
 import { observeVisibleAnimation } from "../../lib/visibleAnimation";
 import {
   createContext,
@@ -129,7 +129,7 @@ import type {
   ComposerContextId,
   ComposerContextRecord,
   KnownComposerContextRecord,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { Button } from "../ui/button";
 import type { QueuedComposerMessage } from "../../queuedMessageStore";
 import { useAssetUrlRefresh, useAssetUrls, useAssetUrlState } from "../../assets/assetUrls";
@@ -222,12 +222,12 @@ import {
 import {
   collectComposerContextReferences,
   formatComposerContextReference,
-} from "@t3tools/shared/composerContextReferences";
+} from "@rove-code/shared/composerContextReferences";
 import {
   COMPOSER_CONTEXT_CLIPBOARD_MIME,
   encodeComposerContextClipboardHtml,
   encodeComposerContextFragment,
-} from "@t3tools/shared/composerContextClipboard";
+} from "@rove-code/shared/composerContextClipboard";
 import { chatMarkdownClipboardPayload } from "../../markdown-clipboard";
 import { ContextChip, ContextChipLabel, type ContextChipKind } from "../ContextChip";
 import { createContextPresentationRegistry } from "../contextPresentationRegistry";
@@ -237,7 +237,7 @@ import type { ChatMarkdownContextReference } from "../ChatMarkdown";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { cn } from "~/lib/utils";
 import { useUiStateStore } from "~/uiStateStore";
-import { type TimestampFormat } from "@t3tools/contracts/settings";
+import { type TimestampFormat } from "@rove-code/contracts/settings";
 import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
 
 import { SkillChipIcon, SkillInlineText } from "./SkillInlineText";
@@ -4610,7 +4610,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
 function QuestionAnswerHistory({
   answer,
 }: {
-  answer: import("@t3tools/contracts").UserInputAttachmentAnswerPayload;
+  answer: import("@rove-code/contracts").UserInputAttachmentAnswerPayload;
 }) {
   const { activeThreadEnvironmentId } = use(TimelineRowCtx);
   const attachments = useMemo(() => Object.values(answer.attachmentsByQuestionId).flat(), [answer]);

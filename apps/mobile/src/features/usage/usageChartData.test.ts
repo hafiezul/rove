@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import type { DailyTotals } from "@t3tools/shared/usageMerge";
+import type { DailyTotals } from "@rove-code/shared/usageMerge";
 
 vi.mock("../settings/appearance/AppearancePreferencesProvider", () => ({
   useAppearancePreferences: () => ({ themeAppearance: "dark" }),

@@ -9,14 +9,14 @@ import {
   EnvironmentHttpForbiddenError,
   EnvironmentHttpInternalServerError,
   EnvironmentHttpUnauthorizedError,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   type RelayEnvironmentLinkResponse as RelayEnvironmentLinkResponseType,
   type RelayManagedEndpointProviderKind,
-} from "@t3tools/contracts/relay";
-import { findErrorTraceId } from "@t3tools/client-runtime/errors";
-import { ManagedRelay, relayProtectedErrorMessage } from "@t3tools/client-runtime/relay";
-import { makeEnvironmentHttpApiClient } from "@t3tools/client-runtime/rpc";
+} from "@rove-code/contracts/relay";
+import { findErrorTraceId } from "@rove-code/client-runtime/errors";
+import { ManagedRelay, relayProtectedErrorMessage } from "@rove-code/client-runtime/relay";
+import { makeEnvironmentHttpApiClient } from "@rove-code/client-runtime/rpc";
 
 import type { SavedRemoteConnection } from "../../lib/connection";
 import * as MobileStorage from "../../persistence/mobile-storage";

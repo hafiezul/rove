@@ -16,8 +16,8 @@ import {
   type AgentSessionImportInput,
   type AgentSessionImportResult,
   type OrchestrationThread,
-} from "@t3tools/contracts";
-import { normalizeProjectPathForComparison } from "@t3tools/shared/path";
+} from "@rove-code/contracts";
+import { normalizeProjectPathForComparison } from "@rove-code/shared/path";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";

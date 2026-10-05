@@ -6,8 +6,8 @@ import {
   DEFAULT_SERVER_SETTINGS,
   ThreadId,
   type ServerSettings as ServerSettingsValue,
-} from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

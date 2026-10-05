@@ -15,7 +15,7 @@ import {
   type ServerProviderModel,
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { PI_SDK_VERSION } from "../PiSdkMetadata.ts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";

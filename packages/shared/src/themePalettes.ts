@@ -248,7 +248,7 @@ export const ROVE_DARK_THEME_COLORS: ThemeColors = {
   terminalScrollbarHover: "#363636",
 };
 
-export const T3_CHAT_THEME: ThemeDefinition = {
+export const PLUM_THEME: ThemeDefinition = {
   id: "t3-chat",
   label: "Plum",
   appearance: "light",
@@ -884,7 +884,7 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
-  T3_CHAT_THEME,
+  PLUM_THEME,
   GROVE_THEME,
   OCEAN_THEME,
   EMBER_THEME,

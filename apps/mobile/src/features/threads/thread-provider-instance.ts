@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentThreadShell } from "@rove-code/client-runtime/state/shell";
 import {
   normalizeProviderAccentColor,
   resolveProviderInstanceDisplayName,
   shouldShowInstanceBadge,
-} from "@t3tools/client-runtime/state/provider-instance-display";
-import type { EnvironmentId, ProviderDriverKind, ServerConfig } from "@t3tools/contracts";
+} from "@rove-code/client-runtime/state/provider-instance-display";
+import type { EnvironmentId, ProviderDriverKind, ServerConfig } from "@rove-code/contracts";
 
 /** What a thread row needs to draw the provider glyph and its account badge. */
 export interface ThreadRowProviderInstance {
