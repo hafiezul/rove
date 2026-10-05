@@ -1569,15 +1569,26 @@ export function makePiAdapter(
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
-              const getTurnUsageLimit = ctx.session.getTurnUsageLimit;
+              const session = ctx.session;
               const usageLimit =
                 errorMessage === undefined
                   ? null
-                  : getTurnUsageLimit === undefined || ctx.pendingTurnAborted
+                  : session.getTurnUsageLimit === undefined || ctx.pendingTurnAborted
                     ? usageLimitFromError(errorMessage, base.createdAt)
-                    : yield* Effect.tryPromise(() =>
-                        getTurnUsageLimit(errorMessage, base.createdAt),
-                      ).pipe(
+                    : yield* Effect.tryPromise(async () => {
+                        // Call through the session: the worker proxy's method reads `this`.
+                        const limit = await session.getTurnUsageLimit?.(
+                          errorMessage,
+                          base.createdAt,
+                        );
+                        return limit ?? null;
+                      }).pipe(
+                        Effect.tapCause((cause) =>
+                          Effect.logWarning("Pi usage-limit lookup failed", {
+                            threadId: ctx.threadId,
+                            cause,
+                          }),
+                        ),
                         Effect.orElseSucceed(() =>
                           usageLimitFromError(errorMessage, base.createdAt),
                         ),

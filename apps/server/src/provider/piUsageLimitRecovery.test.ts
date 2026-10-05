@@ -155,6 +155,8 @@ describe("Pi subscription quota recovery", () => {
           "gpt-limited": { available: false, available_at: at + 7200 },
           "gpt-open": { available: true, available_at: null },
           "gpt-unknown-format": { available: false, available_at: "tomorrow" },
+          // The format wham returns in practice.
+          "gpt-iso": { available: false, available_at: "2026-10-03T03:00:00.123456Z" },
         },
       }),
     );
@@ -174,5 +176,24 @@ describe("Pi subscription quota recovery", () => {
     expect(
       await readPiSubscriptionStatus({ ...input, model: "gpt-unknown-format" }, quotaFetch),
     ).toEqual({ type: "limited", resetAt: null });
+    expect(await readPiSubscriptionStatus({ ...input, model: "gpt-iso" }, quotaFetch)).toEqual({
+      type: "limited",
+      resetAt: "2026-10-03T03:00:00.123Z",
+    });
+    // An exhausted account window and a model limit resolve to the later reset.
+    const bothLimited = vi.fn<typeof fetch>(async () =>
+      Response.json({
+        rate_limit: {
+          allowed: false,
+          limit_reached: true,
+          primary_window: { used_percent: 100, reset_at: at + 3600 },
+        },
+        model_usage: { "gpt-iso": { available: false, available_at: "2026-10-03T03:00:00Z" } },
+      }),
+    );
+    expect(await readPiSubscriptionStatus({ ...input, model: "gpt-iso" }, bothLimited)).toEqual({
+      type: "limited",
+      resetAt: "2026-10-03T03:00:00.000Z",
+    });
   });
 });
