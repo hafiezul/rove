@@ -18,13 +18,13 @@ Lots of apps have gotten bogged down with bad tech decisions and "slop". We have
 
 ### 3. Remote ready
 
-The architecture of Rove Code's websocket layer (npx t3) supports direct connections over the local network, including pairing and Tailscale. Rove Connect (our tunnel solution, also in this repo) is not available in community builds, which ship without cloud configuration; the gating that hides it must keep working.
+The architecture of Rove Code's websocket layer (npx @rove-code/cli) supports direct connections over the local network, including pairing and Tailscale. Rove Connect (our tunnel solution, also in this repo) is not available in community builds, which ship without cloud configuration; the gating that hides it must keep working.
 
 ### 4. Multi-surface
 
 Rove Code has 3 key app surfaces: **web**, **desktop**, and **mobile**.
 
-**Web** is kind of two surfaces, as we have a hosted web app in maintainer builds as well as locally hosting the web app through the `npx t3` command. Community builds only support the local one. Both need to be supported by all new features where reasonable.
+**Web** is kind of two surfaces, as we have a hosted web app in maintainer builds as well as locally hosting the web app through the `npx @rove-code/cli` command. Community builds only support the local one. Both need to be supported by all new features where reasonable.
 
 **Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing direct LAN or Tailscale connections from another client or the mobile app.
 
@@ -50,11 +50,11 @@ We need to be on the same page with terminology. When communicating, use this la
 - **agent** means the coding agent a user runs inside Rove Code. Depending on context, that may also include you.
 - **provider** means the agent runtime or harness Rove Code talks to, such as Codex, Claude, Cursor, or OpenCode.
 - **client** means the web, desktop, or mobile UI.
-- **environment** means one running T3 server and the machine, filesystem, provider credentials, and state it owns.
+- **environment** means one running Rove Code server and the machine, filesystem, provider credentials, and state it owns.
 - **project** means an environment-local workspace record rooted at a directory.
 - **thread** means the durable conversation and work history for a project.
 - **turn** means one user-to-agent cycle, including follow-up work such as checkpointing.
-- **T3 home** means the base data directory. Runtime state normally lives below its userdata directory.
+- **Rove Code home** means the base data directory. Runtime state normally lives below its userdata directory.
 
 ## The three ways to hurt yourself
 

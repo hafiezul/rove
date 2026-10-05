@@ -95,12 +95,12 @@ Source in `apps/desktop/gnome-extension`, UUID `snap-shot@io.github.hafiezul.rov
 installed extension at login, so setup distinguishes "installed, needs logout" from "discovered but
 disabled" and compares loaded and installed versions.
 
-The extension trusts callers that own `com.t3tools.T3Code.SnapShot` (or the `.Development`
+The extension trusts callers that own `io.github.hafiezul.rove.SnapShot` (or the `io.github.hafiezul.rove.dev.SnapShot`
 variant) on the same connection. This is GNOME's trusted-session-client pattern, not authentication
 against a hostile process on the user's bus.
 
 Electron does not position overlay windows on Wayland, so the flash and flight run as Shell actors
-inside the extension with coordinates relative to T3's content area. Electron 44's restored-session
+inside the extension with coordinates relative to Rove Code's content area. Electron 44's restored-session
 path can skip rebinding and leave callbacks behind on unregister, which is why
 `PortalCaptureShortcut` owns its own portal session instead of using Electron's global-shortcut API.
 

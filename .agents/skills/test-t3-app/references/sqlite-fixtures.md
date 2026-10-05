@@ -1,6 +1,6 @@
 # SQLite fixtures
 
-Load this reference only when inspecting or seeding local T3 state directly.
+Load this reference only when inspecting or seeding local Rove Code state directly.
 
 ## Select the correct database
 
@@ -31,7 +31,7 @@ Apply a SQL fixture from a file:
 ```bash
 node apps/server/scripts/t3-sqlite-state.ts exec \
   --base-dir <base-dir> \
-  --file /tmp/t3-seed.sql
+  --file /tmp/rove-seed.sql
 ```
 
 Use one statement per invocation for both `query` and `exec`; the helper wraps writes in a transaction and prints the backup path after a successful mutation. Use a single insert with multiple value rows when a fixture needs several records.

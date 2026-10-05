@@ -50,7 +50,7 @@ clerk://dev.rove.app.dev.callback
 
 The app already declares the matching callback receiver. A "redirect url ... does not match an authorized redirect URI" error requires a Clerk configuration change; rebuilding the same APK does not fix it. Reopen sign-in after the administrator saves the entry. See [Android native sign-in redirects](./connect-setup.md#android-native-sign-in-redirects) for the other variants.
 
-Using T3's existing production publishable key selects the maintainers' Clerk instance. It grants no access to change that instance's allowlist. The chosen package's callback must already be allowed or be added by that instance's administrator. Android device registration and hosted delivery separately require the relay deployment below. A successful direct-pairing or FCM smoke test does not verify hosted sign-in or device registration.
+Use a publishable key from a Clerk instance you control. The key selects that instance but does not grant access to its allowlist. The chosen package's callback must already be allowed or be added by that instance's administrator. Android device registration and hosted delivery separately require the relay deployment below. A successful direct-pairing or FCM smoke test does not verify hosted sign-in or device registration.
 
 Building with `APP_VARIANT=production` selects `dev.rove.app` and its corresponding Clerk callback. Set the same variant during prebuild and bundling, and supply a Google services file that includes that package. Leave OTA updates disabled for a private binary. A locally signed build with this package cannot update an official installation signed by the maintainer or coexist with it; removing that installation also removes its app-local data. The development package remains a separate app.
 
@@ -82,7 +82,7 @@ After Android prebuild, run the native presentation regression tests from `apps/
 
 ## Relay deployment
 
-### Local verification with existing T3 services
+### Local verification with an existing paired environment
 
 You do not need to duplicate Rove Connect's hosted infrastructure to develop Android push. Keep the normal Clerk login and environment connections. `scripts/android-push-watch.ts` subscribes to one paired environment's shell stream, uses the shared agent-awareness projection, and sends updates through the new FCM client. It holds transient state in memory and needs no hosted database or Clerk secret.
 
@@ -112,11 +112,11 @@ A maintainer with access to the existing Alchemy state and deployment credential
    ```
 
 4. Give the tester the deployed relay URL and matching public Clerk configuration. The deploy wrapper also writes the relay URL and public tracing configuration into that checkout's root `.env`. Rebuild the private APK with this `ROVE_RELAY_URL`, the existing Firebase Android file, and OTA updates disabled. If using the separate development package, authorize its Clerk callback as described above.
-5. Configure one isolated T3 server with the same relay URL and link that test environment through the new relay. Existing production relay links do not automatically move to a personal stage. Enable activity publishing for the test environment, enable notifications on the phone, and verify a real agent turn produces a running update and completion alert while the phone is locked.
+5. Configure one isolated Rove Code server with the same relay URL and link that test environment through the new relay. Existing production relay links do not automatically move to a personal stage. Enable activity publishing for the test environment, enable notifications on the phone, and verify a real agent turn produces a running update and completion alert while the phone is locked.
 
 The maintainer can perform deployment themselves and return only the public client configuration; the tester does not need copies of their hosting or Clerk server credentials. A fully independent deployment needs its own initial Cloudflare stack, PostgreSQL database, Firebase project, and a Clerk instance the operator can configure. Its Alchemy deployment needs PlanetScale and Axiom credentials.
 
-Build the host client and mobile app with the same relay URL and Clerk public configuration. A source server or desktop development build can host the test environment; keep its T3 home separate from an existing installation. Signing into the phone alone does not link a host environment. Use the host client's Rove Connect settings to link it and enable activity publishing. A private Clerk instance also needs its own CLI OAuth application before using `t3 connect login`; the repository's production CLI client ID belongs to the maintainers' instance.
+Build the host client and mobile app with the same relay URL and Clerk public configuration. A source server or desktop development build can host the test environment; keep its Rove Code home separate from an existing installation. Signing into the phone alone does not link a host environment. Use the host client's Rove Connect settings to link it and enable activity publishing. A private Clerk instance also needs its own CLI OAuth application before using `rove connect login`. Set `ROVE_CLERK_CLI_OAUTH_CLIENT_ID` to that application's public client ID.
 
 For deployment through GitHub Actions, add `FCM_SERVICE_ACCOUNT` to the `production` environment's secrets. The relay workflow passes it to Alchemy. The maintainer must also supply `google-services.json` for the production Android package in the native build environment; changing the relay secret alone cannot move an installed app to another Firebase project.
 

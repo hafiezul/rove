@@ -705,6 +705,8 @@ it.effect(
         assert.strictEqual(response.headers.get("referrer-policy"), "no-referrer");
         assert.include(response.headers.get("content-security-policy")!, "default-src 'none'");
         assert.include(response.body, "You're signed in".replace("'", "&#39;"));
+        assert.include(response.body, '<div class="brand"><strong>Rove</strong> Code</div>');
+        assert.notInclude(response.body, "<strong>T3</strong>");
         assert.include(
           response.body,
           'content="1;url=http://localhost:7001/settings/providers?instanceId=codex_work"',
@@ -743,6 +745,8 @@ it.effect(
         yield* h.phase("failed");
         const response = h.callbackResponses[0]!;
         assert.include(response.body, "Sign-in couldn&#39;t finish");
+        assert.include(response.body, '<div class="brand"><strong>Rove</strong> Code</div>');
+        assert.notInclude(response.body, "<strong>T3</strong>");
         assert.notInclude(response.body, 'http-equiv="refresh"');
         assert.notInclude(response.body, "attacker.example");
         assert.isTrue(Option.isNone(yield* h.auth.read));

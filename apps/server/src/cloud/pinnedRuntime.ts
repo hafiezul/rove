@@ -103,7 +103,7 @@ export type PinnedRuntimeProgress =
   | { readonly stage: "verify" | "extract" | "validate" | "cached" };
 
 /**
- * Installs the t3 release archive for `version` into the pinned runtime
+ * Installs the Rove Code release archive for `version` into the pinned runtime
  * directory unless a complete install is already there, and returns its
  * paths. The sentinel is written only after extraction and validation
  * succeed; checking the entry file alone is not enough, since tar writes the

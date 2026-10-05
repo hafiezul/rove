@@ -2,7 +2,7 @@
 
 > For maintainers. Using Rove Code? See [docs/user](../user/).
 
-The screenshot harness runs the real mobile application against three disposable local T3
+The screenshot harness runs the real mobile application against three disposable local Rove Code
 environments. It creates an isolated base directory and server for each environment, real Git
 projects with deterministic content, seeded orchestration projections, and persisted terminal
 history. The app pairs with every server through its normal connection flow and React Navigation
@@ -21,7 +21,7 @@ From the repository root:
 
 The command:
 
-1. Creates three temporary T3 base directories and starts a local server for each on an available
+1. Creates three temporary Rove Code base directories and starts a local server for each on an available
    port.
 2. Creates Rove Code, React, and Linux Git repositories with recognizable favicons, feature branches,
    and a deterministic Rove Code review diff.
