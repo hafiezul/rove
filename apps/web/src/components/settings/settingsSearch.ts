@@ -608,7 +608,9 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Agent computer use",
     to: "/settings/integrations",
     targetId: "computer-use",
-    searchTerms: ["cua driver desktop native apps macos control click type screenshot allow"],
+    searchTerms: [
+      "cua driver desktop native apps macos linux wsl headless private isolated sandbox control click type screenshot allow",
+    ],
   },
   {
     id: "cua-driver",
@@ -616,7 +618,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/integrations",
     targetId: "computer-use",
     searchTerms: [
-      "computer use install reinstall accessibility screen recording permissions grant",
+      "computer use install reinstall prepare accessibility screen recording permissions grant linux wsl headless private desktop podman at-spi diagnostics",
     ],
   },
   {

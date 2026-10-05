@@ -1,6 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -14,7 +15,9 @@ import { ComputerUseToolsRegistrationLive } from "./handlers.ts";
 const decodeCapture = Schema.decodeUnknownSync(Schema.Struct({ capture_id: Schema.String }));
 const decodeError = Schema.decodeUnknownSync(Schema.Struct({ code: Schema.String }));
 
-it.live.skipIf(process.env.ROVE_TEST_NATIVE_CUA !== "1")(
+it.live.skipIf(
+  process.env.ROVE_TEST_NATIVE_CUA !== "1" || HostProcessPlatform.defaultValue() !== "darwin",
+)(
   "refuses intrusive input and preserves capture ownership through the installed Cua driver",
   () =>
     Effect.gen(function* () {

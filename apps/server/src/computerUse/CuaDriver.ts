@@ -1,10 +1,14 @@
+import * as NodeOS from "node:os";
+
 import {
   ComputerUseControlError,
+  type ComputerUseDiagnostic,
+  type ComputerUseReadiness,
   type ComputerUseControlInput,
   type ComputerUseStatus,
   type ThreadId,
 } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { Tool as CuaMcpTool } from "@modelcontextprotocol/sdk/types.js";
@@ -15,6 +19,7 @@ import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
@@ -22,6 +27,7 @@ import { McpSchema } from "effect/unstable/ai";
 
 import * as ProcessRunner from "../processRunner.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import * as LinuxDesktop from "./LinuxDesktop.ts";
 
 /** Cua's canonical installer places the app here; its MCP proxy launches the daemon from it. */
 const CUA_DRIVER_APP = "/Applications/CuaDriver.app";
@@ -46,6 +52,7 @@ export interface CuaTool {
 }
 
 export interface CuaCatalog {
+  readonly policy: "background-only" | "isolated-desktop";
   readonly instructions: string | undefined;
   readonly tools: ReadonlyArray<CuaTool>;
 }
@@ -76,6 +83,17 @@ const CheckPermissionsResult = Schema.Struct({
 const decodePermissions = Schema.decodeUnknownOption(CheckPermissionsResult);
 const decodeTelemetry = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Struct({ enabled: Schema.Boolean })),
+);
+const decodeHealth = Schema.decodeUnknownOption(
+  Schema.Struct({
+    checks: Schema.NonEmptyArray(
+      Schema.Struct({
+        name: Schema.String,
+        status: Schema.Literals(["pass", "warn", "fail", "skip"]),
+        message: Schema.String,
+      }),
+    ),
+  }),
 );
 const decodeCallToolResult = Schema.decodeUnknownEffect(McpSchema.CallToolResult);
 
@@ -111,13 +129,33 @@ export class CuaDriver extends Context.Service<
 
 export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   readonly appPath?: string;
+  readonly executablePath?: string;
 }) {
   const appPath = options?.appPath ?? CUA_DRIVER_APP;
-  const executablePath = `${appPath}/Contents/MacOS/cua-driver`;
   const runner = yield* ProcessRunner.ProcessRunner;
   const fileSystem = yield* FileSystem.FileSystem;
   const platform = yield* HostProcessPlatform;
+  const path = yield* Path.Path;
+  const environment = yield* HostProcessEnvironment;
+  const linuxInstallDir =
+    environment.CUA_DRIVER_RS_INSTALL_DIR ??
+    environment.CUA_DRIVER_BIN_DIR ??
+    path.join(environment.HOME ?? NodeOS.homedir(), ".local", "bin");
+  const linuxExecutable = options?.executablePath ?? path.join(linuxInstallDir, "cua-driver");
+  const linuxCandidates = options?.executablePath
+    ? [options.executablePath]
+    : [
+        linuxExecutable,
+        ...(environment.PATH ?? "")
+          .split(":")
+          .filter(Boolean)
+          .map((directory) => path.join(directory, "cua-driver")),
+      ];
+  let executablePath =
+    platform === "linux" ? linuxExecutable : `${appPath}/Contents/MacOS/cua-driver`;
+  const desktops = platform === "linux" ? yield* LinuxDesktop.make() : undefined;
   const settings = yield* ServerSettings.ServerSettingsService;
+  const settingsChanges = yield* settings.subscribeChanges;
   const scope = yield* Effect.scope;
   // Serializes connecting, releasing, and reading the daemon so an idle release never
   // races a status read or a new connection.
@@ -129,7 +167,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   let signatureVerified = false;
 
   const run = (args: ReadonlyArray<string>, timeout: Duration.Input = Duration.seconds(10)) =>
-    runner.run({ command: executablePath, args, timeout });
+    Effect.suspend(() => runner.run({ command: executablePath, args, timeout, env: environment }));
 
   const daemonRunning = run(["status"]).pipe(
     Effect.map((output) => output.code === 0),
@@ -137,6 +175,15 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   );
 
   const presence: Effect.Effect<"missing" | "untrusted" | "trusted"> = Effect.gen(function* () {
+    if (platform === "linux") {
+      for (const candidate of linuxCandidates) {
+        if (yield* fileSystem.exists(candidate).pipe(Effect.orElseSucceed(() => false))) {
+          executablePath = candidate;
+          return "trusted";
+        }
+      }
+      return "missing";
+    }
     if (!(yield* fileSystem.exists(executablePath).pipe(Effect.orElseSucceed(() => false)))) {
       return "missing";
     }
@@ -167,6 +214,9 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     connections.delete(key);
     if (current.idleTimer) yield* Fiber.interrupt(current.idleTimer);
     yield* Effect.promise(() => current.client.close().catch(() => undefined));
+    if (desktops && key === CONTROL_CONNECTION) {
+      yield* desktops.close(key).pipe(Effect.catch((cause) => Effect.logWarning(cause.detail)));
+    }
     yield* stopOwnedDaemon;
   });
 
@@ -176,6 +226,8 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
       Effect.gen(function* () {
         for (const [key, current] of connections) yield* closeConnection(key, current);
         yield* stopOwnedDaemon;
+        if (desktops)
+          yield* desktops.release.pipe(Effect.catch((cause) => Effect.logWarning(cause.detail)));
       }),
     )
     .pipe(Effect.uninterruptible);
@@ -199,41 +251,74 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
       }),
     );
 
-  const connect = (key: string) =>
+  const connect = (
+    key: string,
+    transport: LinuxDesktop.Transport = { command: executablePath, args: ["mcp"] },
+  ) =>
     Effect.tryPromise({
       try: async (signal) => {
         const client = new Client({ name: "rove-code", version: "1.0.0" });
         signal.addEventListener("abort", () => void client.close(), { once: true });
-        await client.connect(
-          new StdioClientTransport({ command: executablePath, args: ["mcp"], stderr: "ignore" }),
-        );
-        const sharedCatalog = connections.get(CONTROL_CONNECTION)?.catalog;
-        const tools: Array<CuaTool> = [];
-        if (!sharedCatalog) {
-          let cursor: string | undefined;
-          do {
-            const page = await client.listTools(cursor ? { cursor } : {});
-            for (const tool of page.tools) {
-              tools.push({
-                name: tool.name,
-                description: tool.description ?? tool.name,
-                inputSchema: tool.inputSchema,
-                readOnly: tool.annotations?.readOnlyHint === true,
-              });
-            }
-            cursor = page.nextCursor;
-          } while (cursor !== undefined);
+        try {
+          await client.connect(
+            new StdioClientTransport({
+              command: transport.command,
+              args: [...transport.args],
+              env: Object.fromEntries(
+                Object.entries(environment).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined,
+                ),
+              ),
+              stderr: "ignore",
+            }),
+          );
+          const sharedCatalog = connections.get(CONTROL_CONNECTION)?.catalog;
+          const tools: Array<CuaTool> = [];
+          if (!sharedCatalog) {
+            let cursor: string | undefined;
+            do {
+              const page = await client.listTools(cursor ? { cursor } : {});
+              for (const tool of page.tools) {
+                if (platform === "linux" && tool.name === "check_permissions") continue;
+                tools.push({
+                  name: tool.name,
+                  description: tool.description ?? tool.name,
+                  inputSchema: tool.inputSchema,
+                  readOnly: tool.annotations?.readOnlyHint === true,
+                });
+              }
+              cursor = page.nextCursor;
+            } while (cursor !== undefined);
+          }
+          const next: Connection = {
+            client,
+            catalog: sharedCatalog ?? {
+              policy: desktops ? "isolated-desktop" : "background-only",
+              instructions: client.getInstructions(),
+              tools: desktops
+                ? [
+                    ...tools,
+                    {
+                      name: "close_desktop",
+                      description:
+                        "Discard this thread's temporary desktop, including unsaved documents and guest files. The next call creates a new empty desktop.",
+                      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+                      readOnly: false,
+                    },
+                  ]
+                : tools,
+            },
+            idleTimer: undefined,
+          };
+          // A daemon quit from outside Rove closes the transport; reconnect on the next call.
+          client.onclose = () => {
+            if (connections.get(key) === next) connections.delete(key);
+          };
+          return next;
+        } catch (cause) {
+          await client.close().catch(() => undefined);
+          throw cause;
         }
-        const next: Connection = {
-          client,
-          catalog: sharedCatalog ?? { instructions: client.getInstructions(), tools },
-          idleTimer: undefined,
-        };
-        // A daemon quit from outside Rove closes the transport; reconnect on the next call.
-        client.onclose = () => {
-          if (connections.get(key) === next) connections.delete(key);
-        };
-        return next;
       },
       catch: (cause) =>
         new CuaDriverUnavailableError({
@@ -252,11 +337,22 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     );
 
   const connectUnlocked = Effect.fn("CuaDriver.connectUnlocked")(function* (key: string) {
+    if (
+      key.startsWith("thread:") &&
+      !(yield* settings.getSettings.pipe(
+        Effect.map((value) => value.enableAgentComputerUse),
+        Effect.orElseSucceed(() => false),
+      ))
+    ) {
+      return yield* new CuaDriverUnavailableError({
+        detail: "Computer use is off for this environment.",
+      });
+    }
     const current = connections.get(key);
     if (current) return current;
-    if (platform !== "darwin") {
+    if (platform !== "darwin" && platform !== "linux") {
       return yield* new CuaDriverUnavailableError({
-        detail: `Computer use is only available on macOS, not ${platform}.`,
+        detail: `Computer use needs a macOS or Linux host, not ${platform}.`,
       });
     }
     const found = yield* presence;
@@ -268,10 +364,16 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
             : untrustedDetail(appPath),
       });
     }
-    const wasRunning = yield* daemonRunning;
-    const next = yield* connect(key);
+    const wasRunning = platform === "darwin" ? yield* daemonRunning : false;
+    const next = desktops
+      ? yield* desktops
+          .connect(key, executablePath, (transport) => connect(key, transport))
+          .pipe(
+            Effect.mapError((cause) => new CuaDriverUnavailableError({ detail: cause.message })),
+          )
+      : yield* connect(key);
     connections.set(key, next);
-    if (!wasRunning) ownsDaemon = true;
+    if (platform === "darwin" && !wasRunning) ownsDaemon = true;
     return next;
   });
 
@@ -294,16 +396,50 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     Effect.orElseSucceed(() => null),
   );
 
+  const linuxDiagnostics = Effect.suspend(() => {
+    const current = connections.values().next().value;
+    if (!current) return Effect.succeed(null);
+    return Effect.tryPromise({
+      try: (signal) =>
+        current.client.callTool({ name: "health_report", arguments: {} }, undefined, {
+          signal,
+          timeout: 10_000,
+        }),
+      catch: describeCause,
+    }).pipe(
+      Effect.map((result) => {
+        const report = Option.getOrNull(decodeHealth(result.structuredContent));
+        const [first, ...rest] =
+          report?.checks
+            .filter((check) => check.status !== "skip")
+            .map((check): ComputerUseDiagnostic => ({
+              label: check.name,
+              status: check.status === "pass" ? "ok" : check.status === "warn" ? "warn" : "err",
+              message: check.message,
+            })) ?? [];
+        return first ? ([first, ...rest] as const) : null;
+      }),
+      Effect.orElseSucceed(() => null),
+    );
+  });
+
   const statusUnlocked: Effect.Effect<ComputerUseStatus> = Effect.gen(function* () {
-    if (platform !== "darwin") return { status: "unsupported", platform } as const;
+    if (platform !== "darwin" && platform !== "linux")
+      return { status: "unsupported", platform } as const;
     const found = yield* presence;
-    if (found === "missing") return { status: "not-installed" } as const;
+    if (found === "missing") return { status: "not-installed", platform } as const;
     if (found === "untrusted") return { status: "untrusted" } as const;
+    if (desktops) {
+      const readiness = yield* desktops.check(executablePath);
+      if (readiness.kind === "unavailable")
+        return { status: "runtime-unavailable", detail: readiness.detail } as const;
+      if (readiness.kind === "missing") return { status: "needs-desktop-image" } as const;
+    }
     const [versionOutput, telemetryOutput, running] = yield* Effect.all(
       [
         run(["--version"]).pipe(Effect.option),
-        run(["telemetry", "status", "--json"]).pipe(Effect.option),
-        daemonRunning,
+        desktops ? Effect.succeedNone : run(["telemetry", "status", "--json"]).pipe(Effect.option),
+        platform === "darwin" ? daemonRunning : Effect.succeed(connections.size > 0),
       ],
       { concurrency: "unbounded" },
     );
@@ -318,13 +454,18 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
         onSome: ({ enabled }) => enabled,
       },
     );
-    if (!running) return { status: "stopped", version, telemetry } as const;
-    return {
-      status: "running",
-      version,
-      telemetry,
-      permissions: yield* permissionsUnlocked,
-    } as const;
+    const readiness: ComputerUseReadiness =
+      platform === "linux"
+        ? {
+            platform,
+            diagnostics: yield* linuxDiagnostics,
+            desktops: desktops?.count() ?? 0,
+            capacity: LinuxDesktop.CAPACITY,
+          }
+        : { platform, permissions: running ? yield* permissionsUnlocked : null };
+    return running
+      ? ({ status: "running", version, telemetry, readiness } as const)
+      : ({ status: "stopped", version, telemetry, readiness } as const);
   });
 
   const status = lock.withPermit(statusUnlocked).pipe(
@@ -342,12 +483,19 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
 
   const install = Effect.gen(function* () {
     const fail = failWith("install");
+    const installerEnvironment: NodeJS.ProcessEnv = {
+      CUA_DRIVER_RS_NO_MODIFY_PATH: "1",
+      CUA_DRIVER_RS_TELEMETRY_ENABLED: "false",
+    };
+    if (platform === "linux") {
+      installerEnvironment.CUA_DRIVER_RS_INSTALL_DIR = path.dirname(linuxExecutable);
+    }
     // Execute only a fully downloaded script, never a partial pipe.
     const output = yield* runner
       .run({
         command: "/bin/bash",
         args: ["-c", `script="$(curl -fsSL ${INSTALL_SCRIPT_URL})" && /bin/bash -c "$script"`],
-        env: { CUA_DRIVER_RS_NO_MODIFY_PATH: "1", CUA_DRIVER_RS_TELEMETRY_ENABLED: "false" },
+        env: installerEnvironment,
         timeout: WAIT_FOR_USER_TIMEOUT,
       })
       .pipe(Effect.mapError((cause) => fail(describeCause(cause))));
@@ -359,7 +507,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     if (found !== "trusted") {
       return yield* fail(
         found === "missing"
-          ? "The Cua installer finished without installing the app."
+          ? "The Cua installer finished without installing Cua Driver."
           : untrustedDetail(appPath),
       );
     }
@@ -396,13 +544,20 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
 
   const control = Effect.fn("CuaDriver.control")(function* (input: ComputerUseControlInput) {
     const fail = failWith(input.action);
-    if (platform !== "darwin") {
-      return yield* fail(`Computer use is only available on macOS, not ${platform}.`);
+    if (platform !== "darwin" && platform !== "linux") {
+      return yield* fail(`Computer use needs a macOS or Linux host, not ${platform}.`);
     }
     const found = yield* lock.withPermit(presence);
     if (input.action === "install") {
-      if (found === "trusted") return yield* status;
-      yield* install;
+      if (desktops) {
+        const readiness = found === "trusted" ? yield* desktops.check(executablePath) : undefined;
+        if (readiness?.kind === "ready") return yield* status;
+        yield* desktops.preflight.pipe(Effect.mapError((cause) => fail(cause.detail)));
+        if (found !== "trusted") yield* install;
+        yield* desktops
+          .install(executablePath)
+          .pipe(Effect.mapError((cause) => fail(cause.detail)));
+      } else if (found !== "trusted") yield* install;
       return yield* status;
     }
     if (found !== "trusted") {
@@ -413,8 +568,14 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
     if (input.action === "start") {
       yield* connected(CONTROL_CONNECTION).pipe(Effect.mapError((error) => fail(error.detail)));
     } else if (input.action === "grant-permissions") {
+      if (platform === "linux") {
+        return yield* fail(
+          "Linux agent desktops have no macOS permission grants. Use Check desktop to test the private session.",
+        );
+      }
       yield* grantPermissions;
     } else {
+      if (desktops) return yield* fail("Usage collection is disabled in Linux agent desktops.");
       yield* setTelemetry(input.enabled);
     }
     return yield* status;
@@ -422,6 +583,28 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
 
   const call = (name: string, args: CuaArguments, threadId: ThreadId) => {
     const key = `thread:${threadId}`;
+    if (name === "close_desktop" && desktops) {
+      return lock.withPermit(
+        Effect.gen(function* () {
+          if (Object.keys(args).length > 0)
+            return yield* new CuaDriverUnavailableError({
+              detail: "close_desktop accepts no arguments.",
+            });
+          const current = connections.get(key);
+          if (current) yield* closeConnection(key, current);
+          yield* desktops
+            .close(key)
+            .pipe(
+              Effect.mapError((cause) => new CuaDriverUnavailableError({ detail: cause.detail })),
+            );
+          return new McpSchema.CallToolResult({
+            content: [
+              { type: "text", text: "This thread's temporary desktop has been discarded." },
+            ],
+          });
+        }),
+      );
+    }
     return connected(key).pipe(
       Effect.flatMap((current) =>
         Effect.tryPromise({
@@ -451,7 +634,7 @@ export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   };
 
   // Turning agent computer use off quits the daemon at once rather than after the idle timeout.
-  yield* settings.streamChanges.pipe(
+  yield* settingsChanges.pipe(
     Stream.map((current) => current.enableAgentComputerUse),
     Stream.changes,
     Stream.filter((enabled) => !enabled),

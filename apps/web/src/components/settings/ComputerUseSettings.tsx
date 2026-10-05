@@ -1,4 +1,4 @@
-import type { ComputerUseControlInput, ComputerUseStatus } from "@t3tools/contracts";
+import type { ComputerUseControlInput } from "@t3tools/contracts";
 import { useState } from "react";
 
 import { computerUseEnvironment } from "~/state/computerUse";
@@ -7,6 +7,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
+import { describeDriver, primaryAction } from "./ComputerUseSettings.logic";
 import { ScopedSwitch } from "./ScopedSwitch";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
@@ -21,51 +22,6 @@ const PENDING_LABELS = {
   "grant-permissions": "Waiting for macOS…",
   "set-telemetry": "Saving…",
 } satisfies Record<Action, string>;
-
-function describeDriver(status: ComputerUseStatus | null, error: string | null): string {
-  if (status === null) return error ?? "Checking Cua Driver on this environment…";
-  switch (status.status) {
-    case "unsupported":
-      return `Computer use needs a macOS host. This environment runs ${status.platform}.`;
-    case "not-installed":
-      return "Not installed on this environment's Mac. Install downloads it from Cua's official releases.";
-    case "untrusted":
-      return "The Cua Driver app on this Mac is not signed by Cua AI, Inc., so Rove won't run it. Reinstall it from Cua's official releases.";
-    case "stopped":
-      return `Cua Driver ${status.version} starts when an agent needs it and quits after 5 idle minutes.`;
-    case "running": {
-      if (status.permissions === null) {
-        return `Cua Driver ${status.version} is running, but its permissions could not be read.`;
-      }
-      const missing = [
-        status.permissions.accessibility ? null : "Accessibility",
-        status.permissions.screenRecording ? null : "Screen Recording",
-      ].filter((name) => name !== null);
-      return missing.length === 0
-        ? `Cua Driver ${status.version} is running with Accessibility and Screen Recording.`
-        : `Cua Driver needs ${missing.join(" and ")}. macOS asks on the Mac running this environment.`;
-    }
-  }
-}
-
-function primaryAction(
-  status: ComputerUseStatus | null,
-): { input: ComputerUseControlInput; label: string } | null {
-  switch (status?.status) {
-    case "not-installed":
-      return { input: { action: "install" }, label: "Install" };
-    case "untrusted":
-      return { input: { action: "install" }, label: "Reinstall" };
-    case "stopped":
-      return { input: { action: "start" }, label: "Check permissions" };
-    case "running":
-      return status.permissions?.accessibility && status.permissions.screenRecording
-        ? null
-        : { input: { action: "grant-permissions" }, label: "Grant permissions" };
-    default:
-      return null;
-  }
-}
 
 export function ComputerUseSettings() {
   const { scope, environment } = useSettingsScope();
@@ -104,7 +60,7 @@ export function ComputerUseSettings() {
         {...searchableSetting("agent-computer-use")}
         serverScoped
         settingKeys={["enableAgentComputerUse"]}
-        description="Let agents see and control apps on this environment's Mac through Cua Driver. Turning this off stops agents that are using it and quits Cua if Rove started it."
+        description="Use Cua Driver for background-only Mac app control or a private, offline Linux desktop per thread. Linux apps and files are temporary and cannot access the project or host desktop. Turning this off discards Linux desktops and quits a Mac daemon Rove started."
         control={
           <ScopedSwitch
             settingKeys={["enableAgentComputerUse"]}
@@ -132,7 +88,9 @@ export function ComputerUseSettings() {
                 ? PENDING_LABELS[primary.input.action]
                 : primary.label}
             </Button>
-          ) : status === null ? (
+          ) : status === null ||
+            status.status === "runtime-unavailable" ||
+            (status.status === "running" && status.readiness.platform === "linux") ? (
             <Button
               size="sm"
               variant="outline"
