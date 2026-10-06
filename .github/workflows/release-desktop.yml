@@ -109,9 +109,9 @@ jobs:
       # The windows-11-arm image runs jobs on its OS disk, where Defender scans
       # every write. A trusted Dev Drive mounted over the empty workspace keeps
       # checkout, the pnpm store, node_modules, and builds off that filter.
-      # Measured on the dependency steps: 8m vs 2m30s on a cold cache. TEMP
-      # stays outside the workspace: the desktop build stages the packaged app
-      # there, and staging inside the repo would resolve the repo's node_modules.
+      # TEMP gets its own drive rather than a workspace folder: the desktop
+      # build stages the packaged app there, and staging inside the repo would
+      # resolve the repo's node_modules.
       - name: Mount Dev Drive over the workspace
         if: inputs.platform == 'win' && inputs.arch == 'arm64'
         uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
@@ -119,6 +119,25 @@ jobs:
           drive-size: 40GB
           mount-path: ${{ github.workspace }}
           trusted-dev-drive: true
+
+      # Desktop staging, CLI archive staging, and the smoke test's runtime copy
+      # each write tens of thousands of files under TEMP, which sits on the
+      # Defender-scanned C: drive on both Windows images.
+      - name: Mount Dev Drive for TEMP
+        if: inputs.platform == 'win'
+        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
+        with:
+          drive-size: 20GB
+          drive-path: C:\rove_temp_drive.vhdx
+          trusted-dev-drive: true
+          env-mapping: |
+            TEMP,{{ DEV_DRIVE }}\tmp
+            TMP,{{ DEV_DRIVE }}\tmp
+
+      - name: Create TEMP directory
+        if: inputs.platform == 'win'
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force $env:TEMP | Out-Null
 
       # This repository is public, so Git needs no credentials. checkout's
       # credential cleanup runs submodule foreach even with submodules disabled,
@@ -143,14 +162,16 @@ jobs:
           cache: ${{ inputs.platform != 'win' }}
           run-install: false
 
+      # On the arm64 Dev Drive, extracting this cache and linking from it took
+      # longer than downloading every package fresh, so arm64 skips it.
       - name: Resolve Windows package cache path
-        if: inputs.platform == 'win'
+        if: inputs.platform == 'win' && inputs.arch != 'arm64'
         id: package_cache_path
         shell: pwsh
         run: '"path=$(vp pm cache dir)" >> $env:GITHUB_OUTPUT'
 
       - name: Cache Windows packages
-        if: inputs.platform == 'win'
+        if: inputs.platform == 'win' && inputs.arch != 'arm64'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ steps.package_cache_path.outputs.path }}
