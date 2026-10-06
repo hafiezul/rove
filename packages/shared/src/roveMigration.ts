@@ -100,10 +100,13 @@ export const decodeMigratedRoveJson = <S extends Schema.Codec<unknown, unknown, 
 };
 
 export const ROVE_CHECKPOINT_REFS_PREFIX = "refs/rove/checkpoints";
+export const LEGACY_CHECKPOINT_REFS_PREFIX = "refs/t3/checkpoints";
 
 export function legacyRoveCheckpointRef(ref: string): string | undefined {
   const prefix = `${ROVE_CHECKPOINT_REFS_PREFIX}/`;
-  return ref.startsWith(prefix) ? `refs/t3/checkpoints/${ref.slice(prefix.length)}` : undefined;
+  return ref.startsWith(prefix)
+    ? `${LEGACY_CHECKPOINT_REFS_PREFIX}/${ref.slice(prefix.length)}`
+    : undefined;
 }
 
 export function legacyRoveCookieName(name: string): string | undefined {
