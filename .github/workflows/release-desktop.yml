@@ -143,16 +143,14 @@ jobs:
           cache: ${{ inputs.platform != 'win' }}
           run-install: false
 
-      # On the arm64 Dev Drive, extracting this cache and linking from it took
-      # longer than downloading every package fresh, so arm64 skips it.
       - name: Resolve Windows package cache path
-        if: inputs.platform == 'win' && inputs.arch != 'arm64'
+        if: inputs.platform == 'win'
         id: package_cache_path
         shell: pwsh
         run: '"path=$(vp pm cache dir)" >> $env:GITHUB_OUTPUT'
 
       - name: Cache Windows packages
-        if: inputs.platform == 'win' && inputs.arch != 'arm64'
+        if: inputs.platform == 'win'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ steps.package_cache_path.outputs.path }}
