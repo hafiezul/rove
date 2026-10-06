@@ -283,6 +283,7 @@ export function resolveAgentAwarenessRelayActiveThreadIds(input: {
   const projectById = new Map(input.projects.map((project) => [project.id, project]));
   return input.threads
     .filter((thread) => {
+      if (thread.projectId === null) return false;
       const project = projectById.get(thread.projectId);
       if (!project) {
         return false;

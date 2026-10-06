@@ -727,7 +727,10 @@ function ThreadNavigationSidebarPane(
         }
         case "v2-thread": {
           const thread = item.item.thread;
-          const scopeKey = scopedProjectKey(thread.environmentId, thread.projectId);
+          const scopeKey =
+            thread.projectId === null
+              ? ""
+              : scopedProjectKey(thread.environmentId, thread.projectId);
           // Intentional difference from Home: the sidebar never passes
           // `showTrailingDivider` because its rows render no Home-style row
           // hairline at all — card rows carry tonal containers in this pane

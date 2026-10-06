@@ -64,6 +64,34 @@ function makeSnapshot(
 }
 
 describe("buildArchivedThreadGroups", () => {
+  it("keeps standalone archives separate across environments without any projects", () => {
+    const otherEnvironmentId = EnvironmentId.make("environment-2");
+    const thread = makeThread({
+      id: ThreadId.make("standalone"),
+      projectId: null,
+      title: "Fixture",
+    });
+    const snapshots = [makeSnapshot([], [thread]), makeSnapshot([], [thread], otherEnvironmentId)];
+    const input = {
+      snapshots,
+      environmentLabels: {},
+      environmentId: null,
+      searchQuery: "",
+      sortOrder: "newest" as const,
+    };
+    const groups = buildArchivedThreadGroups(input);
+    expect(groups).toHaveLength(2);
+    expect(groups.map((group) => group.project)).toEqual([null, null]);
+    expect(new Set(groups.map((group) => group.key)).size).toBe(2);
+    expect(
+      buildArchivedThreadGroups({
+        ...input,
+        environmentId: otherEnvironmentId,
+        searchQuery: "fixture",
+      }),
+    ).toEqual([expect.objectContaining({ environmentId: otherEnvironmentId, project: null })]);
+    expect(buildArchivedThreadGroups({ ...input, searchQuery: "does-not-match" })).toEqual([]);
+  });
   it("groups archived threads by project and sorts newest first", () => {
     const project = makeProject({ id: ProjectId.make("project-1"), title: "Rove Code" });
     const older = makeThread({
@@ -121,7 +149,7 @@ describe("buildArchivedThreadGroups", () => {
     });
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.project.environmentId).toBe(environmentId);
+    expect(result[0]?.project?.environmentId).toBe(environmentId);
     expect(result[0]?.threads.map((thread) => thread.id)).toEqual(["thread-1"]);
   });
 

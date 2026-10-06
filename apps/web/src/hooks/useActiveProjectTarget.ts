@@ -13,8 +13,8 @@ export interface ActiveProjectTarget {
 }
 
 /**
- * Resolves the project workspace behind the active thread (or draft) so
- * project-scoped surfaces like the file picker and content search know which
+ * Resolves the workspace behind the active thread (or project draft) so
+ * surfaces like the file picker and content search know which
  * workspace to query and which thread's right panel opens their results.
  */
 export function useActiveProjectTarget(): ActiveProjectTarget | null {
@@ -28,14 +28,14 @@ export function useActiveProjectTarget(): ActiveProjectTarget | null {
           candidate.environmentId === thread.environmentId && candidate.id === thread.projectId,
       )
     : null;
-  const cwd = thread?.worktreePath ?? project?.workspaceRoot;
+  const cwd = thread?.worktreePath ?? activeThread?.workspacePath ?? project?.workspaceRoot;
 
-  if (!thread || !threadId || !project || !cwd) return null;
+  if (!thread || !threadId || !cwd) return null;
 
   return {
-    environmentId: project.environmentId,
+    environmentId: thread.environmentId,
     cwd,
-    projectName: project.title,
+    projectName: project?.title ?? "Thread workspace",
     threadRef: scopeThreadRef(thread.environmentId, threadId),
   };
 }

@@ -18,6 +18,7 @@ import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollVie
 import { AppText as Text } from "../../components/AppText";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { useProjects } from "../../state/entities";
+import { useStartStandaloneThread } from "../../state/use-start-standalone-thread";
 import type { WorkspaceState } from "../../state/workspaceModel";
 import { useWorkspaceState } from "../../state/workspace";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
@@ -127,6 +128,8 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
   const { projectScopes, selectedEnvironmentId, setProject } = useNewTaskFlow();
   const { state: catalogState } = useWorkspaceState();
   const navigation = useNavigation();
+  const startStandaloneThread = useStartStandaloneThread();
+  const [startingStandalone, setStartingStandalone] = useState(false);
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { getShare, releaseShareReservation } = useIncomingShare();
@@ -141,7 +144,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
         ? `Choose a project for the ${incomingShare.attachments[0]?.type === "image" ? "image" : "file"} you shared`
         : `Choose a project for the ${incomingShare.attachments.length} ${incomingShare.attachments.every((attachment) => attachment.type === "image") ? "images" : "files"} you shared`
     : null;
-  const screenTitle = incomingShare ? "Start a task" : "Choose project";
+  const screenTitle = incomingShare ? "Start a task" : "New thread";
   const projectEmptyState = deriveProjectEmptyState(catalogState);
   const visibleScopes = filterProjectScopes(projectScopes, searchText);
   const resumedDestinationKeyRef = useRef<string | null>(null);
@@ -152,6 +155,27 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
           project.id === incomingShare.destination?.projectId,
       ) ?? null)
     : null;
+
+  async function startStandalone(): Promise<void> {
+    if (startingStandalone) return;
+    setStartingStandalone(true);
+    try {
+      const target = await startStandaloneThread(selectedEnvironmentId);
+      (navigation.getParent() ?? navigation).dispatch(
+        StackActions.replace("Thread", {
+          environmentId: String(target.environmentId),
+          threadId: String(target.threadId),
+        }),
+      );
+    } catch (error) {
+      Alert.alert(
+        "Could not start a thread",
+        error instanceof Error ? error.message : "Try again.",
+      );
+    } finally {
+      setStartingStandalone(false);
+    }
+  }
 
   async function selectProject(project: EnvironmentProject): Promise<void> {
     if (incomingShare?.destination && !reservedDestinationProject) {
@@ -242,6 +266,24 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
               : {}),
           }}
         >
+          {!incomingShare &&
+          catalogState.hasReadyEnvironment &&
+          navigation.getState()?.routes.at(-2)?.name !== "NewTaskDraft" ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="New thread without a project"
+              disabled={startingStandalone}
+              className="rounded-2xl bg-card px-4 py-3.5"
+              onPress={() => void startStandalone()}
+            >
+              <Text className="text-base font-rove-bold text-foreground">
+                {startingStandalone ? "Starting…" : "New thread without a project"}
+              </Text>
+              <Text className="text-sm text-foreground-muted">
+                Use a persistent thread workspace.
+              </Text>
+            </Pressable>
+          ) : null}
           {projectScopes.length === 0 ? (
             <View
               collapsable={false}

@@ -96,9 +96,7 @@ export const readSweepSnapshot = (
         // Settlement also checks the project a saved pull request names.
         const reference = thread.value.linkedPullRequest ?? thread.value.branchPullRequest;
         const projects = yield* snapshots.getProjectShells(
-          reference == null
-            ? [thread.value.projectId]
-            : [thread.value.projectId, reference.projectId],
+          [thread.value.projectId, reference?.projectId].filter((id) => id != null),
         );
         return { snapshotSequence, projects, threads: [thread.value] };
       });
@@ -174,6 +172,7 @@ export const make = Effect.gen(function* () {
       (group) =>
         Effect.gen(function* () {
           const first = group[0]!;
+          if (first.projectId === null) return finishBackfill(group);
           const snapshotProject = projects.get(first.projectId);
           if (snapshotProject === undefined) return finishBackfill(group);
           // A finished turn may have added the remote this PR lives on. A failed

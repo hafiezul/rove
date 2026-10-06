@@ -30,7 +30,8 @@ import type { ProjectionRepositoryError } from "../Errors.ts";
 export const ProjectionThread = Schema.Struct({
   limitRecovery: Schema.optional(Schema.NullOr(ThreadLimitRecovery)),
   threadId: ThreadId,
-  projectId: ProjectId,
+  projectId: Schema.NullOr(ProjectId),
+  workspacePath: Schema.optional(Schema.NullOr(Schema.String)),
   title: Schema.String,
   titleState: Schema.optional(Schema.NullOr(ThreadTitleState)),
   modelSelection: ModelSelection,

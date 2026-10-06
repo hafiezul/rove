@@ -4,6 +4,7 @@ import { THREAD_JUMP_KEYBINDING_COMMANDS } from "@rove-code/contracts";
 import { threadPullRequestSearchTerms } from "@rove-code/shared/threadPullRequests";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -25,6 +26,7 @@ import { scopedProjectKey, scopedThreadKey } from "../../lib/scopedEntities";
 import { RoveKeyboardCommands } from "../../native/RoveKeyboardCommands";
 import { useProjects, useThreadShell, useThreadShells } from "../../state/entities";
 import { useThreadSearch } from "../../state/queries";
+import { useStartStandaloneThread } from "../../state/use-start-standalone-thread";
 import { useWorkspaceState } from "../../state/workspace";
 import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
@@ -144,6 +146,7 @@ export function CommandPalette(props: {
   const threads = useThreadShells();
   const activeThreadRef = useMemo(() => parseActiveThreadPath(props.pathname), [props.pathname]);
   const activeThread = useThreadShell(activeThreadRef);
+  const startStandaloneThread = useStartStandaloneThread();
   const { environments } = useWorkspaceState();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const [query, setQuery] = useState("");
@@ -178,6 +181,27 @@ export function CommandPalette(props: {
   );
   const items = useMemo(() => {
     const actions: CommandPaletteItem[] = [
+      {
+        key: "newStandaloneThread",
+        kind: "action",
+        title: "New thread without a project",
+        searchTerms: ["new thread", "standalone", "projectless", "no project"],
+        run: () => {
+          void startStandaloneThread(activeThread?.environmentId)
+            .then((target) => {
+              navigation.navigate("Thread", {
+                environmentId: String(target.environmentId),
+                threadId: String(target.threadId),
+              });
+            })
+            .catch((error: unknown) => {
+              Alert.alert(
+                "Could not start a thread",
+                error instanceof Error ? error.message : "Try again.",
+              );
+            });
+        },
+      },
       {
         key: "newTask",
         kind: "action",
@@ -252,7 +276,11 @@ export function CommandPalette(props: {
       projects.map((project) => [scopedProjectKey(project.environmentId, project.id), project]),
     );
     const activeProject = activeThread
-      ? projectByKey.get(scopedProjectKey(activeThread.environmentId, activeThread.projectId))
+      ? projectByKey.get(
+          activeThread.projectId === null
+            ? ""
+            : scopedProjectKey(activeThread.environmentId, activeThread.projectId),
+        )
       : null;
     if (activeProject) {
       actions.unshift({
@@ -312,7 +340,9 @@ export function CommandPalette(props: {
         ),
       )
       .map((thread) => {
-        const project = projectByKey.get(scopedProjectKey(thread.environmentId, thread.projectId));
+        const project = projectByKey.get(
+          thread.projectId === null ? "" : scopedProjectKey(thread.environmentId, thread.projectId),
+        );
         const environment =
           savedConnectionsById[thread.environmentId]?.environmentLabel ?? thread.environmentId;
         return {
@@ -338,6 +368,7 @@ export function CommandPalette(props: {
     runCommand,
     savedConnectionsById,
     selectThread,
+    startStandaloneThread,
     threads,
   ]);
   const results = useMemo(

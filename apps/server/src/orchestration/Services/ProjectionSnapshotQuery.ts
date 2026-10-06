@@ -49,7 +49,7 @@ export interface ProjectionEventReplayStats {
 
 export interface ProjectionThreadCheckpointContext {
   readonly threadId: ThreadId;
-  readonly projectId: ProjectId;
+  readonly projectId: ProjectId | null;
   readonly workspaceRoot: string;
   readonly worktreePath: string | null;
   readonly checkpoints: ReadonlyArray<OrchestrationCheckpointSummary>;
@@ -57,7 +57,7 @@ export interface ProjectionThreadCheckpointContext {
 
 export interface ProjectionFullThreadDiffContext {
   readonly threadId: ThreadId;
-  readonly projectId: ProjectId;
+  readonly projectId: ProjectId | null;
   readonly workspaceRoot: string;
   readonly worktreePath: string | null;
   readonly latestCheckpointTurnCount: number;
@@ -213,7 +213,7 @@ export interface ProjectionSnapshotQueryShape {
    * Read a single active project shell row by id.
    */
   readonly getProjectShellById: (
-    projectId: ProjectId,
+    projectId: ProjectId | null,
   ) => Effect.Effect<Option.Option<OrchestrationProjectShell>, ProjectionRepositoryError>;
 
   readonly getProjectShells: (

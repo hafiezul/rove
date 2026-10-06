@@ -13,6 +13,18 @@ import {
 } from "./threadRoutes";
 
 describe("threadRoutes", () => {
+  it("waits for a newly created thread even before its shell arrives", () => {
+    expect(
+      resolveThreadRouteRenderState({
+        bootstrapComplete: true,
+        serverThreadShellExists: false,
+        serverThreadDetailExists: false,
+        serverThreadDetailDeleted: false,
+        serverThreadDetailPending: true,
+        draftThreadExists: false,
+      }),
+    ).toBe("loading");
+  });
   it("builds canonical thread route params from a scoped ref", () => {
     const ref = scopeThreadRef("env-1" as never, ThreadId.make("thread-1"));
 
@@ -101,6 +113,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: true,
         serverThreadDetailExists: false,
         serverThreadDetailDeleted: false,
+        serverThreadDetailPending: false,
         draftThreadExists: false,
       }),
     ).toBe("loading");
@@ -113,6 +126,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: true,
         serverThreadDetailExists: true,
         serverThreadDetailDeleted: false,
+        serverThreadDetailPending: false,
         draftThreadExists: false,
       }),
     ).toBe("ready");
@@ -122,6 +136,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: false,
         serverThreadDetailExists: false,
         serverThreadDetailDeleted: false,
+        serverThreadDetailPending: false,
         draftThreadExists: true,
       }),
     ).toBe("ready");
@@ -134,6 +149,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: false,
         serverThreadDetailExists: false,
         serverThreadDetailDeleted: false,
+        serverThreadDetailPending: false,
         draftThreadExists: false,
       }),
     ).toBe("loading");
@@ -143,6 +159,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: false,
         serverThreadDetailExists: false,
         serverThreadDetailDeleted: false,
+        serverThreadDetailPending: false,
         draftThreadExists: false,
       }),
     ).toBe("missing");
@@ -155,6 +172,7 @@ describe("threadRoutes", () => {
         serverThreadShellExists: true,
         serverThreadDetailExists: false,
         serverThreadDetailDeleted: true,
+        serverThreadDetailPending: false,
         draftThreadExists: false,
       }),
     ).toBe("missing");

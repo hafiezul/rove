@@ -106,6 +106,7 @@ async function createOrchestrationSystem(
   const snapshotQuery = await runtime.runPromise(Effect.service(ProjectionSnapshotQuery));
   return {
     engine,
+    snapshotQuery,
     readModel: () => runtime.runPromise(snapshotQuery.getSnapshot()),
     readThread: (threadId: ThreadId) =>
       runtime.runPromise(snapshotQuery.getThreadDetailById(threadId)),
@@ -130,6 +131,114 @@ const hasMetricSnapshot = (
   );
 
 describe("OrchestrationEngine", () => {
+  it("persists standalone ownership through restart, archive, search, and deletion", async () => {
+    const directory = await NodeFSP.mkdtemp(
+      NodePath.join(NodeOS.tmpdir(), "rove-standalone-engine-"),
+    );
+    const databasePath = NodePath.join(directory, "state.sqlite");
+    const workspacePath = NodePath.join(directory, "workspaces", "thread");
+    await NodeFSP.mkdir(workspacePath, { recursive: true });
+    await NodeFSP.writeFile(NodePath.join(workspacePath, "output.txt"), "fixture output");
+    const threadId = ThreadId.make("standalone-thread");
+    let system = await createOrchestrationSystem(databasePath);
+    try {
+      await system.run(
+        system.engine.dispatch({
+          type: "thread.create",
+          commandId: CommandId.make("standalone-create"),
+          threadId,
+          projectId: null,
+          workspacePath,
+          title: "Standalone fixture",
+          modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+          createdAt: now(),
+        }),
+      );
+      const invalidWorkspace = await system.run(
+        Effect.result(
+          system.engine.dispatch({
+            type: "thread.meta.update",
+            commandId: CommandId.make("standalone-invalid-worktree"),
+            threadId,
+            worktreePath: "/tmp/fake-project-worktree",
+          }),
+        ),
+      );
+      expect(invalidWorkspace._tag).toBe("Failure");
+      await system.run(
+        system.engine.dispatch({
+          type: "thread.message.user.append",
+          commandId: CommandId.make("standalone-fixture-message"),
+          threadId,
+          message: {
+            messageId: MessageId.make("standalone-message"),
+            text: "standalone search fixture",
+            attachments: [],
+          },
+          createdAt: now(),
+        }),
+      );
+      expect((await system.readModel()).projects).toEqual([]);
+      expect(Option.getOrThrow(await system.readThread(threadId))).toMatchObject({
+        projectId: null,
+        workspacePath,
+      });
+      await system.dispose();
+      system = await createOrchestrationSystem(databasePath);
+      expect(Option.getOrThrow(await system.readThread(threadId))).toMatchObject({
+        projectId: null,
+        workspacePath,
+      });
+      const search = await system.run(
+        system.snapshotQuery.searchThreads({ query: "standalone search" }),
+      );
+      expect(search.matches).toEqual([
+        expect.objectContaining({ threadId, projectId: null, source: "user" }),
+      ]);
+      await system.run(
+        system.engine.dispatch({
+          type: "thread.archive",
+          commandId: CommandId.make("standalone-archive"),
+          threadId,
+        }),
+      );
+      const archived = await system.run(system.snapshotQuery.getArchivedShellSnapshot());
+      expect(archived.threads).toEqual([
+        expect.objectContaining({ id: threadId, projectId: null, workspacePath }),
+      ]);
+      await system.run(
+        system.engine.dispatch({
+          type: "thread.unarchive",
+          commandId: CommandId.make("standalone-unarchive"),
+          threadId,
+        }),
+      );
+      expect(Option.getOrThrow(await system.readThread(threadId))).toMatchObject({
+        projectId: null,
+        workspacePath,
+        archivedAt: null,
+      });
+      await system.run(
+        system.engine.dispatch({
+          type: "thread.delete",
+          commandId: CommandId.make("standalone-delete"),
+          threadId,
+        }),
+      );
+      expect(await NodeFSP.readFile(NodePath.join(workspacePath, "output.txt"), "utf8")).toBe(
+        "fixture output",
+      );
+      expect((await system.readModel()).projects).toEqual([]);
+    } finally {
+      await system.dispose();
+      await NodeFSP.rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each(["running", "stopped"] as const)(
     "sends async answers with a %s session and rejects old duplicate replies",
     async (status) => {

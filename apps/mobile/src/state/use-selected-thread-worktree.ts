@@ -19,6 +19,11 @@ export function useSelectedThreadWorktree() {
 
   return {
     selectedThreadWorktreePath,
-    selectedThreadCwd: selectedThreadWorktreePath ?? selectedThreadProject?.workspaceRoot ?? null,
+    selectedThreadCwd:
+      selectedThreadWorktreePath ??
+      selectedThread?.workspacePath ??
+      selectedThreadDetail?.workspacePath ??
+      selectedThreadProject?.workspaceRoot ??
+      null,
   };
 }

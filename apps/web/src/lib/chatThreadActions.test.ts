@@ -155,7 +155,7 @@ describe("chatThreadActions", () => {
     expect(handleNewThread).toHaveBeenCalledWith(scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID));
   });
 
-  it("does not start a thread when there is no project context", async () => {
+  it("starts a standalone thread when there is no project context", async () => {
     const handleNewThread = vi.fn<ChatThreadActionContext["handleNewThread"]>(async () => null);
 
     const didStart = await startNewThreadFromContext(
@@ -165,7 +165,7 @@ describe("chatThreadActions", () => {
       }),
     );
 
-    expect(didStart).toBe(false);
-    expect(handleNewThread).not.toHaveBeenCalled();
+    expect(didStart).toBe(true);
+    expect(handleNewThread).toHaveBeenCalledWith(null);
   });
 });

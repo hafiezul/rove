@@ -130,7 +130,7 @@ type ArchivedThreadListItem =
       readonly key: string;
       readonly environmentLabel: string | null;
       readonly environmentMachine: EnvironmentMachineKind;
-      readonly project: EnvironmentProject;
+      readonly project: EnvironmentProject | null;
     }
   | {
       readonly kind: "thread";
@@ -144,23 +144,25 @@ type ArchivedThreadListItem =
 function ProjectGroupLabel(props: {
   readonly environmentLabel: string | null;
   readonly environmentMachine: EnvironmentMachineKind;
-  readonly project: EnvironmentProject;
+  readonly project: EnvironmentProject | null;
 }) {
   return (
     <View className="flex-row items-center gap-2.5 px-1 pb-2">
-      <ProjectFavicon
-        environmentId={props.project.environmentId}
-        faviconPath={props.project.faviconPath}
-        projectIcon={props.project.projectIcon}
-        projectTitle={props.project.title}
-        size={18}
-        workspaceRoot={props.project.workspaceRoot}
-      />
+      {props.project ? (
+        <ProjectFavicon
+          environmentId={props.project.environmentId}
+          faviconPath={props.project.faviconPath}
+          projectIcon={props.project.projectIcon}
+          projectTitle={props.project.title}
+          size={18}
+          workspaceRoot={props.project.workspaceRoot}
+        />
+      ) : null}
       <Text
         className="flex-1 text-xs font-rove-medium tracking-[0.5px] uppercase text-foreground-muted"
         numberOfLines={1}
       >
-        {props.project.title}
+        {props.project?.title ?? "Standalone threads"}
       </Text>
       {props.environmentLabel ? (
         <View className="max-w-[42%] flex-row items-center gap-1">
@@ -315,13 +317,13 @@ export function ArchivedThreadsScreen(props: {
   const listItems = useMemo<ReadonlyArray<ArchivedThreadListItem>>(() => {
     const items: ArchivedThreadListItem[] = [];
     for (const group of props.groups) {
-      const environmentLabel = environmentLabelsById.get(group.project.environmentId) ?? null;
+      const environmentLabel = environmentLabelsById.get(group.environmentId) ?? null;
       items.push({
         kind: "project",
         key: `${group.key}:project`,
         environmentLabel,
         environmentMachine: resolveEnvironmentMachineKind(
-          serverConfigs.get(group.project.environmentId) ?? null,
+          serverConfigs.get(group.environmentId) ?? null,
         ),
         project: group.project,
       });

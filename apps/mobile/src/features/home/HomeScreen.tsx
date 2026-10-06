@@ -770,10 +770,16 @@ export function HomeScreen(props: HomeScreenProps) {
           timeLabel={item.timeLabel}
           showTrailingDivider={item.showTrailingDivider}
           project={
-            projectByKey.get(scopedProjectKey(thread.environmentId, thread.projectId)) ?? null
+            projectByKey.get(
+              thread.projectId === null
+                ? ""
+                : scopedProjectKey(thread.environmentId, thread.projectId),
+            ) ?? null
           }
           projectTitle={v2ProjectTitleByProjectKey.get(
-            scopedProjectKey(thread.environmentId, thread.projectId),
+            thread.projectId === null
+              ? ""
+              : scopedProjectKey(thread.environmentId, thread.projectId),
           )}
           providerInstance={resolveProviderInstance(thread)}
           environmentLabel={

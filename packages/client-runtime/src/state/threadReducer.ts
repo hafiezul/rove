@@ -153,6 +153,7 @@ export function applyThreadDetailEvent(
           interactionMode: event.payload.interactionMode,
           branch: event.payload.branch,
           worktreePath: event.payload.worktreePath,
+          ...(event.payload.workspacePath ? { workspacePath: event.payload.workspacePath } : {}),
           branchPullRequest: null,
           latestTurn: null,
           createdAt: event.payload.createdAt,

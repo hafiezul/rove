@@ -63,6 +63,7 @@ function threadDetailToShell(
     interactionMode: thread.interactionMode,
     branch: thread.branch,
     worktreePath: thread.worktreePath,
+    ...(thread.workspacePath ? { workspacePath: thread.workspacePath } : {}),
     linkedPullRequest: thread.linkedPullRequest ?? null,
     pullRequests: thread.pullRequests,
     branchPullRequest: thread.branchPullRequest ?? null,
@@ -161,7 +162,7 @@ function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefin
   }
   const selectedProjectRef = useMemo<ScopedProjectRef | null>(
     () =>
-      selectedThread === null
+      selectedThread === null || selectedThread.projectId === null
         ? null
         : {
             environmentId: selectedThread.environmentId,

@@ -18,6 +18,7 @@ import {
   useEnvironmentThreadRefs,
   useThread,
   useThreadDetail,
+  useThreadError,
   useThreadRefs,
   useThreadShell,
   useThreadStatus,
@@ -81,6 +82,7 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
   const serverThreadShell = useThreadShell(serverThreadRef);
   const serverThreadDetail = useThreadDetail(serverThreadRef);
   const serverThreadStatus = useThreadStatus(serverThreadRef);
+  const serverThreadError = useThreadError(serverThreadRef);
   const environmentThreadRefs = useEnvironmentThreadRefs(serverThreadRef?.environmentId ?? null);
   const bootstrapComplete = shell.data?.snapshot._tag === "Some";
   const draftThread = useComposerDraftStore((store) =>
@@ -113,6 +115,8 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
     serverThreadShellExists: serverThreadShell !== null,
     serverThreadDetailExists: serverThreadDetail !== null,
     serverThreadDetailDeleted: serverThreadStatus === "deleted",
+    serverThreadDetailPending:
+      serverThreadDetail === null && serverThreadStatus !== "deleted" && serverThreadError === null,
     draftThreadExists: draftThread !== null,
   });
   const threadSyncPhase = resolveThreadSyncPhase({

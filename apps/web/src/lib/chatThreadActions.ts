@@ -14,12 +14,12 @@ type ComposerModelSelectionState = Pick<
 
 interface ThreadContextLike {
   environmentId: EnvironmentId;
-  projectId: ProjectId;
+  projectId: ProjectId | null;
 }
 
 interface NewThreadHandler {
   (
-    projectRef: ScopedProjectRef,
+    projectRef: ScopedProjectRef | null,
     options?: {
       branch?: string | null;
       worktreePath?: string | null;
@@ -93,10 +93,6 @@ export async function startNewThreadFromContext(
   context: ChatThreadActionContext,
 ): Promise<boolean> {
   const projectRef = resolveThreadActionProjectRef(context);
-  if (!projectRef) {
-    return false;
-  }
-
   await context.handleNewThread(projectRef);
   return true;
 }

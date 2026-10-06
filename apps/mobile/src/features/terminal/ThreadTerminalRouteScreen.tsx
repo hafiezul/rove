@@ -253,6 +253,11 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
   const { selectedThread, selectedThreadProject, selectedEnvironmentConnection } =
     useThreadSelection();
   const selectedThreadDetail = useSelectedThreadDetail();
+  const selectedThreadWorkspaceRoot =
+    selectedThreadProject?.workspaceRoot ??
+    selectedThread?.workspacePath ??
+    selectedThreadDetail?.workspacePath ??
+    null;
   const routeEnvironmentIdRaw = firstRouteParam(params.environmentId);
   const routeThreadIdRaw = firstRouteParam(params.threadId);
   const routeEnvironmentId = routeEnvironmentIdRaw
@@ -354,7 +359,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     runningSession !== null &&
     runningSession.target.terminalId !== terminalId;
   const launchLocationCandidate = useMemo(() => {
-    if (!selectedThread || !selectedThreadProject?.workspaceRoot) {
+    if (!selectedThread || !selectedThreadWorkspaceRoot) {
       return null;
     }
     if (pendingLaunch) {
@@ -366,7 +371,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     return resolveTerminalOpenLocation({
       terminalLocation: activeKnownSession?.state.summary ?? null,
       activeSessionLocation: activeKnownSession?.state.summary ?? null,
-      workspaceRoot: selectedThreadProject.workspaceRoot,
+      workspaceRoot: selectedThreadWorkspaceRoot,
       threadShellWorktreePath: selectedThread.worktreePath ?? null,
       threadDetailWorktreePath: selectedThreadDetail?.worktreePath ?? null,
     });
@@ -375,7 +380,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     pendingLaunch,
     selectedThread,
     selectedThreadDetail?.worktreePath,
-    selectedThreadProject?.workspaceRoot,
+    selectedThreadWorkspaceRoot,
   ]);
   const [initialLaunchLocationEntry, setInitialLaunchLocationEntry] = useState(() => ({
     key: launchTargetKey,
@@ -545,7 +550,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
       preview: terminal.buffer.slice(0, 160),
     });
   }, [terminal.buffer, terminal.buffer.length, terminalKey]);
-  const cwd = terminal.summary?.cwd ?? selectedThreadProject?.workspaceRoot ?? null;
+  const cwd = terminal.summary?.cwd ?? selectedThreadWorkspaceRoot ?? null;
   const serverConfigs = useServerConfigs();
   const hostOs =
     routeEnvironmentId === null
@@ -624,7 +629,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     () =>
       buildTerminalMenuSessions({
         knownSessions,
-        workspaceRoot: selectedThreadProject?.workspaceRoot ?? null,
+        workspaceRoot: selectedThreadWorkspaceRoot ?? null,
         currentSession: {
           terminalId,
           cwd: cwd ?? null,
@@ -637,7 +642,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     [
       cwd,
       knownSessions,
-      selectedThreadProject?.workspaceRoot,
+      selectedThreadWorkspaceRoot,
       terminal.hasRunningSubprocess,
       terminal.summary,
       terminal.status,
@@ -1153,7 +1158,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
     );
   }
 
-  if (!selectedThreadProject?.workspaceRoot) {
+  if (!selectedThreadWorkspaceRoot) {
     return (
       <View className="flex-1 bg-screen">
         <EmptyState
@@ -1194,7 +1199,7 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
           status: terminal.status,
           hasRunningSubprocess: terminal.hasRunningSubprocess,
         }}
-        workspaceRoot={selectedThreadProject.workspaceRoot}
+        workspaceRoot={selectedThreadWorkspaceRoot}
         onCloseTerminal={handleCloseTerminal}
         onDecreaseFontSize={handleDecreaseFontSize}
         onIncreaseFontSize={handleIncreaseFontSize}
