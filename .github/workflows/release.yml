@@ -633,7 +633,7 @@ jobs:
   # archive is missing.
   desktop_win_x64:
     name: Desktop Windows x64
-    needs: [preflight, relay_public_config, build_bundle, desktop_linux_x64]
+    needs: [preflight, relay_public_config, build_bundle]
     if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit
@@ -657,7 +657,7 @@ jobs:
 
   desktop_win_arm64:
     name: Desktop Windows arm64
-    needs: [preflight, relay_public_config, build_bundle, desktop_linux_arm64]
+    needs: [preflight, relay_public_config, build_bundle]
     if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result != 'failure' && needs.build_bundle.result == 'success' }}
     uses: ./.github/workflows/release-desktop.yml
     secrets: inherit

@@ -222,15 +222,6 @@ jobs:
           name: js-bundle
           path: apps
 
-      # The WSL backend runs the Linux CLI archive inside the distro, so the
-      # Windows desktop embeds the same-arch archive the release attaches.
-      - name: Download Linux CLI archive for WSL
-        if: inputs.platform == 'win'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cli-linux-${{ inputs.arch }}
-          path: wsl-runtime
-
       - name: Ensure Spectre-mitigated MSVC libs
         if: inputs.platform == 'win'
         shell: pwsh
@@ -336,6 +327,42 @@ jobs:
             Where-Object { $_ -and (Test-Path $_) } |
             Select-Object -Unique
           "PSModulePath=$($modulePathEntries -join ';')" >> $env:GITHUB_ENV
+
+      # The WSL backend runs the Linux CLI archive inside the distro, so the
+      # Windows desktop embeds the same-arch archive the release attaches.
+      # Windows jobs start alongside the Linux build rather than after it, so
+      # the archive is awaited here, after setup, instead of through `needs`.
+      # Job status is read before the artifact list so an upload that lands
+      # just before the Linux job completes is never reported as missing.
+      - name: Wait for Linux CLI archive for WSL
+        if: inputs.platform == 'win'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT: cli-linux-${{ inputs.arch }}
+          LINUX_JOB: Build Linux ${{ inputs.arch }}
+        run: |
+          set -euo pipefail
+          api="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          while true; do
+            linux_status="$(gh api "$api/jobs?per_page=100" --paginate \
+              -q ".jobs[] | select(.name | endswith(\"/ $LINUX_JOB\")) | .status")"
+            if [[ "$(gh api "$api/artifacts?name=$ARTIFACT" -q .total_count)" -gt 0 ]]; then
+              exit 0
+            fi
+            if [[ "$linux_status" == "completed" ]]; then
+              echo "::error::$LINUX_JOB finished without uploading $ARTIFACT."
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Download Linux CLI archive for WSL
+        if: inputs.platform == 'win'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cli-linux-${{ inputs.arch }}
+          path: wsl-runtime
 
       - name: Build desktop artifact
         shell: bash
