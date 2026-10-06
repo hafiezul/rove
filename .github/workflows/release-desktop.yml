@@ -120,25 +120,6 @@ jobs:
           mount-path: ${{ github.workspace }}
           trusted-dev-drive: true
 
-      # Desktop staging, CLI archive staging, and the smoke test's runtime copy
-      # each write tens of thousands of files under TEMP, which sits on the
-      # Defender-scanned C: drive on both Windows images.
-      - name: Mount Dev Drive for TEMP
-        if: inputs.platform == 'win'
-        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
-        with:
-          drive-size: 20GB
-          drive-path: C:\rove_temp_drive.vhdx
-          trusted-dev-drive: true
-          env-mapping: |
-            TEMP,{{ DEV_DRIVE }}\tmp
-            TMP,{{ DEV_DRIVE }}\tmp
-
-      - name: Create TEMP directory
-        if: inputs.platform == 'win'
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force $env:TEMP | Out-Null
-
       # This repository is public, so Git needs no credentials. checkout's
       # credential cleanup runs submodule foreach even with submodules disabled,
       # which fails on the orphaned gitlinks in our vendored .repos tree.
@@ -190,6 +171,26 @@ jobs:
         env:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
         run: vp install --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
+
+      # Desktop staging, CLI archive staging, and the smoke test's runtime copy
+      # each write tens of thousands of files under TEMP, which sits on the
+      # Defender-scanned C: drive on both Windows images. Mounted after install so
+      # pnpm keeps its own temp files on the store's volume.
+      - name: Mount Dev Drive for TEMP
+        if: inputs.platform == 'win'
+        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
+        with:
+          drive-size: 20GB
+          drive-path: C:\rove_temp_drive.vhdx
+          trusted-dev-drive: true
+          env-mapping: |
+            TEMP,{{ DEV_DRIVE }}\tmp
+            TMP,{{ DEV_DRIVE }}\tmp
+
+      - name: Create TEMP directory
+        if: inputs.platform == 'win'
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force $env:TEMP | Out-Null
 
       - name: Cache resource monitor
         id: resource_monitor_cache

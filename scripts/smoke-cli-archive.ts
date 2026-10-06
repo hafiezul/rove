@@ -15,6 +15,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
+import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/unstable/cli";
@@ -110,7 +111,19 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
   const path = yield* Path.Path;
   const platform = yield* HostProcessPlatform;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const scratch = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-smoke-" });
+  // On Windows the launcher's SIGTERM only terminates the launcher; the runtime
+  // host exits moments later when its IPC channel closes, and keeps its
+  // executable locked until then. Cleanup waits that out instead of failing.
+  const scratch = yield* Effect.acquireRelease(
+    fs.makeTempDirectory({ prefix: "t3-cli-smoke-" }),
+    (directory) =>
+      fs.remove(directory, { recursive: true }).pipe(
+        Effect.retry({ schedule: Schedule.spaced(Duration.millis(500)), times: 20 }),
+        Effect.catch((error) =>
+          Effect.logWarning(`[cli-smoke] could not remove ${directory}: ${error.message}`),
+        ),
+      ),
+  );
 
   // On Windows the archive is a zip and the Git Bash `tar` on PATH is GNU
   // tar; use the bsdtar Windows ships, which reads both formats.
