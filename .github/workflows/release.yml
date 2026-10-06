@@ -1,9 +1,10 @@
 name: Release
 
-# Publication remains opt-in while the fork's CLI namespace, signing and
-# artifact paths are being migrated. Re-enable tag/scheduled triggers only
-# after downloaded Rove-built artifacts pass the release smoke gates.
+# Scheduled nightlies publish only when ROVE_RELEASE_READY is enabled and
+# new commits pass the release-gap check. Stable and preview remain manual.
 on:
+  schedule:
+    - cron: "0 0 * * *" # Daily at 00:00 UTC.
   workflow_dispatch:
     inputs:
       channel:
@@ -16,11 +17,11 @@ on:
           - nightly
           - preview
       version:
-        description: "Stable version override (for example 0.0.1). Required for stable build-only runs; otherwise defaults to the latest nightly's version."
+        description: "Stable version (for example 0.0.3). Leave blank to use the latest nightly's base version; required for stable build-only runs. Ignored for nightly/preview."
         required: false
         type: string
       build_only:
-        description: "Build downloadable artifacts without publishing (use preview for npm bootstrap)"
+        description: "Build and upload Actions artifacts only; do not publish to npm or create a GitHub Release."
         required: true
         default: true
         type: boolean

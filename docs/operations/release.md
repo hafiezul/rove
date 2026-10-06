@@ -4,7 +4,9 @@
 
 ## Current status
 
-**Do not publish yet.** This fork has not shipped its own installers or npm packages. `.github/workflows/release.yml` accepts manual dispatch only and defaults to `build_only=true`, which produces Actions artifacts without publishing. Publication requires both `build_only=false` and `ROVE_RELEASE_READY=true`; do not set that variable as a shortcut around the gates below.
+`.github/workflows/release.yml` schedules nightlies daily at 00:00 UTC from the default branch. Scheduled runs skip building and publishing when there are no commits ahead of the latest published nightly or that nightly was published less than six hours ago. Publication requires `ROVE_RELEASE_READY=true`; do not enable it as a shortcut around the gates below.
+
+Manual runs support stable, nightly, and preview, and default to `build_only=true`: checked produces downloadable Actions artifacts without publishing to npm or creating a GitHub Release. Uncheck it to publish; npm uses `latest` for stable, `nightly` for nightly, and `preview` for preview. Manual nightly and preview runs build the selected ref without the scheduled no-change check. Publishing stable builds the latest published nightly's commit, with its base version unless a version override is supplied. The override changes the version, not the commit. Stable build-only runs instead build the selected ref and require an explicit version; nightly and preview generate their own versions.
 
 The first release is **self-hosted desktop and persistent CLI hosts, with local, LAN, Tailscale, and desktop SSH connections**. Leave `ROVE_CLOUD_READY` unset: relay deployment and configuration are skipped, and desktop/CLI builds omit Rove Connect. Apple and Azure signing credentials may be omitted for unsigned builds. Signed macOS previews require `ROVE_MACOS_SIGNING_READY=true`; mobile production requires `ROVE_MOBILE_STORES_READY=true` because store distribution needs paid developer accounts. Hosted web, AUR, and marketing retain separate readiness controls; those controls indicate release readiness, not necessarily a paid service.
 
