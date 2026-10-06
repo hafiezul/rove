@@ -108,8 +108,10 @@ jobs:
     steps:
       # The windows-11-arm image runs jobs on its OS disk, where Defender scans
       # every write. A trusted Dev Drive mounted over the empty workspace keeps
-      # checkout, the pnpm store, node_modules, builds, and temp files off that
-      # filter. Measured on the dependency steps: 8m vs 2m30s on a cold cache.
+      # checkout, the pnpm store, node_modules, and builds off that filter.
+      # Measured on the dependency steps: 8m vs 2m30s on a cold cache. TEMP
+      # stays outside the workspace: the desktop build stages the packaged app
+      # there, and staging inside the repo would resolve the repo's node_modules.
       - name: Mount Dev Drive over the workspace
         if: inputs.platform == 'win' && inputs.arch == 'arm64'
         uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
@@ -117,14 +119,6 @@ jobs:
           drive-size: 40GB
           mount-path: ${{ github.workspace }}
           trusted-dev-drive: true
-          env-mapping: |
-            TEMP,{{ DEV_DRIVE }}/.tmp
-            TMP,{{ DEV_DRIVE }}/.tmp
-
-      - name: Create Dev Drive temp dir
-        if: inputs.platform == 'win' && inputs.arch == 'arm64'
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force $env:TEMP | Out-Null
 
       # This repository is public, so Git needs no credentials. checkout's
       # credential cleanup runs submodule foreach even with submodules disabled,
