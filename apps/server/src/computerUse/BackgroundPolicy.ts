@@ -57,7 +57,7 @@ const isWindowTarget = Schema.is(WindowTarget);
 const isInteger = Schema.is(Schema.Int);
 const isString = Schema.is(Schema.String);
 
-export const ISOLATED_DESKTOP_INSTRUCTIONS =
+const ISOLATED_DESKTOP_INSTRUCTIONS =
   "Rove owns a private, offline Linux desktop for this thread. Guest apps, focus, pointer, clipboard, profiles and files are separate from the host and other threads. " +
   "Only Mousepad and basic desktop tools are installed. The project, host home, credentials and host display are not mounted. Paths refer to the guest. " +
   "Prefer exact-window accessibility input. Pixel, desktop and foreground input are permitted only inside this private desktop. Verify changes with fresh application state. " +
@@ -74,7 +74,7 @@ const DESKTOP_TOOLS = new Set([
   "health_report",
 ]);
 
-export const isBackgroundTool = (tool: CuaTool) => BACKGROUND_TOOLS.has(tool.name);
+const isBackgroundTool = (tool: CuaTool) => BACKGROUND_TOOLS.has(tool.name);
 export const isAllowedTool = (tool: CuaTool, policy: "background-only" | "isolated-desktop") =>
   policy === "isolated-desktop" ? DESKTOP_TOOLS.has(tool.name) : isBackgroundTool(tool);
 export const instructionsFor = (policy: "background-only" | "isolated-desktop") =>
