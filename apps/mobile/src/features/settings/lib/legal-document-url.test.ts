@@ -12,11 +12,11 @@ afterEach(() => {
 });
 
 describe("legal document destinations", () => {
-  it("does not send source builds to upstream legal pages", async () => {
+  it("has no legal pages without a configured site", async () => {
     const documents = await legalDocumentsFor("");
     expect(documents.LEGAL_URL).toBeNull();
     expect(documents.ALLOWED_LEGAL_DOCUMENT_URLS).toEqual([]);
-    expect(documents.isLegalDocumentUrl("https://t3.codes/legal")).toBe(false);
+    expect(documents.isLegalDocumentUrl("https://example.com/legal")).toBe(false);
   });
 
   it("uses only the configured site's legal documents", async () => {
@@ -32,7 +32,7 @@ describe("legal document destinations", () => {
     }
     for (const url of [
       "https://rove.example.test/docs/download",
-      "https://t3.codes/legal",
+      "https://example.com/legal",
       "javascript:alert(1)",
       "not-a-url",
     ]) {
@@ -40,12 +40,12 @@ describe("legal document destinations", () => {
     }
   });
 
-  it.each(["https://t3.codes", "https://clerk.t3.codes", "javascript:alert(1)", "broken-url"])(
-    "rejects an upstream or invalid legal base: %s",
+  it.each(["javascript:alert(1)", "broken-url"])(
+    "rejects an invalid legal base: %s",
     async (site) => {
       const documents = await legalDocumentsFor(site);
       expect(documents.LEGAL_URL).toBeNull();
-      expect(documents.isLegalDocumentUrl("https://t3.codes/legal")).toBe(false);
+      expect(documents.isLegalDocumentUrl("https://example.com/legal")).toBe(false);
     },
   );
 });

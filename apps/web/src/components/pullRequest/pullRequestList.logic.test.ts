@@ -1609,7 +1609,7 @@ describe("pull request list overrides", () => {
   const entry = (number: number, state: "open" | "closed" | "merged") =>
     ({
       host: "github.com",
-      repository: "pingdotgg/t3code",
+      repository: "hafiezul/rove",
       number,
       state,
       isDraft: false,

@@ -52,7 +52,7 @@ const makeServerSettingsLayerWithSecrets = () =>
     Layer.provideMerge(
       Layer.fresh(
         ServerConfig.layerTest(process.cwd(), {
-          prefix: "t3code-server-settings-test-",
+          prefix: "rove-server-settings-test-",
         }),
       ),
     ),
@@ -1581,7 +1581,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         Layer.provideMerge(
           Layer.fresh(
             ServerConfig.layerTest(process.cwd(), {
-              prefix: "t3code-server-settings-materialization-failure-test-",
+              prefix: "rove-server-settings-materialization-failure-test-",
             }),
           ),
         ),

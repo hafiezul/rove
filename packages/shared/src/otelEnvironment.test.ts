@@ -11,7 +11,8 @@ const load = (env: Record<string, string>) =>
 
 const SPEC_OFF =
   "OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it; set ROVE_OTEL_SDK_DISABLED=false to export anyway";
-const T3_OFF = "ROVE_OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it";
+const ROVE_OFF =
+  "ROVE_OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it";
 const specIgnored = (value: string) =>
   `OTEL_SDK_DISABLED=${value} was read as false; the OpenTelemetry specification recognizes only the string true, so use OTEL_SDK_DISABLED=true or ROVE_OTEL_SDK_DISABLED to say it any other way`;
 
@@ -41,12 +42,12 @@ describe("OtelEnvironment", () => {
       warnings: [specIgnored("yes")],
     },
     // ROVE_OTEL_SDK_DISABLED takes Config.Boolean's values, case-insensitively.
-    { name: "rove 1", env: { ROVE_OTEL_SDK_DISABLED: "1" }, disabled: true, warnings: [T3_OFF] },
+    { name: "rove 1", env: { ROVE_OTEL_SDK_DISABLED: "1" }, disabled: true, warnings: [ROVE_OFF] },
     {
       name: "rove TRUE",
       env: { ROVE_OTEL_SDK_DISABLED: "TRUE" },
       disabled: true,
-      warnings: [T3_OFF],
+      warnings: [ROVE_OFF],
     },
     { name: "rove n", env: { ROVE_OTEL_SDK_DISABLED: "n" }, disabled: false, warnings: [] },
     {
@@ -201,7 +202,7 @@ describe("OtelEnvironment", () => {
         traces: "Unset",
         metrics: "Unset",
         logs: "Unset",
-        warnings: [T3_OFF],
+        warnings: [ROVE_OFF],
       },
       {
         name: "an exporter of none turns off only its signal",

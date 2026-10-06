@@ -200,7 +200,7 @@ test("resolves a fallback PR with a redacted head repo and exact main baseline",
   await resolve({
     github,
     context: {
-      repo: { owner: "pingdotgg", repo: "rove" },
+      repo: { owner: "hafiezul", repo: "rove" },
       payload: {
         workflow_run: {
           id: 2,
@@ -258,7 +258,7 @@ test("does not guess when a fallback commit belongs to multiple PRs", async () =
       },
     },
     context: {
-      repo: { owner: "pingdotgg", repo: "rove" },
+      repo: { owner: "hafiezul", repo: "rove" },
       payload: {
         workflow_run: {
           id: 2,
@@ -308,7 +308,7 @@ test("does not publish a stale result after the PR head advances", async () => {
         },
       },
     },
-    { repo: { owner: "pingdotgg", repo: "rove" } },
+    { repo: { owner: "hafiezul", repo: "rove" } },
     { info: (message) => info.push(message) },
     5350,
     "old-head-sha",
@@ -347,7 +347,7 @@ test("preserves a successful result when a same-SHA rerun has no artifact", asyn
         },
       },
     },
-    { repo: { owner: "pingdotgg", repo: "rove" } },
+    { repo: { owner: "hafiezul", repo: "rove" } },
     { info: () => {} },
     5350,
     sha,

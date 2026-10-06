@@ -95,7 +95,7 @@ describe("groupOnboardingProjects", () => {
       lastActiveAt: "2026-08-10T12:00:00.000Z",
     });
     const older = candidate("/code/fleet", {
-      git: github("t3dotgg/fleet"),
+      git: github("hafiezul/fleet"),
       threadCount: 295,
       lastActiveAt: "2026-08-22T00:00:00.000Z",
     });
@@ -114,7 +114,7 @@ describe("groupOnboardingProjects", () => {
       })),
     ).toEqual([
       {
-        label: "t3dotgg/fleet",
+        label: "hafiezul/fleet",
         paths: ["/code/fleet"],
         threadCount: 295,
         lastActiveAt: "2026-08-22T00:00:00.000Z",

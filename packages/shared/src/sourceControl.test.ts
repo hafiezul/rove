@@ -230,9 +230,9 @@ it("puts owner and name back together for an identity recorded before displayNam
   const selector = sourceControlRepositorySelector({
     provider: "github",
     owner: "rovetools",
-    name: "t3code",
+    name: "rove",
   });
-  expect(selector).toBe("rovetools/t3code");
+  expect(selector).toBe("rovetools/rove");
 });
 
 it("names nothing for a project with no remote to name it by", () => {

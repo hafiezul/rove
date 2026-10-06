@@ -1189,12 +1189,12 @@ it.effect("keeps healthy repositories when one of them cannot be read", () =>
     const service = yield* makeService({
       projects: [
         project({ id: "p1", title: "rove", workspaceRoot: "/a", repository: "rovecode/rove" }),
-        project({ id: "p2", title: "broken", workspaceRoot: "/b", repository: "pingdotgg/broken" }),
+        project({ id: "p2", title: "broken", workspaceRoot: "/b", repository: "hafiezul/broken" }),
       ],
       providers: [
         fakeProvider("github", {
           listChangeRequests: (input) =>
-            input.repository === "pingdotgg/broken"
+            input.repository === "hafiezul/broken"
               ? Effect.fail(requestFailed)
               : Effect.succeed({
                   items: [changeRequest(1, "2026-07-02T00:00:00Z")],
@@ -5668,7 +5668,7 @@ it.effect("keeps the diff cached across a file being ticked off", () =>
     let state: "viewed" | "dismissed" = "viewed";
     const service = yield* makeService({
       projects: [
-        project({ id: "p1", title: "t3code", workspaceRoot: "/a", repository: "pingdotgg/t3code" }),
+        project({ id: "p1", title: "rove", workspaceRoot: "/a", repository: "hafiezul/rove" }),
       ],
       providers: [
         fakeProvider("github", {
@@ -5698,7 +5698,7 @@ it.effect("keeps the diff cached across a file being ticked off", () =>
         }),
       ],
     });
-    const reference = { projectId: "p1" as ProjectId, repository: "pingdotgg/t3code", number: 1 };
+    const reference = { projectId: "p1" as ProjectId, repository: "hafiezul/rove", number: 1 };
 
     yield* service.diff(reference);
     yield* service.filesViewed(reference);
