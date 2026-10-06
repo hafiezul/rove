@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 // @effect-diagnostics globalTimers:off - Parent-owned deadlines must also terminate a blocked SDK process.
+// @effect-diagnostics globalDate:off - LazyPiRuntime idle deadlines live outside the Effect runtime.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeURL from "node:url";
 import * as NodeSea from "node:sea";
@@ -54,6 +55,7 @@ export class PiRuntimeProcess {
   >();
   private readonly sessions = new Map<number, RemotePiSession>();
   private readonly listeners = new Set<() => void>();
+  private readonly idleListeners = new Set<() => void>();
   private nextId = 0;
   private failure: Error | undefined;
   private disposal: Promise<void> | undefined;
@@ -133,6 +135,7 @@ export class PiRuntimeProcess {
               : new Error(message.error.message),
           );
         } else pending.resolve(message.result);
+        this.notifyIfIdle();
         break;
       }
       case "state":
@@ -187,6 +190,7 @@ export class PiRuntimeProcess {
               if (!NON_FATAL_METHODS.has(method)) return this.fail(error);
               this.pending.delete(id);
               reject(error);
+              this.notifyIfIdle();
             }, timeout);
       timer?.unref();
       this.pending.set(id, {
@@ -219,13 +223,27 @@ export class PiRuntimeProcess {
       ]);
       return session;
     } catch (error) {
-      this.sessions.delete(key);
+      this.forgetSession(key);
       throw error;
     }
   }
 
   forgetSession(key: number): void {
     this.sessions.delete(key);
+    this.notifyIfIdle();
+  }
+  /** True when no request is in flight and no session is open. */
+  get isIdle(): boolean {
+    return this.failure === undefined && this.pending.size === 0 && this.sessions.size === 0;
+  }
+  onIdle(listener: () => void): () => void {
+    this.idleListeners.add(listener);
+    return () => {
+      this.idleListeners.delete(listener);
+    };
+  }
+  private notifyIfIdle(): void {
+    if (this.isIdle) for (const listener of this.idleListeners) listener();
   }
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -254,6 +272,7 @@ export class PiRuntimeProcess {
   }
   private async close(): Promise<void> {
     this.listeners.clear();
+    this.idleListeners.clear();
     // Only terminate the process we spawned. A stuck extension cannot hold the server's scope open.
     const timer = setTimeout(() => this.child.kill("SIGKILL"), 4_000);
     timer.unref();
@@ -266,6 +285,100 @@ export class PiRuntimeProcess {
       this.fail(new Error("Pi instance disposed."));
       this.sessions.clear();
     }
+  }
+}
+
+/** The slice of PiRuntimeProcess that LazyPiRuntime manages. */
+export interface LazyPiRuntimeTarget {
+  readonly isIdle: boolean;
+  onIdle(listener: () => void): () => void;
+  onChange(listener: () => void): () => void;
+  dispose(): Promise<void>;
+}
+
+/**
+ * Starts the Pi runtime on first use and stops it once it has had no requests and no
+ * open sessions for idleMs. The process is only the catalog and session host, so
+ * restarting it later costs a cold start (~3s) and nothing else.
+ */
+export class LazyPiRuntime<R extends LazyPiRuntimeTarget = PiRuntimeProcess> {
+  private current: Promise<R> | undefined;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastUsedAt = 0;
+  private readonly changeListeners = new Set<() => void>();
+  private disposed = false;
+  private readonly create: () => Promise<R>;
+  private readonly idleMs: number;
+
+  constructor(create: () => Promise<R>, idleMs: number) {
+    this.create = create;
+    this.idleMs = idleMs;
+  }
+
+  get isRunning(): boolean {
+    return this.current !== undefined;
+  }
+
+  get(): Promise<R> {
+    if (this.disposed) return Promise.reject(new Error("Pi instance disposed."));
+    this.lastUsedAt = Date.now();
+    const existing = this.current;
+    if (existing) return existing;
+    const started = this.create().then(
+      (runtime) => {
+        runtime.onChange(() => {
+          for (const listener of this.changeListeners) listener();
+        });
+        runtime.onIdle(() => this.scheduleIdleStop(started, runtime, this.idleMs));
+        this.scheduleIdleStop(started, runtime, this.idleMs);
+        return runtime;
+      },
+      (error: unknown) => {
+        if (this.current === started) this.current = undefined;
+        throw error;
+      },
+    );
+    this.current = started;
+    return started;
+  }
+
+  onChange(listener: () => void): () => void {
+    this.changeListeners.add(listener);
+    return () => {
+      this.changeListeners.delete(listener);
+    };
+  }
+
+  async dispose(): Promise<void> {
+    this.disposed = true;
+    this.cancelIdleStop();
+    const current = this.current;
+    this.current = undefined;
+    this.changeListeners.clear();
+    if (current)
+      await current.then(
+        (runtime) => runtime.dispose(),
+        () => {},
+      );
+  }
+
+  // Busy runtimes skip the stop; their next idle transition schedules a new one.
+  private scheduleIdleStop(started: Promise<R>, runtime: R, delayMs: number): void {
+    this.cancelIdleStop();
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = undefined;
+      if (this.current !== started || !runtime.isIdle) return;
+      const remainingMs = this.lastUsedAt + this.idleMs - Date.now();
+      if (remainingMs > 0) return this.scheduleIdleStop(started, runtime, remainingMs);
+      this.current = undefined;
+      void runtime.dispose();
+    }, delayMs);
+    this.idleTimer.unref();
+  }
+
+  private cancelIdleStop(): void {
+    if (this.idleTimer !== undefined) clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
   }
 }
 

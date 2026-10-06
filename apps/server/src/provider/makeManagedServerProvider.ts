@@ -52,7 +52,8 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
     readonly publishSnapshot: (snapshot: ServerProvider) => Effect.Effect<void>;
   }) => Effect.Effect<void>;
   readonly refreshInterval?: Duration.Input;
-  readonly refreshOnInterval?: boolean;
+  /** Checked on every tick, so a provider can skip interval refreshes while its runtime sleeps. */
+  readonly refreshOnInterval?: () => boolean;
   readonly checkProviderOnSettingsChange?: (previous: Settings, next: Settings) => boolean;
 }): Effect.fn.Return<
   ServerProviderContract,
@@ -262,7 +263,7 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
           Queue.take(refreshIntervalChanges).pipe(Effect.as(false)),
         ).pipe(
           Effect.flatMap((intervalElapsed) =>
-            input.refreshOnInterval !== false &&
+            (input.refreshOnInterval?.() ?? true) &&
             intervalElapsed &&
             Duration.toMillis(Duration.fromInputUnsafe(refreshInterval)) > 0
               ? hasProviderStatusDemand.pipe(

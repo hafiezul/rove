@@ -230,7 +230,7 @@ export const OpenCodeDriver: ProviderDriver<OpenCodeSettings, OpenCodeDriverEnv>
           streamSettings: snapshotSettings.streamSettings,
           haveSettingsChanged: haveProviderSnapshotSettingsChanged,
           checkProviderOnSettingsChange: () => false,
-          refreshOnInterval: false,
+          refreshOnInterval: () => false,
           initialSnapshot: (settings) =>
             makePendingOpenCodeProvider(settings.provider).pipe(Effect.map(stampIdentity)),
           checkProvider,
