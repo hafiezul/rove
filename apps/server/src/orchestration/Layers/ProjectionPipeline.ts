@@ -13,6 +13,7 @@ import {
   retainThreadMessagesAfterRevert,
   retainThreadTurnItemsAfterRevert,
 } from "@rove-code/shared/threadRevert";
+import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import {
   clearsLimitRecovery,
@@ -2113,22 +2114,25 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         ),
     );
 
-    const runProjectorForEvent = Effect.fn("runProjectorForEvent")(function* (
+    // Bootstrap commits one transaction per event-store page per projector. Projectors read
+    // each other's tables, so each still replays alone and keeps its own cursor.
+    const runProjectorForPage = Effect.fn("runProjectorForPage")(function* (
       projector: ProjectorDefinition,
-      event: OrchestrationEvent,
+      events: Arr.NonEmptyReadonlyArray<OrchestrationEvent>,
     ) {
-      const attachmentSideEffects: AttachmentSideEffects = {
-        deletedThreadIds: new Set<string>(),
-        prunedThreadRelativePaths: new Map<string, Set<string>>(),
-      };
-
+      const last = Arr.lastNonEmpty(events);
       yield* sql.withTransaction(
         Effect.gen(function* () {
-          yield* projector.apply(event, attachmentSideEffects);
+          for (const event of events) {
+            yield* projector.apply(event, {
+              deletedThreadIds: new Set<string>(),
+              prunedThreadRelativePaths: new Map<string, Set<string>>(),
+            });
+          }
           yield* projectionStateRepository.upsert({
             projector: projector.name,
-            lastAppliedSequence: event.sequence,
-            updatedAt: event.occurredAt,
+            lastAppliedSequence: last.sequence,
+            updatedAt: last.occurredAt,
           });
         }),
       );
@@ -2141,12 +2145,12 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         })
         .pipe(
           Effect.flatMap((stateRow) =>
-            Stream.runForEach(
+            Stream.runForEachArray(
               eventStore.readFromSequence(
                 Option.isSome(stateRow) ? stateRow.value.lastAppliedSequence : 0,
                 Number.MAX_SAFE_INTEGER,
               ),
-              (event) => runProjectorForEvent(projector, event),
+              (events) => runProjectorForPage(projector, events),
             ),
           ),
         );

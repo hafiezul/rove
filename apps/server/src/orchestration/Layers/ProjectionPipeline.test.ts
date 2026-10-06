@@ -115,6 +115,58 @@ it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("rove-projection-cu
   },
 );
 
+it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("rove-projection-bootstrap-pages-")))(
+  "OrchestrationProjectionPipeline bootstrap pages",
+  (it) => {
+    it.effect("bootstraps events spanning more than one event-store page", () =>
+      Effect.gen(function* () {
+        const projectionPipeline = yield* OrchestrationProjectionPipeline;
+        const eventStore = yield* OrchestrationEventStore;
+        const projectionState = yield* ProjectionStateRepository;
+        const sql = yield* SqlClient.SqlClient;
+        const createdAt = "2026-01-01T00:00:00.000Z";
+        let lastSequence = 0;
+        for (let index = 0; index < 600; index++) {
+          const projectId = ProjectId.make(`project-bootstrap-page-${index}`);
+          const event = yield* eventStore.append({
+            type: "project.created",
+            eventId: EventId.make(`evt-bootstrap-page-${index}`),
+            aggregateKind: "project",
+            aggregateId: projectId,
+            occurredAt: createdAt,
+            commandId: null,
+            causationEventId: null,
+            correlationId: null,
+            metadata: {},
+            payload: {
+              projectId,
+              title: `Project ${index}`,
+              workspaceRoot: `/tmp/project-bootstrap-page-${index}`,
+              defaultModelSelection: null,
+              scripts: [],
+              createdAt,
+              updatedAt: createdAt,
+            },
+          });
+          lastSequence = event.sequence;
+        }
+
+        yield* projectionPipeline.bootstrap;
+
+        const projectRows = yield* sql<{ readonly count: number }>`
+          SELECT COUNT(*) AS count FROM projection_projects
+        `;
+        assert.strictEqual(projectRows[0]?.count, 600);
+        const states = yield* projectionState.listAll();
+        assert.deepEqual(
+          states.map((state) => state.lastAppliedSequence),
+          states.map(() => lastSequence),
+        );
+      }),
+    );
+  },
+);
+
 it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("rove-streaming-turn-metadata-")))(
   "streaming turn metadata projection",
   (it) => {
