@@ -7,6 +7,19 @@ on:
         description: Deploy the browser app to Cloudflare after building
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      deploy:
+        type: boolean
+        default: false
+      ref:
+        description: Commit to build. Defaults to the triggering ref.
+        type: string
+        default: ""
+      version:
+        description: Version shown in the app. Defaults to apps/web/package.json.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -23,6 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref }}
           sparse-checkout: |
             /*
             !/.repos/
@@ -52,6 +66,8 @@ jobs:
           vp test run scripts/check-cloudflare-web.test.mjs
 
       - name: Build
+        env:
+          APP_VERSION: ${{ inputs.version }}
         run: vp run build:web:hosted
 
       - name: Validate Cloudflare configuration without deploying

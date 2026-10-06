@@ -946,128 +946,13 @@ jobs:
 
   deploy_web:
     name: Deploy hosted web app
-    needs: [preflight, relay_public_config, release]
-    if: ${{ vars.ROVE_HOSTED_RELEASE_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      ROVE_CLERK_PUBLISHABLE_KEY: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
-      ROVE_CLERK_JWT_TEMPLATE: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
-      ROVE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
-      ROVE_RELAY_URL: ${{ needs.relay_public_config.outputs.relay_url }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      ROVE_WEB_ROUTER_URL: ${{ vars.ROVE_WEB_ROUTER_URL }}
-      ROVE_WEB_LATEST_DOMAIN: ${{ vars.ROVE_WEB_LATEST_DOMAIN }}
-      ROVE_WEB_NIGHTLY_DOMAIN: ${{ vars.ROVE_WEB_NIGHTLY_DOMAIN }}
-      VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.preflight.outputs.ref }}
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: |
-            args:
-              - --filter=@rove-code/scripts...
-              - --filter=@rove-code/web...
-
-      - name: Download relay client tracing config
-        uses: actions/download-artifact@v8
-        with:
-          name: relay-client-tracing-config
-          path: ${{ runner.temp }}/relay-client-tracing
-
-      - name: Load relay client tracing config
-        shell: bash
-        run: |
-          config_path="$RUNNER_TEMP/relay-client-tracing/relay-client-tracing.env"
-          tracing_token="$(sed -n 's/^ROVE_RELAY_CLIENT_OTLP_TRACES_TOKEN=//p' "$config_path")"
-          echo "::add-mask::$tracing_token"
-          cat "$config_path" >> "$GITHUB_ENV"
-
-      - name: Align package versions to release version
-        run: node scripts/update-release-package-versions.ts "${{ needs.preflight.outputs.version }}"
-
-      - name: Refresh release lockfile
-        run: vp install --lockfile-only --ignore-scripts
-
-      - name: Deploy and alias channel
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${VERCEL_TOKEN:-}" || -z "${VERCEL_ORG_ID:-}" || -z "${VERCEL_PROJECT_ID:-}" ]]; then
-            echo "Missing one or more required Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
-            exit 1
-          fi
-
-          router_url="${ROVE_WEB_ROUTER_URL:?Configure a Rove-owned hosted router URL}"
-          latest_domain="${ROVE_WEB_LATEST_DOMAIN:?Configure a Rove-owned latest domain}"
-          nightly_domain="${ROVE_WEB_NIGHTLY_DOMAIN:?Configure a Rove-owned nightly domain}"
-          for host in "$router_url" "$latest_domain" "$nightly_domain"; do
-            if [[ "$host" == *t3.codes* ]]; then
-              echo "Refusing to deploy to an upstream T3 domain: $host" >&2
-              exit 1
-            fi
-          done
-          router_domain="${router_url#http://}"
-          router_domain="${router_domain#https://}"
-          router_domain="${router_domain%%/*}"
-
-          if [[ "${{ needs.preflight.outputs.release_channel }}" == "stable" ]]; then
-            channel_domain="$latest_domain"
-            channel_name="latest"
-          else
-            channel_domain="$nightly_domain"
-            channel_name="nightly"
-          fi
-
-          vercel_scope="${VERCEL_TEAM_SLUG:-$VERCEL_ORG_ID}"
-          vercel_scope_args=(--scope "$vercel_scope")
-
-          echo "Deploying hosted web app for $channel_name channel."
-          deployment_url="$(
-            vp dlx vercel@53.1.1 deploy \
-              --archive=tgz \
-              --prod \
-              --skip-domain \
-              --yes \
-              --token "$VERCEL_TOKEN" \
-              "${vercel_scope_args[@]}" \
-              --build-env "APP_VERSION=${{ needs.preflight.outputs.version }}" \
-              --build-env "ROVE_CLERK_PUBLISHABLE_KEY=${ROVE_CLERK_PUBLISHABLE_KEY:-}" \
-              --build-env "ROVE_CLERK_JWT_TEMPLATE=${ROVE_CLERK_JWT_TEMPLATE:-}" \
-              --build-env "ROVE_CLERK_CLI_OAUTH_CLIENT_ID=${ROVE_CLERK_CLI_OAUTH_CLIENT_ID:-}" \
-              --build-env "ROVE_RELAY_URL=${ROVE_RELAY_URL:-}" \
-              --build-env "ROVE_RELAY_CLIENT_OTLP_TRACES_URL=${ROVE_RELAY_CLIENT_OTLP_TRACES_URL:-}" \
-              --build-env "ROVE_RELAY_CLIENT_OTLP_TRACES_DATASET=${ROVE_RELAY_CLIENT_OTLP_TRACES_DATASET:-}" \
-              --build-env "ROVE_RELAY_CLIENT_OTLP_TRACES_TOKEN=${ROVE_RELAY_CLIENT_OTLP_TRACES_TOKEN:-}" \
-              --build-env "VITE_HOSTED_APP_URL=$router_url" \
-              --build-env "VITE_HOSTED_APP_CHANNEL=$channel_name"
-          )"
-
-          echo "Aliasing $deployment_url to $channel_domain."
-          vp dlx vercel@53.1.1 alias set "$deployment_url" "$channel_domain" \
-            --token "$VERCEL_TOKEN" \
-            "${vercel_scope_args[@]}"
-
-          if [[ "$channel_name" == "latest" && -n "$router_domain" && "$router_domain" != "$channel_domain" ]]; then
-            echo "Aliasing $deployment_url to router domain $router_domain."
-            vp dlx vercel@53.1.1 alias set "$deployment_url" "$router_domain" \
-              --token "$VERCEL_TOKEN" \
-              "${vercel_scope_args[@]}"
-          fi
+    needs: [preflight, release]
+    if: ${{ vars.ROVE_CLOUDFLARE_WEB_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'stable' }}
+    uses: ./.github/workflows/cloudflare-web.yml
+    with:
+      deploy: true
+      ref: ${{ needs.preflight.outputs.ref }}
+      version: ${{ needs.preflight.outputs.version }}
 
   deploy_marketing:
     name: Deploy marketing site
