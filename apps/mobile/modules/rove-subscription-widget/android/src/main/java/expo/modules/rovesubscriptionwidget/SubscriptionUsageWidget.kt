@@ -31,6 +31,7 @@ class SubscriptionUsageWidget : AppWidgetProvider() {
 
   companion object {
     const val PREFERENCES = "rove_subscription_widget"
+    private const val LEGACY_PREFERENCES = "t3_subscription_widget"
     private const val EXPIRE = "expo.modules.rovesubscriptionwidget.EXPIRE"
 
     private fun expiryIntent(context: Context): PendingIntent = PendingIntent.getBroadcast(
@@ -46,15 +47,19 @@ class SubscriptionUsageWidget : AppWidgetProvider() {
         .forEach { update(context, manager, it) }
     }
 
+    // Copies a snapshot saved under the pre-rename preferences file forward on first read.
+    private fun savedSnapshot(context: Context): String? {
+      val preferences = context.getSharedPreferences(PREFERENCES, 0)
+      return preferences.getString("snapshot", null)
+        ?: context.getSharedPreferences(LEGACY_PREFERENCES, 0).getString("snapshot", null)?.also {
+          preferences.edit().putString("snapshot", it).apply()
+        }
+    }
+
     private fun update(context: Context, manager: AppWidgetManager, id: Int) {
       // The receiver is disabled below 12L (values-v32/bools.xml), but the module still calls in.
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S_V2) return
-      val preferences = context.getSharedPreferences(PREFERENCES, 0)
-      val saved = preferences.getString("snapshot", null)
-        ?: context.getSharedPreferences("t3_subscription_widget", 0).getString("snapshot", null)?.also {
-          preferences.edit().putString("snapshot", it).apply()
-        }
-      val snapshot = runCatching { JSONObject(saved.orEmpty()) }.getOrNull()
+      val snapshot = runCatching { JSONObject(savedSnapshot(context).orEmpty()) }.getOrNull()
       val openApp = openAppIntent(context, id, snapshot)
       val providers = snapshot?.optJSONArray("providers")
       val now = System.currentTimeMillis()
