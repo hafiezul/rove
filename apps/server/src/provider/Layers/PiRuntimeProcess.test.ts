@@ -105,6 +105,22 @@ describe("isolated Pi instance runtime", () => {
     expect(current.messages).toEqual(before);
   });
 
+  it("reports idle only once its sessions are disposed", async () => {
+    const agentDir = directory("idle-tracking");
+    const runtime = await create(agentDir);
+    let idleNotifications = 0;
+    runtime.onIdle(() => idleNotifications++);
+    expect(runtime.isIdle).toBe(true);
+
+    const current = await session(runtime, agentDir);
+    expect(runtime.isIdle).toBe(false);
+    const before = idleNotifications;
+
+    await current.dispose();
+    expect(runtime.isIdle).toBe(true);
+    expect(idleNotifications).toBeGreaterThan(before);
+  });
+
   it("keeps concurrent catalogs, SDK children, and spawned children in their own agent directories", async () => {
     const a = directory("instance-a");
     const b = directory("instance-b");

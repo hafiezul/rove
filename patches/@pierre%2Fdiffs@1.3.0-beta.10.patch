@@ -217,7 +217,7 @@ diff --git a/package.json b/package.json
 index ff61c90..1e170e5 100644
 --- a/package.json
 +++ b/package.json
-@@ -55,6 +55,18 @@
+@@ -55,6 +55,22 @@
      "./worker/worker-portable.js": {
        "types": "./dist/worker/worker-portable.d.ts",
        "import": "./dist/worker/worker-portable.js"
@@ -229,6 +229,10 @@ index ff61c90..1e170e5 100644
 +    "./utils/getFiletypeFromFileName": {
 +      "types": "./dist/utils/getFiletypeFromFileName.d.ts",
 +      "import": "./dist/utils/getFiletypeFromFileName.js"
++    },
++    "./utils/parseDiffFromFile": {
++      "types": "./dist/utils/parseDiffFromFile.d.ts",
++      "import": "./dist/utils/parseDiffFromFile.js"
 +    },
 +    "./utils/parsePatchFiles": {
 +      "types": "./dist/utils/parsePatchFiles.d.ts",

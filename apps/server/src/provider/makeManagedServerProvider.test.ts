@@ -270,7 +270,7 @@ describe("makeManagedServerProvider", () => {
             Effect.as(refreshedSnapshot),
           ),
           refreshInterval: "1 second",
-          refreshOnInterval: false,
+          refreshOnInterval: () => false,
         });
 
         yield* Deferred.await(initialCheckDone);
@@ -279,6 +279,43 @@ describe("makeManagedServerProvider", () => {
         assert.strictEqual(yield* Ref.get(checkCalls), 1);
 
         yield* provider.refresh;
+        assert.strictEqual(yield* Ref.get(checkCalls), 2);
+      }),
+    ).pipe(Effect.provide(Layer.mergeAll(AlwaysRunTestLayer, TestClock.layer()))),
+  );
+
+  it.effect("asks refreshOnInterval on every tick", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const checkCalls = yield* Ref.make(0);
+        const initialCheckDone = yield* Deferred.make<void>();
+        let runtimeAwake = false;
+        yield* makeManagedServerProvider<TestSettings>({
+          resolveMaintenance: () => Effect.succeed(maintenanceCapabilities),
+          getSettings: Effect.succeed({ enabled: true }),
+          streamSettings: Stream.empty,
+          haveSettingsChanged: (previous, next) => previous.enabled !== next.enabled,
+          initialSnapshot: () => Effect.succeed(initialSnapshot),
+          checkProvider: Ref.updateAndGet(checkCalls, (count) => count + 1).pipe(
+            Effect.tap((count) =>
+              count === 1
+                ? Deferred.succeed(initialCheckDone, undefined).pipe(Effect.ignore)
+                : Effect.void,
+            ),
+            Effect.as(refreshedSnapshot),
+          ),
+          refreshInterval: "1 second",
+          refreshOnInterval: () => runtimeAwake,
+        });
+
+        yield* Deferred.await(initialCheckDone);
+        yield* TestClock.adjust("5 seconds");
+        yield* Effect.yieldNow;
+        assert.strictEqual(yield* Ref.get(checkCalls), 1);
+
+        runtimeAwake = true;
+        yield* TestClock.adjust("1 second");
+        yield* Effect.yieldNow;
         assert.strictEqual(yield* Ref.get(checkCalls), 2);
       }),
     ).pipe(Effect.provide(Layer.mergeAll(AlwaysRunTestLayer, TestClock.layer()))),
@@ -402,7 +439,7 @@ describe("makeManagedServerProvider", () => {
           streamSettings: Stream.fromPubSub(settingsChanges),
           haveSettingsChanged: (previous, next) => previous.enabled !== next.enabled,
           checkProviderOnSettingsChange: () => false,
-          refreshOnInterval: false,
+          refreshOnInterval: () => false,
           initialSnapshot: () => Effect.succeed(initialSnapshot),
           checkProvider: Ref.updateAndGet(checkCalls, (count) => count + 1).pipe(
             Effect.tap(() => Deferred.succeed(initialCheckDone, undefined).pipe(Effect.ignore)),
