@@ -233,6 +233,16 @@ jobs:
       - name: Align package versions to release version
         run: node scripts/update-release-package-versions.ts "${{ inputs.version }}"
 
+      # Windows builds are the release's longest jobs, so release.yml starts
+      # them without `needs` on the bundle or the Linux CLI archive. Their setup
+      # overlaps those jobs, and each artifact is awaited just before its use.
+      - name: Wait for JS bundle
+        if: inputs.platform == 'win'
+        uses: ./.github/actions/wait-for-artifact
+        with:
+          name: js-bundle
+          job: Build JS bundle
+
       # The artifact root is `apps/` (upload-artifact keeps the least common
       # ancestor of its paths), so extracting into `apps` restores
       # apps/server/dist and apps/desktop/dist-electron at their build paths.
@@ -350,32 +360,12 @@ jobs:
 
       # The WSL backend runs the Linux CLI archive inside the distro, so the
       # Windows desktop embeds the same-arch archive the release attaches.
-      # Windows jobs start alongside the Linux build rather than after it, so
-      # the archive is awaited here, after setup, instead of through `needs`.
-      # Job status is read before the artifact list so an upload that lands
-      # just before the Linux job completes is never reported as missing.
       - name: Wait for Linux CLI archive for WSL
         if: inputs.platform == 'win'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT: cli-linux-${{ inputs.arch }}
-          LINUX_JOB: Build Linux ${{ inputs.arch }}
-        run: |
-          set -euo pipefail
-          api="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          while true; do
-            linux_status="$(gh api "$api/jobs?per_page=100" --paginate \
-              -q ".jobs[] | select(.name | endswith(\"/ $LINUX_JOB\")) | .status")"
-            if [[ "$(gh api "$api/artifacts?name=$ARTIFACT" -q .total_count)" -gt 0 ]]; then
-              exit 0
-            fi
-            if [[ "$linux_status" == "completed" ]]; then
-              echo "::error::$LINUX_JOB finished without uploading $ARTIFACT."
-              exit 1
-            fi
-            sleep 10
-          done
+        uses: ./.github/actions/wait-for-artifact
+        with:
+          name: cli-linux-${{ inputs.arch }}
+          job: Build Linux ${{ inputs.arch }}
 
       - name: Download Linux CLI archive for WSL
         if: inputs.platform == 'win'
