@@ -4,7 +4,12 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
-import { ComposerBanner, type ComposerBannerVariant } from "./ComposerBanner";
+import {
+  ComposerBanner,
+  composerBannerEnterClassName,
+  type ComposerBannerVariant,
+} from "./ComposerBanner";
+import { useArrivedAfterOpen } from "./useArrivedAfterOpen";
 
 // Match the duration-220 exit transition before removing a dismissed notice.
 const DISMISS_TRANSITION_MS = 220;
@@ -54,6 +59,11 @@ export function ComposerBannerStack({ className, items }: ComposerBannerStackPro
   const expandedItemsId = useId();
   const [requestedExitingItemId, setExitingItemId] = useState<string | null>(null);
   const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The stack remounts per thread, so its own mount is the scope.
+  const arrivedAfterOpen = useArrivedAfterOpen(
+    items.map((item) => item.id),
+    "composer-banner-stack",
+  );
   const exitingItemId =
     requestedExitingItemId !== null && items.some((item) => item.id === requestedExitingItemId)
       ? requestedExitingItemId
@@ -122,11 +132,13 @@ export function ComposerBannerStack({ className, items }: ComposerBannerStackPro
       <div className={cn("relative flex flex-col-reverse", hasStack && stackExpanded && "z-50")}>
         <div
           key={frontItem.id}
+          data-entering={arrivedAfterOpen(frontItem.id) || undefined}
           className={cn(
-            "relative z-10 transition-[opacity,translate] duration-220 ease-in",
+            "relative z-10 transition-[opacity,translate] duration-220",
+            composerBannerEnterClassName,
             exitingItemId === frontItem.id
-              ? "pointer-events-none translate-y-16 opacity-0"
-              : "opacity-100",
+              ? "pointer-events-none translate-y-16 opacity-0 ease-in"
+              : "opacity-100 ease-(--ease-drawer)",
           )}
           onPointerDownCapture={() => {
             setStackExpanded(false);

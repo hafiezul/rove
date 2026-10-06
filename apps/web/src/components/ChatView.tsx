@@ -9938,7 +9938,7 @@ export default function ChatView(props: ChatViewProps) {
               {/* scroll to end pill — shown when user has scrolled away from the live edge */}
               {showScrollToBottom && (
                 <div
-                  className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5"
+                  className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5 transition-[opacity,translate] duration-150 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:starting:translate-y-0"
                   style={{ bottom: scrollToEndClearance + 4 }}
                 >
                   <Button

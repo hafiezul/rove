@@ -9,6 +9,14 @@ import { ScrollArea } from "../ui/scroll-area";
 
 export type ComposerBannerVariant = "default" | "error" | "info" | "success" | "warning";
 
+/**
+ * Entrance for an attachment that arrives while the thread is open: it rises from
+ * behind the composer, the path dismissal takes on the way out. Pair with a
+ * `transition-[opacity,translate]` and set `data-entering` only on new arrivals.
+ */
+export const composerBannerEnterClassName =
+  "data-entering:starting:translate-y-16 data-entering:starting:opacity-0 motion-reduce:data-entering:starting:translate-y-0";
+
 const surfaceColors = cn(
   "[--chat-composer-attached-surface:var(--chat-composer-glass-surface,var(--card))]",
   "dark:[--chat-composer-attached-surface:var(--chat-composer-glass-surface,var(--surface-raised))]",
