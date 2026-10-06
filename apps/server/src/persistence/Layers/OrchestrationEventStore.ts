@@ -32,6 +32,7 @@ import {
 
 const encodeProjectIcon = Schema.encodeSync(ProjectIconOverride);
 const decodeEvent = Schema.decodeUnknownEffect(OrchestrationEvent);
+const decodeEvents = Schema.decodeUnknownEffect(Schema.Array(OrchestrationEvent));
 const UnknownFromJsonString = Schema.fromJsonString(Schema.Unknown);
 const EventMetadataFromJsonString = Schema.fromJsonString(OrchestrationEventMetadata);
 
@@ -49,18 +50,19 @@ const AppendEventRequestSchema = Schema.Struct({
   metadataJson: EventMetadataFromJsonString,
 });
 
+// Rows only parse their JSON columns here. decodeEvent validates every field once.
 const OrchestrationEventPersistedRowSchema = Schema.Struct({
-  sequence: NonNegativeInt,
-  eventId: EventId,
-  type: OrchestrationEventType,
-  aggregateKind: OrchestrationAggregateKind,
-  aggregateId: Schema.Union([ProjectId, ThreadId]),
-  occurredAt: IsoDateTime,
-  commandId: Schema.NullOr(CommandId),
-  causationEventId: Schema.NullOr(EventId),
-  correlationId: Schema.NullOr(CommandId),
+  sequence: Schema.Unknown,
+  eventId: Schema.Unknown,
+  type: Schema.Unknown,
+  aggregateKind: Schema.Unknown,
+  aggregateId: Schema.Unknown,
+  occurredAt: Schema.Unknown,
+  commandId: Schema.Unknown,
+  causationEventId: Schema.Unknown,
+  correlationId: Schema.Unknown,
   payload: UnknownFromJsonString,
-  metadata: EventMetadataFromJsonString,
+  metadata: UnknownFromJsonString,
 });
 
 const HasEventAfterRequestSchema = Schema.Struct({
@@ -306,11 +308,9 @@ const makeEventStore = Effect.gen(function* () {
             ),
           ),
           Effect.flatMap((rows) =>
-            Effect.forEach(rows, (row) =>
-              decodeEvent(row).pipe(
-                Effect.mapError(
-                  toPersistenceDecodeError("OrchestrationEventStore.readFromSequence:rowToEvent"),
-                ),
+            decodeEvents(rows).pipe(
+              Effect.mapError(
+                toPersistenceDecodeError("OrchestrationEventStore.readFromSequence:rowToEvent"),
               ),
             ),
           ),
@@ -375,11 +375,9 @@ const makeEventStore = Effect.gen(function* () {
             ),
           ),
           Effect.flatMap((rows) =>
-            Effect.forEach(rows, (row) =>
-              decodeEvent(row).pipe(
-                Effect.mapError(
-                  toPersistenceDecodeError("OrchestrationEventStore.readAggregateRange:rowToEvent"),
-                ),
+            decodeEvents(rows).pipe(
+              Effect.mapError(
+                toPersistenceDecodeError("OrchestrationEventStore.readAggregateRange:rowToEvent"),
               ),
             ),
           ),
