@@ -12,7 +12,7 @@ export function createComputerUseEnvironmentAtoms<R, E>(
   runtime: Atom.AtomRuntime<EnvironmentRegistry | R, E>,
 ) {
   return {
-    /** Cua Driver install, daemon, and permission state on the environment's host. */
+    /** Cua Driver installation and desktop readiness on the environment's host. */
     status: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:computer-use:status",
       tag: WS_METHODS.computerUseStatus,

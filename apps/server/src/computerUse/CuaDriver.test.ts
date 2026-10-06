@@ -7,7 +7,7 @@ import {
   ThreadId,
   type ServerSettings as ServerSettingsValue,
 } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -25,9 +25,20 @@ import * as CuaDriver from "./CuaDriver.ts";
 const require = NodeModule.createRequire(import.meta.url);
 const threadId = ThreadId.make("cua-driver-test");
 const decodeCapture = Schema.decodeUnknownSync(Schema.Struct({ capture_id: Schema.String }));
+const decodeTransport = Schema.decodeEffect(
+  Schema.fromJsonString(
+    Schema.Struct({
+      args: Schema.Array(Schema.String),
+      display: Schema.String,
+      wayland: Schema.String,
+      bus: Schema.String,
+    }),
+  ),
+);
+const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
 
 /** A stand-in `cua-driver` whose daemon, grants, and telemetry are files in `stateDir`. */
-const fakeDriverScript = (stateDir: string) => `#!/usr/bin/env node
+const fakeDriverScript = (stateDir: string) => `#!${process.execPath}
 const fs = require("node:fs");
 const path = require("node:path");
 const file = (name) => path.join(${JSON.stringify(stateDir)}, name);
@@ -46,8 +57,17 @@ if (command === "permissions" && sub === "grant") {
   fs.writeFileSync(file("running"), "");
   process.exit(0);
 }
+if (command === "doctor") {
+  console.log(fs.existsSync(file("doctor")) ? fs.readFileSync(file("doctor"), "utf8") : JSON.stringify({ ok: true, probes: [
+    { label: "display server", status: "ok", message: "X11 desktop" },
+    { label: "AT-SPI", status: "ok", message: "Accessibility bus reachable" },
+  ] }));
+  process.exit(fs.existsSync(file("doctor-failed")) ? 1 : 0);
+}
 if (command !== "mcp") process.exit(2);
-fs.writeFileSync(file("running"), "");
+const direct = process.argv.includes("--direct");
+if (!direct) fs.writeFileSync(file("running"), "");
+fs.appendFileSync(file("transports"), JSON.stringify({ args: process.argv.slice(2), display: process.env.DISPLAY, wayland: process.env.WAYLAND_DISPLAY, bus: process.env.DBUS_SESSION_BUS_ADDRESS }) + "\\n");
 const { Server } = require(${JSON.stringify(require.resolve("@modelcontextprotocol/sdk/server/index.js"))});
 const { StdioServerTransport } = require(${JSON.stringify(require.resolve("@modelcontextprotocol/sdk/server/stdio.js"))});
 const types = require(${JSON.stringify(require.resolve("@modelcontextprotocol/sdk/types.js"))});
@@ -61,6 +81,7 @@ let captureSequence = 0;
 server.setRequestHandler(types.ListToolsRequestSchema, async () => ({
   tools: [
     { name: "check_permissions", description: "Report grants.", inputSchema: object() },
+    { name: "invoke_menu", description: "Invoke a menu.", inputSchema: object() },
     { name: "click", description: "Click a window element.", inputSchema: object({ pid: { type: "number" }, session: { type: "string" } }) },
     { name: "screenshot", description: "Capture the screen.", inputSchema: object(), annotations: { readOnlyHint: true } },
     { name: "get_window_state", description: "Capture a window.", inputSchema: object({ session: { type: "string" } }) },
@@ -70,6 +91,9 @@ server.setRequestHandler(types.ListToolsRequestSchema, async () => ({
 server.setRequestHandler(types.CallToolRequestSchema, async ({ params }) => {
   const ok = fs.existsSync(file("granted"));
   if (params.name === "disconnect") process.exit(0);
+  if (params.name === "health_report") {
+    return { content: [], structuredContent: JSON.parse(fs.existsSync(file("doctor")) ? fs.readFileSync(file("doctor"), "utf8") : '{"checks":[{"name":"AT-SPI","status":"pass","message":"Private guest bus"}]}') };
+  }
   if (params.name === "check_permissions") {
     return { content: [{ type: "text", text: "grants" }], structuredContent: { accessibility: ok, screen_recording: ok } };
   }
@@ -87,9 +111,40 @@ server.setRequestHandler(types.CallToolRequestSchema, async ({ params }) => {
   }
   return { content: [{ type: "image", data: Buffer.from([1, 2, 3]).toString("base64"), mimeType: "image/png" }] };
 });
-setInterval(() => { if (!fs.existsSync(file("running"))) process.exit(0); }, 50);
+if (!direct) setInterval(() => { if (!fs.existsSync(file("running"))) process.exit(0); }, 50);
 process.stdin.on("end", () => process.exit(0));
 server.connect(new StdioServerTransport());
+`;
+
+const fakePodmanScript = (stateDir: string, executable: string) => `#!${process.execPath}
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+const file = name => path.join(${JSON.stringify(stateDir)}, name);
+const args = process.argv.slice(2);
+if (args.shift() !== "--remote=false") process.exit(2);
+const command = args.shift();
+if (command === "info") { console.log(JSON.stringify({ host: { security: { rootless: !fs.existsSync(file("rootful")) } } })); process.exit(0); }
+if (command === "image") process.exit(fs.existsSync(file("image-missing")) ? 1 : 0);
+if (command === "ps") { console.log("[]"); process.exit(0); }
+if (command === "build") { fs.rmSync(file("image-missing"), { force: true }); process.exit(0); }
+if (command === "inspect") {
+  const name = args[0];
+  if (!fs.existsSync(file(name))) { console.error("no such container"); process.exit(1); }
+  console.log(fs.readFileSync(file(name), "utf8")); process.exit(0);
+}
+if (command === "rm") { fs.rmSync(file(args[1]), { force: true }); process.exit(0); }
+if (command === "run") {
+  const name = args[args.indexOf("--name") + 1];
+  const [label, owner] = args[args.indexOf("--label") + 1].split("=");
+  fs.writeFileSync(file(name), JSON.stringify([{ Id: name, Config: { Labels: { [label]: owner } }, State: { Running: true } }]));
+}
+if (command !== "run" && command !== "exec") process.exit(2);
+const child = spawn(process.execPath, [${JSON.stringify(executable)}, "mcp", "--direct"], {
+  stdio: "inherit", env: { ...process.env, DISPLAY: ":1", WAYLAND_DISPLAY: "", DBUS_SESSION_BUS_ADDRESS: "unix:path=/tmp/agent/private-bus" },
+});
+process.on("SIGTERM", () => { child.kill(); process.exit(0); });
+child.on("exit", code => process.exit(code ?? 0));
 `;
 
 const exited = (code: number): ProcessRunner.ProcessRunOutput => ({
@@ -115,15 +170,27 @@ interface Harness {
  * answered here: the first reports the given signature, the second writes the fake app.
  */
 const withDriver = <A, E>(
-  options: { readonly installed: boolean; readonly signed?: boolean; readonly running?: boolean },
-  body: (harness: Harness) => Effect.Effect<A, E>,
+  options: {
+    readonly installed: boolean;
+    readonly signed?: boolean;
+    readonly running?: boolean;
+    readonly platform?: "darwin" | "linux";
+    readonly environment?: NodeJS.ProcessEnv;
+    readonly discovery?: "home" | "path" | "configured";
+  },
+  body: (harness: Harness) => Effect.Effect<A, E, FileSystem.FileSystem>,
 ) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const stateDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cua-driver-" });
     const appPath = path.join(stateDir, "CuaDriver.app");
-    const executableDir = path.join(appPath, "Contents", "MacOS");
+    const executableDir =
+      options.platform === "linux"
+        ? options.discovery === "home"
+          ? path.join(stateDir, ".local", "bin")
+          : path.join(stateDir, "bin")
+        : path.join(appPath, "Contents", "MacOS");
     const writeApp = Effect.gen(function* () {
       yield* fs.makeDirectory(executableDir, { recursive: true });
       yield* fs.writeFileString(path.join(executableDir, "cua-driver"), fakeDriverScript(stateDir));
@@ -132,6 +199,16 @@ const withDriver = <A, E>(
     if (options.installed) yield* writeApp;
     if (options.running) yield* fs.writeFileString(path.join(stateDir, "running"), "");
 
+    const podmanDir = path.join(stateDir, "runtime");
+    if (options.platform === "linux") {
+      yield* fs.makeDirectory(podmanDir);
+      yield* fs.writeFileString(
+        path.join(podmanDir, "podman"),
+        fakePodmanScript(stateDir, path.join(executableDir, "cua-driver")),
+      );
+      yield* fs.chmod(path.join(podmanDir, "podman"), 0o755);
+      if (!options.installed) yield* fs.writeFileString(path.join(stateDir, "image-missing"), "");
+    }
     const real = yield* ProcessRunner.ProcessRunner;
     const runs: Array<ProcessRunner.ProcessRunInput> = [];
     const runner = ProcessRunner.ProcessRunner.of({
@@ -148,16 +225,39 @@ const withDriver = <A, E>(
         }),
     });
     const settingsChanges = yield* Queue.unbounded<ServerSettingsValue>();
+    let currentSettings = { ...DEFAULT_SERVER_SETTINGS, enableAgentComputerUse: true };
+    const changes = Stream.fromQueue(settingsChanges).pipe(
+      Stream.tap((value) =>
+        Effect.sync(() => {
+          currentSettings = value;
+        }),
+      ),
+    );
     const settings = Layer.mock(ServerSettings.ServerSettingsService)({
-      streamChanges: Stream.fromQueue(settingsChanges),
+      getSettings: Effect.sync(() => currentSettings),
+      subscribeChanges: Effect.succeed(changes),
+      streamChanges: changes,
     });
-    const driver = yield* CuaDriver.make({ appPath }).pipe(
+    const driver = yield* CuaDriver.make(
+      options.platform === "linux" && options.discovery === undefined
+        ? { appPath, executablePath: path.join(executableDir, "cua-driver") }
+        : { appPath },
+    ).pipe(
+      Effect.provideService(HostProcessEnvironment, {
+        ...process.env,
+        HOME: stateDir,
+        CUA_DRIVER_RS_INSTALL_DIR: options.discovery === "configured" ? executableDir : undefined,
+        CUA_DRIVER_BIN_DIR: undefined,
+        PATH: `${podmanDir}:${options.discovery === "path" ? `${executableDir}:` : ""}${process.env.PATH ?? ""}`,
+        DISPLAY: options.platform === "linux" ? ":42" : process.env.DISPLAY,
+        ...options.environment,
+      }),
       Effect.provideService(ProcessRunner.ProcessRunner, runner),
       Effect.provide(settings),
     );
     return yield* body({ driver, stateDir, runs, settingsChanges });
   }).pipe(
-    Effect.provideService(HostProcessPlatform, "darwin"),
+    Effect.provideService(HostProcessPlatform, options.platform ?? "darwin"),
     Effect.provide(ProcessRunner.layer),
     Effect.scoped,
     Effect.provide(NodeServices.layer),
@@ -166,11 +266,12 @@ const withDriver = <A, E>(
 it.effect("installs through Cua's official installer and keeps Cua's usage data off", () =>
   withDriver({ installed: false }, ({ driver, runs }) =>
     Effect.gen(function* () {
-      expect(yield* driver.status).toEqual({ status: "not-installed" });
+      expect(yield* driver.status).toEqual({ status: "not-installed", platform: "darwin" });
       expect(yield* driver.control({ action: "install" })).toEqual({
         status: "stopped",
         version: "9.8.7",
         telemetry: false,
+        readiness: { platform: "darwin", permissions: null },
       });
       const installer = runs.find((input) => input.command === "/bin/bash");
       expect(installer?.args[1]).toContain("https://cua.ai/driver/install.sh");
@@ -208,15 +309,22 @@ it.effect("quits a daemon it started after five idle minutes", () =>
         status: "stopped",
         version: "9.8.7",
         telemetry: true,
+        readiness: { platform: "darwin", permissions: null },
       });
       expect(yield* driver.control({ action: "start" })).toEqual({
         status: "running",
         version: "9.8.7",
         telemetry: true,
-        permissions: { accessibility: false, screenRecording: false },
+        readiness: {
+          platform: "darwin",
+          permissions: { accessibility: false, screenRecording: false },
+        },
       });
       expect(yield* driver.control({ action: "grant-permissions" })).toMatchObject({
-        permissions: { accessibility: true, screenRecording: true },
+        readiness: {
+          platform: "darwin",
+          permissions: { accessibility: true, screenRecording: true },
+        },
       });
 
       yield* TestClock.adjust("4 minutes");
@@ -261,6 +369,7 @@ it.effect("forwards calls, keeps image content, and reconnects after an idle rel
       expect(catalog.instructions).toBe("Snapshot, then act.");
       expect(catalog.tools.map((tool) => [tool.name, tool.readOnly])).toEqual([
         ["check_permissions", false],
+        ["invoke_menu", false],
         ["click", false],
         ["screenshot", true],
         ["get_window_state", false],
@@ -340,16 +449,214 @@ it.effect("stops its idle daemon after a thread transport disconnects unexpected
   ),
 );
 
-it.effect("is unsupported off macOS", () =>
+it.effect("installs Linux without codesign or macOS permission commands", () =>
+  withDriver({ installed: false, platform: "linux" }, ({ driver, runs, stateDir }) =>
+    Effect.gen(function* () {
+      expect(yield* driver.status).toEqual({ status: "not-installed", platform: "linux" });
+      const installed = yield* driver.control({ action: "install" });
+      expect(installed).toMatchObject({
+        status: "stopped",
+        telemetry: null,
+        readiness: { platform: "linux", diagnostics: null, desktops: 0, capacity: 4 },
+      });
+      const installer = runs.find((input) => input.command === "/bin/bash");
+      expect(installer?.env).toMatchObject({
+        CUA_DRIVER_RS_INSTALL_DIR: `${stateDir}/bin`,
+        CUA_DRIVER_RS_NO_MODIFY_PATH: "1",
+        CUA_DRIVER_RS_TELEMETRY_ENABLED: "false",
+      });
+      yield* driver.control({ action: "install" });
+      expect(runs.filter((input) => input.command === "/bin/bash")).toHaveLength(1);
+      const refused = yield* driver.control({ action: "grant-permissions" }).pipe(Effect.flip);
+      expect(refused.detail).toContain("Linux agent desktops have no macOS permission grants");
+      expect(
+        runs.some(
+          (input) => input.command === "/usr/bin/codesign" || input.args[0] === "permissions",
+        ),
+      ).toBe(false);
+    }),
+  ),
+);
+
+for (const discovery of ["home", "path", "configured"] as const) {
+  it.effect(`discovers an existing Linux driver through ${discovery}`, () =>
+    withDriver({ installed: true, platform: "linux", discovery }, ({ driver, runs, stateDir }) =>
+      Effect.gen(function* () {
+        expect(yield* driver.status).toMatchObject({
+          status: "stopped",
+          readiness: { platform: "linux", diagnostics: null, desktops: 0, capacity: 4 },
+        });
+        const location =
+          discovery === "home" ? `${stateDir}/.local/bin/cua-driver` : `${stateDir}/bin/cua-driver`;
+        expect(runs.some((input) => input.command === location)).toBe(true);
+      }),
+    ),
+  );
+}
+
+it.effect(
+  "uses private Linux transports without host display or bus forwarding and leaves external daemons alone",
+  () =>
+    withDriver(
+      {
+        installed: true,
+        platform: "linux",
+        running: true,
+        environment: {
+          DISPLAY: ":71",
+          WAYLAND_DISPLAY: "wayland-7",
+          DBUS_SESSION_BUS_ADDRESS: "unix:path=/test/session-bus",
+        },
+      },
+      ({ driver, runs, stateDir }) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* driver.call("click", { pid: 42 }, threadId);
+          const transports = yield* fs.readFileString(`${stateDir}/transports`);
+          const transport = yield* decodeTransport(transports.trim());
+          expect(transport).toEqual({
+            args: ["mcp", "--direct"],
+            display: ":1",
+            wayland: "",
+            bus: "unix:path=/tmp/agent/private-bus",
+          });
+          expect((yield* driver.status).status).toBe("running");
+          yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
+          expect((yield* driver.status).status).toBe("stopped");
+          expect(yield* fs.exists(`${stateDir}/running`)).toBe(true);
+          expect(runs.some((input) => input.args[0] === "status" || input.args[0] === "stop")).toBe(
+            false,
+          );
+        }),
+    ),
+);
+
+it.effect("connects from a Wayland-only Linux session", () =>
+  withDriver(
+    {
+      installed: true,
+      platform: "linux",
+      environment: {
+        DISPLAY: undefined,
+        WAYLAND_DISPLAY: "wayland-0",
+        CUA_DRIVER_RS_ENABLE_WAYLAND: "1",
+      },
+    },
+    ({ driver }) =>
+      Effect.gen(function* () {
+        expect((yield* driver.control({ action: "start" })).status).toBe("running");
+        expect((yield* driver.call("click", { pid: 42 }, threadId)).structuredContent).toEqual({
+          pid: 42,
+        });
+      }),
+  ),
+);
+
+it.effect("creates a private desktop when no host graphical session exists", () =>
+  withDriver(
+    {
+      installed: true,
+      platform: "linux",
+      environment: { DISPLAY: undefined, WAYLAND_DISPLAY: undefined },
+    },
+    ({ driver, stateDir }) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const result = yield* driver.call("click", { pid: 1 }, threadId);
+        expect(result.structuredContent).toEqual({ pid: 1 });
+        expect(yield* fs.exists(`${stateDir}/transports`)).toBe(true);
+      }),
+  ),
+);
+
+it.effect("reports guest health failures and rejects unreadable or empty reports", () =>
+  withDriver({ installed: true, platform: "linux" }, ({ driver, stateDir }) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      yield* fs.writeFileString(
+        `${stateDir}/doctor`,
+        yield* encodeJson({
+          checks: [{ name: "AT-SPI", status: "fail", message: "Accessibility bus not reachable" }],
+        }),
+      );
+      yield* driver.call("click", { pid: 1 }, threadId);
+      expect(yield* driver.status).toMatchObject({
+        readiness: {
+          platform: "linux",
+          diagnostics: [
+            { label: "AT-SPI", status: "err", message: "Accessibility bus not reachable" },
+          ],
+        },
+      });
+      for (const report of [
+        "not json",
+        '{"checks":[]}',
+        '{"checks":[{"name":"AT-SPI","status":"unknown","message":"No report"}]}',
+      ]) {
+        yield* fs.writeFileString(`${stateDir}/doctor`, report);
+        expect(yield* driver.status).toMatchObject({
+          readiness: { platform: "linux", diagnostics: null },
+        });
+      }
+    }),
+  ),
+);
+
+it.effect("keeps Linux captures private to each thread and permits guest-only menus", () =>
+  withDriver({ installed: true, platform: "linux" }, ({ driver }) =>
+    Effect.gen(function* () {
+      const catalog = yield* driver.catalog;
+      expect(catalog.policy).toBe("isolated-desktop");
+      expect(catalog.tools.map((tool) => tool.name)).toContain("invoke_menu");
+      expect(catalog.tools.map((tool) => tool.name)).not.toContain("check_permissions");
+      const capture = yield* driver.call("get_window_state", {}, threadId);
+      const captureId = decodeCapture(capture.structuredContent).capture_id;
+      expect(
+        (yield* driver.call("parse_visual_regions", { capture_id: captureId }, threadId)).isError,
+      ).toBe(false);
+      expect(
+        (yield* driver.call(
+          "parse_visual_regions",
+          { capture_id: captureId },
+          ThreadId.make("linux-peer"),
+        )).isError,
+      ).toBe(true);
+      yield* TestClock.adjust(CuaDriver.IDLE_TIMEOUT);
+      expect(
+        (yield* driver.call("parse_visual_regions", { capture_id: captureId }, threadId)).isError,
+      ).toBe(true);
+    }),
+  ),
+);
+
+it.effect("closes Linux connections when computer use is disabled", () =>
+  withDriver({ installed: true, platform: "linux" }, ({ driver, settingsChanges, runs }) =>
+    Effect.gen(function* () {
+      yield* driver.control({ action: "start" });
+      yield* Queue.offer(settingsChanges, {
+        ...DEFAULT_SERVER_SETTINGS,
+        enableAgentComputerUse: false,
+      });
+      yield* Effect.yieldNow;
+      expect((yield* driver.status).status).toBe("stopped");
+      expect(runs.some((input) => input.args[0] === "stop")).toBe(false);
+    }),
+  ),
+);
+
+it.effect("is unsupported off macOS and Linux", () =>
   Effect.gen(function* () {
     const driver = yield* CuaDriver.make();
-    expect(yield* driver.status).toEqual({ status: "unsupported", platform: "linux" });
+    expect(yield* driver.status).toEqual({ status: "unsupported", platform: "win32" });
   }).pipe(
-    Effect.provideService(HostProcessPlatform, "linux"),
+    Effect.provideService(HostProcessPlatform, "win32"),
     Effect.scoped,
     Effect.provide(
       Layer.mergeAll(
-        Layer.mock(ServerSettings.ServerSettingsService)({ streamChanges: Stream.empty }),
+        Layer.mock(ServerSettings.ServerSettingsService)({
+          streamChanges: Stream.empty,
+          subscribeChanges: Effect.succeed(Stream.empty),
+        }),
         ProcessRunner.layer,
       ).pipe(Layer.provideMerge(NodeServices.layer)),
     ),

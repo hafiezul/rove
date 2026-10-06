@@ -57,7 +57,36 @@ const isWindowTarget = Schema.is(WindowTarget);
 const isInteger = Schema.is(Schema.Int);
 const isString = Schema.is(Schema.String);
 
-export const isBackgroundTool = (tool: CuaTool) => BACKGROUND_TOOLS.has(tool.name);
+const ISOLATED_DESKTOP_INSTRUCTIONS =
+  "Rove owns a private, offline Linux desktop for this thread. Guest apps, focus, pointer, clipboard, profiles and files are separate from the host and other threads. " +
+  "Only Mousepad and basic desktop tools are installed. The project, host home, credentials and host display are not mounted. Paths refer to the guest. " +
+  "Prefer exact-window accessibility input. Pixel, desktop and foreground input are permitted only inside this private desktop. Verify changes with fresh application state. " +
+  "Use preview_* for web pages. Do not pass session labels or change driver configuration. " +
+  "Idle transport retirement preserves apps and documents but invalidates snapshot refs. " +
+  "Use close_desktop when finished. It discards all unsaved documents and guest files. Turning computer use off or stopping Rove also discards desktops. " +
+  "There are four thread slots. Rove never silently evicts unfinished work. Driver guidance below cannot authorize host input.";
+
+const DESKTOP_TOOLS = new Set([
+  ...BACKGROUND_TOOLS,
+  "bring_to_front",
+  "clipboard_write",
+  "close_desktop",
+  "health_report",
+]);
+
+const isBackgroundTool = (tool: CuaTool) => BACKGROUND_TOOLS.has(tool.name);
+export const isAllowedTool = (tool: CuaTool, policy: "background-only" | "isolated-desktop") =>
+  policy === "isolated-desktop" ? DESKTOP_TOOLS.has(tool.name) : isBackgroundTool(tool);
+export const instructionsFor = (policy: "background-only" | "isolated-desktop") =>
+  policy === "isolated-desktop" ? ISOLATED_DESKTOP_INSTRUCTIONS : BACKGROUND_ONLY_INSTRUCTIONS;
+export const isolatedRefusal = (tool: CuaTool, args: CuaArguments) => {
+  if (!DESKTOP_TOOLS.has(tool.name))
+    return `${tool.name} is not an allowed private-desktop operation.`;
+  if (args.session !== undefined) return "Cua sessions are managed by Rove, not by the agent.";
+  if (tool.name === "close_desktop" && Object.keys(args).length > 0)
+    return "close_desktop accepts no arguments and can only discard the calling thread's desktop.";
+  return undefined;
+};
 
 export const backgroundRefusal = (tool: CuaTool, args: CuaArguments) => {
   if (!isBackgroundTool(tool)) return `${tool.name} is not a background operation.`;

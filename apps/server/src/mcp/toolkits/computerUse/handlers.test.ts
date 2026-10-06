@@ -34,12 +34,17 @@ const client = McpSchema.McpServerClient.of({
 });
 
 const catalog: CuaDriver.CuaCatalog = {
+  policy: "background-only",
   instructions: "Snapshot a window before acting on it.",
   tools: [
     {
       name: "click",
       description: "Click against a target pid. Prefer element tokens.\nMore detail.",
-      inputSchema: { type: "object", properties: { pid: { type: "number" }, session: {} } },
+      inputSchema: {
+        type: "object",
+        properties: { pid: { type: "number" }, session: {} },
+        required: ["pid", "session"],
+      },
       readOnly: false,
     },
     {
@@ -82,6 +87,7 @@ const structuredResults = {
 
 const makeLayer = (options: {
   readonly enabled: boolean;
+  readonly policy?: CuaDriver.CuaCatalog["policy"];
   readonly extraTools?: ReadonlyArray<CuaDriver.CuaTool>;
   readonly threads?: Array<ThreadId>;
   readonly calls: Array<{ name: string; args: CuaDriver.CuaArguments }>;
@@ -98,7 +104,11 @@ const makeLayer = (options: {
       control: () => Effect.die("unused"),
       catalog: options.unavailable
         ? Effect.fail(unavailable)
-        : Effect.succeed({ ...catalog, tools: [...catalog.tools, ...(options.extraTools ?? [])] }),
+        : Effect.succeed({
+            ...catalog,
+            policy: options.policy ?? catalog.policy,
+            tools: [...catalog.tools, ...(options.extraTools ?? [])],
+          }),
       call: (name, args, thread) =>
         Effect.sync(() => {
           options.threads?.push(thread);
@@ -129,6 +139,45 @@ const callTool = (name: string, args: CuaDriver.CuaArguments, scope = invocation
         Effect.provideService(McpSchema.McpServerClient, client),
       );
   });
+
+it.effect("permits guest input only under the server-provided desktop policy", () => {
+  const calls: Array<{ name: string; args: CuaDriver.CuaArguments }> = [];
+  const extraTools = [
+    "bring_to_front",
+    "clipboard_write",
+    "close_desktop",
+    "set_config",
+    "start_session",
+  ].map((name) => ({
+    name,
+    description: name,
+    inputSchema: { type: "object" as const },
+    readOnly: false,
+  }));
+  return Effect.gen(function* () {
+    const listing = yield* callTool("computer_describe", {});
+    expect(text(listing)).toContain("private, offline Linux desktop");
+    expect(text(listing)).toContain("close_desktop");
+    for (const input of [
+      { tool: "click", arguments: { scope: "desktop", delivery_mode: "foreground", x: 10, y: 20 } },
+      { tool: "bring_to_front", arguments: { pid: 42 } },
+      { tool: "clipboard_write", arguments: { text: "guest only" } },
+      { tool: "close_desktop" },
+    ])
+      expect((yield* callTool("computer_call", input)).isError).not.toBe(true);
+    expect(calls).toHaveLength(4);
+    for (const input of [
+      { tool: "set_config" },
+      { tool: "start_session" },
+      { tool: "click", arguments: { session: "peer" } },
+      { tool: "close_desktop", arguments: { threadId: "peer" } },
+    ])
+      expect((yield* callTool("computer_call", input)).isError).toBe(true);
+    expect(calls).toHaveLength(4);
+  }).pipe(
+    Effect.provide(makeLayer({ enabled: true, policy: "isolated-desktop", calls, extraTools })),
+  );
+});
 
 const decodeJsonText = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
@@ -163,7 +212,7 @@ it.effect("lists operations by summary and describes one operation in full", () 
     expect(decodeJsonText(text(click))).toEqual({
       name: "click",
       description: `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${catalog.tools[0]?.description}`,
-      inputSchema: { type: "object", properties: { pid: { type: "number" } } },
+      inputSchema: { type: "object", properties: { pid: { type: "number" } }, required: ["pid"] },
     });
 
     const unknown = yield* callTool("computer_describe", { tool: "teleport" });

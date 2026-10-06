@@ -131,7 +131,14 @@ describe("searchSettings", () => {
   it("hides desktop-only settings from browser search", () => {
     expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "quit-confirmation")).toBe(true);
     expect(searchSettings("hold to quit")).toEqual([]);
-    expect(searchSettings("wsl")).toEqual([]);
+    expect(searchSettings("wsl").some((item) => item.id === "wsl-backend")).toBe(false);
+  });
+
+  it("finds headless computer use from a browser without exposing the local WSL backend", () => {
+    expect(searchSettings("headless").map((item) => item.id)).toEqual([
+      "agent-computer-use",
+      "cua-driver",
+    ]);
   });
 
   it("hides macOS-only settings on other platforms", () => {

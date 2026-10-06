@@ -6,9 +6,10 @@ import * as Schema from "effect/Schema";
 import { McpSchema, McpServer, Tool } from "effect/unstable/ai";
 
 import {
-  BACKGROUND_ONLY_INSTRUCTIONS,
   backgroundRefusal,
-  isBackgroundTool,
+  instructionsFor,
+  isolatedRefusal,
+  isAllowedTool,
 } from "../../../computerUse/BackgroundPolicy.ts";
 import * as CuaDriver from "../../../computerUse/CuaDriver.ts";
 import * as ServerSettings from "../../../serverSettings.ts";
@@ -18,7 +19,7 @@ const ComputerDescribeInput = Schema.Struct({
   tool: Schema.optional(
     Schema.String.annotate({
       description:
-        "Operation name. Omit to list supported background operations and workflow guidance.",
+        "Operation name. Omit to list supported operations and target-specific workflow guidance.",
     }),
   ),
 });
@@ -38,7 +39,7 @@ const ComputerCallInput = Schema.Struct({
  */
 const ComputerDescribeTool = Tool.make("computer_describe", {
   description:
-    "Control native Mac apps through background-only Cua Driver operations. List apps and windows, inspect accessibility snapshots, and act on a target window without desktop input or foreground escalation. Call with no arguments for supported operations, or with `tool` for its schema. For web pages in Rove's browser panel, use preview_* instead.",
+    "Control apps through Cua Driver. macOS uses background-only host-window operations. Linux uses a private, offline desktop per thread with guest-only apps, focus, clipboard and temporary files. It cannot access host apps, profiles or project files. Call with no arguments for target-specific workflow guidance and operations, or with `tool` for its schema. Follow that guidance before acting. For web pages in Rove's browser panel, use preview_* instead.",
   parameters: Schema.toCodecJson(ComputerDescribeInput),
 })
   .annotate(Tool.Title, "Describe computer use")
@@ -49,7 +50,7 @@ const ComputerDescribeTool = Tool.make("computer_describe", {
 
 const ComputerCallTool = Tool.make("computer_call", {
   description:
-    "Run one background-only Cua Driver operation. Read its schema with computer_describe first. Rove owns one persistent connection per thread. Do not pass session labels. Refused actions execute nothing and do not end the thread. Try a safe alternative or continue other work and report the GUI step as blocked.",
+    "Run one Cua Driver operation on the server-owned target for this thread. Read target-specific guidance and the operation schema with computer_describe first. Host macOS input stays background-only. Linux input is confined to the private desktop. Do not pass session labels or change driver configuration. close_desktop discards the calling thread's Linux desktop. Refused actions execute nothing.",
   parameters: Schema.toCodecJson(ComputerCallInput),
 })
   .annotate(Tool.Title, "Use computer")
@@ -98,23 +99,32 @@ const summary = (description: string) => {
 };
 
 const backgroundInputSchema = (schema: CuaDriver.CuaTool["inputSchema"]) => {
-  if (!schema.properties) return schema;
-  return {
-    ...schema,
-    properties: Object.fromEntries(
+  const normalized = { ...schema };
+  if (schema.properties) {
+    normalized.properties = Object.fromEntries(
       Object.entries(schema.properties).filter(([name]) => name !== "session"),
-    ),
-  };
+    );
+  }
+  if (schema.required) normalized.required = schema.required.filter((name) => name !== "session");
+  return normalized;
 };
 
-const backgroundOnlyResult = (reason: string) =>
+const policyRefusalResult = (reason: string, policy: CuaDriver.CuaCatalog["policy"]) =>
   new McpSchema.CallToolResult({
     isError: true,
-    structuredContent: { code: "background_only", effect: "refused", executed: false, reason },
+    structuredContent: {
+      code: policy === "background-only" ? "background_only" : "isolated_desktop_policy",
+      effect: "refused",
+      executed: false,
+      reason,
+    },
     content: [
       {
         type: "text",
-        text: `${reason} No action was executed. Retry with a background window action or use an app API. For web pages, use preview_*. If no safe route exists, continue other work and report the GUI step as blocked. Do not retry through foreground input or shell automation.`,
+        text:
+          policy === "background-only"
+            ? `${reason} No action was executed. Retry with a background window action or use an app API. For web pages, use preview_*. If no safe route exists, continue other work and report the GUI step as blocked. Do not retry through foreground input or shell automation.`
+            : `${reason} No action was executed. Use an allowed private-desktop operation. Rove owns sessions and target selection. Do not retry against the host desktop.`,
       },
     ],
   });
@@ -178,13 +188,14 @@ const registerComputerUseTools = Effect.gen(function* () {
           whenEnabled(
             driver.catalog.pipe(
               Effect.map((catalog) => {
+                const instructions = instructionsFor(catalog.policy);
                 if (input.tool === undefined) {
                   const operations = catalog.tools
-                    .filter(isBackgroundTool)
+                    .filter((tool) => isAllowedTool(tool, catalog.policy))
                     .map((tool) => `- ${tool.name}: ${summary(tool.description)}`)
                     .join("\n");
                   return textResult(
-                    `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${catalog.instructions ?? ""}\n\nOperations (run with computer_call):\n${operations}`.trim(),
+                    `${instructions}\n\n${catalog.instructions ?? ""}\n\nOperations (run with computer_call):\n${operations}`.trim(),
                   );
                 }
                 const tool = catalog.tools.find((candidate) => candidate.name === input.tool);
@@ -193,12 +204,15 @@ const registerComputerUseTools = Effect.gen(function* () {
                     `Cua Driver has no operation named ${input.tool}. Call computer_describe without arguments to list them.`,
                     true,
                   );
-                if (!isBackgroundTool(tool))
-                  return backgroundOnlyResult(`${tool.name} is not a background operation.`);
+                if (!isAllowedTool(tool, catalog.policy))
+                  return policyRefusalResult(
+                    `${tool.name} is not an allowed ${catalog.policy} operation.`,
+                    catalog.policy,
+                  );
                 return textResult(
                   encodeJsonText({
                     name: tool.name,
-                    description: `${BACKGROUND_ONLY_INSTRUCTIONS}\n\n${tool.description}`,
+                    description: `${instructions}\n\n${tool.description}`,
                     inputSchema: backgroundInputSchema(tool.inputSchema),
                   }),
                 );
@@ -235,8 +249,11 @@ const registerComputerUseTools = Effect.gen(function* () {
                     );
                   }
                   const args = input.arguments ?? {};
-                  const refusal = backgroundRefusal(tool, args);
-                  if (refusal) return Effect.succeed(backgroundOnlyResult(refusal));
+                  const refusal =
+                    catalog.policy === "isolated-desktop"
+                      ? isolatedRefusal(tool, args)
+                      : backgroundRefusal(tool, args);
+                  if (refusal) return Effect.succeed(policyRefusalResult(refusal, catalog.policy));
                   return driver
                     .call(tool.name, args, invocation.threadId)
                     .pipe(Effect.map(withStructuredText));
