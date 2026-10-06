@@ -164,6 +164,100 @@ it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("rove-projection-bo
         );
       }),
     );
+    it.effect("bootstrap keeps messages of retained turns across a legacy revert", () =>
+      Effect.gen(function* () {
+        const projectionPipeline = yield* OrchestrationProjectionPipeline;
+        const eventStore = yield* OrchestrationEventStore;
+        const sql = yield* SqlClient.SqlClient;
+        const threadId = ThreadId.make("thread-bootstrap-revert");
+        const thread = {
+          aggregateKind: "thread" as const,
+          aggregateId: threadId,
+          commandId: null,
+          causationEventId: null,
+          correlationId: null,
+          metadata: {},
+        };
+        const turnDiff = (turn: number, assistantMessageId: string, at: string) =>
+          eventStore.append({
+            ...thread,
+            type: "thread.turn-diff-completed",
+            eventId: EventId.make(`evt-bootstrap-revert-diff-${turn}`),
+            occurredAt: at,
+            payload: {
+              threadId,
+              turnId: TurnId.make(`turn-${turn}`),
+              checkpointTurnCount: turn,
+              checkpointRef: CheckpointRef.make(`refs/rove/checkpoints/${threadId}/turn/${turn}`),
+              status: "ready",
+              files: [],
+              assistantMessageId: MessageId.make(assistantMessageId),
+              completedAt: at,
+            },
+          });
+        const message = (turn: number, messageId: string, role: "user" | "assistant", at: string) =>
+          eventStore.append({
+            ...thread,
+            type: "thread.message-sent",
+            eventId: EventId.make(`evt-bootstrap-revert-${messageId}`),
+            occurredAt: at,
+            payload: {
+              threadId,
+              messageId: MessageId.make(messageId),
+              role,
+              text: messageId,
+              turnId: TurnId.make(`turn-${turn}`),
+              streaming: false,
+              createdAt: at,
+              updatedAt: at,
+            },
+          });
+
+        yield* eventStore.append({
+          ...thread,
+          type: "thread.created",
+          eventId: EventId.make("evt-bootstrap-revert-created"),
+          occurredAt: "2026-02-26T12:00:01.000Z",
+          payload: {
+            threadId,
+            projectId: ProjectId.make("project-bootstrap-revert"),
+            title: "Bootstrap revert",
+            modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5-codex" },
+            runtimeMode: "full-access",
+            branch: null,
+            worktreePath: null,
+            createdAt: "2026-02-26T12:00:01.000Z",
+            updatedAt: "2026-02-26T12:00:01.000Z",
+          },
+        });
+        yield* message(1, "user-keep", "user", "2026-02-26T12:00:01.500Z");
+        yield* turnDiff(1, "assistant-keep", "2026-02-26T12:00:02.000Z");
+        yield* message(1, "assistant-keep", "assistant", "2026-02-26T12:00:02.100Z");
+        yield* message(2, "user-remove", "user", "2026-02-26T12:00:02.500Z");
+        yield* turnDiff(2, "assistant-remove", "2026-02-26T12:00:03.000Z");
+        yield* message(2, "assistant-remove", "assistant", "2026-02-26T12:00:03.100Z");
+        yield* eventStore.append({
+          ...thread,
+          type: "thread.reverted",
+          eventId: EventId.make("evt-bootstrap-revert-reverted"),
+          occurredAt: "2026-02-26T12:00:04.000Z",
+          payload: { threadId, turnCount: 1 },
+        });
+
+        yield* projectionPipeline.bootstrap;
+
+        const messageRows = yield* sql<{ readonly messageId: string }>`
+          SELECT message_id AS "messageId"
+          FROM projection_thread_messages
+          WHERE thread_id = ${threadId}
+          ORDER BY created_at
+        `;
+        assert.deepEqual(
+          messageRows.map((row) => row.messageId),
+          ["user-keep", "assistant-keep"],
+        );
+      }),
+    );
   },
 );
 
