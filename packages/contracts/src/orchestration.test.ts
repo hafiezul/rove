@@ -1564,7 +1564,7 @@ it.effect("project monograms validate text and palette colors", () =>
       { kind: "monogram", text: "\u0301", color: "blue" },
       { kind: "monogram", text: "A B", color: "blue" },
       { kind: "monogram", text: "🚀", color: "blue" },
-      { kind: "monogram", text: "Rove", color: "ultraviolet" },
+      { kind: "monogram", text: "RC", color: "ultraviolet" },
     ]) {
       const result = yield* Effect.exit(
         decodeOrchestrationCommand({

@@ -31,12 +31,12 @@ describe("resolvePreviousWorktreeSeed", () => {
       resolvePreviousWorktreeSeed({
         threads: [
           {
-            branch: "@rove-code/server/older",
+            branch: "rove/older",
             worktreePath: "/repo/.rove/worktrees/older",
             updatedAt: "2026-07-20T00:00:00.000Z",
           },
           {
-            branch: "@rove-code/server/newer",
+            branch: "rove/newer",
             worktreePath: "/repo/.rove/worktrees/newer",
             updatedAt: "2026-07-22T00:00:00.000Z",
           },
@@ -44,7 +44,7 @@ describe("resolvePreviousWorktreeSeed", () => {
         ],
         currentWorktreePath: null,
       }),
-    ).toEqual({ branch: "@rove-code/server/newer", worktreePath: "/repo/.rove/worktrees/newer" });
+    ).toEqual({ branch: "rove/newer", worktreePath: "/repo/.rove/worktrees/newer" });
   });
 
   it("skips the worktree the composer already points at", () => {
@@ -52,7 +52,7 @@ describe("resolvePreviousWorktreeSeed", () => {
       resolvePreviousWorktreeSeed({
         threads: [
           {
-            branch: "@rove-code/server/current",
+            branch: "rove/current",
             worktreePath: "/repo/.rove/worktrees/current",
             updatedAt: "2026-07-22T00:00:00.000Z",
           },
@@ -76,18 +76,18 @@ describe("resolvePreviousWorktreeSeed", () => {
       resolvePreviousWorktreeSeed({
         threads: [
           {
-            branch: "@rove-code/server/archived",
+            branch: "rove/archived",
             worktreePath: "/repo/.rove/worktrees/archived",
             updatedAt: "2026-07-23T00:00:00.000Z",
             archivedAt: "2026-07-23T01:00:00.000Z",
           },
           {
-            branch: "@rove-code/server/garbage-timestamp",
+            branch: "rove/garbage-timestamp",
             worktreePath: "/repo/.rove/worktrees/garbage",
             updatedAt: "not-a-date",
           },
           {
-            branch: "@rove-code/server/live",
+            branch: "rove/live",
             worktreePath: "/repo/.rove/worktrees/live",
             updatedAt: "2026-07-21T00:00:00.000Z",
             archivedAt: null,
@@ -95,15 +95,15 @@ describe("resolvePreviousWorktreeSeed", () => {
         ],
         currentWorktreePath: null,
       }),
-    ).toEqual({ branch: "@rove-code/server/live", worktreePath: "/repo/.rove/worktrees/live" });
+    ).toEqual({ branch: "rove/live", worktreePath: "/repo/.rove/worktrees/live" });
   });
 });
 
 describe("resolvePreviousWorktreeLabel", () => {
   it("includes the branch when known", () => {
-    expect(
-      resolvePreviousWorktreeLabel({ branch: "@rove-code/server/fix-thing", worktreePath: "/wt" }),
-    ).toBe("Previous worktree (rove/fix-thing)");
+    expect(resolvePreviousWorktreeLabel({ branch: "rove/fix-thing", worktreePath: "/wt" })).toBe(
+      "Previous worktree (rove/fix-thing)",
+    );
     expect(resolvePreviousWorktreeLabel({ branch: null, worktreePath: "/wt" })).toBe(
       "Previous worktree",
     );

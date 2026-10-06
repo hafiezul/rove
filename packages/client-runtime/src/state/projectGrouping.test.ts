@@ -75,14 +75,14 @@ describe("load balancing shared project machines", () => {
   });
 });
 const repositoryIdentity = {
-  canonicalKey: "github.com/t3tools/rove",
+  canonicalKey: "github.com/rovetools/rove",
   locator: {
     source: "git-remote" as const,
     remoteName: "upstream",
-    remoteUrl: "https://github.com/t3tools/rove.git",
+    remoteUrl: "https://github.com/rovetools/rove.git",
   },
   provider: "github",
-  owner: "t3tools",
+  owner: "rovetools",
   name: "rove",
   displayName: "Rove Code",
 };
@@ -230,7 +230,7 @@ describe("buildProjectGroups", () => {
   it("uses the freshest winner's repository identity when stale duplicates disagree", () => {
     const staleIdentity = {
       ...repositoryIdentity,
-      canonicalKey: "github.com/t3tools/old-repository",
+      canonicalKey: "github.com/rovetools/old-repository",
       name: "old-repository",
       displayName: "Old Repository",
     };
@@ -254,7 +254,7 @@ describe("buildProjectGroups", () => {
   it("uses the freshest identity-bearing duplicate when the winner lacks identity", () => {
     const staleIdentity = {
       ...repositoryIdentity,
-      canonicalKey: "github.com/t3tools/old-repository",
+      canonicalKey: "github.com/rovetools/old-repository",
       name: "old-repository",
       displayName: "Old Repository",
     };

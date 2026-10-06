@@ -11,7 +11,7 @@ describe("parseChangeRequestUrl", () => {
   it("reads a GitHub pull request, lower-casing the repository", () => {
     expect(parseChangeRequestUrl("https://github.com/RoveTools/Rove/pull/123")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
   });
@@ -48,8 +48,8 @@ describe("parseChangeRequestUrl", () => {
 
   it("reads a GitLab merge request on any host, nested groups and all", () => {
     expect(
-      parseChangeRequestUrl("https://gitlab.com/t3tools/platform/rove/-/merge_requests/42"),
-    ).toEqual({ host: "gitlab.com", repository: "t3tools/platform/rove", number: 42 });
+      parseChangeRequestUrl("https://gitlab.com/rovetools/platform/rove/-/merge_requests/42"),
+    ).toEqual({ host: "gitlab.com", repository: "rovetools/platform/rove", number: 42 });
     expect(parseChangeRequestUrl("https://code.acme.test/team/project/-/merge_requests/9")).toEqual(
       { host: "code.acme.test", repository: "team/project", number: 9 },
     );
@@ -70,27 +70,27 @@ describe("parseChangeRequestUrl", () => {
   });
 
   it("survives trailing segments, a trailing slash and a query string", () => {
-    expect(parseChangeRequestUrl("https://github.com/t3tools/rove/pull/123/files?w=1")).toEqual({
+    expect(parseChangeRequestUrl("https://github.com/rovetools/rove/pull/123/files?w=1")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
-    expect(parseChangeRequestUrl("https://github.com/t3tools/rove/pull/123/")).toEqual({
+    expect(parseChangeRequestUrl("https://github.com/rovetools/rove/pull/123/")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
   });
 
   it("claims nothing it cannot be sure of", () => {
     for (const link of [
-      "https://github.com/t3tools/rove/issues/123",
-      "https://github.com/t3tools/rove/commit/0a1b2c3",
-      "https://github.com/t3tools/rove",
-      "https://github.com/t3tools/rove/pull/abc",
-      "https://gitlab.com/t3tools/rove/-/issues/12",
+      "https://github.com/rovetools/rove/issues/123",
+      "https://github.com/rovetools/rove/commit/0a1b2c3",
+      "https://github.com/rovetools/rove",
+      "https://github.com/rovetools/rove/pull/abc",
+      "https://gitlab.com/rovetools/rove/-/issues/12",
       "https://blog.example.test/2026/updates/pull/3",
-      "javascript:alert(1)//github.com/t3tools/rove/pull/1",
+      "javascript:alert(1)//github.com/rovetools/rove/pull/1",
       "not a url",
     ]) {
       expect(parseChangeRequestUrl(link), link).toBeNull();
