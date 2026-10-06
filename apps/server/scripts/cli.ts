@@ -212,7 +212,7 @@ const publishCmd = Command.make(
       if (config.provenance) args.push("--provenance");
       if (config.dryRun) args.push("--dry-run");
 
-      for (const tarball of [...platformTarballs, launcherTarball]) {
+      const publishTarball = Effect.fn("publishTarball")(function* (tarball: string) {
         const spawnCommand = yield* resolveSpawnCommand("npm", [...args, tarball]);
         yield* Effect.log(`[cli] npm ${args.join(" ")} ${path.basename(tarball)}`);
         yield* runCommand(
@@ -223,7 +223,13 @@ const publishCmd = Command.make(
             shell: spawnCommand.shell,
           }),
         );
-      }
+      });
+
+      yield* Effect.forEach(platformTarballs, publishTarball, {
+        concurrency: "unbounded",
+        discard: true,
+      });
+      yield* publishTarball(launcherTarball);
     }),
 ).pipe(
   Command.withDescription(

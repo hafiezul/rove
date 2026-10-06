@@ -1,0 +1,34 @@
+name: Wait for artifact
+description: Block until another job in this run uploads an artifact, and fail if that job finishes without it.
+inputs:
+  name:
+    description: Artifact name.
+    required: true
+  job:
+    description: Producing job's name. For a job inside a reusable workflow, the part after "/ ".
+    required: true
+runs:
+  using: composite
+  steps:
+    # Job status is read before the artifact list so an upload that lands just
+    # before the producer completes is never reported as missing.
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ARTIFACT: ${{ inputs.name }}
+        PRODUCER: ${{ inputs.job }}
+      run: |
+        set -euo pipefail
+        api="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        while true; do
+          producer_status="$(gh api "$api/jobs?per_page=100" --paginate \
+            -q ".jobs[] | select(.name == env.PRODUCER or (.name | endswith(\"/ \" + env.PRODUCER))) | .status")"
+          if [[ "$(gh api "$api/artifacts?name=$ARTIFACT" -q .total_count)" -gt 0 ]]; then
+            exit 0
+          fi
+          if [[ "$producer_status" == "completed" ]]; then
+            echo "::error::$PRODUCER finished without uploading $ARTIFACT."
+            exit 1
+          fi
+          sleep 10
+        done

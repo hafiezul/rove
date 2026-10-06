@@ -106,6 +106,20 @@ jobs:
       ROVE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ inputs.clerk_cli_oauth_client_id }}
       ROVE_RELAY_URL: ${{ inputs.relay_url }}
     steps:
+      # The windows-11-arm image runs jobs on its OS disk, where Defender scans
+      # every write. A trusted Dev Drive mounted over the empty workspace keeps
+      # checkout, the pnpm store, node_modules, and builds off that filter.
+      # TEMP gets its own drive rather than a workspace folder: the desktop
+      # build stages the packaged app there, and staging inside the repo would
+      # resolve the repo's node_modules.
+      - name: Mount Dev Drive over the workspace
+        if: inputs.platform == 'win' && inputs.arch == 'arm64'
+        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
+        with:
+          drive-size: 40GB
+          mount-path: ${{ github.workspace }}
+          trusted-dev-drive: true
+
       # This repository is public, so Git needs no credentials. checkout's
       # credential cleanup runs submodule foreach even with submodules disabled,
       # which fails on the orphaned gitlinks in our vendored .repos tree.
@@ -156,6 +170,26 @@ jobs:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
         run: vp install --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
 
+      # Desktop staging, CLI archive staging, and the smoke test's runtime copy
+      # each write tens of thousands of files under TEMP, which sits on the
+      # Defender-scanned C: drive on both Windows images. Mounted after install so
+      # pnpm keeps its own temp files on the store's volume.
+      - name: Mount Dev Drive for TEMP
+        if: inputs.platform == 'win'
+        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
+        with:
+          drive-size: 20GB
+          drive-path: C:\rove_temp_drive.vhdx
+          trusted-dev-drive: true
+          env-mapping: |
+            TEMP,{{ DEV_DRIVE }}\tmp
+            TMP,{{ DEV_DRIVE }}\tmp
+
+      - name: Create TEMP directory
+        if: inputs.platform == 'win'
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force $env:TEMP | Out-Null
+
       - name: Cache resource monitor
         id: resource_monitor_cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -199,6 +233,16 @@ jobs:
       - name: Align package versions to release version
         run: node scripts/update-release-package-versions.ts "${{ inputs.version }}"
 
+      # Windows builds are the release's longest jobs, so release.yml starts
+      # them without `needs` on the bundle or the Linux CLI archive. Their setup
+      # overlaps those jobs, and each artifact is awaited just before its use.
+      - name: Wait for JS bundle
+        if: inputs.platform == 'win'
+        uses: ./.github/actions/wait-for-artifact
+        with:
+          name: js-bundle
+          job: Build JS bundle
+
       # The artifact root is `apps/` (upload-artifact keeps the least common
       # ancestor of its paths), so extracting into `apps` restores
       # apps/server/dist and apps/desktop/dist-electron at their build paths.
@@ -207,15 +251,6 @@ jobs:
         with:
           name: js-bundle
           path: apps
-
-      # The WSL backend runs the Linux CLI archive inside the distro, so the
-      # Windows desktop embeds the same-arch archive the release attaches.
-      - name: Download Linux CLI archive for WSL
-        if: inputs.platform == 'win'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cli-linux-${{ inputs.arch }}
-          path: wsl-runtime
 
       - name: Ensure Spectre-mitigated MSVC libs
         if: inputs.platform == 'win'
@@ -322,6 +357,22 @@ jobs:
             Where-Object { $_ -and (Test-Path $_) } |
             Select-Object -Unique
           "PSModulePath=$($modulePathEntries -join ';')" >> $env:GITHUB_ENV
+
+      # The WSL backend runs the Linux CLI archive inside the distro, so the
+      # Windows desktop embeds the same-arch archive the release attaches.
+      - name: Wait for Linux CLI archive for WSL
+        if: inputs.platform == 'win'
+        uses: ./.github/actions/wait-for-artifact
+        with:
+          name: cli-linux-${{ inputs.arch }}
+          job: Build Linux ${{ inputs.arch }}
+
+      - name: Download Linux CLI archive for WSL
+        if: inputs.platform == 'win'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cli-linux-${{ inputs.arch }}
+          path: wsl-runtime
 
       - name: Build desktop artifact
         shell: bash
