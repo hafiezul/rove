@@ -2114,46 +2114,40 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         ),
     );
 
-    // Bootstrap commits one transaction per event-store page per projector. Projectors read
-    // each other's tables, so each still replays alone and keeps its own cursor.
-    const runProjectorForPage = Effect.fn("runProjectorForPage")(function* (
-      projector: ProjectorDefinition,
+    // Replays one event-store page in one transaction. Each event reaches every projector
+    // whose cursor is behind it, in projectEventDeferred order, because projectors read each
+    // other's tables (a revert prunes messages by the turns projected so far).
+    const replayPage = Effect.fn("replayPage")(function* (
       events: Arr.NonEmptyReadonlyArray<OrchestrationEvent>,
+      cursors: Map<ProjectorName, number>,
     ) {
       const last = Arr.lastNonEmpty(events);
+      const cursorOf = (projector: ProjectorDefinition) => cursors.get(projector.name) ?? 0;
+      const behind = projectors.filter((projector) => cursorOf(projector) < last.sequence);
+      if (behind.length === 0) return;
       yield* sql.withTransaction(
         Effect.gen(function* () {
           for (const event of events) {
-            yield* projector.apply(event, {
+            const attachmentSideEffects: AttachmentSideEffects = {
               deletedThreadIds: new Set<string>(),
               prunedThreadRelativePaths: new Map<string, Set<string>>(),
-            });
+            };
+            for (const projector of behind) {
+              if (event.sequence <= cursorOf(projector)) continue;
+              yield* projector.apply(event, attachmentSideEffects);
+            }
           }
-          yield* projectionStateRepository.upsert({
-            projector: projector.name,
-            lastAppliedSequence: last.sequence,
-            updatedAt: last.occurredAt,
-          });
+          yield* projectionStateRepository.upsertMany(
+            behind.map((projector) => ({
+              projector: projector.name,
+              lastAppliedSequence: last.sequence,
+              updatedAt: last.occurredAt,
+            })),
+          );
         }),
       );
+      for (const projector of behind) cursors.set(projector.name, last.sequence);
     });
-
-    const bootstrapProjector = (projector: ProjectorDefinition) =>
-      projectionStateRepository
-        .getByProjector({
-          projector: projector.name,
-        })
-        .pipe(
-          Effect.flatMap((stateRow) =>
-            Stream.runForEachArray(
-              eventStore.readFromSequence(
-                Option.isSome(stateRow) ? stateRow.value.lastAppliedSequence : 0,
-                Number.MAX_SAFE_INTEGER,
-              ),
-              (events) => runProjectorForPage(projector, events),
-            ),
-          ),
-        );
 
     const projectEventDeferred: OrchestrationProjectionPipelineContract["projectEventDeferred"] =
       Effect.fn("projectEventDeferred")(
@@ -2223,21 +2217,32 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           lastAppliedSequence: cleanupStart,
           updatedAt: cleanupState?.updatedAt ?? "1970-01-01T00:00:00.000Z",
         });
-        yield* Effect.forEach(projectors, bootstrapProjector, { concurrency: 1, discard: true });
 
         // Cleanup has its own cursor so retries never have to replay committed text.
         // All message and activity references are current before any files are removed.
+        const cursors = new Map(
+          projectors.map((projector) => [
+            projector.name,
+            byProjector.get(projector.name)?.lastAppliedSequence ?? 0,
+          ]),
+        );
         const pendingCleanup = new Map<string, OrchestrationEvent>();
         let lastEvent: OrchestrationEvent | undefined;
-        yield* Stream.runForEach(
+        yield* Stream.runForEachArray(
           eventStore.readFromSequence(cleanupStart, Number.MAX_SAFE_INTEGER),
-          (event) =>
-            Effect.sync(() => {
-              lastEvent = event;
-              if (event.type === "thread.reverted" || event.type === "thread.deleted") {
-                pendingCleanup.set(`${event.type}:${event.payload.threadId}`, event);
-              }
-            }),
+          (events) =>
+            replayPage(events, cursors).pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  for (const event of events) {
+                    lastEvent = event;
+                    if (event.type === "thread.reverted" || event.type === "thread.deleted") {
+                      pendingCleanup.set(`${event.type}:${event.payload.threadId}`, event);
+                    }
+                  }
+                }),
+              ),
+            ),
         );
         for (const event of pendingCleanup.values()) {
           if (event.type !== "thread.reverted" && event.type !== "thread.deleted") continue;

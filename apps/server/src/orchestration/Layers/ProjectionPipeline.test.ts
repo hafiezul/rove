@@ -2635,10 +2635,12 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         WHEN NEW.projector = 'projection.threads'
         BEGIN SELECT RAISE(FAIL, 'forced later projector failure'); END`;
       yield* projectionPipeline.bootstrap.pipe(Effect.flip);
+      // A failed page rolls back every projector with its cursor, so the retry below
+      // applies the streamed delta exactly once.
       const committedMessage = yield* sql<{ readonly text: string }>`
         SELECT text FROM projection_thread_messages WHERE message_id = 'message-a'
       `;
-      assert.deepEqual(committedMessage, [{ text: "hello world" }]);
+      assert.deepEqual(committedMessage, [{ text: "hello" }]);
       yield* sql`DROP TRIGGER fail_later_stream_projector`;
       yield* projectionPipeline.bootstrap;
       yield* projectionPipeline.bootstrap;
