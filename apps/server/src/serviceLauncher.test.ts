@@ -102,7 +102,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-test-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-test-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const state = {
         protocol: SERVICE_LAUNCHER_PROTOCOL,
@@ -118,7 +118,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-restart-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-restart-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const restartPending = path.join(root, "runtime", SERVICE_RESTART_PENDING_FILE);
       yield* writeFakeRuntime(
@@ -162,7 +162,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-stop-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-stop-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       yield* writeFakeRuntime(
         fs,
@@ -193,7 +193,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-flow-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-flow-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
@@ -201,7 +201,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
       // @effect-diagnostics-next-line preferSchemaOverJson:off - embeds a path in fake child source.
       const encodedDatabasePath = JSON.stringify(databasePath);
       const childSource = `
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.ROVE_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   process.send({ type: "prepared", updateId: context.update.id });
   process.on("message", (message) => {
@@ -247,7 +247,7 @@ if (context.update?.status === "pending") {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-rollback-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-rollback-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
@@ -255,7 +255,7 @@ if (context.update?.status === "pending") {
       // @effect-diagnostics-next-line preferSchemaOverJson:off - embeds a path in fake child source.
       const encodedDatabasePath = JSON.stringify(databasePath);
       const childSource = `
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.ROVE_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   process.send({ type: "prepared", updateId: "wrong-update" });
 } else if (context.update === undefined) {
@@ -302,7 +302,7 @@ if (context.update?.status === "pending") {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-db-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-service-launcher-db-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       const original = "database before migration";
@@ -312,7 +312,7 @@ if (context.update?.status === "pending") {
       const encodedDatabasePath = JSON.stringify(databasePath);
       const childSource = `
 import { writeFileSync } from "node:fs";
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.ROVE_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   writeFileSync(context.update.dbPath, "database after migration");
   writeFileSync(context.update.dbPath + "-wal", "trial wal");

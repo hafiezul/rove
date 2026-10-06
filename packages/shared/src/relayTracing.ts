@@ -144,7 +144,7 @@ export function makeRelayClientTracingLayer(
         "service.namespace": "rove",
         "service.runtime": resource.runtime,
         "service.component": resource.component ?? "relay-client",
-        "t3.client.surface": resource.client,
+        "rove.client.surface": resource.client,
       },
     },
   }).pipe(Layer.provide(OtlpSerialization.layerJson));

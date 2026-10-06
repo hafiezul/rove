@@ -49,7 +49,7 @@ function checkAborted(signal: AbortSignal): void {
 const nativeClipboard = () =>
   requireNativeModule<{
     writeContextClipboard: (text: string, fragment: string) => Promise<void>;
-  }>("T3ComposerEditor");
+  }>("RoveComposerEditor");
 
 export function writeComposerContextClipboard(
   text: string,

@@ -99,6 +99,10 @@
       "types": "./src/schemaJson.ts",
       "import": "./src/schemaJson.ts"
     },
+    "./roveMigration": {
+      "types": "./src/roveMigration.ts",
+      "import": "./src/roveMigration.ts"
+    },
     "./schemaYaml": {
       "types": "./src/schemaYaml.ts",
       "import": "./src/schemaYaml.ts"

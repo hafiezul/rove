@@ -21,7 +21,7 @@ const CLIENT_TRACING_RESOURCE = {
   serviceName: "rove-web",
   attributes: {
     "service.namespace": "rove",
-    "service.runtime": "t3-web",
+    "service.runtime": "rove-web",
     "service.mode": isElectron ? "electron" : "browser",
     "service.version": APP_VERSION,
   },

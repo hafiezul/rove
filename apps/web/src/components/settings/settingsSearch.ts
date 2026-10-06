@@ -428,7 +428,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Submodules",
     to: "/settings/general",
     scope: "project-defaults",
-    searchTerms: ["git submodule init recursive top-level none worktree t3.json"],
+    searchTerms: ["git submodule init recursive top-level none worktree rove.json"],
   },
   {
     id: "start-from-origin",
@@ -786,7 +786,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "project-actions",
     title: "Actions",
     to: "/settings/projects",
-    searchTerms: ["commands scripts setup run dev server checkout worktree t3.json import"],
+    searchTerms: ["commands scripts setup run dev server checkout worktree rove.json import"],
   },
   {
     id: "environment-icon",
@@ -864,7 +864,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "remote-environments",
     title: "Environments",
     to: "/settings/connections",
-    searchTerms: ["add pair backend host code ssh config agent tunnel saved t3 connect"],
+    searchTerms: ["add pair backend host code ssh config agent tunnel saved rove connect"],
   },
   {
     id: "load-balancing",

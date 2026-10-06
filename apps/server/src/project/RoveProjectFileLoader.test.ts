@@ -23,12 +23,12 @@ const makeTempDir = Effect.gen(function* () {
 const writeProjectFile = Effect.fn("writeProjectFile")(function* (cwd: string, contents: string) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  yield* fileSystem.writeFileString(path.join(cwd, "t3.json"), contents).pipe(Effect.orDie);
+  yield* fileSystem.writeFileString(path.join(cwd, "rove.json"), contents).pipe(Effect.orDie);
 });
 
 it.layer(TestLayer)("RoveProjectFileLoader", (it) => {
   describe("load", () => {
-    it.effect("loads and decodes a valid t3.json", () =>
+    it.effect("loads and decodes a valid rove.json", () =>
       Effect.gen(function* () {
         const loader = yield* RoveProjectFileLoader.RoveProjectFileLoader;
         const cwd = yield* makeTempDir;
@@ -51,7 +51,24 @@ it.layer(TestLayer)("RoveProjectFileLoader", (it) => {
       }),
     );
 
-    it.effect("returns none when t3.json is missing", () =>
+    it.effect("reads the historical file without renaming it and prefers the canonical file", () =>
+      Effect.gen(function* () {
+        const loader = yield* RoveProjectFileLoader.RoveProjectFileLoader;
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const cwd = yield* makeTempDir;
+        const legacyPath = path.join(cwd, "t3.json");
+        yield* fs.writeFileString(legacyPath, '{"iconPath":"old.svg"}');
+        expect(Option.getOrNull(yield* loader.load(cwd))?.iconPath).toBe("old.svg");
+        expect(yield* fs.exists(legacyPath)).toBe(true);
+        yield* writeProjectFile(cwd, '{"iconPath":"new.svg"}');
+        expect(Option.getOrNull(yield* loader.load(cwd))?.iconPath).toBe("new.svg");
+        yield* writeProjectFile(cwd, "{ invalid");
+        expect(Option.isNone(yield* loader.load(cwd))).toBe(true);
+      }),
+    );
+
+    it.effect("returns none when rove.json is missing", () =>
       Effect.gen(function* () {
         const loader = yield* RoveProjectFileLoader.RoveProjectFileLoader;
         const cwd = yield* makeTempDir;

@@ -30,7 +30,7 @@ vi.mock("electron", () => ({
     setDesktopName: setDesktopNameMock,
     getVersion: () => "0.0.37",
     isPackaged: true,
-    getAppPath: () => "/tmp/.mount_T3/resources/app.asar",
+    getAppPath: () => "/tmp/.mount_Rove/resources/app.asar",
     commandLine: {
       appendSwitch: appendSwitchMock,
       getSwitchValue: getSwitchValueMock,

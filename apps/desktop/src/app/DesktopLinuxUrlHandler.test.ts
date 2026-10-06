@@ -29,7 +29,7 @@ const makeEnvironment = (path: Path.Path, overrides: Record<string, unknown> = {
     isPackaged: true,
     isDevelopment: false,
     displayName: "Rove Code (Alpha)",
-    linuxDesktopEntryName: "com.t3tools.T3Code.desktop",
+    linuxDesktopEntryName: "com.hafiezulzikry.rove.RoveCode.desktop",
     linuxWmClass: "rove",
     linuxApplicationsDir: "/home/alice/.local/share/applications",
     appImagePath: Option.some("/home/alice/Applications/Rove Code.AppImage"),
@@ -161,9 +161,9 @@ describe("DesktopLinuxUrlHandler", () => {
   it("renders a scheme-handler desktop entry with freedesktop Exec quoting", () => {
     const entry = DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
       displayName: "Rove Code (Nightly)",
-      execTarget: '/home/al ice/Apps/T3 "100%" $HOME\\x.AppImage',
+      execTarget: '/home/al ice/Apps/Rove "100%" $HOME\\x.AppImage',
       scheme: "rove",
-      iconPath: "/home/al ice/icons/T3\\x.png",
+      iconPath: "/home/al ice/icons/Rove\\x.png",
     });
 
     assert.include(entry, "[Desktop Entry]");
@@ -173,19 +173,20 @@ describe("DesktopLinuxUrlHandler", () => {
     // backslashes plus the sign.
     assert.include(
       entry,
-      'Exec="/home/al ice/Apps/T3 \\\\"100%%\\\\" \\\\$HOME\\\\\\\\x.AppImage" %U',
+      'Exec="/home/al ice/Apps/Rove \\\\"100%%\\\\" \\\\$HOME\\\\\\\\x.AppImage" %U',
     );
     assert.include(entry, "NoDisplay=true");
     assert.notInclude(entry, "StartupWMClass=");
     assert.include(entry, "MimeType=x-scheme-handler/rove;");
-    assert.include(entry, "Icon=/home/al ice/icons/T3\\\\x.png");
+    assert.include(entry, "Icon=/home/al ice/icons/Rove\\\\x.png");
   });
 
   it("carries structured context on registration errors", () => {
     const writeError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
       step: "write-desktop-entry",
       scheme: "rove",
-      desktopEntryPath: "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
+      desktopEntryPath:
+        "/home/alice/.local/share/applications/com.hafiezulzikry.rove.RoveCode.desktop",
       cause: new Error("boom"),
     });
     assert.equal(
@@ -194,7 +195,7 @@ describe("DesktopLinuxUrlHandler", () => {
     );
     assert.equal(
       writeError.desktopEntryPath,
-      "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
+      "/home/alice/.local/share/applications/com.hafiezulzikry.rove.RoveCode.desktop",
     );
 
     const exitError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
@@ -220,7 +221,7 @@ describe("DesktopLinuxUrlHandler", () => {
         assert.equal(recorded.files.length, 1);
         assert.equal(
           recorded.files[0]?.path,
-          "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
+          "/home/alice/.local/share/applications/com.hafiezulzikry.rove.RoveCode.desktop",
         );
         assert.include(
           recorded.files[0]?.content,
@@ -234,7 +235,7 @@ describe("DesktopLinuxUrlHandler", () => {
           },
           {
             command: "xdg-mime",
-            args: ["default", "com.t3tools.T3Code.desktop", "x-scheme-handler/rove"],
+            args: ["default", "com.hafiezulzikry.rove.RoveCode.desktop", "x-scheme-handler/rove"],
           },
         ]);
       });
@@ -263,7 +264,7 @@ describe("DesktopLinuxUrlHandler", () => {
           displayName: "Rove Code (Alpha)",
           execTarget: "/home/alice/Applications/Rove Code.AppImage",
           scheme: "rove",
-          iconPath: "/home/alice/.local/share/icons/com.t3tools.T3Code.desktop.png",
+          iconPath: "/home/alice/.local/share/icons/com.hafiezulzikry.rove.RoveCode.desktop.png",
         }),
       });
 
@@ -276,7 +277,7 @@ describe("DesktopLinuxUrlHandler", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "com.t3tools.T3Code.desktop", "x-scheme-handler/rove"],
+          args: ["default", "com.hafiezulzikry.rove.RoveCode.desktop", "x-scheme-handler/rove"],
         },
       ]);
     });
@@ -284,10 +285,10 @@ describe("DesktopLinuxUrlHandler", () => {
 
   it.effect("installs a persistent icon even when the desktop entry is already current", () => {
     const recorded = emptyRecording();
-    const iconPath = "/home/alice/.local/share/icons/com.t3tools.T3Code.desktop.png";
+    const iconPath = "/home/alice/.local/share/icons/com.hafiezulzikry.rove.RoveCode.desktop.png";
     return Effect.gen(function* () {
       yield* runRegister(recorded, {
-        iconSource: "/tmp/.mount_T3/resources/icon.png",
+        iconSource: "/tmp/.mount_Rove/resources/icon.png",
         existingEntry: DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
           displayName: "Rove Code (Alpha)",
           execTarget: "/home/alice/Applications/Rove Code.AppImage",
@@ -297,7 +298,7 @@ describe("DesktopLinuxUrlHandler", () => {
       });
       assert.deepEqual(recorded.files, []);
       assert.deepEqual(recorded.copies, [
-        { source: "/tmp/.mount_T3/resources/icon.png", destination: iconPath },
+        { source: "/tmp/.mount_Rove/resources/icon.png", destination: iconPath },
       ]);
       assert.equal(recorded.commands.at(-1)?.command, "xdg-mime");
     });
@@ -307,7 +308,7 @@ describe("DesktopLinuxUrlHandler", () => {
     const recorded = emptyRecording();
     return Effect.gen(function* () {
       yield* runRegister(recorded, {
-        iconSource: "/tmp/.mount_T3/resources/icon.png",
+        iconSource: "/tmp/.mount_Rove/resources/icon.png",
         iconCopyError: PlatformError.systemError({
           _tag: "PermissionDenied",
           module: "FileSystem",
@@ -332,14 +333,14 @@ describe("DesktopLinuxUrlHandler", () => {
       yield* runRegister(unpackaged, {
         environment: {
           isPackaged: false,
-          linuxDesktopEntryName: "com.t3tools.T3Code.Development.desktop",
+          linuxDesktopEntryName: "com.hafiezulzikry.rove.RoveCode.Development.desktop",
         },
       });
 
       assert.deepEqual(nonLinux.files, []);
       assert.equal(
         unpackaged.files[0]?.path,
-        "/home/alice/.local/share/applications/com.t3tools.T3Code.Development.desktop",
+        "/home/alice/.local/share/applications/com.hafiezulzikry.rove.RoveCode.Development.desktop",
       );
       assert.deepEqual(unpackaged.commands, []);
     });
@@ -359,7 +360,8 @@ describe("DesktopLinuxUrlHandler", () => {
           module: "FileSystem",
           method: "writeFileString",
           description: "read-only filesystem",
-          pathOrDescriptor: "/home/alice/.local/share/applications/com.t3tools.T3Code.desktop",
+          pathOrDescriptor:
+            "/home/alice/.local/share/applications/com.hafiezulzikry.rove.RoveCode.desktop",
         }),
       });
 

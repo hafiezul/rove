@@ -20,7 +20,7 @@ describe("electron development launcher", () => {
     const environmentScript = makeDevelopmentEnvironmentScript({
       VITE_DEV_SERVER_URL: "http://127.0.0.1:8526",
       ROVE_PORT: "16566",
-      ROVE_HOME: "/tmp/t3",
+      ROVE_HOME: "/tmp/rove",
       ROVE_OTLP_PROTOCOL: "http/protobuf",
     });
 
@@ -128,7 +128,7 @@ describe("electron development launcher", () => {
   });
 
   it("restores execute permissions on an unchanged launcher", () => {
-    const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-launcher-"));
+    const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-launcher-"));
     const launcherPath = NodePath.join(directory, "launcher");
     try {
       writeDevelopmentLauncherScript(launcherPath, "/runtime/Electron");

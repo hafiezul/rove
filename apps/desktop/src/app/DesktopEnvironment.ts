@@ -168,7 +168,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
   const baseDir = resolveDesktopBaseDir({
     homeDirectory,
     joinPath: path.join,
-    t3Home: config.t3Home,
+    roveHome: config.roveHome,
   });
   const rootDir = path.resolve(input.dirname, "../../..");
   const appRoot = input.isPackaged ? input.appPath : rootDir;
@@ -185,7 +185,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
     baseDir,
     isDevelopment,
     joinPath: path.join,
-    t3Home: config.t3Home,
+    roveHome: config.roveHome,
   });
   const userDataDirName = isDevelopment ? "rove-code-dev" : "rove-code";
   const linuxApplicationsDir = path.join(

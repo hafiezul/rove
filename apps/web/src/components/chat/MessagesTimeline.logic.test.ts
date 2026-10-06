@@ -378,7 +378,7 @@ describe("streaming row projection", () => {
         checkpointLookupReads += 1;
         return 1;
       },
-      checkpointRef: CheckpointRef.make("refs/t3/checkpoints/history-turn"),
+      checkpointRef: CheckpointRef.make("refs/rove/checkpoints/history-turn"),
       status: "ready",
       files: [],
       get assistantMessageId() {
@@ -475,7 +475,7 @@ describe("streaming row projection", () => {
           checkpointLookupReads += 1;
           return index + 1;
         },
-        checkpointRef: CheckpointRef.make(`refs/t3/checkpoints/older-${index}`),
+        checkpointRef: CheckpointRef.make(`refs/rove/checkpoints/older-${index}`),
         status: "ready",
         files: [],
         get assistantMessageId() {
@@ -805,7 +805,7 @@ describe("work entry labels", () => {
   ] as const)("uses the same friendly %s label in both views", (toolLifecycleStatus, label) => {
     const browserEntry = {
       ...entry,
-      toolTitle: "T3-code.preview_click",
+      toolTitle: "Rove-code.preview_click",
       detail: '{"ok":true}',
       toolLifecycleStatus,
     };
@@ -816,7 +816,7 @@ describe("work entry labels", () => {
   });
 
   it("uses the active summary state for legacy tools without a lifecycle status", () => {
-    const browserEntry = { ...entry, toolTitle: "T3-code.preview_click" };
+    const browserEntry = { ...entry, toolTitle: "Rove-code.preview_click" };
     expect(liveWorkEntryLabel(browserEntry, undefined, true)).toBe(
       "Clicking in the preview browser",
     );
@@ -828,7 +828,7 @@ describe("work entry labels", () => {
   it("keeps the latest live activity in the present tense after the call completes", () => {
     const browserEntry = {
       ...entry,
-      toolTitle: "T3-code.preview_click",
+      toolTitle: "Rove-code.preview_click",
       toolLifecycleStatus: "completed" as const,
     };
     expect(liveWorkEntryLabel(browserEntry, undefined, true)).toBe(

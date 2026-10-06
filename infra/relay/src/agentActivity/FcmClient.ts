@@ -132,7 +132,7 @@ export const make = Effect.gen(function* () {
             android: {
               priority: "HIGH",
               ttl: "300s",
-              ...(!input.alert ? { collapse_key: "t3-agent-activity" } : {}),
+              ...(!input.alert ? { collapse_key: "rove-agent-activity" } : {}),
               ...(input.packageName ? { restricted_package_name: input.packageName } : {}),
             },
           },

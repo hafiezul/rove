@@ -265,7 +265,7 @@ export interface XAiExitPlanModeResponse {
 }
 
 /**
- * Client captured the plan for T3's proposed-plan card. Abandon the native
+ * Client captured the plan for Rove's proposed-plan card. Abandon the native
  * Grok plan-approval gate so the turn unblocks; the user implements via Rove UI.
  */
 export function makeXAiExitPlanModeCapturedResponse(feedback?: string): XAiExitPlanModeResponse {
@@ -434,7 +434,7 @@ export const makeXAiPromptCompletionRuntime = Effect.fn("makeXAiPromptCompletion
     let nextPromptFallbackId = 0;
     const allocatePromptFallbackId = Effect.sync(() => {
       nextPromptFallbackId += 1;
-      return `t3-xai-prompt-${nextPromptFallbackId}`;
+      return `rove-xai-prompt-${nextPromptFallbackId}`;
     });
 
     yield* runtime.handleExtNotification(

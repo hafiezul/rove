@@ -10,8 +10,8 @@ import {
 describe("fileRoutePathSegments", () => {
   it("round-trips workspace-relative and host paths through the route", () => {
     expect(fileRoutePathSegments("src/main.ts")).toEqual(["src", "main.ts"]);
-    expect(fileRoutePathSegments("/tmp/t3-cleanup/report.md").join("/")).toBe(
-      "/tmp/t3-cleanup/report.md",
+    expect(fileRoutePathSegments("/tmp/rove-cleanup/report.md").join("/")).toBe(
+      "/tmp/rove-cleanup/report.md",
     );
   });
 });

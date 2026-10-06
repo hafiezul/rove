@@ -121,7 +121,7 @@ export const otlpResource = (config: ServerConfig["Service"]) => ({
   serviceName: "rove-server",
   attributes: {
     "service.namespace": "rove",
-    "service.runtime": "t3-server",
+    "service.runtime": "rove-server",
     "service.mode": config.mode,
   },
 });

@@ -19,7 +19,7 @@ describe("mobileThemeRuntime", () => {
   });
 
   it("maps custom palettes and appearances to registered themes", () => {
-    expect(getMobileUniwindThemeName("t3-chat", "dark")).toBe("t3-chat-dark");
+    expect(getMobileUniwindThemeName("plum", "dark")).toBe("plum-dark");
   });
 
   it("hydrates text variables and clears the native appearance override", () => {

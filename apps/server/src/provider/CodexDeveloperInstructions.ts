@@ -218,10 +218,10 @@ export function buildCodexAdditionalContext(
   const tools = toolInstructions(toolsAvailable);
   // Separate keys keep each value under Codex's per-entry token cap.
   return {
-    t3_code_runtime: {
+    rove_runtime: {
       kind: "application",
       value: buildRuntimeInstructions({ harness: "Codex", ...runtime }),
     },
-    ...(tools ? { t3_code_tools: { kind: "application", value: tools } } : {}),
+    ...(tools ? { rove_tools: { kind: "application", value: tools } } : {}),
   };
 }

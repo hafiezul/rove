@@ -1,5 +1,5 @@
 /**
- * RoveProjectFileLoader - Effect service that loads the checked-in `t3.json`
+ * RoveProjectFileLoader - Effect service that loads the checked-in `rove.json`
  * project file from a workspace root.
  *
  * Loading is best-effort: a missing file resolves to `Option.none`, and
@@ -17,6 +17,7 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
 import { ROVE_PROJECT_FILE_NAME, type RoveProjectFile } from "@rove-code/contracts";
+import { LEGACY_PROJECT_FILE_NAME } from "@rove-code/shared/roveMigration";
 import { RoveProjectFileFromJson } from "@rove-code/shared/roveProjectFile";
 
 const decodeRoveProjectFileJson = Schema.decodeEffect(RoveProjectFileFromJson);
@@ -35,12 +36,12 @@ export class RoveProjectFileLoadError extends Schema.TaggedError<RoveProjectFile
   }
 }
 
-/** Service tag for t3.json project file loading. */
+/** Service tag for rove.json project file loading. */
 export class RoveProjectFileLoader extends Context.Service<
   RoveProjectFileLoader,
   {
     /**
-     * Load and decode `t3.json` at the workspace root.
+     * Load and decode `rove.json` at the workspace root.
      *
      * Never fails: missing, unreadable, or invalid files resolve to
      * `Option.none` (invalid files are logged as warnings).
@@ -66,40 +67,37 @@ export const make = Effect.gen(function* () {
 
   const load: RoveProjectFileLoader["Service"]["load"] = Effect.fn("RoveProjectFileLoader.load")(
     function* (workspaceRoot) {
-      const filePath = path.join(workspaceRoot, ROVE_PROJECT_FILE_NAME);
-      const raw = yield* fileSystem.readFileString(filePath).pipe(
-        Effect.asSome,
-        Effect.catchTags({
-          PlatformError: (error) =>
-            error.reason._tag === "NotFound"
-              ? Effect.succeed(Option.none<string>())
-              : logRoveProjectFileLoadError(
-                  new RoveProjectFileLoadError({
-                    operation: "read",
-                    workspaceRoot,
-                    filePath,
-                    cause: error,
-                  }),
-                ).pipe(Effect.as(Option.none<string>())),
-        }),
-      );
-      if (Option.isNone(raw)) {
-        return Option.none<RoveProjectFile>();
+      for (const fileName of [ROVE_PROJECT_FILE_NAME, LEGACY_PROJECT_FILE_NAME]) {
+        const filePath = path.join(workspaceRoot, fileName);
+        const raw = yield* Effect.result(fileSystem.readFileString(filePath));
+        if (raw._tag === "Failure") {
+          if (raw.failure.reason._tag === "NotFound") continue;
+          yield* logRoveProjectFileLoadError(
+            new RoveProjectFileLoadError({
+              operation: "read",
+              workspaceRoot,
+              filePath,
+              cause: raw.failure,
+            }),
+          );
+          return Option.none<RoveProjectFile>();
+        }
+        return yield* decodeRoveProjectFileJson(raw.success).pipe(
+          Effect.asSome,
+          Effect.catchTags({
+            SchemaError: (error) =>
+              logRoveProjectFileLoadError(
+                new RoveProjectFileLoadError({
+                  operation: "decode",
+                  workspaceRoot,
+                  filePath,
+                  cause: error,
+                }),
+              ).pipe(Effect.as(Option.none<RoveProjectFile>())),
+          }),
+        );
       }
-      return yield* decodeRoveProjectFileJson(raw.value).pipe(
-        Effect.asSome,
-        Effect.catchTags({
-          SchemaError: (error) =>
-            logRoveProjectFileLoadError(
-              new RoveProjectFileLoadError({
-                operation: "decode",
-                workspaceRoot,
-                filePath,
-                cause: error,
-              }),
-            ).pipe(Effect.as(Option.none<RoveProjectFile>())),
-        }),
-      );
+      return Option.none<RoveProjectFile>();
     },
   );
 

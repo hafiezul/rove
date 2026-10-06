@@ -13,7 +13,9 @@ import {
 } from "../lib/connection";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import * as RuntimePredicate from "effect/Predicate";
+import { migrateRoveSavedState } from "@rove-code/shared/roveMigration";
 
+const decodeMigrationJson = Schema.decodeUnknownSync(Schema.Json);
 const CONNECTIONS_KEY = "rove.connections";
 const AGENT_AWARENESS_DEVICE_ID_KEY = "rove.agent-awareness.device-id";
 const AGENT_AWARENESS_REGISTRATION_KEY = "rove.agent-awareness.registration";
@@ -125,7 +127,7 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
     if (!raw.trim()) return null;
     try {
       // SAFETY: The surrounding adapter boundary establishes the asserted runtime contract.
-      return JSON.parse(raw) as A;
+      return migrateRoveSavedState(decodeMigrationJson(JSON.parse(raw))) as A;
     } catch (cause) {
       console.warn(
         "[mobile-storage] ignored invalid JSON",

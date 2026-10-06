@@ -348,7 +348,7 @@ describe("filterComposerPullRequestMatches", () => {
     {
       number: 8987,
       projectId: "project-1",
-      repository: "T3Tools/Rove",
+      repository: "RoveTools/Rove",
       updatedAt: "2026-09-03T12:00:00.000Z",
     },
     {

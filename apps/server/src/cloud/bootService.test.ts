@@ -24,7 +24,7 @@ import {
   serviceStateHasPendingUpdate,
 } from "./serviceProtocol.ts";
 
-const linuxRuntime = "/home/theo/.rove/runtime/versions/1.2.3/t3";
+const linuxRuntime = "/home/theo/.rove/runtime/versions/1.2.3/rove";
 const linuxPlan = {
   program: [linuxRuntime, "__service-launcher"],
   baseDir: "/home/theo/.rove",
@@ -50,7 +50,7 @@ it("runs the pinned runtime's own executable as the systemd launcher", () => {
 
 it("reads the served Rove Code home back out of a rendered unit or plist", () => {
   const plan = (baseDir: string) => ({
-    program: [`${baseDir}/runtime/versions/1.2.3/t3`, "__service-launcher"],
+    program: [`${baseDir}/runtime/versions/1.2.3/rove`, "__service-launcher"],
     baseDir,
     logPath: `${baseDir}/userdata/logs/boot-service.log`,
     unitPath: "/home/theo/.config/systemd/user/rove.service",
@@ -62,9 +62,9 @@ it("reads the served Rove Code home back out of a rendered unit or plist", () =>
   // Spaces and specifiers are quoted and escaped on the way in.
   expect(
     BootService.bootServiceBaseDirOf(
-      BootService.renderBootServiceUnit(plan("/home/theo/T3 Data/100%")),
+      BootService.renderBootServiceUnit(plan("/home/theo/Rove Data/100%")),
     ),
-  ).toBe("/home/theo/T3 Data/100%");
+  ).toBe("/home/theo/Rove Data/100%");
   expect(
     BootService.bootServiceBaseDirOf(
       BootService.renderBootServicePlist(plan("/Users/theo/a&b"), {
@@ -82,7 +82,7 @@ it("survives the kernel OOM-killing a greedy agent child", () => {
   expect(unit).toContain("OOMPolicy=continue");
 });
 
-const macRuntime = "/Users/theo/.rove/runtime/versions/1.2.3/t3";
+const macRuntime = "/Users/theo/.rove/runtime/versions/1.2.3/rove";
 const macPlan = {
   program: [macRuntime, "__service-launcher"],
   baseDir: "/Users/theo/.rove",
@@ -130,11 +130,11 @@ it("appends both stdio streams to the boot service log", () => {
 
 it("escapes XML in host paths", () => {
   const plist = BootService.renderBootServicePlist(
-    { ...macPlan, baseDir: "/Users/theo/T3 & <Co>" },
+    { ...macPlan, baseDir: "/Users/theo/Rove & <Co>" },
     { homeDir: "/Users/theo", environmentPath: "/Users/theo/Tools & <Scripts>:/usr/bin" },
   );
 
-  expect(plist).toContain("<string>/Users/theo/T3 &amp; &lt;Co&gt;</string>");
+  expect(plist).toContain("<string>/Users/theo/Rove &amp; &lt;Co&gt;</string>");
   expect(plist).toContain("<string>/Users/theo/Tools &amp; &lt;Scripts&gt;:/usr/bin</string>");
 });
 
@@ -144,7 +144,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const home = yield* fs.makeTempDirectoryScoped({ prefix: "t3-boot-service-test-" });
+  const home = yield* fs.makeTempDirectoryScoped({ prefix: "rove-boot-service-test-" });
   const baseDir = path.join(home, ".rove");
   const statePath = path.join(baseDir, "runtime", "service-state.json");
   // A complete pinned runtime is already present, so install only validates
@@ -192,7 +192,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
           input.args[0] === "--version"
             ? // The runtime under test reports the version of the directory it
               // was launched from, like the real executable.
-              `t3 v${/versions\/([^/]+)\//.exec(input.command)?.[1] ?? "1.2.3"}\n`
+              `rove v${/versions\/([^/]+)\//.exec(input.command)?.[1] ?? "1.2.3"}\n`
             : input.command === "loginctl" && input.args[0] === "show-user"
               ? `${control.linger}\n`
               : input.args[1] === "is-enabled"
@@ -229,7 +229,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
         baseDir: serviceBaseDir,
         logsDir: path.join(serviceBaseDir, "userdata", "logs"),
         cliVersion,
-        host: { execPath: "/usr/bin/t3" },
+        host: { execPath: "/usr/bin/rove" },
         ...(launchDefaults === undefined ? {} : { launchDefaults }),
       });
     }).pipe(
@@ -238,7 +238,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
         Layer.mergeAll(
           Layer.succeed(HostProcessPlatform, platform),
           Layer.succeed(HostProcessUserId, 501),
-          Layer.succeed(HostProcessExecutablePath, "/usr/bin/t3"),
+          Layer.succeed(HostProcessExecutablePath, "/usr/bin/rove"),
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make(() => Effect.die("no release download expected")),
@@ -654,7 +654,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       yield* service.install();
       commands.length = 0;
       const path = yield* Path.Path;
-      const otherHome = yield* fs.makeTempDirectoryScoped({ prefix: "t3-other-home-" });
+      const otherHome = yield* fs.makeTempDirectoryScoped({ prefix: "rove-other-home-" });
 
       const other = yield* makeService(undefined, "1.2.3", path.join(otherHome, ".rove"));
       expect(yield* other.restart).toBe(false);

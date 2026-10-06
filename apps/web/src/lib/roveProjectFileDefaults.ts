@@ -13,7 +13,7 @@ import {
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 
 /**
- * Read and decode the project's checked-in `t3.json`.
+ * Read and decode the project's checked-in `rove.json`.
  *
  * Imperative counterpart to `useRoveProjectFileState` for the new-thread path,
  * which resolves defaults at call time rather than render time. The file
@@ -28,7 +28,9 @@ export async function readRoveProjectFile(
 ): Promise<RoveProjectFile | null> {
   const result = await executeAtomQuery(
     appAtomRegistry,
-    getProjectFileQueryAtom(environmentId, workspaceRoot, ROVE_PROJECT_FILE_NAME),
+    getProjectFileQueryAtom(environmentId, workspaceRoot, ROVE_PROJECT_FILE_NAME, {
+      allowLegacyProjectFile: true,
+    }),
     { reportDefect: false, reportFailure: false },
   );
   const data = resolveProjectFileQueryData(

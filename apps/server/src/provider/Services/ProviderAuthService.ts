@@ -14,7 +14,7 @@ import type * as Scope from "effect/Scope";
 
 export interface ProviderAuthController {
   /** Equal keys mean these instances share credentials on this environment. */
-  readonly credentialBinding?: { readonly owner: "provider" | "t3"; readonly key: string };
+  readonly credentialBinding?: { readonly owner: "provider" | "rove"; readonly key: string };
   readonly reconnectProfile?: (
     methodId: string,
   ) => Effect.Effect<ChatGptReconnectProfile | null, ProviderSetupError>;

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
+import { LEGACY_THEME_IDS } from "@rove-code/shared/roveMigration";
 import { BUILT_IN_THEMES } from "@rove-code/shared/themePalettes";
 
 import {
@@ -397,7 +398,7 @@ describe("theme files", () => {
     });
   });
 
-  it("keeps the T3 Chat palette faithful and readable", () => {
+  it("keeps the Rove Chat palette faithful and readable", () => {
     expectThemeColors(PLUM_THEME.colors, {
       canvas: "#fdf7fd",
       chrome: "#fdf7fd",
@@ -1004,29 +1005,31 @@ describe("stored theme preferences", () => {
     }
   });
 
-  it("resolves the legacy t3-chat-dark preference to dark T3 Chat", () => {
-    expect(getThemeDefinition("t3-chat-dark")).toBe(PLUM_THEME);
-    expect(getThemePreferenceMode("t3-chat-dark")).toBe("dark");
-    expect(resolveThemeAppearance("t3-chat-dark", true, false)).toBe("dark");
-    expect(resolveDesktopTheme("t3-chat-dark", false)).toBe("dark");
-    expect(isKnownThemePreference("t3-chat-dark")).toBe(true);
+  it("resolves the legacy plum-dark preference to dark Rove Chat", () => {
+    expect(getThemeDefinition("plum-dark")).toBe(PLUM_THEME);
+    expect(getThemePreferenceMode("plum-dark")).toBe("dark");
+    expect(resolveThemeAppearance("plum-dark", true, false)).toBe("dark");
+    expect(resolveDesktopTheme("plum-dark", false)).toBe("dark");
+    expect(isKnownThemePreference("plum-dark")).toBe(true);
   });
 
-  it("resolves legacy t3-prefixed ids onto the renamed themes", () => {
+  it("resolves historical prefixed ids onto the renamed themes", () => {
     for (const [legacy, theme] of [
-      ["t3-grove", GROVE_THEME],
-      ["t3-ocean", OCEAN_THEME],
-      ["t3-ember", EMBER_THEME],
-      ["t3-iris", IRIS_THEME],
+      [LEGACY_THEME_IDS[2]!, GROVE_THEME],
+      [LEGACY_THEME_IDS[3]!, OCEAN_THEME],
+      [LEGACY_THEME_IDS[4]!, EMBER_THEME],
+      [LEGACY_THEME_IDS[5]!, IRIS_THEME],
     ] as const) {
       expect(getThemeDefinition(legacy)).toBe(theme);
       expect(isKnownThemePreference(legacy)).toBe(true);
       expect(canonicalThemePreference(legacy)).toBe(theme.id);
     }
     // The dark-variant alias keeps its raw form: it still carries a mode hint.
-    expect(canonicalThemePreference("t3-chat-dark")).toBe("t3-chat-dark");
+    expect(canonicalThemePreference("plum-dark")).toBe("plum-dark");
     // A stored mix that predates the rename resolves to the new ids.
-    expect(parseThemeHalves(JSON.stringify({ light: "t3-ocean", dark: "t3-grove" }))).toEqual({
+    expect(
+      parseThemeHalves(JSON.stringify({ light: LEGACY_THEME_IDS[3], dark: LEGACY_THEME_IDS[2] })),
+    ).toEqual({
       light: OCEAN_THEME.id,
       dark: GROVE_THEME.id,
     });

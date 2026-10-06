@@ -709,7 +709,7 @@ describe("isWaylandSession", () => {
           const { createServer } = await import("node:net");
           const { tmpdir } = await import("node:os");
           const { join } = await import("node:path");
-          const runtimeDirectory = await mkdtemp(join(tmpdir(), "t3-wayland-"));
+          const runtimeDirectory = await mkdtemp(join(tmpdir(), "rove-wayland-"));
           const socketPath = join(runtimeDirectory, "wayland-0");
           const server = createServer();
           try {
@@ -728,7 +728,7 @@ describe("isWaylandSession", () => {
                 XDG_SESSION_TYPE: "x11",
               }),
             ).toBe(false);
-            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: "/nonexistent-t3-test" })).toBe(
+            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: "/nonexistent-rove-test" })).toBe(
               false,
             );
           } finally {

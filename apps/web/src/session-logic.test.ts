@@ -956,7 +956,7 @@ describe("deriveWorkLogEntries", () => {
     "preserves Claude MCP identity behind generic titles while %s",
     (status, displayName) => {
       const data = {
-        toolName: "mcp__t3_code__preview_click",
+        toolName: "mcp__rove_code__preview_click",
         input: { selector: "#submit" },
         ...(status === "inProgress"
           ? {}

@@ -8,7 +8,7 @@ const decode = Schema.decodeUnknownSync(RoveProjectFile);
 describe("RoveProjectFile", () => {
   it("decodes a full project file", () => {
     const decoded = decode({
-      $schema: "https://t3.codes/schema/t3.json",
+      $schema: "https://rove.hafiezulzikry.com/schema/rove.json",
       iconPath: "assets/logo.svg",
       scripts: [
         {

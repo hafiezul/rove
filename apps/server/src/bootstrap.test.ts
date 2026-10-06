@@ -83,7 +83,10 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("reads a bootstrap envelope from a provided fd", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "rove-bootstrap-",
+        suffix: ".ndjson",
+      });
 
       yield* fs.writeFileString(
         filePath,
@@ -99,10 +102,30 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
     }),
   );
 
+  it.effect("keeps the home directory supplied by an installed historical desktop binary", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "rove-bootstrap-",
+        suffix: ".ndjson",
+      });
+      yield* fs.writeFileString(filePath, '{"mode":"desktop","t3Home":"/existing/rove/home"}\n');
+      const fd = yield* openBootstrapInputFd(filePath);
+      const payload = yield* readBootstrapEnvelope(
+        Schema.Struct({ mode: Schema.String, roveHome: Schema.String }),
+        fd,
+      );
+      assertSome(payload, { mode: "desktop", roveHome: "/existing/rove/home" });
+    }),
+  );
+
   it.effect("falls back to reading the inherited fd when path duplication fails", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "rove-bootstrap-",
+        suffix: ".ndjson",
+      });
 
       yield* fs.writeFileString(
         filePath,
@@ -132,7 +155,10 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("preserves fd path, platform, and cause when opening the input stream fails", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "rove-bootstrap-",
+        suffix: ".ndjson",
+      });
       const fd = yield* Effect.acquireRelease(
         Effect.sync(() => NodeFS.openSync(filePath, "r")),
         (fd) => Effect.sync(() => closeIfOpen(fd)),
@@ -200,7 +226,10 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("preserves fd and schema cause when decoding the envelope fails", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "rove-bootstrap-",
+        suffix: ".ndjson",
+      });
       yield* fs.writeFileString(filePath, '{"mode":42}\n');
 
       const fd = yield* openBootstrapInputFd(filePath);
@@ -224,7 +253,7 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-bootstrap-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-bootstrap-" });
         const fifoPath = NodePath.join(tempDir, "bootstrap.pipe");
 
         yield* Effect.sync(() => NodeChildProcess.execFileSync("mkfifo", [fifoPath]));

@@ -13,10 +13,10 @@ const NO_SCRIPTS: ReadonlyArray<RoveProjectFileScript> = [];
 
 export interface RoveProjectFileState {
   /**
-   * - `valid`: t3.json exists and decoded.
-   * - `invalid`: t3.json exists but fails to decode (the server then ignores
+   * - `valid`: rove.json exists and decoded.
+   * - `invalid`: rove.json exists but fails to decode (the server then ignores
    *   the whole file, including `iconPath` and every script).
-   * - `missing`: no readable t3.json at the workspace root.
+   * - `missing`: no readable rove.json at the workspace root.
    * - `loading`: the file query has not settled yet.
    */
   status: "loading" | "missing" | "invalid" | "valid";
@@ -26,14 +26,20 @@ export interface RoveProjectFileState {
 }
 
 /**
- * Decoded state of the project's checked-in `t3.json`, including whether the
+ * Decoded state of the project's checked-in `rove.json`, including whether the
  * file exists but is broken — which the runtime otherwise swallows silently.
  */
 export function useRoveProjectFileState(
   environmentId: EnvironmentId,
   cwd: string | null,
 ): RoveProjectFileState {
-  const query = useProjectFileQuery(environmentId, cwd ?? "", ROVE_PROJECT_FILE_NAME, cwd !== null);
+  const query = useProjectFileQuery(
+    environmentId,
+    cwd ?? "",
+    ROVE_PROJECT_FILE_NAME,
+    cwd !== null,
+    { allowLegacyProjectFile: true },
+  );
   const contents = query.data && !query.data.truncated ? query.data.contents : null;
   const isPending = query.isPending;
   return useMemo(() => {
@@ -53,7 +59,7 @@ export function useRoveProjectFileState(
 }
 
 /**
- * Scripts declared in the project's checked-in `t3.json`, offered in the
+ * Scripts declared in the project's checked-in `rove.json`, offered in the
  * scripts menu for import. Missing, truncated, or invalid files resolve to
  * an empty list.
  */

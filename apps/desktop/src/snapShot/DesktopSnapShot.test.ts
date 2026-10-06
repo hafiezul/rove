@@ -501,7 +501,7 @@ const testLayer = (
           DesktopEnvironment.DesktopEnvironment.of({
             platform,
             stateDir: "/state",
-            linuxDesktopEntryName: "com.t3tools.T3Code.desktop",
+            linuxDesktopEntryName: "com.hafiezulzikry.rove.RoveCode.desktop",
             appRoot: "/repo",
             linuxApplicationsDir: "/test-data/applications",
           } as DesktopEnvironment.DesktopEnvironment["Service"]),
@@ -936,17 +936,17 @@ it.effect.each(["win32", "darwin", "linux"] as const)(
       shouldRenderRichAnimation: true,
     });
     const bounds = { x: 10, y: 20, width: 800, height: 600 };
-    const t3 = {
+    const rove = {
       id: 42,
       title: "Rove Code",
-      appIdentifier: "com.t3tools.T3Code.desktop",
+      appIdentifier: "com.hafiezulzikry.rove.RoveCode.desktop",
       owner: { name: "Rove Code", processId: 123 },
       bounds,
       png: Buffer.from([1, 2, 3]),
     };
     focusedWindowMock.mockReturnValue({
       getBounds: () => bounds,
-      getTitle: () => t3.title,
+      getTitle: () => rove.title,
       isDestroyed: () => false,
       isMinimized: () => false,
       isVisible: () => true,
@@ -955,26 +955,26 @@ it.effect.each(["win32", "darwin", "linux"] as const)(
     });
     const images: Uint8Array[] = [];
     activeWindowMock.mockReset().mockResolvedValue({
-      ...t3,
+      ...rove,
       platform: platform === "darwin" ? "macos" : "windows",
     });
     regionCaptureMock.mockReset().mockResolvedValue({
       width: bounds.width,
       height: bounds.height,
-      png: t3.png,
+      png: rove.png,
     });
     macCaptureMock.mockReset().mockImplementation(async () => {
-      images.push(t3.png);
-      return { source: { name: t3.title }, png: t3.png };
+      images.push(rove.png);
+      return { source: { name: rove.title }, png: rove.png };
     });
     const activate = vi.fn<(title: string) => Promise<void>>().mockResolvedValue(undefined);
     linuxCaptureMock.mockResolvedValueOnce({
-      png: t3.png,
+      png: rove.png,
       window: {
-        title: t3.title,
-        appName: t3.owner.name,
-        appIdentifier: t3.appIdentifier,
-        processId: t3.owner.processId,
+        title: rove.title,
+        appName: rove.owner.name,
+        appIdentifier: rove.appIdentifier,
+        processId: rove.owner.processId,
         bounds,
       },
       feedback: {
@@ -1015,14 +1015,14 @@ it.effect.each(["win32", "darwin", "linux"] as const)(
         yield* Effect.promise(trigger);
 
         const saved = yield* decodePendingMetadata(metadata);
-        assert.equal(saved.source.windowTitle, t3.title);
-        assert.equal(saved.source.appName, t3.owner.name);
-        assert.equal(saved.source.accessibleText, `Window from process ${t3.owner.processId}`);
-        assert.deepEqual(images, [t3.png]);
+        assert.equal(saved.source.windowTitle, rove.title);
+        assert.equal(saved.source.appName, rove.owner.name);
+        assert.equal(saved.source.accessibleText, `Window from process ${rove.owner.processId}`);
+        assert.deepEqual(images, [rove.png]);
         assert.equal(prepareCaptureRevealMock.mock.calls.length, platform === "win32" ? 1 : 0);
         if (platform === "linux") {
-          assert.equal(saved.source.appIdentifier, t3.appIdentifier);
-          assert.deepEqual(activate.mock.calls, [[t3.title]]);
+          assert.equal(saved.source.appIdentifier, rove.appIdentifier);
+          assert.deepEqual(activate.mock.calls, [[rove.title]]);
         }
       }),
     ).pipe(

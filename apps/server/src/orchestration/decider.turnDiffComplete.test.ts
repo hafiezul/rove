@@ -115,7 +115,7 @@ it.layer(NodeServices.layer)("turn diff complete decider", (it) => {
       const event = yield* decideOrchestrationCommand({
         command: {
           ...placeholderCommand(),
-          checkpointRef: CheckpointRef.make("refs/t3/checkpoints/turn-1"),
+          checkpointRef: CheckpointRef.make("refs/rove/checkpoints/turn-1"),
           status: "ready",
         },
         readModel: makeReadModel([makeCheckpoint("missing")]),

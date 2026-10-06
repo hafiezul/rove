@@ -660,7 +660,7 @@ describe("incoming native shares", () => {
       value: "content://shared/report",
       mimeType: "application/pdf",
     };
-    const persistedUri = "file:///documents/t3-composer-attachments/report.pdf";
+    const persistedUri = "file:///documents/rove-composer-attachments/report.pdf";
     const removeOwnedFile = vi.fn(async (_uri: string) => undefined);
 
     const result = await buildIncomingShareDraft({
@@ -711,7 +711,7 @@ describe("share cleanup ownership", () => {
     ).toBe(true);
     expect(
       isShareFileUriUnderOwnedRoots(
-        "file:///var/mobile/Containers/Data/Application/APP/Documents/t3-composer-attachments/a.pdf",
+        "file:///var/mobile/Containers/Data/Application/APP/Documents/rove-composer-attachments/a.pdf",
         ["file:///private/var/mobile/Containers/Data/Application/APP/Documents/"],
       ),
     ).toBe(true);

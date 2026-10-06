@@ -1473,7 +1473,7 @@ describe("buildRunningThreadTurnInterruptInput", () => {
 describe("deriveComposerSendState", () => {
   it("treats expired terminal pills as non-sendable content", () => {
     const state = deriveComposerSendState({
-      prompt: "[Terminal 1 line 4](t3-context://v1/terminal/ctx-expired)",
+      prompt: "[Terminal 1 line 4](rove-context://v1/terminal/ctx-expired)",
       imageCount: 0,
       terminalContexts: [
         {
@@ -1497,7 +1497,7 @@ describe("deriveComposerSendState", () => {
 
   it("keeps text sendable while excluding expired terminal pills", () => {
     const state = deriveComposerSendState({
-      prompt: "yoo [Terminal 1 line 4](t3-context://v1/terminal/ctx-expired) waddup",
+      prompt: "yoo [Terminal 1 line 4](rove-context://v1/terminal/ctx-expired) waddup",
       imageCount: 0,
       terminalContexts: [
         {
@@ -2169,7 +2169,7 @@ describe("rewind draft recovery", () => {
           {
             turnId: completedTurn.turnId,
             checkpointTurnCount: 1,
-            checkpointRef: CheckpointRef.make("refs/t3/checkpoints/1"),
+            checkpointRef: CheckpointRef.make("refs/rove/checkpoints/1"),
             status: "ready",
             files: [],
             assistantMessageId: null,

@@ -27,7 +27,7 @@ const hasDbus =
   NodeChildProcess.spawnSync("gdbus", ["help"]).status === 0;
 
 it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", async () => {
-  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-private-dbus-"));
+  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "rove-private-dbus-"));
   let daemon: NodeChildProcess.ChildProcess | undefined;
   let server: MessageBus | undefined;
   const clients: LinuxCaptureConnection[] = [];
@@ -164,13 +164,13 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
       setup.close();
     }
     const portal = connect();
-    expect(await portal.backend("com.t3tools.T3Code")).toBe("screenshot-portal");
+    expect(await portal.backend("com.hafiezulzikry.rove.RoveCode")).toBe("screenshot-portal");
     expect(await portal.capturePortal()).toEqual({ png });
     expect(target).toBe(8);
     portalVersion = 2;
     const extension = connect();
-    expect(await extension.backend("com.t3tools.T3Code")).toBe("gnome-extension");
-    expect(await extension.captureExtension("com.t3tools.T3Code")).toMatchObject({
+    expect(await extension.backend("com.hafiezulzikry.rove.RoveCode")).toBe("gnome-extension");
+    expect(await extension.captureExtension("com.hafiezulzikry.rove.RoveCode")).toMatchObject({
       png,
       window: { processId: 42 },
     });
@@ -181,15 +181,15 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
         interface: "org.freedesktop.DBus",
         member: "GetNameOwner",
         signature: "s",
-        body: ["com.t3tools.T3Code.SnapShot"],
+        body: ["com.hafiezulzikry.rove.RoveCode.SnapShot"],
       }),
     );
     expect(owner?.body[0]).toBe(clientName);
     extension.close();
     extensionVersion = 2;
     const updated = connect();
-    expect(await updated.backend("com.t3tools.T3Code")).toBe("gnome-extension");
-    const snapshot = await updated.captureExtension("com.t3tools.T3Code", {
+    expect(await updated.backend("com.hafiezulzikry.rove.RoveCode")).toBe("gnome-extension");
+    const snapshot = await updated.captureExtension("com.hafiezulzikry.rove.RoveCode", {
       flash: true,
       animate: true,
     });
@@ -202,14 +202,14 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
     expect(animateFrame).toEqual([0.1, 0.8, 0.2, 0.1]);
     vi.stubEnv("XDG_CURRENT_DESKTOP", "KDE");
     const kde = connect();
-    expect(await kde.backend("com.t3tools.T3Code")).toBe("kde");
+    expect(await kde.backend("com.hafiezulzikry.rove.RoveCode")).toBe("kde");
     expect(kde.feedbackAvailable).toBe(false);
     kde.close();
     const triggered = vi.fn();
     const failed = vi.fn();
     const niriBus = sessionBus({ busAddress: String(address) });
     stopNiriShortcut = await startNiriCaptureShortcut(
-      "com.t3tools.T3Code.NiriTest",
+      "com.hafiezulzikry.rove.RoveCode.NiriTest",
       triggered,
       failed,
       niriBus,
@@ -218,7 +218,7 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
       "call",
       "--session",
       "--dest",
-      "com.t3tools.T3Code.NiriTest.SnapShot",
+      "com.hafiezulzikry.rove.RoveCode.NiriTest.SnapShot",
       "--object-path",
       "/io/github/hafiezul/rove/SnapShot",
       "--method",
@@ -240,7 +240,7 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
     expect(failed).not.toHaveBeenCalled();
     const invalid = server.call(
       new Message({
-        destination: "com.t3tools.T3Code.NiriTest.SnapShot",
+        destination: "com.hafiezulzikry.rove.RoveCode.NiriTest.SnapShot",
         path: "/io/github/hafiezul/rove/SnapShot",
         interface: "io.github.hafiezul.rove.SnapShot",
         member: "Capture",
@@ -252,7 +252,7 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
     expect(triggered).toHaveBeenCalledOnce();
     await expect(
       startNiriCaptureShortcut(
-        "com.t3tools.T3Code.NiriTest",
+        "com.hafiezulzikry.rove.RoveCode.NiriTest",
         triggered,
         failed,
         sessionBus({ busAddress: String(address) }),
@@ -260,7 +260,7 @@ it.runIf(hasDbus)("captures through real D-Bus marshalling on a private bus", as
     ).rejects.toThrow("already owns");
     stopNiriShortcut();
     const restarted = await startNiriCaptureShortcut(
-      "com.t3tools.T3Code.NiriTest",
+      "com.hafiezulzikry.rove.RoveCode.NiriTest",
       triggered,
       failed,
       sessionBus({ busAddress: String(address) }),

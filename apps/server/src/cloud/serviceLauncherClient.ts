@@ -1,5 +1,6 @@
 import type { ServerSelfUpdateOutcome } from "@rove-code/contracts";
 import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
+import { LEGACY_SERVICE_LAUNCHER_CONTEXT_ENV } from "@rove-code/shared/roveMigration";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -116,7 +117,8 @@ const resolveStartup = Effect.fn("cloud.service_launcher_client.resolve_startup"
     const host = yield* ServiceLauncherHostProcess;
     const environment = yield* HostProcessEnvironment;
     const currentVersion = options?.currentVersion ?? packageJson.version;
-    const rawContext = environment[SERVICE_LAUNCHER_CONTEXT_ENV];
+    const rawContext =
+      environment[SERVICE_LAUNCHER_CONTEXT_ENV] ?? environment[LEGACY_SERVICE_LAUNCHER_CONTEXT_ENV];
     const context = rawContext === undefined ? undefined : decodeServiceLauncherContext(rawContext);
 
     if (rawContext !== undefined && context === undefined) {

@@ -93,7 +93,7 @@ it.layer(NodeServices.layer)("message context plumbing", (it) => {
           message: {
             messageId: MessageId.make("message-1"),
             role: "user",
-            text: "Use [$pinchtab](t3-context://v1/skill/ctx_1)",
+            text: "Use [$pinchtab](rove-context://v1/skill/ctx_1)",
             attachments: [],
             context,
           },
@@ -133,7 +133,7 @@ it.layer(NodeServices.layer)("message context plumbing", (it) => {
           threadId: "thread-1",
           messageId: "message-1",
           role: "user",
-          text: "Use [$pinchtab](t3-context://v1/skill/ctx_1)",
+          text: "Use [$pinchtab](rove-context://v1/skill/ctx_1)",
           attachments: [],
           context,
           turnId: null,

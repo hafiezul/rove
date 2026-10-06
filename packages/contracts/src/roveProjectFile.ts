@@ -5,11 +5,11 @@ import { ThreadEnvMode, WorktreeSubmodules } from "./environment.ts";
 import { ProjectScriptIcon } from "./orchestration.ts";
 import type { ProjectScopedServerSettingKey, ServerSettings } from "./settings.ts";
 
-/** File name of the checked-in T3 project file, resolved at the workspace root. */
-export const ROVE_PROJECT_FILE_NAME = "t3.json";
+/** File name of the checked-in Rove project file, resolved at the workspace root. */
+export const ROVE_PROJECT_FILE_NAME = "rove.json";
 
 /** Public URL of the published JSON Schema for {@link RoveProjectFile}. */
-export const ROVE_PROJECT_FILE_SCHEMA_URL = "https://t3.codes/schema/t3.json";
+export const ROVE_PROJECT_FILE_SCHEMA_URL = "https://rove.hafiezulzikry.com/schema/rove.json";
 
 const ROVE_PROJECT_FILE_PATH_MAX_LENGTH = 512;
 const ROVE_PROJECT_FILE_MAX_SCRIPTS = 50;
@@ -103,15 +103,15 @@ export const RoveProjectFile = Schema.Struct({
 }).annotate({
   title: "Rove Code project file",
   description:
-    "Checked-in project configuration for Rove Code (t3.json at the repository root). See https://github.com/hafiezul/rove/blob/main/docs/user/project-settings.md for documentation.",
+    "Checked-in project configuration for Rove Code (rove.json at the repository root). See https://github.com/hafiezul/rove/blob/main/docs/user/project-settings.md for documentation.",
 });
 export type RoveProjectFile = typeof RoveProjectFile.Type;
 
 /**
- * Settings a repository can also declare in t3.json. A key here must be
+ * Settings a repository can also declare in rove.json. A key here must be
  * nullable on `ServerSettings` (null means inherit) so both the project
  * override and the environment value can defer to the file; `field` names
- * the t3.json field carrying the same value and `builtIn` is what applies
+ * the rove.json field carrying the same value and `builtIn` is what applies
  * when every tier is unset. `resolveProjectSettings` walks project override,
  * environment value, file, built-in, so listing a key here is the whole
  * change for a new file-backed setting.
@@ -135,7 +135,7 @@ export type ProjectFileBackedSettingKey = keyof typeof PROJECT_FILE_BACKED_SETTI
 
 /**
  * `ServerSettings` with every file-backed key resolved to a concrete value.
- * What `resolveProjectSettings(...).settings` produces once a t3.json (or
+ * What `resolveProjectSettings(...).settings` produces once a rove.json (or
  * its absence) has been accounted for.
  */
 export type ResolvedServerSettings = Omit<ServerSettings, ProjectFileBackedSettingKey> & {

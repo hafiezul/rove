@@ -38,7 +38,7 @@ const pocketPiId = EnvironmentId.make("showcase-pocket-pi");
 const pocketPiEndpoint = {
   httpBaseUrl: "https://rove.hafiezulzikry.com",
   wsBaseUrl: "wss://rove.hafiezulzikry.com",
-  providerKind: "t3_relay" as const,
+  providerKind: "rove_relay" as const,
 };
 
 export const SHOWCASE_CONNECTED_CLOUD_ENVIRONMENTS: ReadonlyArray<ConnectedEnvironmentSummary> = [

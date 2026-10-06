@@ -3098,8 +3098,8 @@ it.effect("managed runtime rotation restarts app-server and resumes the same nat
       return yield* makeCodexAdapter(decodeCodexSettings({}), {
         resolveRuntime: Effect.sync(() => ({
           config: decodeCodexSettings({
-            binaryPath: "/t3/tools/codex/0.155.1/bin/codex",
-            homePath: "/t3/caches/codex/home",
+            binaryPath: "/rove/tools/codex/0.155.1/bin/codex",
+            homePath: "/rove/caches/codex/home",
             launchArgs: "-c 'model_provider=managed'",
           }),
           environment: { ACCESS_TOKEN: `dummy-${revision}` },
@@ -3142,7 +3142,7 @@ it.effect("managed runtime rotation restarts app-server and resumes the same nat
     NodeAssert.equal(runtimes[0]?.closeImpl.mock.calls.length, 1);
     NodeAssert.deepEqual(runtimes[1]?.options.resumeCursor, { threadId: "native-managed-thread" });
     NodeAssert.equal(runtimes[1]?.options.environment?.ACCESS_TOKEN, "dummy-rotated");
-    NodeAssert.equal(runtimes[1]?.options.binaryPath, "/t3/tools/codex/0.155.1/bin/codex");
+    NodeAssert.equal(runtimes[1]?.options.binaryPath, "/rove/tools/codex/0.155.1/bin/codex");
   }).pipe(Effect.provide(layer));
 });
 

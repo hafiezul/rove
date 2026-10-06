@@ -190,7 +190,7 @@ const main = Effect.gen(function* () {
             packageName: device.packageName,
             alert: alert !== null,
             data: fitFcmData({
-              t3_kind: "agent_activity",
+              rove_kind: "agent_activity",
               device_id: device.deviceId,
               user_id: device.userId,
               updated_at: String(now),

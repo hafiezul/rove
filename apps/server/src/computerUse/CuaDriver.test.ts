@@ -183,7 +183,7 @@ const withDriver = <A, E>(
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const stateDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cua-driver-" });
+    const stateDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-cua-driver-" });
     const appPath = path.join(stateDir, "CuaDriver.app");
     const executableDir =
       options.platform === "linux"

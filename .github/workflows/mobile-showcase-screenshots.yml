@@ -28,7 +28,7 @@ on:
         type: choice
         options:
           - rove
-          - t3-chat
+          - plum
           - grove
           - ocean
           - ember

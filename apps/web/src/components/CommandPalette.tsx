@@ -2085,7 +2085,7 @@ function OpenCommandPaletteDialog(props: {
         "grouping",
         "checkout",
         "remove",
-        "t3.json",
+        "rove.json",
       ],
       title: "Project settings",
       description: contextualProjectGroup.displayName,

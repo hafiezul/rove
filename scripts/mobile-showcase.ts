@@ -1179,7 +1179,7 @@ async function waitForAndroidShowcaseScene(
       "run-as",
       ANDROID_PACKAGE,
       "cat",
-      "files/t3-showcase-ready",
+      "files/rove-showcase-ready",
     ]).catch(() => "");
     if (readyScene.trim() === scene) return;
     await delay(500);
@@ -1190,7 +1190,7 @@ async function waitForAndroidShowcaseScene(
 async function writeAndroidShowcaseScene(serial: string, scene: ShowcaseScene): Promise<void> {
   await runAdb(serial, [
     "shell",
-    `run-as ${ANDROID_PACKAGE} sh -c 'mkdir -p files && rm -f files/t3-showcase-ready && printf %s ${scene} > files/t3-showcase-scene'`,
+    `run-as ${ANDROID_PACKAGE} sh -c 'mkdir -p files && rm -f files/rove-showcase-ready && printf %s ${scene} > files/rove-showcase-scene'`,
   ]);
 }
 
@@ -1349,7 +1349,7 @@ async function main(): Promise<void> {
   }
 
   const showcaseRootDir = await NodeFSP.mkdtemp(
-    NodePath.join(NodeOS.tmpdir(), "t3-mobile-showcase-"),
+    NodePath.join(NodeOS.tmpdir(), "rove-mobile-showcase-"),
   );
   const showcaseServers: NodeChildProcess.ChildProcess[] = [];
   const showcaseEnvironments: Array<{

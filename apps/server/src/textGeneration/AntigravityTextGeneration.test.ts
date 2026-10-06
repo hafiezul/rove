@@ -64,7 +64,7 @@ const makeFixture = Effect.fn("makeAntigravityTextGenerationFixture")(function* 
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-antigravity-text-test-" });
+  const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-antigravity-text-test-" });
   const profileDirectory = path.join(root, "profile");
   const projectDirectory = path.join(root, "project");
   const conversations = path.join(profileDirectory, "antigravity-acp", "conversations");
@@ -492,7 +492,7 @@ it.layer(NodeServices.layer)("AntigravityTextGeneration", (it) => {
     }).pipe(Effect.scoped),
   );
 
-  it.effect("uses the native default without sending T3's default selection as a model ID", () =>
+  it.effect("uses the native default without sending Rove's default selection as a model ID", () =>
     Effect.gen(function* () {
       const fixture = yield* makeFixture();
       const result = yield* fixture.textGeneration.generateThreadTitle({

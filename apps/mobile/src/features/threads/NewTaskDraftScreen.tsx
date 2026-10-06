@@ -1220,7 +1220,7 @@ export function NewTaskDraftScreen(props: {
       );
       return;
     }
-    // T3's own limits command is answered by the thread composer; a new task would
+    // Rove's own limits command is answered by the thread composer; a new task would
     // send it to the agent. A provider's same-named command, or a prompt carrying
     // attachments, goes through as usual.
     if (

@@ -11,7 +11,7 @@ import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 
 // Resolved, so macOS's /var -> /private/var link matches the realpaths Node reports.
 const makeTempDir = () =>
-  NodeFS.realpathSync(NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-entrypoint-test-")));
+  NodeFS.realpathSync(NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-entrypoint-test-")));
 
 describe("isEntrypoint", () => {
   it("uses the runtime answer when Node provides one", () => {
@@ -52,7 +52,7 @@ describe("isEntrypoint", () => {
     () => {
       const dir = makeTempDir();
       const real = NodePath.join(dir, "bin.mjs");
-      const link = NodePath.join(dir, "t3");
+      const link = NodePath.join(dir, "rove");
       NodeFS.writeFileSync(real, "");
       NodeFS.symlinkSync(real, link);
 

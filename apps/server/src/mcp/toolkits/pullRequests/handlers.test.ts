@@ -203,13 +203,13 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const result = yield* harness.call("link_pull_request", {
-        url: "https://github.com/T3Tools/Rove/pull/123/files",
+        url: "https://github.com/RoveTools/Rove/pull/123/files",
       });
       expect(result).toEqual({
         host: "github.com",
         repository: "t3tools/rove",
         number: 123,
-        url: "https://github.com/T3Tools/Rove/pull/123/files",
+        url: "https://github.com/RoveTools/Rove/pull/123/files",
         alreadyLinked: false,
       });
       expect(yield* Ref.get(harness.commands)).toMatchObject([
@@ -229,7 +229,7 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const result = yield* harness.call("link_pull_request", {
-        repository: "T3Tools/Other",
+        repository: "RoveTools/Other",
         number: 7,
       });
       expect(result).toEqual({

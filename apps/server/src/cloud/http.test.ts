@@ -169,7 +169,7 @@ describe("relay request tracing", () => {
         },
       });
       const request = HttpServerRequest.fromWeb(
-        new Request("https://environment.example.test/api/t3-cloud/mint-credential", {
+        new Request("https://environment.example.test/api/rove-cloud/mint-credential", {
           headers: {
             traceparent: "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
           },
@@ -199,7 +199,7 @@ describe("relay request tracing", () => {
         },
       });
       const request = HttpServerRequest.fromWeb(
-        new Request("https://environment.example.test/api/t3-cloud/mint-credential", {
+        new Request("https://environment.example.test/api/rove-cloud/mint-credential", {
           headers: {
             traceparent: "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
           },
@@ -444,7 +444,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         // The release consults the launcher state file under the configured
         // baseDir, so every harness run gets a scoped temp baseDir.
         Effect.provide(
-          ServerConfigModule.layerTest("/", { prefix: "t3-http-release-test-" }).pipe(
+          ServerConfigModule.layerTest("/", { prefix: "rove-http-release-test-" }).pipe(
             Layer.provideMerge(NodeServices.layer),
           ),
         ),
@@ -1246,10 +1246,10 @@ describe("link proof provider kinds", () => {
     origin: { localHttpHost: "127.0.0.1", localHttpPort: 7331 },
   });
 
-  it("accepts managed and manual endpoints but not t3_relay", () => {
+  it("accepts managed and manual endpoints but not rove_relay", () => {
     expect(isSupportedLinkProviderKind(proofRequest("cloudflare_tunnel"))).toBe(true);
     expect(isSupportedLinkProviderKind(proofRequest("manual"))).toBe(true);
-    expect(isSupportedLinkProviderKind(proofRequest("t3_relay"))).toBe(false);
+    expect(isSupportedLinkProviderKind(proofRequest("rove_relay"))).toBe(false);
   });
 
   it("only claims the managed-tunnel scope for tunnel links", () => {

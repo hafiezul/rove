@@ -1,4 +1,5 @@
 import * as Equal from "effect/Equal";
+import { migrateRoveThemeId } from "@rove-code/shared/roveMigration";
 import * as Schema from "effect/Schema";
 import "culori/css";
 import { converter, parse } from "culori/fn";
@@ -23,7 +24,7 @@ import {
 export { EMBER_THEME, GROVE_THEME, IRIS_THEME, OCEAN_THEME, PLUM_THEME, THEME_COLOR_ROLES };
 export type { ThemeAppearance, ThemeColorRole, ThemeColors, ThemeDefinition, ThemeVariants };
 
-export const PLUM_THEME_ID = "t3-chat" as const;
+export const PLUM_THEME_ID = "plum" as const;
 const GROVE_THEME_ID = "grove" as const;
 export const OCEAN_THEME_ID = "ocean" as const;
 const EMBER_THEME_ID = "ember" as const;
@@ -34,7 +35,7 @@ export const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "rove:theme-follow-system";
 export const THEME_APPEARANCE_MODE_STORAGE_KEY = "rove:theme-appearance-mode";
 export const THEME_HALVES_STORAGE_KEY = "rove:theme-halves:v1";
 
-const LEGACY_T3_CHAT_DARK_THEME_ID = "t3-chat-dark";
+const LEGACY_PLUM_DARK_THEME_ID = "plum-dark";
 
 export const ThemePreference = Schema.String;
 export type ThemePreference = typeof ThemePreference.Type;
@@ -294,19 +295,9 @@ export function subscribeToCustomThemes(listener: () => void): () => void {
   };
 }
 
-// Earlier builds shipped every maintainer theme under a t3- prefix; only the
-// genuinely T3-branded palette keeps it. Stored preferences and mixes with the
-// old ids stay readable through this alias table.
-const LEGACY_THEME_ID_ALIASES: Readonly<Record<string, string>> = {
-  [LEGACY_T3_CHAT_DARK_THEME_ID]: PLUM_THEME_ID,
-  "t3-grove": GROVE_THEME_ID,
-  "t3-ocean": OCEAN_THEME_ID,
-  "t3-ember": EMBER_THEME_ID,
-  "t3-iris": IRIS_THEME_ID,
-};
-
 function normalizeThemeId(themeId: string): string {
-  return LEGACY_THEME_ID_ALIASES[themeId] ?? themeId;
+  const migrated = migrateRoveThemeId(themeId);
+  return migrated === LEGACY_PLUM_DARK_THEME_ID ? PLUM_THEME_ID : migrated;
 }
 
 /**
@@ -315,7 +306,8 @@ function normalizeThemeId(themeId: string): string {
  * still carries the appearance hint getThemePreferenceMode reads.
  */
 export function canonicalThemePreference(theme: string): string {
-  return theme === LEGACY_T3_CHAT_DARK_THEME_ID ? theme : normalizeThemeId(theme);
+  const migrated = migrateRoveThemeId(theme);
+  return migrated === LEGACY_PLUM_DARK_THEME_ID ? migrated : normalizeThemeId(migrated);
 }
 
 function themeIdFromPreference(theme: ThemePreference): string {
@@ -325,7 +317,7 @@ function themeIdFromPreference(theme: ThemePreference): string {
 // Older builds stored the dark Plum palette as a separate theme. Keep
 // those preferences readable while mapping them to the dark variant.
 function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
-  return theme === LEGACY_T3_CHAT_DARK_THEME_ID ? "dark" : null;
+  return migrateRoveThemeId(theme) === LEGACY_PLUM_DARK_THEME_ID ? "dark" : null;
 }
 
 /**

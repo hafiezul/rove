@@ -41,34 +41,34 @@ describe("OtelEnvironment", () => {
       warnings: [specIgnored("yes")],
     },
     // ROVE_OTEL_SDK_DISABLED takes Config.Boolean's values, case-insensitively.
-    { name: "t3 1", env: { ROVE_OTEL_SDK_DISABLED: "1" }, disabled: true, warnings: [T3_OFF] },
+    { name: "rove 1", env: { ROVE_OTEL_SDK_DISABLED: "1" }, disabled: true, warnings: [T3_OFF] },
     {
-      name: "t3 TRUE",
+      name: "rove TRUE",
       env: { ROVE_OTEL_SDK_DISABLED: "TRUE" },
       disabled: true,
       warnings: [T3_OFF],
     },
-    { name: "t3 n", env: { ROVE_OTEL_SDK_DISABLED: "n" }, disabled: false, warnings: [] },
+    { name: "rove n", env: { ROVE_OTEL_SDK_DISABLED: "n" }, disabled: false, warnings: [] },
     {
-      name: "t3 false overrides spec true",
+      name: "rove false overrides spec true",
       env: { ROVE_OTEL_SDK_DISABLED: "false", OTEL_SDK_DISABLED: "true" },
       disabled: false,
       warnings: [],
     },
     {
-      name: "blank t3 falls through",
+      name: "blank rove falls through",
       env: { ROVE_OTEL_SDK_DISABLED: "  ", OTEL_SDK_DISABLED: "true" },
       disabled: true,
       warnings: [SPEC_OFF],
     },
     {
-      name: "unreadable t3 warns and falls through",
+      name: "unreadable rove warns and falls through",
       env: { ROVE_OTEL_SDK_DISABLED: "maybe", OTEL_SDK_DISABLED: "true" },
       disabled: true,
       warnings: ["ROVE_OTEL_SDK_DISABLED=maybe is not a yes or a no and was ignored", SPEC_OFF],
     },
     {
-      name: "bad spec value still warns when t3 answered",
+      name: "bad spec value still warns when rove answered",
       env: { ROVE_OTEL_SDK_DISABLED: "false", OTEL_SDK_DISABLED: "yes" },
       disabled: false,
       warnings: [specIgnored("yes")],
@@ -297,9 +297,9 @@ describe("OtelEnvironment", () => {
       },
       {
         name: "headers are comma-separated pairs with percent-encoded values",
-        env: { ...ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS: "api-key=a%20b,tenant=t3" },
-        traces: { protocol: "http/protobuf", headers: { "api-key": "a b", tenant: "t3" } },
-        logs: { protocol: "http/protobuf", headers: { "api-key": "a b", tenant: "t3" } },
+        env: { ...ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS: "api-key=a%20b,tenant=rove" },
+        traces: { protocol: "http/protobuf", headers: { "api-key": "a b", tenant: "rove" } },
+        logs: { protocol: "http/protobuf", headers: { "api-key": "a b", tenant: "rove" } },
         warnings: [],
       },
       {
@@ -391,7 +391,7 @@ describe("OtelEnvironment", () => {
   describe("resolveSignalEndpoint", () => {
     const t3Export = {
       protocol: "http/json",
-      headers: { "x-key": "t3" },
+      headers: { "x-key": "rove" },
       exportIntervalMs: 5_000,
     } as const;
     const withLogs = (logs: OtelEnvironment.OtelSignal, disabled = false) => ({
@@ -408,14 +408,14 @@ describe("OtelEnvironment", () => {
       {
         name: "ROVE_OTLP_*_URL wins over an OTEL endpoint",
         otel: withLogs(otelExport),
-        t3Url: "http://t3:4318/v1/logs",
-        expected: { url: "http://t3:4318/v1/logs", export: t3Export },
+        t3Url: "http://rove:4318/v1/logs",
+        expected: { url: "http://rove:4318/v1/logs", export: t3Export },
       },
       {
         name: "ROVE_OTLP_*_URL wins over a signal the OTEL variables turned off",
         otel: withLogs(OtelEnvironment.OtelSignal.Off()),
-        t3Url: "http://t3:4318/v1/logs",
-        expected: { url: "http://t3:4318/v1/logs", export: t3Export },
+        t3Url: "http://rove:4318/v1/logs",
+        expected: { url: "http://rove:4318/v1/logs", export: t3Export },
       },
       {
         name: "an OTEL endpoint brings its headers and protocol over the fallback",
@@ -445,7 +445,7 @@ describe("OtelEnvironment", () => {
       {
         name: "the kill switch wins over everything",
         otel: withLogs(otelExport, true),
-        t3Url: "http://t3:4318/v1/logs",
+        t3Url: "http://rove:4318/v1/logs",
         expected: undefined,
       },
     ])("$name", ({ otel, t3Url, expected }) => {
@@ -465,17 +465,21 @@ describe("OtelEnvironment", () => {
   it.effect("an exporter of none keeps the Settings endpoint from re-enabling its signal", () =>
     Effect.gen(function* () {
       const otel = yield* load({ OTEL_LOGS_EXPORTER: "none" });
-      const t3 = {
+      const rove = {
         url: undefined,
         export: { protocol: "http/json", headers: undefined, exportIntervalMs: 10_000 },
       } as const;
       assert.strictEqual(
-        OtelEnvironment.resolveSignalEndpoint(otel, "logs", t3, "http://settings:4318/v1/logs"),
+        OtelEnvironment.resolveSignalEndpoint(otel, "logs", rove, "http://settings:4318/v1/logs"),
         undefined,
       );
       assert.strictEqual(
-        OtelEnvironment.resolveSignalEndpoint(otel, "traces", t3, "http://settings:4318/v1/traces")
-          ?.url,
+        OtelEnvironment.resolveSignalEndpoint(
+          otel,
+          "traces",
+          rove,
+          "http://settings:4318/v1/traces",
+        )?.url,
         "http://settings:4318/v1/traces",
       );
     }),
@@ -491,7 +495,7 @@ describe("OtelEnvironment", () => {
           ConfigProvider.fromEnv({ env: { OTEL_RESOURCE_ATTRIBUTES: raw } }),
         );
         const otel = yield* OtelEnvironment.load.pipe(Effect.provide(env));
-        const resource = yield* OtlpResource.fromConfig({ serviceName: "t3" }).pipe(
+        const resource = yield* OtlpResource.fromConfig({ serviceName: "rove" }).pipe(
           Effect.provide(
             Layer.provide(OtelEnvironment.layerResourceAttributes(otel.resourceAttributes), env),
           ),

@@ -31,7 +31,7 @@ describe("buildRoveProjectFileJsonSchema", () => {
     const schema = buildRoveProjectFileJsonSchema();
 
     expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
-    expect(schema.$id).toBe("https://t3.codes/schema/t3.json");
+    expect(schema.$id).toBe("https://rove.hafiezulzikry.com/schema/rove.json");
     expect(schema.type).toBe("object");
     expect(schema.additionalProperties).toBe(false);
   });

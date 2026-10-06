@@ -1929,7 +1929,7 @@ function normalizePersistedDraftsByThreadId(
     // Older drafts used producer ids (including dots and colons) directly in links.
     // Rewrite only links backed by this draft, before appending any missing references.
     const migratedPrompt = promptCandidate.replace(
-      /!?\[([^\]\r\n]*)\]\(t3-context:\/\/v1\/([a-z-]+)\/([^/()\r\n]+)\)/g,
+      /!?\[([^\]\r\n]*)\]\((?:rove|t3)-context:\/\/v1\/([a-z-]+)\/([^/()\r\n]+)\)/g,
       (source, label: string, kind: string, id: string) => {
         const contextId = contextIds.get(`${kind}/${id}`);
         return contextId ? formatInlineContextReference({ kind, contextId, label }) : source;

@@ -990,7 +990,7 @@ describe("ProviderCommandReactor", () => {
         message: {
           messageId: asMessageId("user-message-with-context"),
           role: "user",
-          text: "Inspect [build](t3-context://v1/terminal/terminal-1)",
+          text: "Inspect [build](rove-context://v1/terminal/terminal-1)",
           attachments: [],
           context: {
             version: 1,
@@ -2054,7 +2054,7 @@ describe("ProviderCommandReactor", () => {
     expect(message).toContain(
       `USER:\nReview subagent monitoring risks. ${quoteText.slice(0, 100)}`,
     );
-    expect(message).not.toContain("t3-citation://");
+    expect(message).not.toContain("rove-citation://");
     expect(message).toContain("[Content truncated]");
     expect(message).toContain("[Earlier content truncated]");
     expect(message).toContain("image.png");
@@ -2615,7 +2615,9 @@ describe("ProviderCommandReactor", () => {
     expect(harness.generateThreadTitle.mock.calls[0]?.[0].message).toBe(
       `[effort:high]\\n\\nFix reconnect spinner on resume ${assistantQuoteText}`,
     );
-    expect(harness.generateThreadTitle.mock.calls[0]?.[0].message).not.toContain("t3-citation://");
+    expect(harness.generateThreadTitle.mock.calls[0]?.[0].message).not.toContain(
+      "rove-citation://",
+    );
     const readModel = await harness.readModel();
     const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
     expect(thread?.title).toBe("Reconnect spinner resume bug");
@@ -2683,7 +2685,7 @@ describe("ProviderCommandReactor", () => {
     expect(harness.generateBranchName.mock.calls[0]?.[0].message).toBe(
       `Add a safer reconnect backoff. ${assistantQuoteText}`,
     );
-    expect(harness.generateBranchName.mock.calls[0]?.[0].message).not.toContain("t3-citation://");
+    expect(harness.generateBranchName.mock.calls[0]?.[0].message).not.toContain("rove-citation://");
     expect(harness.refreshStatus.mock.calls[0]?.[0]).toBe("/tmp/provider-project-worktree");
     const readModel = await harness.readModel();
     expect(

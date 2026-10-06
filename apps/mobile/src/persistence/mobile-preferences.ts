@@ -11,7 +11,9 @@ import { MOBILE_THEME_IDS, type MobileThemeId, type MobileThemeMode } from "../l
 import * as MobileDatabase from "./mobile-database";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import { MobileStorageDecodeError, MobileStorageEncodeError } from "./mobile-storage";
+import { migrateRoveSavedState } from "@rove-code/shared/roveMigration";
 
+const decodeMigrationJson = Schema.decodeUnknownSync(Schema.Json);
 const PREFERENCES_KEY = "rove.preferences";
 const PREFERENCES_FALLBACK_KEY = "rove.preferences.fallback";
 
@@ -354,7 +356,20 @@ export const make = Effect.fn("MobilePreferencesStore.make")(function* () {
       }
     }
 
-    return parsed === null ? {} : sanitizePreferences(parsed);
+    if (parsed === null) return {};
+    const migrated = migrateRoveSavedState(decodeMigrationJson(parsed));
+    if (migrated !== parsed) {
+      yield* encode(PREFERENCES_KEY, migrated).pipe(
+        Effect.flatMap((payload) => saveJson(payload)),
+        Effect.catch((cause) =>
+          Effect.logWarning("Could not persist migrated mobile preferences.").pipe(
+            Effect.annotateLogs({ cause }),
+          ),
+        ),
+      );
+    }
+    // SAFETY: Migration preserves the preference object; the sanitizer validates its fields.
+    return sanitizePreferences(migrated as Preferences);
   });
 
   const load = lock

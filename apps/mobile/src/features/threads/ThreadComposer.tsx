@@ -1,6 +1,6 @@
 import { ChatGptUsageLimitNotice } from "./ChatGptUsageLimitNotice";
 import { UsageLimitRecoveryNotice } from "./UsageLimitRecoveryNotice";
-import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
+import type { ComposerTextPaste } from "../../native/RoveComposerEditor.types";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useAtomValue } from "@effect/atom-react";
 import { clampFileAttachmentUploadBytes } from "@rove-code/client-runtime/state/attachments";

@@ -1,4 +1,8 @@
 import { usePullRequestLinking } from "~/hooks/usePullRequestLinking";
+import {
+  ASSISTANT_CITATION_READ_PROTOCOLS,
+  COMPOSER_CONTEXT_READ_PROTOCOLS,
+} from "@rove-code/shared/roveMigration";
 import { useAtomValue } from "@effect/atom-react";
 import {
   COMPOSER_CONTEXT_CLIPBOARD_MIME,
@@ -222,7 +226,7 @@ interface ChatMarkdownProps {
   imageBaseDir?: string | undefined;
   onImageExpand?: ((preview: ExpandedImagePreview) => void) | undefined;
   extraRemarkPlugins?: NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
-  /** Renders a `t3-context://` link as a chip; without it the link shows its label as text. */
+  /** Renders a `rove-context://` link as a chip; without it the link shows its label as text. */
   renderContextReference?: ((reference: ChatMarkdownContextReference) => ReactNode) | undefined;
   /** Loads GitHub-hosted media through `cwd`'s GitHub credential, which a private repository's
       uploads need; without it those images and videos load unauthenticated and 404. */
@@ -483,8 +487,13 @@ const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
   },
   protocols: {
     ...defaultSchema.protocols,
-    href: [...(defaultSchema.protocols?.href ?? []), "file", "t3-citation", "t3-context"],
-    src: [...(defaultSchema.protocols?.src ?? []), "file", "t3-context"],
+    href: [
+      ...(defaultSchema.protocols?.href ?? []),
+      "file",
+      ...ASSISTANT_CITATION_READ_PROTOCOLS,
+      ...COMPOSER_CONTEXT_READ_PROTOCOLS,
+    ],
+    src: [...(defaultSchema.protocols?.src ?? []), "file", ...COMPOSER_CONTEXT_READ_PROTOCOLS],
   },
 } satisfies Parameters<typeof rehypeSanitize>[0];
 

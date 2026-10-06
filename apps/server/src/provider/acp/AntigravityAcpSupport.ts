@@ -41,7 +41,7 @@ export interface AntigravityAcpRuntimeInput extends Omit<
   readonly onAuthorizationUrl?: (url: string) => Effect.Effect<void, EffectAcpErrors.AcpError>;
   /**
    * Advertise `fs.readTextFile` and `fs.writeTextFile`. The agent then routes
-   * workspace reads and writes through T3, which turns each edit into a
+   * workspace reads and writes through Rove, which turns each edit into a
    * `session/request_permission` with the file content, instead of writing
    * through its own tools. Chat sessions turn this on. Setup, probe, and text
    * generation helpers leave it off so they never touch a workspace.

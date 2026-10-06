@@ -1,4 +1,6 @@
-export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
+import { LEGACY_THEME_IDS } from "./roveMigration.ts";
+
+export const BUILT_IN_THEME_IDS = ["plum", "grove", "ocean", "ember", "iris"] as const;
 
 /** The standard Rove Code palette, kept separate from the optional built-in theme library. */
 export const MOBILE_DEFAULT_THEME_ID = "rove";
@@ -21,11 +23,8 @@ export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
   "light",
   "dark",
   ...BUILT_IN_THEME_IDS,
-  "t3-chat-dark",
-  "t3-grove",
-  "t3-ocean",
-  "t3-ember",
-  "t3-iris",
+  "plum-dark",
+  ...LEGACY_THEME_IDS,
 ]);
 
 /**
@@ -249,7 +248,7 @@ export const ROVE_DARK_THEME_COLORS: ThemeColors = {
 };
 
 export const PLUM_THEME: ThemeDefinition = {
-  id: "t3-chat",
+  id: "plum",
   label: "Plum",
   appearance: "light",
   colors: {

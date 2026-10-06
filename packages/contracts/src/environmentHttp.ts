@@ -408,11 +408,18 @@ export const AuthOtherClientSessionsRevokeResult = Schema.Struct({
 });
 export type AuthOtherClientSessionsRevokeResult = typeof AuthOtherClientSessionsRevokeResult.Type;
 
-class EnvironmentMetadataHttpApi extends HttpApiGroup.make("metadata").add(
-  HttpApiEndpoint.get("descriptor", "/.well-known/t3/environment", {
-    success: ExecutionEnvironmentDescriptor,
-  }),
-) {}
+class EnvironmentMetadataHttpApi extends HttpApiGroup.make("metadata")
+  .add(
+    HttpApiEndpoint.get("descriptor", "/.well-known/rove/environment", {
+      success: ExecutionEnvironmentDescriptor,
+    }),
+  )
+  // Previous clients must see the protocol mismatch before attempting an incompatible connection.
+  .add(
+    HttpApiEndpoint.get("legacyDescriptor", "/.well-known/t3/environment", {
+      success: ExecutionEnvironmentDescriptor,
+    }),
+  ) {}
 
 class EnvironmentAuthHttpApi extends HttpApiGroup.make("auth")
   .add(
@@ -607,7 +614,7 @@ class EnvironmentConnectHttpApi extends HttpApiGroup.make("connect")
     }),
   )
   .add(
-    HttpApiEndpoint.post("t3MintCredential", "/api/rove-connect/mint-credential", {
+    HttpApiEndpoint.post("roveMintCredential", "/api/rove-connect/mint-credential", {
       payload: RelayCloudMintCredentialRequest,
       success: RelayEnvironmentMintResponse,
       error: EnvironmentHttpCloudErrors,

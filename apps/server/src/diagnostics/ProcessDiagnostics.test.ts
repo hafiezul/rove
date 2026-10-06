@@ -71,7 +71,7 @@ describe("ProcessDiagnostics", () => {
           startTimeMs: 1_000,
           runTimeMs: 60_000,
           name: "node",
-          command: "t3 server",
+          command: "rove server",
           status: "Running",
           cpuPercent: 0,
           cpuTimeMs: 100,

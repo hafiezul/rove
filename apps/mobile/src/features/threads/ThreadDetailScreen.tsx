@@ -1,5 +1,5 @@
 import type { WorktreeSetupCardProps } from "./worktree-setup-card";
-import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
+import type { ComposerTextPaste } from "../../native/RoveComposerEditor.types";
 import { type EnvironmentConnectionPhase } from "@rove-code/client-runtime/connection";
 import {
   appendCodexArtifactTemplateUsePrompt,

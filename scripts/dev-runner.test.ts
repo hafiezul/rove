@@ -61,7 +61,7 @@ function mockProcess(exit: number | PlatformError.PlatformError) {
 
 const devServerInput = {
   mode: "dev:server",
-  t3Home: "/tmp/rove-dev-runner",
+  roveHome: "/tmp/rove-dev-runner",
   browser: undefined,
   autoBootstrapProjectFromCwd: undefined,
   logWebSocketEvents: undefined,
@@ -158,7 +158,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { ROVE_DEV_AUTH_TOKEN: "reusable-dev-auth-token-that-is-long-enough" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -180,7 +180,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -201,7 +201,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: true,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -221,7 +221,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { ROVE_NO_BROWSER: "0" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: false,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -242,7 +242,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: "/tmp/custom-t3",
+          roveHome: "/tmp/custom-rove",
           browser: false,
           autoBootstrapProjectFromCwd: false,
           logWebSocketEvents: true,
@@ -251,7 +251,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           devUrl: new URL("http://localhost:7331"),
         });
 
-        assert.equal(env.ROVE_HOME, path.resolve("/tmp/custom-t3"));
+        assert.equal(env.ROVE_HOME, path.resolve("/tmp/custom-rove"));
         assert.equal(env.ROVE_PORT, "4222");
         assert.equal(env.VITE_HTTP_URL, "http://localhost:4222");
         assert.equal(env.VITE_WS_URL, "ws://localhost:4222");
@@ -268,12 +268,14 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
         const env = yield* createDevRunnerEnv({
           mode: "dev",
           baseEnv: {
-            T3_SERVICE_LAUNCHER_CONTEXT: '{"childVersion":"9.9.9"}',
-            T3_BOOT_SERVICE_UNIT: "rove.service",
+            ROVE_SERVICE_LAUNCHER_CONTEXT: '{"childVersion":"9.9.9"}',
+            ROVE_BOOT_SERVICE_UNIT: "rove.service",
+            T3_SERVICE_LAUNCHER_CONTEXT: '{"childVersion":"8.8.8"}',
+            T3_BOOT_SERVICE_UNIT: "historical.service",
           },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -282,6 +284,8 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           devUrl: undefined,
         });
 
+        assert.equal(env.ROVE_SERVICE_LAUNCHER_CONTEXT, undefined);
+        assert.equal(env.ROVE_BOOT_SERVICE_UNIT, undefined);
         assert.equal(env.T3_SERVICE_LAUNCHER_CONTEXT, undefined);
         assert.equal(env.T3_BOOT_SERVICE_UNIT, undefined);
       }),
@@ -296,7 +300,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -319,7 +323,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: false,
@@ -332,7 +336,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       }),
     );
 
-    it.effect("uses custom t3Home when provided", () =>
+    it.effect("uses custom roveHome when provided", () =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         const env = yield* createDevRunnerEnv({
@@ -340,7 +344,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: "/tmp/my-t3",
+          roveHome: "/tmp/my-rove",
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -349,7 +353,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           devUrl: undefined,
         });
 
-        assert.equal(env.ROVE_HOME, path.resolve("/tmp/my-t3"));
+        assert.equal(env.ROVE_HOME, path.resolve("/tmp/my-rove"));
       }),
     );
 
@@ -368,7 +372,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: "/tmp/my-t3",
+          roveHome: "/tmp/my-rove",
           browser: true,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -377,7 +381,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           devUrl: undefined,
         });
 
-        assert.equal(env.ROVE_HOME, path.resolve("/tmp/my-t3"));
+        assert.equal(env.ROVE_HOME, path.resolve("/tmp/my-rove"));
         assert.equal(env.PORT, "5733");
         assert.equal(env.VITE_DEV_SERVER_URL, "http://127.0.0.1:5733");
         assert.equal(env.HOST, "127.0.0.1");
@@ -397,7 +401,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -425,7 +429,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
             },
             serverOffset: 0,
             webOffset: 0,
-            t3Home: undefined,
+            roveHome: undefined,
             browser: undefined,
             autoBootstrapProjectFromCwd: undefined,
             logWebSocketEvents: undefined,
@@ -454,7 +458,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { ROVE_SINGLE_ORIGIN_DEV: "1" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -475,7 +479,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { ROVE_SINGLE_ORIGIN_DEV: "1" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -500,7 +504,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
             baseEnv: { HOST: "0.0.0.0" },
             serverOffset: 0,
             webOffset: 0,
-            t3Home: undefined,
+            roveHome: undefined,
             browser: undefined,
             autoBootstrapProjectFromCwd: undefined,
             logWebSocketEvents: undefined,
@@ -523,7 +527,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { HOST: "0.0.0.0" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -545,7 +549,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { HOST: "0.0.0.0" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -565,7 +569,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: {},
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -922,7 +926,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           baseEnv: { ROVE_HOME: "/home/user/.rove" },
           serverOffset: 0,
           webOffset: 0,
-          t3Home: undefined,
+          roveHome: undefined,
           browser: undefined,
           autoBootstrapProjectFromCwd: undefined,
           logWebSocketEvents: undefined,
@@ -1245,10 +1249,10 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       });
     });
 
-    describe("t3 home precedence", () => {
+    describe("rove home precedence", () => {
       const makeWorktree = Effect.acquireRelease(
         Effect.sync(() => {
-          const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-devrunner-"));
+          const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-devrunner-"));
           NodeFS.writeFileSync(
             NodePath.join(root, ".git"),
             "gitdir: /elsewhere/.git/worktrees/x\n",
@@ -1259,7 +1263,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       );
 
       const spawnedHome = (input: {
-        readonly t3Home: string | undefined;
+        readonly roveHome: string | undefined;
         readonly cwd: string;
         readonly ambientHome: string | undefined;
       }) =>
@@ -1278,7 +1282,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
             }),
           );
 
-          yield* runDevRunnerWithInput({ ...devServerInput, t3Home: input.t3Home }).pipe(
+          yield* runDevRunnerWithInput({ ...devServerInput, roveHome: input.roveHome }).pipe(
             Effect.provide(Layer.mergeAll(emptyConfigLayer, netServiceLayer, spawnerLayer)),
             Effect.provideService(HostProcessPlatform, "linux"),
             Effect.provideService(HostProcessWorkingDirectory, input.cwd),
@@ -1296,7 +1300,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const path = yield* Path.Path;
           const root = yield* makeWorktree;
           const home = yield* spawnedHome({
-            t3Home: "/tmp/explicit-home",
+            roveHome: "/tmp/explicit-home",
             cwd: root,
             ambientHome: "/home/user/.rove",
           });
@@ -1309,7 +1313,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const path = yield* Path.Path;
           const root = yield* makeWorktree;
           const home = yield* spawnedHome({
-            t3Home: "   ",
+            roveHome: "   ",
             cwd: root,
             ambientHome: "/home/user/.rove",
           });
@@ -1322,7 +1326,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const path = yield* Path.Path;
           const root = yield* makeWorktree;
           const home = yield* spawnedHome({
-            t3Home: undefined,
+            roveHome: undefined,
             cwd: root,
             ambientHome: "/home/user/.rove",
           });
@@ -1334,7 +1338,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
         Effect.gen(function* () {
           const path = yield* Path.Path;
           const home = yield* spawnedHome({
-            t3Home: undefined,
+            roveHome: undefined,
             cwd: NodeOS.tmpdir(),
             ambientHome: "/home/user/.rove",
           });
@@ -1345,7 +1349,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       it.effect("leaves the home implicit with no worktree and no ambient value", () =>
         Effect.gen(function* () {
           const home = yield* spawnedHome({
-            t3Home: undefined,
+            roveHome: undefined,
             cwd: NodeOS.tmpdir(),
             ambientHome: undefined,
           });

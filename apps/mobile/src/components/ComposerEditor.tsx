@@ -6,8 +6,8 @@ import { Alert } from "react-native";
 import type { EnvironmentId } from "@rove-code/contracts";
 import { encodeComposerContextFragment } from "@rove-code/shared/composerContextClipboard";
 import { collectComposerContextReferences } from "@rove-code/shared/composerContextReferences";
-import { ComposerEditor as NativeComposerEditor } from "../native/T3ComposerEditor";
-import type { ComposerEditorProps as NativeComposerEditorProps } from "../native/T3ComposerEditor";
+import { ComposerEditor as NativeComposerEditor } from "../native/RoveComposerEditor";
+import type { ComposerEditorProps as NativeComposerEditorProps } from "../native/RoveComposerEditor";
 import {
   appendComposerDraftAttachments,
   createComposerDraftContextHistory,
@@ -255,4 +255,4 @@ export type {
   ComposerEditorHandle,
   ComposerEditorSelection,
   ComposerTextPaste,
-} from "../native/T3ComposerEditor";
+} from "../native/RoveComposerEditor";

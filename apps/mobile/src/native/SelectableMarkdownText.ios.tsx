@@ -1,5 +1,5 @@
 import {
-  SelectableMarkdownText as T3SelectableMarkdownText,
+  SelectableMarkdownText as RoveSelectableMarkdownText,
   type SelectableMarkdownTextProps,
 } from "@rove-code/mobile-markdown-text/renderer";
 
@@ -21,5 +21,5 @@ export function hasNativeSelectableMarkdownText(): boolean {
 }
 
 export function SelectableMarkdownText(props: MobileSelectableMarkdownTextProps) {
-  return <T3SelectableMarkdownText {...props} highlightCode={highlightCodeSnippet} />;
+  return <RoveSelectableMarkdownText {...props} highlightCode={highlightCodeSnippet} />;
 }

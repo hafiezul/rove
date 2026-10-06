@@ -45,7 +45,7 @@ describe("DesktopEnvironment", () => {
       const environment = yield* makeEnvironment(
         {},
         {
-          ROVE_HOME: " /tmp/t3 ",
+          ROVE_HOME: " /tmp/rove ",
           ROVE_COMMIT_HASH: " 0123456789abcdef ",
           ROVE_PORT: "4949",
           VITE_DEV_SERVER_URL: "http://localhost:5173",
@@ -54,24 +54,24 @@ describe("DesktopEnvironment", () => {
           ROVE_OTLP_METRICS_URL: " http://127.0.0.1:4318/v1/metrics ",
           ROVE_OTLP_LOGS_URL: " http://127.0.0.1:4318/v1/logs ",
           ROVE_OTLP_EXPORT_INTERVAL_MS: "2500",
-          ROVE_OTLP_HEADERS: "authorization=Basic%20abc%3D%3D,x-tenant=t3",
+          ROVE_OTLP_HEADERS: "authorization=Basic%20abc%3D%3D,x-tenant=rove",
           ROVE_OTLP_PROTOCOL: "http/protobuf",
         },
       );
 
       assert.equal(environment.isDevelopment, true);
       assert.equal(environment.appDataDirectory, "/Users/alice/Library/Application Support");
-      assert.equal(environment.baseDir, "/tmp/t3");
-      assert.equal(environment.stateDir, "/tmp/t3/userdata");
-      assert.equal(environment.desktopSettingsPath, "/tmp/t3/userdata/desktop-settings.json");
-      assert.equal(environment.clientSettingsPath, "/tmp/t3/userdata/client-settings.json");
+      assert.equal(environment.baseDir, "/tmp/rove");
+      assert.equal(environment.stateDir, "/tmp/rove/userdata");
+      assert.equal(environment.desktopSettingsPath, "/tmp/rove/userdata/desktop-settings.json");
+      assert.equal(environment.clientSettingsPath, "/tmp/rove/userdata/client-settings.json");
       assert.equal(
         environment.savedEnvironmentRegistryPath,
-        "/tmp/t3/userdata/saved-environments.json",
+        "/tmp/rove/userdata/saved-environments.json",
       );
-      assert.equal(environment.serverSettingsPath, "/tmp/t3/userdata/settings.json");
-      assert.equal(environment.logDir, "/tmp/t3/userdata/logs");
-      assert.equal(environment.browserArtifactsDir, "/tmp/t3/userdata/browser-artifacts");
+      assert.equal(environment.serverSettingsPath, "/tmp/rove/userdata/settings.json");
+      assert.equal(environment.logDir, "/tmp/rove/userdata/logs");
+      assert.equal(environment.browserArtifactsDir, "/tmp/rove/userdata/browser-artifacts");
       assert.equal(environment.rootDir, "/repo");
       assert.equal(environment.appRoot, "/repo");
       assert.equal(environment.serverRoot, "/repo");
@@ -98,7 +98,7 @@ describe("DesktopEnvironment", () => {
         environment.otlpHeaders,
         Option.some({
           authorization: "Basic abc==",
-          "x-tenant": "t3",
+          "x-tenant": "rove",
         }),
       );
       assert.equal(environment.otlpProtocol, "http/protobuf");
@@ -110,15 +110,15 @@ describe("DesktopEnvironment", () => {
       const environment = yield* makeEnvironment(
         {},
         {
-          ROVE_HOME: "/tmp/t3",
+          ROVE_HOME: "/tmp/rove",
         },
       );
 
       assert.equal(environment.isDevelopment, false);
-      assert.equal(environment.stateDir, "/tmp/t3/userdata");
-      assert.equal(environment.logDir, "/tmp/t3/userdata/logs");
-      assert.equal(environment.browserArtifactsDir, "/tmp/t3/userdata/browser-artifacts");
-      assert.equal(environment.serverSettingsPath, "/tmp/t3/userdata/settings.json");
+      assert.equal(environment.stateDir, "/tmp/rove/userdata");
+      assert.equal(environment.logDir, "/tmp/rove/userdata/logs");
+      assert.equal(environment.browserArtifactsDir, "/tmp/rove/userdata/browser-artifacts");
+      assert.equal(environment.serverSettingsPath, "/tmp/rove/userdata/settings.json");
       assert.equal(environment.otlpProtocol, "http/json");
     }),
   );

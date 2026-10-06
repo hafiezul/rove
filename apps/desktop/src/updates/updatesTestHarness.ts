@@ -149,7 +149,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
 
   const environmentLayer = DesktopEnvironment.layer({
     dirname: "/repo/apps/desktop/src",
-    homeDirectory: `/tmp/t3-desktop-updates-home-${process.pid}`,
+    homeDirectory: `/tmp/rove-desktop-updates-home-${process.pid}`,
     platform: options.platform ?? "darwin",
     processArch: "x64",
     appVersion: "1.2.3",
@@ -162,7 +162,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
       Layer.mergeAll(
         NodeServices.layer,
         DesktopConfig.layerTest({
-          ROVE_HOME: `/tmp/t3-desktop-updates-test-${process.pid}`,
+          ROVE_HOME: `/tmp/rove-desktop-updates-test-${process.pid}`,
           ROVE_DESKTOP_MOCK_UPDATES: "true",
           ROVE_DESKTOP_MOCK_UPDATE_SERVER_PORT: "4141",
           ...options.env,
@@ -243,7 +243,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     Layer.provideMerge(settingsLayer),
     Layer.provideMerge(
       DesktopConfig.layerTest({
-        ROVE_HOME: `/tmp/t3-desktop-updates-test-${process.pid}`,
+        ROVE_HOME: `/tmp/rove-desktop-updates-test-${process.pid}`,
         ROVE_DESKTOP_MOCK_UPDATES: "true",
         ROVE_DESKTOP_MOCK_UPDATE_SERVER_PORT: "4141",
         ...options.env,

@@ -78,7 +78,7 @@ describe("ChatMarkdown context references", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     let renderer: ReactTestRenderer | undefined;
     const text =
-      "See [Terminal output](t3-context://v1/terminal/term-1) and ![Error image](t3-context://v1/image/img-1).";
+      "See [Terminal output](rove-context://v1/terminal/term-1) and ![Error image](rove-context://v1/image/img-1).";
     try {
       await act(async () => {
         renderer = create(
@@ -123,7 +123,7 @@ describe("ChatMarkdown context references", () => {
         renderer = create(
           <ChatMarkdown
             cwd={undefined}
-            text="See [**Bold** `code`](t3-context://v1/terminal/term-1)."
+            text="See [**Bold** `code`](rove-context://v1/terminal/term-1)."
             renderContextReference={({ kind, label }) => {
               seen.push(`${kind}: ${label}`);
               return <button>{label}</button>;

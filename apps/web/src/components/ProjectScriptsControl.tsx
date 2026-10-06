@@ -47,7 +47,7 @@ interface ProjectScriptsControlProps {
   presentation?: "toolbar" | "menu";
   onRequestMenuClose?: () => void;
   scripts: ReadonlyArray<ProjectScript>;
-  /** Scripts declared in the project's checked-in t3.json, offered for import. */
+  /** Scripts declared in the project's checked-in rove.json, offered for import. */
   fileScripts?: ReadonlyArray<RoveProjectFileScript>;
   keybindings: ResolvedKeybindingsConfig;
   preferredScriptId?: string | null;
@@ -146,7 +146,7 @@ export default function ProjectScriptsControl({
     <>
       {primaryScript && <MenuSeparator />}
       <MenuGroup>
-        <MenuGroupLabel>From t3.json</MenuGroupLabel>
+        <MenuGroupLabel>From project file</MenuGroupLabel>
         {importableScripts.map((fileScript) => (
           <MenuItem
             density={presentation === "menu" ? "touch" : "default"}

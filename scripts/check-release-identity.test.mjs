@@ -6,13 +6,17 @@ import { expect, it } from "vite-plus/test";
 import { checkReleaseIdentity, findUpstreamPublicIdentity } from "./check-release-identity.mjs";
 
 it("flags public upstream identities, not compatibility names or attribution", () => {
-  expect(findUpstreamPublicIdentity('import "@rove-code/contracts"; // read t3.json')).toEqual([]);
-  expect(findUpstreamPublicIdentity("The fork is based on T3 Code.")).toEqual([]);
+  expect(findUpstreamPublicIdentity('import "@rove-code/contracts"; // read rove.json')).toEqual(
+    [],
+  );
+  expect(findUpstreamPublicIdentity("The fork is based on Rove Code.")).toEqual([]);
   expect(
-    findUpstreamPublicIdentity("npx t3@nightly\nhttps://t3.codes/install.sh\nowner: 'pingdotgg'"),
+    findUpstreamPublicIdentity(
+      "npx rove@nightly\nhttps://rove.hafiezulzikry.com/install.sh\nowner: 'pingdotgg'",
+    ),
   ).toEqual([
-    { line: 1, text: "npx t3@nightly" },
-    { line: 2, text: "https://t3.codes/install.sh" },
+    { line: 1, text: "npx rove@nightly" },
+    { line: 2, text: "https://rove.hafiezulzikry.com/install.sh" },
     { line: 3, text: "owner: 'pingdotgg'" },
   ]);
 });
@@ -20,14 +24,14 @@ it("flags public upstream identities, not compatibility names or attribution", (
 it("reports all public claims but only blocks enabled release surfaces", () => {
   const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-release-identity-"));
   const files = {
-    "apps/marketing/src/pages/download.astro": "npx t3@nightly\n",
+    "apps/marketing/src/pages/download.astro": "npx rove@nightly\n",
     "apps/marketing/astro.config.mjs": "site: undefined\n",
     "apps/marketing/vercel.ts": "redirects: []\n",
-    "apps/web/vercel.ts": "host: 'app.t3.codes'\n",
-    "apps/mobile/app.config.ts": "relyingParty: 'clerk.t3.codes'\n",
+    "apps/web/vercel.ts": "host: 'app.rove.codes'\n",
+    "apps/mobile/app.config.ts": "relyingParty: 'clerk.rove.codes'\n",
     "apps/mobile/eas.json": '{ "ascAppId": "6787819824" }\n',
     "apps/mobile/src/features/settings/lib/legal-document-url.ts":
-      "const site = 'https://t3.codes';\n",
+      "const site = 'https://rove.hafiezulzikry.com';\n",
   };
   for (const [file, content] of Object.entries(files)) {
     NodeFS.mkdirSync(NodePath.dirname(NodePath.join(root, file)), { recursive: true });
@@ -45,7 +49,7 @@ it("reports all public claims but only blocks enabled release surfaces", () => {
     expect(checkReleaseIdentity(root, { ROVE_HOSTED_RELEASE_READY: "true" })).toBe(false);
     expect(checkReleaseIdentity(root, { ROVE_MOBILE_STORES_READY: "true" })).toBe(false);
     expect(messages.join("\n")).toMatch(
-      /apps\/marketing\/src\/pages\/download\.astro:1: npx t3@nightly/,
+      /apps\/marketing\/src\/pages\/download\.astro:1: npx rove@nightly/,
     );
     expect(messages.join("\n")).toMatch(/Refusing publication for: marketing/);
     expect(messages.join("\n")).toMatch(/apps\/mobile\/eas\.json:1:/);

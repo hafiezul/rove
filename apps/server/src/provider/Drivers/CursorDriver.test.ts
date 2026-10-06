@@ -18,7 +18,7 @@ import { NoOpProviderEventLoggers, ProviderEventLoggers } from "../Layers/Provid
 import { CursorDriver } from "./CursorDriver.ts";
 
 const testLayer = ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3-cursor-driver-copy-command-",
+  prefix: "rove-cursor-driver-copy-command-",
 }).pipe(
   Layer.provideMerge(NodeServices.layer),
   Layer.provideMerge(ServerSettingsService.layerTest()),
@@ -45,7 +45,7 @@ it.layer(testLayer)("CursorDriver", (it) => {
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cursor-driver-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-cursor-driver-" });
         const binaryPath = NodePath.join(tempDir, "Cursor Tools", "bin", "cursor-agent");
         yield* fs.makeDirectory(NodePath.dirname(binaryPath), { recursive: true });
         yield* fs.writeFileString(binaryPath, "#!/bin/sh\n");
@@ -84,7 +84,7 @@ it.layer(testLayer)("CursorDriver", (it) => {
         environment: [],
         config: {
           ...CursorDriver.defaultConfig(),
-          binaryPath: NodePath.join(NodeOS.tmpdir(), "t3-cursor-missing", "cursor-agent"),
+          binaryPath: NodePath.join(NodeOS.tmpdir(), "rove-cursor-missing", "cursor-agent"),
         },
       });
       expect((yield* instance.snapshot.resolveMaintenance()).update).toBeNull();

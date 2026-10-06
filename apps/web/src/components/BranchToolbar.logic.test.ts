@@ -103,7 +103,7 @@ describe("resolvePreviousWorktreeLabel", () => {
   it("includes the branch when known", () => {
     expect(
       resolvePreviousWorktreeLabel({ branch: "@rove-code/server/fix-thing", worktreePath: "/wt" }),
-    ).toBe("Previous worktree (t3/fix-thing)");
+    ).toBe("Previous worktree (rove/fix-thing)");
     expect(resolvePreviousWorktreeLabel({ branch: null, worktreePath: "/wt" })).toBe(
       "Previous worktree",
     );
@@ -534,7 +534,7 @@ describe("resolveLockedWorkspaceLabel", () => {
   });
 
   it("uses a shorter label for an attached worktree", () => {
-    expect(resolveLockedWorkspaceLabel("/repo/.t3/worktrees/feature-a", "worktree")).toBe(
+    expect(resolveLockedWorkspaceLabel("/repo/.rove/worktrees/feature-a", "worktree")).toBe(
       "Worktree",
     );
   });

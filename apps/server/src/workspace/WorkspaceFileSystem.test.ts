@@ -29,7 +29,7 @@ const TestLayer = Layer.empty.pipe(
   Layer.provideMerge(VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcess.layer))),
   Layer.provide(
     ServerConfig.ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-workspace-files-test-",
+      prefix: "rove-workspace-files-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),

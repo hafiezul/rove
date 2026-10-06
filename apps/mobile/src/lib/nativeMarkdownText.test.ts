@@ -38,7 +38,7 @@ describe("nativeMarkdownTextRuns", () => {
   });
 
   it("maps rendered selection offsets back to canonical references without losing repeated chips", () => {
-    const href = "t3-context://v1/image/screenshot";
+    const href = "rove-context://v1/image/screenshot";
     expect(
       nativeMarkdownContextCopyRanges([
         { run: { text: "😀 " }, text: "😀 ", inlineImageLength: 0 },
@@ -47,8 +47,8 @@ describe("nativeMarkdownTextRuns", () => {
         { run: { href, text: "Checkout" }, text: "\uFFFC\u00A0Checkout", inlineImageLength: 0 },
       ]),
     ).toEqual([
-      { start: 3, end: 12, text: "![Checkout](t3-context://v1/image/screenshot)" },
-      { start: 18, end: 28, text: "![Checkout](t3-context://v1/image/screenshot)" },
+      { start: 3, end: 12, text: "![Checkout](rove-context://v1/image/screenshot)" },
+      { start: 18, end: 28, text: "![Checkout](rove-context://v1/image/screenshot)" },
     ]);
   });
   it("restores canonical skill and context text from Android's single-image chips", () => {
@@ -58,14 +58,14 @@ describe("nativeMarkdownTextRuns", () => {
         { run: { text: "Playwright", skillName: "playwright" }, text: "", inlineImageLength: 1 },
         { run: { text: " on " }, text: " on ", inlineImageLength: 0 },
         {
-          run: { text: "Screenshot", href: "t3-context://v1/image/screenshot" },
+          run: { text: "Screenshot", href: "rove-context://v1/image/screenshot" },
           text: "",
           inlineImageLength: 1,
         },
       ]),
     ).toEqual([
       { start: 4, end: 5, text: "$playwright" },
-      { start: 9, end: 10, text: "![Screenshot](t3-context://v1/image/screenshot)" },
+      { start: 9, end: 10, text: "![Screenshot](rove-context://v1/image/screenshot)" },
     ]);
   });
   it("links a path-shaped code span without changing the same path in prose", () => {
@@ -580,7 +580,7 @@ describe("nativeMarkdownDocumentRuns", () => {
   });
 
   it("keeps adjacent context links with the same href in separate runs", () => {
-    const href = "t3-context://v1/terminal/ctx-1";
+    const href = "rove-context://v1/terminal/ctx-1";
     const link = (content: string): MarkdownNode => ({
       type: "link",
       href,

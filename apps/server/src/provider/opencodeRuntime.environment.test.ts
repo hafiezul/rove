@@ -173,7 +173,7 @@ describe("OpenCode server output", () => {
         const environment = yield* HostProcessEnvironment;
         const executablePath = yield* HostProcessExecutablePath;
         const platform = yield* HostProcessPlatform;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-opencode-output-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-opencode-output-" });
         const isWindows = platform === "win32";
         const binaryPath = path.join(tempDir, isWindows ? "opencode.cmd" : "opencode");
         const scriptPath = path.join(tempDir, "opencode.mjs");

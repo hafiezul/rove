@@ -48,10 +48,14 @@ depending on the project crumb.
 The Project category, shown while a project is selected, holds the project's name, icon, actions,
 checkouts and removal. Actions belong to a project: editing them creates the project's own list
 on each selected environment, and reset returns to the environment's shared list. A project's
-`t3.json` actions can be imported there.
+`rove.json` actions can be imported there.
 
-Settings a repository can also declare in `t3.json`, such as the workspace for new threads,
-resolve in one order: a project override, then the environment setting, then `t3.json`, then the
+The server also reads the historical `t3.json` filename when `rove.json` is absent.
+To update a repository, rename its configuration file to `rove.json`. If both files exist,
+only `rove.json` applies. An invalid `rove.json` does not fall back to the older file.
+
+Settings a repository can also declare in `rove.json`, such as the workspace for new threads,
+resolve in one order: a project override, then the environment setting, then `rove.json`, then the
 built-in default. Leave a setting on **Inherit** to let the next tier decide.
 Browser access changes apply when an agent session next starts.
 
@@ -59,7 +63,7 @@ New worktrees initialize git submodules recursively. If that step is slow becaus
 declares many nested submodules, set **Submodules** in **Settings → General** (with the project
 selected to override it there) to **Top level only** to stop at the ones the repository declares
 itself, or **Skip** to leave them for a setup script. It resolves in the same order as the
-workspace default: a `"worktreeSubmodules"` value in the `t3.json` of the branch being checked out
+workspace default: a `"worktreeSubmodules"` value in the `rove.json` of the branch being checked out
 applies when the project and environment are both on **Inherit**.
 
 ## Review worktree storage

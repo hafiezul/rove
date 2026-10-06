@@ -178,6 +178,28 @@ describe("mobile connection storage", () => {
     await expect(loadPreferences()).resolves.toEqual({ baseFontSize: 17 });
   });
 
+  it("migrates historical theme preferences once without losing unrelated settings", async () => {
+    mocks.setPreferencesJson(
+      JSON.stringify({ themeId: "t3-chat", darkThemeId: "t3-ocean", baseFontSize: 17 }),
+      1,
+    );
+    await expect(loadPreferences()).resolves.toEqual({
+      themeId: "plum",
+      darkThemeId: "ocean",
+      baseFontSize: 17,
+    });
+    expect(JSON.parse(mocks.getPreferencesJson()!)).toEqual({
+      themeId: "plum",
+      darkThemeId: "ocean",
+      baseFontSize: 17,
+    });
+    await expect(loadPreferences()).resolves.toEqual({
+      themeId: "plum",
+      darkThemeId: "ocean",
+      baseFontSize: 17,
+    });
+  });
+
   it("persists independent light and dark theme choices", async () => {
     mocks.setPreferencesJson(
       JSON.stringify({
@@ -201,19 +223,19 @@ describe("mobile connection storage", () => {
     const themes = { lightThemeId: "material-you", darkThemeId: "ocean" } as const;
     await savePreferencesPatch(themes);
     await expect(loadPreferences()).resolves.toEqual(themes);
-    await savePreferencesPatch({ lightThemeId: "t3-chat" });
-    await expect(loadPreferences()).resolves.toEqual({ ...themes, lightThemeId: "t3-chat" });
+    await savePreferencesPatch({ lightThemeId: "plum" });
+    await expect(loadPreferences()).resolves.toEqual({ ...themes, lightThemeId: "plum" });
   });
 
   it.each([true, false])("drops the removed Android layout preference (%s)", async (enabled) => {
     mocks.setPreferencesJson(
       JSON.stringify({
         materialYouStyleLayoutEnabled: enabled,
-        lightThemeId: "t3-chat",
+        lightThemeId: "plum",
       }),
       10,
     );
-    await expect(loadPreferences()).resolves.toEqual({ lightThemeId: "t3-chat" });
+    await expect(loadPreferences()).resolves.toEqual({ lightThemeId: "plum" });
   });
 
   it("drops the removed theme transition preference", async () => {

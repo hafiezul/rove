@@ -968,7 +968,7 @@ describe("CodexSessionRuntime collab integration", () => {
 });
 
 describe("CodexSessionRuntime compaction", () => {
-  it.effect("restores T3 context after the root thread compacts", () =>
+  it.effect("restores Rove context after the root thread compacts", () =>
     Effect.gen(function* () {
       const compacted = (threadId: string) => ({
         method: "item/completed",
@@ -1032,7 +1032,7 @@ describe("CodexSessionRuntime compaction", () => {
       assert.lengthOf(texts, 1);
       assert.match(
         texts[0] ?? "",
-        /^<t3_code_runtime><runtime_info>.*as GPT-5\.6 Sol \(model slug: gpt-5\.6-sol\).*<\/t3_code_runtime>$/s,
+        /^<rove_runtime><runtime_info>.*as GPT-5\.6 Sol \(model slug: gpt-5\.6-sol\).*<\/rove_runtime>$/s,
       );
 
       yield* runtime.close;

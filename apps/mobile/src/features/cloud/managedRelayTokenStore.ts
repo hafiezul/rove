@@ -2,13 +2,14 @@ import { ManagedRelay } from "@rove-code/client-runtime/relay";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SecureStore from "expo-secure-store";
+import { LEGACY_RELAY_CLIENT_IDS } from "@rove-code/shared/roveMigration";
 
 const MANAGED_RELAY_TOKEN_CACHE_KEY = "rove.cloud.relay-access-tokens";
 const MANAGED_RELAY_TOKEN_CACHE_VERSION = 1;
 
 const ManagedRelayAccessTokenCacheEntrySchema = Schema.Struct({
   accountId: Schema.String,
-  clientId: Schema.Literals(["t3-mobile", "t3-web"]),
+  clientId: Schema.Literals(["rove-mobile", "rove-web"]),
   relayUrl: Schema.String,
   thumbprint: Schema.String,
   scopes: Schema.Array(
@@ -18,15 +19,23 @@ const ManagedRelayAccessTokenCacheEntrySchema = Schema.Struct({
   expiresAtMillis: Schema.Number,
 });
 
-const ManagedRelayAccessTokenCacheSchema = Schema.fromJsonString(
-  Schema.Struct({
-    version: Schema.Literal(MANAGED_RELAY_TOKEN_CACHE_VERSION),
-    entries: Schema.Array(ManagedRelayAccessTokenCacheEntrySchema),
-  }),
-);
+const ManagedRelayAccessTokenCache = Schema.Struct({
+  version: Schema.Literal(MANAGED_RELAY_TOKEN_CACHE_VERSION),
+  entries: Schema.Array(ManagedRelayAccessTokenCacheEntrySchema),
+});
+const ManagedRelayAccessTokenCacheSchema = Schema.fromJsonString(ManagedRelayAccessTokenCache);
 
+const ManagedRelayAccessTokenCacheRead = Schema.Struct({
+  ...ManagedRelayAccessTokenCache.fields,
+  entries: Schema.Array(
+    Schema.Struct({
+      ...ManagedRelayAccessTokenCacheEntrySchema.fields,
+      clientId: Schema.Literals(["rove-mobile", "rove-web", ...LEGACY_RELAY_CLIENT_IDS]),
+    }),
+  ),
+});
 const decodeManagedRelayAccessTokenCache = Schema.decodeUnknownEffect(
-  ManagedRelayAccessTokenCacheSchema,
+  Schema.fromJsonString(ManagedRelayAccessTokenCacheRead),
 );
 const encodeManagedRelayAccessTokenCache = Schema.encodeEffect(ManagedRelayAccessTokenCacheSchema);
 
@@ -65,7 +74,14 @@ const loadManagedRelayAccessTokens = Effect.tryPromise({
     encoded === null
       ? Effect.succeed<ReadonlyArray<ManagedRelay.ManagedRelayAccessTokenCacheEntry>>([])
       : decodeManagedRelayAccessTokenCache(encoded).pipe(
-          Effect.map((cache) => cache.entries),
+          // Renaming metadata cannot make an old signed client_id claim valid. Mint a fresh token instead.
+          Effect.map((cache) =>
+            cache.entries.flatMap((entry) =>
+              entry.clientId === "rove-mobile" || entry.clientId === "rove-web"
+                ? [{ ...entry, clientId: entry.clientId }]
+                : [],
+            ),
+          ),
           Effect.mapError(
             (cause) =>
               new ManagedRelayTokenStoreError({

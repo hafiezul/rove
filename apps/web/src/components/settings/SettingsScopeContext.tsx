@@ -13,7 +13,7 @@ import { resolveSettingsScope, type SettingsScopeSearch } from "./settingsScope"
 import { selectSingleEnvironmentScope } from "./settingsScopeAxis";
 
 /**
- * Each member's decoded t3.json, so file-backed settings show the file as a
+ * Each member's decoded rove.json, so file-backed settings show the file as a
  * layer in the inheritance chain. A member is only present once its read has
  * settled; the query atom caches per (environment, cwd).
  */
@@ -30,6 +30,7 @@ function useMemberProjectFiles(scope: ReturnType<typeof resolveSettingsScope>) {
                 member.environmentId,
                 member.workspaceRoot,
                 ROVE_PROJECT_FILE_NAME,
+                { allowLegacyProjectFile: true },
               ),
             );
             if (result.waiting) continue;

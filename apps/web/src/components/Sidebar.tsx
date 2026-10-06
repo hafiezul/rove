@@ -1521,7 +1521,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   const accessibleTitle = isRenaming ? null : <span className="sr-only">{thread.title}</span>;
 
   // Stacks show their layer count; multiple unrelated links show their total count.
-  // Plain clicks open T3; individual PR links also support opening the host in a new tab.
+  // Plain clicks open Rove; individual PR links also support opening the host in a new tab.
   const prBadgeShape = supportsMultiplePullRequests
     ? resolveThreadPullRequestBadge(thread.pullRequests)
     : null;

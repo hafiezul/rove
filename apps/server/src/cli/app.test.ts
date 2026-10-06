@@ -132,9 +132,9 @@ const withTempDirectory = <A, E, R>(
 
 describe("rove app", () => {
   it.effect("rejects SSH before it tries to reach a desktop app", () =>
-    withTempDirectory("t3-app-ssh-test-", (root) =>
+    withTempDirectory("rove-app-ssh-test-", (root) =>
       Effect.gen(function* () {
-        const baseDir = NodePath.join(root, "missing-t3-home");
+        const baseDir = NodePath.join(root, "missing-rove-home");
         const error = yield* runCli(["app", "--base-dir", baseDir], {
           SSH_CONNECTION: "client server",
         }).pipe(Effect.flip);
@@ -150,9 +150,9 @@ describe("rove app", () => {
   );
 
   it.effect("rejects unsupported platforms without creating state", () =>
-    withTempDirectory("t3-app-platform-test-", (root) =>
+    withTempDirectory("rove-app-platform-test-", (root) =>
       Effect.gen(function* () {
-        const baseDir = NodePath.join(root, "missing-t3-home");
+        const baseDir = NodePath.join(root, "missing-rove-home");
         const error = yield* runCli(["app", "--base-dir", baseDir]).pipe(
           Effect.provideService(HostProcessPlatform, "freebsd"),
           Effect.flip,
@@ -169,9 +169,9 @@ describe("rove app", () => {
   );
 
   it.effect("does not create state when only a server or no desktop app is running", () =>
-    withTempDirectory("t3-app-missing-test-", (root) =>
+    withTempDirectory("rove-app-missing-test-", (root) =>
       Effect.gen(function* () {
-        const baseDir = NodePath.join(root, "missing-t3-home");
+        const baseDir = NodePath.join(root, "missing-rove-home");
         const error = yield* runCli(["app", "--base-dir", baseDir]).pipe(Effect.flip);
 
         expect(error).toMatchObject({
@@ -187,9 +187,9 @@ describe("rove app", () => {
   );
 
   it.effect("uses ROVE_HOME or --base-dir and sends the default or explicit path", () =>
-    withTempDirectory("t3-app-command-test-", (root) =>
+    withTempDirectory("rove-app-command-test-", (root) =>
       Effect.gen(function* () {
-        const baseDir = NodePath.join(root, "t3-home");
+        const baseDir = NodePath.join(root, "rove-home");
         const explicitPath = NodePath.join(root, "project");
         const platform = yield* HostProcessPlatform;
         const workingDirectory = yield* HostProcessWorkingDirectory;
@@ -208,7 +208,7 @@ describe("rove app", () => {
   );
 
   it.effect("prefers the installed desktop app when a dev desktop is also running", () =>
-    withTempDirectory("t3-app-preferred-test-", (root) =>
+    withTempDirectory("rove-app-preferred-test-", (root) =>
       Effect.gen(function* () {
         vi.mocked(NodeOS.homedir).mockReturnValue(root);
         const baseDir = NodePath.join(root, ".rove-code");
@@ -224,7 +224,7 @@ describe("rove app", () => {
   );
 
   it.effect("finds the dev desktop when the default desktop socket is absent", () =>
-    withTempDirectory("t3-app-dev-test-", (root) =>
+    withTempDirectory("rove-app-dev-test-", (root) =>
       Effect.gen(function* () {
         vi.mocked(NodeOS.homedir).mockReturnValue(root);
         const baseDir = NodePath.join(root, ".rove-code");
@@ -239,8 +239,8 @@ describe("rove app", () => {
     ),
   );
 
-  it.effect("never searches a dev state directory for an explicit T3 home", () =>
-    withTempDirectory("t3-app-explicit-test-", (root) =>
+  it.effect("never searches a dev state directory for an explicit Rove home", () =>
+    withTempDirectory("rove-app-explicit-test-", (root) =>
       Effect.gen(function* () {
         vi.mocked(NodeOS.homedir).mockReturnValue(root);
         const baseDir = NodePath.join(root, ".rove-code");
@@ -258,7 +258,7 @@ describe("rove app", () => {
 
   for (const responseKind of ["failure", "invalid"] as const) {
     it.effect(`never falls back after the default desktop sends a ${responseKind} response`, () =>
-      withTempDirectory("t3-app-response-test-", (root) =>
+      withTempDirectory("rove-app-response-test-", (root) =>
         Effect.gen(function* () {
           vi.mocked(NodeOS.homedir).mockReturnValue(root);
           const baseDir = NodePath.join(root, ".rove-code");

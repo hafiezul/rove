@@ -34,7 +34,7 @@ describe("VcsProjectConfig", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const configDir = path.join(root, ".rove");
         const nested = path.join(root, "packages", "app");
@@ -65,7 +65,7 @@ describe("VcsProjectConfig", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const configDir = path.join(root, ".rove");
         const cwd = path.join(root, "invalid\0child");
@@ -103,7 +103,7 @@ describe("VcsProjectConfig", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const config = yield* VcsProjectConfig.VcsProjectConfig;
         const kind = yield* config.resolveKind({ cwd: root });
@@ -124,7 +124,7 @@ describe("VcsProjectConfig", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const configDir = path.join(root, ".rove");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });
@@ -163,7 +163,7 @@ describe("VcsProjectConfig", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const configPath = path.join(root, ".rove", "vcs.json");
         yield* fileSystem.makeDirectory(configPath, { recursive: true });
@@ -193,7 +193,7 @@ describe("VcsProjectConfig", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-vcs-config-test-",
+          prefix: "rove-vcs-config-test-",
         });
         const configDir = path.join(root, ".rove");
         yield* fileSystem.makeDirectory(configDir, { recursive: true });

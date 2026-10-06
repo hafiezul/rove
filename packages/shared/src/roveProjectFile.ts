@@ -7,7 +7,7 @@ import { RoveProjectFile, ROVE_PROJECT_FILE_SCHEMA_URL } from "@rove-code/contra
 import { fromLenientJson } from "./schemaJson.ts";
 
 /**
- * Codec between the raw `t3.json` file contents (lenient JSONC string) and the
+ * Codec between the raw `rove.json` file contents (lenient JSONC string) and the
  * decoded {@link RoveProjectFile}.
  */
 export const RoveProjectFileFromJson = fromLenientJson(RoveProjectFile);
@@ -21,7 +21,7 @@ interface RoveProjectFileJsonSchema extends JsonSchema.JsonSchema {
 }
 
 /**
- * Decode raw `t3.json` contents, treating invalid or malformed files as
+ * Decode raw `rove.json` contents, treating invalid or malformed files as
  * absent. Clients use this to read optional defaults (scripts, thread env
  * mode) without surfacing decode errors to the user.
  */
@@ -31,14 +31,14 @@ export function parseRoveProjectFile(contents: string): RoveProjectFile | null {
 }
 
 /**
- * Build the publishable JSON Schema document for `t3.json` (draft 2020-12).
+ * Build the publishable JSON Schema document for `rove.json` (draft 2020-12).
  *
  * Served from the marketing site at {@link ROVE_PROJECT_FILE_SCHEMA_URL} so
  * editors get LSP support via a `$schema` reference.
  */
 export function buildRoveProjectFileJsonSchema(): RoveProjectFileJsonSchema {
   // Closed objects, as before effect rc.113 changed the generator default;
-  // editors then flag unknown keys in t3.json.
+  // editors then flag unknown keys in rove.json.
   const document = Schema.toJsonSchemaDocument(RoveProjectFile, { onExcessProperty: "error" });
   const jsonSchema: RoveProjectFileJsonSchema = {
     $schema: "https://json-schema.org/draft/2020-12/schema",

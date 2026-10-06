@@ -138,7 +138,7 @@ const config = RelayConfiguration.RelayConfiguration.of({
     environment: "sandbox",
     teamId: "team-id",
     keyId: "key-id",
-    bundleId: "codes.t3.mobile",
+    bundleId: "codes.rove.mobile",
     privateKey: Redacted.make("apns-private-key"),
   },
   clerkSecretKey: Redacted.make("clerk-secret"),

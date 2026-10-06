@@ -2027,7 +2027,7 @@ describe("storage cleanup", () => {
           assert.strictEqual(yield* fs.exists(activeLog), true);
         }).pipe(
           Effect.provide(
-            ServerConfig.layerTest(process.cwd(), { prefix: "t3-storage-cleanup-" }).pipe(
+            ServerConfig.layerTest(process.cwd(), { prefix: "rove-storage-cleanup-" }).pipe(
               Layer.provideMerge(NodeServices.layer),
             ),
           ),

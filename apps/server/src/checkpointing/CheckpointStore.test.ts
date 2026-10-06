@@ -3,7 +3,7 @@ import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
-import { ThreadId, type VcsError } from "@rove-code/contracts";
+import { CheckpointRef, ThreadId, type VcsError } from "@rove-code/contracts";
 import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -20,7 +20,7 @@ import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as ServerConfig from "../config.ts";
 
 const ServerConfigLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3-checkpoint-store-test-",
+  prefix: "rove-checkpoint-store-test-",
 });
 const VcsProcessTestLayer = VcsProcess.layer.pipe(Layer.provide(NodeServices.layer));
 const VcsDriverTestLayer = VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcessTestLayer));
@@ -117,6 +117,58 @@ it.layer(TestLayer)("CheckpointStore.layer", (it) => {
   });
 
   describe("diffCheckpoints", () => {
+    it.effect.each([false, true])(
+      "reads historical baselines without rewriting refs, fallback %s",
+      (fallbackFromToHead) =>
+        Effect.gen(function* () {
+          const tmp = yield* makeTmpDir();
+          yield* initRepoWithCommit(tmp);
+          const store = yield* CheckpointStore.CheckpointStore;
+          const threadId = ThreadId.make("historical-checkpoint-thread");
+          const fromCheckpointRef = checkpointRefForThreadTurn(threadId, 0);
+          const toCheckpointRef = checkpointRefForThreadTurn(threadId, 1);
+          const historicalRef = CheckpointRef.make(
+            fromCheckpointRef.replace("refs/rove/", "refs/t3/"),
+          );
+          yield* git(tmp, ["update-ref", historicalRef, "HEAD"]);
+          const original = yield* git(tmp, ["rev-parse", historicalRef]);
+          yield* writeTextFile(NodePath.join(tmp, "README.md"), "# changed\n");
+          yield* store.captureCheckpoint({ cwd: tmp, checkpointRef: toCheckpointRef });
+          yield* writeTextFile(NodePath.join(tmp, "README.md"), "# unrelated head\n");
+          yield* git(tmp, ["commit", "-am", "Move HEAD beyond the historical baseline"]);
+          const input = {
+            cwd: tmp,
+            fromCheckpointRef,
+            toCheckpointRef,
+            ignoreWhitespace: false,
+            fallbackFromToHead,
+          };
+          const diff = yield* store.diffCheckpoints(input);
+          expect(diff).toContain("-# test");
+          expect(diff).toContain("+# changed");
+          expect(diff).not.toContain("unrelated head");
+          expect(yield* store.diffCheckpoints(input)).toBe(diff);
+          expect(
+            yield* store.hasCheckpointRef({ cwd: tmp, checkpointRef: fromCheckpointRef }),
+          ).toBe(true);
+          expect(
+            yield* store.restoreCheckpoint({ cwd: tmp, checkpointRef: fromCheckpointRef }),
+          ).toBe(true);
+          const fs = yield* FileSystem.FileSystem;
+          expect(yield* fs.readFileString(NodePath.join(tmp, "README.md"))).toBe("# test\n");
+          expect(yield* git(tmp, ["rev-parse", historicalRef])).toBe(original);
+          expect(yield* git(tmp, ["for-each-ref", "--format=%(refname)", fromCheckpointRef])).toBe(
+            "",
+          );
+          yield* git(tmp, ["update-ref", fromCheckpointRef, "HEAD"]);
+          expect(yield* store.diffCheckpoints(input)).toContain("-# unrelated head");
+          yield* store.deleteCheckpointRefs({ cwd: tmp, checkpointRefs: [fromCheckpointRef] });
+          expect(
+            yield* store.hasCheckpointRef({ cwd: tmp, checkpointRef: fromCheckpointRef }),
+          ).toBe(false);
+        }),
+    );
+
     it.effect("returns full oversized checkpoint diffs without truncation", () =>
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
@@ -462,7 +514,7 @@ it.layer(TestLayer)("CheckpointStore.layer", (it) => {
         // Capture must not leave temp indexes behind in the repo.
         const fileSystem = yield* FileSystem.FileSystem;
         const entries = yield* fileSystem.readDirectory(NodePath.join(tmp, ".git"));
-        expect(entries.filter((entry) => entry.startsWith("t3-checkpoint-index-"))).toEqual([]);
+        expect(entries.filter((entry) => entry.startsWith("rove-checkpoint-index-"))).toEqual([]);
       }),
     );
   });

@@ -22,10 +22,10 @@ describe("fileBreadcrumbs", () => {
   });
 
   it("starts host paths outside the workspace at the filesystem root", () => {
-    expect(fileBreadcrumbs("rove", "/tmp/t3-cleanup/report.md")).toEqual([
+    expect(fileBreadcrumbs("rove", "/tmp/rove-cleanup/report.md")).toEqual([
       { label: "tmp", path: "/tmp", kind: "directory" },
-      { label: "t3-cleanup", path: "/tmp/t3-cleanup", kind: "directory" },
-      { label: "report.md", path: "/tmp/t3-cleanup/report.md", kind: "file" },
+      { label: "rove-cleanup", path: "/tmp/rove-cleanup", kind: "directory" },
+      { label: "report.md", path: "/tmp/rove-cleanup/report.md", kind: "file" },
     ]);
     expect(fileBreadcrumbs("rove", "C:\\Temp\\report.md")).toEqual([
       { label: "C:", path: "C:", kind: "directory" },

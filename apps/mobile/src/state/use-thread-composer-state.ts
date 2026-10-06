@@ -1,4 +1,4 @@
-import type { ComposerTextPaste } from "../native/T3ComposerEditor.types";
+import type { ComposerTextPaste } from "../native/RoveComposerEditor.types";
 import { useAtomValue } from "@effect/atom-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";

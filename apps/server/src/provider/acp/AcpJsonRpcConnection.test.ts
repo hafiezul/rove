@@ -27,7 +27,7 @@ const mockAgentArgs = [mockAgentPath];
 const mockRuntimeOptions = {
   spawn: { command: mockAgentCommand, args: mockAgentArgs },
   cwd: process.cwd(),
-  clientInfo: { name: "t3-test", version: "0.0.0" },
+  clientInfo: { name: "rove-test", version: "0.0.0" },
   authMethodId: "test",
 } satisfies AcpSessionRuntime.AcpSessionRuntimeOptions;
 
@@ -546,7 +546,7 @@ describe("AcpSessionRuntime", () => {
               parameterizedModelPicker: true,
             },
           },
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
           requestLogger: (event) =>
             Effect.sync(() => {
@@ -601,7 +601,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -632,7 +632,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -682,7 +682,7 @@ describe("AcpSessionRuntime", () => {
             },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -713,7 +713,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -754,7 +754,7 @@ describe("AcpSessionRuntime", () => {
             },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -815,7 +815,7 @@ describe("AcpSessionRuntime", () => {
             },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -863,7 +863,7 @@ describe("AcpSessionRuntime", () => {
             env: { ROVE_ACP_EMIT_BACKGROUND_TOOL_DURING_ANSWER: "1" },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -910,7 +910,7 @@ describe("AcpSessionRuntime", () => {
             },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           authMethodId: "test",
         }),
       ),
@@ -959,7 +959,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           requestLogger: (event) =>
             Effect.sync(() => {
               requestEvents.push(event);
@@ -994,7 +994,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           requestLogger: (event) =>
             Effect.sync(() => {
               requestEvents.push(event);
@@ -1037,7 +1037,7 @@ describe("AcpSessionRuntime", () => {
             args: mockAgentArgs,
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
           protocolLogging: {
             logIncoming: true,
             logOutgoing: true,
@@ -1072,7 +1072,7 @@ describe("AcpSessionRuntime", () => {
           },
           cwd: process.cwd(),
           resumeSessionId: "stale-session-id",
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
         }),
       ),
       Effect.scoped,
@@ -1109,7 +1109,7 @@ describe("AcpSessionRuntime", () => {
           },
           cwd: process.cwd(),
           resumeSessionId: "mock-session-1",
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
         }),
       ),
       Effect.scoped,
@@ -1124,7 +1124,7 @@ describe("AcpSessionRuntime", () => {
 
       expect(started.sessionId).toBe("mock-session-1");
       expect(started.sessionSetupResult._meta).toMatchObject({
-        t3SessionLoadReady: "replay_idle",
+        roveSessionLoadReady: "replay_idle",
       });
 
       const unexpectedReplayEvent = yield* Stream.runHead(runtime.getEvents()).pipe(
@@ -1147,7 +1147,7 @@ describe("AcpSessionRuntime", () => {
           resumeSessionId: "mock-session-1",
           sessionLoadReplayIdleGap: "50 millis",
           sessionLoadTimeout: "1 second",
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
         }),
       ),
       Effect.scoped,
@@ -1198,7 +1198,7 @@ describe("AcpSessionRuntime", () => {
             },
           },
           cwd: process.cwd(),
-          clientInfo: { name: "t3-test", version: "0.0.0" },
+          clientInfo: { name: "rove-test", version: "0.0.0" },
         }),
       ),
       Effect.scoped,

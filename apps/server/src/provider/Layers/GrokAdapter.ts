@@ -877,7 +877,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         );
       });
 
-    /** Surface Grok plan.md as T3's proposed-plan card (while writing + on exit). */
+    /** Surface Grok plan.md as Rove's proposed-plan card (while writing + on exit). */
     const emitProposedPlanCompleted = (
       ctx: GrokSessionContext,
       turnId: TurnId | undefined,

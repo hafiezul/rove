@@ -1200,7 +1200,7 @@ describe("EnvironmentSupervisor", () => {
         const pathname = new URL(request.url).pathname;
         httpPaths.push(pathname);
         switch (pathname) {
-          case "/.well-known/t3/environment":
+          case "/.well-known/rove/environment":
             return Promise.resolve(
               Response.json({
                 environmentId: TARGET.environmentId,
@@ -1237,7 +1237,7 @@ describe("EnvironmentSupervisor", () => {
                   policy: "loopback-browser",
                   bootstrapMethods: ["one-time-token"],
                   sessionMethods: ["dpop-access-token"],
-                  sessionCookieName: "t3_session_test",
+                  sessionCookieName: "rove_session_test",
                 },
                 scopes: AuthStandardClientScopes,
               }),

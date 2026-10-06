@@ -42,7 +42,7 @@ describe("encodeShellSnapshotForCache", () => {
         projects: projects.flatMap((project) => [
           { ...project, projectIcon: undefined },
           { ...project, projectIcon: null },
-          { ...project, projectIcon: { kind: "monogram", text: "T3", color: "blue" } },
+          { ...project, projectIcon: { kind: "monogram", text: "Rove", color: "blue" } },
           { ...project, projectIcon: { kind: "lucide", name: "folder-code", color: "blue" } },
           { ...project, projectIcon: { kind: "emoji", emoji: "🥔" } },
         ]),

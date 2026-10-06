@@ -208,7 +208,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-driver-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-driver-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const sharedHome = NodePath.join(tempDir, "codex-home");
         const shadowHome = NodePath.join(tempDir, "codex-shadow");
@@ -285,7 +285,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-installer-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-installer-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const installPath = NodePath.join(tempDir, ...fixture.installSegments);
         const realBinaryPath = NodePath.join(
@@ -344,7 +344,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: `t3-codex-mise-${layout}-` })
+          .makeTempDirectoryScoped({ prefix: `rove-codex-mise-${layout}-` })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const binaryPath =
           layout === "direct"
@@ -421,7 +421,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-mise-shim-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-mise-shim-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const brewPrefix = NodePath.join(tempDir, "homebrew");
         const brewPath = NodePath.join(brewPrefix, "bin", "brew");

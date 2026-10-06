@@ -1,5 +1,5 @@
 import {
-  SelectableMarkdownText as T3SelectableMarkdownText,
+  SelectableMarkdownText as RoveSelectableMarkdownText,
   type SelectableMarkdownTextProps,
 } from "@rove-code/mobile-markdown-text/renderer";
 import { useMemo } from "react";
@@ -31,7 +31,7 @@ export function SelectableMarkdownText(props: MobileSelectableMarkdownTextProps)
     [props.textStyle, selectionColor, selectionHandleColor],
   );
   return (
-    <T3SelectableMarkdownText
+    <RoveSelectableMarkdownText
       {...props}
       textStyle={textStyle}
       highlightCode={highlightCodeSnippet}

@@ -752,7 +752,7 @@ export function syntheticLoadSessionResponseFromInitialize(
     ...(models ? { models } : {}),
     ...(modes ? { modes } : {}),
     _meta: {
-      t3SessionLoadReady: "replay_idle",
+      roveSessionLoadReady: "replay_idle",
     },
   };
 }

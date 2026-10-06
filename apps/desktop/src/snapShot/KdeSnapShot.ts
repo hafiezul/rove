@@ -16,7 +16,9 @@ export { isKdeCaptureSession } from "./linuxCaptureSession.ts";
 
 export const KDE_CAPTURE_EXECUTABLE = "rove-kde-snap-shot";
 const DESKTOP_FILE = "io.github.hafiezul.rove.KdeCapture.desktop";
-const MARKER = "X-T3Code-Capture-Helper=true";
+import { CAPTURE_HELPER_READ_MARKERS } from "@rove-code/shared/roveMigration";
+
+const MARKER = "X-RoveCode-Capture-Helper=true";
 const decodeCapabilities = Schema.decodeUnknownSync(
   Schema.fromJsonString(Schema.Struct({ feedbackAvailable: Schema.optional(Schema.Boolean) })),
 );
@@ -140,7 +142,10 @@ export class KdeCaptureSetup {
   async perform(action: "install-kde-helper" | "remove-kde-helper") {
     const { executable, desktop } = kdeCapturePaths(this.paths);
     const entry = await regularFile(desktop);
-    if (entry && !entry.toString().split("\n").includes(MARKER))
+    if (
+      entry &&
+      !CAPTURE_HELPER_READ_MARKERS.some((marker) => entry.toString().split("\n").includes(marker))
+    )
       throw new Error(
         "Another desktop entry uses the capture helper's name. Rename it before continuing.",
       );

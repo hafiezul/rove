@@ -26,21 +26,21 @@ it.effect("managed home defaults to the global Codex home and honors configured 
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const primary = yield* resolveManagedCodexHomeLayout(
-      "/t3-state",
+      "/rove-state",
       ProviderInstanceId.make("codex"),
       decodeSettings({}),
     );
     assert.equal(primary.sharedHomePath, path.join(NodeOS.homedir(), ".codex"));
     assert.equal(primary.mode, "direct");
     const additional = yield* resolveManagedCodexHomeLayout(
-      "/t3-state",
+      "/rove-state",
       ProviderInstanceId.make("codex-work"),
       decodeSettings({}),
     );
     assert.equal(additional.sharedHomePath, primary.sharedHomePath);
     assert.equal(additional.mode, "authOverlay");
     const configured = yield* resolveManagedCodexHomeLayout(
-      "/t3-state",
+      "/rove-state",
       ProviderInstanceId.make("codex-work"),
       decodeSettings({ homePath: "/custom/shared", shadowHomePath: "/custom/shadow" }),
     );
@@ -217,7 +217,7 @@ for (const source of ["managed", "local"] as const)
         }).pipe(
           Effect.scoped,
           Effect.provide(
-            ServerConfig.layerTest(process.cwd(), { prefix: "t3-managed-runtime-" }).pipe(
+            ServerConfig.layerTest(process.cwd(), { prefix: "rove-managed-runtime-" }).pipe(
               Layer.provideMerge(NodeServices.layer),
             ),
           ),

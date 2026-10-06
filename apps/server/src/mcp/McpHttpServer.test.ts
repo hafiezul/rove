@@ -54,7 +54,9 @@ const client = McpSchema.McpServerClient.of({
 const TestLayer = McpHttpServer.PreviewToolkitRegistrationLive.pipe(
   Layer.provideMerge(McpServer.McpServer.layer),
   Layer.provideMerge(PreviewAutomationBroker.layer),
-  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-http-server-test-" })),
+  Layer.provideMerge(
+    ServerConfig.layerTest(process.cwd(), { prefix: "rove-mcp-http-server-test-" }),
+  ),
   Layer.provideMerge(NodeServices.layer),
 );
 const PullRequestsTestLayer = McpHttpServer.PullRequestsToolkitRegistrationLive.pipe(

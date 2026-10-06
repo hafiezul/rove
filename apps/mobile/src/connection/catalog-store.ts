@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
+import { decodeMigratedRoveJson } from "@rove-code/shared/roveMigration";
 import * as Semaphore from "effect/Semaphore";
 
 import * as MobileSecureStorage from "../persistence/mobile-secure-storage";
@@ -24,7 +25,7 @@ function catalogError(operation: string, cause: unknown) {
 }
 
 const ConnectionCatalogDocumentJson = Schema.fromJsonString(ConnectionCatalogDocument);
-const decodeConnectionCatalogDocument = Schema.decodeEffect(ConnectionCatalogDocumentJson);
+const decodeConnectionCatalogDocument = decodeMigratedRoveJson(ConnectionCatalogDocument);
 const encodeConnectionCatalogDocument = Schema.encodeEffect(ConnectionCatalogDocumentJson);
 
 const decodeCatalog = Effect.fn("mobile.connectionStorage.decodeCatalog")(function* (raw: string) {

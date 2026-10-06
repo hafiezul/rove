@@ -20,6 +20,7 @@ import {
   type ServerProviderModel,
 } from "@rove-code/contracts";
 import { codexModelFamily } from "@rove-code/shared/model";
+import { migrateRoveSavedState } from "@rove-code/shared/roveMigration";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -135,7 +136,11 @@ export interface ResolvedProviderCatalog {
   };
 }
 
-const decodeManifest = Schema.decodeUnknownEffect(ModelManifestSchema);
+const decodeManifest = (value: unknown) =>
+  Schema.decodeUnknownEffect(Schema.Json)(value).pipe(
+    Effect.map(migrateRoveSavedState),
+    Effect.flatMap(Schema.decodeUnknownEffect(ModelManifestSchema)),
+  );
 
 export const BUNDLED_MODEL_MANIFEST: ModelManifestData =
   Schema.decodeUnknownSync(ModelManifestSchema)(bundledManifestJson);
@@ -197,11 +202,11 @@ const ManifestCacheFile = Schema.Struct({
   fetchedAtMs: Schema.Number,
   manifest: ModelManifestSchema,
 });
-const decodeManifestCache = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(
-    ManifestCacheFile as unknown as Schema.Codec<typeof ManifestCacheFile.Type>,
-  ),
-);
+const decodeManifestCache = (raw: string) =>
+  Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))(raw).pipe(
+    Effect.map(migrateRoveSavedState),
+    Effect.flatMap(Schema.decodeUnknownEffect(ManifestCacheFile)),
+  );
 /** Exported for tests that seed the disk cache. */
 export const encodeManifestCache = Schema.encodeEffect(
   Schema.fromJsonString(

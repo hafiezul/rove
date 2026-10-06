@@ -187,7 +187,7 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const tempDir = yield* fs.makeTempDirectoryScoped({
-    prefix: "t3-windows-payload-test-",
+    prefix: "rove-windows-payload-test-",
   });
   const sourceDir = path.join(tempDir, "server-source");
   const serverEntryPath = path.join(sourceDir, "apps/server/dist/bin.mjs");
@@ -228,7 +228,7 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
           yield* makeLinuxCliArchiveFixture({
             root: path.join(tempDir, "wsl-runtime"),
             stem: "apps",
-            omitMembers: ["apps/t3", "apps/client/index.html"],
+            omitMembers: ["apps/rove", "apps/client/index.html"],
             extraMembers: ["apps/server/dist/bin.mjs", "node_modules/node-pty/package.json"],
           })
         : yield* makeLinuxCliArchiveFixture({
@@ -815,7 +815,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const tempDir = yield* fs.makeTempDirectoryScoped({
-          prefix: "t3-windows-architecture-test-",
+          prefix: "rove-windows-architecture-test-",
         });
         const sourceDir = path.join(tempDir, "server");
         const nativeFiles = [
@@ -977,7 +977,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-windows-preflight-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-windows-preflight-" });
         const pythonPath = path.join(tempDir, "python.exe");
         yield* fs.writeFileString(pythonPath, "python");
         const spawner = Layer.succeed(
@@ -1019,7 +1019,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-windows-preflight-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-windows-preflight-" });
         const pythonPath = path.join(tempDir, "python.exe");
         yield* fs.writeFileString(pythonPath, "python");
         const commands: string[] = [];
@@ -1061,7 +1061,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-python2-preflight-" });
+        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-python2-preflight-" });
         const pythonPath = path.join(tempDir, "python");
         yield* fs.writeFileString(pythonPath, "python2");
         const spawner = Layer.succeed(
@@ -1108,7 +1108,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const repoRoot = yield* fs.makeTempDirectoryScoped({ prefix: "t3-kde-stage-test-" });
+        const repoRoot = yield* fs.makeTempDirectoryScoped({ prefix: "rove-kde-stage-test-" });
         const protocols = path.join(repoRoot, "native/hyprland-snap-shot/protocols");
         yield* fs.makeDirectory(protocols, { recursive: true });
         yield* fs.writeFileString(path.join(protocols, "capture.xml"), "BSD protocol notice");
@@ -2091,7 +2091,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-wsl-runtime-stage-" });
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-wsl-runtime-stage-" });
         const sourceArchivePath = yield* makeLinuxCliArchiveFixture({
           root,
           stem: "rove-1.2.3-linux-x64",
@@ -2120,7 +2120,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-wsl-runtime-missing-" });
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "rove-wsl-runtime-missing-" });
         const error = yield* stageWslRuntimeArchive({
           sourceArchivePath: path.join(root, "rove-1.2.3-linux-x64.tar.gz"),
           archivePath: path.join(root, WSL_RUNTIME_ARCHIVE_NAME),

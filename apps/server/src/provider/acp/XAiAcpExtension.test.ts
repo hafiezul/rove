@@ -37,7 +37,7 @@ const makePromptCompletionRuntime = (env: NodeJS.ProcessEnv) =>
         env,
       },
       cwd: process.cwd(),
-      clientInfo: { name: "t3-test", version: "0.0.0" },
+      clientInfo: { name: "rove-test", version: "0.0.0" },
       authMethodId: "test",
     });
     return yield* makeXAiPromptCompletionRuntime(runtime);

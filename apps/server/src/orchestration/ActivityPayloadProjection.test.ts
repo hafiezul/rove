@@ -269,7 +269,7 @@ describe("projectActivityPayload", () => {
     },
     { tool: "rove_preview_status", state: { output: '{"url":"https://example.com/"}' } },
     {
-      toolName: "mcp__t3_code__preview_snapshot",
+      toolName: "mcp__rove_code__preview_snapshot",
       result: {
         content: [
           { type: "text", text: '{"url":"https://example.com/"}' },
@@ -282,11 +282,11 @@ describe("projectActivityPayload", () => {
       result: { content: '{"toolIcon":{"_tag":"website","pageUrl":"https://example.com/"}}' },
     },
     {
-      toolName: "mcp__t3_code__preview_snapshot",
+      toolName: "mcp__rove_code__preview_snapshot",
       result: { content: '{"url":"https://example.com/"}\n{"accessibilityTree":"truncated' },
     },
     ...[false, true].map((truncated) => ({
-      toolName: "mcp__t3_code__preview_snapshot",
+      toolName: "mcp__rove_code__preview_snapshot",
       result: {
         content: JSON.stringify({
           content: [{ type: "text", text: '{"url":"https://example.com/"}' }],
@@ -305,7 +305,7 @@ describe("projectActivityPayload", () => {
       "recording_start",
       "recording_stop",
     ].map((action) => ({
-      toolName: `mcp__t3_code__preview_${action}`,
+      toolName: `mcp__rove_code__preview_${action}`,
       result: { content: '{"toolIcon":{"_tag":"website","pageUrl":"https://example.com/"}}' },
     })),
   ])("preserves the preview page favicon through result slimming", (data) => {
