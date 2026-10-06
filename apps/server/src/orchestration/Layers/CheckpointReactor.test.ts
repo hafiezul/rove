@@ -1949,22 +1949,24 @@ describe("CheckpointReactor", () => {
     }),
   );
 
-  it.each([
+  effectIt.effect.each([
     { commandType: "thread.checkpoint.revert", initializeGit: true, includeMessageId: true },
     { commandType: "thread.conversation.revert", initializeGit: true, includeMessageId: true },
     { commandType: "thread.conversation.revert", initializeGit: false, includeMessageId: true },
     { commandType: "thread.conversation.revert", initializeGit: false, includeMessageId: false },
   ] as const)(
     "$commandType rewinds history with the requested filesystem behavior (git: $initializeGit, message: $includeMessageId)",
-    async ({ commandType, initializeGit, includeMessageId }) => {
-      const harness = await createHarness({
-        initializeGit,
-        seedFilesystemCheckpoints: initializeGit,
-      });
-      const createdAt = "2026-01-01T00:00:00.000Z";
+    ({ commandType, initializeGit, includeMessageId }) =>
+      Effect.gen(function* () {
+        const harness = yield* Effect.promise(() =>
+          createHarness({
+            initializeGit,
+            seedFilesystemCheckpoints: initializeGit,
+          }),
+        );
+        const createdAt = "2026-01-01T00:00:00.000Z";
 
-      await Effect.runPromise(
-        harness.engine.dispatch({
+        yield* harness.engine.dispatch({
           type: "thread.session.set",
           commandId: CommandId.make("cmd-session-set"),
           threadId: ThreadId.make("thread-1"),
@@ -1978,11 +1980,9 @@ describe("CheckpointReactor", () => {
             updatedAt: createdAt,
           },
           createdAt,
-        }),
-      );
+        });
 
-      await Effect.runPromise(
-        harness.engine.dispatch({
+        yield* harness.engine.dispatch({
           type: "thread.turn.diff.complete",
           commandId: CommandId.make("cmd-diff-1"),
           threadId: ThreadId.make("thread-1"),
@@ -1995,10 +1995,8 @@ describe("CheckpointReactor", () => {
           files: [],
           checkpointTurnCount: 1,
           createdAt,
-        }),
-      );
-      await Effect.runPromise(
-        harness.engine.dispatch({
+        });
+        yield* harness.engine.dispatch({
           type: "thread.turn.diff.complete",
           commandId: CommandId.make("cmd-diff-2"),
           threadId: ThreadId.make("thread-1"),
@@ -2011,122 +2009,124 @@ describe("CheckpointReactor", () => {
           files: [],
           checkpointTurnCount: 2,
           createdAt,
-        }),
-      );
+        });
 
-      NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "staged edit\n");
-      if (initializeGit) {
-        NodeChildProcess.execFileSync("git", ["add", "README.md"], { cwd: harness.cwd });
-      }
-      NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "unstaged edit\n");
-      NodeFS.writeFileSync(NodePath.join(harness.cwd, "scratch.txt"), "untracked edit\n");
-      const indexBefore = initializeGit
-        ? NodeChildProcess.execFileSync("git", ["ls-files", "--stage"], {
-            cwd: harness.cwd,
-            encoding: "utf8",
-          })
-        : undefined;
+        NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "staged edit\n");
+        if (initializeGit) {
+          NodeChildProcess.execFileSync("git", ["add", "README.md"], { cwd: harness.cwd });
+        }
+        NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "unstaged edit\n");
+        NodeFS.writeFileSync(NodePath.join(harness.cwd, "scratch.txt"), "untracked edit\n");
+        const indexBefore = initializeGit
+          ? NodeChildProcess.execFileSync("git", ["ls-files", "--stage"], {
+              cwd: harness.cwd,
+              encoding: "utf8",
+            })
+          : undefined;
 
-      for (const [index, id] of [
-        "earlier-user",
-        "steering-user",
-        "uncheckpointed-user",
-        "selected-user",
-      ].entries()) {
-        await Effect.runPromise(
-          harness.engine.dispatch({
+        for (const [index, id] of [
+          "earlier-user",
+          "steering-user",
+          "uncheckpointed-user",
+          "selected-user",
+        ].entries()) {
+          yield* harness.engine.dispatch({
             type: "thread.message.user.append",
             commandId: CommandId.make(`cmd-rewind-message-${id}`),
             threadId: ThreadId.make("thread-1"),
             message: { messageId: MessageId.make(id), text: id, attachments: [] },
             createdAt: `2026-01-01T00:00:0${index}.000Z`,
-          }),
-        );
-      }
-      await Effect.runPromise(
-        harness.engine.dispatch({
+          });
+        }
+        yield* harness.engine.dispatch({
           type: commandType,
           commandId: CommandId.make("cmd-revert-request"),
           threadId: ThreadId.make("thread-1"),
           turnCount: 1,
           messageId: includeMessageId ? MessageId.make("selected-user") : undefined,
           createdAt,
-        }),
-      );
-      await harness.drain();
-      const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1");
-      expect(thread).toBeDefined();
-      if (!thread) throw new Error("Rewound thread is missing.");
-      expect(thread.messages.map((message) => message.id)).toEqual([
-        "earlier-user",
-        "steering-user",
-        "uncheckpointed-user",
-      ]);
-      const events = await Effect.runPromise(Stream.runCollect(harness.engine.readEvents(0)));
-      const reverted = events.find((event) => event.type === "thread.reverted");
-      expect(reverted?.payload).toEqual({
-        threadId: "thread-1",
-        turnCount: 1,
-        messageBoundary: { messageId: "selected-user", createdAt: "2026-01-01T00:00:03.000Z" },
-      });
-
-      expect(thread.latestTurn?.turnId).toBe("turn-1");
-      expect(thread.checkpoints).toHaveLength(1);
-      expect(thread.checkpoints[0]?.checkpointTurnCount).toBe(1);
-      expect(harness.provider.rollbackConversation).toHaveBeenCalledTimes(1);
-      expect(harness.provider.rollbackConversation).toHaveBeenCalledWith({
-        threadId: ThreadId.make("thread-1"),
-        numTurns: 1,
-      });
-      expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe(
-        commandType === "thread.conversation.revert" ? "unstaged edit\n" : "v2\n",
-      );
-      if (commandType === "thread.conversation.revert") {
-        expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "scratch.txt"), "utf8")).toBe(
-          "untracked edit\n",
+        });
+        yield* Effect.promise(harness.drain);
+        const thread = (yield* Effect.promise(harness.readModel)).threads.find(
+          (entry) => entry.id === "thread-1",
         );
+        expect(thread).toBeDefined();
+        if (!thread) throw new Error("Rewound thread is missing.");
+        expect(thread.messages.map((message) => message.id)).toEqual([
+          "earlier-user",
+          "steering-user",
+          "uncheckpointed-user",
+        ]);
+        const events = yield* Stream.runCollect(harness.engine.readEvents(0));
+        const reverted = events.find((event) => event.type === "thread.reverted");
+        expect(reverted?.payload).toEqual({
+          threadId: "thread-1",
+          turnCount: 1,
+          messageBoundary: { messageId: "selected-user", createdAt: "2026-01-01T00:00:03.000Z" },
+        });
+
+        expect(thread.latestTurn?.turnId).toBe("turn-1");
+        expect(thread.checkpoints).toHaveLength(1);
+        expect(thread.checkpoints[0]?.checkpointTurnCount).toBe(1);
+        expect(harness.provider.rollbackConversation).toHaveBeenCalledTimes(1);
+        expect(harness.provider.rollbackConversation).toHaveBeenCalledWith({
+          threadId: ThreadId.make("thread-1"),
+          numTurns: 1,
+        });
+        expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe(
+          commandType === "thread.conversation.revert" ? "unstaged edit\n" : "v2\n",
+        );
+        if (commandType === "thread.conversation.revert") {
+          expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "scratch.txt"), "utf8")).toBe(
+            "untracked edit\n",
+          );
+          if (initializeGit) {
+            expect(
+              NodeChildProcess.execFileSync("git", ["ls-files", "--stage"], {
+                cwd: harness.cwd,
+                encoding: "utf8",
+              }),
+            ).toBe(indexBefore);
+          }
+        }
         if (initializeGit) {
           expect(
-            NodeChildProcess.execFileSync("git", ["ls-files", "--stage"], {
-              cwd: harness.cwd,
-              encoding: "utf8",
-            }),
-          ).toBe(indexBefore);
+            gitRefExists(harness.cwd, checkpointRefForThreadTurn(ThreadId.make("thread-1"), 2)),
+          ).toBe(false);
+        } else {
+          expect(NodeFS.existsSync(NodePath.join(harness.cwd, ".git"))).toBe(false);
         }
-      }
-      if (initializeGit) {
-        expect(
-          gitRefExists(harness.cwd, checkpointRefForThreadTurn(ThreadId.make("thread-1"), 2)),
-        ).toBe(false);
-      } else {
-        expect(NodeFS.existsSync(NodePath.join(harness.cwd, ".git"))).toBe(false);
-      }
-    },
+      }),
   );
 
-  it("rejects a missing rewind message before changing files or provider history", async () => {
-    const harness = await createHarness();
-    NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "keep edits\n");
-    await Effect.runPromise(
-      harness.engine.dispatch({
-        type: "thread.checkpoint.revert",
-        commandId: CommandId.make("cmd-rewind-missing-message"),
-        threadId: ThreadId.make("thread-1"),
-        turnCount: 0,
-        messageId: MessageId.make("missing-message"),
-        createdAt: "2026-01-01T00:00:00.000Z",
+  effectIt.effect(
+    "rejects a missing rewind message before changing files or provider history",
+    () =>
+      Effect.gen(function* () {
+        const harness = yield* Effect.promise(() => createHarness());
+        NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "keep edits\n");
+        yield* harness.engine.dispatch({
+          type: "thread.checkpoint.revert",
+          commandId: CommandId.make("cmd-rewind-missing-message"),
+          threadId: ThreadId.make("thread-1"),
+          turnCount: 0,
+          messageId: MessageId.make("missing-message"),
+          createdAt: "2026-01-01T00:00:00.000Z",
+        });
+        yield* Effect.promise(harness.drain);
+        const thread = (yield* Effect.promise(harness.readModel)).threads.find(
+          (entry) => entry.id === "thread-1",
+        );
+        expect(
+          thread?.activities.find((activity) => activity.kind === "checkpoint.revert.failed")
+            ?.payload,
+        ).toMatchObject({ detail: "The message to rewind is no longer available." });
+        expect(harness.provider.rollbackConversation).not.toHaveBeenCalled();
+        expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe(
+          "keep edits\n",
+        );
       }),
-    );
-    await harness.drain();
-    const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1");
-    expect(
-      thread?.activities.find((activity) => activity.kind === "checkpoint.revert.failed")?.payload,
-    ).toMatchObject({ detail: "The message to rewind is no longer available." });
-    expect(harness.provider.rollbackConversation).not.toHaveBeenCalled();
-    expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe(
-      "keep edits\n",
-    );
-  });
+  );
 
   it("executes provider revert and emits thread.reverted for claude sessions", async () => {
     const harness = await createHarness({ providerName: ProviderDriverKind.make("claudeAgent") });
