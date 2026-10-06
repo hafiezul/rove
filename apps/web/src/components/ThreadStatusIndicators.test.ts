@@ -132,7 +132,7 @@ describe("prStatusIndicator", () => {
 });
 
 describe("resolveThreadPullRequestBadgePresentation", () => {
-  const url = "https://github.com/pingdotgg/t3code/pull/42";
+  const url = "https://github.com/hafiezul/rove/pull/42";
 
   it("returns the pending pull-request badge when no snapshot is available", () => {
     expect(

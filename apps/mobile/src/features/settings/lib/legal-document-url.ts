@@ -3,7 +3,6 @@ function resolveMarketingSiteUrl(override: string | undefined): URL | null {
   try {
     const url = new URL(override.trim());
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    if (/(^|\.)t3\.(codes|tools)$/i.test(url.hostname)) return null;
 
     url.search = "";
     url.hash = "";

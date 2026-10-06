@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.description = 'Native iOS review diff renderer used to prototype fast mobile review scrolling.'
   s.homepage = 'https://rove.hafiezulzikry.com'
   s.license = { :type => 'UNLICENSED' }
-  s.author = { 'T3 Tools' => 'hello@t3tools.com' }
+  s.author = { 'Hafiezul' => 'hafiezulzikry13@gmail.com' }
   s.platforms = { :ios => '16.1' }
   s.source = { :path => '.' }
   s.source_files = 'ios/**/*.{h,m,mm,swift}'

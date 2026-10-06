@@ -486,7 +486,7 @@ describe("findProjectForChangeRequest", () => {
       project({
         canonicalKey: "github.com/rovecode/rove",
         provider: "github",
-        owner: "pingdotgg",
+        owner: "hafiezul",
         name: "rove",
       }),
     ];
@@ -532,7 +532,7 @@ describe("findProjectForChangeRequest", () => {
       project({
         canonicalKey: "github.com/rovecode/rove",
         provider: "github",
-        owner: "pingdotgg",
+        owner: "hafiezul",
         name: "rove",
       }),
     ];

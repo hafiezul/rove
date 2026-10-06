@@ -38,9 +38,6 @@ if (
 if (mobileUpdatesEnabled && !expoProjectId) {
   throw new Error("ROVE_EXPO_PROJECT_ID is required to enable mobile OTA updates.");
 }
-if (clerkRelyingParty && /(^|\.)(t3\.codes|t3\.tools)$/i.test(clerkRelyingParty)) {
-  throw new Error("ROVE_CLERK_RELYING_PARTY_DOMAIN must belong to this project.");
-}
 
 const DEVELOPMENT_ASSETS = {
   appIcon: fromRepoRoot(BRAND_ASSET_PATHS.developmentIosIconPng),

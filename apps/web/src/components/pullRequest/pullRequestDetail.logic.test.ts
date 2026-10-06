@@ -1402,9 +1402,9 @@ describe("pull request panel context beside a thread", () => {
     overrides: Partial<ThreadPullRequestLink> = {},
   ): ThreadPullRequestLink => ({
     host: "github.com",
-    repository: "pingdotgg/t3code",
+    repository: "hafiezul/rove",
     number,
-    url: `https://github.com/pingdotgg/t3code/pull/${number}`,
+    url: `https://github.com/hafiezul/rove/pull/${number}`,
     source: "manual",
     linkedAt: "2026-09-09T00:00:00Z",
     snapshot: null,
@@ -1417,7 +1417,7 @@ describe("pull request panel context beside a thread", () => {
   ) => ({
     projectId: "proj-a",
     host: "github.com",
-    repository: "pingdotgg/t3code",
+    repository: "hafiezul/rove",
     number,
     ...overrides,
   });
@@ -1432,9 +1432,9 @@ describe("pull request panel context beside a thread", () => {
     ],
     linkedPullRequest: {
       projectId: "proj-a",
-      repository: "pingdotgg/t3code",
+      repository: "hafiezul/rove",
       number: 10856,
-      url: "https://github.com/pingdotgg/t3code/pull/10856",
+      url: "https://github.com/hafiezul/rove/pull/10856",
     },
   };
 
@@ -1452,9 +1452,9 @@ describe("pull request panel context beside a thread", () => {
       pullRequests: [link(11101, { source: "created" }), link(11105, { source: "stack" })],
       linkedPullRequest: {
         projectId: "proj-a",
-        repository: "pingdotgg/t3code",
+        repository: "hafiezul/rove",
         number: 11105,
-        url: "https://github.com/pingdotgg/t3code/pull/11105",
+        url: "https://github.com/hafiezul/rove/pull/11105",
       },
     };
     expect(pullRequestPanelContext(thread, surface(11101))).toBe("thread");
@@ -1479,7 +1479,7 @@ describe("pull request panel context beside a thread", () => {
 
   it("recognizes an unsynced manual link, and matches host and repository case-insensitively", () => {
     const thread = { projectId: "proj-a", pullRequests: [link(7, { host: "GitHub.com" })] };
-    expect(pullRequestPanelContext(thread, surface(7, { repository: "PingDotGG/T3Code" }))).toBe(
+    expect(pullRequestPanelContext(thread, surface(7, { repository: "Hafiezul/Rove" }))).toBe(
       "thread",
     );
     expect(pullRequestPanelContext(thread, surface(7, { host: undefined }))).toBe("thread");
@@ -1497,9 +1497,9 @@ describe("pull request panel context beside a thread", () => {
   it("falls back to the legacy fields only for a thread with no link list", () => {
     const legacy = {
       projectId: "proj-a",
-      repository: "pingdotgg/t3code",
+      repository: "hafiezul/rove",
       number: 3,
-      url: "https://github.com/pingdotgg/t3code/pull/3",
+      url: "https://github.com/hafiezul/rove/pull/3",
     };
     expect(
       pullRequestPanelContext({ projectId: "proj-a", linkedPullRequest: legacy }, surface(3)),

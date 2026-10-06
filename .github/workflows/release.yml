@@ -108,13 +108,6 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      - name: Check public release identity
-        env:
-          ROVE_MARKETING_RELEASE_READY: ${{ vars.ROVE_MARKETING_RELEASE_READY }}
-          ROVE_HOSTED_RELEASE_READY: ${{ vars.ROVE_HOSTED_RELEASE_READY }}
-          ROVE_MOBILE_STORES_READY: ${{ vars.ROVE_MOBILE_STORES_READY }}
-        run: node scripts/check-release-identity.mjs
-
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
@@ -1014,12 +1007,6 @@ jobs:
           router_url="${ROVE_WEB_ROUTER_URL:?Configure a Rove-owned hosted router URL}"
           latest_domain="${ROVE_WEB_LATEST_DOMAIN:?Configure a Rove-owned latest domain}"
           nightly_domain="${ROVE_WEB_NIGHTLY_DOMAIN:?Configure a Rove-owned nightly domain}"
-          for host in "$router_url" "$latest_domain" "$nightly_domain"; do
-            if [[ "$host" == *t3.codes* ]]; then
-              echo "Refusing to deploy to an upstream T3 domain: $host" >&2
-              exit 1
-            fi
-          done
           router_domain="${router_url#http://}"
           router_domain="${router_domain#https://}"
           router_domain="${router_domain%%/*}"

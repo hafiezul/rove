@@ -1,6 +1,6 @@
 /**
  * Optional integration check against a real `cursor-agent acp` install.
- * Enable with: T3_CURSOR_ACP_PROBE=1 bun run test --filter CursorAcpCliProbe
+ * Enable with: ROVE_CURSOR_ACP_PROBE=1 bun run test --filter CursorAcpCliProbe
  */
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
@@ -12,7 +12,7 @@ import type * as EffectAcpSchema from "effect-acp/schema";
 import * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
 import * as RuntimePredicate from "effect/Predicate";
 
-describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", () => {
+describe.runIf(process.env.ROVE_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", () => {
   it.effect("initialize and authenticate against real cursor-agent acp", () =>
     Effect.gen(function* () {
       const runtime = yield* AcpSessionRuntime.AcpSessionRuntime;

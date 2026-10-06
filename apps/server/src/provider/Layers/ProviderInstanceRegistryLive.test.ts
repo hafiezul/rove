@@ -193,8 +193,8 @@ const makeTildeProviderFixtures = Effect.fn(
       "  const message = JSON.parse(line);",
       '  if (message.type !== "control_request") return;',
       '  if (message.request?.subtype === "get_usage") {',
-      "    const marker = process.env.T3_CLAUDE_RESET_MARKER;",
-      "    if (process.env.T3_CLAUDE_USAGE_FAILS_AFTER_CLAIM && marker && existsSync(marker)) {",
+      "    const marker = process.env.ROVE_CLAUDE_RESET_MARKER;",
+      "    if (process.env.ROVE_CLAUDE_USAGE_FAILS_AFTER_CLAIM && marker && existsSync(marker)) {",
       "      process.stdout.write(JSON.stringify({",
       '        type: "control_response",',
       '        response: { subtype: "error", request_id: message.request_id, error: "usage failed" },',
@@ -512,9 +512,9 @@ describe("ProviderInstanceRegistryLive — multi-instance codex slice", () => {
             driver: ProviderDriverKind.make("claudeAgent"),
             enabled: true,
             environment: [
-              { name: "T3_CLAUDE_RESET_MARKER", value: marker, sensitive: false },
+              { name: "ROVE_CLAUDE_RESET_MARKER", value: marker, sensitive: false },
               ...(claim.usageFailsAfterClaim
-                ? [{ name: "T3_CLAUDE_USAGE_FAILS_AFTER_CLAIM", value: "1", sensitive: false }]
+                ? [{ name: "ROVE_CLAUDE_USAGE_FAILS_AFTER_CLAIM", value: "1", sensitive: false }]
                 : []),
             ],
             config: makeClaudeConfig({

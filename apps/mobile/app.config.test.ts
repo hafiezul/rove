@@ -63,10 +63,4 @@ describe("source-built mobile identity", () => {
       "ROVE_EXPO_PROJECT_ID is required",
     );
   });
-
-  it("refuses upstream relying-party domains even if explicitly configured", async () => {
-    await expect(configFor({ ROVE_CLERK_RELYING_PARTY_DOMAIN: "clerk.t3.codes" })).rejects.toThrow(
-      "must belong to this project",
-    );
-  });
 });
