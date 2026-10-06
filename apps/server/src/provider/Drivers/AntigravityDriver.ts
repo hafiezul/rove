@@ -1,10 +1,10 @@
 import { withAgentDeviceEnvironment } from "../../mcp/McpProviderSession.ts";
-import { AntigravitySettings, ProviderDriverKind, ProviderSetupError } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { AntigravitySettings, ProviderDriverKind, ProviderSetupError } from "@rove-code/contracts";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import {
   NodeRuntimeUnavailableError,
   nodeRuntimeUnavailableMessage,
-} from "@t3tools/shared/nodeRuntime";
+} from "@rove-code/shared/nodeRuntime";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -257,7 +257,7 @@ export const AntigravityDriver: ProviderDriver<AntigravitySettings, AntigravityD
         input: Pick<AntigravityAcpRuntimeInput, "onAuthorizationUrl">,
       ) {
         const cwd = yield* fileSystem
-          .makeTempDirectoryScoped({ prefix: "t3-antigravity-setup-" })
+          .makeTempDirectoryScoped({ prefix: "rove-antigravity-setup-" })
           .pipe(
             Effect.mapError(
               () =>

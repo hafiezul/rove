@@ -2,7 +2,7 @@ import { QuestionAnswerHistory } from "./QuestionAnswerHistory";
 import {
   getQuestionAnswerPreview,
   hasQuestionAnswer,
-} from "@t3tools/client-runtime/work-log/user-input";
+} from "@rove-code/client-runtime/work-log/user-input";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { type AppSymbolName, SymbolView } from "../../components/AppSymbol";
@@ -32,8 +32,8 @@ import {
   View,
 } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import type { EnvironmentId, ToolActivityIcon } from "@t3tools/contracts";
-import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
+import type { EnvironmentId, ToolActivityIcon } from "@rove-code/contracts";
+import { toolActivityFaviconUrl } from "@rove-code/shared/favicon";
 
 import { AppText as Text } from "../../components/AppText";
 import { RoveLogo } from "../../components/RoveLogo";
@@ -53,8 +53,8 @@ import {
   resolveWorkEntryToolPresentation,
   type ToolGroupSummaryKind,
   workEntryViewedImagePath,
-} from "@t3tools/client-runtime/work-log/presentation";
-import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
+} from "@rove-code/client-runtime/work-log/presentation";
+import { resolveWorkGroupScrollAnchor } from "@rove-code/client-runtime/work-log/scroll-anchor";
 import type { MarkdownImageRenderer } from "../../native/SelectableMarkdownText";
 import Animated, {
   cancelAnimation,
@@ -823,7 +823,7 @@ const ThreadWorkLogRow = memo(function ThreadWorkLogRow(
               <Text
                 className={cn(
                   "min-w-0 flex-1 text-sm text-foreground-muted",
-                  iconIsDestructive && "font-t3-medium text-adaptive-rose-600-400",
+                  iconIsDestructive && "font-rove-medium text-adaptive-rose-600-400",
                 )}
                 numberOfLines={expanded ? undefined : 1}
               >
@@ -845,7 +845,7 @@ const ThreadWorkLogRow = memo(function ThreadWorkLogRow(
 
           <View className="shrink-0 flex-row items-center gap-px">
             {props.copied ? (
-              <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
+              <Text className="pr-1 font-rove-medium text-3xs text-adaptive-emerald-600-400">
                 Copied
               </Text>
             ) : null}
@@ -922,7 +922,7 @@ export function ThreadWorkGroupToggle(props: {
   readonly summaryKind: ToolGroupSummaryKind;
   readonly summaryToolIcon?: "browser" | "device" | "rove" | "pull-request";
   readonly themeAppearance: "light" | "dark";
-  readonly toolSurface?: import("@t3tools/contracts").ToolActivitySurface;
+  readonly toolSurface?: import("@rove-code/contracts").ToolActivitySurface;
   readonly toolIcon?: ToolActivityIcon;
   readonly hasFailure: boolean;
   readonly shimmer: boolean;
@@ -1052,7 +1052,7 @@ export const ThreadAgentSpawnCard = memo(function ThreadAgentSpawnCard(props: {
           <View className="min-w-0 flex-1 gap-0.5">
             <Text
               key={props.rowSizing.textSizeKey}
-              className="font-t3-medium text-sm text-foreground"
+              className="font-rove-medium text-sm text-foreground"
               numberOfLines={1}
             >
               {summary.title}

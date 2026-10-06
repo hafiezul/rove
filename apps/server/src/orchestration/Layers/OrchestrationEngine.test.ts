@@ -16,7 +16,7 @@ import {
   type OrchestrationCommand,
   type OrchestrationEvent,
   ProviderInstanceId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it as effectIt } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -68,7 +68,7 @@ function makeOrchestrationLayer(
     ? makeSqlitePersistenceLive(databasePath)
     : SqlitePersistenceMemory;
   const ServerConfigLayer = ServerConfig.layerTest(process.cwd(), {
-    prefix: "t3-orchestration-engine-test-",
+    prefix: "rove-orchestration-engine-test-",
   });
   return Layer.mergeAll(
     OrchestrationEngineLive.pipe(
@@ -134,7 +134,7 @@ describe("OrchestrationEngine", () => {
     "sends async answers with a %s session and rejects old duplicate replies",
     async (status) => {
       const directory = await NodeFSP.mkdtemp(
-        NodePath.join(NodeOS.tmpdir(), "t3-async-questions-"),
+        NodePath.join(NodeOS.tmpdir(), "rove-async-questions-"),
       );
       const databasePath = NodePath.join(directory, "state.sqlite");
       let system = await createOrchestrationSystem(databasePath);
@@ -1472,7 +1472,7 @@ describe("OrchestrationEngine", () => {
 
     const snapshots = await system.run(Metric.snapshot);
     expect(
-      hasMetricSnapshot(snapshots, "t3_orchestration_command_ack_duration", {
+      hasMetricSnapshot(snapshots, "rove_orchestration_command_ack_duration", {
         commandType: "thread.create",
         aggregateKind: "thread",
         ackEventType: "thread.created",
@@ -1510,7 +1510,7 @@ describe("OrchestrationEngine", () => {
 
     const snapshots = await system.run(Metric.snapshot);
     expect(
-      hasMetricSnapshot(snapshots, "t3_orchestration_commands_total", {
+      hasMetricSnapshot(snapshots, "rove_orchestration_commands_total", {
         commandType: "thread.create",
         aggregateKind: "thread",
         outcome: "failure",
@@ -1564,7 +1564,7 @@ describe("OrchestrationEngine", () => {
         threadId: ThreadId.make("thread-turn-diff"),
         turnId: asTurnId("turn-1"),
         completedAt: createdAt,
-        checkpointRef: asCheckpointRef("refs/t3/checkpoints/thread-turn-diff/turn/1"),
+        checkpointRef: asCheckpointRef("refs/rove/checkpoints/thread-turn-diff/turn/1"),
         status: "ready",
         files: [],
         checkpointTurnCount: 1,
@@ -1579,7 +1579,7 @@ describe("OrchestrationEngine", () => {
       {
         turnId: asTurnId("turn-1"),
         checkpointTurnCount: 1,
-        checkpointRef: asCheckpointRef("refs/t3/checkpoints/thread-turn-diff/turn/1"),
+        checkpointRef: asCheckpointRef("refs/rove/checkpoints/thread-turn-diff/turn/1"),
         status: "ready",
         files: [],
         assistantMessageId: null,
@@ -1629,7 +1629,7 @@ describe("OrchestrationEngine", () => {
     };
 
     const ServerConfigLayer = ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-orchestration-engine-test-",
+      prefix: "rove-orchestration-engine-test-",
     });
 
     const runtime = ManagedRuntime.make(

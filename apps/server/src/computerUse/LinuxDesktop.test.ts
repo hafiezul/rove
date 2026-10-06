@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";

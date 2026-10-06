@@ -24,7 +24,7 @@ export interface RelayClientTracingResource {
 }
 
 export class RelayClientTracer extends Context.Reference(
-  "@t3tools/shared/relayTracing/RelayClientTracer",
+  "@rove-code/shared/relayTracing/RelayClientTracer",
   {
     defaultValue: () => Option.none<Tracer.Tracer>(),
   },
@@ -144,7 +144,7 @@ export function makeRelayClientTracingLayer(
         "service.namespace": "rove",
         "service.runtime": resource.runtime,
         "service.component": resource.component ?? "relay-client",
-        "t3.client.surface": resource.client,
+        "rove.client.surface": resource.client,
       },
     },
   }).pipe(Layer.provide(OtlpSerialization.layerJson));

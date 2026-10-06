@@ -1,4 +1,4 @@
-import { ProjectId, type PullRequestSummary, type VcsStatusResult } from "@t3tools/contracts";
+import { ProjectId, type PullRequestSummary, type VcsStatusResult } from "@rove-code/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import type { AnimationEvent } from "react";
 

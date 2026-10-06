@@ -5,8 +5,11 @@ import * as Scope from "effect/Scope";
 import { HttpClient } from "effect/unstable/http";
 import { OtlpExporter, OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
 
-import { settleAsyncResult, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
+import {
+  settleAsyncResult,
+  squashAtomCommandFailure,
+} from "@rove-code/client-runtime/state/runtime";
+import { safeErrorLogAttributes } from "@rove-code/client-runtime/errors";
 import { resolvePrimaryEnvironmentHttpUrl } from "../environments/primary";
 import * as ClientTracer from "./clientTracer";
 import { primaryEnvironmentHttpLayer } from "../environments/primary/httpLayer";
@@ -18,7 +21,7 @@ const CLIENT_TRACING_RESOURCE = {
   serviceName: "rove-web",
   attributes: {
     "service.namespace": "rove",
-    "service.runtime": "t3-web",
+    "service.runtime": "rove-web",
     "service.mode": isElectron ? "electron" : "browser",
     "service.version": APP_VERSION,
   },

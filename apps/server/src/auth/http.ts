@@ -21,10 +21,11 @@ import {
   EnvironmentScopeRequiredError,
   EnvironmentAuthenticatedAuth,
   EnvironmentAuthenticatedPrincipal,
-} from "@t3tools/contracts";
-import type { AuthEnvironmentScope, DpopFailureReason } from "@t3tools/contracts";
-import { parseAllowedOAuthScope } from "@t3tools/shared/oauthScope";
-import { causeErrorTag } from "@t3tools/shared/observability";
+} from "@rove-code/contracts";
+import type { AuthEnvironmentScope, DpopFailureReason } from "@rove-code/contracts";
+import { parseAllowedOAuthScope } from "@rove-code/shared/oauthScope";
+import { legacyRoveCookieName } from "@rove-code/shared/roveMigration";
+import { causeErrorTag } from "@rove-code/shared/observability";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import { identity } from "effect/Function";
@@ -282,15 +283,29 @@ export const authHttpApiLayer = HttpApiBuilder.group(
                 sameSite: "lax",
               }),
             ).pipe(Effect.catch(() => failEnvironmentInternal("browser_session_cookie_failed")));
-            const sessionCookies = result.expireNormalCookie
-              ? yield* Effect.fromResult(
-                  Cookies.expireCookie(selectedCookie, sessions.cookieName, {
+            let sessionCookies = selectedCookie;
+            if (result.expireNormalCookie) {
+              const names = new Set([
+                sessions.cookieName,
+                legacyRoveCookieName(sessions.cookieName),
+                sessions.legacyCookieName,
+                sessions.legacyCookieName
+                  ? legacyRoveCookieName(sessions.legacyCookieName)
+                  : undefined,
+              ]);
+              for (const name of names) {
+                if (name === undefined) continue;
+                sessionCookies = yield* Effect.fromResult(
+                  Cookies.expireCookie(sessionCookies, name, {
                     httpOnly: true,
                     path: "/",
                     sameSite: "lax",
                   }),
-                ).pipe(Effect.catch(() => failEnvironmentInternal("browser_session_cookie_failed")))
-              : selectedCookie;
+                ).pipe(
+                  Effect.catch(() => failEnvironmentInternal("browser_session_cookie_failed")),
+                );
+              }
+            }
 
             yield* HttpEffect.appendPreResponseHandler((_request, response) =>
               Effect.succeed(HttpServerResponse.mergeCookies(response, sessionCookies)),

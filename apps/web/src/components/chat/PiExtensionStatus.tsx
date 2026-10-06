@@ -1,4 +1,4 @@
-import type { PiExtensionStatusSnapshot } from "@t3tools/contracts";
+import type { PiExtensionStatusSnapshot } from "@rove-code/contracts";
 import { ChevronDownIcon } from "lucide-react";
 import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
 import { composerFloatingLayerProps } from "./composerEventScope";

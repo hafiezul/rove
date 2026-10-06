@@ -2,7 +2,7 @@ import type {
   ServerProvider,
   ServerProviderVersionAdvisory,
   ServerProviderCompatibilityAdvisory,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 /**
  * Visual treatment for each server-reported provider status. Centralized so

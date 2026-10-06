@@ -3,7 +3,7 @@ import {
   type DesktopHostTelemetrySnapshot,
   type ResourceMonitorProcessSample,
   type ResourceMonitorSnapshotEvent,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
@@ -152,20 +152,24 @@ describe("resource telemetry process model", () => {
       ioWriteBytesPerSecond: 2_048,
     });
     expect(sampled.counters).toBe(first.counters);
-    expect(sampled.groups.allT3).toMatchObject({
-      currentCpuPercent: cumulative.groups.allT3.currentCpuPercent,
-      currentRssBytes: cumulative.groups.allT3.currentRssBytes,
-      processCount: cumulative.groups.allT3.processCount,
-      ...first.counters.allT3,
+    expect(sampled.groups.allRove).toMatchObject({
+      currentCpuPercent: cumulative.groups.allRove.currentCpuPercent,
+      currentRssBytes: cumulative.groups.allRove.currentRssBytes,
+      processCount: cumulative.groups.allRove.processCount,
+      ...first.counters.allRove,
     });
-    expect(cumulative.counters.allT3).toMatchObject({
+    expect(cumulative.counters.allRove).toMatchObject({
       cpuTimeMs: 250,
       ioReadBytes: 1_024,
       ioWriteBytes: 2_048,
       processStarts: 3,
       processExits: 1,
     });
-    expect(first.counters.allT3).toMatchObject({ processStarts: 2, processExits: 0, cpuTimeMs: 0 });
+    expect(first.counters.allRove).toMatchObject({
+      processStarts: 2,
+      processExits: 0,
+      cpuTimeMs: 0,
+    });
   });
 
   it("builds complete descendant depths and isolates monitor overhead", () => {
@@ -193,7 +197,7 @@ describe("resource telemetry process model", () => {
     expect(result.groups.backend.processCount).toBe(4);
     expect(result.groups.monitor.processCount).toBe(1);
     expect(result.groups.monitor.processStarts).toBe(1);
-    expect(result.groups.allT3.processStarts).toBe(5);
+    expect(result.groups.allRove.processStarts).toBe(5);
   });
 
   it("deduplicates Electron metrics and classifies Electron descendants", () => {

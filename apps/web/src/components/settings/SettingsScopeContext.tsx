@@ -1,5 +1,5 @@
-import { T3_PROJECT_FILE_NAME, type T3ProjectFile } from "@t3tools/contracts";
-import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
+import { ROVE_PROJECT_FILE_NAME, type RoveProjectFile } from "@rove-code/contracts";
+import { parseRoveProjectFile } from "@rove-code/shared/roveProjectFile";
 import { useAtomValue } from "@effect/atom-react";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
@@ -13,7 +13,7 @@ import { resolveSettingsScope, type SettingsScopeSearch } from "./settingsScope"
 import { selectSingleEnvironmentScope } from "./settingsScopeAxis";
 
 /**
- * Each member's decoded t3.json, so file-backed settings show the file as a
+ * Each member's decoded rove.json, so file-backed settings show the file as a
  * layer in the inheritance chain. A member is only present once its read has
  * settled; the query atom caches per (environment, cwd).
  */
@@ -23,13 +23,14 @@ function useMemberProjectFiles(scope: ReturnType<typeof resolveSettingsScope>) {
     useMemo(
       () =>
         Atom.make((get) => {
-          const files = new Map<string, T3ProjectFile | null>();
+          const files = new Map<string, RoveProjectFile | null>();
           for (const member of members) {
             const result = get(
               getProjectFileQueryAtom(
                 member.environmentId,
                 member.workspaceRoot,
-                T3_PROJECT_FILE_NAME,
+                ROVE_PROJECT_FILE_NAME,
+                { allowLegacyProjectFile: true },
               ),
             );
             if (result.waiting) continue;
@@ -39,12 +40,12 @@ function useMemberProjectFiles(scope: ReturnType<typeof resolveSettingsScope>) {
                 optimisticFileAtom(
                   member.environmentId,
                   member.workspaceRoot,
-                  T3_PROJECT_FILE_NAME,
+                  ROVE_PROJECT_FILE_NAME,
                 ),
               )?.data ?? Option.getOrNull(AsyncResult.value(result));
             files.set(
               member.physicalProjectKey,
-              data === null || data.truncated ? null : parseT3ProjectFile(data.contents),
+              data === null || data.truncated ? null : parseRoveProjectFile(data.contents),
             );
           }
           return files;

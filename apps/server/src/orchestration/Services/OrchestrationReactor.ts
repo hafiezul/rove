@@ -29,4 +29,4 @@ export interface OrchestrationReactorContract {
 export class OrchestrationReactor extends Context.Service<
   OrchestrationReactor,
   OrchestrationReactorContract
->()("t3/orchestration/Services/OrchestrationReactor") {}
+>()("@rove-code/server/orchestration/Services/OrchestrationReactor") {}

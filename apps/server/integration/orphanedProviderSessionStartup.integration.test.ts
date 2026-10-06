@@ -10,7 +10,7 @@ import {
   type ProviderSendTurnInput,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { assert, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -360,7 +360,7 @@ it.effect(
     }).pipe(
       Effect.provide(
         ServerConfig.layerTest(process.cwd(), {
-          prefix: "t3-orphaned-provider-session-startup-",
+          prefix: "rove-orphaned-provider-session-startup-",
         }).pipe(Layer.provideMerge(NodeServices.layer)),
       ),
     ),
@@ -479,7 +479,7 @@ it.effect.each(["opt-in desktop restart", "marked remote update"] as const)(
       );
     }).pipe(
       Effect.provide(
-        ServerConfig.layerTest(process.cwd(), { prefix: "t3-restart-newer-turn-" }).pipe(
+        ServerConfig.layerTest(process.cwd(), { prefix: "rove-restart-newer-turn-" }).pipe(
           Layer.provideMerge(NodeServices.layer),
         ),
       ),

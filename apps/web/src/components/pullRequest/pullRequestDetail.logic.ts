@@ -24,11 +24,11 @@ import {
   type ThreadLinkedPullRequest,
   type ThreadPullRequestLink,
   type VcsRef,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   threadPullRequestKeysEqual,
   visibleThreadPullRequests,
-} from "@t3tools/shared/threadPullRequests";
+} from "@rove-code/shared/threadPullRequests";
 
 import { inferReviewCommentFenceLanguage, type ReviewCommentContext } from "~/reviewCommentContext";
 import { reviewCommentContextId } from "~/lib/composerContextRecords";
@@ -1157,8 +1157,10 @@ const pullRequestDetailSnapshotKey = (
   reference: PullRequestDetailSnapshotRef,
 ) =>
   reference.host
-    ? `t3.pullRequests.detail:${JSON.stringify([environmentId, reference.projectId, reference.host.toLowerCase(), reference.repository.toLowerCase(), reference.number])}`
-    : `t3.pullRequests.detail:${environmentId}:${reference.projectId}:${reference.repository}#${reference.number}`;
+    ? `rove.pullRequests.detail:${JSON.stringify([environmentId, reference.projectId, reference.host.toLowerCase(), reference.repository.toLowerCase(), reference.number])}`
+    : `rove.pullRequests.detail:${environmentId}:${reference.projectId}:${reference.repository}#${reference.number}`;
+
+import { readMigratedRoveStorage } from "@rove-code/shared/roveMigration";
 
 const decodeDetailSnapshot = Schema.decodeUnknownOption(PullRequestDetail);
 
@@ -1174,13 +1176,15 @@ export function readPullRequestDetailSnapshot(
   reference: PullRequestDetailSnapshotRef,
 ): PullRequestDetail | null {
   try {
-    const raw =
-      storage?.getItem(pullRequestDetailSnapshotKey(environmentId, reference)) ??
-      (reference.host === undefined
-        ? null
-        : storage?.getItem(
-            pullRequestDetailSnapshotKey(environmentId, { ...reference, host: undefined }),
-          ));
+    const raw = storage
+      ? (readMigratedRoveStorage(storage, pullRequestDetailSnapshotKey(environmentId, reference)) ??
+        (reference.host === undefined
+          ? null
+          : readMigratedRoveStorage(
+              storage,
+              pullRequestDetailSnapshotKey(environmentId, { ...reference, host: undefined }),
+            )))
+      : null;
     if (!raw) return null;
     const decoded = decodeDetailSnapshot(JSON.parse(raw));
     return decoded._tag === "Some"

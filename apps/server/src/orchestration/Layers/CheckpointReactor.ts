@@ -10,7 +10,7 @@ import {
   type OrchestrationEvent,
   type ProviderRuntimeEvent,
   type VcsStatusLocalResult,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -22,9 +22,9 @@ import * as Option from "effect/Option";
 import type * as PlatformError from "effect/PlatformError";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
-import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
-import { isTemporaryWorktreeBranch } from "@t3tools/shared/git";
-import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
+import { makeDrainableWorker } from "@rove-code/shared/DrainableWorker";
+import { isTemporaryWorktreeBranch } from "@rove-code/shared/git";
+import { compareDateTimeStrings } from "@rove-code/shared/dateTime";
 
 import { parseTurnDiffFilesFromNumstat } from "../../checkpointing/Diffs.ts";
 import {
@@ -599,7 +599,7 @@ const make = Effect.gen(function* () {
   });
 
   // A `git checkout` run inside a thread's dedicated worktree (by an agent or
-  // the user) bypasses T3's commands, so the thread's recorded branch goes
+  // the user) bypasses Rove's commands, so the thread's recorded branch goes
   // stale. Since #4460 the client only attributes PR state to a thread when
   // the checked-out branch equals the recorded one, so stale metadata silently
   // orphans the thread's PR. Follow the drift here: adopt the checked-out

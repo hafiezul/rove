@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - realpathSync.native resolves Windows 8.3 short names, which the Effect realPath does not.
 import * as NodeFS from "node:fs";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { SourceControlProviderError } from "@t3tools/contracts";
+import { SourceControlProviderError } from "@rove-code/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -42,7 +42,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
   it.effect("refreshes the Git root only when requested", () => {
     const calls: Array<ReadonlyArray<string>> = [];
     let rootPath = "/repo";
-    let remoteUrl = "git@github.com:T3Tools/rove.git";
+    let remoteUrl = "git@github.com:RoveTools/rove.git";
     let refinements = 0;
     let refinementFails = false;
     const processRunner = Layer.succeed(ProcessRunner.ProcessRunner, {
@@ -98,7 +98,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       yield* TestClock.adjust(Duration.minutes(10));
       const second = yield* resolver.resolve("/repo/packages/web");
 
-      expect(first?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(first?.canonicalKey).toBe("github.com/rovetools/rove");
       expect(second).toEqual(first);
       expect(refinements).toBe(1);
       expect(calls).toEqual([
@@ -142,7 +142,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
               ? failed
                 ? ""
                 : "/repo\n"
-              : "origin\tgit@github.com:T3Tools/rove.git (fetch)\n",
+              : "origin\tgit@github.com:RoveTools/rove.git (fetch)\n",
             stderr: failed ? "temporary Git failure" : "",
             code: ChildProcessSpawner.ExitCode(failed ? 1 : 0),
             timedOut: false,
@@ -178,11 +178,11 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const cwd = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-test-",
+        prefix: "rove-repository-identity-test-",
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@github.com:T3Tools/rove.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:RoveTools/rove.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const identity = yield* resolver.resolve(cwd);
@@ -193,11 +193,11 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       const resolvedCwd = NodeFS.realpathSync.native(cwd);
 
       expect(identity).not.toBeNull();
-      expect(identity?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(identity?.canonicalKey).toBe("github.com/rovetools/rove");
       expect(normalizeResolvedPath(resolvedIdentityRoot)).toBe(normalizeResolvedPath(resolvedCwd));
-      expect(identity?.displayName).toBe("t3tools/rove");
+      expect(identity?.displayName).toBe("rovetools/rove");
       expect(identity?.provider).toBe("github");
-      expect(identity?.owner).toBe("t3tools");
+      expect(identity?.owner).toBe("rovetools");
       expect(identity?.name).toBe("rove");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -207,13 +207,13 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const repoRoot = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-nested-root-test-",
+        prefix: "rove-repository-identity-nested-root-test-",
       });
       const nestedWorkspace = path.join(repoRoot, "packages", "web");
 
       yield* fileSystem.makeDirectory(nestedWorkspace, { recursive: true });
       yield* git(repoRoot, ["init"]);
-      yield* git(repoRoot, ["remote", "add", "origin", "git@github.com:T3Tools/rove.git"]);
+      yield* git(repoRoot, ["remote", "add", "origin", "git@github.com:RoveTools/rove.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const identity = yield* resolver.resolve(nestedWorkspace);
@@ -222,7 +222,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       const resolvedRepoRoot = NodeFS.realpathSync.native(repoRoot);
 
       expect(identity).not.toBeNull();
-      expect(identity?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(identity?.canonicalKey).toBe("github.com/rovetools/rove");
       expect(normalizeResolvedPath(resolvedIdentityRoot)).toBe(
         normalizeResolvedPath(resolvedRepoRoot),
       );
@@ -233,10 +233,10 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const nonGitDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-non-git-",
+        prefix: "rove-repository-identity-non-git-",
       });
       const gitDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-no-remote-",
+        prefix: "rove-repository-identity-no-remote-",
       });
 
       yield* git(gitDir, ["init"]);
@@ -254,12 +254,12 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const cwd = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-preference-test-",
+        prefix: "rove-repository-identity-preference-test-",
       });
 
       yield* git(cwd, ["init"]);
       yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/rove.git"]);
-      yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/rove.git"]);
+      yield* git(cwd, ["remote", "add", "upstream", "git@github.com:RoveTools/rove.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const byDefault = yield* resolver.resolve(cwd);
@@ -268,7 +268,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       expect(byDefault?.locator.remoteName).toBe("origin");
       expect(byDefault?.canonicalKey).toBe("github.com/julius/rove");
       expect(upstream?.locator.remoteName).toBe("upstream");
-      expect(upstream?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(upstream?.canonicalKey).toBe("github.com/rovetools/rove");
       // Both preferences stay cached side by side.
       expect(yield* resolver.resolve(cwd)).toEqual(byDefault);
 
@@ -341,35 +341,35 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const cwd = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-repository-identity-upstream-test-",
+          prefix: "rove-repository-identity-upstream-test-",
         });
 
         yield* git(cwd, ["init"]);
         yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/rove.git"]);
         if (change === "replace") {
-          yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/previous.git"]);
+          yield* git(cwd, ["remote", "add", "upstream", "git@github.com:RoveTools/previous.git"]);
         }
 
         const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
         const preferUpstream = { preferredRemote: "upstream" } as const;
         const initialIdentity = yield* resolver.resolve(cwd, preferUpstream);
         expect(initialIdentity?.canonicalKey).toBe(
-          change === "add" ? "github.com/julius/rove" : "github.com/t3tools/previous",
+          change === "add" ? "github.com/julius/rove" : "github.com/rovetools/previous",
         );
 
         yield* git(cwd, [
           "remote",
           change === "add" ? "add" : "set-url",
           "upstream",
-          "git@github.com:T3Tools/rove.git",
+          "git@github.com:RoveTools/rove.git",
         ]);
         expect(yield* resolver.resolve(cwd, preferUpstream)).toEqual(initialIdentity);
         const identity = yield* resolver.resolve(cwd, { ...preferUpstream, refresh: true });
 
         expect(identity).not.toBeNull();
         expect(identity?.locator.remoteName).toBe("upstream");
-        expect(identity?.canonicalKey).toBe("github.com/t3tools/rove");
-        expect(identity?.displayName).toBe("t3tools/rove");
+        expect(identity?.canonicalKey).toBe("github.com/rovetools/rove");
+        expect(identity?.displayName).toBe("rovetools/rove");
         expect(yield* resolver.resolve(cwd, preferUpstream)).toEqual(identity);
       }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -378,19 +378,19 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const cwd = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-nested-group-test-",
+        prefix: "rove-repository-identity-nested-group-test-",
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@gitlab.com:T3Tools/platform/rove.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@gitlab.com:RoveTools/platform/rove.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const identity = yield* resolver.resolve(cwd);
 
       expect(identity).not.toBeNull();
-      expect(identity?.canonicalKey).toBe("gitlab.com/t3tools/platform/rove");
-      expect(identity?.displayName).toBe("t3tools/platform/rove");
-      expect(identity?.owner).toBe("t3tools");
+      expect(identity?.canonicalKey).toBe("gitlab.com/rovetools/platform/rove");
+      expect(identity?.displayName).toBe("rovetools/platform/rove");
+      expect(identity?.owner).toBe("rovetools");
       expect(identity?.name).toBe("rove");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -401,7 +401,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const cwd = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-repository-identity-late-remote-test-",
+          prefix: "rove-repository-identity-late-remote-test-",
         });
 
         yield* git(cwd, ["init"]);
@@ -410,7 +410,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
         const initialIdentity = yield* resolver.resolve(cwd);
         expect(initialIdentity).toBeNull();
 
-        yield* git(cwd, ["remote", "add", "origin", "git@github.com:T3Tools/rove.git"]);
+        yield* git(cwd, ["remote", "add", "origin", "git@github.com:RoveTools/rove.git"]);
 
         for (const _attempt of [1, 2, 3]) {
           const cachedIdentity = yield* resolver.resolve(cwd);
@@ -421,7 +421,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
 
         const refreshedIdentity = yield* resolver.resolve(cwd);
         expect(refreshedIdentity).not.toBeNull();
-        expect(refreshedIdentity?.canonicalKey).toBe("github.com/t3tools/rove");
+        expect(refreshedIdentity?.canonicalKey).toBe("github.com/rovetools/rove");
         expect(refreshedIdentity?.name).toBe("rove");
       }).pipe(
         Effect.provide(
@@ -440,29 +440,29 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const cwd = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-repository-identity-remote-change-test-",
+        prefix: "rove-repository-identity-remote-change-test-",
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@github.com:T3Tools/rove.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:RoveTools/rove.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const initialIdentity = yield* resolver.resolve(cwd);
       expect(initialIdentity).not.toBeNull();
-      expect(initialIdentity?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(initialIdentity?.canonicalKey).toBe("github.com/rovetools/rove");
 
-      yield* git(cwd, ["remote", "set-url", "origin", "git@github.com:T3Tools/rove-next.git"]);
+      yield* git(cwd, ["remote", "set-url", "origin", "git@github.com:RoveTools/rove-next.git"]);
 
       const cachedIdentity = yield* resolver.resolve(cwd);
       expect(cachedIdentity).not.toBeNull();
-      expect(cachedIdentity?.canonicalKey).toBe("github.com/t3tools/rove");
+      expect(cachedIdentity?.canonicalKey).toBe("github.com/rovetools/rove");
 
       yield* TestClock.adjust(Duration.millis(180));
 
       const refreshedIdentity = yield* resolver.resolve(cwd);
       expect(refreshedIdentity).not.toBeNull();
-      expect(refreshedIdentity?.canonicalKey).toBe("github.com/t3tools/rove-next");
-      expect(refreshedIdentity?.displayName).toBe("t3tools/rove-next");
+      expect(refreshedIdentity?.canonicalKey).toBe("github.com/rovetools/rove-next");
+      expect(refreshedIdentity?.displayName).toBe("rovetools/rove-next");
       expect(refreshedIdentity?.name).toBe("rove-next");
     }).pipe(
       Effect.provide(

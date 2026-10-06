@@ -9,8 +9,8 @@ import * as Tracer from "effect/Tracer";
 import * as HttpClient from "effect/unstable/http/HttpClient";
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+import { DEFAULT_SIGNAL_EXPORT } from "@rove-code/shared/observability";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
 
 import * as ServerConfig from "./config.ts";
 import { ServerLoggerLive } from "./serverLogger.ts";
@@ -43,7 +43,7 @@ const configLayer = (overrides: Partial<ServerConfig.ServerConfig["Service"]>) =
     ServerConfig.ServerConfig,
     Effect.gen(function* () {
       const path = yield* Path.Path;
-      const baseDir = path.join(NodeOS.tmpdir(), "t3-server-logger-test");
+      const baseDir = path.join(NodeOS.tmpdir(), "rove-server-logger-test");
       const derivedPaths = yield* ServerConfig.deriveServerPaths(baseDir, undefined);
       return ServerConfig.make({
         logLevel: "Info",

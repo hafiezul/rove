@@ -1,7 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
-import { ServerSelfUpdateError, ThreadId } from "@t3tools/contracts";
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { ServerSelfUpdateError, ThreadId } from "@rove-code/contracts";
+import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -53,7 +53,7 @@ const makeHarness = Effect.fn("test.make_self_update_harness")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-self-update-test-" });
+  const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "rove-self-update-test-" });
   const order: string[] = [];
   const runner = ProcessRunner.ProcessRunner.of({
     run: (input) =>

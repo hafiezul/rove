@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { ThreadId } from "@t3tools/contracts";
+import { ThreadId } from "@rove-code/contracts";
 
 import {
   commandDetailRepeatsCommand,
@@ -208,11 +208,11 @@ describe("summarizeToolGroup", () => {
 describe("resolveWorkEntryToolPresentation", () => {
   it.each([
     "mcp__rove__preview_click",
-    "mcp__t3_code__preview_click",
+    "mcp__rove_code__preview_click",
     "mcp__rove__preview_click",
-    "T3-code.preview_click",
+    "Rove-code.preview_click",
     "rove · preview_click completed",
-    "t3_code/preview_click",
+    "rove_code/preview_click",
     "preview_click",
   ])("recognizes browser tool names across providers: %s", (label) => {
     expect(resolveWorkEntryToolPresentation({ label })).toEqual({
@@ -254,14 +254,14 @@ describe("resolveWorkEntryToolPresentation", () => {
   ])("describes the tool's own %s state", (toolLifecycleStatus, displayName) => {
     expect(
       resolveWorkEntryToolPresentation({
-        label: "T3-code.preview_click",
+        label: "Rove-code.preview_click",
         toolLifecycleStatus,
       }),
     ).toEqual({ displayName, icon: "browser" });
   });
 
   it("uses the summary's state only when the provider omitted a lifecycle status", () => {
-    const entry = { label: "T3-code.preview_click" };
+    const entry = { label: "Rove-code.preview_click" };
     expect(resolveWorkEntryToolPresentation(entry, "inProgress")?.displayName).toBe(
       "Clicking in the preview browser",
     );
@@ -295,10 +295,10 @@ describe("resolveWorkEntryToolPresentation", () => {
       "Stopping recording the preview browser",
       "Stopped recording the preview browser",
     ],
-    ["t3_thread_read", "Reading a Rove thread", "Read a Rove thread"],
-    ["t3_thread_send", "Sending to a Rove thread", "Sent to a Rove thread"],
+    ["rove_thread_read", "Reading a Rove thread", "Read a Rove thread"],
+    ["rove_thread_send", "Sending to a Rove thread", "Sent to a Rove thread"],
     [
-      "t3_worktree_handoff",
+      "rove_worktree_handoff",
       "Handing off thread to a git worktree",
       "Handed off thread to a git worktree",
     ],
@@ -316,7 +316,7 @@ describe("resolveWorkEntryToolPresentation", () => {
   it("keeps Rove branding for non-browser tools and falls back to the original tool label", () => {
     expect(
       resolveWorkEntryToolPresentation({
-        label: "mcp__t3_code__task_status",
+        label: "mcp__rove_code__task_status",
         toolTitle: "Check the child task",
       }),
     ).toEqual({ displayName: "Getting delegated task status", icon: "rove" });
@@ -395,7 +395,7 @@ describe("browser group summaries", () => {
         {
           ...browserEntry,
           command: "node inspect-page.js",
-          toolData: { toolName: "mcp__t3_code__preview_evaluate" },
+          toolData: { toolName: "mcp__rove_code__preview_evaluate" },
         },
       ]),
     ).toBe("Used browser 1 time");
@@ -557,7 +557,7 @@ describe("toolGroupAction", () => {
 describe("resolveViewedImageAsset", () => {
   const threadId = ThreadId.make("thread-1");
 
-  it("serves t3 attachment paths in place like any other host path", () => {
+  it("serves rove attachment paths in place like any other host path", () => {
     const path = "/Users/demo/.rove/dev/attachments/11111111-1111-4111-8111-111111111111.png";
     expect(resolveViewedImageAsset(path, { threadId, workspaceRoot: "/workspace" })).toEqual({
       resource: { _tag: "media-file", threadId, path },
@@ -588,8 +588,8 @@ describe("resolveViewedImageAsset", () => {
 describe("pull request tool presentation", () => {
   it.each([
     "mcp__rove__link_pull_request",
-    "mcp__t3_code__link_pull_request",
-    "T3-code · link_pull_request",
+    "mcp__rove_code__link_pull_request",
+    "Rove-code · link_pull_request",
     "rove/link_pull_request",
     "link_pull_request",
   ])("recognizes the native linking tool: %s", (label) => {
@@ -637,7 +637,7 @@ describe("pull request tool presentation", () => {
 
   it("summarizes native PR work separately from ordinary tools and integration metadata", () => {
     const link: WorkLogPresentationEntry = {
-      label: "T3-code · link_pull_request",
+      label: "Rove-code · link_pull_request",
       tone: "tool",
       itemType: "mcp_tool_call",
       toolLifecycleStatus: "completed",
@@ -645,12 +645,12 @@ describe("pull request tool presentation", () => {
     };
     const list: WorkLogPresentationEntry = {
       ...link,
-      label: "T3-code · list_thread_pull_requests",
+      label: "Rove-code · list_thread_pull_requests",
     };
     expect(summarizeToolGroup([link, link, list])).toBe(
       "Linked 2 pull requests and checked linked pull requests",
     );
-    expect(summarizeToolGroup([{ ...link, label: "T3-code · unlink_pull_request" }])).toBe(
+    expect(summarizeToolGroup([{ ...link, label: "Rove-code · unlink_pull_request" }])).toBe(
       "Unlinked 1 pull request",
     );
     expect(toolGroupSummaryKind([link, link, list])).toBe("pull-request");
@@ -692,7 +692,7 @@ describe("device group summaries", () => {
   it("recognizes Claude tool names and preserves screenshot previews", () => {
     const entry = {
       ...deviceEntry("device_screenshot"),
-      toolData: { toolName: "mcp__t3_code__device_screenshot" },
+      toolData: { toolName: "mcp__rove_code__device_screenshot" },
       viewedImagePath: "/workspace/device.png",
     };
     expect(summarizeToolGroup([entry])).toBe("Used device controls 1 time");

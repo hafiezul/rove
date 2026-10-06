@@ -1,4 +1,4 @@
-import type { PiCatalogSnapshot } from "@t3tools/contracts";
+import type { PiCatalogSnapshot } from "@rove-code/contracts";
 import {
   ChevronDownIcon,
   CircleAlertIcon,

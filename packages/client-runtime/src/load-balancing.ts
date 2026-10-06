@@ -1,4 +1,4 @@
-import type { HostResourcesSnapshot } from "@t3tools/contracts";
+import type { HostResourcesSnapshot } from "@rove-code/contracts";
 
 /** Callers supply only connected machines hosting the project and selected provider. */
 export function chooseLoadBalancedEnvironment(

@@ -31,8 +31,8 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
-import { createModelSelection } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { createModelSelection } from "@rove-code/shared/model";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
@@ -49,11 +49,11 @@ import {
   makeOpenCodeAdapter,
   mergeOpenCodeAssistantText,
 } from "./OpenCodeAdapter.ts";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 
 // Test-local service tag so the rest of the file can keep using `yield* OpenCodeAdapter`.
 class OpenCodeAdapter extends Context.Service<OpenCodeAdapter, OpenCodeAdapterContract>()(
-  "t3/provider/Layers/OpenCodeAdapter.test/OpenCodeAdapter",
+  "@rove-code/server/provider/Layers/OpenCodeAdapter.test/OpenCodeAdapter",
 ) {}
 
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);
@@ -6907,7 +6907,7 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
 
         // A symlinked cwd (the macOS `/tmp` → `/private/tmp` shape) resolves to
         // the directory it points at, so the two spellings compare equal.
-        const base = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-opencode-dir-" });
+        const base = yield* fileSystem.makeTempDirectoryScoped({ prefix: "rove-opencode-dir-" });
         const real = path.join(base, "real");
         const link = path.join(base, "link");
         yield* fileSystem.makeDirectory(real);

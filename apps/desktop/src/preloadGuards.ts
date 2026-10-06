@@ -7,7 +7,7 @@ import type {
   DesktopPreviewTabState,
   DesktopSshPasswordPromptRequest,
   DesktopUpdateState,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type { Json as SchemaJson } from "effect/Schema";
 
 type RecordValue = Record<string, SchemaJson>;

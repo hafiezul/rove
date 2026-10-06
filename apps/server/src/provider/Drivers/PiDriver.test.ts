@@ -5,7 +5,7 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { ProviderInstanceId, ThreadId } from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";

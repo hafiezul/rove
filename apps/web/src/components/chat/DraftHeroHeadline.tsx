@@ -1,7 +1,7 @@
 import type { DraftId } from "~/composerDraftStore";
 import { useComposerDraftStore } from "~/composerDraftStore";
-import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
-import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@rove-code/contracts";
+import { scopedProjectKey, scopeProjectRef } from "@rove-code/client-runtime/environment";
 import { FolderPlusIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
@@ -30,7 +30,7 @@ import {
 } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 
 interface DraftHeroHeadlineProps {
   readonly draftId: DraftId | null;

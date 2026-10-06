@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { AuthAdministrativeScopes } from "@t3tools/contracts";
+import { AuthAdministrativeScopes } from "@rove-code/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -35,7 +35,9 @@ const makeServerConfigLayer = (overrides?: Partial<ServerConfig.ServerConfig["Se
         port: TEST_SERVER_PORT,
       } satisfies ServerConfig.ServerConfig["Service"];
     }),
-  ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-auth-server-test-" })));
+  ).pipe(
+    Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "rove-auth-server-test-" })),
+  );
 
 const makeEnvironmentAuthLayer = (overrides?: Partial<ServerConfig.ServerConfig["Service"]>) =>
   EnvironmentAuth.layer.pipe(
@@ -98,7 +100,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       >[0];
 
       const authenticated = yield* serverAuth.authenticateHttpRequest(request);
-      expect(devExchange.cookieName).toMatch(/^t3_dev_session_/);
+      expect(devExchange.cookieName).toMatch(/^rove_dev_session_/);
       expect(devExchange.expireNormalCookie).toBe(true);
       expect(authenticated.scopes).toEqual(["orchestration:read"]);
     }).pipe(
@@ -337,13 +339,31 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
     }).pipe(Effect.provide(makeEnvironmentAuthLayer())),
   );
 
+  it.effect("accepts an existing historical scoped cookie without replacing its session", () =>
+    Effect.gen(function* () {
+      const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
+      const sessions = yield* SessionStore.SessionStore;
+      const pairing = yield* serverAuth.issuePairingCredential();
+      const browser = yield* serverAuth.createBrowserSession(pairing.credential, requestMetadata);
+      const oldName = sessions.cookieName.replace(/^rove_session/, "t3_session");
+      const verified = yield* serverAuth.authenticateHttpRequest(
+        makeCookieRequest(oldName, browser.sessionToken),
+      );
+      const canonical = yield* serverAuth.authenticateHttpRequest(
+        makeCookieRequest(sessions.cookieName, browser.sessionToken),
+      );
+      expect(verified.sessionId).toBe(canonical.sessionId);
+      expect(verified.scopes).toEqual(canonical.scopes);
+    }).pipe(Effect.provide(makeEnvironmentAuthLayer())),
+  );
+
   it.effect("prefers a bearer token over a stale legacy cookie", () =>
     Effect.gen(function* () {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
       const sessions = yield* SessionStore.SessionStore;
       const bearer = yield* serverAuth.issueSession();
       const verified = yield* serverAuth.authenticateHttpRequest({
-        cookies: { [sessions.legacyCookieName ?? "t3_session"]: "stale" },
+        cookies: { [sessions.legacyCookieName ?? "rove_session"]: "stale" },
         headers: { authorization: `Bearer ${bearer.token}` },
       } as never);
 

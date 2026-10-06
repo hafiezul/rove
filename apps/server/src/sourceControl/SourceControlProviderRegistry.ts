@@ -9,9 +9,9 @@ import {
   SourceControlProviderError,
   type RepositoryRemotePreference,
   type SourceControlProviderDiscoveryItem,
-} from "@t3tools/contracts";
-import type { SourceControlProviderKind } from "@t3tools/contracts";
-import { detectSourceControlProviderFromRemoteUrl } from "@t3tools/shared/sourceControl";
+} from "@rove-code/contracts";
+import type { SourceControlProviderKind } from "@rove-code/contracts";
+import { detectSourceControlProviderFromRemoteUrl } from "@rove-code/shared/sourceControl";
 
 import * as AzureDevOpsSourceControlProvider from "./AzureDevOpsSourceControlProvider.ts";
 import * as BitbucketSourceControlProvider from "./BitbucketSourceControlProvider.ts";
@@ -66,7 +66,7 @@ export class SourceControlProviderRegistry extends Context.Service<
     >;
     readonly discover: Effect.Effect<ReadonlyArray<SourceControlProviderDiscoveryItem>>;
   }
->()("t3/sourceControl/SourceControlProviderRegistry") {}
+>()("@rove-code/server/sourceControl/SourceControlProviderRegistry") {}
 
 function unsupportedProvider(
   kind: SourceControlProviderKind,

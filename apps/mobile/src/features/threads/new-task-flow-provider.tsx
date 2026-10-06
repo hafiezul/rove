@@ -8,19 +8,19 @@ import type {
   ProviderOptionSelection,
   RuntimeMode,
   ServerProvider,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   CommandId,
   DEFAULT_PROVIDER_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
   DEFAULT_SERVER_SETTINGS,
   MessageId,
-  T3_PROJECT_FILE_NAME,
+  ROVE_PROJECT_FILE_NAME,
   ThreadId,
-} from "@t3tools/contracts";
-import { sanitizeNewRefName } from "@t3tools/shared/git";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
-import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
+} from "@rove-code/contracts";
+import { sanitizeNewRefName } from "@rove-code/shared/git";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
+import { parseRoveProjectFile } from "@rove-code/shared/roveProjectFile";
 import * as Arr from "effect/Array";
 import { pipe } from "effect/Function";
 
@@ -80,8 +80,8 @@ import {
   setPendingConnectionError,
   useSavedRemoteConnections,
 } from "../../state/use-remote-environment-registry";
-import { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
-import { type VcsRef } from "@t3tools/client-runtime/state/vcs";
+import { EnvironmentProject } from "@rove-code/client-runtime/state/shell";
+import { type VcsRef } from "@rove-code/client-runtime/state/vcs";
 import {
   buildHomeProjectScopes,
   sortHomeProjectScopes,
@@ -426,24 +426,28 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
   const attachments = selectedProjectDraft.attachments;
   // Default mode until the user picks one explicitly — same resolution web
   // uses for new draft threads: per-project setting, then the repo's
-  // checked-in t3.json, then the server's configured default.
-  const t3ProjectFileQuery = useEnvironmentQuery(
+  // checked-in rove.json, then the server's configured default.
+  const roveProjectFileQuery = useEnvironmentQuery(
     selectedProject !== null && selectedProject.workspaceRoot !== ""
       ? projectEnvironment.readFile({
           environmentId: selectedProject.environmentId,
-          input: { cwd: selectedProject.workspaceRoot, relativePath: T3_PROJECT_FILE_NAME },
+          input: {
+            cwd: selectedProject.workspaceRoot,
+            relativePath: ROVE_PROJECT_FILE_NAME,
+            allowLegacyProjectFile: true,
+          },
         })
       : null,
   );
-  const t3ProjectFileData = t3ProjectFileQuery.data as ProjectReadFileResult | null;
-  const t3ProjectFile = useMemo(
+  const roveProjectFileData = roveProjectFileQuery.data as ProjectReadFileResult | null;
+  const roveProjectFile = useMemo(
     () =>
-      t3ProjectFileData === null || t3ProjectFileData.truncated
+      roveProjectFileData === null || roveProjectFileData.truncated
         ? null
-        : parseT3ProjectFile(t3ProjectFileData.contents),
-    [t3ProjectFileData],
+        : parseRoveProjectFile(roveProjectFileData.contents),
+    [roveProjectFileData],
   );
-  // Environment settings with the project's overrides and its t3.json
+  // Environment settings with the project's overrides and its rove.json
   // applied; the aggregate's own legacy fields still count until the server
   // folds them.
   const projectSettings = useMemo(
@@ -452,19 +456,19 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         selectedEnvironmentServerConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
         selectedProject?.id ?? null,
         selectedProject,
-        t3ProjectFile,
+        roveProjectFile,
       ),
-    [selectedEnvironmentServerConfig?.settings, selectedProject, t3ProjectFile],
+    [selectedEnvironmentServerConfig?.settings, selectedProject, roveProjectFile],
   );
   const defaultWorkspaceMode: WorkspaceMode = projectSettings.settings.defaultThreadEnvMode;
   // While the file read is pending and nothing above it decided, the
   // resolved default is provisional. Nothing may write it into the draft
   // during that window (the auto-branch effect does), or the frozen interim
-  // value beats the t3.json default once it loads.
+  // value beats the rove.json default once it loads.
   const defaultWorkspaceModeSettled =
     selectedProjectDraft.workspaceSelection?.mode !== undefined ||
     projectSettings.sources.defaultThreadEnvMode !== "environment" ||
-    !t3ProjectFileQuery.isPending;
+    !roveProjectFileQuery.isPending;
   const workspaceMode = selectedProjectDraft.workspaceSelection?.mode ?? defaultWorkspaceMode;
   const selectedBranchName = selectedProjectDraft.workspaceSelection?.branch ?? null;
   const selectedWorktreePath = selectedProjectDraft.workspaceSelection?.worktreePath ?? null;

@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodePath from "node:path";
-import type { ServerProviderSlashCommand } from "@t3tools/contracts";
+import type { ServerProviderSlashCommand } from "@rove-code/contracts";
 
 import { expandHomePath } from "../../pathExpansion.ts";
 import type { PiDiscoveryClient } from "./PiProvider.ts";

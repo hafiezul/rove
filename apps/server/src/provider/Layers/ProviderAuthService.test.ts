@@ -6,7 +6,7 @@ import {
   ThreadId,
   type ProviderAuthState,
   type ProviderSession,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
 import * as Fiber from "effect/Fiber";
@@ -832,7 +832,7 @@ it.effect.each(["start", "logout", "prompt"] as const)(
 
 it.effect.each([
   { owner: "provider" as const, key: "different-binding" },
-  { owner: "t3" as const, key: "shared" },
+  { owner: "rove" as const, key: "shared" },
 ])(
   "does not invalidate a peer that switches credential binding during session draining %#",
   (binding) =>

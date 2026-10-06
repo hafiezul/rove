@@ -11,7 +11,7 @@ import { requireNativeView } from "expo";
 
 import { NativeViewResolutionError } from "../../native/nativeViewResolutionError";
 
-const NATIVE_REVIEW_DIFF_MODULE_NAME = "T3ReviewDiffSurface";
+const NATIVE_REVIEW_DIFF_MODULE_NAME = "RoveReviewDiffSurface";
 const NATIVE_REVIEW_DIFF_PAYLOAD_RETRY_FRAMES = 60;
 
 interface ExpoViewConfig {
@@ -182,7 +182,7 @@ export function isPendingNativeViewRegistration(error: unknown): boolean {
   return (
     error.message.includes(`Unable to find the '${NATIVE_REVIEW_DIFF_MODULE_NAME}' view`) ||
     (error.message.includes("Unable to find the class") &&
-      error.message.includes("T3ReviewDiffView view with tag"))
+      error.message.includes("RoveReviewDiffView view with tag"))
   );
 }
 

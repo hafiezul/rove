@@ -28,9 +28,9 @@ import * as Schema from "effect/Schema";
 import { Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { fromYaml } from "@t3tools/shared/schemaYaml";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { fromYaml } from "@rove-code/shared/schemaYaml";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
 import rootPackageJson from "../package.json" with { type: "json" };
 import serverPackageJson from "../apps/server/package.json" with { type: "json" };
 
@@ -359,7 +359,7 @@ const signMacArchiveContents = Effect.fn("signMacArchiveContents")(function* (in
         entry.endsWith(".node") ||
         entry.endsWith(".dylib") ||
         entry.endsWith("spawn-helper") ||
-        entry.endsWith("t3-resource-monitor"),
+        entry.endsWith("rove-resource-monitor"),
     )
     .map((entry) => path.join(input.contentDir, entry));
 
@@ -540,7 +540,10 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
     builtExecutable,
     `Run \`node apps/server/scripts/cli.ts build-exe --target ${targetKey}\` first.`,
   );
-  yield* requireInput(path.join(webClient, "index.html"), "Run `vp run --filter t3 build` first.");
+  yield* requireInput(
+    path.join(webClient, "index.html"),
+    "Run `vp run --filter @rove-code/server build` first.",
+  );
   yield* requireInput(
     resourceMonitorDir,
     "Build the resource monitor or pass --resource-monitor-dir.",

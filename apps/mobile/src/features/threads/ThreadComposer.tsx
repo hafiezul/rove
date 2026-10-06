@@ -1,10 +1,10 @@
 import { ChatGptUsageLimitNotice } from "./ChatGptUsageLimitNotice";
 import { UsageLimitRecoveryNotice } from "./UsageLimitRecoveryNotice";
-import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
+import type { ComposerTextPaste } from "../../native/RoveComposerEditor.types";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useAtomValue } from "@effect/atom-react";
-import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
-import { pastedTextDisposition, replaceTextSelection } from "@t3tools/client-runtime/text-paste";
+import { clampFileAttachmentUploadBytes } from "@rove-code/client-runtime/state/attachments";
+import { pastedTextDisposition, replaceTextSelection } from "@rove-code/client-runtime/text-paste";
 import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
@@ -15,14 +15,14 @@ import {
   type PiExtensionStatusSnapshot,
   type ProviderInteractionMode,
   type RuntimeMode,
-  type ServerConfig as T3ServerConfig,
+  type ServerConfig,
   type UsageLimitsReport,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   collectProviderUsageLimits,
   hasProviderUsageLimits,
   isUsageLimitsCommand,
-} from "@t3tools/shared/usageLimits";
+} from "@rove-code/shared/usageLimits";
 import { StackActions, useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { ReactNode } from "react";
 import {
@@ -61,7 +61,7 @@ import {
 } from "../../state/use-composer-drafts";
 import type { ComposerDocumentAttachment } from "../../lib/composerContext";
 import { useProject } from "../../state/entities";
-import { scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef } from "@rove-code/client-runtime/environment";
 
 import { AppText as Text } from "../../components/AppText";
 import { ComposerAttachmentButton } from "../../components/ComposerAttachmentButton";
@@ -139,7 +139,7 @@ export interface ThreadComposerProps {
   readonly selectedThread: OrchestrationThreadShell;
   readonly piExtensionStatuses: PiExtensionStatusSnapshot["statuses"];
   readonly hasCompactableConversation: boolean;
-  readonly serverConfig: T3ServerConfig | null;
+  readonly serverConfig: ServerConfig | null;
   readonly queueCount: number;
   readonly environmentId: EnvironmentId;
   readonly projectCwd: string | null;
@@ -359,7 +359,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
     });
   };
   const { onSendMessage, onChangeDraftMessage, onShowUsageLimits } = props;
-  // T3 owns /usage-limits only where Limits has data for the selected provider;
+  // Rove owns /usage-limits only where Limits has data for the selected provider;
   // elsewhere the name stays the provider's own and is sent through untouched.
   const usageLimitsOffered =
     selectedProviderStatus !== null &&
@@ -911,7 +911,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                 ))}
                 {stripAttachments.length > 3 ? (
                   <View className="size-[30px] items-center justify-center rounded-lg bg-subtle-strong">
-                    <Text className="text-foreground-muted text-2xs font-t3-bold">
+                    <Text className="text-foreground-muted text-2xs font-rove-bold">
                       +{stripAttachments.length - 3}
                     </Text>
                   </View>

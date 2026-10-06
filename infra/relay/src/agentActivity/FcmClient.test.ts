@@ -51,7 +51,7 @@ const config = {
 const input = {
   token: "device-token",
   packageName: "dev.rove.app.dev",
-  data: { t3_kind: "agent_activity", active: "true" },
+  data: { rove_kind: "agent_activity", active: "true" },
   alert: false,
 };
 
@@ -191,7 +191,7 @@ describe("FCM delivery", () => {
             android: {
               priority: "HIGH",
               ttl: "300s",
-              collapse_key: "t3-agent-activity",
+              collapse_key: "rove-agent-activity",
               restricted_package_name: input.packageName,
             },
           },

@@ -18,7 +18,7 @@ import type {
   PullRequestReviewThread,
   PullRequestReviewVerdict,
   PullRequestReviewerCandidateList,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import * as GitLabCli from "../sourceControl/GitLabCli.ts";
 import {
@@ -411,7 +411,7 @@ export class GitLabPullRequestCli extends Context.Service<
       readonly reacted: boolean;
     }) => Effect.Effect<void, GitLabPullRequestCliError>;
   }
->()("t3/pullRequest/GitLabPullRequestCli") {}
+>()("@rove-code/server/pullRequest/GitLabPullRequestCli") {}
 
 /** The REST API addresses a project by its URL-encoded full path. */
 function projectPath(repository: string): string {

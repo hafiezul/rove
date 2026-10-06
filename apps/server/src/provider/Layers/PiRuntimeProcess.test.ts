@@ -6,7 +6,7 @@ import * as NodeHttp from "node:http";
 import * as NodeStreamConsumers from "node:stream/consumers";
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
-import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProviderInstanceId, ThreadId } from "@rove-code/contracts";
 import { setMcpProviderSession, clearMcpProviderSession } from "../../mcp/McpProviderSession.ts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { PiRuntimeProcess } from "./PiRuntimeProcess.ts";

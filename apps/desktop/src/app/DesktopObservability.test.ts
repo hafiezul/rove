@@ -145,7 +145,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir);
       const tracePath = yield* Effect.gen(function* () {
@@ -194,7 +194,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-log-test-",
+        prefix: "rove-desktop-backend-output-log-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -272,7 +272,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-snapshot-test-",
+        prefix: "rove-desktop-backend-output-snapshot-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -312,7 +312,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-bound-test-",
+        prefix: "rove-desktop-backend-output-bound-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -358,7 +358,7 @@ describe("DesktopObservability", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-backend-output-chunks-test-",
+          prefix: "rove-desktop-backend-output-chunks-test-",
         });
         const environmentLayer = makeEnvironmentLayer(baseDir, false);
         const logPath = yield* Effect.gen(function* () {
@@ -395,7 +395,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, true, {
         ROVE_OTLP_LOGS_URL: "https://collector.example.com/v1/logs",
@@ -441,7 +441,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, true, {
         ROVE_OTLP_HEADERS: "x-scope=desktop",
@@ -487,7 +487,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, true, {
         ROVE_OTLP_LOGS_URL: "https://collector.example.com/v1/logs",
@@ -530,7 +530,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, true, {
         ROVE_OTLP_HEADERS: "x-scope=desktop",
@@ -570,7 +570,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir, true, {
         ROVE_OTLP_LOGS_URL: "https://collector.example.com/v1/logs",
@@ -600,7 +600,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir);
       yield* writeObservabilitySettings(environmentLayer, {
@@ -641,7 +641,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
 
       yield* Effect.scoped(
@@ -665,7 +665,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "rove-desktop-observability-test-",
       });
       const environmentLayer = makeEnvironmentLayer(baseDir);
       yield* writeObservabilitySettings(environmentLayer, {

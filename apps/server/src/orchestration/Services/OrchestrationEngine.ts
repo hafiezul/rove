@@ -15,7 +15,7 @@ import type {
   OrchestrationCommand,
   OrchestrationEvent,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
@@ -114,4 +114,4 @@ export interface OrchestrationEngineContract {
 export class OrchestrationEngineService extends Context.Service<
   OrchestrationEngineService,
   OrchestrationEngineContract
->()("t3/orchestration/Services/OrchestrationEngine/OrchestrationEngineService") {}
+>()("@rove-code/server/orchestration/Services/OrchestrationEngine/OrchestrationEngineService") {}

@@ -5,7 +5,7 @@ import type {
   PullRequestDetailView,
   PullRequestRef,
   ScopedThreadRef,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   ChevronDownIcon,
   ExternalLinkIcon,

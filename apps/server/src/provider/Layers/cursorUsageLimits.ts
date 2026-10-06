@@ -1,7 +1,7 @@
 import * as NodeOS from "node:os";
-import type { CursorSettings, ServerProviderUsageWindow } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { CURSOR_USAGE_WINDOWS } from "@t3tools/shared/usageLimits";
+import type { CursorSettings, ServerProviderUsageWindow } from "@rove-code/contracts";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { CURSOR_USAGE_WINDOWS } from "@rove-code/shared/usageLimits";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

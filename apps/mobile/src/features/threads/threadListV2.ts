@@ -1,4 +1,4 @@
-import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
+import { threadPullRequestSearchTerms } from "@rove-code/shared/threadPullRequests";
 import {
   canSnooze,
   effectiveSnoozed,
@@ -6,18 +6,18 @@ import {
   QUEUED_TURN_START_GRACE_MS,
   resolveSnoozePresets,
   snoozeWakeLabel,
-} from "@t3tools/client-runtime/state/thread-settled";
-import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled";
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
-import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
-import { scheduledLimitResumeAt } from "@t3tools/shared/limitRecovery";
+} from "@rove-code/client-runtime/state/thread-settled";
+import type { SnoozePreset } from "@rove-code/client-runtime/state/thread-settled";
+import type { EnvironmentThreadShell } from "@rove-code/client-runtime/state/shell";
+import { threadSearchMatchKey } from "@rove-code/client-runtime/state/thread-search";
+import { scheduledLimitResumeAt } from "@rove-code/shared/limitRecovery";
 import {
   sortActiveThreadsByOrderKey,
   resolveSettledThreadTimestamp,
   sortPinnedThreadsByOrderKey,
   sortSettledThreads,
-} from "@t3tools/client-runtime/state/thread-sort";
-import type { EnvironmentId, ProjectId } from "@t3tools/contracts";
+} from "@rove-code/client-runtime/state/thread-sort";
+import type { EnvironmentId, ProjectId } from "@rove-code/contracts";
 
 import type { ThreadMoveAvailability } from "./threadOrder";
 

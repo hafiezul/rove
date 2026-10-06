@@ -1,6 +1,6 @@
 import * as NodeOS from "node:os";
 
-import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
+import { parsePersistedServerObservabilitySettings } from "@rove-code/shared/serverSettings";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -62,7 +62,7 @@ export class DesktopBackendConfiguration extends Context.Service<
     // backend that actually resolved to Windows.
     readonly resolvePrimaryLabel: Effect.Effect<string>;
   }
->()("@t3tools/desktop/backend/DesktopBackendConfiguration") {}
+>()("@rove-code/desktop/backend/DesktopBackendConfiguration") {}
 
 interface BackendObservabilitySettings {
   readonly otlpTracesUrl: Option.Option<string>;
@@ -101,7 +101,7 @@ const WSL_FORWARDED_ENV_NAMES = [
   "ROVE_OTLP_HEADERS",
   "ROVE_OTLP_PROTOCOL",
   // Forwarded without a WSLENV flag, so the values arrive untranslated. The
-  // server prefers an OTEL endpoint over the bootstrap envelope, so the T3 URLs
+  // server prefers an OTEL endpoint over the bootstrap envelope, so the Rove URLs
   // travel as variables to keep winning inside the distro as they do on Windows.
   "ROVE_OTLP_TRACES_URL",
   "ROVE_OTLP_METRICS_URL",
@@ -178,7 +178,7 @@ const logBackendObservabilitySettingsReadFailure = (
 };
 
 function resourceMonitorBinaryName(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
+  return platform === "win32" ? "rove-resource-monitor.exe" : "rove-resource-monitor";
 }
 
 const resolveResourceMonitorPath = Effect.fn(
@@ -242,7 +242,7 @@ const readPersistedBackendObservabilitySettings = Effect.gen(function* () {
 });
 
 // The bootstrap carries the OTLP endpoints to every backend, including a WSL
-// child that lacks the variables. The T3 URLs also travel as variables in
+// child that lacks the variables. The Rove URLs also travel as variables in
 // WSL_FORWARDED_ENV_NAMES so they outrank a forwarded OTEL endpoint. Env beats
 // the persisted settings file, matching the precedence resolveServerConfig and
 // DesktopObservability apply.
@@ -262,7 +262,7 @@ interface SharedBootstrapInput {
 }
 
 // What the launch runs inside the distro. The staged runtime is the release's
-// self-contained `t3` executable (Node inside); the mounted server tree is a
+// self-contained `rove` executable (Node inside); the mounted server tree is a
 // script that needs the distro's own Node.
 type WslPreflightRuntime =
   | {
@@ -553,7 +553,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       mode: "desktop" as const,
       noBrowser: true,
       port: backendExposure.port,
-      t3Home: environment.baseDir,
+      roveHome: environment.baseDir,
       host: backendExposure.bindHost,
       desktopBootstrapToken: input.bootstrapToken,
       tailscaleServeEnabled: backendExposure.tailscaleServeEnabled,
@@ -630,7 +630,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
     mode: "desktop" as const,
     noBrowser: true,
     port: input.port,
-    // Omit t3Home so the Linux backend uses its own home dir instead of
+    // Omit roveHome so the Linux backend uses its own home dir instead of
     // the Windows-side baseDir (which would be a /mnt/c path and share
     // the SQLite file with the primary).
     host: wslBindHost,
@@ -732,12 +732,12 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
   // the WSL backend the Linux side ends up sharing C:\Users\...\.rove via
   // /mnt/c, which means both backends read/write the same database and
   // their env-ids collide).
-  const parentEnvWithoutT3Home: Record<string, string | undefined> = {};
+  const parentEnvWithoutRoveHome: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (key === "ROVE_HOME") continue;
-    parentEnvWithoutT3Home[key] = value;
+    parentEnvWithoutRoveHome[key] = value;
   }
-  const wslEnv = mergeWslEnv(parentEnvWithoutT3Home.WSLENV, forwardedEnvNames);
+  const wslEnv = mergeWslEnv(parentEnvWithoutRoveHome.WSLENV, forwardedEnvNames);
 
   const baseConfig = {
     executablePath: "wsl.exe",
@@ -745,7 +745,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
       preflight._tag === "Ready" ? preflight.windowsEntryPath : environment.backendEntryPath,
     cwd: environment.backendCwd,
     env: {
-      ...parentEnvWithoutT3Home,
+      ...parentEnvWithoutRoveHome,
       ...backendChildEnvPatch(),
       ...forwardedEnv,
       ...(wslEnv !== undefined ? { WSLENV: wslEnv } : {}),

@@ -33,7 +33,7 @@ const makeTestLayer = () =>
   ServerSecretStore.layer.pipe(
     Layer.provide(
       ServerConfig.layerTest(process.cwd(), {
-        prefix: "t3-cloud-cli-state-test-",
+        prefix: "rove-cloud-cli-state-test-",
       }),
     ),
   );

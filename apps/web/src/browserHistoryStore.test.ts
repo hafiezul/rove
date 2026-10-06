@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ThreadId } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 
 const { readPreparedConnection } = vi.hoisted(() => ({

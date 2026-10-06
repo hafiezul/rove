@@ -4,7 +4,7 @@
  * The hub binds loopback and is never reachable directly: serve-sim exposes a
  * shell-exec route and serve-emu's action routes are unauthenticated, so the
  * only way to a device stream is through this route, which requires an
- * environment session with read scope (operate scope for input and tuning). Reusing the T3
+ * environment session with read scope (operate scope for input and tuning). Reusing the Rove
  * origin is also what makes remote connections work unchanged — Tailscale and
  * Rove Connect already carry `/api/*` and WebSocket upgrades for the app itself.
  *
@@ -15,7 +15,7 @@ import {
   AuthOrchestrationReadScope,
   AuthOrchestrationOperateScope,
   type AuthEnvironmentScope,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import {
@@ -214,7 +214,7 @@ const handler = Effect.gen(function* () {
   }
   // The hub runs in standalone mode at its origin root; the panel builds every
   // stream and socket URL itself, so nothing depends on the hub knowing the
-  // T3 prefix.
+  // Rove prefix.
   // The ticket authenticates here and must not travel on to the hub.
   const upstreamSearch = new URLSearchParams(url.value.search);
   upstreamSearch.delete("wsTicket");

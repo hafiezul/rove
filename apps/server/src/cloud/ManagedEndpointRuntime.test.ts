@@ -12,8 +12,8 @@ import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
-import * as RelayClient from "@t3tools/shared/relayClient";
+import type { RelayManagedEndpointRuntimeConfig } from "@rove-code/contracts/relay";
+import * as RelayClient from "@rove-code/shared/relayClient";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ManagedEndpointRuntime from "./ManagedEndpointRuntime.ts";

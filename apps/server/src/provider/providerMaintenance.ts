@@ -2,11 +2,11 @@ import {
   ProviderDriverKind,
   type ServerProvider,
   type ServerProviderVersionAdvisory,
-} from "@t3tools/contracts";
-import { compareSemverVersions } from "@t3tools/shared/semver";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { causeErrorTag } from "@t3tools/shared/observability";
-import { resolveCommandPath } from "@t3tools/shared/shell";
+} from "@rove-code/contracts";
+import { compareSemverVersions } from "@rove-code/shared/semver";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { causeErrorTag } from "@rove-code/shared/observability";
+import { resolveCommandPath } from "@rove-code/shared/shell";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -119,7 +119,7 @@ export interface ProviderVersionCacheEntry {
 }
 
 export const ProviderVersionCache = Context.Reference<Map<string, ProviderVersionCacheEntry>>(
-  "@t3tools/server/providerMaintenance/ProviderVersionCache",
+  "@rove-code/server/providerMaintenance/ProviderVersionCache",
   {
     defaultValue: () => new Map(),
   },

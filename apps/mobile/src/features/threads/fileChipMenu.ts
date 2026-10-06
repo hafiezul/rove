@@ -1,8 +1,8 @@
-import { fileBasename } from "@t3tools/client-runtime/markdown-links";
-import type { ThreadId } from "@t3tools/contracts";
-import { resolveMarkdownLinkPresentation } from "@t3tools/mobile-markdown-text/links";
-import type { MarkdownFileContextMenu } from "@t3tools/mobile-markdown-text/types";
-import { hostPreviewMimeTypeFromExtension } from "@t3tools/shared/filePreview";
+import { fileBasename } from "@rove-code/client-runtime/markdown-links";
+import type { ThreadId } from "@rove-code/contracts";
+import { resolveMarkdownLinkPresentation } from "@rove-code/mobile-markdown-text/links";
+import type { MarkdownFileContextMenu } from "@rove-code/mobile-markdown-text/types";
+import { hostPreviewMimeTypeFromExtension } from "@rove-code/shared/filePreview";
 
 import {
   isAbsolutePath,

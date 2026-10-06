@@ -3,7 +3,7 @@ import {
   HostProcessExecutablePath,
   HostProcessPlatform,
   HostProcessUserId,
-} from "@t3tools/shared/hostProcess";
+} from "@rove-code/shared/hostProcess";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -16,7 +16,7 @@ import * as Path from "effect/Path";
 import { HttpClient } from "effect/unstable/http";
 import * as Schema from "effect/Schema";
 
-import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
+import { CLI_RELEASE_BASE_URL_ENV } from "@rove-code/shared/cliRelease";
 
 import * as ProcessRunner from "../processRunner.ts";
 import {
@@ -51,7 +51,7 @@ const BOOT_SERVICE_UNIT_FILE = `${BOOT_SERVICE_NAME}.service`;
 // (io.github.hafiezul.rove), so launchd and TCC records never collide.
 const BOOT_SERVICE_LAUNCHD_LABEL = "io.github.hafiezul.rove.service";
 const BOOT_SERVICE_PLIST_FILE = `${BOOT_SERVICE_LAUNCHD_LABEL}.plist`;
-const BOOT_SERVICE_UNIT_ENV = "T3_BOOT_SERVICE_UNIT";
+const BOOT_SERVICE_UNIT_ENV = "ROVE_BOOT_SERVICE_UNIT";
 /** File in the logs dir that receives the service's stdout and stderr. `rove triage` points agents at it. */
 export const BOOT_SERVICE_LOG_FILE = "boot-service.log";
 
@@ -561,7 +561,7 @@ export class BootService extends Context.Service<
     readonly uninstall: Effect.Effect<boolean, BootServiceError>;
     readonly status: Effect.Effect<BootServiceStatus, BootServiceError>;
   }
->()("t3/cloud/bootService") {}
+>()("@rove-code/server/cloud/bootService") {}
 
 export interface BootServiceHost {
   readonly execPath: string;

@@ -1,12 +1,12 @@
-import { projectQuestionToolInput } from "@t3tools/shared/toolActivity";
+import { projectQuestionToolInput } from "@rove-code/shared/toolActivity";
 import {
   isContextWindowSnapshotPayload,
   type OrchestrationEvent,
   type OrchestrationThreadActivity,
   type OrchestrationThreadDetailSnapshot,
-} from "@t3tools/contracts";
-import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
-import { extractJsonObject } from "@t3tools/shared/schemaJson";
+} from "@rove-code/contracts";
+import { isWorkspaceImagePreviewPath } from "@rove-code/shared/filePreview";
+import { extractJsonObject } from "@rove-code/shared/schemaJson";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -249,7 +249,7 @@ function projectPreviewToolMetadata(data: Record<string, unknown>, status: unkno
   const name = item ? `mcp__${item.server}__${item.tool}` : (data.toolName ?? data.tool);
   if (
     typeof name !== "string" ||
-    !/^(?:mcp__)?(?:rove|t3_code|rove)_{1,2}preview_(?:open|navigate|status|snapshot|click|type|press|scroll|resize|set_appearance|evaluate|wait_for|recording_start|recording_stop)$/.test(
+    !/^(?:mcp__)?(?:rove|rove_code|rove)_{1,2}preview_(?:open|navigate|status|snapshot|click|type|press|scroll|resize|set_appearance|evaluate|wait_for|recording_start|recording_stop)$/.test(
       name,
     )
   )

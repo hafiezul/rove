@@ -6,8 +6,8 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import { describe, expect } from "vite-plus/test";
 
-import { ProviderInstanceId } from "@t3tools/contracts";
-import { createModelSelection } from "@t3tools/shared/model";
+import { ProviderInstanceId } from "@rove-code/contracts";
+import { createModelSelection } from "@rove-code/shared/model";
 
 import type { ProviderInstance } from "../provider/ProviderDriver.ts";
 import * as ProviderInstanceRegistry from "../provider/Services/ProviderInstanceRegistry.ts";

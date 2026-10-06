@@ -63,7 +63,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "127.0.0.1",
-      instanceKey: "/tmp/t3-agent-one",
+      instanceKey: "/tmp/rove-agent-one",
       environmentId: "environment-one",
       development: true,
     });
@@ -71,13 +71,13 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "127.0.0.1",
-      instanceKey: "/tmp/t3-agent-two",
+      instanceKey: "/tmp/rove-agent-two",
       environmentId: "environment-two",
       development: true,
     });
 
-    expect(first).toMatch(/^t3_session_5775_[a-f0-9]{12}$/);
-    expect(second).toMatch(/^t3_session_5775_[a-f0-9]{12}$/);
+    expect(first).toMatch(/^rove_session_5775_[a-f0-9]{12}$/);
+    expect(second).toMatch(/^rove_session_5775_[a-f0-9]{12}$/);
     expect(first).not.toBe(second);
   });
 
@@ -86,7 +86,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 3773,
       host: "192.168.1.50",
-      instanceKey: "/srv/t3-one",
+      instanceKey: "/srv/rove-one",
       environmentId: "environment-one",
       development: false,
     });
@@ -94,13 +94,13 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "192.168.1.50",
-      instanceKey: "/srv/t3-two",
+      instanceKey: "/srv/rove-two",
       environmentId: "environment-two",
       development: false,
     });
 
-    expect(first).toMatch(/^t3_session_[a-f0-9]{12}$/);
-    expect(second).toMatch(/^t3_session_[a-f0-9]{12}$/);
+    expect(first).toMatch(/^rove_session_[a-f0-9]{12}$/);
+    expect(second).toMatch(/^rove_session_[a-f0-9]{12}$/);
     expect(first).not.toBe(second);
   });
 
@@ -109,7 +109,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 8080,
       host: "0.0.0.0",
-      instanceKey: "/srv/t3",
+      instanceKey: "/srv/rove",
       environmentId: "environment-one",
       development: false,
     });
@@ -117,7 +117,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 9090,
       host: "app.example.com",
-      instanceKey: "/srv/t3",
+      instanceKey: "/srv/rove",
       environmentId: "environment-one",
       development: false,
     });
@@ -135,7 +135,7 @@ describe("session cookie isolation", () => {
         environmentId: "environment-one",
         development: true,
       }),
-    ).toBe("t3_session_3773");
+    ).toBe("rove_session_3773");
   });
 
   it("isolates development servers even when they bind a wildcard host", () => {
@@ -144,11 +144,11 @@ describe("session cookie isolation", () => {
         mode: "web",
         port: 5775,
         host: "0.0.0.0",
-        instanceKey: "/tmp/t3-wildcard-dev",
+        instanceKey: "/tmp/rove-wildcard-dev",
         environmentId: "environment-one",
         development: true,
       }),
-    ).toMatch(/^t3_session_5775_[a-f0-9]{12}$/);
+    ).toMatch(/^rove_session_5775_[a-f0-9]{12}$/);
   });
 
   it("classifies loopback aliases separately from remotely reachable hosts", () => {

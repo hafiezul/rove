@@ -10,10 +10,10 @@ import {
   RelayEnvironmentHealthResponseProofPayload,
   RelayEnvironmentMintResponse,
   RelayEnvironmentMintResponseProofPayload,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
-import { RELAY_HEALTH_RESPONSE_TYP, RELAY_MINT_RESPONSE_TYP } from "@t3tools/shared/relayJwt";
+import { RELAY_HEALTH_RESPONSE_TYP, RELAY_MINT_RESPONSE_TYP } from "@rove-code/shared/relayJwt";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -115,7 +115,7 @@ function signMintResponse(
 ): RelayEnvironmentMintResponse {
   const requestProof = decodeRequestProof<RelayCloudMintCredentialProofPayload>(request.proof);
   const payload = {
-    iss: `t3-env:${requestProof.environmentId}`,
+    iss: `rove-env:${requestProof.environmentId}`,
     aud: "https://relay.example.test",
     sub: requestProof.environmentId,
     jti: "mint-response-jti",
@@ -142,7 +142,7 @@ function signHealthResponse(
 ): RelayEnvironmentHealthResponse {
   const requestProof = decodeRequestProof<RelayCloudEnvironmentHealthProofPayload>(request.proof);
   const payload = {
-    iss: `t3-env:${requestProof.environmentId}`,
+    iss: `rove-env:${requestProof.environmentId}`,
     aud: "https://relay.example.test",
     sub: requestProof.environmentId,
     jti: "health-response-jti",
@@ -325,7 +325,7 @@ describe("EnvironmentConnector", () => {
       expect(seenUrls).toEqual(["https://env.example.test/api/rove-connect/health"]);
       expect(seenProofs[0]).toMatchObject({
         iss: "https://relay.example.test",
-        aud: "t3-env:env-connector-test",
+        aud: "rove-env:env-connector-test",
         sub: "user_123",
         environmentId: "env-connector-test",
         scope: ["environment:status"],
@@ -692,7 +692,7 @@ describe("EnvironmentConnector", () => {
       expect(seenUrls).toEqual(["https://env.example.test/api/rove-connect/mint-credential"]);
       expect(seenProofs[0]).toMatchObject({
         iss: "https://relay.example.test",
-        aud: "t3-env:env-connector-test",
+        aud: "rove-env:env-connector-test",
         sub: "user_123",
         environmentId: "env-connector-test",
         clientProofKeyThumbprint: "client-proof-key-thumbprint",

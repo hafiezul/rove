@@ -7,7 +7,7 @@ import {
   type OrchestrationProjectShell,
   type OrchestrationThreadShell,
   type ThreadPullRequestLink,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -48,7 +48,7 @@ const invocation = (
 
 function makeProject(
   repositoryIdentity: OrchestrationProjectShell["repositoryIdentity"] = {
-    canonicalKey: "github.com/t3tools/rove",
+    canonicalKey: "github.com/rovetools/rove",
     locator: {
       source: "git-remote",
       remoteName: "origin",
@@ -107,9 +107,9 @@ function makeLink(
   const { headBranch, baseBranch, ...rest } = overrides;
   return {
     host: "github.com",
-    repository: "t3tools/rove",
+    repository: "rovetools/rove",
     number,
-    url: `https://github.com/t3tools/rove/pull/${number}`,
+    url: `https://github.com/rovetools/rove/pull/${number}`,
     source: "manual",
     linkedAt: "2026-08-10T00:00:00.000Z",
     snapshot:
@@ -203,13 +203,13 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const result = yield* harness.call("link_pull_request", {
-        url: "https://github.com/T3Tools/Rove/pull/123/files",
+        url: "https://github.com/RoveTools/Rove/pull/123/files",
       });
       expect(result).toEqual({
         host: "github.com",
-        repository: "t3tools/rove",
+        repository: "rovetools/rove",
         number: 123,
-        url: "https://github.com/T3Tools/Rove/pull/123/files",
+        url: "https://github.com/RoveTools/Rove/pull/123/files",
         alreadyLinked: false,
       });
       expect(yield* Ref.get(harness.commands)).toMatchObject([
@@ -217,7 +217,7 @@ describe("pull request toolkit handlers", () => {
           type: "thread.pull-request.link",
           threadId: THREAD_ID,
           host: "github.com",
-          repository: "t3tools/rove",
+          repository: "rovetools/rove",
           number: 123,
           source: "agent",
         },
@@ -229,14 +229,14 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const result = yield* harness.call("link_pull_request", {
-        repository: "T3Tools/Other",
+        repository: "RoveTools/Other",
         number: 7,
       });
       expect(result).toEqual({
         host: "github.com",
-        repository: "t3tools/other",
+        repository: "rovetools/other",
         number: 7,
-        url: "https://github.com/t3tools/other/pull/7",
+        url: "https://github.com/rovetools/other/pull/7",
         alreadyLinked: false,
       });
     }),
@@ -308,7 +308,7 @@ describe("pull request toolkit handlers", () => {
       expect(error).toMatchObject({ _tag: "PullRequestTargetIncompleteError" });
       const unknown = yield* harness
         .call("link_pull_request", {
-          url: "https://github.com/t3tools/rove/issues/1?token=private-value",
+          url: "https://github.com/rovetools/rove/issues/1?token=private-value",
         })
         .pipe(Effect.flip);
       expect(unknown).toMatchObject({ _tag: "PullRequestUrlInvalidError" });
@@ -330,7 +330,7 @@ describe("pull request toolkit handlers", () => {
             : null,
       });
       const result = yield* harness.call("link_pull_request", {
-        url: "https://github.com/t3tools/rove/pull/123",
+        url: "https://github.com/rovetools/rove/pull/123",
       });
       expect(result.alreadyLinked).toBe(true);
     }),
@@ -349,17 +349,17 @@ describe("pull request toolkit handlers", () => {
             : null,
       });
       const linked = yield* harness.call("unlink_pull_request", {
-        repository: "t3tools/rove",
+        repository: "rovetools/rove",
         number: 5,
       });
       expect(linked).toEqual({
         host: "github.com",
-        repository: "t3tools/rove",
+        repository: "rovetools/rove",
         number: 5,
         wasLinked: true,
       });
       const missing = yield* harness.call("unlink_pull_request", {
-        url: "https://github.com/t3tools/rove/pull/9",
+        url: "https://github.com/rovetools/rove/pull/9",
       });
       expect(missing.wasLinked).toBe(false);
       expect(yield* Ref.get(harness.commands)).toMatchObject([
@@ -373,7 +373,7 @@ describe("pull request toolkit handlers", () => {
       makeThread([
         makeLink(42, {
           host: "forge.example",
-          url: "http://forge.example:3000/t3tools/rove/pulls/42",
+          url: "http://forge.example:3000/rovetools/rove/pulls/42",
         }),
       ]),
     );
@@ -403,9 +403,9 @@ describe("pull request toolkit handlers", () => {
       expect(result.pullRequests.map((entry) => entry.number)).toEqual([3, 1, 2, 10]);
       expect(result.pullRequests[0]).toEqual({
         host: "github.com",
-        repository: "t3tools/rove",
+        repository: "rovetools/rove",
         number: 3,
-        url: "https://github.com/t3tools/rove/pull/3",
+        url: "https://github.com/rovetools/rove/pull/3",
         source: "agent",
         state: "open",
         title: "PR 3",
@@ -435,7 +435,7 @@ describe("listThreadPullRequests", () => {
       kind: "native" as const,
       id: "stack-1",
       number: 1,
-      url: "https://github.com/t3tools/rove/stack/1",
+      url: "https://github.com/rovetools/rove/stack/1",
       base: "main",
       layers: [
         { number: 1, headBranch: "a", state: "open" as const },

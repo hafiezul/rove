@@ -1,5 +1,5 @@
-import { type EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { EnvironmentId, ThreadId, type ServerConfig } from "@t3tools/contracts";
+import { type EnvironmentConnectionPhase } from "@rove-code/client-runtime/connection";
+import { EnvironmentId, ThreadId, type ServerConfig } from "@rove-code/contracts";
 
 export interface EnvironmentRuntimeState {
   readonly connectionState: EnvironmentConnectionPhase;

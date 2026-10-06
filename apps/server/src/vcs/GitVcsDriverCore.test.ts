@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - realpathSync.native resolves Windows 8.3 short names, which the Effect realPath does not.
 import * as NodeFS from "node:fs";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { assert, it, describe } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -27,7 +27,7 @@ import {
   ReviewDiffPreviewInput,
   type ReviewDiffFileContentsInput,
   type WorktreeSubmodules,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { ServerConfig } from "../config.ts";
 import { gitCommandDuration } from "../observability/Metrics.ts";
 import {
@@ -42,7 +42,7 @@ import * as GitVcsDriver from "./GitVcsDriver.ts";
 const encodeGitCommandError = Schema.encodeEffect(Schema.fromJsonString(GitCommandError));
 
 const ServerConfigLayer = ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3-git-vcs-driver-test-",
+  prefix: "rove-git-vcs-driver-test-",
 });
 const TestLayer = GitVcsDriver.layer.pipe(
   Layer.provide(ServerConfigLayer),
@@ -2547,7 +2547,7 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
       }),
     );
 
-    it.effect("resolves the submodule mode from the option, then t3.json", () =>
+    it.effect("resolves the submodule mode from the option, then rove.json", () =>
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const pathService = yield* Path.Path;
@@ -2590,12 +2590,12 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
           branch: string,
           submodules: WorktreeSubmodules | null = null,
         ) {
-          yield* writeTextFile(cwd, "t3.json", `{ "worktreeSubmodules": "${fileMode}" }`);
-          yield* git(cwd, ["add", "t3.json"]);
+          yield* writeTextFile(cwd, "rove.json", `{ "worktreeSubmodules": "${fileMode}" }`);
+          yield* git(cwd, ["add", "rove.json"]);
           // Consecutive cases may reuse a file mode to test the option alone.
           yield* git(cwd, ["commit", "--allow-empty", "-m", `submodules: ${fileMode}`]);
           const worktreePath = pathService.join(worktreesDir, branch);
-          const disabled = yield* Ref.make<"settings" | "t3.json" | false>(false);
+          const disabled = yield* Ref.make<"settings" | "rove.json" | false>(false);
           yield* driver.createWorktree(
             { cwd, path: worktreePath, refName: initialBranch, newRefName: branch },
             {
@@ -2634,7 +2634,7 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
           nested: false,
         });
         assert.deepEqual(yield* createWithMode("none", "none"), {
-          disabled: "t3.json",
+          disabled: "rove.json",
           inner: false,
           nested: false,
         });

@@ -3,7 +3,7 @@ import {
   ProviderDriverKind,
   ThreadId,
   type ServerProvider,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { it, assert, vi } from "@effect/vitest";
 
 import * as Effect from "effect/Effect";
@@ -198,7 +198,7 @@ it.effect("blocks shared credential session startup and preserves guarded adapte
     const peer = fakeInstances[1]!;
     const auth = yield* ProviderAuthFlow.make({
       instanceId: target.instanceId,
-      credentialBinding: { owner: "t3", key: "shared-auth" },
+      credentialBinding: { owner: "rove", key: "shared-auth" },
       methods: Effect.succeed([
         { id: "browser", name: "Browser", description: null, type: "agent" },
       ]),
@@ -207,7 +207,7 @@ it.effect("blocks shared credential session startup and preserves guarded adapte
     });
     const peerAuth = yield* ProviderAuthFlow.make({
       instanceId: peer.instanceId,
-      credentialBinding: { owner: "t3", key: "shared-auth" },
+      credentialBinding: { owner: "rove", key: "shared-auth" },
       methods: Effect.succeed([]),
       authenticate: () => Effect.void,
       logout: Effect.void,

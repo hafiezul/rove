@@ -3,7 +3,7 @@ import {
   RelayClientAuth,
   RelayClientPrincipal,
   type RelayClientDeviceRecord,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import * as EnvironmentLinker from "../environments/EnvironmentLinker.ts";
 import * as RelayTokens from "../auth/RelayTokens.ts";
 import * as Devices from "../agentActivity/Devices.ts";
@@ -31,13 +31,13 @@ import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@rove-code/contracts";
 import {
   RelayEnvironmentAuth,
   RelayEnvironmentPrincipal,
   RelayApi,
-} from "@t3tools/contracts/relay";
-import { RELAY_MANAGED_TUNNEL_RECOVERY_TYP, signRelayJwt } from "@t3tools/shared/relayJwt";
+} from "@rove-code/contracts/relay";
+import { RELAY_MANAGED_TUNNEL_RECOVERY_TYP, signRelayJwt } from "@rove-code/shared/relayJwt";
 
 import {
   RELAY_HTTP_ROUTER_CONFIG,
@@ -78,7 +78,7 @@ const relaySettings: RelayConfiguration.RelayConfiguration["Service"] = {
     teamId: "apns-team",
     keyId: "apns-key",
     privateKey: Redacted.make("apns-private-key"),
-    bundleId: "com.example.t3",
+    bundleId: "com.example.rove",
     environment: "sandbox",
   },
   clerkSecretKey: Redacted.make("clerk-secret-key"),
@@ -369,7 +369,7 @@ const linkedEnvironmentRecord = {
 } as const;
 
 describe("relay managed tunnel recovery", () => {
-  it.effect("binds recovery requests to the host, cloud user, and T3 service origin", () =>
+  it.effect("binds recovery requests to the host, cloud user, and Rove service origin", () =>
     Effect.gen(function* () {
       const keyPair = NodeCrypto.generateKeyPairSync("ed25519", {
         privateKeyEncoding: { format: "pem", type: "pkcs8" },
@@ -381,7 +381,7 @@ describe("relay managed tunnel recovery", () => {
         privateKey: keyPair.privateKey,
         typ: RELAY_MANAGED_TUNNEL_RECOVERY_TYP,
         payload: {
-          iss: "t3-env:environment-1",
+          iss: "rove-env:environment-1",
           aud: "https://relay.example.test",
           sub: "environment-1",
           jti: "recovery-proof",
@@ -444,7 +444,7 @@ describe("relay managed tunnel recovery", () => {
         privateKey: keyPair.privateKey,
         typ: RELAY_MANAGED_TUNNEL_RECOVERY_TYP,
         payload: {
-          iss: "t3-env:environment-1",
+          iss: "rove-env:environment-1",
           aud: "https://relay.example.test",
           sub: "environment-1",
           jti: "registration-origin-proof",

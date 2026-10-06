@@ -17,9 +17,9 @@ import {
   type ServerProviderModel,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
-import { normalizeModelSlug } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
+import { normalizeModelSlug } from "@rove-code/shared/model";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -428,7 +428,7 @@ export function describeMcpElicitation(
   };
 }
 
-/** Converts a T3 approval decision into the MCP elicitation wire response. */
+/** Converts a Rove approval decision into the MCP elicitation wire response. */
 export function toMcpElicitationResponse(
   payload: EffectCodexSchema.McpServerElicitationRequestParams,
   decision: ProviderApprovalDecision,
@@ -1876,7 +1876,7 @@ export const makeCodexSessionRuntime = (
     /**
      * Compaction rebuilds history from user messages and Codex's own context,
      * which drops our `additionalContext` messages. Codex only resends an
-     * entry when its value changes, so without this the T3 context would stay
+     * entry when its value changes, so without this the Rove context would stay
      * lost until the model or effort changed. Awaited so the context is back
      * before later notifications from the same turn are handled. Drop this if
      * Codex enables its `retain_client_developer_messages` feature by default.

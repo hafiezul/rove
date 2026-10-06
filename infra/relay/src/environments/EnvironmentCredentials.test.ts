@@ -4,6 +4,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import * as RelayDb from "../db.ts";
 import { relayEnvironmentCredentials } from "../persistence/schema.ts";
@@ -59,7 +60,7 @@ describe("EnvironmentCredentials", () => {
 
   it.effect("does not retain credential tokens when lookup persistence fails", () => {
     const cause = new Error("database unavailable");
-    const token = "t3env_sensitive-credential-token";
+    const token = "roveenv_sensitive-credential-token";
     const whereConditions: Array<unknown> = [];
     const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
       select: () => ({
@@ -153,7 +154,7 @@ describe("EnvironmentCredentials", () => {
         });
         const [, credentialId, secret] = token.split("_");
 
-        expect(token).toMatch(/^t3env_[0-9a-f]{64}_[0-9a-f]{96}$/);
+        expect(token).toMatch(/^roveenv_[0-9a-f]{64}_[0-9a-f]{96}$/);
         expect(credentialId).toHaveLength(64);
         expect(secret).toHaveLength(96);
         expect(insertedValues).toHaveLength(1);
@@ -190,6 +191,44 @@ describe("EnvironmentCredentials", () => {
       );
     },
   );
+
+  it.effect("authenticates a historical opaque credential without rewriting its token", () => {
+    const existing = {
+      credentialId: "existing",
+      environmentId: "env_test",
+      environmentPublicKey: "existing-key",
+    };
+    const expectedHash = "bO-1MeJSoe7LKe3dJj2A9OuK6fPKeZXijq-uy45vRp0";
+    const fakeDb = testDouble<RelayDb.RelayDb["Service"]>({
+      select: () => ({
+        from: () => ({
+          where: (condition: unknown) => ({
+            limit: () => {
+              // The SQL condition is an opaque Drizzle value supplied by the real service.
+              const query = new PgDialect().sqlToQuery(condition as never);
+              return Effect.succeed(query.params.includes(expectedHash) ? [existing] : []);
+            },
+          }),
+        }),
+      }),
+    });
+    return Effect.gen(function* () {
+      const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
+      expect(
+        Option.getOrNull(yield* credentials.authenticate("t3env_existing_opaque-secret")),
+      ).toEqual(existing);
+      expect(Option.isNone(yield* credentials.authenticate("roveenv_existing_opaque-secret"))).toBe(
+        true,
+      );
+    }).pipe(
+      Effect.provide(
+        EnvironmentCredentials.layer.pipe(
+          Layer.provide(NodeCryptoLayer.layer),
+          Layer.provide(Layer.succeed(RelayDb.RelayDb, fakeDb)),
+        ),
+      ),
+    );
+  });
 
   it.effect("revokes active credentials for an environment public key", () => {
     const updateValues: Array<Record<string, SchemaJson>> = [];

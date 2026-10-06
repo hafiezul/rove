@@ -1,6 +1,6 @@
 # Rove Code documentation
 
-Rove Code is an independent fork of an upstream coding-agent control surface. The CLI is `rove`, and installed applications store state under `~/.rove-code` by default. Internal names such as the `@t3tools/*` npm scope and compatibility-sensitive files such as `t3.json` remain until a migration has a clear user benefit.
+Rove Code is an independent fork of an upstream coding-agent control surface. The CLI is `rove`, and installed applications store state under `~/.rove-code` by default. Internal names such as the `@rove-code/*` npm scope and compatibility-sensitive files such as `rove.json` remain until a migration has a clear user benefit.
 
 ## Using the application
 

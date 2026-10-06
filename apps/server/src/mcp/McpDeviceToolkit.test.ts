@@ -5,7 +5,7 @@ import {
   EnvironmentId,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { McpSchema, McpServer } from "effect/unstable/ai";
@@ -99,7 +99,7 @@ const DeviceServiceMock = Layer.mock(DeviceService.DeviceService)({
 const TestLayer = McpHttpServer.DeviceToolkitRegistrationLive.pipe(
   Layer.provideMerge(McpServer.McpServer.layer),
   Layer.provideMerge(DeviceServiceMock),
-  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-device-toolkit-test-" })),
+  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "rove-mcp-device-toolkit-test-" })),
   Layer.provide(NodeServices.layer),
 );
 

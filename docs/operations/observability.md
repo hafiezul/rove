@@ -69,7 +69,7 @@ server is stalled or stopped. It prints counts, rates, and latency percentiles p
 it to measure background work or to compare two builds.
 
 ```bash
-t3 trace summary --since 30m --limit 40
+rove trace summary --since 30m --limit 40
 ```
 
 It reads `ROVE_TRACE_FILE` if set, else `<home>/userdata/logs/server.trace.ndjson` for
@@ -139,7 +139,7 @@ You do not need any extra env vars. Just run the app normally and inspect `serve
 Examples:
 
 ```bash
-npx t3
+npx @rove-code/cli
 ```
 
 ```bash
@@ -191,7 +191,7 @@ export ROVE_TRACE_TIMING_ENABLED=true
 CLI:
 
 ```bash
-npx t3
+npx @rove-code/cli
 ```
 
 Monorepo web/server dev:
@@ -356,12 +356,12 @@ Recommended flow in Grafana:
 2. Pick the `Tempo` data source.
 3. Set the time range to something recent like `Last 15 minutes`.
 4. Start broad. Do not begin with a very narrow query.
-5. Look for spans from the `t3code-server` or `t3code-desktop` service, then narrow by span name or
+5. Look for spans from the `rove-server` or `rove-desktop` service, then narrow by span name or
    attributes.
 
 Good first searches:
 
-- service name `t3code-server` or `t3code-desktop`, plus a resource attribute such as
+- service name `rove-server` or `rove-desktop`, plus a resource attribute such as
   `deployment.environment.name`
 - span names like `sendTurn` or a Git operation such as `GitVcsDriver.statusDetails.status`
 - Git spans whose `git.operation` attribute identifies the operation
@@ -376,18 +376,18 @@ Traces are best for one request. Metrics are best for trends.
 
 Good metric families to watch:
 
-- `t3_rpc_request_duration`
-- `t3_orchestration_command_duration`
-- `t3_orchestration_command_ack_duration`
-- `t3_provider_turn_duration`
-- `t3_git_command_duration`
+- `rove_rpc_request_duration`
+- `rove_orchestration_command_duration`
+- `rove_orchestration_command_ack_duration`
+- `rove_provider_turn_duration`
+- `rove_git_command_duration`
 
 Counters tell you volume and failure rate:
 
-- `t3_rpc_requests_total`
-- `t3_orchestration_commands_total`
-- `t3_provider_turns_total`
-- `t3_git_commands_total`
+- `rove_rpc_requests_total`
+- `rove_orchestration_commands_total`
+- `rove_provider_turns_total`
+- `rove_git_commands_total`
 
 Use metrics when the question is:
 
@@ -403,7 +403,7 @@ Use traces when the question is:
 
 ### What The New Ack Metric Means
 
-`t3_orchestration_command_ack_duration` measures:
+`rove_orchestration_command_ack_duration` measures:
 
 - start: command dispatch enters the orchestration engine
 - end: the first committed domain event for that command is published by the server
@@ -434,7 +434,7 @@ If you need those later, add client-side instrumentation or a dedicated server f
 
 ### "Did this command take too long to acknowledge?"
 
-1. Check `t3_orchestration_command_ack_duration` by `commandType`.
+1. Check `rove_orchestration_command_ack_duration` by `commandType`.
 2. If it is high, inspect the corresponding orchestration trace.
 3. Look at child spans for projection, sqlite, provider, or git work.
 
@@ -573,7 +573,7 @@ The desktop main process is a second producer, assembled in
 `apps/desktop/src/app/DesktopObservability.ts`. It reads the same `ROVE_OTLP_*` names and the same
 Settings entries as the backend it supervises, and covers work the backend cannot see: app startup,
 window and menu handling, backend supervision, and updates. It reports as service
-`t3code-desktop`, so a collector shows it alongside the backend rather than mixed into it. It
+`rove-desktop`, so a collector shows it alongside the backend rather than mixed into it. It
 exports traces and logs only; the main process records no metrics, so the metrics endpoint applies
 to the backend alone.
 
@@ -611,8 +611,8 @@ an `http` or `https` URL, a protocol other than `http/protobuf` or `http/json` s
 headers that are not `key=value` pairs with percent-encoded values turn that signal's export off
 with a startup warning, rather than sending it to the Settings endpoint.
 
-Service names are fixed: `t3code-server` for the backend and `t3code-desktop` for the desktop main
-process, both in `service.namespace` `t3code`. `OTEL_SERVICE_NAME` and a `service.name` or
+Service names are fixed: `rove-server` for the backend and `rove-desktop` for the desktop main
+process, both in `service.namespace` `rove`. `OTEL_SERVICE_NAME` and a `service.name` or
 `service.namespace` in `OTEL_RESOURCE_ATTRIBUTES` are ignored. Tell installations apart with other
 resource attributes, such as `OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=development`.
 
@@ -660,7 +660,7 @@ Current high-value span and metric boundaries include:
 ## Heap Snapshots
 
 To see what a long-running server holds in memory, send it `SIGUSR2`. The server writes a V8 heap
-snapshot to its logs dir and logs the path. This works for desktop, `npx t3`, and service installs
+snapshot to its logs dir and logs the path. This works for desktop, `npx @rove-code/cli`, and service installs
 on macOS and Linux. Windows has no `SIGUSR2`.
 
 Send the signal to the server pid in `server-runtime.json`, which sits in the server's state dir
@@ -670,7 +670,7 @@ handler exits on `SIGUSR2`. After a crash the file can keep a stale pid that now
 different process, so check the pid first.
 
 ```bash
-pid="$(jq .pid "${ROVE_HOME:-$HOME/.t3}/userdata/server-runtime.json")"
+pid="$(jq .pid "${ROVE_HOME:-$HOME/.rove-code}/userdata/server-runtime.json")"
 ps -p "$pid" -o command=
 ```
 

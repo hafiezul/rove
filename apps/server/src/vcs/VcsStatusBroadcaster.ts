@@ -20,9 +20,9 @@ import type {
   VcsStatusRemoteResult,
   VcsStatusResult,
   VcsStatusStreamEvent,
-} from "@t3tools/contracts";
-import { mergeGitStatusParts } from "@t3tools/shared/git";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+} from "@rove-code/contracts";
+import { mergeGitStatusParts } from "@rove-code/shared/git";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 
 import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
@@ -145,7 +145,7 @@ interface StreamStatusOptions {
 
 export class VcsAutoPullPolicy extends Context.Reference<{
   readonly isEnabled: (cwd: string) => Effect.Effect<boolean, never>;
-}>("t3/vcs/VcsAutoPullPolicy", {
+}>("@rove-code/server/vcs/VcsAutoPullPolicy", {
   defaultValue: () => ({ isEnabled: () => Effect.succeed(false) }),
 }) {}
 
@@ -205,7 +205,7 @@ export class VcsStatusBroadcaster extends Context.Service<
       options?: StreamStatusOptions,
     ) => Stream.Stream<VcsStatusStreamEvent, GitManagerServiceError>;
   }
->()("t3/vcs/VcsStatusBroadcaster") {}
+>()("@rove-code/server/vcs/VcsStatusBroadcaster") {}
 
 function fingerprintStatusPart(status: unknown): string {
   return JSON.stringify(status);

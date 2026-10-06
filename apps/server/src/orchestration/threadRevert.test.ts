@@ -7,7 +7,7 @@ import {
   ProviderInstanceId,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

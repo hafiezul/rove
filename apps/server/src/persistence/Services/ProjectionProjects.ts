@@ -13,7 +13,7 @@ import {
   ProjectId,
   ProjectScript,
   ThreadEnvMode,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
@@ -67,4 +67,4 @@ export interface ProjectionProjectRepositoryContract {
 export class ProjectionProjectRepository extends Context.Service<
   ProjectionProjectRepository,
   ProjectionProjectRepositoryContract
->()("t3/persistence/Services/ProjectionProjects/ProjectionProjectRepository") {}
+>()("@rove-code/server/persistence/Services/ProjectionProjects/ProjectionProjectRepository") {}

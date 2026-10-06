@@ -1,13 +1,13 @@
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
-import { resolveThreadCurrentPullRequestLink } from "@t3tools/shared/threadPullRequests";
+import { resolveThreadCurrentPullRequestLink } from "@rove-code/shared/threadPullRequests";
 import { useRightPanelStore } from "../rightPanelStore";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef, scopeThreadRef } from "@rove-code/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import type { ContextMenuItem, EnvironmentId, VcsRef, ThreadId } from "@t3tools/contracts";
+} from "@rove-code/client-runtime/state/runtime";
+import type { ContextMenuItem, EnvironmentId, VcsRef, ThreadId } from "@rove-code/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { ChevronDownIcon, GitBranchIcon } from "lucide-react";
 import {

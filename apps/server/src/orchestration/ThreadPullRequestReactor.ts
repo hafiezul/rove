@@ -1,7 +1,7 @@
 import {
   canonicalRepositoryKey,
   sourceControlRepositorySelector,
-} from "@t3tools/shared/sourceControl";
+} from "@rove-code/shared/sourceControl";
 import {
   CommandId,
   type OrchestrationEvent,
@@ -9,8 +9,8 @@ import {
   type OrchestrationShellSnapshot,
   type ThreadId,
   type ThreadLinkedPullRequest,
-} from "@t3tools/contracts";
-import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
+} from "@rove-code/contracts";
+import { makeDrainableWorker } from "@rove-code/shared/DrainableWorker";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
@@ -36,7 +36,7 @@ export class ThreadPullRequestReactor extends Context.Service<
     readonly start: () => Effect.Effect<void, never, Scope.Scope>;
     readonly drain: Effect.Effect<void>;
   }
->()("t3/orchestration/ThreadPullRequestReactor") {}
+>()("@rove-code/server/orchestration/ThreadPullRequestReactor") {}
 
 function samePullRequest(
   left: ThreadLinkedPullRequest | null | undefined,

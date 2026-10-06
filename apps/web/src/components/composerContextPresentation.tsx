@@ -1,11 +1,11 @@
 import ChatMarkdown from "./ChatMarkdown";
 import { ReadOnlySourcePreview } from "./files/AttachmentFilePreview";
-import type { PreviewAnnotationPayload } from "@t3tools/contracts";
-import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-import { videoMimeType } from "@t3tools/shared/video";
+import type { PreviewAnnotationPayload } from "@rove-code/contracts";
+import { formatAttachmentSize } from "@rove-code/client-runtime/state/attachments";
+import { videoMimeType } from "@rove-code/shared/video";
 import { MessageCircleIcon, MousePointerClickIcon } from "lucide-react";
 import { createContext, type MouseEvent, type ReactElement, type ReactNode, use } from "react";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@rove-code/contracts";
 
 import type { ComposerFileAttachment, ComposerImageAttachment } from "~/composerDraftStore";
 import { composerFileNeedsReattach } from "~/composerDraftStore";

@@ -28,8 +28,8 @@ import {
   type UsageSummary,
   type UsageSummaryInput,
   UsageReadError,
-} from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -127,7 +127,7 @@ export class UsageService extends Context.Service<
     /** Refetches the rate table ahead of its TTL. See `ensureRates`. */
     readonly refreshRates: Effect.Effect<UsagePricing>;
   }
->()("t3/usage/UsageService") {}
+>()("@rove-code/server/usage/UsageService") {}
 
 const EMPTY_PRICING: UsagePricing = {
   status: "unavailable",

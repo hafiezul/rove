@@ -2,7 +2,7 @@ import {
   isImportedAgentSessionMessageId,
   type OrchestrationMessage,
   type ThreadRevertMessageBoundary,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { compareDateTimeStrings } from "./dateTime.ts";
 
 export function retainThreadMessagesAfterRevert<

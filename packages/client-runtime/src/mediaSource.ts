@@ -1,5 +1,5 @@
-import type { AssetResource, ThreadId } from "@t3tools/contracts";
-import { mediaMimeType, mediaMimeTypeFromExtension } from "@t3tools/shared/filePreview";
+import type { AssetResource, ThreadId } from "@rove-code/contracts";
+import { mediaMimeType, mediaMimeTypeFromExtension } from "@rove-code/shared/filePreview";
 
 import {
   classifyMarkdownImageSource,

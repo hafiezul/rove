@@ -14,8 +14,8 @@ import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as WorkspaceEntries from "./WorkspaceEntries.ts";
 import * as WorkspaceFileSystem from "./WorkspaceFileSystem.ts";
 import * as WorkspacePaths from "./WorkspacePaths.ts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 
 const ProjectLayer = WorkspaceFileSystem.layer.pipe(
   Layer.provide(WorkspacePaths.layer),
@@ -29,7 +29,7 @@ const TestLayer = Layer.empty.pipe(
   Layer.provideMerge(VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcess.layer))),
   Layer.provide(
     ServerConfig.ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-workspace-files-test-",
+      prefix: "rove-workspace-files-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),

@@ -2,8 +2,8 @@ import { useAtomValue } from "@effect/atom-react";
 import {
   createArchivedThreadSnapshotsAtomFamily,
   makeArchivedThreadsEnvironmentKey,
-} from "@t3tools/client-runtime/state/threads";
-import type { EnvironmentId } from "@t3tools/contracts";
+} from "@rove-code/client-runtime/state/threads";
+import type { EnvironmentId } from "@rove-code/contracts";
 import { useCallback, useMemo } from "react";
 
 import { appAtomRegistry } from "../../state/atom-registry";

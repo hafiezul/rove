@@ -1,5 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
-import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
+import { usesChatGptSharing } from "@rove-code/shared/usageLimits";
 import { useState } from "react";
 import { environmentPresentations } from "../../state/presentation";
 import { OpenAI } from "../Icons";
@@ -14,10 +14,12 @@ import {
 } from "../ui/dialog";
 import { ChatGptUsageButton } from "./ChatGptUsageButton";
 
-const STORAGE_KEY = "t3:chatgpt-sharing-welcome:v1";
+import { readMigratedRoveStorage } from "@rove-code/shared/roveMigration";
+
+const STORAGE_KEY = "rove:chatgpt-sharing-welcome:v1";
 function readAcknowledgedProfiles(): string[] {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+    const value: unknown = JSON.parse(readMigratedRoveStorage(localStorage, STORAGE_KEY) ?? "[]");
     return Array.isArray(value)
       ? value.filter((key): key is string => typeof key === "string")
       : [];

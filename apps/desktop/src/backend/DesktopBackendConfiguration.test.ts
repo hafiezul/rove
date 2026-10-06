@@ -116,7 +116,7 @@ const withHarness = <A, E, R>(
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-      prefix: "t3-desktop-backend-config-test-",
+      prefix: "rove-desktop-backend-config-test-",
     });
 
     return yield* effect.pipe(
@@ -163,7 +163,7 @@ const withPackagedWslHarness = <A, E, R>(
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-      prefix: "t3-desktop-backend-config-test-",
+      prefix: "rove-desktop-backend-config-test-",
     });
     const archivePath = path.join(baseDir, "wsl-runtime.tar.gz");
     const hashPath = `${archivePath}.sha256`;
@@ -252,7 +252,7 @@ describe("DesktopBackendConfiguration", () => {
         assert.equal(first.bootstrap.noBrowser, true);
         assert.equal(first.bootstrap.port, 4888);
         assert.equal(first.bootstrap.host, "0.0.0.0");
-        assert.equal(first.bootstrap.t3Home, environment.baseDir);
+        assert.equal(first.bootstrap.roveHome, environment.baseDir);
         assert.equal(first.bootstrap.tailscaleServeEnabled, true);
         assert.equal(first.bootstrap.tailscaleServePort, 8443);
         assert.match(first.bootstrap.desktopBootstrapToken, /^[0-9a-f]{48}$/i);
@@ -266,7 +266,7 @@ describe("DesktopBackendConfiguration", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
       const resourcesPath = path.join(baseDir, "resources");
 
@@ -325,7 +325,7 @@ describe("DesktopBackendConfiguration", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
       const entryPath = path.join(baseDir, "apps/server/dist/bin.mjs");
       yield* fileSystem.makeDirectory(path.dirname(entryPath), { recursive: true });
@@ -614,7 +614,7 @@ describe("DesktopBackendConfiguration", () => {
             Effect.sync(() => {
               invalidatedRuntimeIds.push(runtimeId);
             }),
-          probeRuntime: () => ({ ok: false, reason: "t3 --version failed (exit 1)" }),
+          probeRuntime: () => ({ ok: false, reason: "rove --version failed (exit 1)" }),
           ensureNodePty: () => ({
             ok: false,
             reason: "WSL backend preflight timed out while probing for Node.js.",
@@ -643,7 +643,7 @@ describe("DesktopBackendConfiguration", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-backend-config-test-",
+          prefix: "rove-desktop-backend-config-test-",
         });
         const entryPath = path.join(baseDir, "apps/server/dist/bin.mjs");
         yield* fileSystem.makeDirectory(path.dirname(entryPath), { recursive: true });
@@ -772,7 +772,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -816,7 +816,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -864,7 +864,7 @@ describe("DesktopBackendConfiguration", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
       const settingsPath = path.join(baseDir, "userdata", "settings.json");
       const cause = PlatformError.systemError({
@@ -924,7 +924,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -956,7 +956,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       const previousWslEnv = process.env.WSLENV;
@@ -1001,13 +1001,13 @@ describe("DesktopBackendConfiguration", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-backend-config-test-",
+          prefix: "rove-desktop-backend-config-test-",
         });
 
         const standard = {
           OTEL_EXPORTER_OTLP_ENDPOINT: "https://collector.example.com:4318/base?api_key=secret",
           OTEL_EXPORTER_OTLP_LOGS_HEADERS: "authorization=Bearer%20token",
-          ROVE_OTLP_TRACES_URL: "http://t3.example.com:4318/v1/traces",
+          ROVE_OTLP_TRACES_URL: "http://rove.example.com:4318/v1/traces",
         };
         const previousWslEnv = process.env.WSLENV;
         // A developer's own OTLP variables would be forwarded too.
@@ -1035,7 +1035,7 @@ describe("DesktopBackendConfiguration", () => {
             const wslEnv = (config.env.WSLENV ?? "").split(":");
             assert.include(wslEnv, "OTEL_EXPORTER_OTLP_ENDPOINT");
             assert.include(wslEnv, "OTEL_EXPORTER_OTLP_LOGS_HEADERS");
-            assert.equal(config.env.ROVE_OTLP_TRACES_URL, "http://t3.example.com:4318/v1/traces");
+            assert.equal(config.env.ROVE_OTLP_TRACES_URL, "http://rove.example.com:4318/v1/traces");
             assert.include(wslEnv, "ROVE_OTLP_TRACES_URL");
           }).pipe(
             Effect.provide(
@@ -1066,7 +1066,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       const previousWslEnv = process.env.WSLENV;
@@ -1145,7 +1145,7 @@ describe("DesktopBackendConfiguration", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-backend-config-test-",
+          prefix: "rove-desktop-backend-config-test-",
         });
 
         yield* Effect.gen(function* () {
@@ -1157,7 +1157,7 @@ describe("DesktopBackendConfiguration", () => {
           // not spawn wsl.exe (which would loop on preflight failures while the
           // Connections backend control is hidden). Resolve the Windows primary.
           assert.equal(config.executablePath, process.execPath);
-          assert.equal(config.bootstrap.t3Home, environment.baseDir);
+          assert.equal(config.bootstrap.roveHome, environment.baseDir);
           assert.isTrue(Option.isNone(config.preflightFailure));
         }).pipe(
           Effect.provide(
@@ -1185,7 +1185,7 @@ describe("DesktopBackendConfiguration", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-backend-config-test-",
+          prefix: "rove-desktop-backend-config-test-",
         });
 
         yield* Effect.gen(function* () {
@@ -1226,7 +1226,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1262,7 +1262,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1295,7 +1295,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1337,7 +1337,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1370,7 +1370,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1403,12 +1403,12 @@ describe("DesktopBackendConfiguration", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
       const resourcesPath = path.join(baseDir, "resources");
       const dirname = `${resourcesPath}/app.asar/apps/desktop/dist-electron`;
-      const embeddedMonitorPath = `${resourcesPath}/app.asar/apps/desktop/prod-resources/resource-monitor/t3-resource-monitor`;
-      const monitorPath = path.join(resourcesPath, "resource-monitor/t3-resource-monitor");
+      const embeddedMonitorPath = `${resourcesPath}/app.asar/apps/desktop/prod-resources/resource-monitor/rove-resource-monitor`;
+      const monitorPath = path.join(resourcesPath, "resource-monitor/rove-resource-monitor");
       yield* fileSystem.makeDirectory(
         `${resourcesPath}/app.asar/apps/desktop/prod-resources/resource-monitor`,
         { recursive: true },
@@ -1452,16 +1452,16 @@ describe("DesktopBackendConfiguration", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
       const dirname = path.join(baseDir, "apps/desktop/src");
       const releaseMonitorPath = path.join(
         baseDir,
-        "native/resource-monitor/target/release/t3-resource-monitor",
+        "native/resource-monitor/target/release/rove-resource-monitor",
       );
       const debugMonitorPath = path.join(
         baseDir,
-        "native/resource-monitor/target/debug/t3-resource-monitor",
+        "native/resource-monitor/target/debug/rove-resource-monitor",
       );
       yield* fileSystem.makeDirectory(path.dirname(releaseMonitorPath), { recursive: true });
       yield* fileSystem.makeDirectory(path.dirname(debugMonitorPath), { recursive: true });
@@ -1506,7 +1506,7 @@ describe("DesktopBackendConfiguration", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
+        prefix: "rove-desktop-backend-config-test-",
       });
 
       yield* Effect.gen(function* () {
@@ -1562,7 +1562,9 @@ describe("DesktopBackendConfiguration", () => {
             ),
           ),
         ),
-        Layer.provideMerge(makeEnvironmentLayer("/tmp/t3-wsl-isavailable", { platform: "win32" })),
+        Layer.provideMerge(
+          makeEnvironmentLayer("/tmp/rove-wsl-isavailable", { platform: "win32" }),
+        ),
         Layer.provide(NodeServices.layer),
       ),
     );

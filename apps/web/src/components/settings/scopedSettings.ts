@@ -8,16 +8,16 @@ import {
   type ProjectScopedServerSettingKey,
   type ProjectSettingsOverrides,
   ServerSettings,
-  type T3ProjectFile,
+  type RoveProjectFile,
   type ServerSettingsPatch,
-} from "@t3tools/contracts";
-import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
+} from "@rove-code/contracts";
+import type { EnvironmentConnectionPhase } from "@rove-code/client-runtime/connection";
 import {
   clearProjectSettingsOverrides,
   resolveProjectSettings,
   resolveWorktreeCleanup,
   type ProjectSettingSource,
-} from "@t3tools/shared/projectSettings";
+} from "@rove-code/shared/projectSettings";
 import * as Equal from "effect/Equal";
 
 import type { ResolvedSettingsScope } from "./settingsScope";
@@ -87,9 +87,9 @@ export interface ScopedSettingsTarget {
 export function resolveScopedSettingsTargets(
   scope: ResolvedSettingsScope,
   connectedEnvironments: readonly ScopedSettingsEnvironment[],
-  // Each member's decoded t3.json, keyed by physical project key, once read.
+  // Each member's decoded rove.json, keyed by physical project key, once read.
   // A member absent here has no file tier yet; null is a missing or invalid file.
-  projectFiles?: ReadonlyMap<string, T3ProjectFile | null>,
+  projectFiles?: ReadonlyMap<string, RoveProjectFile | null>,
 ): readonly ScopedSettingsTarget[] {
   const byId = new Map(
     connectedEnvironments.map((environment) => [environment.environmentId, environment]),
@@ -156,8 +156,8 @@ export function scopedSettingsSource(
     ? "mixed"
     : sources.has("project")
       ? "project"
-      : sources.has("t3.json")
-        ? "t3.json"
+      : sources.has("rove.json")
+        ? "rove.json"
         : "environment";
 }
 

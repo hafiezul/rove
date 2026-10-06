@@ -31,7 +31,7 @@ import {
   ProviderApprovalDecision,
   ThreadId,
   ProviderSendTurnInput,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as NodeCrypto from "node:crypto";
 import * as Crypto from "effect/Crypto";
@@ -45,7 +45,7 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import * as CodexErrors from "effect-codex-app-server/errors";
 import * as EffectCodexSchema from "effect-codex-app-server/schema";
 
-import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { getModelSelectionStringOptionValue } from "@rove-code/shared/model";
 import { getCodexServiceTierOptionValue } from "../../codexModelOptions.ts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
 
@@ -102,7 +102,7 @@ export interface CodexAdapterLiveOptions {
   >;
   readonly resolveRuntime?: Effect.Effect<
     import("../CodexManagedRuntime.ts").CodexEffectiveRuntime,
-    import("@t3tools/contracts").ProviderSetupError,
+    import("@rove-code/contracts").ProviderSetupError,
     Scope.Scope
   >;
   readonly onManagedConnectionRevoked?: Effect.Effect<void>;
@@ -2332,13 +2332,13 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
                     effectiveEnvironment ?? process.env,
                     mcpSession,
                   ),
-                  T3_MCP_BEARER_TOKEN: mcpSession.authorizationHeader.replace(/^Bearer\s+/, ""),
+                  ROVE_MCP_BEARER_TOKEN: mcpSession.authorizationHeader.replace(/^Bearer\s+/, ""),
                 },
                 appServerArgs: [
                   "-c",
                   `mcp_servers.rove.url=${mcpSession.endpoint}`,
                   "-c",
-                  'mcp_servers.rove.bearer_token_env_var="T3_MCP_BEARER_TOKEN"',
+                  'mcp_servers.rove.bearer_token_env_var="ROVE_MCP_BEARER_TOKEN"',
                 ],
                 mcpCapabilities: mcpSession.capabilities,
               }

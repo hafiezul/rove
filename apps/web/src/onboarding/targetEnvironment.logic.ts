@@ -1,5 +1,5 @@
-import type { ConnectionTarget } from "@t3tools/client-runtime/connection";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { ConnectionTarget } from "@rove-code/client-runtime/connection";
+import type { EnvironmentId } from "@rove-code/contracts";
 
 interface OnboardingEnvironment {
   readonly environmentId: EnvironmentId;

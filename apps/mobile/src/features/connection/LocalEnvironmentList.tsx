@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@rove-code/contracts";
 import type { ComponentProps } from "react";
 import { View } from "react-native";
 
@@ -38,7 +38,7 @@ export function LocalEnvironmentList({
         </View>
         <Text className="text-center text-sm leading-normal text-foreground-muted">
           No environments connected yet.{"\n"}Tap{" "}
-          <Text className="font-t3-bold text-foreground">+</Text> to add one.
+          <Text className="font-rove-bold text-foreground">+</Text> to add one.
         </Text>
       </View>
     );

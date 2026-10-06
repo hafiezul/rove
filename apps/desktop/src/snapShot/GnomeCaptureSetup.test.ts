@@ -16,7 +16,7 @@ let dataHome: string;
 const bundle = NodePath.resolve(import.meta.dirname, "../../gnome-extension");
 const installedPath = () => NodePath.join(dataHome, "gnome-shell/extensions", GNOME_CAPTURE_UUID);
 beforeEach(async () => {
-  dataHome = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-gnome-setup-test-"));
+  dataHome = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "rove-gnome-setup-test-"));
 });
 afterEach(async () => {
   await NodeFSP.rm(dataHome, { recursive: true, force: true });
@@ -189,5 +189,7 @@ it("surfaces desktop rejection and disconnect as actionable failures", async () 
 it("does not offer host extension installation in another desktop or sandbox", () => {
   expect(isGnomeCaptureSession({ XDG_CURRENT_DESKTOP: "ubuntu:GNOME" })).toBe(true);
   expect(isGnomeCaptureSession({ XDG_CURRENT_DESKTOP: "niri", GDMSESSION: "gnome" })).toBe(false);
-  expect(isGnomeCaptureSession({ XDG_CURRENT_DESKTOP: "GNOME", FLATPAK_ID: "com.t3" })).toBe(false);
+  expect(isGnomeCaptureSession({ XDG_CURRENT_DESKTOP: "GNOME", FLATPAK_ID: "com.rove" })).toBe(
+    false,
+  );
 });

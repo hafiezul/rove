@@ -2,7 +2,7 @@ import { testDouble } from "../testDouble.ts";
 import type {
   RelayAgentActivityAggregateState,
   RelayLiveActivityRegistrationRequest,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";

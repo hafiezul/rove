@@ -1,14 +1,14 @@
 included:
   - ios/Rove Code
-  - modules/t3-composer-editor/ios
-  - modules/t3-native-controls/ios
-  - modules/t3-terminal/ios
-  - modules/t3-review-diff/ios
+  - modules/rove-composer-editor/ios
+  - modules/rove-native-controls/ios
+  - modules/rove-terminal/ios
+  - modules/rove-review-diff/ios
 
 excluded:
   - ios/Pods
   - ios/build
-  - modules/t3-terminal/Vendor
+  - modules/rove-terminal/Vendor
 
 reporter: xcode
 

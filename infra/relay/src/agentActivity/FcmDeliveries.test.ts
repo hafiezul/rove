@@ -1,5 +1,5 @@
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import type { RelayAgentActivityState } from "@t3tools/contracts/relay";
+import { EnvironmentId, ThreadId } from "@rove-code/contracts";
+import type { RelayAgentActivityState } from "@rove-code/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as NodeCryptoLayer from "@effect/platform-node/NodeCrypto";
 import * as Effect from "effect/Effect";
@@ -655,7 +655,7 @@ describe("Android delivery routing", () => {
     );
     const data = fitFcmData({
       ...androidActivityData(aggregate),
-      t3_kind: "agent_activity",
+      rove_kind: "agent_activity",
       device_id: "d".repeat(128),
       user_id: "u".repeat(128),
       updated_at: "1788780000000",

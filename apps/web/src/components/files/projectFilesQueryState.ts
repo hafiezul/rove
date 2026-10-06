@@ -4,7 +4,8 @@ import {
   type ProjectListEntriesResult,
   ProjectReadFileError,
   type ProjectReadFileResult,
-} from "@t3tools/contracts";
+  type ProjectReadFileInput,
+} from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -14,7 +15,7 @@ import { useCallback } from "react";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { projectEnvironment } from "~/state/projects";
 import { useProjectPathSearch } from "~/state/queries";
-import { executeAtomQuery } from "@t3tools/client-runtime/state/runtime";
+import { executeAtomQuery } from "@rove-code/client-runtime/state/runtime";
 
 const EMPTY_PROJECT_FILE_PATH = "";
 const EMPTY_PROJECT_FILE_QUERY_ATOM = Atom.make(
@@ -56,10 +57,15 @@ export function getProjectFileQueryAtom(
   environmentId: EnvironmentId,
   cwd: string,
   relativePath: string | null,
+  options?: Pick<ProjectReadFileInput, "allowLegacyProjectFile">,
 ) {
   return projectEnvironment.readFile({
     environmentId,
-    input: { cwd, relativePath: relativePath ?? EMPTY_PROJECT_FILE_PATH },
+    input: {
+      cwd,
+      relativePath: relativePath ?? EMPTY_PROJECT_FILE_PATH,
+      ...options,
+    },
   });
 }
 
@@ -202,11 +208,12 @@ export function useProjectFileQuery(
   cwd: string,
   relativePath: string | null,
   enabled = true,
+  options?: Pick<ProjectReadFileInput, "allowLegacyProjectFile">,
 ): ProjectFileQueryState {
   // The caller decides what to read. A media path is not skipped here: a folder
   // named `assets.png` is only knowable as a folder from the read failure.
   const atom = enabled
-    ? getProjectFileQueryAtom(environmentId, cwd, relativePath)
+    ? getProjectFileQueryAtom(environmentId, cwd, relativePath, options)
     : EMPTY_PROJECT_FILE_QUERY_ATOM;
   const result = useAtomValue(atom);
   const refreshAtom = useAtomRefresh(atom);

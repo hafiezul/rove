@@ -1,6 +1,6 @@
 import * as NodeCrypto from "node:crypto";
 
-import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

@@ -1,6 +1,12 @@
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { CommandId, EnvironmentId, ProviderInstanceId, ThreadId, TurnId } from "@t3tools/contracts";
+import {
+  CommandId,
+  EnvironmentId,
+  ProviderInstanceId,
+  ThreadId,
+  TurnId,
+} from "@rove-code/contracts";
 import { useUsageLimitRecoveryBannerItem } from "./UsageLimitRecoveryNotice";
 
 vi.mock("../ui/button", () => ({ Button: "button" }));

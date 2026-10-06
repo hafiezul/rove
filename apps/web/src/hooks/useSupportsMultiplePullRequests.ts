@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@rove-code/contracts";
 import { useServerConfigs } from "~/state/entities";
 
 export function useSupportsMultiplePullRequests(environmentId: EnvironmentId | null): boolean {

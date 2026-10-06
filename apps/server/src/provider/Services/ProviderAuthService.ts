@@ -6,7 +6,7 @@ import type {
   ProviderAuthState,
   ProviderInstanceId,
   ProviderSetupError,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Stream from "effect/Stream";
@@ -14,7 +14,7 @@ import type * as Scope from "effect/Scope";
 
 export interface ProviderAuthController {
   /** Equal keys mean these instances share credentials on this environment. */
-  readonly credentialBinding?: { readonly owner: "provider" | "t3"; readonly key: string };
+  readonly credentialBinding?: { readonly owner: "provider" | "rove"; readonly key: string };
   readonly reconnectProfile?: (
     methodId: string,
   ) => Effect.Effect<ChatGptReconnectProfile | null, ProviderSetupError>;
@@ -101,4 +101,4 @@ export interface ProviderAuthServiceShape {
 export class ProviderAuthService extends Context.Service<
   ProviderAuthService,
   ProviderAuthServiceShape
->()("t3/provider/Services/ProviderAuthService") {}
+>()("@rove-code/server/provider/Services/ProviderAuthService") {}

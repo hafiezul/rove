@@ -24,7 +24,7 @@ import {
   type ChatImageAttachment,
   type ProviderRuntimeEvent,
   type ProviderUserInputAnswers,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import { attachmentRelativePath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";

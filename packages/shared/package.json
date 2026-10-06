@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/shared",
+  "name": "@rove-code/shared",
   "private": true,
   "type": "module",
   "exports": {
@@ -99,6 +99,10 @@
       "types": "./src/schemaJson.ts",
       "import": "./src/schemaJson.ts"
     },
+    "./roveMigration": {
+      "types": "./src/roveMigration.ts",
+      "import": "./src/roveMigration.ts"
+    },
     "./schemaYaml": {
       "types": "./src/schemaYaml.ts",
       "import": "./src/schemaYaml.ts"
@@ -135,9 +139,9 @@
       "types": "./src/projectSettings.ts",
       "import": "./src/projectSettings.ts"
     },
-    "./t3ProjectFile": {
-      "types": "./src/t3ProjectFile.ts",
-      "import": "./src/t3ProjectFile.ts"
+    "./roveProjectFile": {
+      "types": "./src/roveProjectFile.ts",
+      "import": "./src/roveProjectFile.ts"
     },
     "./orchestrationTiming": {
       "types": "./src/orchestrationTiming.ts",
@@ -375,7 +379,7 @@
   "dependencies": {
     "@noble/curves": "catalog:",
     "@noble/hashes": "catalog:",
-    "@t3tools/contracts": "workspace:*",
+    "@rove-code/contracts": "workspace:*",
     "effect": "catalog:",
     "jose": "catalog:",
     "yaml": "catalog:"

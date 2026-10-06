@@ -11,7 +11,7 @@ import * as PlatformError from "effect/PlatformError";
 import { vi } from "vite-plus/test";
 
 import * as ServerConfig from "../config.ts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as WorkspaceEntries from "./WorkspaceEntries.ts";
 import * as WorkspacePaths from "./WorkspacePaths.ts";
@@ -27,7 +27,7 @@ const TestLayer = Layer.empty.pipe(
   Layer.provideMerge(VcsProcess.layer),
   Layer.provide(
     ServerConfig.ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-workspace-entries-test-",
+      prefix: "rove-workspace-entries-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),

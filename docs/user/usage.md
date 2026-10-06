@@ -14,14 +14,14 @@ Totals depend on the history available on each server. Grok turns without a save
 record are missing from the totals.
 
 OpenCode reads its SQLite database and older JSON history. Antigravity reads local conversation
-databases, including T3-managed profiles. Set `OPENCODE_DATA_DIR` or `ANTIGRAVITY_DATA_DIR` on the
+databases, including Rove Code-managed profiles. Set `OPENCODE_DATA_DIR` or `ANTIGRAVITY_DATA_DIR` on the
 server to read a different data directory; comma-separated paths read multiple directories.
 
 Cursor reads account usage from Cursor's dashboard API using the CLI login saved on the server.
-This includes headless T3 sessions and desktop usage across machines; the same account counts
-once across connected environments. Without an accessible CLI login, T3 shows a
-notice instead of incomplete local totals. T3 does not estimate missing tokens from conversation text.
-On macOS, choose **Enable Cursor usage** on Usage to allow T3 to read your existing CLI login
+This includes headless Rove Code sessions and desktop usage across machines; the same account counts
+once across connected environments. Without an accessible CLI login, Rove Code shows a
+notice instead of incomplete local totals. Rove Code does not estimate missing tokens from conversation text.
+On macOS, choose **Enable Cursor usage** on Usage to allow Rove Code to read your existing CLI login
 from Keychain. You can turn it off in **Settings → Providers → Usage providers**. macOS may ask
 you to allow access on the server Mac.
 
@@ -103,7 +103,7 @@ closes when you dismiss it or send your next message. It uses the same snapshot 
 anything. The command is offered only for providers that appear under **Usage → Limits**.
 
 OpenCode Go reports its session, weekly, and monthly allowance when OpenCode runs locally in
-the environment. T3 cannot report limits for external OpenCode servers because their credentials
+the environment. Rove Code cannot report limits for external OpenCode servers because their credentials
 belong to the remote server. Cursor reports
 its monthly allowance, including separate Auto and API usage, using the CLI login or
 `CURSOR_AUTH_TOKEN`. On macOS, this includes the default Keychain login after you enable Cursor

@@ -6,7 +6,7 @@ It works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, Open
 
 ## Current status
 
-The applications and documentation use the Rove Code name, but some CLI, package, and storage identifiers still come from T3 Code. T3 Code downloads and services are not Rove Code releases.
+Rove Code uses its own package, protocol, and native-module names. Compatibility readers retain historical saved data. Upstream downloads and services are not Rove Code releases.
 
 ## Run from source
 

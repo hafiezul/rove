@@ -1,12 +1,12 @@
-import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { scopedThreadKey } from "@rove-code/client-runtime/environment";
 import {
   runAtomCommand,
   squashAtomCommandFailure,
   type AtomCommand,
-} from "@t3tools/client-runtime/state/runtime";
-import type { ScopedThreadRef } from "@t3tools/contracts";
-import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
-import { applyClaudePromptEffortPrefix } from "@t3tools/shared/model";
+} from "@rove-code/client-runtime/state/runtime";
+import type { ScopedThreadRef } from "@rove-code/contracts";
+import { serializeLegacyContextMessage } from "@rove-code/shared/composerContextLegacySend";
+import { applyClaudePromptEffortPrefix } from "@rove-code/shared/model";
 
 import { buildMessageContext, terminalContextReference } from "../../lib/composerContextRecords";
 import { removeInlineContextReference } from "../../lib/composerContextReferences";

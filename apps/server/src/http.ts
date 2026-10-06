@@ -3,9 +3,9 @@ import {
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   EnvironmentHttpApi,
-} from "@t3tools/contracts";
-import { isDevProxiedPath } from "@t3tools/shared/devProxy";
-import { decodeOtlpTraceRecords } from "@t3tools/shared/observability";
+} from "@rove-code/contracts";
+import { isDevProxiedPath } from "@rove-code/shared/devProxy";
+import { decodeOtlpTraceRecords } from "@rove-code/shared/observability";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -299,13 +299,15 @@ export const serverEnvironmentHttpApiLayer = HttpApiBuilder.group(
   "metadata",
   Effect.fnUntraced(function* (handlers) {
     const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
-    return handlers.handle(
-      "descriptor",
-      Effect.fn("environment.metadata.descriptor")(function* (args) {
-        yield* annotateEnvironmentRequest(args.endpoint.name);
-        return yield* serverEnvironment.getDescriptor;
-      }, traceRelayRequest),
-    );
+    return handlers
+      .handle(
+        "descriptor",
+        Effect.fn("environment.metadata.descriptor")(function* (args) {
+          yield* annotateEnvironmentRequest(args.endpoint.name);
+          return yield* serverEnvironment.getDescriptor;
+        }, traceRelayRequest),
+      )
+      .handle("legacyDescriptor", () => serverEnvironment.getDescriptor);
   }),
 );
 

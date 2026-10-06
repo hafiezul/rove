@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { StaticScreenProps } from "@react-navigation/native";
-import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
-import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import type { EnvironmentId, ServerProvider } from "@rove-code/contracts";
+import { squashAtomCommandFailure } from "@rove-code/client-runtime/state/runtime";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { useEffect, useRef, useState } from "react";
 import { Alert, View } from "react-native";
@@ -277,7 +277,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                         <View className="gap-1 p-4">
                           <View className="flex-row items-center gap-2">
                             <ProviderIcon provider={provider.driver} size={18} />
-                            <Text className="min-w-0 flex-1 text-base font-t3-medium text-foreground">
+                            <Text className="min-w-0 flex-1 text-base font-rove-medium text-foreground">
                               {provider.displayName ?? provider.driver}
                             </Text>
                           </View>

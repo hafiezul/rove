@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "@effect/vitest";
-import { type OrchestrationProject, ProjectId, type TerminalEvent } from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { type OrchestrationProject, ProjectId, type TerminalEvent } from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -304,7 +304,7 @@ describe("ProjectSetupScriptRunner", () => {
         // command cannot swallow the sentinel, and the sentinel carries a
         // per-run token so script output cannot spoof it.
         const written = writes[0] ?? "";
-        const sentinel = /__T3_SETUP_DONE___[0-9a-f]{32}:/.exec(written)?.[0];
+        const sentinel = /__ROVE_SETUP_DONE___[0-9a-f]{32}:/.exec(written)?.[0];
         expect(sentinel).toBeDefined();
         expect(written).toBe(`( bun install\r); printf '\\n${sentinel}%s\\n' "$?"\r`);
 
@@ -316,8 +316,8 @@ describe("ProjectSetupScriptRunner", () => {
         // Progress redraws separated by bare carriage returns are their own lines.
         yield* emit("Progress: 1/3\rProgress: 2/3\rProgress: 3/3\r\nDone in 2s\r\n");
         // A spoofed sentinel from the script itself must not settle completion.
-        yield* emit("__T3_SETUP_DONE__:0\r\n");
-        yield* emit(`__T3_SETUP_DONE___${"0".repeat(32)}:0\r\n`);
+        yield* emit("__ROVE_SETUP_DONE__:0\r\n");
+        yield* emit(`__ROVE_SETUP_DONE___${"0".repeat(32)}:0\r\n`);
         yield* emit(`${sentinel}3\r\n`);
 
         const completion = yield* result.completion!;
@@ -328,8 +328,8 @@ describe("ProjectSetupScriptRunner", () => {
           "Progress: 2/3",
           "Progress: 3/3",
           "Done in 2s",
-          "__T3_SETUP_DONE__:0",
-          `__T3_SETUP_DONE___${"0".repeat(32)}:0`,
+          "__ROVE_SETUP_DONE__:0",
+          `__ROVE_SETUP_DONE___${"0".repeat(32)}:0`,
         ]);
         // The subscription is torn down once the sentinel arrives.
         expect(listener).toBeNull();
@@ -392,7 +392,7 @@ describe("ProjectSetupScriptRunner", () => {
       if (result.status !== "started" || !result.completion) {
         return yield* Effect.die("expected an observed setup run");
       }
-      const sentinel = /__T3_SETUP_DONE___[0-9a-f]{32}:/.exec(written)?.[0];
+      const sentinel = /__ROVE_SETUP_DONE___[0-9a-f]{32}:/.exec(written)?.[0];
       yield* listener!({
         threadId: "thread-1",
         terminalId: "setup-setup",
@@ -461,11 +461,11 @@ describe("ProjectSetupScriptRunner", () => {
     {
       shell: "/usr/bin/fish",
       expected:
-        /^begin\rbun install\rend; printf '\\n__T3_SETUP_DONE___[0-9a-f]{32}:%s\\n' \$status\r$/,
+        /^begin\rbun install\rend; printf '\\n__ROVE_SETUP_DONE___[0-9a-f]{32}:%s\\n' \$status\r$/,
     },
     {
       shell: "/bin/bash",
-      expected: /^\( bun install\r\); printf '\\n__T3_SETUP_DONE___[0-9a-f]{32}:%s\\n' "\$\?"\r$/,
+      expected: /^\( bun install\r\); printf '\\n__ROVE_SETUP_DONE___[0-9a-f]{32}:%s\\n' "\$\?"\r$/,
     },
   ])("wraps the command for the $shell syntax", ({ shell, expected }) => {
     const open = vi.fn(() =>

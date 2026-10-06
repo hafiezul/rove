@@ -1,8 +1,8 @@
-import { projectQuestionToolInput } from "@t3tools/shared/toolActivity";
+import { projectQuestionToolInput } from "@rove-code/shared/toolActivity";
 import {
   type OrchestrationThreadActivity,
   UserInputAttachmentAnswerPayload,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 
 function record(value: unknown): Record<string, unknown> | undefined {

@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { ChildProcessSpawner } from "effect/unstable/process";
 
-import { VcsProcessExitError } from "@t3tools/contracts";
+import { VcsProcessExitError } from "@rove-code/contracts";
 
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as GitLabCli from "./GitLabCli.ts";
@@ -200,7 +200,7 @@ layer("GitLabCli.layer", (it) => {
         baseBranch: "main",
         headSelector: "owner:feature/provider",
         title: "Provider MR",
-        bodyFile: "/tmp/t3-mr-body.md",
+        bodyFile: "/tmp/rove-mr-body.md",
       });
 
       expect(mockedRun).toHaveBeenCalledWith(
@@ -219,7 +219,7 @@ layer("GitLabCli.layer", (it) => {
             "--raw-field",
             "title=Provider MR",
             "--field",
-            "description=@/tmp/t3-mr-body.md",
+            "description=@/tmp/rove-mr-body.md",
           ],
         }),
       );

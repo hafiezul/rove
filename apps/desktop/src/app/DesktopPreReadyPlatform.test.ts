@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -30,7 +30,7 @@ vi.mock("electron", () => ({
     setDesktopName: setDesktopNameMock,
     getVersion: () => "0.0.37",
     isPackaged: true,
-    getAppPath: () => "/tmp/.mount_T3/resources/app.asar",
+    getAppPath: () => "/tmp/.mount_Rove/resources/app.asar",
     commandLine: {
       appendSwitch: appendSwitchMock,
       getSwitchValue: getSwitchValueMock,
@@ -163,7 +163,7 @@ describe("DesktopPreReadyPlatform", () => {
         class ClerkReadyContext extends Context.Service<
           ClerkReadyContext,
           { readonly ready: true }
-        >()("@t3tools/desktop/app/DesktopPreReadyPlatform.test/ClerkReadyContext") {}
+        >()("@rove-code/desktop/app/DesktopPreReadyPlatform.test/ClerkReadyContext") {}
 
         const events: Array<string> = [];
         registerSchemesMock.mockImplementation(() => {

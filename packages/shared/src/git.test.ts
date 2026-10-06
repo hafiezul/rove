@@ -1,4 +1,4 @@
-import type { VcsStatusRemoteResult, VcsStatusResult } from "@t3tools/contracts";
+import type { VcsStatusRemoteResult, VcsStatusResult } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -13,23 +13,23 @@ import {
 
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {
-    expect(normalizeGitRemoteUrl("git@github.com:T3Tools/Rove.git")).toBe(
-      "github.com/t3tools/rove",
+    expect(normalizeGitRemoteUrl("git@github.com:RoveTools/Rove.git")).toBe(
+      "github.com/rovetools/rove",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/Rove.git")).toBe(
-      "github.com/t3tools/rove",
+    expect(normalizeGitRemoteUrl("https://github.com/RoveTools/Rove.git")).toBe(
+      "github.com/rovetools/rove",
     );
-    expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/Rove")).toBe(
-      "github.com/t3tools/rove",
+    expect(normalizeGitRemoteUrl("ssh://git@github.com/RoveTools/Rove")).toBe(
+      "github.com/rovetools/rove",
     );
   });
 
   it("preserves nested group paths for providers like GitLab", () => {
-    expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/Rove.git")).toBe(
-      "gitlab.com/t3tools/platform/rove",
+    expect(normalizeGitRemoteUrl("git@gitlab.com:RoveTools/platform/Rove.git")).toBe(
+      "gitlab.com/rovetools/platform/rove",
     );
-    expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/Rove.git")).toBe(
-      "gitlab.com/t3tools/platform/rove",
+    expect(normalizeGitRemoteUrl("https://gitlab.com/RoveTools/platform/Rove.git")).toBe(
+      "gitlab.com/rovetools/platform/rove",
     );
   });
 
@@ -52,34 +52,34 @@ describe("normalizeGitRemoteUrl", () => {
   });
 
   it("gives an Azure DevOps repository the same key over SSH as over HTTPS", () => {
-    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v3/T3Tools/Platform/T3Code")).toBe(
-      "dev.azure.com/t3tools/platform/_git/t3code",
-    );
-    expect(normalizeGitRemoteUrl("ssh://git@ssh.dev.azure.com:22/v3/T3Tools/Platform/T3Code")).toBe(
-      "dev.azure.com/t3tools/platform/_git/t3code",
+    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v3/RoveTools/Platform/RoveCode")).toBe(
+      "dev.azure.com/rovetools/platform/_git/rovecode",
     );
     expect(
-      normalizeGitRemoteUrl("https://T3Tools@dev.azure.com/T3Tools/Platform/_git/T3Code"),
-    ).toBe("dev.azure.com/t3tools/platform/_git/t3code");
+      normalizeGitRemoteUrl("ssh://git@ssh.dev.azure.com:22/v3/RoveTools/Platform/RoveCode"),
+    ).toBe("dev.azure.com/rovetools/platform/_git/rovecode");
+    expect(
+      normalizeGitRemoteUrl("https://RoveTools@dev.azure.com/RoveTools/Platform/_git/RoveCode"),
+    ).toBe("dev.azure.com/rovetools/platform/_git/rovecode");
   });
 
   it("puts the organization back in the host on the name dev.azure.com replaced", () => {
     expect(
-      normalizeGitRemoteUrl("T3Tools@vs-ssh.visualstudio.com:v3/T3Tools/Platform/T3Code"),
-    ).toBe("t3tools.visualstudio.com/platform/_git/t3code");
-    expect(normalizeGitRemoteUrl("https://T3Tools.visualstudio.com/Platform/_git/T3Code")).toBe(
-      "t3tools.visualstudio.com/platform/_git/t3code",
+      normalizeGitRemoteUrl("RoveTools@vs-ssh.visualstudio.com:v3/RoveTools/Platform/RoveCode"),
+    ).toBe("rovetools.visualstudio.com/platform/_git/rovecode");
+    expect(normalizeGitRemoteUrl("https://RoveTools.visualstudio.com/Platform/_git/RoveCode")).toBe(
+      "rovetools.visualstudio.com/platform/_git/rovecode",
     );
   });
 
   it("leaves an Azure SSH host it cannot read as the path it was given", () => {
     // Not `v3`, and not four segments: rewriting either would invent a repository that the web
     // spelling has no name for, so the remote stands as it arrived.
-    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v4/T3Tools/Platform/T3Code")).toBe(
-      "ssh.dev.azure.com/v4/t3tools/platform/t3code",
+    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v4/RoveTools/Platform/RoveCode")).toBe(
+      "ssh.dev.azure.com/v4/rovetools/platform/rovecode",
     );
-    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v3/T3Tools/T3Code")).toBe(
-      "ssh.dev.azure.com/v3/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("git@ssh.dev.azure.com:v3/RoveTools/RoveCode")).toBe(
+      "ssh.dev.azure.com/v3/rovetools/rovecode",
     );
   });
 });
@@ -152,15 +152,15 @@ describe("parseOriginUrlFromGitConfig", () => {
 
 describe("parseGitHubRepositoryNameWithOwnerFromRemoteUrl", () => {
   it("extracts the owner and repository from common GitHub remote shapes", () => {
-    expect(parseGitHubRepositoryNameWithOwnerFromRemoteUrl("git@github.com:T3Tools/Rove.git")).toBe(
-      "T3Tools/Rove",
-    );
     expect(
-      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("https://github.com/T3Tools/Rove.git"),
-    ).toBe("T3Tools/Rove");
+      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("git@github.com:RoveTools/Rove.git"),
+    ).toBe("RoveTools/Rove");
     expect(
-      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("ssh://github.com/T3Tools/Rove.git"),
-    ).toBe("T3Tools/Rove");
+      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("https://github.com/RoveTools/Rove.git"),
+    ).toBe("RoveTools/Rove");
+    expect(
+      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("ssh://github.com/RoveTools/Rove.git"),
+    ).toBe("RoveTools/Rove");
   });
 });
 

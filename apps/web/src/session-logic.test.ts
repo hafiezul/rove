@@ -5,9 +5,9 @@ import {
   ThreadId,
   TurnId,
   type OrchestrationThreadActivity,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
-import { resolveWorkEntryToolPresentation } from "@t3tools/client-runtime/work-log/presentation";
+import { resolveWorkEntryToolPresentation } from "@rove-code/client-runtime/work-log/presentation";
 
 import {
   createMessageAttachmentPreviewProjector,
@@ -956,7 +956,7 @@ describe("deriveWorkLogEntries", () => {
     "preserves Claude MCP identity behind generic titles while %s",
     (status, displayName) => {
       const data = {
-        toolName: "mcp__t3_code__preview_click",
+        toolName: "mcp__rove_code__preview_click",
         input: { selector: "#submit" },
         ...(status === "inProgress"
           ? {}

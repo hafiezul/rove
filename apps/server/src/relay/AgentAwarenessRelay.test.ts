@@ -11,14 +11,14 @@ import type {
   ProjectId,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type {
   RelayAgentActivityPublishProofPayload,
   RelayAgentActivityState,
-} from "@t3tools/contracts/relay";
-import { CommandId, ProviderInstanceId } from "@t3tools/contracts";
-import { RelayClientTracer } from "@t3tools/shared/relayTracing";
-import { RELAY_ACTIVITY_PUBLISH_TYP, verifyRelayJwt } from "@t3tools/shared/relayJwt";
+} from "@rove-code/contracts/relay";
+import { CommandId, ProviderInstanceId } from "@rove-code/contracts";
+import { RelayClientTracer } from "@rove-code/shared/relayTracing";
+import { RELAY_ACTIVITY_PUBLISH_TYP, verifyRelayJwt } from "@rove-code/shared/relayJwt";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -443,7 +443,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
         publicKeyEncoding: { format: "pem", type: "spki" },
       });
       const payload = {
-        iss: "t3-env:env",
+        iss: "rove-env:env",
         aud: "https://relay.example.test",
         sub: "env",
         jti: "nonce-1",
@@ -462,7 +462,7 @@ describe.sequential("signRelayAgentActivityPublishProof", () => {
           publicKey: keyPair.publicKey,
           token,
           typ: RELAY_ACTIVITY_PUBLISH_TYP,
-          issuer: "t3-env:env",
+          issuer: "rove-env:env",
           audience: "https://relay.example.test",
           nowEpochSeconds: 150,
         });

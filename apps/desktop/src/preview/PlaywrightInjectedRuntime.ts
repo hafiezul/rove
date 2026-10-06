@@ -4,7 +4,7 @@ import * as NodeModule from "node:module";
 import * as NodePath from "node:path";
 import * as NodeVM from "node:vm";
 
-import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+import { runtimeValueKind } from "@rove-code/shared/runtimeValueKind";
 
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
@@ -208,10 +208,10 @@ export const playwrightInjectedRuntimeInstallExpression = Effect.fn(
     ),
   );
   return `(() => {
-    if (globalThis.__t3PlaywrightInjected) return true;
+    if (globalThis.__rovePlaywrightInjected) return true;
     const module = { exports: {} };
     ${source}
-    globalThis.__t3PlaywrightInjected = new (module.exports.InjectedScript())(globalThis, ${options});
+    globalThis.__rovePlaywrightInjected = new (module.exports.InjectedScript())(globalThis, ${options});
     return true;
   })()`;
 });

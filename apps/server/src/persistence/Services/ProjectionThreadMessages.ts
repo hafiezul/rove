@@ -14,7 +14,7 @@ import {
   ThreadId,
   TurnId,
   IsoDateTime,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
 import * as Struct from "effect/Struct";
@@ -126,4 +126,6 @@ export interface ProjectionThreadMessageRepositoryContract {
 export class ProjectionThreadMessageRepository extends Context.Service<
   ProjectionThreadMessageRepository,
   ProjectionThreadMessageRepositoryContract
->()("t3/persistence/Services/ProjectionThreadMessages/ProjectionThreadMessageRepository") {}
+>()(
+  "@rove-code/server/persistence/Services/ProjectionThreadMessages/ProjectionThreadMessageRepository",
+) {}

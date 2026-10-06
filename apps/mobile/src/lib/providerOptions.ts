@@ -2,11 +2,11 @@ import type {
   ModelCapabilities,
   ProviderOptionDescriptor,
   ProviderOptionSelection,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   buildProviderOptionSelectionsFromDescriptors,
   getProviderOptionDescriptors,
-} from "@t3tools/shared/model";
+} from "@rove-code/shared/model";
 import * as RuntimePredicate from "effect/Predicate";
 
 export function resolveProviderOptionDescriptors(input: {

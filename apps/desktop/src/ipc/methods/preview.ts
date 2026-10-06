@@ -28,7 +28,7 @@ import {
   PreviewAutomationSnapshotOptions,
   DEFAULT_BROWSER_PROFILE_ID,
   INCOGNITO_BROWSER_PROFILE_ID,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";

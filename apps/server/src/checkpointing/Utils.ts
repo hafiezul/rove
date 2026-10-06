@@ -1,11 +1,11 @@
 import * as Encoding from "effect/Encoding";
-import { CheckpointRef, ProjectId, type ThreadId } from "@t3tools/contracts";
+import { CheckpointRef, ProjectId, type ThreadId } from "@rove-code/contracts";
 
-const CHECKPOINT_REFS_PREFIX = "refs/t3/checkpoints";
+import { ROVE_CHECKPOINT_REFS_PREFIX } from "@rove-code/shared/roveMigration";
 
 export function checkpointRefForThreadTurn(threadId: ThreadId, turnCount: number): CheckpointRef {
   return CheckpointRef.make(
-    `${CHECKPOINT_REFS_PREFIX}/${Encoding.encodeBase64Url(threadId)}/turn/${turnCount}`,
+    `${ROVE_CHECKPOINT_REFS_PREFIX}/${Encoding.encodeBase64Url(threadId)}/turn/${turnCount}`,
   );
 }
 

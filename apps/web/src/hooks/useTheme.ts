@@ -1,5 +1,6 @@
-import type { DesktopBridge } from "@t3tools/contracts";
-import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
+import type { DesktopBridge } from "@rove-code/contracts";
+import { migrateRoveThemeId } from "@rove-code/shared/roveMigration";
+import { safeErrorLogAttributes } from "@rove-code/client-runtime/errors";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
@@ -87,7 +88,7 @@ function readStoredThemeHalvesRaw(): { light?: string; dark?: string } {
     const halves: { light?: string; dark?: string } = {};
     for (const appearance of ["light", "dark"] as const) {
       const themeId = (value as Record<string, unknown>)[appearance];
-      if (typeof themeId === "string") halves[appearance] = themeId;
+      if (typeof themeId === "string") halves[appearance] = migrateRoveThemeId(themeId);
     }
     return halves;
   } catch {

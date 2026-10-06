@@ -1,4 +1,6 @@
-export const COMPOSER_ATTACHMENT_DIRECTORY = "t3-composer-attachments";
+import { COMPOSER_ATTACHMENT_READ_DIRECTORIES } from "@rove-code/shared/roveMigration";
+
+export const COMPOSER_ATTACHMENT_DIRECTORY = "rove-composer-attachments";
 
 const UUID_PATTERN = "[a-f\\d]{8}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{12}";
 const GENERATED_FILE_NAME = new RegExp(`^${UUID_PATTERN}-`, "i");
@@ -29,13 +31,15 @@ function ownedFileLocation(uri: string) {
   if (path === null) {
     return null;
   }
-  const separator = `/${COMPOSER_ATTACHMENT_DIRECTORY}/`;
+  const directory = COMPOSER_ATTACHMENT_READ_DIRECTORIES.find((name) => path.includes(`/${name}/`));
+  if (directory === undefined) return null;
+  const separator = `/${directory}/`;
   const index = path.lastIndexOf(separator);
   const name = index < 0 ? "" : path.slice(index + separator.length);
   if (!name || name === "." || name.includes("/")) {
     return null;
   }
-  return { documentPath: path.slice(0, index), name };
+  return { documentPath: path.slice(0, index), name, directory };
 }
 
 /** Compares references across iOS data-container moves without rewriting saved drafts. */
@@ -50,7 +54,7 @@ export function composerAttachmentFileReferenceKey(uri: string): string {
   const documentPath = containerPrefix
     ? `${containerPrefix}<app>/Documents`
     : location.documentPath;
-  return `file://${documentPath}/${COMPOSER_ATTACHMENT_DIRECTORY}/${encodeURIComponent(location.name)}`;
+  return `file://${documentPath}/${location.directory}/${encodeURIComponent(location.name)}`;
 }
 
 /** Holds a local copy until its last player or share-copy operation releases it. */
@@ -102,6 +106,6 @@ export function resolveOwnedComposerAttachmentFileUri(
     }
   }
   const resolved = new URL(documentDirectoryUri);
-  resolved.pathname = `${resolved.pathname.replace(/\/+$/, "")}/${COMPOSER_ATTACHMENT_DIRECTORY}/${encodeURIComponent(location.name)}`;
+  resolved.pathname = `${resolved.pathname.replace(/\/+$/, "")}/${location.directory}/${encodeURIComponent(location.name)}`;
   return resolved.href;
 }

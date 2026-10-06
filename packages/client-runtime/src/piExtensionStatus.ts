@@ -2,7 +2,7 @@ import {
   PI_EXTENSION_STATUS_ACTIVITY_KIND,
   PiExtensionStatusSnapshot,
   type OrchestrationThreadActivity,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 
 const isStatusSnapshot = Schema.is(PiExtensionStatusSnapshot);

@@ -5,8 +5,8 @@ import {
   ProviderInstanceId,
   type ServerProvider,
   type ServerProviderUpdateState,
-} from "@t3tools/contracts";
-import { ServerProviderUpdateError } from "@t3tools/contracts";
+} from "@rove-code/contracts";
+import { ServerProviderUpdateError } from "@rove-code/contracts";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -18,8 +18,8 @@ import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcessSpawner } from "effect/unstable/process";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { SpawnExecutableResolution } from "@t3tools/shared/shell";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { SpawnExecutableResolution } from "@rove-code/shared/shell";
 
 import { ProviderRegistry, type ProviderRegistryContract } from "./Services/ProviderRegistry.ts";
 import * as ModelManifest from "./ModelManifest.ts";
@@ -221,7 +221,7 @@ const makeTestRunner = (
     currentModels: {},
     compatibility: [CODEX_DRIVER, CURSOR_DRIVER, OPENCODE_DRIVER].map((driver) => ({
       driver,
-      t3CodeRange: ">=0.0.1",
+      roveCodeRange: ">=0.0.1",
       ranges: [],
     })),
   },
@@ -943,7 +943,7 @@ it.effect("refuses incompatible latest versions and unapproved or unpinnable tar
     compatibility: [
       {
         driver: "codex",
-        t3CodeRange: ">=0.0.1",
+        roveCodeRange: ">=0.0.1",
         recommendedVersion: "2.0.0",
         ranges: [
           { range: "=2.0.0", status: "supported" },

@@ -6,7 +6,7 @@ import {
   PullRequestInvolvement,
   PullRequestListFilters,
   PullRequestListState,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 export const PullRequestListSort = Schema.Literals([
   "ready",
@@ -62,7 +62,9 @@ const PullRequestListPreferencesSchema = Schema.Struct({
 const decodePullRequestListPreferences = Schema.decodeUnknownOption(
   PullRequestListPreferencesSchema,
 );
-const PULL_REQUEST_LIST_PREFERENCES_STORAGE_KEY = "t3.pullRequests.preferences";
+import { readMigratedRoveStorage } from "@rove-code/shared/roveMigration";
+
+const PULL_REQUEST_LIST_PREFERENCES_STORAGE_KEY = "rove.pullRequests.preferences";
 type PreferenceStorage = Pick<Storage, "getItem" | "setItem">;
 
 function resolvePreferenceStorage(
@@ -95,9 +97,10 @@ export function readPullRequestListPreferences(
   storage?: PreferenceStorage,
 ): PullRequestListPreferences {
   try {
-    const raw = resolvePreferenceStorage(storage)?.getItem(
-      PULL_REQUEST_LIST_PREFERENCES_STORAGE_KEY,
-    );
+    const resolved = resolvePreferenceStorage(storage);
+    const raw = resolved
+      ? readMigratedRoveStorage(resolved, PULL_REQUEST_LIST_PREFERENCES_STORAGE_KEY)
+      : null;
     if (!raw) return DEFAULT_PULL_REQUEST_LIST_PREFERENCES;
     const decoded = decodePullRequestListPreferences(JSON.parse(raw));
     return decoded._tag === "Some"

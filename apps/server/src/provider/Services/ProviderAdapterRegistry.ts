@@ -7,7 +7,7 @@
  *
  * @module ProviderAdapterRegistry
  */
-import type { ProviderDriverKind, ProviderInstanceId } from "@t3tools/contracts";
+import type { ProviderDriverKind, ProviderInstanceId } from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as PubSub from "effect/PubSub";
@@ -65,4 +65,4 @@ export interface ProviderAdapterRegistryContract {
 export class ProviderAdapterRegistry extends Context.Service<
   ProviderAdapterRegistry,
   ProviderAdapterRegistryContract
->()("t3/provider/Services/ProviderAdapterRegistry") {}
+>()("@rove-code/server/provider/Services/ProviderAdapterRegistry") {}

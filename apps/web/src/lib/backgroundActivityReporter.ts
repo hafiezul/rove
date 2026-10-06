@@ -1,15 +1,15 @@
-import { EnvironmentRegistry } from "@t3tools/client-runtime/connection";
+import { EnvironmentRegistry } from "@rove-code/client-runtime/connection";
 import {
   EnvironmentRpcSubscriptionObserver,
   request,
   type EnvironmentRpcSubscriptionObservation,
-} from "@t3tools/client-runtime/rpc";
+} from "@rove-code/client-runtime/rpc";
 import {
   type BackgroundScope,
   type ClientActivityReportInput,
   type EnvironmentId,
   WS_METHODS,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -22,7 +22,9 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 import { randomUUID } from "./utils";
 import * as RuntimePredicate from "effect/Predicate";
 
-const CLIENT_ID_STORAGE_KEY = "t3.backgroundActivity.clientId";
+import { readMigratedRoveStorage } from "@rove-code/shared/roveMigration";
+
+const CLIENT_ID_STORAGE_KEY = "rove.backgroundActivity.clientId";
 const REPORT_INTERVAL_MS = 25_000;
 const LEASE_TTL_MS = 45_000;
 const RECENT_INTERACTION_WINDOW_MS = LEASE_TTL_MS;
@@ -64,7 +66,7 @@ function stableScopeKey(environmentId: EnvironmentId, scope: BackgroundScope): s
 
 function getClientId(): string {
   try {
-    const existing = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+    const existing = readMigratedRoveStorage(window.localStorage, CLIENT_ID_STORAGE_KEY);
     if (existing) return existing;
     const next = randomUUID();
     window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);

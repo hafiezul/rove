@@ -1,11 +1,11 @@
 // @effect-diagnostics nodeBuiltinImport:off - Effect has no incremental digest.
-import { ProviderDriverKind, type ProviderInstallState } from "@t3tools/contracts";
+import { ProviderDriverKind, type ProviderInstallState } from "@rove-code/contracts";
 import {
   HostProcessArchitecture,
   HostProcessEnvironment,
   HostProcessPlatform,
-} from "@t3tools/shared/hostProcess";
-import { resolveCommandPath, resolveSpawnCommand } from "@t3tools/shared/shell";
+} from "@rove-code/shared/hostProcess";
+import { resolveCommandPath, resolveSpawnCommand } from "@rove-code/shared/shell";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -140,7 +140,7 @@ interface CodexInstallationService {
 export class CodexInstallation extends Context.Service<
   CodexInstallation,
   CodexInstallationService
->()("t3/provider/CodexInstallation") {
+>()("@rove-code/server/provider/CodexInstallation") {
   static readonly layer = Layer.effect(
     CodexInstallation,
     Effect.gen(function* () {
@@ -337,7 +337,7 @@ export const makeCodexInstallation = Effect.fn("makeCodexInstallation")(function
       );
       // Keep launcher symlinks intact: version-manager shims dispatch by their invoked name.
       const realExecutablePath = yield* fs.realPath(executablePath);
-      // A PATH entry pointing into T3's download remains a managed installation.
+      // A PATH entry pointing into Rove's download remains a managed installation.
       const realManaged = yield* fs.realPath(managedDirectory).pipe(Effect.option);
       if (
         realExecutablePath.startsWith(

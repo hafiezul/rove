@@ -3,10 +3,10 @@ import {
   type ModelSelection,
   type ProviderInstanceId,
   type WorktreeSubmodules,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
-import { createModelSelection } from "@t3tools/shared/model";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import { createModelSelection } from "@rove-code/shared/model";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 import { useNavigate } from "@tanstack/react-router";
 
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
@@ -91,7 +91,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const unavailable = connectedEnvironments.length === 0;
   // File-backed keys show their effective value; the target already carries
-  // the checkout's t3.json, and a null file here only fills the built-in.
+  // the checkout's rove.json, and a null file here only fills the built-in.
   // The reset arrow beside the title clears the tier (SettingsRow handles a
   // project override, the environment value is cleared here), so the picker
   // has no "inherit" item.
@@ -245,7 +245,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       description={
         isProjectScope
           ? "Where new threads in this project start."
-          : "Where new threads start. Projects and their t3.json can override it."
+          : "Where new threads start. Projects and their rove.json can override it."
       }
       resetAction={
         !isProjectScope && settings.defaultThreadEnvMode !== null ? (
@@ -378,7 +378,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             description={
               isProjectScope
                 ? "How new worktrees in this project populate git submodules."
-                : "How new worktrees populate git submodules. Projects and their t3.json can override it."
+                : "How new worktrees populate git submodules. Projects and their rove.json can override it."
             }
             resetAction={
               !isProjectScope && settings.worktreeSubmodules !== null ? (

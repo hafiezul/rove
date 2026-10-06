@@ -10,8 +10,8 @@ import {
   pullRequestCandidateUrlFromReferenceAutolink,
   shouldOpenPullRequestExternally,
 } from "./openPullRequestLink";
-import { ProjectId, type RepositoryIdentity } from "@t3tools/contracts";
-import { normalizeGitRemoteUrl } from "@t3tools/shared/git";
+import { ProjectId, type RepositoryIdentity } from "@rove-code/contracts";
+import { normalizeGitRemoteUrl } from "@rove-code/shared/git";
 
 function repositoryIdentity(
   provider: string,
@@ -228,9 +228,9 @@ describe("shouldOpenPullRequestExternally", () => {
 
 describe("parseChangeRequestUrl", () => {
   it("reads a GitHub pull request", () => {
-    expect(parseChangeRequestUrl("https://github.com/T3Tools/Rove/pull/123")).toEqual({
+    expect(parseChangeRequestUrl("https://github.com/RoveTools/Rove/pull/123")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
   });
@@ -245,10 +245,10 @@ describe("parseChangeRequestUrl", () => {
 
   it("reads a GitLab merge request, nested groups and all", () => {
     expect(
-      parseChangeRequestUrl("https://gitlab.com/t3tools/platform/rove/-/merge_requests/42"),
+      parseChangeRequestUrl("https://gitlab.com/rovetools/platform/rove/-/merge_requests/42"),
     ).toEqual({
       host: "gitlab.com",
-      repository: "t3tools/platform/rove",
+      repository: "rovetools/platform/rove",
       number: 42,
     });
   });
@@ -289,9 +289,9 @@ describe("parseChangeRequestUrl", () => {
   });
 
   it("survives trailing segments, a trailing slash and a query string", () => {
-    expect(parseChangeRequestUrl("https://github.com/t3tools/rove/pull/123/files?w=1")).toEqual({
+    expect(parseChangeRequestUrl("https://github.com/rovetools/rove/pull/123/files?w=1")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
     expect(
@@ -300,27 +300,27 @@ describe("parseChangeRequestUrl", () => {
     expect(
       parseChangeRequestUrl("https://bitbucket.org/team/repo/pull-requests/5/commits"),
     ).toEqual({ host: "bitbucket.org", repository: "team/repo", number: 5 });
-    expect(parseChangeRequestUrl("https://github.com/t3tools/rove/pull/123/")).toEqual({
+    expect(parseChangeRequestUrl("https://github.com/rovetools/rove/pull/123/")).toEqual({
       host: "github.com",
-      repository: "t3tools/rove",
+      repository: "rovetools/rove",
       number: 123,
     });
   });
 
   it("claims nothing it cannot be sure of, so the link goes to the browser", () => {
     for (const link of [
-      "https://github.com/t3tools/rove/issues/123",
-      "https://github.com/t3tools/rove/commit/0a1b2c3",
-      "https://github.com/t3tools/rove",
-      "https://github.com/t3tools/rove/pull/abc",
-      "https://gitlab.com/t3tools/rove/-/snippets/12",
-      "https://gitlab.com/t3tools/rove/-/issues/12",
+      "https://github.com/rovetools/rove/issues/123",
+      "https://github.com/rovetools/rove/commit/0a1b2c3",
+      "https://github.com/rovetools/rove",
+      "https://github.com/rovetools/rove/pull/abc",
+      "https://gitlab.com/rovetools/rove/-/snippets/12",
+      "https://gitlab.com/rovetools/rove/-/issues/12",
       // A path shape that means nothing off its own host.
       "https://blog.example.test/2026/updates/pull/3",
       // A lookalike is deliberately not fought here: `github.com.evil.test` reads as a GitHub
       // Enterprise install and there is no way to tell it from one. It is `findProjectForChange
       // Request` that refuses it, because no project in the workspace is checked out from it.
-      "javascript:alert(1)//github.com/t3tools/rove/pull/1",
+      "javascript:alert(1)//github.com/rovetools/rove/pull/1",
       "not a url",
     ]) {
       expect(parseChangeRequestUrl(link), link).toBeNull();
@@ -462,20 +462,20 @@ describe("findProjectForChangeRequest", () => {
 
   it("matches a nested GitLab group by the whole path below the host", () => {
     // The server identifies a repository by `displayName`, which keeps every group segment; the
-    // two-segment owner/name form would look for `t3tools/rove` and find nothing.
+    // two-segment owner/name form would look for `rovetools/rove` and find nothing.
     const projects = [
       project({
-        canonicalKey: "gitlab.com/t3tools/platform/rove",
+        canonicalKey: "gitlab.com/rovetools/platform/rove",
         provider: "gitlab",
-        displayName: "t3tools/platform/rove",
-        owner: "t3tools",
+        displayName: "rovetools/platform/rove",
+        owner: "rovetools",
         name: "rove",
       }),
     ];
     expect(
       findProjectForChangeRequest(projects, {
         host: "gitlab.com",
-        repository: "t3tools/platform/rove",
+        repository: "rovetools/platform/rove",
         number: 42,
       }),
     ).toBe(projects[0]);
@@ -506,20 +506,22 @@ describe("findProjectForChangeRequest", () => {
     //
     // Derived from the SSH remote the way the server derives it rather than written out, so the
     // day that normalization stops reaching the web spelling this fails here too.
-    const canonicalKey = normalizeGitRemoteUrl("git@ssh.dev.azure.com:v3/T3Tools/Platform/T3Code");
+    const canonicalKey = normalizeGitRemoteUrl(
+      "git@ssh.dev.azure.com:v3/RoveTools/Platform/RoveCode",
+    );
     const projects = [
       project({
         canonicalKey,
         provider: "azure-devops",
         displayName: canonicalKey.split("/").slice(1).join("/"),
-        owner: "t3tools",
-        name: "t3code",
+        owner: "rovetools",
+        name: "rovecode",
       }),
     ];
     expect(
       findProjectForChangeRequest(projects, {
         host: "dev.azure.com",
-        repository: "t3tools/platform/_git/t3code",
+        repository: "rovetools/platform/_git/rovecode",
         number: 1,
       }),
     ).toBe(projects[0]);

@@ -13,8 +13,8 @@ import {
   removeConnectionFromCatalog,
   setConnectionEnabledInCatalog,
   replaceCatalogValue,
-} from "@t3tools/client-runtime/platform";
-import { TokenStore } from "@t3tools/client-runtime/authorization";
+} from "@rove-code/client-runtime/platform";
+import { TokenStore } from "@rove-code/client-runtime/authorization";
 import {
   ConnectionTransientError,
   ConnectionBlockedError,
@@ -24,7 +24,7 @@ import {
   StoredGitHubRoutingPermission,
   gitHubRoutingConnectionKey,
   gitHubRoutingPermissionFor,
-} from "@t3tools/client-runtime/connection";
+} from "@rove-code/client-runtime/connection";
 import {
   EnvironmentId,
   OrchestrationShellSnapshot,
@@ -32,7 +32,7 @@ import {
   ServerConfig,
   ThreadId,
   VcsListRefsResult,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -40,6 +40,7 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
+import { decodeMigratedRoveJson } from "@rove-code/shared/roveMigration";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import { projectFaviconCache } from "../assets/projectFaviconCache";
@@ -87,12 +88,12 @@ const StoredVcsRefs = Schema.Struct({
 });
 const StoredVcsRefsJson = Schema.fromJsonString(StoredVcsRefs);
 const ConnectionCatalogDocumentJson = Schema.fromJsonString(ConnectionCatalogDocument);
-const decodeConnectionCatalogDocument = Schema.decodeUnknownEffect(ConnectionCatalogDocumentJson);
+const decodeConnectionCatalogDocument = decodeMigratedRoveJson(ConnectionCatalogDocument);
 const encodeConnectionCatalogDocument = Schema.encodeEffect(ConnectionCatalogDocumentJson);
 const decodeStoredShellSnapshot = Schema.decodeUnknownEffect(StoredShellSnapshotJson);
 const decodeStoredThreadSnapshot = Schema.decodeUnknownEffect(StoredThreadSnapshotJson);
 const encodeStoredThreadSnapshot = Schema.encodeEffect(StoredThreadSnapshotJson);
-const decodeStoredServerConfig = Schema.decodeUnknownEffect(StoredServerConfigJson);
+const decodeStoredServerConfig = decodeMigratedRoveJson(StoredServerConfig);
 const encodeStoredServerConfig = Schema.encodeEffect(StoredServerConfigJson);
 const decodeStoredVcsRefs = Schema.decodeUnknownEffect(StoredVcsRefsJson);
 const encodeStoredVcsRefs = Schema.encodeEffect(StoredVcsRefsJson);

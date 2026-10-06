@@ -7,7 +7,7 @@ import * as Layer from "effect/Layer";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 
 import * as ServerConfig from "../config.ts";
 import { getTelemetryIdentifier } from "./Identify.ts";
@@ -52,7 +52,7 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
     Effect.gen(function* () {
       const capturedRequests: Array<RecordedBatchRequest> = [];
       const serverConfigLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
-        prefix: "t3-telemetry-base-",
+        prefix: "rove-telemetry-base-",
       });
 
       const telemetryLayer = AnalyticsService.layer.pipe(Layer.provideMerge(serverConfigLayer));
@@ -155,7 +155,7 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
     Effect.gen(function* () {
       const capturedPaths: Array<string> = [];
       const serverConfigLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
-        prefix: "t3-telemetry-disabled-",
+        prefix: "rove-telemetry-disabled-",
       });
       const telemetryLayer = AnalyticsService.layer.pipe(Layer.provideMerge(serverConfigLayer));
       const configLayer = ConfigProvider.layer(

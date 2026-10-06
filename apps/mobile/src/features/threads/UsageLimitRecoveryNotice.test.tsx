@@ -8,7 +8,7 @@ import {
   ThreadId,
   TurnId,
   type OrchestrationThreadShell,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 vi.mock("react-native", () => ({ View: "div", Pressable: "button" }));
 vi.mock("../../components/AppText", () => ({ AppText: "span" }));

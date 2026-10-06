@@ -4,15 +4,15 @@ import {
   type ModelSelection,
   ProviderDriverKind,
   type ServerProviderModel,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import {
   getModelSelectionStringOptionValue,
   getProviderOptionCurrentValue,
   getProviderOptionDescriptors,
   readCustomModelEntries,
-} from "@t3tools/shared/model";
-import { compareSemverVersions } from "@t3tools/shared/semver";
+} from "@rove-code/shared/model";
+import { compareSemverVersions } from "@rove-code/shared/semver";
 
 import {
   type ClaudeCodeCompatibility,

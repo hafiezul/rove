@@ -13,16 +13,16 @@ import {
   AuthStandardClientScopes,
   ExecutionEnvironmentDescriptor,
   PortSchema,
-} from "@t3tools/contracts";
-import { resolveWorktreeRoveHome } from "@t3tools/shared/devHome";
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+} from "@rove-code/contracts";
+import { resolveWorktreeRoveHome } from "@rove-code/shared/devHome";
+import { DEFAULT_SIGNAL_EXPORT } from "@rove-code/shared/observability";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
 import {
   buildTailscaleHttpsBaseUrl,
   DEFAULT_TAILSCALE_SERVE_PORT,
   ensureTailscaleServe,
   readTailscaleStatus,
-} from "@t3tools/tailscale";
+} from "@rove-code/tailscale";
 import * as Config from "effect/Config";
 import * as Console from "effect/Console";
 import * as DateTime from "effect/DateTime";
@@ -58,7 +58,7 @@ import {
 } from "../startupAccess.ts";
 import { baseDirFlag, DurationFromString } from "./config.ts";
 
-const WELL_KNOWN_ENVIRONMENT_PATH = "/.well-known/t3/environment";
+const WELL_KNOWN_ENVIRONMENT_PATH = "/.well-known/rove/environment";
 const PAIR_PROBE_TIMEOUT = Duration.millis(2_500);
 // Tailscale provisions an HTTPS certificate on the first request to a fresh
 // serve mapping, which can take a few seconds.
@@ -196,14 +196,14 @@ const formatPairOutput = (input: {
   ].join("\n");
 
 /**
- * Three outcomes, because they drive different decisions: a T3 descriptor
+ * Three outcomes, because they drive different decisions: a Rove descriptor
  * (pair with it), nothing answering (safe to configure Tailscale Serve), or
- * something answering that is not a T3 server (do NOT overwrite its mapping).
+ * something answering that is not a Rove server (do NOT overwrite its mapping).
  */
 type EnvironmentProbeResult =
   | { readonly _tag: "descriptor"; readonly descriptor: ExecutionEnvironmentDescriptor }
   | { readonly _tag: "unreachable" }
-  | { readonly _tag: "not-a-t3-server" };
+  | { readonly _tag: "not-a-rove-server" };
 
 const probeEnvironmentDescriptor = (
   baseUrl: string,
@@ -227,7 +227,7 @@ const probeEnvironmentDescriptor = (
     // some other service.
     const descriptor = yield* HttpClientResponse.filterStatusOk(response).pipe(
       Effect.flatMap(HttpClientResponse.schemaBodyJson(ExecutionEnvironmentDescriptor)),
-      Effect.mapError(() => ({ _tag: "not-a-t3-server" }) as const),
+      Effect.mapError(() => ({ _tag: "not-a-rove-server" }) as const),
     );
     return { _tag: "descriptor", descriptor } as const;
   }).pipe(Effect.catch((outcome) => Effect.succeed(outcome)));
@@ -376,7 +376,7 @@ const resolveTailscalePairingBase = Effect.fn("pair.resolveTailscalePairingBase"
     });
 
     // Only an unreachable port, or a mapping already fronting this exact
-    // environment, is safe to (re)configure. Any other responder — T3 or not
+    // environment, is safe to (re)configure. Any other responder — Rove or not
     // — must not have its mapping silently replaced.
     const existing = yield* probeEnvironmentDescriptor(baseUrl);
     if (existing._tag === "descriptor") {
@@ -392,7 +392,7 @@ const resolveTailscalePairingBase = Effect.fn("pair.resolveTailscalePairingBase"
         return { baseUrl, notes };
       }
     }
-    if (existing._tag === "not-a-t3-server") {
+    if (existing._tag === "not-a-rove-server") {
       return yield* new ServePortOccupiedError({ servePort: input.servePort });
     }
 

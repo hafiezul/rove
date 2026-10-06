@@ -17,7 +17,7 @@ import {
   ThreadLinkedPullRequest,
   ThreadTitleState,
   ThreadLimitRecovery,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 const ProjectionThreadDbRow = ProjectionThread.mapFields(
   Struct.assign({

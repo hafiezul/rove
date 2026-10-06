@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/oxlint-plugin-rove",
+  "name": "@rove-code/oxlint-plugin-rove",
   "private": true,
   "type": "module",
   "scripts": {

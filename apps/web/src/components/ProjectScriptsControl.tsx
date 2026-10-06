@@ -1,12 +1,12 @@
 import type {
   ProjectScript,
   ResolvedKeybindingsConfig,
-  T3ProjectFileScript,
-} from "@t3tools/contracts";
+  RoveProjectFileScript,
+} from "@rove-code/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@rove-code/client-runtime/state/runtime";
 import { ChevronDownIcon, DownloadIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -41,14 +41,14 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 
 export type { NewProjectScriptInput, ProjectScriptActionResult };
 
-const NO_FILE_SCRIPTS: ReadonlyArray<T3ProjectFileScript> = [];
+const NO_FILE_SCRIPTS: ReadonlyArray<RoveProjectFileScript> = [];
 
 interface ProjectScriptsControlProps {
   presentation?: "toolbar" | "menu";
   onRequestMenuClose?: () => void;
   scripts: ReadonlyArray<ProjectScript>;
-  /** Scripts declared in the project's checked-in t3.json, offered for import. */
-  fileScripts?: ReadonlyArray<T3ProjectFileScript>;
+  /** Scripts declared in the project's checked-in rove.json, offered for import. */
+  fileScripts?: ReadonlyArray<RoveProjectFileScript>;
   keybindings: ResolvedKeybindingsConfig;
   preferredScriptId?: string | null;
   onRunScript: (script: ProjectScript) => void;
@@ -118,7 +118,7 @@ export default function ProjectScriptsControl({
     [onAddScript, onUpdateScript],
   );
 
-  const importFileScript = async (fileScript: T3ProjectFileScript) => {
+  const importFileScript = async (fileScript: RoveProjectFileScript) => {
     const payload: NewProjectScriptInput = {
       name: fileScript.name,
       command: fileScript.command,
@@ -146,7 +146,7 @@ export default function ProjectScriptsControl({
     <>
       {primaryScript && <MenuSeparator />}
       <MenuGroup>
-        <MenuGroupLabel>From t3.json</MenuGroupLabel>
+        <MenuGroupLabel>From project file</MenuGroupLabel>
         {importableScripts.map((fileScript) => (
           <MenuItem
             density={presentation === "menu" ? "touch" : "default"}

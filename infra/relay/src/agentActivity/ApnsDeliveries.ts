@@ -3,13 +3,13 @@ import type {
   RelayAgentAwarenessPreferences,
   RelayDeliveryKind,
   RelayDeliveryResult,
-} from "@t3tools/contracts/relay";
+} from "@rove-code/contracts/relay";
 import {
   RelayAgentActivityAggregateState as RelayAgentActivityAggregateStateSchema,
   RelayAgentAwarenessPreferences as RelayAgentAwarenessPreferencesSchema,
   RelayDeliveryKind as RelayDeliveryKindSchema,
-} from "@t3tools/contracts/relay";
-import { runtimeValueKind } from "@t3tools/shared/runtimeValueKind";
+} from "@rove-code/contracts/relay";
+import { runtimeValueKind } from "@rove-code/shared/runtimeValueKind";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";

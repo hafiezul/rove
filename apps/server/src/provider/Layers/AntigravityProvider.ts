@@ -6,8 +6,8 @@ import {
   type ServerProvider,
   type ServerProviderModel,
   type ServerProviderSlashCommand,
-} from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+} from "@rove-code/contracts";
+import { createModelCapabilities } from "@rove-code/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";

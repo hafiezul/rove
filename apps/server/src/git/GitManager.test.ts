@@ -23,7 +23,7 @@ import type {
   GitPreparePullRequestThreadInput,
   ProjectId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import {
   DEFAULT_SERVER_SETTINGS,
@@ -31,7 +31,7 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   TextGenerationError,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as GitHubCli from "../sourceControl/GitHubCli.ts";
 import * as GitLabCli from "../sourceControl/GitLabCli.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
@@ -656,7 +656,7 @@ function makeManager(input?: {
   const { service: gitHubCli, ghCalls, ghAccounts } = createGitHubCliWithFakeGh(input?.ghScenario);
   const textGeneration = createTextGeneration(input?.textGeneration);
   const serverConfigLayer = ServerConfig.layerTest(process.cwd(), {
-    prefix: "t3-git-manager-test-",
+    prefix: "rove-git-manager-test-",
   });
 
   const serverSettingsLayer = ServerSettings.ServerSettingsService.layerTest(input?.serverSettings);
@@ -738,7 +738,7 @@ function makeManager(input?: {
 const asThreadId = (threadId: string) => threadId as ThreadId;
 
 const GitManagerTestLayer = GitVcsDriver.layer.pipe(
-  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-git-manager-test-" })),
+  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "rove-git-manager-test-" })),
   Layer.provideMerge(VcsProcess.layer),
   Layer.provideMerge(NodeServices.layer),
 );

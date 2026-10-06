@@ -8,7 +8,7 @@ import {
   invalidateCustomThemes,
   isKnownThemePreference,
   resolveThemeAppearance,
-  T3_CHAT_THEME,
+  PLUM_THEME,
   EMBER_THEME,
   GROVE_THEME,
   IRIS_THEME,
@@ -156,14 +156,14 @@ describe("index.html boot script", () => {
   }> = [
     { name: "no stored preference on a dark OS", storage: {}, prefersDark: true },
     {
-      name: "T3 Chat follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "t3-chat", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
+      name: "Rove Chat follows a dark OS",
+      storage: { [THEME_STORAGE_KEY]: "plum", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: true,
     },
     {
-      name: "an explicit global dark mode applies to T3 Chat",
+      name: "an explicit global dark mode applies to Rove Chat",
       storage: {
-        [THEME_STORAGE_KEY]: "t3-chat",
+        [THEME_STORAGE_KEY]: "plum",
         [THEME_APPEARANCE_MODE_STORAGE_KEY]: "dark",
         [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "false",
       },
@@ -190,12 +190,12 @@ describe("index.html boot script", () => {
       prefersDark: true,
     },
     {
-      name: "a legacy t3-grove preference resolves through the alias",
+      name: "a historical grove preference resolves through the alias",
       storage: { [THEME_STORAGE_KEY]: "t3-grove", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: true,
     },
     {
-      name: "legacy t3-chat-dark resolves to dark T3 Chat",
+      name: "historical dark Plum preference retains its appearance",
       storage: { [THEME_STORAGE_KEY]: "t3-chat-dark" },
       prefersDark: true,
     },
@@ -259,10 +259,10 @@ describe("index.html boot script", () => {
 
   it("marks built-in and custom themes on the document element", () => {
     const chat = runBootScript({
-      storage: { [THEME_STORAGE_KEY]: "t3-chat", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
+      storage: { [THEME_STORAGE_KEY]: "plum", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: true,
     });
-    expect(chat.themeId).toBe("t3-chat");
+    expect(chat.themeId).toBe("plum");
     expect(chat.themeSelected).toBe("true");
     expect(chat.isDark).toBe(true);
 
@@ -342,7 +342,7 @@ describe("index.html boot script", () => {
   // boot script's hand-maintained copy into a CI-enforced contract: any
   // palette change breaks this test until the copy in index.html is updated.
   it("keeps every built-in boot splash in sync with the real palettes", () => {
-    for (const theme of [T3_CHAT_THEME, GROVE_THEME, OCEAN_THEME, EMBER_THEME, IRIS_THEME]) {
+    for (const theme of [PLUM_THEME, GROVE_THEME, OCEAN_THEME, EMBER_THEME, IRIS_THEME]) {
       // The boot script resolves every built-in from a light base appearance.
       expect(theme.appearance).toBe("light");
       for (const mode of ["light", "dark"] as const) {
@@ -368,7 +368,7 @@ describe("index.html boot script", () => {
 
   it("applies the matching half of an automatic mix to the splash", () => {
     const storage = {
-      [THEME_STORAGE_KEY]: "t3-chat",
+      [THEME_STORAGE_KEY]: "plum",
       [THEME_APPEARANCE_MODE_STORAGE_KEY]: "system",
       "rove:theme-halves:v1": JSON.stringify({ dark: GROVE_THEME.id }),
     };
@@ -382,9 +382,9 @@ describe("index.html boot script", () => {
 
     const light = runBootScript({ storage, prefersDark: false });
     expect(light.isDark).toBe(false);
-    expect(light.themeId).toBe("t3-chat");
+    expect(light.themeId).toBe("plum");
     expect(light.bootVariables["--boot-background"]).toBe(
-      getThemeColorsForMode(T3_CHAT_THEME, "light")!.canvas,
+      getThemeColorsForMode(PLUM_THEME, "light")!.canvas,
     );
   });
 
@@ -429,7 +429,7 @@ describe("index.html boot script", () => {
   it("resolves a legacy-prefixed mix half onto the renamed theme", () => {
     const boot = runBootScript({
       storage: {
-        [THEME_STORAGE_KEY]: "t3-chat",
+        [THEME_STORAGE_KEY]: "plum",
         [THEME_APPEARANCE_MODE_STORAGE_KEY]: "system",
         "rove:theme-halves:v1": JSON.stringify({ dark: "t3-grove" }),
       },
@@ -445,13 +445,13 @@ describe("index.html boot script", () => {
   it("ignores a mix half that names an unknown theme", () => {
     const boot = runBootScript({
       storage: {
-        [THEME_STORAGE_KEY]: "t3-chat",
+        [THEME_STORAGE_KEY]: "plum",
         [THEME_APPEARANCE_MODE_STORAGE_KEY]: "system",
         "rove:theme-halves:v1": JSON.stringify({ dark: "gone-theme" }),
       },
       prefersDark: true,
     });
-    expect(boot.themeId).toBe("t3-chat");
+    expect(boot.themeId).toBe("plum");
     expect(boot.isDark).toBe(true);
   });
 

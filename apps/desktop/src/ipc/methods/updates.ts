@@ -3,7 +3,7 @@ import {
   DesktopUpdateChannelSchema,
   DesktopUpdateCheckResultSchema,
   DesktopUpdateStateSchema,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 

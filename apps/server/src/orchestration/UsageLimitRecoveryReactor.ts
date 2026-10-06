@@ -1,5 +1,5 @@
-import { CommandId, MessageId, ThreadId } from "@t3tools/contracts";
-import { currentLimitRecovery } from "@t3tools/shared/limitRecovery";
+import { CommandId, MessageId, ThreadId } from "@rove-code/contracts";
+import { currentLimitRecovery } from "@rove-code/shared/limitRecovery";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

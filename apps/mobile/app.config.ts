@@ -242,7 +242,7 @@ const config: ExpoConfig = {
     supportsTablet: true,
     // Multitasking-capable iPad apps cannot rotate programmatically, so the
     // showcase capture build requires full screen (see infoPlist below).
-    requireFullScreen: process.env.T3_SHOWCASE_CAPTURE_BUILD === "1",
+    requireFullScreen: process.env.ROVE_SHOWCASE_CAPTURE_BUILD === "1",
     bundleIdentifier: iosBundleIdentifier,
     appleTeamId: repoEnv.ROVE_APPLE_TEAM_ID?.trim() || undefined,
     associatedDomains: clerkRelyingParty
@@ -264,7 +264,7 @@ const config: ExpoConfig = {
       // Simulator menu scripting needs), and iPadOS ignores programmatic
       // orientation requests for multitasking-capable apps — so the capture
       // build opts out of multitasking and declares landscape support.
-      ...(process.env.T3_SHOWCASE_CAPTURE_BUILD === "1"
+      ...(process.env.ROVE_SHOWCASE_CAPTURE_BUILD === "1"
         ? {
             "UISupportedInterfaceOrientations~ipad": [
               "UIInterfaceOrientationPortrait",

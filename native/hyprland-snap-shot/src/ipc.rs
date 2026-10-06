@@ -145,7 +145,7 @@ pub fn destination(windows: Vec<Window>, pid: u32, title: &str) -> Result<Option
 }
 
 pub fn activate(pid: u32, title: &str) -> Result<()> {
-    // Subscribe before looking up a newly mapped T3 window, so no map/title event is missed.
+    // Subscribe before looking up a newly mapped Rove window, so no map/title event is missed.
     let socket = UnixStream::connect(session_directory()?.join(".socket2.sock"))?;
     let deadline = Instant::now() + Duration::from_secs(3);
     let mut events = BufReader::new(socket);
@@ -181,7 +181,7 @@ mod tests {
             address: "0x123456789abcdef".into(),
             pid,
             title: title.into(),
-            class: "t3".into(),
+            class: "rove".into(),
             at: [-1920, 20],
             size: [1000, 800],
             mapped: true,
@@ -195,18 +195,18 @@ mod tests {
     #[test]
     fn destination_requires_unique_process_and_title() {
         assert!(
-            destination(vec![window(2, "T3")], 1, "T3")
+            destination(vec![window(2, "Rove")], 1, "Rove")
                 .unwrap()
                 .is_none()
         );
         assert!(
-            destination(vec![window(1, "other")], 1, "T3")
+            destination(vec![window(1, "other")], 1, "Rove")
                 .unwrap()
                 .is_none()
         );
-        assert!(destination(vec![window(1, "T3"), window(1, "T3")], 1, "T3").is_err());
+        assert!(destination(vec![window(1, "Rove"), window(1, "Rove")], 1, "Rove").is_err());
         assert!(
-            destination(vec![window(2, "T3"), window(1, "T3")], 1, "T3")
+            destination(vec![window(2, "Rove"), window(1, "Rove")], 1, "Rove")
                 .unwrap()
                 .is_some()
         );

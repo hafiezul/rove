@@ -2,7 +2,7 @@ import {
   EnvironmentId,
   ORCHESTRATION_PROTOCOL_VERSION,
   type ExecutionEnvironmentDescriptor,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

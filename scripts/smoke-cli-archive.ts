@@ -21,8 +21,8 @@ import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-import * as NetService from "@t3tools/shared/Net";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as NetService from "@rove-code/shared/Net";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { windowsSystemTar } from "./build-cli-archive.ts";
 import {
   FetchHttpClient,
@@ -115,7 +115,7 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
   // host exits moments later when its IPC channel closes, and keeps its
   // executable locked until then. Cleanup waits that out instead of failing.
   const scratch = yield* Effect.acquireRelease(
-    fs.makeTempDirectory({ prefix: "t3-cli-smoke-" }),
+    fs.makeTempDirectory({ prefix: "rove-cli-smoke-" }),
     (directory) =>
       fs.remove(directory, { recursive: true }).pipe(
         Effect.retry({ schedule: Schedule.spaced(Duration.millis(500)), times: 20 }),
@@ -234,7 +234,7 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
   }
   const origin = `http://127.0.0.1:${port}`;
   const readDescriptor = httpClient
-    .execute(HttpClientRequest.get(`${origin}/.well-known/t3/environment`))
+    .execute(HttpClientRequest.get(`${origin}/.well-known/rove/environment`))
     .pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap(HttpClientResponse.schemaBodyJson(descriptorSchema)),
@@ -258,7 +258,7 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
     HttpClientRequest.bodyUrlParams({
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
       subject_token: credential.credential,
-      subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
+      subject_token_type: "urn:rove:params:oauth:token-type:environment-bootstrap",
       requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
     }),
   );

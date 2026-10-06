@@ -18,8 +18,8 @@ import {
   type AuthWebSocketTicketResult,
   DpopFailureReason,
   type DpopFailureReason as DpopFailureReasonType,
-} from "@t3tools/contracts";
-import { encodeOAuthScope } from "@t3tools/shared/oauthScope";
+} from "@rove-code/contracts";
+import { encodeOAuthScope } from "@rove-code/shared/oauthScope";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -28,6 +28,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import { legacyRoveCookieName } from "@rove-code/shared/roveMigration";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
@@ -503,7 +504,7 @@ export class EnvironmentAuth extends Context.Service<
       baseUrl: string,
     ) => Effect.Effect<string, ServerAuthInternalError>;
   }
->()("t3/auth/EnvironmentAuth") {}
+>()("@rove-code/server/auth/EnvironmentAuth") {}
 
 type BootstrapExchangeResult = {
   readonly response: AuthBrowserSessionResult;
@@ -589,9 +590,15 @@ export function selectRequestCredential(
     return { token: dpopToken, source: "dpop" } as const;
   }
 
-  const legacyToken = legacyCookieName ? request.cookies[legacyCookieName] : undefined;
-  if (legacyToken !== undefined) {
-    return { token: legacyToken, source: "legacy-cookie" } as const;
+  const previousScopedName = legacyRoveCookieName(cookieName);
+  const legacyNames = [
+    previousScopedName,
+    legacyCookieName,
+    legacyCookieName ? legacyRoveCookieName(legacyCookieName) : undefined,
+  ];
+  for (const name of legacyNames) {
+    const legacyToken = name === undefined ? undefined : request.cookies[name];
+    if (legacyToken !== undefined) return { token: legacyToken, source: "legacy-cookie" } as const;
   }
 
   return undefined;
@@ -645,7 +652,11 @@ export const make = Effect.gen(function* () {
     );
     const dpopToken = parseDpopToken(request);
     const hasAuthorization = request.headers.authorization !== undefined;
-    const devCookieToken = devAuth ? request.cookies[devAuth.cookieName] : undefined;
+    const previousDevCookieName = devAuth ? legacyRoveCookieName(devAuth.cookieName) : undefined;
+    const devCookieToken = devAuth
+      ? (request.cookies[devAuth.cookieName] ??
+        (previousDevCookieName ? request.cookies[previousDevCookieName] : undefined))
+      : undefined;
     const credential =
       selectedCredential ??
       (!hasAuthorization && devCookieToken !== undefined

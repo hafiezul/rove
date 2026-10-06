@@ -20,7 +20,7 @@ import {
   type RuntimeMode,
   type ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";

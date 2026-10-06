@@ -1,7 +1,7 @@
 import { testDouble } from "../testDouble";
 import { describe, expect, it } from "vite-plus/test";
 
-import { ProviderInstanceId, type ModelSelection, type ServerConfig } from "@t3tools/contracts";
+import { ProviderInstanceId, type ModelSelection, type ServerConfig } from "@rove-code/contracts";
 
 import {
   buildModelOptions,

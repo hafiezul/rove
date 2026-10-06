@@ -6,7 +6,7 @@ import type {
   ThreadLinkedPullRequest,
   ThreadPullRequestKey,
   ThreadPullRequestLink,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   OrchestrationCheckpointSummary,
   OrchestrationMessage,
@@ -14,22 +14,22 @@ import {
   OrchestrationThread,
   PI_EXTENSION_STATUS_ACTIVITY_KIND,
   WORKTREE_SETUP_ACTIVITY_KIND,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   legacyLinkedPullRequestOf,
   legacyThreadPullRequestKey,
   threadPullRequestKeysEqual,
-} from "@t3tools/shared/threadPullRequests";
+} from "@rove-code/shared/threadPullRequests";
 import {
   retainThreadMessagesAfterRevert,
   retainThreadTurnItemsAfterRevert,
-} from "@t3tools/shared/threadRevert";
+} from "@rove-code/shared/threadRevert";
 import * as Effect from "effect/Effect";
 import {
   clearsLimitRecovery,
   cancelsLimitRecoverySchedule,
   cancelLimitRecovery,
-} from "@t3tools/shared/limitRecovery";
+} from "@rove-code/shared/limitRecovery";
 import * as Schema from "effect/Schema";
 import * as Predicate from "effect/Predicate";
 

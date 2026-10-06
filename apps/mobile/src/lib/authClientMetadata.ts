@@ -1,4 +1,4 @@
-import type { AuthClientPresentationMetadata } from "@t3tools/contracts";
+import type { AuthClientPresentationMetadata } from "@rove-code/contracts";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 

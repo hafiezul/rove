@@ -1,4 +1,4 @@
-import type { ComposerTextPaste } from "../native/T3ComposerEditor.types";
+import type { ComposerTextPaste } from "../native/RoveComposerEditor.types";
 import { useAtomValue } from "@effect/atom-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
@@ -14,18 +14,21 @@ import {
   type ProviderInteractionMode,
   type RuntimeMode,
   type ThreadId,
-} from "@t3tools/contracts";
-import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
-import { latestPiExtensionStatuses } from "@t3tools/client-runtime/pi-extension-status";
-import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
-import { nextPastedTextFileName, pastedTextDisposition } from "@t3tools/client-runtime/text-paste";
+} from "@rove-code/contracts";
+import { safeErrorLogAttributes } from "@rove-code/client-runtime/errors";
+import { latestPiExtensionStatuses } from "@rove-code/client-runtime/pi-extension-status";
+import { clampFileAttachmentUploadBytes } from "@rove-code/client-runtime/state/attachments";
+import {
+  nextPastedTextFileName,
+  pastedTextDisposition,
+} from "@rove-code/client-runtime/text-paste";
 import {
   parseCodexFeedbackCommand,
   submitCodexFeedback,
   type CodexFeedbackSubmission,
-} from "@t3tools/client-runtime/state/threads";
-import { deriveActiveWorkStartedAt } from "@t3tools/shared/orchestrationTiming";
-import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
+} from "@rove-code/client-runtime/state/threads";
+import { deriveActiveWorkStartedAt } from "@rove-code/shared/orchestrationTiming";
+import { upgradeLegacyContextMessage } from "@rove-code/shared/composerContextLegacy";
 import { composerContextSendBlockReason, reidentifyComposerContext } from "../lib/composerContext";
 import { uuidv4 } from "../lib/uuid";
 

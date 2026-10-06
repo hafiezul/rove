@@ -2,7 +2,7 @@ import {
   AuthStandardClientScopes,
   EnvironmentId,
   ORCHESTRATION_PROTOCOL_VERSION,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -38,7 +38,7 @@ function pairingHttpLayer(
     const url = String(input);
     calls.push({ url, init });
 
-    if (url.endsWith("/.well-known/t3/environment")) {
+    if (url.endsWith("/.well-known/rove/environment")) {
       if (options?.failDescriptor === true) {
         return Promise.resolve(
           Response.json({ message: "descriptor unavailable" }, { status: 503 }),
@@ -107,7 +107,7 @@ describe("connection onboarding", () => {
         },
       });
       expect(calls.map((call) => call.url)).toEqual([
-        "https://remote.example.test/.well-known/t3/environment",
+        "https://remote.example.test/.well-known/rove/environment",
         "https://remote.example.test/oauth/token",
       ]);
 
@@ -140,7 +140,7 @@ describe("connection onboarding", () => {
       );
       expect(error).toMatchObject({ reason: "unsupported" });
       expect(calls.map((call) => call.url)).toEqual([
-        "https://remote.example.test/.well-known/t3/environment",
+        "https://remote.example.test/.well-known/rove/environment",
       ]);
     }),
   );
@@ -163,7 +163,7 @@ describe("connection onboarding", () => {
       );
 
       expect(calls.map((call) => call.url)).toEqual([
-        "https://remote.example.test/.well-known/t3/environment",
+        "https://remote.example.test/.well-known/rove/environment",
       ]);
     }),
   );

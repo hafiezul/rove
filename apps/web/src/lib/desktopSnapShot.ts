@@ -1,4 +1,4 @@
-import type { DesktopBridge } from "@t3tools/contracts";
+import type { DesktopBridge } from "@rove-code/contracts";
 
 const SNAP_SHOT_FOCUS_EVENT = "rove:focus-composer";
 

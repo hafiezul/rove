@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { ServerProviderSkill } from "@t3tools/contracts";
+import type { ServerProviderSkill } from "@rove-code/contracts";
 
 import { searchProviderSkills } from "./providerSkillSearch";
 

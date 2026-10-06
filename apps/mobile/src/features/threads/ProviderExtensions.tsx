@@ -100,7 +100,7 @@ export function ProviderExtensions(props: ReturnType<typeof useProviderResources
 
           {props.data && compatibilityWarnings.length > 0 && (
             <View className="gap-1.5 border-l-2 border-warning-border pl-3">
-              <Text accessibilityRole="header" className="font-t3-medium text-sm text-foreground">
+              <Text accessibilityRole="header" className="font-rove-medium text-sm text-foreground">
                 Needs Pi's terminal
               </Text>
               {compatibilityWarnings.map((warning) => (

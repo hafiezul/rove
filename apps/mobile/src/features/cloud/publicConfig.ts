@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
-import { relayClerkTokenOptions } from "@t3tools/shared/relayAuth";
-import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
+import { relayClerkTokenOptions } from "@rove-code/shared/relayAuth";
+import { normalizeSecureRelayUrl } from "@rove-code/shared/relayUrl";
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
 

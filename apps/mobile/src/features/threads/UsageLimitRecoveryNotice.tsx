@@ -4,9 +4,9 @@ import {
   MAX_LIMIT_RECOVERY_ATTEMPTS,
   type EnvironmentId,
   type OrchestrationThreadShell,
-} from "@t3tools/contracts";
-import { visibleLimitRecovery, scheduledLimitResumeAt } from "@t3tools/shared/limitRecovery";
-import { canSnooze, effectiveSnoozed } from "@t3tools/client-runtime/state/thread-settled";
+} from "@rove-code/contracts";
+import { visibleLimitRecovery, scheduledLimitResumeAt } from "@rove-code/shared/limitRecovery";
+import { canSnooze, effectiveSnoozed } from "@rove-code/client-runtime/state/thread-settled";
 import { AppText as Text } from "../../components/AppText";
 import { SymbolView } from "../../components/AppSymbol";
 import { threadEnvironment } from "../../state/threads";
@@ -86,7 +86,7 @@ export function UsageLimitRecoveryNotice({
           tintColorClassName="accent-icon-muted"
         />
         <View className="flex-1 py-2">
-          <Text numberOfLines={1} className="text-xs font-t3-medium text-foreground">
+          <Text numberOfLines={1} className="text-xs font-rove-medium text-foreground">
             {scheduled
               ? "Auto-resume scheduled"
               : stopped
@@ -105,7 +105,7 @@ export function UsageLimitRecoveryNotice({
           className="min-h-11 justify-center px-2"
           onPress={() => change("resume")}
         >
-          <Text className="text-xs font-t3-medium text-foreground">
+          <Text className="text-xs font-rove-medium text-foreground">
             {scheduled ? "Cancel" : "Resume at reset"}
           </Text>
         </Pressable>
@@ -117,7 +117,7 @@ export function UsageLimitRecoveryNotice({
           className="min-h-11 justify-center px-2"
           onPress={() => change("snooze")}
         >
-          <Text className="text-xs font-t3-medium text-foreground">
+          <Text className="text-xs font-rove-medium text-foreground">
             {snoozed ? "Wake now" : "Snooze until reset"}
           </Text>
         </Pressable>

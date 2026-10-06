@@ -5,7 +5,7 @@ import {
   AuthRelayWriteScope,
   WS_METHODS,
   WsRpcGroup,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { describe, expect, it } from "@effect/vitest";
 
 import {

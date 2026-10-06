@@ -7,14 +7,14 @@ import {
   RelayWebClientId,
   type RelayPublicClientId,
   type RelayEnvironmentLinkChallengeRequest,
-} from "@t3tools/contracts/relay";
-import { encodeOAuthScope, parseAllowedOAuthScope } from "@t3tools/shared/oauthScope";
+} from "@rove-code/contracts/relay";
+import { encodeOAuthScope, parseAllowedOAuthScope } from "@rove-code/shared/oauthScope";
 import {
   normalizeRelayIssuer,
   RelayJwtError,
   signRelayJwt,
   verifyRelayJwt,
-} from "@t3tools/shared/relayJwt";
+} from "@rove-code/shared/relayJwt";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -23,7 +23,7 @@ import * as Schema from "effect/Schema";
 
 import * as RelayConfiguration from "../Config.ts";
 
-const LINK_CHALLENGE_TYP = "t3-link-challenge+jwt";
+const LINK_CHALLENGE_TYP = "rove-link-challenge+jwt";
 const ACCESS_TOKEN_TYP = "rove-relay-dpop-access+jwt";
 const LINK_CHALLENGE_KIND = "environment_link_challenge";
 export const RELAY_DPOP_ACCESS_TOKEN_TTL = "30 minutes";

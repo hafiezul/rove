@@ -11,7 +11,7 @@ import {
   PreviewTabId,
   ThreadId,
   TrimmedNonEmptyString,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
 

@@ -2,18 +2,19 @@ import {
   ConnectionPersistenceError,
   EnvironmentCacheStore,
   encodeShellSnapshotForCache,
-} from "@t3tools/client-runtime/platform";
+} from "@rove-code/client-runtime/platform";
 import {
   type EnvironmentId,
   OrchestrationShellSnapshot,
   OrchestrationThreadDetailSnapshot,
   ServerConfig,
   VcsListRefsResult,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import { decodeMigratedRoveJson } from "@rove-code/shared/roveMigration";
 
 import * as MobileDatabase from "../persistence/mobile-database";
 import {
@@ -59,9 +60,7 @@ const decodeStoredThreadSnapshot = Schema.decodeUnknownEffect(
   Schema.fromJsonString(StoredThreadSnapshot),
 );
 const encodeStoredThreadSnapshot = Schema.encodeEffect(Schema.fromJsonString(StoredThreadSnapshot));
-const decodeStoredServerConfig = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(StoredServerConfig),
-);
+const decodeStoredServerConfig = decodeMigratedRoveJson(StoredServerConfig);
 const encodeStoredServerConfig = Schema.encodeEffect(Schema.fromJsonString(StoredServerConfig));
 const decodeStoredVcsRefs = Schema.decodeUnknownEffect(Schema.fromJsonString(StoredVcsRefs));
 const encodeStoredVcsRefs = Schema.encodeEffect(Schema.fromJsonString(StoredVcsRefs));

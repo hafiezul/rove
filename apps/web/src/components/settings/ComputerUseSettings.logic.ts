@@ -1,4 +1,4 @@
-import type { ComputerUseControlInput, ComputerUseStatus } from "@t3tools/contracts";
+import type { ComputerUseControlInput, ComputerUseStatus } from "@rove-code/contracts";
 
 export function describeDriver(status: ComputerUseStatus | null, error: string | null): string {
   if (status === null) return error ?? "Checking Cua Driver on this environment…";

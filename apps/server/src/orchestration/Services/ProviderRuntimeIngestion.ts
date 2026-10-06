@@ -38,4 +38,6 @@ export interface ProviderRuntimeIngestionContract {
 export class ProviderRuntimeIngestionService extends Context.Service<
   ProviderRuntimeIngestionService,
   ProviderRuntimeIngestionContract
->()("t3/orchestration/Services/ProviderRuntimeIngestion/ProviderRuntimeIngestionService") {}
+>()(
+  "@rove-code/server/orchestration/Services/ProviderRuntimeIngestion/ProviderRuntimeIngestionService",
+) {}

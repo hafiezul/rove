@@ -9,12 +9,13 @@ import "vite-plus/test/config";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import pkg from "./package.json" with { type: "json" };
 
-import { DEV_PROXIED_PATH_PREFIXES } from "@t3tools/shared/devProxy";
+import { DEV_PROXIED_PATH_PREFIXES } from "@rove-code/shared/devProxy";
 
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
 import { hostedBuildDefines } from "./vite/hostedBuild";
+import { projectFileSchemaPlugin } from "./vite/projectFileSchema";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -163,6 +164,7 @@ export default defineConfig(({ command, mode }) => {
     assetsInclude: ["**/*.wasm"],
     plugins: [
       devCompressionPlugin(),
+      projectFileSchemaPlugin(),
       thirdPartyLicensesPlugin({
         bundleName: "web",
         configFile: new URL("../../third-party-licenses.config.json", import.meta.url),

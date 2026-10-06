@@ -16,7 +16,7 @@ import {
   OrchestrationCheckpointStatus,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
@@ -167,4 +167,4 @@ export interface ProjectionTurnRepositoryContract {
 export class ProjectionTurnRepository extends Context.Service<
   ProjectionTurnRepository,
   ProjectionTurnRepositoryContract
->()("t3/persistence/Services/ProjectionTurns/ProjectionTurnRepository") {}
+>()("@rove-code/server/persistence/Services/ProjectionTurns/ProjectionTurnRepository") {}

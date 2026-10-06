@@ -12,7 +12,7 @@ import {
   ProviderSession,
   ProviderInstanceId,
   RuntimeItemId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   ApprovalRequestId,
   CommandId,
@@ -26,7 +26,7 @@ import {
   type ServerSettings,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -276,7 +276,7 @@ describe("ProviderRuntimeIngestion", () => {
     workspaceSubdirectory?: string;
     isGitRepository?: CheckpointStore.CheckpointStore["Service"]["isGitRepository"];
   }) {
-    const repositoryRoot = makeTempDir("t3-provider-project-");
+    const repositoryRoot = makeTempDir("rove-provider-project-");
     NodeChildProcess.execFileSync("git", ["init", "--initial-branch=main"], {
       cwd: repositoryRoot,
       stdio: "ignore",

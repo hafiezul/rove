@@ -12,7 +12,7 @@ import {
   ProviderRuntimeEvent,
   ProviderSession,
   ProviderInstanceId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   CommandId,
   CheckpointRef,
@@ -22,7 +22,7 @@ import {
   ProjectId,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import type { Json as SchemaJson } from "effect/Schema";
 import * as Clock from "effect/Clock";
@@ -228,7 +228,7 @@ function runGit(cwd: string, args: ReadonlyArray<string>) {
 }
 
 function createGitRepository() {
-  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-checkpoint-handler-"));
+  const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-checkpoint-handler-"));
   runGit(cwd, ["init", "--initial-branch=main"]);
   runGit(cwd, ["config", "user.email", "test@example.com"]);
   runGit(cwd, ["config", "user.name", "Test User"]);
@@ -344,7 +344,7 @@ describe("CheckpointReactor", () => {
     );
 
     const ServerConfigLayer = ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-checkpoint-reactor-test-",
+      prefix: "rove-checkpoint-reactor-test-",
     });
     const pullRequestRefreshes: number[] = [];
     const refreshAfterTurn = () => Effect.sync(() => void pullRequestRefreshes.push(1));
@@ -1808,7 +1808,7 @@ describe("CheckpointReactor", () => {
 
   it("continues processing runtime events after a single checkpoint runtime failure", async () => {
     const nonRepositorySessionCwd = NodeFS.mkdtempSync(
-      NodePath.join(NodeOS.tmpdir(), "t3-checkpoint-runtime-non-repo-"),
+      NodePath.join(NodeOS.tmpdir(), "rove-checkpoint-runtime-non-repo-"),
     );
     tempDirs.push(nonRepositorySessionCwd);
 

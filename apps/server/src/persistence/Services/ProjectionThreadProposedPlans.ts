@@ -4,7 +4,7 @@ import {
   ThreadId,
   TrimmedNonEmptyString,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
@@ -72,5 +72,5 @@ export class ProjectionThreadProposedPlanRepository extends Context.Service<
   ProjectionThreadProposedPlanRepository,
   ProjectionThreadProposedPlanRepositoryContract
 >()(
-  "t3/persistence/Services/ProjectionThreadProposedPlans/ProjectionThreadProposedPlanRepository",
+  "@rove-code/server/persistence/Services/ProjectionThreadProposedPlans/ProjectionThreadProposedPlanRepository",
 ) {}

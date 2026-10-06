@@ -11,11 +11,11 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { createModelSelection } from "@t3tools/shared/model";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { createModelSelection } from "@rove-code/shared/model";
 import { expect } from "vite-plus/test";
 
-import { CursorSettings, ProviderInstanceId } from "@t3tools/contracts";
+import { CursorSettings, ProviderInstanceId } from "@rove-code/contracts";
 
 import * as ServerConfig from "../config.ts";
 import * as TextGeneration from "./TextGeneration.ts";
@@ -87,8 +87,8 @@ it.layer(CursorTextGenerationTestLayer)("CursorTextGeneration", (it) => {
 
     return withFakeAcpAgent(
       {
-        T3_ACP_REQUEST_LOG_PATH: requestLogPath,
-        T3_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
+        ROVE_ACP_REQUEST_LOG_PATH: requestLogPath,
+        ROVE_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
           subject: "Add generated commit message",
           body: "- verify cursor acp model config path",
         }),
@@ -179,7 +179,7 @@ it.layer(CursorTextGenerationTestLayer)("CursorTextGeneration", (it) => {
   it.effect("accepts json objects with extra assistant text around them", () =>
     withFakeAcpAgent(
       {
-        T3_ACP_PROMPT_RESPONSE_TEXT:
+        ROVE_ACP_PROMPT_RESPONSE_TEXT:
           'Sure, here is the JSON:\n```json\n{\n  "subject": "Update README dummy comment with attribution and date",\n  "body": ""\n}\n```\nDone.',
       },
       (textGeneration) =>
@@ -204,7 +204,7 @@ it.layer(CursorTextGenerationTestLayer)("CursorTextGeneration", (it) => {
   it.effect("generates thread titles through Cursor ACP text generation", () =>
     withFakeAcpAgent(
       {
-        T3_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
+        ROVE_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
           title: '"Trim reconnect spinner status after resume."',
         }),
       },
@@ -236,8 +236,8 @@ it.layer(CursorTextGenerationTestLayer)("CursorTextGeneration", (it) => {
 
       return withFakeAcpAgent(
         {
-          T3_ACP_EXIT_LOG_PATH: exitLogPath,
-          T3_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
+          ROVE_ACP_EXIT_LOG_PATH: exitLogPath,
+          ROVE_ACP_PROMPT_RESPONSE_TEXT: JSON.stringify({
             subject: "Close runtime after generation",
             body: "",
           }),

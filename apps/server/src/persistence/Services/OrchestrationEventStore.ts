@@ -9,7 +9,7 @@
  *
  * @module OrchestrationEventStore
  */
-import { OrchestrationEvent } from "@t3tools/contracts";
+import { OrchestrationEvent } from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Stream from "effect/Stream";
@@ -109,4 +109,4 @@ export interface OrchestrationEventStoreContract {
 export class OrchestrationEventStore extends Context.Service<
   OrchestrationEventStore,
   OrchestrationEventStoreContract
->()("t3/persistence/Services/OrchestrationEventStore") {}
+>()("@rove-code/server/persistence/Services/OrchestrationEventStore") {}

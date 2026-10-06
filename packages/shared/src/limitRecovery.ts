@@ -4,7 +4,7 @@ import {
   type OrchestrationEvent,
   type OrchestrationThreadShell,
   type ThreadLimitRecovery,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 export function sameLimitRecoveryModel(left: ModelSelection, right: ModelSelection) {
   return left.instanceId === right.instanceId && left.model === right.model;
 }

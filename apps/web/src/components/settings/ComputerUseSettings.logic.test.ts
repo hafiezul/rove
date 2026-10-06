@@ -1,4 +1,4 @@
-import type { ComputerUseStatus } from "@t3tools/contracts";
+import type { ComputerUseStatus } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { describeDriver, primaryAction } from "./ComputerUseSettings.logic";

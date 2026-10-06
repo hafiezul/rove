@@ -4,10 +4,14 @@ import * as NodeOS from "node:os";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as NetService from "@t3tools/shared/Net";
-import { resolveGitWorktreePath, resolveWorktreeRoveHome } from "@t3tools/shared/devHome";
-import { HostProcessEnvironment, HostProcessWorkingDirectory } from "@t3tools/shared/hostProcess";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import * as NetService from "@rove-code/shared/Net";
+import { resolveGitWorktreePath, resolveWorktreeRoveHome } from "@rove-code/shared/devHome";
+import { HostProcessEnvironment, HostProcessWorkingDirectory } from "@rove-code/shared/hostProcess";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
+import {
+  LEGACY_SERVICE_LAUNCHER_CONTEXT_ENV,
+  LEGACY_BOOT_SERVICE_UNIT_ENV,
+} from "@rove-code/shared/roveMigration";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Hash from "effect/Hash";
@@ -67,22 +71,22 @@ export function isProxiableBindHost(host: string): boolean {
   );
 }
 
-export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
+export const DEFAULT_ROVE_HOME = Effect.map(Effect.service(Path.Path), (path) =>
   path.join(NodeOS.homedir(), ".rove-code"),
 );
 
 const MODE_ARGS = {
   dev: [
     "run",
-    "--filter=@t3tools/contracts",
-    "--filter=@t3tools/web",
-    "--filter=t3",
+    "--filter=@rove-code/contracts",
+    "--filter=@rove-code/web",
+    "--filter=@rove-code/server",
     "--parallel",
     "dev",
   ],
-  "dev:server": ["run", "--filter=t3", "dev"],
-  "dev:web": ["run", "--filter=@t3tools/web", "dev"],
-  "dev:desktop": ["run", "--filter=@t3tools/desktop", "--filter=@t3tools/web", "dev"],
+  "dev:server": ["run", "--filter=@rove-code/server", "dev"],
+  "dev:web": ["run", "--filter=@rove-code/web", "dev"],
+  "dev:desktop": ["run", "--filter=@rove-code/desktop", "--filter=@rove-code/web", "dev"],
 } as const satisfies Record<string, ReadonlyArray<string>>;
 
 type DevMode = keyof typeof MODE_ARGS;
@@ -276,7 +280,7 @@ function resolveBaseDir(baseDir: string | undefined): Effect.Effect<string, neve
       return path.resolve(configured);
     }
 
-    return yield* DEFAULT_T3_HOME;
+    return yield* DEFAULT_ROVE_HOME;
   });
 }
 
@@ -285,7 +289,7 @@ interface CreateDevRunnerEnvInput {
   readonly baseEnv: NodeJS.ProcessEnv;
   readonly serverOffset: number;
   readonly webOffset: number;
-  readonly t3Home: string | undefined;
+  readonly roveHome: string | undefined;
   readonly browser: boolean | undefined;
   readonly autoBootstrapProjectFromCwd: boolean | undefined;
   readonly logWebSocketEvents: boolean | undefined;
@@ -299,7 +303,7 @@ export function createDevRunnerEnv({
   baseEnv,
   serverOffset,
   webOffset,
-  t3Home,
+  roveHome,
   browser,
   autoBootstrapProjectFromCwd,
   logWebSocketEvents,
@@ -311,8 +315,8 @@ export function createDevRunnerEnv({
     const serverPort = port ?? BASE_SERVER_PORT + serverOffset;
     const webPort = BASE_WEB_PORT + webOffset;
     // Precedence (--home-dir > worktree .rove > ambient ROVE_HOME) is resolved
-    // by the caller; an unset t3Home here genuinely means "use the default".
-    const configuredBaseDir = t3Home?.trim() || undefined;
+    // by the caller; an unset roveHome here genuinely means "use the default".
+    const configuredBaseDir = roveHome?.trim() || undefined;
     const resolvedBaseDir = yield* resolveBaseDir(configuredBaseDir);
     const isDesktopMode = mode === "dev:desktop";
 
@@ -331,12 +335,14 @@ export function createDevRunnerEnv({
     }
 
     // A dev-runner server is never launcher-managed. When the shell that runs
-    // this script was itself spawned by the machine's managed t3 service (an
+    // this script was itself spawned by the machine's managed rove service (an
     // agent working inside Rove Code), these leak through and the child server
-    // fails startup with "The service launcher started a different t3 version"
+    // fails startup with "The service launcher started a different rove version"
     // (serviceLauncherClient.ts resolveStartup).
-    delete output.T3_SERVICE_LAUNCHER_CONTEXT;
-    delete output.T3_BOOT_SERVICE_UNIT;
+    delete output.ROVE_SERVICE_LAUNCHER_CONTEXT;
+    delete output.ROVE_BOOT_SERVICE_UNIT;
+    delete output[LEGACY_SERVICE_LAUNCHER_CONTEXT_ENV];
+    delete output[LEGACY_BOOT_SERVICE_UNIT_ENV];
 
     if (!isDesktopMode) {
       output.ROVE_PORT = String(serverPort);
@@ -609,7 +615,7 @@ export function resolveModePortOffsets<R = NetService.NetService>({
 
 interface DevRunnerCliInput {
   readonly mode: DevMode;
-  readonly t3Home: string | undefined;
+  readonly roveHome: string | undefined;
   readonly browser: boolean | undefined;
   readonly autoBootstrapProjectFromCwd: boolean | undefined;
   readonly logWebSocketEvents: boolean | undefined;
@@ -666,14 +672,14 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
 
     const hostEnvironment = yield* HostProcessEnvironment;
     // A dev server started inside a worktree defaults to that worktree's own
-    // (gitignored) `.rove` — see @t3tools/shared/devHome for why this must
+    // (gitignored) `.rove` — see @rove-code/shared/devHome for why this must
     // outrank an ambient ROVE_HOME. `--home-dir` still wins.
     const worktreeHome = yield* resolveWorktreeRoveHome(yield* HostProcessWorkingDirectory);
     // Trim before choosing: `--home-dir ""` is not a selection, and treating it
     // as one would skip the worktree default and land on the shared home —
     // exactly the outcome this precedence exists to prevent.
-    const resolvedT3Home =
-      (input.t3Home?.trim() || undefined) ??
+    const resolvedRoveHome =
+      (input.roveHome?.trim() || undefined) ??
       worktreeHome ??
       (hostEnvironment.ROVE_HOME?.trim() || undefined);
     const env = yield* createDevRunnerEnv({
@@ -681,7 +687,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
       baseEnv: hostEnvironment,
       serverOffset,
       webOffset,
-      t3Home: resolvedT3Home,
+      roveHome: resolvedRoveHome,
       browser: input.browser,
       autoBootstrapProjectFromCwd: input.autoBootstrapProjectFromCwd,
       logWebSocketEvents: input.logWebSocketEvents,
@@ -694,7 +700,7 @@ export function runDevRunnerWithInput(input: DevRunnerCliInput) {
       serverOffset !== offset || webOffset !== offset
         ? ` selectedOffset(server=${serverOffset},web=${webOffset})`
         : "";
-    const baseDir = env.ROVE_HOME ?? (yield* DEFAULT_T3_HOME);
+    const baseDir = env.ROVE_HOME ?? (yield* DEFAULT_ROVE_HOME);
 
     yield* Effect.logInfo(
       `[dev-runner] mode=${input.mode} source=${source}${selectionSuffix} serverPort=${String(env.ROVE_PORT)} webPort=${String(env.PORT)} baseDir=${baseDir}`,
@@ -846,7 +852,7 @@ const devRunnerCli = Command.make("dev-runner", {
   mode: Argument.Literals("mode", DEV_RUNNER_MODES).pipe(
     Argument.withDescription("Development mode to run."),
   ),
-  t3Home: Flag.String("home-dir").pipe(
+  roveHome: Flag.String("home-dir").pipe(
     Flag.withDescription(
       "Explicit Rove Code data directory; runtime state is stored under userdata (equivalent to ROVE_HOME). Inside a git worktree this defaults to that worktree's own .rove so dev state stays off the shared home.",
     ),

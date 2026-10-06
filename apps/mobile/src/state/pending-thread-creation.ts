@@ -1,6 +1,6 @@
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
-import type { OrchestrationThread } from "@t3tools/contracts";
-import { DEFAULT_PROVIDER_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "@t3tools/contracts";
+import type { EnvironmentThreadShell } from "@rove-code/client-runtime/state/shell";
+import type { OrchestrationThread } from "@rove-code/contracts";
+import { DEFAULT_PROVIDER_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "@rove-code/contracts";
 import { Atom } from "effect/unstable/reactivity";
 
 import { deriveThreadTitleFromPrompt } from "../lib/projectThreadStartTurn";

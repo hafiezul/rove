@@ -7,9 +7,9 @@ import {
   SourceControlProviderError,
   type ChangeRequest,
   type ChangeRequestState,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
-import { normalizeGitRemoteUrl } from "@t3tools/shared/git";
+import { normalizeGitRemoteUrl } from "@rove-code/shared/git";
 
 import * as GitHubCli from "./GitHubCli.ts";
 import { findAuthenticatedGitHubAccount, parseGitHubAuthStatus } from "./gitHubAuthStatus.ts";

@@ -5,9 +5,9 @@ import * as NodeURL from "node:url";
 /** Import restrictions every file keeps, including the one module exempt from the glyph rule. */
 const RESTRICTED_IMPORT_PATHS = [
   {
-    name: "@t3tools/client-runtime",
+    name: "@rove-code/client-runtime",
     message:
-      "Import from an explicit @t3tools/client-runtime/* subpath. The package has no root export.",
+      "Import from an explicit @rove-code/client-runtime/* subpath. The package has no root export.",
   },
   {
     name: "@pierre/diffs/react",
@@ -307,7 +307,7 @@ export default defineConfig({
         },
       },
       {
-        // The sign-in masthead is T3 brand artwork: fixed gradients, not theme surfaces.
+        // The sign-in masthead is Rove brand artwork: fixed gradients, not theme surfaces.
         files: ["apps/web/src/components/auth/AuthSurfaceShell.tsx"],
         rules: { "shadcn/no-arbitrary-values": "off" },
       },
@@ -348,8 +348,8 @@ export default defineConfig({
           "apps/mobile/src/features/threads/thread-list-items.tsx",
           "apps/mobile/src/features/threads/thread-list-v2-items.tsx",
           "apps/mobile/src/lib/useMobileNavigationTheme.ts",
-          "apps/mobile/src/native/T3ComposerEditor.ios.tsx",
-          "apps/mobile/src/native/T3ComposerEditor.native.tsx",
+          "apps/mobile/src/native/RoveComposerEditor.ios.tsx",
+          "apps/mobile/src/native/RoveComposerEditor.native.tsx",
           "apps/mobile/src/native/SelectableMarkdownText.android.tsx",
         ],
         rules: {

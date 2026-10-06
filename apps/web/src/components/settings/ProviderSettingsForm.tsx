@@ -9,7 +9,7 @@ import type {
   ProviderSettingsFormOption,
   ProviderSettingsFormSchemaAnnotation,
   ServerProviderModel,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 import { cn } from "../../lib/utils";
 import { DraftInput } from "../ui/draft-input";

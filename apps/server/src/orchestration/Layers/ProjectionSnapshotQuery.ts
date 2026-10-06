@@ -38,9 +38,9 @@ import {
   type ThreadPullRequestLink,
   DEFAULT_REPOSITORY_REMOTE_PREFERENCE,
   type RepositoryRemotePreference,
-} from "@t3tools/contracts";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
-import { legacyLinkedPullRequestOf } from "@t3tools/shared/threadPullRequests";
+} from "@rove-code/contracts";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
+import { legacyLinkedPullRequestOf } from "@rove-code/shared/threadPullRequests";
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

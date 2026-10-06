@@ -6,8 +6,8 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { expect, it } from "@effect/vitest";
-import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { EnvironmentId, ProviderInstanceId } from "@rove-code/contracts";
+import { HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";
 import * as Fiber from "effect/Fiber";
@@ -208,7 +208,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-driver-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-driver-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const sharedHome = NodePath.join(tempDir, "codex-home");
         const shadowHome = NodePath.join(tempDir, "codex-shadow");
@@ -285,7 +285,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-installer-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-installer-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const installPath = NodePath.join(tempDir, ...fixture.installSegments);
         const realBinaryPath = NodePath.join(
@@ -344,7 +344,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: `t3-codex-mise-${layout}-` })
+          .makeTempDirectoryScoped({ prefix: `rove-codex-mise-${layout}-` })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const binaryPath =
           layout === "direct"
@@ -421,7 +421,7 @@ it.layer(testLayer)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-mise-shim-" })
+          .makeTempDirectoryScoped({ prefix: "rove-codex-mise-shim-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         const brewPrefix = NodePath.join(tempDir, "homebrew");
         const brewPath = NodePath.join(brewPrefix, "bin", "brew");

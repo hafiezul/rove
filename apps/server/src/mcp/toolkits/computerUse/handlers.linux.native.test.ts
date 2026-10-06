@@ -5,8 +5,8 @@ import {
   ProviderInstanceId,
   ThreadId,
   type ServerSettings as SettingsValue,
-} from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

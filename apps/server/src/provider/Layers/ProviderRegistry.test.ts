@@ -29,13 +29,13 @@ import {
   type ServerProvider,
   type ServerProviderSlashCommand,
   type ServerSettings as ContractServerSettings,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as PlatformError from "effect/PlatformError";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcessSpawner } from "effect/unstable/process";
-import { deepMerge } from "@t3tools/shared/Struct";
-import { createModelCapabilities } from "@t3tools/shared/model";
-import { applyServerSettingsPatch } from "@t3tools/shared/serverSettings";
+import { deepMerge } from "@rove-code/shared/Struct";
+import { createModelCapabilities } from "@rove-code/shared/model";
+import { applyServerSettingsPatch } from "@rove-code/shared/serverSettings";
 
 import { checkCodexProviderStatus, type CodexAppServerProviderSnapshot } from "./CodexProvider.ts";
 import { checkClaudeProviderStatus } from "./ClaudeProvider.ts";
@@ -1485,7 +1485,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-background-refresh-",
+                  prefix: "rove-provider-registry-background-refresh-",
                 }),
               ),
               Layer.provideMerge(NodeServices.layer),
@@ -1604,7 +1604,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-workspace-snapshot-",
+                  prefix: "rove-provider-registry-workspace-snapshot-",
                 }),
               ),
               Layer.provideMerge(NodeServices.layer),
@@ -1800,7 +1800,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-reconnect-refresh-",
+                  prefix: "rove-provider-registry-reconnect-refresh-",
                 }),
               ),
               Layer.provideMerge(NodeServices.layer),
@@ -1926,7 +1926,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-merged-persist-",
+                  prefix: "rove-provider-registry-merged-persist-",
                 }),
               ),
               Layer.provideMerge(BackgroundPolicyAlwaysRunLayer),
@@ -2054,7 +2054,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
                 Layer.provideMerge(instanceRegistryLayer),
                 Layer.provideMerge(
                   ServerConfig.layerTest(process.cwd(), {
-                    prefix: "t3-provider-registry-opencode-authoritative-persist-",
+                    prefix: "rove-provider-registry-opencode-authoritative-persist-",
                   }),
                 ),
                 Layer.provideMerge(NodeServices.layer),
@@ -2157,7 +2157,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-refresh-failure-",
+                  prefix: "rove-provider-registry-refresh-failure-",
                 }),
               ),
               Layer.provideMerge(BackgroundPolicyAlwaysRunLayer),
@@ -2273,7 +2273,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               Layer.provideMerge(instanceRegistryLayer),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-sync-failure-",
+                  prefix: "rove-provider-registry-sync-failure-",
                 }),
               ),
               Layer.provideMerge(BackgroundPolicyAlwaysRunLayer),
@@ -2373,7 +2373,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
             ),
             Layer.provideMerge(
               ServerConfig.layerTest(process.cwd(), {
-                prefix: "t3-provider-registry-",
+                prefix: "rove-provider-registry-",
               }),
             ),
             Layer.provideMerge(TestHttpClientLive),
@@ -2472,7 +2472,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
             ),
             Layer.provideMerge(
               ServerConfig.layerTest(process.cwd(), {
-                prefix: "t3-provider-registry-",
+                prefix: "rove-provider-registry-",
               }),
             ),
             Layer.provideMerge(TestHttpClientLive),
@@ -2592,7 +2592,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
             ),
             Layer.provideMerge(
               ServerConfig.layerTest(process.cwd(), {
-                prefix: "t3-provider-registry-",
+                prefix: "rove-provider-registry-",
               }),
             ),
             Layer.provideMerge(TestHttpClientLive),
@@ -2654,7 +2654,7 @@ it.layer(Layer.mergeAll(TestNodeServices, ServerSettingsModule.layerTest(), Test
               ),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
-                  prefix: "t3-provider-registry-",
+                  prefix: "rove-provider-registry-",
                 }),
               ),
               Layer.provideMerge(TestHttpClientLive),

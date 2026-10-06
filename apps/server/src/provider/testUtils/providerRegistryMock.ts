@@ -1,5 +1,5 @@
 import { ProviderRegistry, type ProviderRegistryContract } from "../Services/ProviderRegistry.ts";
-import { PiCatalogError, type ServerProvider } from "@t3tools/contracts";
+import { PiCatalogError, type ServerProvider } from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";

@@ -1,19 +1,22 @@
-import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
+import { threadPullRequestSearchTerms } from "@rove-code/shared/threadPullRequests";
 import * as React from "react";
 import { defaultAnimateLayoutChanges, type AnimateLayoutChanges } from "@dnd-kit/sortable";
 import {
   isAtomCommandInterrupted,
   type AtomCommandResult,
-} from "@t3tools/client-runtime/state/runtime";
-import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
-import type { ContextMenuItem, EnvironmentId, ThreadId } from "@t3tools/contracts";
-import type { SidebarProjectSortOrder, SidebarThreadSortOrder } from "@t3tools/contracts/settings";
+} from "@rove-code/client-runtime/state/runtime";
+import { threadSearchMatchKey } from "@rove-code/client-runtime/state/thread-search";
+import type { ContextMenuItem, EnvironmentId, ThreadId } from "@rove-code/contracts";
+import type {
+  SidebarProjectSortOrder,
+  SidebarThreadSortOrder,
+} from "@rove-code/contracts/settings";
 import type { AsyncResult } from "effect/unstable/reactivity";
-import { planPinnedReorder } from "@t3tools/client-runtime/state/thread-sort";
+import { planPinnedReorder } from "@rove-code/client-runtime/state/thread-sort";
 import {
   effectiveSnoozed,
   type ThreadSnoozeShell,
-} from "@t3tools/client-runtime/state/thread-settled";
+} from "@rove-code/client-runtime/state/thread-settled";
 import {
   getThreadSortTimestamp,
   sortThreads,
@@ -21,7 +24,7 @@ import {
   type ThreadSortInput,
 } from "../lib/threadSort";
 import type { SidebarThreadSummary, Thread } from "../types";
-import { scheduledLimitResumeAt } from "@t3tools/shared/limitRecovery";
+import { scheduledLimitResumeAt } from "@rove-code/shared/limitRecovery";
 import { cn } from "../lib/utils";
 import { isLatestTurnSettled } from "../session-logic";
 
@@ -883,12 +886,12 @@ function firstValidTimestamp(
   return null;
 }
 
-export { sortActiveThreadsByOrderKey as sortThreadsForSidebar } from "@t3tools/client-runtime/state/thread-sort";
+export { sortActiveThreadsByOrderKey as sortThreadsForSidebar } from "@rove-code/client-runtime/state/thread-sort";
 
 // Pinned-reorder key math and the keyed sort live in client-runtime
 // (state/thread-sort) so web and mobile compute identical pinned orders.
-export { pinOrderKeyBetween, planPinnedReorder } from "@t3tools/client-runtime/state/thread-sort";
-export { sortPinnedThreadsByOrderKey as sortPinnedThreadsForSidebar } from "@t3tools/client-runtime/state/thread-sort";
+export { pinOrderKeyBetween, planPinnedReorder } from "@rove-code/client-runtime/state/thread-sort";
+export { sortPinnedThreadsByOrderKey as sortPinnedThreadsForSidebar } from "@rove-code/client-runtime/state/thread-sort";
 
 const EMPTY_CONTENT_MATCH_KEYS: ReadonlySet<string> = new Set<string>();
 

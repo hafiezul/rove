@@ -5,11 +5,11 @@ import {
   type ThreadId,
   type ToolActivitySource,
   type ToolLifecycleItemType,
-} from "@t3tools/contracts";
-import { classifyMarkdownImageSource } from "@t3tools/client-runtime/markdown-images";
-import { resolveMediaSource } from "@t3tools/client-runtime/media-source";
-import { parseChangeRequestUrl } from "@t3tools/shared/changeRequestUrl";
-import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
+} from "@rove-code/contracts";
+import { classifyMarkdownImageSource } from "@rove-code/client-runtime/markdown-images";
+import { resolveMediaSource } from "@rove-code/client-runtime/media-source";
+import { parseChangeRequestUrl } from "@rove-code/shared/changeRequestUrl";
+import { isWorkspaceImagePreviewPath } from "@rove-code/shared/filePreview";
 
 /**
  * Activities the worktree setup card already represents. The settled record
@@ -87,14 +87,14 @@ const ROVE_MCP_TOOL_LABELS: Record<
   update_scheduled_task: ["Update", "Updating", "Updated", "a scheduled task"],
   delete_scheduled_task: ["Delete", "Deleting", "Deleted", "a scheduled task"],
   create_threads: ["Create", "Creating", "Created", "Rove threads"],
-  t3_thread_start: ["Start", "Starting", "Started", "a Rove thread"],
-  t3_thread_list: ["List", "Listing", "Listed", "Rove threads"],
-  t3_thread_read: ["Read", "Reading", "Read", "a Rove thread"],
-  t3_thread_send: ["Send", "Sending", "Sent", "to a Rove thread"],
-  t3_thread_wait: ["Wait", "Waiting", "Waited", "for a Rove thread"],
-  t3_thread_interrupt: ["Interrupt", "Interrupting", "Interrupted", "a Rove thread"],
-  t3_worktree_handoff: ["Hand off", "Handing off", "Handed off", "thread to a git worktree"],
-  t3_worktree_status: ["Get", "Getting", "Got", "thread worktree status"],
+  rove_thread_start: ["Start", "Starting", "Started", "a Rove thread"],
+  rove_thread_list: ["List", "Listing", "Listed", "Rove threads"],
+  rove_thread_read: ["Read", "Reading", "Read", "a Rove thread"],
+  rove_thread_send: ["Send", "Sending", "Sent", "to a Rove thread"],
+  rove_thread_wait: ["Wait", "Waiting", "Waited", "for a Rove thread"],
+  rove_thread_interrupt: ["Interrupt", "Interrupting", "Interrupted", "a Rove thread"],
+  rove_worktree_handoff: ["Hand off", "Handing off", "Handed off", "thread to a git worktree"],
+  rove_worktree_status: ["Get", "Getting", "Got", "thread worktree status"],
   preview_status: ["Get", "Getting", "Got", "preview browser status"],
   preview_open: ["Open", "Opening", "Opened", "a page in the preview browser"],
   preview_navigate: ["Navigate", "Navigating", "Navigated", "the preview browser"],
@@ -138,7 +138,7 @@ function resolveRoveMcpToolPresentation(
 ) {
   if (!value) return null;
   const name = normalizeCompactToolLabel(value).replace(
-    /^(?:mcp__(?:rove|t3-code|t3_code|t3code)__|(?:rove|t3-code|t3_code|t3code)(?:[.:/]|\s*·\s*))/i,
+    /^(?:mcp__(?:rove|rove-code|rove_code|t3code)__|(?:rove|rove-code|rove_code|t3code)(?:[.:/]|\s*·\s*))/i,
     "",
   );
   if (!Object.hasOwn(ROVE_MCP_TOOL_LABELS, name)) return null;

@@ -41,7 +41,7 @@ let version: string;
 const send = (socket: NodeNet.Socket, value: unknown) => socket.write(`${JSON.stringify(value)}\n`);
 
 beforeEach(async () => {
-  directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-niri-test-"));
+  directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "rove-niri-test-"));
   socketPath = NodePath.join(directory, "ipc");
   sockets = new Set();
   events = [];
@@ -109,11 +109,11 @@ afterEach(async () => {
 });
 
 it("selects the native adapter without needing a portal or GNOME extension", async () => {
-  expect(await getLinuxCaptureSupport("com.t3tools.T3Code")).toEqual({
+  expect(await getLinuxCaptureSupport("com.hafiezulzikry.rove.RoveCode")).toEqual({
     linuxBackend: "niri",
     linuxFeedbackAvailable: false,
   });
-  const snapshot = await captureLinuxWindow("com.t3tools.T3Code");
+  const snapshot = await captureLinuxWindow("com.hafiezulzikry.rove.RoveCode");
   expect(snapshot?.png).toEqual(png);
   expect(snapshot?.window).toMatchObject({
     processId: 123,
@@ -129,19 +129,19 @@ it("selects the native adapter without needing a portal or GNOME extension", asy
   expect(await NodeFSP.stat(NodePath.dirname(capturePath!)).catch(() => undefined)).toBeUndefined();
 });
 
-it("does not activate T3 until requested, then matches PID and title", async () => {
+it("does not activate Rove until requested, then matches PID and title", async () => {
   const snapshot = await captureNiriWindow(socketPath);
   expect(calls.some((call) => typeof call !== "string" && call.Action.FocusWindow)).toBe(false);
   windows = [
     { ...window, id: 1, pid: 999, title: "Rove Code" },
-    { ...window, id: 2, pid: process.pid, title: "Other T3" },
+    { ...window, id: 2, pid: process.pid, title: "Other Rove" },
     { ...window, id: 3, pid: process.pid, title: "Rove Code" },
   ];
   await snapshot.feedback!.activate("Rove Code");
   expect(calls).toContainEqual({ Action: { FocusWindow: { id: 3 } } });
 });
 
-it("waits for the restored T3 window to map instead of polling", async () => {
+it("waits for the restored Rove window to map instead of polling", async () => {
   const snapshot = await captureNiriWindow(socketPath);
   const original = handler;
   handler = async (request, socket) => {
@@ -199,7 +199,9 @@ it("rejects compositor errors and cleans up its temporary image", async () => {
       send(socket, { Err: "window disappeared" });
     } else await original(request, socket);
   };
-  await expect(captureLinuxWindow("com.t3tools.T3Code")).rejects.toThrow("window disappeared");
+  await expect(captureLinuxWindow("com.hafiezulzikry.rove.RoveCode")).rejects.toThrow(
+    "window disappeared",
+  );
   expect(await NodeFSP.stat(NodePath.dirname(capturePath!)).catch(() => undefined)).toBeUndefined();
 });
 

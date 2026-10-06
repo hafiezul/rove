@@ -15,14 +15,14 @@ import {
   type ThreadPullRequestKey,
   type ThreadPullRequestLink,
   type OrchestrationThreadActivity,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   legacyLinkedPullRequestOf,
   legacyThreadPullRequestKey,
   normalizeThreadPullRequestKey,
   threadPullRequestKeysEqual,
-} from "@t3tools/shared/threadPullRequests";
-import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
+} from "@rove-code/shared/threadPullRequests";
+import { compareDateTimeStrings } from "@rove-code/shared/dateTime";
 import * as DateTime from "effect/DateTime";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -48,7 +48,7 @@ import {
 } from "./commandInvariants.ts";
 import { projectEvent } from "./projector.ts";
 import { threadHasQueuedTurnStart } from "./ThreadSettlementPolicy.ts";
-import { currentLimitRecovery, sameLimitRecoveryModel } from "@t3tools/shared/limitRecovery";
+import { currentLimitRecovery, sameLimitRecoveryModel } from "@rove-code/shared/limitRecovery";
 
 const monogramSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 

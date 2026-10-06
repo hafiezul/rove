@@ -1,4 +1,4 @@
-import type { WorktreeInventoryEntry } from "@t3tools/contracts";
+import type { WorktreeInventoryEntry } from "@rove-code/contracts";
 
 export function filterWorktrees(worktrees: readonly WorktreeInventoryEntry[], query: string) {
   const search = query.trim().toLocaleLowerCase();

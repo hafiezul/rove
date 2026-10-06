@@ -5,13 +5,13 @@ import type {
   SourceControlProviderDiscoveryItem,
   SourceControlProviderInfo,
   SourceControlProviderKind,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import {
   detectSourceControlProviderFromRemoteUrl,
   isSshRemoteUrl,
-} from "@t3tools/shared/sourceControl";
+} from "@rove-code/shared/sourceControl";
 
 import type * as SourceControlProvider from "./SourceControlProvider.ts";
 import type * as VcsProcess from "../vcs/VcsProcess.ts";

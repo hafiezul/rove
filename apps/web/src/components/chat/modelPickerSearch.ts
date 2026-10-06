@@ -1,4 +1,4 @@
-import { normalizeSearchQuery, scoreQueryMatch } from "@t3tools/shared/searchRanking";
+import { normalizeSearchQuery, scoreQueryMatch } from "@rove-code/shared/searchRanking";
 import * as RuntimePredicate from "effect/Predicate";
 
 type ModelPickerSearchableModel = {

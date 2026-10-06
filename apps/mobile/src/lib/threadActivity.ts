@@ -1,15 +1,15 @@
 import * as Option from "effect/Option";
-import { foldUserInputActivities } from "@t3tools/client-runtime/work-log/user-input";
+import { foldUserInputActivities } from "@rove-code/client-runtime/work-log/user-input";
 import * as Schema from "effect/Schema";
 import {
   requestKindFromRequestType,
   type PendingApproval,
-} from "@t3tools/client-runtime/pending-requests";
+} from "@rove-code/client-runtime/pending-requests";
 import {
   PI_EXTENSION_STATUS_ACTIVITY_KIND,
   UserInputAttachmentAnswerPayload,
   isToolLifecycleItemType,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import type {
   OrchestrationLatestTurn,
   OrchestrationThread,
@@ -17,8 +17,8 @@ import type {
   ToolLifecycleItemType,
   TurnId,
   UserInputQuestion,
-} from "@t3tools/contracts";
-import { formatDuration } from "@t3tools/shared/orchestrationTiming";
+} from "@rove-code/contracts";
+import { formatDuration } from "@rove-code/shared/orchestrationTiming";
 import {
   commandDetailRepeatsCommand,
   extractCommandOutputText,
@@ -36,14 +36,14 @@ import {
   workLogEntryIsToolLike,
   type ToolGroupSummaryKind,
   type WorkLogToolLifecycleStatus,
-} from "@t3tools/client-runtime/work-log/presentation";
-import { extractToolActivityPresentation } from "@t3tools/client-runtime/work-log/tool-presentation";
-import { commandProgramName } from "@t3tools/client-runtime/work-log/command-label";
+} from "@rove-code/client-runtime/work-log/presentation";
+import { extractToolActivityPresentation } from "@rove-code/client-runtime/work-log/tool-presentation";
+import { commandProgramName } from "@rove-code/client-runtime/work-log/command-label";
 
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
 
-export type { PendingApproval, PendingUserInput } from "@t3tools/client-runtime/pending-requests";
+export type { PendingApproval, PendingUserInput } from "@rove-code/client-runtime/pending-requests";
 
 export interface PendingUserInputDraftAnswer {
   readonly selectedOptionValues?: ReadonlyArray<string>;
@@ -98,9 +98,9 @@ export interface WorkLogEntry {
   changedFiles?: ReadonlyArray<string>;
   tone: "thinking" | "tool" | "info" | "error";
   toolTitle?: string;
-  toolSurface?: import("@t3tools/contracts").ToolActivitySurface;
-  toolIcon?: import("@t3tools/contracts").ToolActivityIcon;
-  toolSource?: import("@t3tools/contracts").ToolActivitySource;
+  toolSurface?: import("@rove-code/contracts").ToolActivitySurface;
+  toolIcon?: import("@rove-code/contracts").ToolActivityIcon;
+  toolSource?: import("@rove-code/contracts").ToolActivitySource;
   itemType?: ToolLifecycleItemType;
   requestKind?: PendingApproval["requestKind"];
   toolLifecycleStatus?: WorkLogToolLifecycleStatus;

@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { ORCHESTRATION_PROTOCOL_VERSION } from "@t3tools/contracts";
+import { ORCHESTRATION_PROTOCOL_VERSION } from "@rove-code/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";
@@ -9,15 +9,15 @@ import * as Layer from "effect/Layer";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import { DEFAULT_SIGNAL_EXPORT } from "@rove-code/shared/observability";
+import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
 import packageJson from "../../package.json" with { type: "json" };
 import {
   SERVICE_LAUNCHER_CONTEXT_ENV,
   SERVICE_LAUNCHER_PROTOCOL,
 } from "../cloud/serviceProtocol.ts";
 import { ServiceLauncherHostProcess } from "../cloud/serviceLauncherClient.ts";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import {
@@ -95,7 +95,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
       const fileSystem = yield* FileSystem.FileSystem;
       const crypto = yield* Crypto.Crypto;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-server-environment-concurrent-test-",
+        prefix: "rove-server-environment-concurrent-test-",
       });
       const serverConfig = yield* makeServerConfig(baseDir);
       yield* fileSystem.makeDirectory(serverConfig.stateDir, { recursive: true });
@@ -161,7 +161,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-server-environment-test-",
+        prefix: "rove-server-environment-test-",
       });
 
       const first = yield* Effect.gen(function* () {
@@ -194,7 +194,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-server-environment-publish-test-",
+        prefix: "rove-server-environment-publish-test-",
       });
       const testLayer = Layer.mergeAll(
         ServerEnvironment.layer.pipe(Layer.provide(ServerSecretStore.layer)),
@@ -240,7 +240,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-server-environment-desktop-update-test-",
+        prefix: "rove-server-environment-desktop-update-test-",
       });
       const serverConfig = yield* makeServerConfig(baseDir);
       yield* fileSystem.makeDirectory(serverConfig.stateDir, { recursive: true });
@@ -300,7 +300,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-server-environment-error-test-",
+        prefix: "rove-server-environment-error-test-",
       });
       const serverConfig = yield* makeServerConfig(baseDir);
       const environmentIdPath = serverConfig.environmentIdPath;

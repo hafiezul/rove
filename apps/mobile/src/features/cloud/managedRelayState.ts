@@ -4,13 +4,13 @@ import {
   deregisterManagedRelayEnvironment,
   managedRelaySessionAtom,
   readManagedRelaySnapshotState,
-} from "@t3tools/client-runtime/relay";
+} from "@rove-code/client-runtime/relay";
 import {
   createAtomCommandScheduler,
   createRuntimeCommand,
-} from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId } from "@t3tools/contracts";
-import type { RelayClientEnvironmentRecord } from "@t3tools/contracts/relay";
+} from "@rove-code/client-runtime/state/runtime";
+import type { EnvironmentId } from "@rove-code/contracts";
+import type { RelayClientEnvironmentRecord } from "@rove-code/contracts/relay";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
 import { useCallback, useEffect } from "react";
 
@@ -55,7 +55,7 @@ export function useManagedRelayEnvironments() {
   const snapshot = readManagedRelaySnapshotState(result);
   useEffect(() => {
     if (snapshot.error) {
-      console.error("[t3-cloud] Relay environment listing failed", {
+      console.error("[rove-cloud] Relay environment listing failed", {
         message: snapshot.error,
         traceId: snapshot.errorTraceId,
       });

@@ -2,9 +2,9 @@ import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Schema from "effect/Schema";
-import { PiSettings } from "@t3tools/contracts";
+import { PiSettings } from "@rove-code/contracts";
 
-import type { ModelSelection } from "@t3tools/contracts";
+import type { ModelSelection } from "@rove-code/contracts";
 import type { PiSessionLike } from "../provider/Layers/PiAdapter.ts";
 import type * as TextGeneration from "./TextGeneration.ts";
 import { makePiTextGeneration, type PiTextGenerationOptions } from "./PiTextGeneration.ts";

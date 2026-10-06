@@ -18,8 +18,8 @@ import type {
   PullRequestReviewCapabilities,
   PullRequestReviewerCapabilities,
   SourceControlProviderKind,
-} from "@t3tools/contracts";
-import { PullRequestOperationError } from "@t3tools/contracts";
+} from "@rove-code/contracts";
+import { PullRequestOperationError } from "@rove-code/contracts";
 
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import * as ServerSettings from "../serverSettings.ts";

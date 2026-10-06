@@ -1,0 +1,17 @@
+{
+  "name": "@rove-code/mobile-terminal-native",
+  "version": "0.0.0",
+  "private": true,
+  "expo-module": {
+    "ios": {
+      "modules": [
+        "RoveTerminalModule"
+      ]
+    },
+    "android": {
+      "modules": [
+        "expo.modules.roveterminal.RoveTerminalModule"
+      ]
+    }
+  }
+}

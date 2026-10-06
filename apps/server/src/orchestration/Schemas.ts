@@ -31,7 +31,7 @@ import {
   ThreadApprovalResponseRequestedPayload as ContractsThreadApprovalResponseRequestedPayloadSchema,
   ThreadCheckpointRevertRequestedPayload as ContractsThreadCheckpointRevertRequestedPayloadSchema,
   ThreadSessionStopRequestedPayload as ContractsThreadSessionStopRequestedPayloadSchema,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 // Server-internal alias surface, backed by contract schemas as the source of truth.
 export const ProjectCreatedPayload = ContractsProjectCreatedPayloadSchema;

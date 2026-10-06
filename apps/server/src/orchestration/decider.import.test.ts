@@ -7,7 +7,7 @@ import {
   ProjectId,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 

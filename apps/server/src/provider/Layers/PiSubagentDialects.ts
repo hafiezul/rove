@@ -29,7 +29,7 @@ import {
   type TaskProgressPayload,
   type TaskStartedPayload,
   type TaskUpdatedPayload,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 

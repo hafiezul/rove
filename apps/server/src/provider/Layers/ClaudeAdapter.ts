@@ -25,8 +25,8 @@ import {
   type SDKUserMessage,
   type ModelUsage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { parseCliArgs } from "@t3tools/shared/cliArgs";
-import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
+import { parseCliArgs } from "@rove-code/shared/cliArgs";
+import { isWorkspaceImagePreviewPath } from "@rove-code/shared/filePreview";
 import { type ClaudeScopedLimitNames, claudeRateLimitEventToUpdate } from "./claudeUsageLimits.ts";
 import {
   ApprovalRequestId,
@@ -58,19 +58,19 @@ import {
   ThreadId,
   TurnId,
   type UserInputQuestion,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   applyClaudePromptEffortPrefix,
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
   getProviderOptionDescriptors,
   resolvePromptInjectedEffort,
-} from "@t3tools/shared/model";
+} from "@rove-code/shared/model";
 import {
   CLAUDE_RESUME_COMPACTION_NEVER_ANSWER,
   formatClaudeResumeCompactionQuestion,
-} from "@t3tools/shared/claudeCompaction";
-import { HostProcessIsExecutable } from "@t3tools/shared/hostProcess";
+} from "@rove-code/shared/claudeCompaction";
+import { HostProcessIsExecutable } from "@rove-code/shared/hostProcess";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -180,7 +180,7 @@ const conversationIndexForUuid = (
 // Native forks rewrite every UUID. getSessionMessages then rebuilds the
 // parentUuid chain, so system notices and compact metadata can change the
 // raw length without dropping retained user/assistant turns. Align those
-// conversation messages from the truncated end, then remap T3 turn starts.
+// conversation messages from the truncated end, then remap Rove turn starts.
 const remapClaudeForkTurnBoundaries = (
   messages: ReadonlyArray<ClaudeHistoryMessage>,
   forkMessages: ReadonlyArray<ClaudeHistoryMessage>,
@@ -3871,7 +3871,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         // by a different model.
         yield* emitRuntimeWarning(context, message.content, message);
         return;
-      // Inner protocol/UX details with no T3 surface today — consumed
+      // Inner protocol/UX details with no Rove surface today — consumed
       // deliberately so they don't masquerade as unknown-subtype warnings.
       // `background_tasks_changed` is a roster snapshot ({tasks: [...]}); the
       // task_* lifecycle events carry the authoritative per-agent data and
@@ -4084,7 +4084,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     yield* logNativeSdkMessage(context, message);
     yield* ensureThreadId(context, message);
 
-    // Wire-only command bookkeeping has no user-facing T3 lifecycle.
+    // Wire-only command bookkeeping has no user-facing Rove lifecycle.
     if (sdkMessageType(message) === "command_lifecycle") {
       return;
     }
@@ -4111,9 +4111,9 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       case "rate_limit_event":
         yield* handleSdkTelemetryMessage(context, message);
         return;
-      // Composer prompt suggestions have no T3 surface; consumed deliberately.
+      // Composer prompt suggestions have no Rove surface; consumed deliberately.
       // `conversation_reset` announces a CLI-side conversation id swap
-      // (e.g. /clear); T3 keeps its own thread identity and resume cursor.
+      // (e.g. /clear); Rove keeps its own thread identity and resume cursor.
       case "prompt_suggestion":
       case "conversation_reset":
         return;
@@ -4538,7 +4538,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
           return { behavior: "cancelled" as const };
         }
 
-        // The question copy lives in @t3tools/shared/claudeCompaction because
+        // The question copy lives in @rove-code/shared/claudeCompaction because
         // the web client recognizes this exact text (and the "never" answer)
         // to mirror a permanent dismissal.
         const question = formatClaudeResumeCompactionQuestion({
@@ -4811,7 +4811,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         auto: "auto",
         "full-access": "bypassPermissions",
       };
-      // A permission launch arg is folded into the mode T3 sends rather than
+      // A permission launch arg is folded into the mode Rove sends rather than
       // passed through: the CLI resolves both inputs together, so argv order
       // never let the user's flag win.
       const permissionMode =
@@ -5342,7 +5342,7 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       }
       const boundaries = [...context.turnStartMessageIds];
       // Older cursors did not record native boundaries. Infer them only when
-      // their T3 turn count agrees; steers must never be treated as extra turns.
+      // their Rove turn count agrees; steers must never be treated as extra turns.
       if (
         boundaries.every((id): boolean => id === null) &&
         boundaries.length === turnStarts.length

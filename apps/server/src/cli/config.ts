@@ -1,12 +1,12 @@
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@rove-code/shared/Net";
 import {
   OtlpHeadersFromString,
   OtlpProtocol,
   type SignalExport,
-} from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
-import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
-import { DesktopBackendBootstrap, PortSchema } from "@t3tools/contracts";
+} from "@rove-code/shared/observability";
+import * as OtelEnvironment from "@rove-code/shared/otelEnvironment";
+import { parsePersistedServerObservabilitySettings } from "@rove-code/shared/serverSettings";
+import { DesktopBackendBootstrap, PortSchema } from "@rove-code/contracts";
 import * as Config from "effect/Config";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -132,7 +132,7 @@ const EnvServerConfig = Config.all({
   ),
   port: Config.Port("ROVE_PORT").pipe(Config.option, Config.map(Option.getOrUndefined)),
   host: Config.String("ROVE_HOST").pipe(Config.option, Config.map(Option.getOrUndefined)),
-  t3Home: Config.String("ROVE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  roveHome: Config.String("ROVE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devUrl: Config.URL("VITE_DEV_SERVER_URL").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devAllowedOrigins: Config.String("ROVE_DEV_ALLOWED_ORIGINS").pipe(
     Config.withDefault(""),
@@ -302,11 +302,11 @@ export const resolveServerConfig = (
     );
     const explicitBaseDir = resolveOptionPrecedence(
       normalizedFlags.baseDir,
-      Option.fromUndefinedOr(env.t3Home),
+      Option.fromUndefinedOr(env.roveHome),
     ).pipe(Option.filter((value) => value.trim().length > 0));
     const baseDir = yield* resolveBaseDir(
       Option.getOrUndefined(
-        resolveOptionPrecedence(explicitBaseDir, Option.fromUndefinedOr(bootstrap?.t3Home)),
+        resolveOptionPrecedence(explicitBaseDir, Option.fromUndefinedOr(bootstrap?.roveHome)),
       ),
     );
     const savedLaunch =

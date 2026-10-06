@@ -31,7 +31,7 @@ export class NodeRuntimeUnavailableError extends Schema.TaggedError<NodeRuntimeU
   }
 }
 
-/** A standalone T3 binary runs its embedded CLI, regardless of script arguments. */
+/** A standalone Rove binary runs its embedded CLI, regardless of script arguments. */
 export const resolveNodeExecutable = Effect.fn("nodeRuntime.resolveNodeExecutable")(function* (
   feature: typeof NodeRuntimeFeature.Type,
   environment?: NodeJS.ProcessEnv,

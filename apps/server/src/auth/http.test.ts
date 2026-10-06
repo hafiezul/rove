@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { EnvironmentHttpApi } from "@t3tools/contracts";
+import { EnvironmentHttpApi } from "@rove-code/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
@@ -34,7 +34,7 @@ const configLayer = Layer.effect(
       devAuthToken: Redacted.make(DEV_TOKEN),
     } satisfies ServerConfig.ServerConfig["Service"];
   }),
-).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-auth-http-test-" })));
+).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "rove-auth-http-test-" })));
 
 const environmentAuthLayer = EnvironmentAuth.layer.pipe(
   Layer.provide(SqlitePersistenceMemory),
@@ -93,11 +93,11 @@ it.effect("sets the selected browser session cookies through the HTTP route", ()
           );
           expect(devResponse.status).toBe(200);
           const devCookies = devResponse.headers.getSetCookie();
-          const devCookie = devCookies.find((cookie) => cookie.startsWith("t3_dev_session_"));
+          const devCookie = devCookies.find((cookie) => cookie.startsWith("rove_dev_session_"));
           expect(devCookie).toContain("HttpOnly");
           expect(devCookie).toContain(`=${DEV_TOKEN};`);
           expect(devCookies).toContainEqual(
-            expect.stringMatching(/^t3_session_[^=]*=;.*Max-Age=0/),
+            expect.stringMatching(/^rove_session_[^=]*=;.*Max-Age=0/),
           );
           const devCookieHeader = devCookie?.split(";", 1)[0] ?? "";
           const environmentBSession = await environmentB.handler(
@@ -126,8 +126,8 @@ it.effect("sets the selected browser session cookies through the HTTP route", ()
           expect(restrictedResponse.status).toBe(200);
           const restrictedCookies = restrictedResponse.headers.getSetCookie();
           expect(restrictedCookies).toHaveLength(1);
-          expect(restrictedCookies[0]).toMatch(/^t3_session_/);
-          expect(restrictedCookies[0]).not.toContain("t3_dev_session_");
+          expect(restrictedCookies[0]).toMatch(/^rove_session_/);
+          expect(restrictedCookies[0]).not.toContain("rove_dev_session_");
         }),
       ([environmentA, environmentB]) =>
         Effect.promise(() => Promise.all([environmentA.dispose(), environmentB.dispose()])),

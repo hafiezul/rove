@@ -12,4 +12,4 @@ export interface ProviderSessionReaperContract {
 export class ProviderSessionReaper extends Context.Service<
   ProviderSessionReaper,
   ProviderSessionReaperContract
->()("t3/provider/Services/ProviderSessionReaper") {}
+>()("@rove-code/server/provider/Services/ProviderSessionReaper") {}

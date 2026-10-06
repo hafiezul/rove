@@ -6,7 +6,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 import * as Schema from "effect/Schema";
-import type { DesktopCaptureHelperState } from "@t3tools/contracts";
+import type { DesktopCaptureHelperState } from "@rove-code/contracts";
 
 import { escapeDesktopEntryExecArgument } from "../app/DesktopLinuxUrlHandler.ts";
 import type { LinuxWindowSnapshot } from "./LinuxSnapShot.ts";
@@ -14,9 +14,11 @@ import { readPortalPng } from "./linuxCaptureSession.ts";
 import { startNativeCaptureFeedback } from "./NativeCaptureFeedback.ts";
 export { isKdeCaptureSession } from "./linuxCaptureSession.ts";
 
-export const KDE_CAPTURE_EXECUTABLE = "t3-kde-snap-shot";
+export const KDE_CAPTURE_EXECUTABLE = "rove-kde-snap-shot";
 const DESKTOP_FILE = "io.github.hafiezul.rove.KdeCapture.desktop";
-const MARKER = "X-T3Code-Capture-Helper=true";
+import { CAPTURE_HELPER_READ_MARKERS } from "@rove-code/shared/roveMigration";
+
+const MARKER = "X-RoveCode-Capture-Helper=true";
 const decodeCapabilities = Schema.decodeUnknownSync(
   Schema.fromJsonString(Schema.Struct({ feedbackAvailable: Schema.optional(Schema.Boolean) })),
 );
@@ -140,7 +142,10 @@ export class KdeCaptureSetup {
   async perform(action: "install-kde-helper" | "remove-kde-helper") {
     const { executable, desktop } = kdeCapturePaths(this.paths);
     const entry = await regularFile(desktop);
-    if (entry && !entry.toString().split("\n").includes(MARKER))
+    if (
+      entry &&
+      !CAPTURE_HELPER_READ_MARKERS.some((marker) => entry.toString().split("\n").includes(marker))
+    )
       throw new Error(
         "Another desktop entry uses the capture helper's name. Rename it before continuing.",
       );
@@ -222,7 +227,7 @@ export async function captureKdeWindow(
   if (state.status !== "ready")
     throw new Error(`${state.message} Open Settings → SnapShots to continue setup.`);
   const { executable } = kdeCapturePaths(paths);
-  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-kde-capture-"));
+  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "rove-kde-capture-"));
   let retained = false;
   const cleanup = () => NodeFSP.rm(directory, { recursive: true, force: true });
   try {
@@ -256,7 +261,7 @@ export async function captureKdeWindow(
         activate: async (title) => {
           targetTitle = title;
           const activation = await NodeFSP.mkdtemp(
-            NodePath.join(NodeOS.tmpdir(), "t3-kde-activate-"),
+            NodePath.join(NodeOS.tmpdir(), "rove-kde-activate-"),
           );
           try {
             await run(

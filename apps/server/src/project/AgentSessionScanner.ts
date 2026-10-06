@@ -27,7 +27,7 @@ import {
   type AgentSessionProjectGit,
   type AgentSessionScanResult,
   type ProviderInstanceConfig,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -43,9 +43,9 @@ import {
   normalizeGitRemoteUrl,
   parseGitHubRepositoryNameWithOwnerFromRemoteUrl,
   parseOriginUrlFromGitConfig,
-} from "@t3tools/shared/git";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { normalizeProjectPathForComparison } from "@t3tools/shared/path";
+} from "@rove-code/shared/git";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { normalizeProjectPathForComparison } from "@rove-code/shared/path";
 
 import * as ServerConfig from "../config.ts";
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
@@ -194,7 +194,7 @@ export class AgentSessionScanner extends Context.Service<
       completedSources?: ReadonlyArray<AgentSessionImportSource>,
     ) => Stream.Stream<AgentSessionRecentThread, AgentSessionScanError>;
   }
->()("t3/project/AgentSessionScanner") {}
+>()("@rove-code/server/project/AgentSessionScanner") {}
 
 type AgentSessionSource = AgentSessionProjectCandidate["sources"][number];
 
@@ -540,7 +540,7 @@ function shouldRetainDecodedRecord(
  * transcripts look exactly like user sessions, but re-importing the app's own
  * sandboxes as projects is never right. Matches this server's configured
  * worktrees directory plus the conventional `.rove/worktrees` layout, which
- * also catches sandboxes from other T3 homes on the same machine. Separators
+ * also catches sandboxes from other Rove homes on the same machine. Separators
  * are normalized (and, on Windows, case folded) so the prefix match holds
  * there too. Callers check both the recorded spelling and its realpath so a
  * symlink into the worktrees directory cannot bypass the filter.
@@ -550,7 +550,7 @@ function normalizeForWorktreeMatch(value: string, caseFold: boolean): string {
   return caseFold ? normalized.toLowerCase() : normalized;
 }
 
-function isT3ManagedWorktree(
+function isRoveManagedWorktree(
   candidatePath: string,
   worktreesDir: string,
   caseFold: boolean,
@@ -656,7 +656,7 @@ export const make = Effect.gen(function* () {
     normalizeForWorktreeMatch(candidatePath, foldWorktreeCase).startsWith(
       normalizeForWorktreeMatch(baseDir, foldWorktreeCase),
     ) ||
-    isT3ManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase);
+    isRoveManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase);
 
   const listDirectory = (directory: string) =>
     fileSystem.readDirectory(directory).pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));

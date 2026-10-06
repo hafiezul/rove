@@ -3,7 +3,7 @@ import type {
   OrchestrationShellSnapshot,
   OrchestrationThreadShell,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import { Atom } from "effect/unstable/reactivity";
 

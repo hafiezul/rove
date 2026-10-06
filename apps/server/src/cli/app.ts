@@ -9,13 +9,13 @@ import {
   DesktopAppActivationResponse,
   type DesktopAppActivationPlatform,
   type DesktopAppActivationRequest,
-} from "@t3tools/contracts";
-import { resolveDesktopAppControlAddress } from "@t3tools/shared/desktopAppControl";
+} from "@rove-code/contracts";
+import { resolveDesktopAppControlAddress } from "@rove-code/shared/desktopAppControl";
 import {
   HostProcessPlatform,
   HostProcessUserId,
   HostProcessWorkingDirectory,
-} from "@t3tools/shared/hostProcess";
+} from "@rove-code/shared/hostProcess";
 import * as Config from "effect/Config";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
@@ -178,7 +178,7 @@ function sendDesktopAppActivationRequest(input: {
 }
 
 const appEnvironment = Config.all({
-  t3Home: Config.String("ROVE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  roveHome: Config.String("ROVE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
   sshConnection: Config.String("SSH_CONNECTION").pipe(Config.option),
   sshTty: Config.String("SSH_TTY").pipe(Config.option),
 });
@@ -197,9 +197,9 @@ const runAppCommand = Effect.fn("cli.app")(function* (flags: {
   }
 
   const path = yield* Path.Path;
-  const configuredBaseDir = Option.getOrUndefined(flags.baseDir) ?? environment.t3Home;
+  const configuredBaseDir = Option.getOrUndefined(flags.baseDir) ?? environment.roveHome;
   const baseDir = yield* resolveBaseDir(configuredBaseDir);
-  const allowDevFallback = Option.isNone(flags.baseDir) && !environment.t3Home?.trim();
+  const allowDevFallback = Option.isNone(flags.baseDir) && !environment.roveHome?.trim();
   const rawWorkspaceRoot =
     Option.getOrUndefined(flags.workspaceRoot) ?? (yield* HostProcessWorkingDirectory);
   const workspaceRoot = path.resolve(yield* expandHomePath(rawWorkspaceRoot));

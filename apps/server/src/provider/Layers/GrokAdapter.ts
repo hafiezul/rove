@@ -11,10 +11,10 @@ import {
   RuntimeRequestId,
   type ThreadId,
   TurnId,
-} from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
-import { stableStringify } from "@t3tools/shared/relaySigning";
+} from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { getModelSelectionStringOptionValue } from "@rove-code/shared/model";
+import { stableStringify } from "@rove-code/shared/relaySigning";
 import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -301,7 +301,7 @@ export function selectGrokPermissionOptionId(
   if (preferredId) {
     return preferredId;
   }
-  // Grok 4.6 often omits allow_always. T3 still offers "Always allow this session".
+  // Grok 4.6 often omits allow_always. Rove still offers "Always allow this session".
   if (decision === "acceptForSession") {
     const once = request.options.find((entry) => entry.kind === "allow_once");
     const onceId = once?.optionId.trim();
@@ -877,7 +877,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
         );
       });
 
-    /** Surface Grok plan.md as T3's proposed-plan card (while writing + on exit). */
+    /** Surface Grok plan.md as Rove's proposed-plan card (while writing + on exit). */
     const emitProposedPlanCompleted = (
       ctx: GrokSessionContext,
       turnId: TurnId | undefined,
@@ -1096,7 +1096,7 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
               { discard: true },
             );
             // Grok intercepts exit_plan_mode and reverse-requests client approval.
-            // Capture plan into T3 proposed-plan UI and abandon the native gate so
+            // Capture plan into Rove proposed-plan UI and abandon the native gate so
             // the turn does not hang (Claude ExitPlanMode pattern).
             yield* Effect.forEach(
               ["x.ai/exit_plan_mode", "_x.ai/exit_plan_mode"] as const,
@@ -1508,7 +1508,8 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "session/prompt",
-            detail: "Change permissions with T3's permission selector instead of /always-approve.",
+            detail:
+              "Change permissions with Rove Code's permission selector instead of /always-approve.",
           });
         }
         const prepared = yield* withThreadLock(

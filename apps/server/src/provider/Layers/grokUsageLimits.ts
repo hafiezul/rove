@@ -1,5 +1,5 @@
 import * as NodeOS from "node:os";
-import type { ServerProviderUsageWindow } from "@t3tools/contracts";
+import type { ServerProviderUsageWindow } from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -73,7 +73,7 @@ export function grokUsageResponseToLimits(
 const readGrokCredential = Effect.fn("readGrokCredential")(function* (
   environment: NodeJS.ProcessEnv,
 ) {
-  // T3's ACP adapter explicitly selects API-key auth when this variable is set.
+  // Rove's ACP adapter explicitly selects API-key auth when this variable is set.
   if (environment.XAI_API_KEY?.trim()) return undefined;
   // Alternate auth deployments can select another scope or account from the same file.
   if (

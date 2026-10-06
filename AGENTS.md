@@ -18,13 +18,13 @@ Lots of apps have gotten bogged down with bad tech decisions and "slop". We have
 
 ### 3. Remote ready
 
-The architecture of Rove Code's websocket layer (npx t3) supports direct connections over the local network, including pairing and Tailscale. Rove Connect (our tunnel solution, also in this repo) is not available in community builds, which ship without cloud configuration; the gating that hides it must keep working.
+The architecture of Rove Code's websocket layer (npx @rove-code/cli) supports direct connections over the local network, including pairing and Tailscale. Rove Connect (our tunnel solution, also in this repo) is not available in community builds, which ship without cloud configuration; the gating that hides it must keep working.
 
 ### 4. Multi-surface
 
 Rove Code has 3 key app surfaces: **web**, **desktop**, and **mobile**.
 
-**Web** is kind of two surfaces, as we have a hosted web app in maintainer builds as well as locally hosting the web app through the `npx t3` command. Community builds only support the local one. Both need to be supported by all new features where reasonable.
+**Web** is kind of two surfaces, as we have a hosted web app in maintainer builds as well as locally hosting the web app through the `npx @rove-code/cli` command. Community builds only support the local one. Both need to be supported by all new features where reasonable.
 
 **Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing direct LAN or Tailscale connections from another client or the mobile app.
 
@@ -50,11 +50,11 @@ We need to be on the same page with terminology. When communicating, use this la
 - **agent** means the coding agent a user runs inside Rove Code. Depending on context, that may also include you.
 - **provider** means the agent runtime or harness Rove Code talks to, such as Codex, Claude, Cursor, or OpenCode.
 - **client** means the web, desktop, or mobile UI.
-- **environment** means one running T3 server and the machine, filesystem, provider credentials, and state it owns.
+- **environment** means one running Rove Code server and the machine, filesystem, provider credentials, and state it owns.
 - **project** means an environment-local workspace record rooted at a directory.
 - **thread** means the durable conversation and work history for a project.
 - **turn** means one user-to-agent cycle, including follow-up work such as checkpointing.
-- **T3 home** means the base data directory. Runtime state normally lives below its userdata directory.
+- **Rove Code home** means the base data directory. Runtime state normally lives below its userdata directory.
 
 ## The three ways to hurt yourself
 
@@ -76,11 +76,11 @@ The most common defect in this repo is a change that works on the path you teste
 
 ## Dev servers
 
-- `vp i` installs. Worktrees get this from the t3.json setup script; if module resolution looks broken, it probably did not run.
+- `vp i` installs. Worktrees get this from the rove.json setup script; if module resolution looks broken, it probably did not run.
 - `vp run dev` starts server and web. In a worktree, state defaults to that worktree's gitignored `.rove`, which deliberately outranks an ambient `ROVE_HOME` so you cannot land on shared state by accident. An explicit `--home-dir` still wins.
 - Ports derive from the worktree path and are stable across restarts, but read the real ones from the `[dev-runner]` line since occupied ports shift.
 - Sharing over the tailnet is three steps: run `vp run dev --share` in the background, wait for the `pairingUrl:` line in its output, then give that full URL to an unpaired browser. Do not wire up `tailscale serve` by hand, open the URL yourself, or consume the user's pairing link. A browser with the reusable dev cookie can use the bare origin. If a normal one-time token was consumed, mint a fresh one with `node apps/server/src/bin.ts pair`. It carries standard scopes, while the startup URL carries admin scopes needed for Connections settings.
-- To reuse web dev auth across worktrees, configure one fixed `ROVE_DEV_AUTH_TOKEN` in the main checkout's gitignored `.env`. The `t3.json` setup links that file into worktrees. Never commit or publish the token or a startup URL. See [Reusable dev credential](docs/operations/development.md#reusable-dev-credential).
+- To reuse web dev auth across worktrees, configure one fixed `ROVE_DEV_AUTH_TOKEN` in the main checkout's gitignored `.env`. The `rove.json` setup links that file into worktrees. Never commit or publish the token or a startup URL. See [Reusable dev credential](docs/operations/development.md#reusable-dev-credential).
 - Stop what you started, by the PID you tracked. See rule 1.
 
 ## Test data
@@ -108,9 +108,9 @@ An empty database is a bad test. Seed your worktree's `.rove` with a copy of rea
 - **Do not run repo-wide checks.** No `vp check`, no `vp run -r test`, no `vp run -r typecheck` unless I ask. CI owns the full suite.
 - Backend behavior changes ship with focused tests for that behavior.
 - The server is event-sourced and its async flows emit typed receipts. Wait on receipts and worker drains, never on sleeps or polling. A test that needs a timeout to pass is wrong.
-- Upon request, user-visible frontend changes should get one integrated pass in a real client: `test-t3-app` for web, `test-t3-mobile` for mobile. The primary agent does this once after integrating. Subagents do not launch their own dev servers. Ask permission before doing computer use or spinning up browsers.
+- Upon request, user-visible frontend changes should get one integrated pass in a real client: `test-rove-app` for web, `test-rove-mobile` for mobile. The primary agent does this once after integrating. Subagents do not launch their own dev servers. Ask permission before doing computer use or spinning up browsers.
 
-For authorized mobile verification, a missing or outdated native client is a build step, not a blocker. Run `node scripts/mobile-native-client.ts ensure <ios|android> <device-id>` on the simulator host before starting Metro. It checks the local Expo fingerprint and builds/installs when needed. See `test-t3-mobile` for the full workflow.
+For authorized mobile verification, a missing or outdated native client is a build step, not a blocker. Run `node scripts/mobile-native-client.ts ensure <ios|android> <device-id>` on the simulator host before starting Metro. It checks the local Expo fingerprint and builds/installs when needed. See `test-rove-mobile` for the full workflow.
 
 ## Pull requests
 

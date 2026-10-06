@@ -5,8 +5,8 @@ import {
   type ServerSelfUpdateProgressStage,
   type ServerSelfUpdateResult,
   type ThreadId,
-} from "@t3tools/contracts";
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
@@ -20,7 +20,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import { HttpClient } from "effect/unstable/http";
 
-import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
+import { CLI_RELEASE_BASE_URL_ENV } from "@rove-code/shared/cliRelease";
 
 import * as ServerConfig from "../config.ts";
 import * as DesktopAppUpdate from "../desktopUpdate/DesktopAppUpdate.ts";
@@ -52,7 +52,7 @@ export class ServerSelfUpdate extends Context.Service<
       onHandoffAccepted?: () => Effect.Effect<void>,
     ) => Effect.Effect<never, ServerSelfUpdateError>;
   }
->()("t3/cloud/selfUpdate/ServerSelfUpdate") {}
+>()("@rove-code/server/cloud/selfUpdate/ServerSelfUpdate") {}
 
 export const withRunningThreadContinuation = Effect.fn(
   "cloud.server_self_update.withRunningThreadContinuation",

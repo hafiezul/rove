@@ -12,7 +12,7 @@ import {
   type AuthSessionState,
   type ExecutionEnvironmentDescriptor,
   type EnvironmentAuthInvalidError,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as DateTime from "effect/DateTime";
 import type * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -76,13 +76,18 @@ export async function installEnvironmentHttpTest(scenario: EnvironmentHttpTestSc
       Effect.provide([
         NodeHttpServer.layerHttpServices,
         HttpApiBuilder.group(EnvironmentHttpApi, "metadata", (handlers) =>
-          handlers.handle(
-            "descriptor",
-            Effect.fn("test.environment.metadata.descriptor")(function* () {
-              calls.descriptor += 1;
-              return yield* scenario.descriptor?.() ?? unexpectedEndpoint("metadata.descriptor");
-            }),
-          ),
+          handlers
+            .handle(
+              "descriptor",
+              Effect.fn("test.environment.metadata.descriptor")(function* () {
+                calls.descriptor += 1;
+                return yield* scenario.descriptor?.() ?? unexpectedEndpoint("metadata.descriptor");
+              }),
+            )
+            .handle(
+              "legacyDescriptor",
+              () => scenario.descriptor?.() ?? unexpectedEndpoint("metadata.legacyDescriptor"),
+            ),
         ),
         HttpApiBuilder.group(EnvironmentHttpApi, "auth", (handlers) =>
           handlers

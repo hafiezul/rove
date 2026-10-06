@@ -1,5 +1,5 @@
-import type { ProjectReadFileResult } from "@t3tools/contracts";
-import { EnvironmentId } from "@t3tools/contracts";
+import type { ProjectReadFileResult } from "@rove-code/contracts";
+import { EnvironmentId } from "@rove-code/contracts";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {

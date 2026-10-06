@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ProviderDriverKind, type ServerProviderModel } from "@t3tools/contracts";
+import { ProviderDriverKind, type ServerProviderModel } from "@rove-code/contracts";
 
 import { DRIVER_OPTION_BY_VALUE } from "./providerDriverMeta";
 import {

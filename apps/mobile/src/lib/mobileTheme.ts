@@ -1,6 +1,6 @@
 import {
   BUILT_IN_THEMES,
-  T3_CHAT_THEME,
+  PLUM_THEME,
   ROVE_LIGHT_THEME_COLORS,
   ROVE_DARK_THEME_COLORS,
   getThemeColorsForAppearance,
@@ -9,11 +9,11 @@ import {
   type MobileThemeId as SharedMobileThemeId,
   type ThemeAppearance,
   type ThemeColors,
-} from "@t3tools/shared/themePalettes";
+} from "@rove-code/shared/themePalettes";
 import {
   STANDARD_THEME_PREVIEW_COLORS,
   type ThemePreviewColors,
-} from "@t3tools/shared/themePreview";
+} from "@rove-code/shared/themePreview";
 
 export const DEFAULT_MOBILE_THEME_ID = MOBILE_DEFAULT_THEME_ID;
 export const MOBILE_THEME_IDS = [...SHARED_MOBILE_THEME_IDS, "material-you"] as const;
@@ -347,7 +347,7 @@ export function createMobileThemeVariables(
 }
 
 export const MOBILE_THEME_VARIABLE_NAMES = Object.keys(
-  createMobileThemeVariables(T3_CHAT_THEME.colors, "light"),
+  createMobileThemeVariables(PLUM_THEME.colors, "light"),
 ) as ReadonlyArray<MobileThemeVariable>;
 
 export function getMobileThemeColors(
@@ -357,7 +357,7 @@ export function getMobileThemeColors(
   if (themeId === DEFAULT_MOBILE_THEME_ID) {
     return appearance === "dark" ? ROVE_DARK_THEME_COLORS : ROVE_LIGHT_THEME_COLORS;
   }
-  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? T3_CHAT_THEME;
+  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? PLUM_THEME;
   return getThemeColorsForAppearance(theme, appearance) ?? theme.colors;
 }
 
@@ -400,7 +400,7 @@ export function getMobileThemePreviewColors(
 ): ThemePreviewColors {
   if (themeId === DEFAULT_MOBILE_THEME_ID || themeId === "material-you")
     return STANDARD_THEME_PREVIEW_COLORS[appearance];
-  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? T3_CHAT_THEME;
+  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? PLUM_THEME;
   const colors = getThemeColorsForAppearance(theme, appearance) ?? theme.colors;
   return {
     canvas: themeColorToNativeColor(colors.canvas),

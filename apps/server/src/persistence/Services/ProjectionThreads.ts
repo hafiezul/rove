@@ -19,7 +19,7 @@ import {
   ThreadLimitRecovery,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Context from "effect/Context";
@@ -93,4 +93,4 @@ export interface ProjectionThreadRepositoryContract {
 export class ProjectionThreadRepository extends Context.Service<
   ProjectionThreadRepository,
   ProjectionThreadRepositoryContract
->()("t3/persistence/Services/ProjectionThreads/ProjectionThreadRepository") {}
+>()("@rove-code/server/persistence/Services/ProjectionThreads/ProjectionThreadRepository") {}

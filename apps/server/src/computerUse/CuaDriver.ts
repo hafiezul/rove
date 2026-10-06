@@ -7,8 +7,8 @@ import {
   type ComputerUseControlInput,
   type ComputerUseStatus,
   type ThreadId,
-} from "@t3tools/contracts";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { Tool as CuaMcpTool } from "@modelcontextprotocol/sdk/types.js";
@@ -125,7 +125,7 @@ export class CuaDriver extends Context.Service<
       threadId: ThreadId,
     ) => Effect.Effect<McpSchema.CallToolResult, CuaDriverUnavailableError>;
   }
->()("t3/computerUse/CuaDriver") {}
+>()("@rove-code/server/computerUse/CuaDriver") {}
 
 export const make = Effect.fn("CuaDriver.make")(function* (options?: {
   readonly appPath?: string;

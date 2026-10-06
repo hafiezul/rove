@@ -3,7 +3,7 @@ const path = require("node:path");
 
 const ARTIFACT_NAME = "thread-transfer-results";
 const RESULT_FILE = "thread-transfer-result.json";
-const COMMENT_MARKER = "<!-- t3-thread-transfer-report -->";
+const COMMENT_MARKER = "<!-- rove-thread-transfer-report -->";
 const PROVIDERS = new Map([
   ["codex", "Codex"],
   ["claudeAgent", "Claude"],
@@ -34,7 +34,7 @@ const SCENARIO_KEYS = [
 ];
 
 function resultShaMarker(sha) {
-  return `<!-- t3-thread-transfer-result-sha:${sha} -->`;
+  return `<!-- rove-thread-transfer-result-sha:${sha} -->`;
 }
 
 function assertObject(value, label) {

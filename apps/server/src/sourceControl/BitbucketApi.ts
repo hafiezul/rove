@@ -14,13 +14,13 @@ import {
   type SourceControlProviderAuth,
   type SourceControlRepositoryCloneUrls,
   type SourceControlRepositoryVisibility,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
-import { sanitizeBranchFragment } from "@t3tools/shared/git";
+import { sanitizeBranchFragment } from "@rove-code/shared/git";
 import {
   detectSourceControlProviderFromRemoteUrl,
   isSshRemoteUrl,
-} from "@t3tools/shared/sourceControl";
+} from "@rove-code/shared/sourceControl";
 
 import {
   BitbucketPullRequestListSchema,
@@ -388,7 +388,7 @@ export class BitbucketApi extends Context.Service<
       readonly force?: boolean;
     }) => Effect.Effect<void, BitbucketApiError>;
   }
->()("t3/sourceControl/BitbucketApi") {}
+>()("@rove-code/server/sourceControl/BitbucketApi") {}
 
 function nonEmpty(value: string | undefined): Option.Option<string> {
   const trimmed = value?.trim();

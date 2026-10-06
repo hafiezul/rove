@@ -20,7 +20,7 @@ describe("provider auth return destinations", () => {
     "rove://user@ app/welcome",
     "rove://app/welcome/../evil",
     "https://attacker.example/welcome",
-    "https://app.t3.codes/welcome",
+    "https://app.rove.codes/welcome",
     "file:///welcome",
     "javascript:alert(1)",
   ])("rejects %s", (url) => expect(providerAuthReturnUrl(url)).toBeUndefined());

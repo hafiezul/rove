@@ -1,11 +1,11 @@
-import type { ServerSelfUpdateOutcome } from "@t3tools/contracts";
+import type { ServerSelfUpdateOutcome } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 import type { Json as SchemaJson } from "effect/Schema";
 
 // Protocol 3 requires the standalone executable layout. Bump when runtimePaths
 // or the installed runtime tree changes incompatibly; launchers survive self-updates.
 export const SERVICE_LAUNCHER_PROTOCOL = 3 as const;
-export const SERVICE_LAUNCHER_CONTEXT_ENV = "T3_SERVICE_LAUNCHER_CONTEXT";
+export const SERVICE_LAUNCHER_CONTEXT_ENV = "ROVE_SERVICE_LAUNCHER_CONTEXT";
 export const SERVICE_STATE_FILE = "service-state.json";
 /** Written by the launcher just before an explicit stop kills its child, so
     the child can tell "the service is going away" from "the launcher is about

@@ -6,7 +6,7 @@ import {
   NIRI_CAPTURE_PATH as PATH,
 } from "./linuxCaptureSession.ts";
 
-/** Niri owns the keybinding; this endpoint triggers capture without first focusing T3. */
+/** Niri owns the keybinding; this endpoint triggers capture without first focusing Rove. */
 export async function startNiriCaptureShortcut(
   appId: string,
   onCapture: () => void,

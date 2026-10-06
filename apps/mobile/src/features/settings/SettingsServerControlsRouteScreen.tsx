@@ -11,7 +11,7 @@ import {
   type WorktreeSubmodules,
   PROJECT_SCOPED_SERVER_SETTING_KEYS,
   type ProjectScopedServerSettingKey,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import { useRef, useState, type ComponentProps } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -61,7 +61,7 @@ const SUBMODULE_CHOICES: ReadonlyArray<{
   {
     mode: null,
     label: "Inherit",
-    description: "Use the repository's t3.json, or initialize recursively.",
+    description: "Use the repository's rove.json, or initialize recursively.",
   },
   { mode: "recursive", label: "Recursive", description: "Initialize nested submodules too." },
   {
@@ -81,7 +81,7 @@ const WORKSPACE_CHOICES: ReadonlyArray<{
   {
     mode: null,
     label: "Inherit",
-    description: "Use the repository's t3.json, or the current checkout.",
+    description: "Use the repository's rove.json, or the current checkout.",
   },
   {
     mode: "local",
@@ -557,7 +557,7 @@ function FanoutSwitchRow(props: {
         className="rounded-full bg-subtle px-3 py-2 active:opacity-70"
         onPress={() => props.onValueChange(true)}
       >
-        <Text className="text-sm font-t3-medium text-foreground">Mixed · Set on</Text>
+        <Text className="text-sm font-rove-medium text-foreground">Mixed · Set on</Text>
       </Pressable>
     </SettingsControlRow>
   );

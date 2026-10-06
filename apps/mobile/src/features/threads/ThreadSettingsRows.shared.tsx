@@ -64,7 +64,7 @@ export function ModelRowContent(
         <View className="min-w-0 flex-1">
           <View className="flex-row items-center gap-2">
             <Text
-              className="min-w-0 shrink text-base font-t3-medium text-foreground"
+              className="min-w-0 shrink text-base font-rove-medium text-foreground"
               numberOfLines={props.labelNumberOfLines}
             >
               {props.option.label}
@@ -76,12 +76,12 @@ export function ModelRowContent(
             ) : null}
             {props.option.isDefault ? (
               <View className="rounded-md bg-subtle-strong px-1.5 py-0.5">
-                <Text className="text-3xs font-t3-bold text-foreground-muted">Default</Text>
+                <Text className="text-3xs font-rove-bold text-foreground-muted">Default</Text>
               </View>
             ) : null}
             {props.option.isLegacy ? (
               <View className="rounded-md bg-subtle px-1.5 py-0.5">
-                <Text className="text-3xs font-t3-bold text-foreground-muted">Legacy</Text>
+                <Text className="text-3xs font-rove-bold text-foreground-muted">Legacy</Text>
               </View>
             ) : null}
             {props.option.isUnavailable ? (
@@ -136,7 +136,7 @@ export function ChoiceRowContent(props: ChoiceRowProps & RowSelectionProps) {
     >
       {props.leadingSelection}
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="text-base font-t3-medium text-foreground">{props.label}</Text>
+        <Text className="text-base font-rove-medium text-foreground">{props.label}</Text>
         {props.description ? (
           <Text className="text-sm leading-5 text-foreground-muted">{props.description}</Text>
         ) : null}

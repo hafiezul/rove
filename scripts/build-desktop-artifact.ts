@@ -13,10 +13,10 @@ import {
   type DirectoryRecord,
 } from "@electron/asar";
 
-import { fromYaml } from "@t3tools/shared/schemaYaml";
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import { fromYaml } from "@rove-code/shared/schemaYaml";
+import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
+import { clerkFrontendApiHostnameFromPublishableKey } from "@rove-code/shared/relayAuth";
+import { resolveSpawnCommand } from "@rove-code/shared/shell";
 import rootPackageJson from "../package.json" with { type: "json" };
 import desktopPackageJson from "../apps/desktop/package.json" with { type: "json" };
 import gnomeCaptureBundle from "../apps/desktop/gnome-extension/bundle.json" with { type: "json" };
@@ -128,7 +128,7 @@ export function resolveResourceMonitorRustTargets(
 }
 
 export function resourceMonitorExecutableName(platform: typeof BuildPlatform.Type): string {
-  return platform === "win" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
+  return platform === "win" ? "rove-resource-monitor.exe" : "rove-resource-monitor";
 }
 
 const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
@@ -2142,7 +2142,7 @@ export const stageLinuxCaptureHelper = Effect.fn("stageLinuxCaptureHelper")(func
     input.repoRoot,
     `native/${input.backend}-snap-shot/target`,
     rustTarget!,
-    `release/t3-${input.backend}-snap-shot`,
+    `release/rove-${input.backend}-snap-shot`,
   );
   if (!reuseHelpers) {
     const spawnCommand = yield* resolveSpawnCommand("cargo", [
@@ -2174,7 +2174,7 @@ export const stageLinuxCaptureHelper = Effect.fn("stageLinuxCaptureHelper")(func
   }
   const destination = path.join(input.stageResourcesDir, `${input.backend}-capture`);
   yield* fs.makeDirectory(destination, { recursive: true });
-  const executable = path.join(destination, `t3-${input.backend}-snap-shot`);
+  const executable = path.join(destination, `rove-${input.backend}-snap-shot`);
   yield* fs.copyFile(binaryPath, executable);
   yield* fs.chmod(executable, 0o755);
   if (input.backend === "hyprland") {
@@ -2297,7 +2297,7 @@ export const stageBrowserSecret = Effect.fn("stageBrowserSecret")(function* (inp
         "--arch",
         input.arch === "arm64" ? "arm64" : "x64",
         "--output",
-        path.join(input.stageResourcesDir, "browser-secret", "t3-browser-secret"),
+        path.join(input.stageResourcesDir, "browser-secret", "rove-browser-secret"),
       ],
       { cwd: input.repoRoot },
     ),
@@ -3213,7 +3213,7 @@ export const validateWindowsPackagedPayload = Effect.fn(
     return yield* new WindowsPackagedPayloadValidationError({
       reason: "resource-monitor-missing",
       packagedAppDir,
-      missingFiles: ["resource-monitor/t3-resource-monitor.exe"],
+      missingFiles: ["resource-monitor/rove-resource-monitor.exe"],
     });
   }
 
@@ -3810,7 +3810,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const builderArgs = [
     "exec",
     "--filter",
-    "@t3tools/desktop",
+    "@rove-code/desktop",
     "--",
     "electron-builder",
     "--projectDir",
@@ -3828,7 +3828,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       shell: builderCommand.shell,
     }),
     {
-      label: `vp exec --filter @t3tools/desktop -- electron-builder --projectDir ${stageAppDir} ${platformConfig.cliFlag} --${options.arch} --publish never`,
+      label: `vp exec --filter @rove-code/desktop -- electron-builder --projectDir ${stageAppDir} ${platformConfig.cliFlag} --${options.arch} --publish never`,
       verbose: options.verbose,
     },
   );

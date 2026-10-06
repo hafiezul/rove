@@ -5,21 +5,26 @@ import {
   type ComposerContextRecord,
   type ElementContextDetails,
   type KnownComposerContextRecord,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 
 /**
- * Canonical inline reference: `[label](t3-context://v1/<kind>/<contextId>)`, or the image
+ * Canonical inline reference: `[label](rove-context://v1/<kind>/<contextId>)`, or the image
  * form `![label](...)`. The link carries position and identity only; the payload lives in the
  * message's context records. Labels are display text and never identity.
  */
 
-const CONTEXT_PROTOCOL = "t3-context:";
+import { COMPOSER_CONTEXT_READ_PROTOCOLS } from "./roveMigration.ts";
+
+const CONTEXT_PROTOCOL = "rove-context:";
+const READ_CONTEXT_PREFIXES = COMPOSER_CONTEXT_READ_PROTOCOLS.map(
+  (protocol) => `${protocol}://v1/`,
+);
 const COMPOSER_CONTEXT_HREF_PREFIX = `${CONTEXT_PROTOCOL}//v1/`;
 const CONTEXT_KIND_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
 const CONTEXT_ID_PATTERN = /^[a-z0-9_-]{1,128}$/i;
 const MAX_LINK_LABEL_LENGTH = 512;
 const CONTEXT_LINK = new RegExp(
-  String.raw`(!?)\[([^\]\n]{0,${MAX_LINK_LABEL_LENGTH}})\]\((${COMPOSER_CONTEXT_HREF_PREFIX}[^\s)]{1,200})\)`,
+  String.raw`(!?)\[([^\]\n]{0,${MAX_LINK_LABEL_LENGTH}})\]\(((?:${READ_CONTEXT_PREFIXES.join("|")})[^\s)]{1,200})\)`,
   "g",
 );
 
@@ -30,8 +35,9 @@ export function formatComposerContextHref(kind: ComposerContextKind, contextId: 
 export function parseComposerContextHref(
   href: string,
 ): { kind: ComposerContextKind; contextId: ComposerContextId } | null {
-  if (!href.startsWith(COMPOSER_CONTEXT_HREF_PREFIX)) return null;
-  const rest = href.slice(COMPOSER_CONTEXT_HREF_PREFIX.length);
+  const prefix = READ_CONTEXT_PREFIXES.find((candidate) => href.startsWith(candidate));
+  if (prefix === undefined) return null;
+  const rest = href.slice(prefix.length);
   const parts = rest.split("/");
   if (parts.length !== 2) return null;
   const [kind, contextId] = parts as [string, string];
@@ -76,7 +82,7 @@ export function collectComposerContextReferences(
   const occurrences: ComposerContextReferenceOccurrence[] = [];
   // No link can match without the protocol prefix; skip the scan entirely on
   // plain prose so long messages never pay for a regex walk per `[`.
-  if (!text.includes("](t3-context:")) return occurrences;
+  if (!READ_CONTEXT_PREFIXES.some((prefix) => text.includes(`](${prefix}`))) return occurrences;
   for (const match of text.matchAll(CONTEXT_LINK)) {
     const parsed = parseComposerContextHref(match[3]!);
     if (!parsed) continue;
@@ -109,7 +115,7 @@ export function replaceComposerContextReferences(
 // Provider projection
 // ---------------------------------------------------------------------------
 
-const CONTEXT_ENVELOPE_TAG = "t3_context";
+const CONTEXT_ENVELOPE_TAG = "rove_context";
 const CONTEXT_ENTRY_TAG = "context";
 
 function kindDisplayName(kind: ComposerContextKind): string {
@@ -131,7 +137,7 @@ export function formatComposerContextProviderMarker(
 }
 
 /**
- * Captured text is data. A terminal line or PR comment that contains `</t3_context>` or
+ * Captured text is data. A terminal line or PR comment that contains `</rove_context>` or
  * `</context>` must not be able to close the envelope and forge a record.
  */
 function escapeComposerContextPayloadText(text: string): string {

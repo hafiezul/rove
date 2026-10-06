@@ -448,7 +448,7 @@ describe("safariAccessGranted", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const directory = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-safari-permission-",
+        prefix: "rove-safari-permission-",
       });
       const jar = `${directory}/Cookies.binarycookies`;
       assert.isFalse(yield* safariAccessGranted(jar));

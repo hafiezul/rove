@@ -1,14 +1,14 @@
 import { pruneLocalDeviceTools } from "./deviceToolMaintenance.ts";
-import { deviceToolInstallMessage } from "@t3tools/contracts";
+import { deviceToolInstallMessage } from "@rove-code/contracts";
 /**
  * The device host that is this machine.
  *
  * Runs expo-device-hub as a supervised child on a loopback port and starts the
- * agent-device daemon in HTTP mode under a T3-owned state directory. Both are
+ * agent-device daemon in HTTP mode under a Rove-owned state directory. Both are
  * lazy: the device service requires explicit setup consent before it calls
  * ensureReady to install tools or start helper processes.
  *
- * The hub runs in its standalone mode (origin root). The T3 proxy strips its
+ * The hub runs in its standalone mode (origin root). The Rove proxy strips its
  * own prefix, and the Device panel derives stream and socket URLs from the
  * prefix itself rather than from anything the hub prints.
  */
@@ -17,15 +17,15 @@ import {
   type DevicePlatform,
   type DevicePlatformAvailability,
   LOCAL_DEVICE_HOST_ID,
-} from "@t3tools/contracts";
-import { waitForHttpReady } from "@t3tools/shared/httpReadiness";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+} from "@rove-code/contracts";
+import { waitForHttpReady } from "@rove-code/shared/httpReadiness";
+import { HostProcessEnvironment, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import {
   resolveNodeExecutable,
   type NodeRuntimeUnavailableError,
-} from "@t3tools/shared/nodeRuntime";
-import * as NetService from "@t3tools/shared/Net";
-import { isCommandAvailable } from "@t3tools/shared/shell";
+} from "@rove-code/shared/nodeRuntime";
+import * as NetService from "@rove-code/shared/Net";
+import { isCommandAvailable } from "@rove-code/shared/shell";
 import * as Clock from "effect/Clock";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";

@@ -14,15 +14,15 @@ import {
   EnvironmentHttpUnauthorizedError,
   EnvironmentId,
   WS_METHODS,
-} from "@t3tools/contracts";
+} from "@rove-code/contracts";
 import {
   type RelayEnvironmentLinkResponse,
   type RelayManagedEndpointProviderKind,
-} from "@t3tools/contracts/relay";
-import { EnvironmentRegistry } from "@t3tools/client-runtime/connection";
-import { request, runStream } from "@t3tools/client-runtime/rpc";
-import { makeEnvironmentHttpApiClient } from "@t3tools/client-runtime/rpc";
-import { ManagedRelay, relayProtectedErrorMessage } from "@t3tools/client-runtime/relay";
+} from "@rove-code/contracts/relay";
+import { EnvironmentRegistry } from "@rove-code/client-runtime/connection";
+import { request, runStream } from "@rove-code/client-runtime/rpc";
+import { makeEnvironmentHttpApiClient } from "@rove-code/client-runtime/rpc";
+import { ManagedRelay, relayProtectedErrorMessage } from "@rove-code/client-runtime/relay";
 
 import { primaryEnvironmentHttpLayer } from "../environments/primary/httpLayer";
 import { resolveCloudPublicConfig } from "./publicConfig";

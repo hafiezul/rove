@@ -76,7 +76,7 @@ Put that value in the main checkout's gitignored `.env`:
 ROVE_DEV_AUTH_TOKEN=<the value generated above>
 ```
 
-The `t3.json` Setup Worktree commands on Unix and Windows link that file to each worktree's
+The `rove.json` Setup Worktree commands on Unix and Windows link that file to each worktree's
 `.env`. The dev runner reads repository env files at startup. `.env.local` and inherited process
 environment values override `.env`, so no per-worktree export is needed after setup.
 

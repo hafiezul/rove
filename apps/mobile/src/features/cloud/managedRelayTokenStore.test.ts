@@ -29,7 +29,7 @@ it.effect("round-trips and clears persisted managed relay access tokens", () =>
     const entries = [
       {
         accountId: "user-1",
-        clientId: "t3-mobile",
+        clientId: "rove-mobile",
         relayUrl: "https://relay.example.test",
         thumbprint: "thumbprint",
         scopes: ["environment:connect"],
@@ -43,6 +43,29 @@ it.effect("round-trips and clears persisted managed relay access tokens", () =>
 
     yield* managedRelayAccessTokenStore.clear;
     expect(yield* managedRelayAccessTokenStore.load).toEqual([]);
+  }),
+);
+
+it.effect("discards historical signed client claims without losing canonical cache entries", () =>
+  Effect.gen(function* () {
+    secureStore.clear();
+    secureStore.set(
+      "rove.cloud.relay-access-tokens",
+      `{
+      "version": 1,
+      "entries": [
+        {"accountId":"user-1","clientId":"t3-mobile","relayUrl":"https://relay.example.test","thumbprint":"key","scopes":["environment:connect"],"accessToken":"historical-signed-token","expiresAtMillis":1800000},
+        {"accountId":"user-1","clientId":"rove-mobile","relayUrl":"https://relay.example.test","thumbprint":"key","scopes":["environment:connect"],"accessToken":"canonical-signed-token","expiresAtMillis":1800000}
+      ]
+    }`,
+    );
+    const entries = yield* managedRelayAccessTokenStore.load;
+    expect(entries.map((entry) => entry.accessToken)).toEqual(["canonical-signed-token"]);
+    yield* managedRelayAccessTokenStore.save(entries);
+    expect(yield* managedRelayAccessTokenStore.load).toEqual(entries);
+    expect(secureStore.get("rove.cloud.relay-access-tokens")).not.toContain(
+      "historical-signed-token",
+    );
   }),
 );
 

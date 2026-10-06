@@ -1,9 +1,11 @@
 import {
   sameUsageLimitCommandCoverage,
   withUsageLimitsCommands,
-} from "@t3tools/shared/usageLimits";
+} from "@rove-code/shared/usageLimits";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
+import * as RuntimePredicate from "effect/Predicate";
+import { LEGACY_PROJECT_FILE_NAME } from "@rove-code/shared/roveMigration";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -49,6 +51,9 @@ import {
   OrchestrationSearchThreadsError,
   OrchestrationGetTurnDiffError,
   ORCHESTRATION_WS_METHODS,
+  ORCHESTRATION_PROTOCOL_VERSION,
+  ORCHESTRATION_PROTOCOL_QUERY_PARAM,
+  ROVE_PROJECT_FILE_NAME,
   ProjectId,
   type ProjectEntriesFailure,
   type ProjectFileFailure,
@@ -83,10 +88,15 @@ import {
   worktreeSetupActivityId,
   type WorktreeSetupSnapshot,
   type ServerSettings as ServerSettingsSchema,
-} from "@t3tools/contracts";
-import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
-import { HttpRouter, HttpServerRequest, HttpServerRespondable } from "effect/unstable/http";
+} from "@rove-code/contracts";
+import { resolveServerBackgroundActivitySettings } from "@rove-code/shared/backgroundActivitySettings";
+import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerRespondable,
+  HttpServerResponse,
+} from "effect/unstable/http";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
 import * as CheckpointDiffQuery from "./checkpointing/CheckpointDiffQuery.ts";
@@ -183,7 +193,7 @@ import * as VcsProjectConfig from "./vcs/VcsProjectConfig.ts";
 import * as PairingGrantStore from "./auth/PairingGrantStore.ts";
 import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
-import * as RelayClient from "@t3tools/shared/relayClient";
+import * as RelayClient from "@rove-code/shared/relayClient";
 const isOrchestrationDispatchCommandError = Schema.is(OrchestrationDispatchCommandError);
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
@@ -1097,7 +1107,7 @@ const makeWsRpcLayer = (
         });
 
       // Project setting > environment setting; null when neither is set so
-      // the driver reads the freshly created checkout's own t3.json (the
+      // the driver reads the freshly created checkout's own rove.json (the
       // branch being checked out may declare something the project root does
       // not). Settings that fail to load fall through the same way.
       const resolveBootstrapWorktreeSubmodules = Effect.fnUntraced(function* (input: {
@@ -2408,7 +2418,7 @@ const makeWsRpcLayer = (
           observeRpcEffect(
             WS_METHODS.serverRefreshProviders,
             Effect.gen(function* () {
-              // Only explicit catalog refreshes bypass T3's caches. Workspace
+              // Only explicit catalog refreshes bypass Rove's caches. Workspace
               // discovery and background status checks retain their timers.
               if (input.refreshModels) {
                 yield* modelManifest.forceRefresh;
@@ -3179,6 +3189,20 @@ const makeWsRpcLayer = (
           observeRpcEffect(
             WS_METHODS.projectsReadFile,
             workspaceFileSystem.readFile(input).pipe(
+              Effect.catchIf(
+                (error) =>
+                  input.allowLegacyProjectFile === true &&
+                  input.relativePath === ROVE_PROJECT_FILE_NAME &&
+                  error._tag === "WorkspaceFileSystemOperationError" &&
+                  error.operation !== "realpath-workspace-root" &&
+                  RuntimePredicate.hasProperty(error.cause, "code") &&
+                  error.cause.code === "ENOENT",
+                () =>
+                  workspaceFileSystem.readFile({
+                    ...input,
+                    relativePath: LEGACY_PROJECT_FILE_NAME,
+                  }),
+              ),
               Effect.mapError(
                 (cause) =>
                   new ProjectReadFileError({
@@ -3956,6 +3980,16 @@ export const websocketRpcRouteLayer = Layer.unwrap(
             failEnvironmentInternal("internal_error", error),
           ),
         );
+        const requestUrl = HttpServerRequest.toURL(request);
+        const protocolVersion = Option.isSome(requestUrl)
+          ? requestUrl.value.searchParams.get(ORCHESTRATION_PROTOCOL_QUERY_PARAM)
+          : null;
+        if (protocolVersion !== String(ORCHESTRATION_PROTOCOL_VERSION)) {
+          return HttpServerResponse.text(
+            "Client and server versions are incompatible. Update both to Rove Code.",
+            { status: 426 },
+          );
+        }
         const clientOrigin = readClientConnectionOrigin(request);
         const clientAnalyticsProps = readClientAnalyticsProps(request);
         yield* sessions.recordClientConnection(session.sessionId, clientOrigin);
