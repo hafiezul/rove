@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./threadRevert": {
+      "types": "./src/threadRevert.ts",
+      "import": "./src/threadRevert.ts"
+    },
     "./limitRecovery": {
       "types": "./src/limitRecovery.ts",
       "import": "./src/limitRecovery.ts"

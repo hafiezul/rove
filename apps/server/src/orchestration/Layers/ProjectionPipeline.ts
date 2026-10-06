@@ -5,9 +5,14 @@ import {
   type ChatAttachment,
   type OrchestrationEvent,
   type OrchestrationSessionStatus,
+  type ThreadRevertMessageBoundary,
   ThreadId,
 } from "@t3tools/contracts";
 import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
+import {
+  retainThreadMessagesAfterRevert,
+  retainThreadTurnItemsAfterRevert,
+} from "@t3tools/shared/threadRevert";
 import * as Effect from "effect/Effect";
 import {
   clearsLimitRecovery,
@@ -213,7 +218,16 @@ function retainProjectionMessagesAfterRevert(
   messages: ReadonlyArray<ProjectionThreadMessage>,
   turns: ReadonlyArray<ProjectionTurn>,
   turnCount: number,
+  boundary?: ThreadRevertMessageBoundary,
 ): ReadonlyArray<ProjectionThreadMessage> {
+  if (boundary !== undefined) {
+    return retainThreadMessagesAfterRevert(
+      messages.map((message) => ({ ...message, id: message.messageId })),
+      new Set(),
+      turnCount,
+      boundary,
+    );
+  }
   const retainedMessageIds = new Set<string>();
   const retainedTurnIds = new Set<string>();
   const keptTurns = turns.filter(
@@ -303,6 +317,7 @@ function retainProjectionActivitiesAfterRevert(
   activities: ReadonlyArray<ProjectionThreadActivity>,
   turns: ReadonlyArray<ProjectionTurn>,
   turnCount: number,
+  boundary?: ThreadRevertMessageBoundary,
 ): ReadonlyArray<ProjectionThreadActivity> {
   const retainedTurnIds = new Set<string>(
     turns
@@ -314,15 +329,14 @@ function retainProjectionActivitiesAfterRevert(
       )
       .flatMap((turn) => (turn.turnId === null ? [] : [turn.turnId])),
   );
-  return activities.filter(
-    (activity) => activity.turnId === null || retainedTurnIds.has(activity.turnId),
-  );
+  return retainThreadTurnItemsAfterRevert(activities, retainedTurnIds, boundary);
 }
 
 function retainProjectionProposedPlansAfterRevert(
   proposedPlans: ReadonlyArray<ProjectionThreadProposedPlan>,
   turns: ReadonlyArray<ProjectionTurn>,
   turnCount: number,
+  boundary?: ThreadRevertMessageBoundary,
 ): ReadonlyArray<ProjectionThreadProposedPlan> {
   const retainedTurnIds = new Set<string>(
     turns
@@ -334,9 +348,7 @@ function retainProjectionProposedPlansAfterRevert(
       )
       .flatMap((turn) => (turn.turnId === null ? [] : [turn.turnId])),
   );
-  return proposedPlans.filter(
-    (proposedPlan) => proposedPlan.turnId === null || retainedTurnIds.has(proposedPlan.turnId),
-  );
+  return retainThreadTurnItemsAfterRevert(proposedPlans, retainedTurnIds, boundary);
 }
 
 const decodeQuestionAttachmentAnswer = Schema.decodeUnknownOption(UserInputAttachmentAnswerPayload);
@@ -1251,6 +1263,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             existingRows,
             existingTurns,
             event.payload.turnCount,
+            event.payload.messageBoundary,
           );
           if (keptRows.length === existingRows.length) {
             return;
@@ -1312,6 +1325,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             existingRows,
             existingTurns,
             event.payload.turnCount,
+            event.payload.messageBoundary,
           );
           if (keptRows.length === existingRows.length) {
             return;
@@ -1371,6 +1385,7 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             existingRows,
             existingTurns,
             event.payload.turnCount,
+            event.payload.messageBoundary,
           );
           if (keptRows.length === existingRows.length) {
             return;
@@ -1802,8 +1817,14 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           const keptTurns = existingTurns.filter(
             (turn) =>
               turn.turnId !== null &&
-              turn.checkpointTurnCount !== null &&
-              turn.checkpointTurnCount <= event.payload.turnCount,
+              ((turn.checkpointTurnCount !== null &&
+                turn.checkpointTurnCount <= event.payload.turnCount) ||
+                (turn.checkpointTurnCount === null &&
+                  event.payload.messageBoundary !== undefined &&
+                  compareDateTimeStrings(
+                    turn.requestedAt,
+                    event.payload.messageBoundary.createdAt,
+                  ) < 0)),
           );
           yield* projectionTurnRepository.deleteByThreadId({
             threadId: event.payload.threadId,

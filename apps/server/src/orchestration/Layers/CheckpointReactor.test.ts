@@ -1950,12 +1950,13 @@ describe("CheckpointReactor", () => {
   );
 
   it.each([
-    { commandType: "thread.checkpoint.revert", initializeGit: true },
-    { commandType: "thread.conversation.revert", initializeGit: true },
-    { commandType: "thread.conversation.revert", initializeGit: false },
+    { commandType: "thread.checkpoint.revert", initializeGit: true, includeMessageId: true },
+    { commandType: "thread.conversation.revert", initializeGit: true, includeMessageId: true },
+    { commandType: "thread.conversation.revert", initializeGit: false, includeMessageId: true },
+    { commandType: "thread.conversation.revert", initializeGit: false, includeMessageId: false },
   ] as const)(
-    "$commandType rewinds history with the requested filesystem behavior (git: $initializeGit)",
-    async ({ commandType, initializeGit }) => {
+    "$commandType rewinds history with the requested filesystem behavior (git: $initializeGit, message: $includeMessageId)",
+    async ({ commandType, initializeGit, includeMessageId }) => {
       const harness = await createHarness({
         initializeGit,
         seedFilesystemCheckpoints: initializeGit,
@@ -1986,7 +1987,7 @@ describe("CheckpointReactor", () => {
           commandId: CommandId.make("cmd-diff-1"),
           threadId: ThreadId.make("thread-1"),
           turnId: asTurnId("turn-1"),
-          completedAt: createdAt,
+          completedAt: "2026-01-01T00:00:02.500Z",
           checkpointRef: initializeGit
             ? checkpointRefForThreadTurn(ThreadId.make("thread-1"), 1)
             : CheckpointRef.make("provider-diff:thread-1:turn-1"),
@@ -2002,7 +2003,7 @@ describe("CheckpointReactor", () => {
           commandId: CommandId.make("cmd-diff-2"),
           threadId: ThreadId.make("thread-1"),
           turnId: asTurnId("turn-2"),
-          completedAt: createdAt,
+          completedAt: "2026-01-01T00:00:04.000Z",
           checkpointRef: initializeGit
             ? checkpointRefForThreadTurn(ThreadId.make("thread-1"), 2)
             : CheckpointRef.make("provider-diff:thread-1:turn-2"),
@@ -2026,21 +2027,48 @@ describe("CheckpointReactor", () => {
           })
         : undefined;
 
+      for (const [index, id] of [
+        "earlier-user",
+        "steering-user",
+        "uncheckpointed-user",
+        "selected-user",
+      ].entries()) {
+        await Effect.runPromise(
+          harness.engine.dispatch({
+            type: "thread.message.user.append",
+            commandId: CommandId.make(`cmd-rewind-message-${id}`),
+            threadId: ThreadId.make("thread-1"),
+            message: { messageId: MessageId.make(id), text: id, attachments: [] },
+            createdAt: `2026-01-01T00:00:0${index}.000Z`,
+          }),
+        );
+      }
       await Effect.runPromise(
         harness.engine.dispatch({
           type: commandType,
           commandId: CommandId.make("cmd-revert-request"),
           threadId: ThreadId.make("thread-1"),
           turnCount: 1,
+          messageId: includeMessageId ? MessageId.make("selected-user") : undefined,
           createdAt,
         }),
       );
-
-      await waitForEvent(harness.engine, (event) => event.type === "thread.reverted");
-      const thread = await waitForThread(
-        harness.readModel,
-        (entry) => entry.checkpoints.length === 1,
-      );
+      await harness.drain();
+      const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1");
+      expect(thread).toBeDefined();
+      if (!thread) throw new Error("Rewound thread is missing.");
+      expect(thread.messages.map((message) => message.id)).toEqual([
+        "earlier-user",
+        "steering-user",
+        "uncheckpointed-user",
+      ]);
+      const events = await Effect.runPromise(Stream.runCollect(harness.engine.readEvents(0)));
+      const reverted = events.find((event) => event.type === "thread.reverted");
+      expect(reverted?.payload).toEqual({
+        threadId: "thread-1",
+        turnCount: 1,
+        messageBoundary: { messageId: "selected-user", createdAt: "2026-01-01T00:00:03.000Z" },
+      });
 
       expect(thread.latestTurn?.turnId).toBe("turn-1");
       expect(thread.checkpoints).toHaveLength(1);
@@ -2075,6 +2103,30 @@ describe("CheckpointReactor", () => {
       }
     },
   );
+
+  it("rejects a missing rewind message before changing files or provider history", async () => {
+    const harness = await createHarness();
+    NodeFS.writeFileSync(NodePath.join(harness.cwd, "README.md"), "keep edits\n");
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.checkpoint.revert",
+        commandId: CommandId.make("cmd-rewind-missing-message"),
+        threadId: ThreadId.make("thread-1"),
+        turnCount: 0,
+        messageId: MessageId.make("missing-message"),
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await harness.drain();
+    const thread = (await harness.readModel()).threads.find((entry) => entry.id === "thread-1");
+    expect(
+      thread?.activities.find((activity) => activity.kind === "checkpoint.revert.failed")?.payload,
+    ).toMatchObject({ detail: "The message to rewind is no longer available." });
+    expect(harness.provider.rollbackConversation).not.toHaveBeenCalled();
+    expect(NodeFS.readFileSync(NodePath.join(harness.cwd, "README.md"), "utf8")).toBe(
+      "keep edits\n",
+    );
+  });
 
   it("executes provider revert and emits thread.reverted for claude sessions", async () => {
     const harness = await createHarness({ providerName: ProviderDriverKind.make("claudeAgent") });

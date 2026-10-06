@@ -1710,6 +1710,90 @@ describe("applyThreadDetailEvent", () => {
   });
 
   describe("thread.reverted", () => {
+    it.each([0, 1])(
+      "preserves the conversation prefix without requiring checkpoints at %s",
+      (turnCount) => {
+        const messages = [
+          { id: "import:pi:older", role: "user", turnId: null },
+          { id: "interrupted-user", role: "user", turnId: null },
+          { id: "interrupted-answer", role: "assistant", turnId: "interrupted-turn" },
+          { id: "steering-user", role: "user", turnId: null },
+          { id: "kept-answer", role: "assistant", turnId: "kept-turn" },
+          { id: "uncheckpointed-user", role: "user", turnId: null },
+          { id: "selected-user", role: "user", turnId: null },
+          { id: "removed-answer", role: "assistant", turnId: "removed-turn" },
+        ] as const;
+        const thread: OrchestrationThread = {
+          ...baseThread,
+          messages: messages.map((message, index) => ({
+            ...message,
+            id: MessageId.make(message.id),
+            turnId: message.turnId === null ? null : TurnId.make(message.turnId),
+            text: message.id,
+            streaming: false,
+            createdAt: `2026-04-01T01:00:0${index}.000Z`,
+            updatedAt: `2026-04-01T01:00:0${index}.000Z`,
+          })),
+          checkpoints:
+            turnCount === 0
+              ? []
+              : [
+                  {
+                    turnId: TurnId.make("kept-turn"),
+                    checkpointTurnCount: 1,
+                    checkpointRef: CheckpointRef.make("ref-1"),
+                    status: "ready",
+                    files: [],
+                    assistantMessageId: MessageId.make("kept-answer"),
+                    completedAt: "2026-04-01T01:00:04.000Z",
+                  },
+                ],
+          activities: [
+            {
+              id: EventId.make("earlier-work"),
+              turnId: TurnId.make("interrupted-turn"),
+              kind: "tool.completed",
+              tone: "info",
+              summary: "Earlier work",
+              payload: {},
+              createdAt: "2026-04-01T01:00:02.000Z",
+            },
+            {
+              id: EventId.make("later-work"),
+              turnId: TurnId.make("removed-turn"),
+              kind: "tool.completed",
+              tone: "info",
+              summary: "Later work",
+              payload: {},
+              createdAt: "2026-04-01T01:00:07.000Z",
+            },
+          ],
+        };
+        const result = applyThreadDetailEvent(thread, {
+          ...baseEventFields,
+          sequence: 14,
+          occurredAt: "2026-04-01T02:00:00.000Z",
+          aggregateKind: "thread",
+          aggregateId: thread.id,
+          type: "thread.reverted",
+          payload: {
+            threadId: thread.id,
+            turnCount,
+            messageBoundary: {
+              messageId: MessageId.make("selected-user"),
+              createdAt: "2026-04-01T01:00:06.000Z",
+            },
+          },
+        });
+        expect(result.kind).toBe("updated");
+        if (result.kind !== "updated") return;
+        expect(result.thread.messages.map((message) => message.id)).toEqual(
+          messages.slice(0, 6).map((message) => message.id),
+        );
+        expect(result.thread.activities.map((activity) => activity.id)).toEqual(["earlier-work"]);
+      },
+    );
+
     it("keeps imported history and removes the first live prompt at checkpoint zero", () => {
       const threadWithImportedHistory: OrchestrationThread = {
         ...baseThread,

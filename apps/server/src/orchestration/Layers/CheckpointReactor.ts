@@ -2,6 +2,7 @@ import {
   CommandId,
   type CheckpointRef,
   EventId,
+  isImportedAgentSessionMessageId,
   MessageId,
   type ProjectId,
   ThreadId,
@@ -23,6 +24,7 @@ import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 import { isTemporaryWorktreeBranch } from "@t3tools/shared/git";
+import { compareDateTimeStrings } from "@t3tools/shared/dateTime";
 
 import { parseTurnDiffFilesFromNumstat } from "../../checkpointing/Diffs.ts";
 import {
@@ -807,6 +809,30 @@ const make = Effect.gen(function* () {
       return;
     }
 
+    const retainedCheckpoint = thread.checkpoints.find(
+      (checkpoint) => checkpoint.checkpointTurnCount === event.payload.turnCount,
+    );
+    const message = thread.messages.find((entry) =>
+      event.payload.messageId !== undefined
+        ? entry.id === event.payload.messageId
+        : entry.role === "user" &&
+          !isImportedAgentSessionMessageId(entry.id) &&
+          (event.payload.turnCount === 0 ||
+            (retainedCheckpoint !== undefined &&
+              compareDateTimeStrings(entry.createdAt, retainedCheckpoint.completedAt) > 0)),
+    );
+    if (event.payload.messageId !== undefined && message?.role !== "user") {
+      yield* appendRevertFailureActivity({
+        threadId: event.payload.threadId,
+        turnCount: event.payload.turnCount,
+        detail: "The message to rewind is no longer available.",
+        createdAt: now,
+      });
+      return;
+    }
+    const messageBoundary =
+      message === undefined ? undefined : { messageId: message.id, createdAt: message.createdAt };
+
     const checkpointCwd = yield* resolveCheckpointCwd({
       threadId: event.payload.threadId,
       thread,
@@ -922,6 +948,7 @@ const make = Effect.gen(function* () {
         commandId: yield* serverCommandId("checkpoint-revert-complete"),
         threadId: event.payload.threadId,
         turnCount: event.payload.turnCount,
+        messageBoundary,
         createdAt: now,
       })
       .pipe(
