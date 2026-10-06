@@ -424,17 +424,12 @@ export const buildNpmPlatformPackages = Effect.fn("buildNpmPlatformPackages")(fu
   yield* fs.makeDirectory(path.join(input.outputDir, NPM_PLATFORM_PACKAGE_SCOPE), {
     recursive: true,
   });
-  const outputs: Array<NpmPackageOutput> = [];
-  for (const { key, archive } of archives) {
-    outputs.push(
-      yield* stagePlatformPackage({
-        key,
-        archive,
-        outputDir: input.outputDir,
-        version: input.version,
-      }),
-    );
-  }
+  const outputs = yield* Effect.forEach(
+    archives,
+    ({ key, archive }) =>
+      stagePlatformPackage({ key, archive, outputDir: input.outputDir, version: input.version }),
+    { concurrency: "unbounded" },
+  );
   outputs.push(
     yield* stageLauncherPackage({
       outputDir: input.outputDir,
