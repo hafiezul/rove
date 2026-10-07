@@ -9,7 +9,7 @@ fi
 
 app="${1:?Pass the signed app bundle path}"
 codesign --verify --deep --strict --all-architectures \
-  -R "anchor = H\"$ROVE_MACOS_SIGNING_CERT_SHA1\"" "$app"
+  -R "=anchor = H\"$ROVE_MACOS_SIGNING_CERT_SHA1\"" "$app"
 requirement="$(codesign -d -r- "$app" 2>&1 | grep '^designated =>')"
 if ! printf '%s\n' "$requirement" | grep -qiF "$ROVE_MACOS_SIGNING_CERT_SHA1"; then
   echo "The app's designated requirement does not pin the expected signing certificate." >&2

@@ -81,7 +81,14 @@ function runner() {
   executable(
     "codesign",
     `
-    if (process.argv.includes('--verify')) process.exit(process.env.SIGNATURE_FAIL ? 1 : 0);
+    if (process.argv.includes('--verify')) {
+      const requirement = process.argv[process.argv.indexOf('-R') + 1];
+      if (!requirement?.startsWith('=')) {
+        console.error('invalid requirement specification');
+        process.exit(1);
+      }
+      process.exit(process.env.SIGNATURE_FAIL ? 1 : 0);
+    }
     console.error(process.env.REQUIREMENT || 'designated => identifier "io.github.hafiezul.rove" and anchor H"${fingerprint}"');
   `,
   );
