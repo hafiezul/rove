@@ -11,7 +11,11 @@ const surfaces = [
   {
     name: "marketing",
     readiness: "ROVE_MARKETING_RELEASE_READY",
-    paths: ["apps/marketing/src", "apps/marketing/astro.config.mjs", "apps/marketing/vercel.ts"],
+    paths: [
+      "apps/marketing/src",
+      "apps/marketing/astro.config.mjs",
+      "apps/marketing/wrangler.json",
+    ],
   },
   {
     name: "hosted web",

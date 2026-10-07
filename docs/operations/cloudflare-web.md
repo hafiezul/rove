@@ -60,6 +60,18 @@ After the first deployment works, set the repository variable `ROVE_CLOUDFLARE_W
 
 To stop serving it, unset `ROVE_CLOUDFLARE_WEB_READY` and remove the `rove-web` Worker and its custom domain in Cloudflare. Saved connections stay in users' browsers.
 
+## Publish the marketing site
+
+The landing page in `apps/marketing` deploys as a separate `rove-marketing` Worker at `https://rove-code.hafiezulzikry.com`. The browser app owns all of `rove.hafiezulzikry.com`, so the two sites cannot share a hostname. To use another hostname, change the custom-domain `pattern` in `apps/marketing/wrangler.json`. The build reads the site's canonical origin from that configuration.
+
+The workflow reuses the `cloudflare-web` environment and its secrets.
+
+1. Open **Actions → Cloudflare marketing → Run workflow** and run it once without deploying to check the build and Wrangler dry run.
+2. Run it again with the deployment checkbox enabled.
+3. Open the site and confirm that `curl -fsSL https://rove-code.hafiezulzikry.com/install.sh` prints the install script.
+
+After the first deployment works, set the repository variable `ROVE_MARKETING_RELEASE_READY=true`. Each published nightly release then redeploys the site from the release commit. That variable also makes the release refuse to publish while `apps/marketing` still carries upstream branding; run `node scripts/check-release-identity.mjs` to check. Download links fetch the latest release in the browser, so a new release does not need a redeploy to show up.
+
 ## Publish pull request previews
 
 Register a free `workers.dev` subdomain in the account's Workers settings. Production keeps its custom domain and does not enable its `workers.dev` route.
