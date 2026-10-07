@@ -10,6 +10,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
@@ -1997,6 +1998,60 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 
+  it.effect("self-signs macOS updates without Apple provisioning or notarization", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.2.3",
+        true,
+        false,
+        undefined,
+        {
+          entitlementsPath: "/tmp/apple-only-entitlements.plist",
+          provisioningProfilePath: "/tmp/apple-only.provisionprofile",
+        },
+        false,
+        "arm64",
+        "self-signed",
+      );
+
+      const mac = yield* Schema.decodeUnknownEffect(
+        Schema.Struct({
+          target: Schema.Array(Schema.String),
+          notarize: Schema.Boolean,
+          preAutoEntitlements: Schema.Boolean,
+          strictVerify: Schema.Boolean,
+          sign: Schema.String,
+        }),
+      )(config.mac);
+      assert.deepStrictEqual(mac.target, ["dmg", "zip"]);
+      assert.equal(config.forceCodeSigning, true);
+      assert.equal(mac.notarize, false);
+      assert.equal(mac.preAutoEntitlements, false);
+      assert.equal(mac.strictVerify, true);
+      assert.match(mac.sign, /[\\/]scripts[\\/]sign-macos\.ts$/);
+      assert.notProperty(config.mac, "provisioningProfile");
+      assert.notProperty(config.mac, "entitlements");
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
+  it.effect("does not require certificate signing for unsigned macOS builds", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.2.3",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      assert.notProperty(config, "forceCodeSigning");
+      assert.notProperty(config.mac, "sign");
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
   it.effect("uses the nightly DMG background for nightly macOS builds", () =>
     Effect.gen(function* () {
       const config = yield* createBuildConfig(
@@ -2256,6 +2311,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         ),
       );
 
+      assert.equal(resolved.macSigningMode, "developer-id");
       assert.equal(resolved.platform, "win");
       assert.equal(resolved.target, "nsis");
       assert.equal(resolved.arch, "arm64");
@@ -2285,6 +2341,40 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         assert.instanceOf(error, UnsupportedDesktopBuildArchitectureError);
         assert.deepStrictEqual(error.supportedArchitectures, ["x64", "arm64"]);
       }
+    }),
+  );
+
+  it.effect("accepts self-signed mode and rejects unknown macOS signing modes", () =>
+    Effect.gen(function* () {
+      const resolve = (mode: string) =>
+        resolveBuildOptions({
+          platform: Option.some("mac"),
+          target: Option.none(),
+          arch: Option.some("arm64"),
+          buildVersion: Option.none(),
+          outputDir: Option.none(),
+          skipBuild: Option.none(),
+          keepStage: Option.none(),
+          signed: Option.some(true),
+          verbose: Option.none(),
+          mockUpdates: Option.none(),
+          mockUpdateServerPort: Option.none(),
+          wslRuntime: Option.none(),
+        }).pipe(
+          Effect.provide(
+            ConfigProvider.layer(
+              ConfigProvider.fromEnv({
+                env: { ROVE_MACOS_SIGNING_MODE: mode },
+              }),
+            ),
+          ),
+        );
+
+      const options = yield* resolve("self-signed");
+      assert.equal(options.macSigningMode, "self-signed");
+      assert.equal(options.signed, true);
+      const error = yield* Effect.flip(resolve("adhoc"));
+      assert.include(String(error), "ROVE_MACOS_SIGNING_MODE");
     }),
   );
 

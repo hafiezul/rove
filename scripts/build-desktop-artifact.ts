@@ -59,6 +59,7 @@ const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
+const MacSigningMode = Schema.Literals(["developer-id", "self-signed"]);
 
 const WorkspaceConfig = Schema.Struct({
   catalog: Schema.optional(Schema.Record(Schema.String, Schema.String)),
@@ -915,6 +916,7 @@ interface ResolvedBuildOptions {
   readonly skipBuild: boolean;
   readonly keepStage: boolean;
   readonly signed: boolean;
+  readonly macSigningMode: typeof MacSigningMode.Type;
   readonly verbose: boolean;
   readonly mockUpdates: boolean;
   readonly mockUpdateServerPort: number | undefined;
@@ -1547,6 +1549,9 @@ const BuildEnvConfig = Config.all({
   skipBuild: Config.Boolean("ROVE_DESKTOP_SKIP_BUILD").pipe(Config.withDefault(false)),
   keepStage: Config.Boolean("ROVE_DESKTOP_KEEP_STAGE").pipe(Config.withDefault(false)),
   signed: Config.Boolean("ROVE_DESKTOP_SIGNED").pipe(Config.withDefault(false)),
+  macSigningMode: Config.schema(MacSigningMode, "ROVE_MACOS_SIGNING_MODE").pipe(
+    Config.withDefault("developer-id"),
+  ),
   verbose: Config.Boolean("ROVE_DESKTOP_VERBOSE").pipe(Config.withDefault(false)),
   mockUpdates: Config.Boolean("ROVE_DESKTOP_MOCK_UPDATES").pipe(Config.withDefault(false)),
   mockUpdateServerPort: Config.String("ROVE_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(Config.option),
@@ -1657,6 +1662,7 @@ export const resolveBuildOptions = Effect.fn("resolveBuildOptions")(function* (
     skipBuild,
     keepStage,
     signed,
+    macSigningMode: env.macSigningMode,
     verbose,
     mockUpdates,
     mockUpdateServerPort,
@@ -2637,6 +2643,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   // source file was never written fails the electron-builder step.
   wslRuntimeBundled = false,
   arch?: typeof BuildArch.Type,
+  macSigningMode: typeof MacSigningMode.Type = "developer-id",
 ) {
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
@@ -2686,7 +2693,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
-    buildConfig.mac = {
+    const macConfig = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
@@ -2701,13 +2708,22 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
-      ...(macPasskeySigning
+      ...(macSigningMode === "developer-id" && macPasskeySigning
         ? {
             entitlements: macPasskeySigning.entitlementsPath,
             provisioningProfile: macPasskeySigning.provisioningProfilePath,
           }
         : {}),
     };
+    if (signed && macSigningMode === "self-signed") {
+      Object.assign(macConfig, {
+        notarize: false,
+        preAutoEntitlements: false,
+        strictVerify: true,
+      });
+      buildConfig.forceCodeSigning = true;
+    }
+    buildConfig.mac = macConfig;
   }
 
   if (platform === "mac" && target === "dmg") {
@@ -3617,7 +3633,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
 
   const configuredMacPasskeySigning =
-    options.platform === "mac" && options.signed
+    options.platform === "mac" && options.signed && options.macSigningMode === "developer-id"
       ? yield* Effect.try({
           try: () => resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot })),
           catch: MacPasskeySigningConfigurationResolutionError.fromCause,
@@ -3693,6 +3709,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
         : undefined,
       bundlesWslRuntime({ platform: options.platform, runtimeArchivePath: options.wslRuntime }),
       options.arch,
+      options.macSigningMode,
     ),
     dependencies: stageDependencies,
     devDependencies: {
@@ -3776,6 +3793,16 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     // fpm compresses the .deb with the system xz through tar. Threaded mode
     // takes seconds on a many-core runner instead of about two minutes.
     buildEnv.XZ_DEFAULTS = "-T0";
+  }
+  if (
+    options.platform === "mac" &&
+    options.signed &&
+    options.macSigningMode === "self-signed" &&
+    buildEnv.CSC_KEYCHAIN
+  ) {
+    // Reuse the CI keychain whose certificate trust was explicitly configured.
+    delete buildEnv.CSC_LINK;
+    delete buildEnv.CSC_KEY_PASSWORD;
   }
   if (!options.signed) {
     buildEnv.CSC_IDENTITY_AUTO_DISCOVERY = "false";

@@ -338,7 +338,8 @@ const MacSigningConfig = Config.all({
 /**
  * Apple Silicon refuses to run unsigned Mach-O binaries at all, so the
  * executable is always signed: ad hoc when no identity is configured, or with
- * the Developer ID plus notarization when it is. The hardened runtime that
+ * the configured certificate when it is. Apple credentials enable notarization.
+ * The hardened runtime that
  * notarization requires only loads signed libraries, so every native addon in
  * the archive is signed with the same identity.
  */
@@ -386,7 +387,7 @@ const signMacArchiveContents = Effect.fn("signMacArchiveContents")(function* (in
   const apiIssuer = Option.getOrUndefined(signing.appleApiIssuer);
   if (!apiKey || !apiKeyId || !apiIssuer) {
     yield* Effect.logWarning(
-      "[cli-archive] Developer ID signed but not notarized (missing APPLE_API_KEY*).",
+      "[cli-archive] Certificate signed but not notarized (missing APPLE_API_KEY*).",
     );
     return;
   }
