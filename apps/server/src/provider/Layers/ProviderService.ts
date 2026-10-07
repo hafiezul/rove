@@ -2374,7 +2374,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       }
       const thread = yield* projectionQuery.value
         .getThreadShellById(threadId)
-        .pipe(Effect.orElseSucceed(() => Option.none<{ projectId: ProjectId }>()));
+        .pipe(Effect.orElseSucceed(() => Option.none<{ projectId: ProjectId | null }>()));
       if (Option.isNone(thread)) return settings.continueThreadsAfterServerUpdate;
       return resolveProjectSettings(settings, thread.value.projectId).settings
         .continueThreadsAfterServerUpdate;

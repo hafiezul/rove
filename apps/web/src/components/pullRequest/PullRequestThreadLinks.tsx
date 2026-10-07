@@ -204,7 +204,7 @@ function ThreadPicker({
       (thread) =>
         thread.environmentId === environmentId &&
         thread.archivedAt === null &&
-        `${thread.title} ${projectNames.get(thread.projectId) ?? ""}`
+        `${thread.title} ${thread.projectId === null ? "Standalone" : (projectNames.get(thread.projectId) ?? "")}`
           .toLocaleLowerCase()
           .includes(search),
     )
@@ -231,7 +231,7 @@ function ThreadPicker({
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{thread.title || "Untitled thread"}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {projectNames.get(thread.projectId)}
+                    {thread.projectId === null ? "Standalone" : projectNames.get(thread.projectId)}
                   </span>
                 </span>
                 {linked ? (

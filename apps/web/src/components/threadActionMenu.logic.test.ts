@@ -4,6 +4,7 @@ import { buildThreadActionMenuItems, type ThreadActionMenuState } from "./thread
 
 const baseState: ThreadActionMenuState = {
   branch: null,
+  hasProject: true,
   projectFilter: null,
   isPinned: false,
   isSettled: false,
@@ -35,6 +36,10 @@ function allIds(state: ThreadActionMenuState): string[] {
 }
 
 describe("buildThreadActionMenuItems", () => {
+  it("omits project settings for standalone threads", () => {
+    expect(allIds({ ...baseState, hasProject: false })).not.toContain("project-settings");
+    expect(allIds({ ...baseState, hasProject: false })).toContain("copy-path");
+  });
   it("hides lifecycle items when the environment lacks the capabilities", () => {
     expect(
       ids({

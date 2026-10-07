@@ -91,7 +91,9 @@ export function sortHomeProjectScopes(input: {
   for (const thread of input.threads) {
     if (thread.archivedAt !== null) continue;
     recordActivity(
-      scopeKeyByProjectRef.get(scopedProjectKey(thread.environmentId, thread.projectId)),
+      scopeKeyByProjectRef.get(
+        thread.projectId === null ? "" : scopedProjectKey(thread.environmentId, thread.projectId),
+      ),
       getThreadSortTimestamp(thread, input.projectSortOrder),
     );
   }

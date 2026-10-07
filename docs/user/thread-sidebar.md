@@ -5,7 +5,16 @@ need a separate branch and working directory.
 
 ## Start a thread
 
-On web and desktop, a new thread keeps the current project and carries your model
+To work without adding a project, choose **New thread without a project** in the
+command palette, or **New thread** when no projects are registered. On mobile,
+choose **New thread without a project** in the new-task picker.
+
+Each standalone thread has a persistent working folder for generated files.
+It can run commands and use files elsewhere under your agent's usual permissions.
+Find its outputs in **Files** or its terminal. Deleting the conversation leaves
+those files in place. Git worktrees require a project.
+
+On web and desktop, a project thread keeps the current project and carries your model
 and mode selections, unless the destination project has its own model default.
 Its branch and workspace mode come from your configured defaults. To continue in
 an existing worktree, use **New thread in this worktree** from the branch toolbar.

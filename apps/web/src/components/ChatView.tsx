@@ -980,10 +980,6 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
         readonly runtimeEnv: Record<string, string>;
       }
     >();
-    if (!project) {
-      return next;
-    }
-
     for (const session of drawerTerminalSessions) {
       const summary = session.state.summary;
       if (!summary) {
@@ -994,10 +990,12 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
       next.set(session.target.terminalId, {
         cwd: launchContext?.cwd ?? summary.cwd,
         worktreePath: worktreePathForLaunch,
-        runtimeEnv: projectScriptRuntimeEnv({
-          project: { cwd: project.workspaceRoot },
-          worktreePath: worktreePathForLaunch,
-        }),
+        runtimeEnv: project
+          ? projectScriptRuntimeEnv({
+              project: { cwd: project.workspaceRoot },
+              worktreePath: worktreePathForLaunch,
+            })
+          : {},
       });
     }
 
@@ -1057,8 +1055,8 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
             project: { cwd: project.workspaceRoot },
             worktreePath: effectiveWorktreePath,
           })
-        : null),
-    [effectiveWorktreePath, launchContext?.cwd, project],
+        : (serverThread?.workspacePath ?? null)),
+    [effectiveWorktreePath, launchContext?.cwd, project, serverThread?.workspacePath],
   );
   const runtimeEnv = useMemo(
     () =>
@@ -1224,7 +1222,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
     [onAddTerminalContext, visible],
   );
 
-  if (!project || (!terminalUiState.terminalOpen && !active) || !cwd) {
+  if ((!terminalUiState.terminalOpen && !active) || !cwd) {
     return null;
   }
 
@@ -1337,8 +1335,8 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
             project: { cwd: project.workspaceRoot },
             worktreePath,
           })
-        : null),
-    [activeSummary?.cwd, launchContext?.cwd, project, worktreePath],
+        : (serverThread?.workspacePath ?? null)),
+    [activeSummary?.cwd, launchContext?.cwd, project, worktreePath, serverThread?.workspacePath],
   );
   const runtimeEnv = useMemo(
     () =>
@@ -1383,15 +1381,17 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
               project: { cwd: project.workspaceRoot },
               worktreePath: terminalWorktreePath,
             })
-          : null);
-      if (!terminalCwd || !project) continue;
+          : (serverThread?.workspacePath ?? null));
+      if (!terminalCwd) continue;
       locations.set(terminalId, {
         cwd: terminalCwd,
         worktreePath: terminalWorktreePath,
-        runtimeEnv: projectScriptRuntimeEnv({
-          project: { cwd: project.workspaceRoot },
-          worktreePath: terminalWorktreePath,
-        }),
+        runtimeEnv: project
+          ? projectScriptRuntimeEnv({
+              project: { cwd: project.workspaceRoot },
+              worktreePath: terminalWorktreePath,
+            })
+          : {},
       });
     }
     return locations;
@@ -1402,9 +1402,10 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
     project,
     surface.terminalIds,
     threadWorktreePath,
+    serverThread?.workspacePath,
   ]);
 
-  if (!project || !cwd) return null;
+  if (!cwd) return null;
 
   return (
     <ThreadTerminalDrawer
@@ -2300,7 +2301,9 @@ export default function ChatView(props: ChatViewProps) {
   const activeEnvironmentBootstrapComplete = activeEnvironmentShell.data?.snapshot._tag === "Some";
   const activeProjectKey = activeProject
     ? `${activeProject.environmentId}:${activeProject.workspaceRoot}`
-    : null;
+    : activeThread?.workspacePath
+      ? `${activeThread.environmentId}:${activeThread.workspacePath}`
+      : null;
   const clientSettingsHydrated = useClientSettingsHydrated();
   const [pendingFileSurfaceIdsByProject, setPendingFileSurfaceIdsByProject] = useState<
     ReadonlyMap<string, ReadonlySet<string>>
@@ -2333,8 +2336,18 @@ export default function ChatView(props: ChatViewProps) {
 
   useEffect(() => {
     if (!activeThreadRef || !activeEnvironmentBootstrapComplete) return;
-    useRightPanelStore.getState().reconcileFileSurfaces(activeThreadRef, activeProject !== null);
-  }, [activeEnvironmentBootstrapComplete, activeProject, activeThreadRef]);
+    useRightPanelStore
+      .getState()
+      .reconcileFileSurfaces(
+        activeThreadRef,
+        activeProject !== null || activeThread?.workspacePath != null,
+      );
+  }, [
+    activeEnvironmentBootstrapComplete,
+    activeProject,
+    activeThread?.workspacePath,
+    activeThreadRef,
+  ]);
 
   // Compute the list of environments this logical project spans, used to
   // drive the environment picker in BranchToolbar.
@@ -3645,8 +3658,8 @@ export default function ChatView(props: ChatViewProps) {
         project: { cwd: activeProject.workspaceRoot },
         worktreePath: activeThread?.worktreePath ?? null,
       })
-    : null;
-  const gitStatusCwd = activeThread?.worktreePath ?? gitCwd;
+    : (activeThread?.workspacePath ?? null);
+  const gitStatusCwd = activeThread?.worktreePath ?? activeThread?.workspacePath ?? gitCwd;
   const gitStatusQuery = useEnvironmentQuery(
     gitStatusCwd === null
       ? null
@@ -3721,7 +3734,8 @@ export default function ChatView(props: ChatViewProps) {
   const hasTimelineTopBanner = Boolean(visibleThreadError) || visibleProviderStatus !== null;
   const activeProjectCwd = activeProject?.workspaceRoot ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
-  const activeWorkspaceRoot = activeThreadWorktreePath ?? activeProjectCwd ?? undefined;
+  const activeWorkspaceRoot =
+    activeThreadWorktreePath ?? activeThread?.workspacePath ?? activeProjectCwd ?? undefined;
   useLayoutEffect(() => {
     if (
       threadDetailLoading ||
@@ -4042,10 +4056,10 @@ export default function ChatView(props: ChatViewProps) {
     if (!activeThreadRef) return;
     const nextOpen = !terminalUiState.terminalOpen;
     if (nextOpen && terminalUiState.terminalIds.length === 0) {
-      if (!activeThreadId || !activeProject) {
+      if (!activeThreadId || !activeWorkspaceRoot) {
         return;
       }
-      const cwdForOpen = gitCwd ?? activeProject.workspaceRoot;
+      const cwdForOpen = activeWorkspaceRoot;
       if (!cwdForOpen) {
         return;
       }
@@ -4058,10 +4072,12 @@ export default function ChatView(props: ChatViewProps) {
           terminalId,
           cwd: cwdForOpen,
           ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
-          env: projectScriptRuntimeEnv({
-            project: { cwd: activeProject.workspaceRoot },
-            worktreePath: activeThreadWorktreePath,
-          }),
+          env: activeProject
+            ? projectScriptRuntimeEnv({
+                project: { cwd: activeProject.workspaceRoot },
+                worktreePath: activeThreadWorktreePath,
+              })
+            : {},
         },
       });
       return;
@@ -4069,6 +4085,7 @@ export default function ChatView(props: ChatViewProps) {
     setTerminalOpen(nextOpen);
   }, [
     activeProject,
+    activeWorkspaceRoot,
     activeThreadId,
     activeThreadRef,
     activeThreadWorktreePath,
@@ -4083,10 +4100,10 @@ export default function ChatView(props: ChatViewProps) {
   ]);
   const splitTerminal = useCallback(
     (direction: "horizontal" | "vertical" = "horizontal") => {
-      if (!activeThreadRef || hasReachedSplitLimit || !activeThreadId || !activeProject) {
+      if (!activeThreadRef || hasReachedSplitLimit || !activeThreadId || !activeWorkspaceRoot) {
         return;
       }
-      const cwdForOpen = gitCwd ?? activeProject.workspaceRoot;
+      const cwdForOpen = activeWorkspaceRoot;
       if (!cwdForOpen) {
         return;
       }
@@ -4104,15 +4121,18 @@ export default function ChatView(props: ChatViewProps) {
           terminalId,
           cwd: cwdForOpen,
           ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
-          env: projectScriptRuntimeEnv({
-            project: { cwd: activeProject.workspaceRoot },
-            worktreePath: activeThreadWorktreePath,
-          }),
+          env: activeProject
+            ? projectScriptRuntimeEnv({
+                project: { cwd: activeProject.workspaceRoot },
+                worktreePath: activeThreadWorktreePath,
+              })
+            : {},
         },
       });
     },
     [
       activeProject,
+      activeWorkspaceRoot,
       activeThreadId,
       allocatableActiveTerminalIds,
       activeThreadRef,
@@ -4126,10 +4146,10 @@ export default function ChatView(props: ChatViewProps) {
     ],
   );
   const createNewTerminal = useCallback(() => {
-    if (!activeThreadRef || !activeThreadId || !activeProject) {
+    if (!activeThreadRef || !activeThreadId || !activeWorkspaceRoot) {
       return;
     }
-    const cwdForOpen = gitCwd ?? activeProject.workspaceRoot;
+    const cwdForOpen = activeWorkspaceRoot;
     if (!cwdForOpen) {
       return;
     }
@@ -4143,14 +4163,17 @@ export default function ChatView(props: ChatViewProps) {
         terminalId,
         cwd: cwdForOpen,
         ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
-        env: projectScriptRuntimeEnv({
-          project: { cwd: activeProject.workspaceRoot },
-          worktreePath: activeThreadWorktreePath,
-        }),
+        env: activeProject
+          ? projectScriptRuntimeEnv({
+              project: { cwd: activeProject.workspaceRoot },
+              worktreePath: activeThreadWorktreePath,
+            })
+          : {},
       },
     });
   }, [
     activeProject,
+    activeWorkspaceRoot,
     activeThreadId,
     allocatableActiveTerminalIds,
     activeThreadRef,
@@ -4576,9 +4599,9 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen?.();
   }, [activeThreadRef, isGitRepo, isServerThread, onDiffPanelOpen]);
   const addFilesSurface = useCallback(() => {
-    if (!activeThreadRef || !activeProject) return;
+    if (!activeThreadRef || !activeWorkspaceRoot) return;
     useRightPanelStore.getState().open(activeThreadRef, "files");
-  }, [activeProject, activeThreadRef]);
+  }, [activeWorkspaceRoot, activeThreadRef]);
   const addAgentsSurface = useCallback(() => {
     if (!activeThreadRef) return;
     useRightPanelStore.getState().open(activeThreadRef, "agents");
@@ -4681,10 +4704,10 @@ export default function ChatView(props: ChatViewProps) {
   }, [activePreviewMiniPlayer, activeThreadRef, deviceState.sessions, deviceStateLoaded]);
   const openFileSurface = useCallback(
     (relativePath: string) => {
-      if (!activeThreadRef || !activeProject) return;
+      if (!activeThreadRef || !activeWorkspaceRoot) return;
       useRightPanelStore.getState().openFile(activeThreadRef, relativePath);
     },
-    [activeProject, activeThreadRef],
+    [activeWorkspaceRoot, activeThreadRef],
   );
   // The shell carries server PR updates even while thread detail is still loading.
   const activeThreadMetadata = activeThreadShell ?? activeThread;
@@ -4903,8 +4926,8 @@ export default function ChatView(props: ChatViewProps) {
     previewPanelOpen,
   ]);
   const addTerminalSurface = useCallback(() => {
-    if (!activeThreadRef || !activeThreadId || !activeProject) return;
-    const cwd = gitCwd ?? activeProject.workspaceRoot;
+    if (!activeThreadRef || !activeThreadId || !activeWorkspaceRoot) return;
+    const cwd = activeWorkspaceRoot;
     const terminalId = nextTerminalId(allocatableActiveTerminalIds);
     useRightPanelStore.getState().openTerminal(activeThreadRef, terminalId);
     setTerminalFocusRequestId((value) => value + 1);
@@ -4915,14 +4938,17 @@ export default function ChatView(props: ChatViewProps) {
         terminalId,
         cwd,
         ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
-        env: projectScriptRuntimeEnv({
-          project: { cwd: activeProject.workspaceRoot },
-          worktreePath: activeThreadWorktreePath,
-        }),
+        env: activeProject
+          ? projectScriptRuntimeEnv({
+              project: { cwd: activeProject.workspaceRoot },
+              worktreePath: activeThreadWorktreePath,
+            })
+          : {},
       },
     });
   }, [
     activeProject,
+    activeWorkspaceRoot,
     activeThreadId,
     activeThreadRef,
     activeThreadWorktreePath,
@@ -4935,14 +4961,14 @@ export default function ChatView(props: ChatViewProps) {
       if (
         !activeThreadRef ||
         !activeThreadId ||
-        !activeProject ||
+        !activeWorkspaceRoot ||
         activeRightPanelSurface?.kind !== "terminal" ||
         activeRightPanelSurface.terminalIds.length >= MAX_TERMINALS_PER_GROUP
       ) {
         return;
       }
       const terminalId = nextTerminalId(allocatableActiveTerminalIds);
-      const cwd = gitCwd ?? activeProject.workspaceRoot;
+      const cwd = activeWorkspaceRoot;
       useRightPanelStore
         .getState()
         .splitTerminal(activeThreadRef, activeRightPanelSurface.id, terminalId, direction);
@@ -4954,15 +4980,18 @@ export default function ChatView(props: ChatViewProps) {
           terminalId,
           cwd,
           ...(activeThreadWorktreePath != null ? { worktreePath: activeThreadWorktreePath } : {}),
-          env: projectScriptRuntimeEnv({
-            project: { cwd: activeProject.workspaceRoot },
-            worktreePath: activeThreadWorktreePath,
-          }),
+          env: activeProject
+            ? projectScriptRuntimeEnv({
+                project: { cwd: activeProject.workspaceRoot },
+                worktreePath: activeThreadWorktreePath,
+              })
+            : {},
         },
       });
     },
     [
       activeProject,
+      activeWorkspaceRoot,
       activeRightPanelSurface,
       activeThreadId,
       activeThreadRef,
@@ -6417,7 +6446,7 @@ export default function ChatView(props: ChatViewProps) {
   const compactThreadUnavailable =
     !activeThread ||
     !activeThreadHasCompactableConversation ||
-    !activeProject ||
+    !activeWorkspaceRoot ||
     !isServerThread ||
     !manualCompactionProviderAvailable ||
     isWorking ||
@@ -6430,8 +6459,8 @@ export default function ChatView(props: ChatViewProps) {
     showPlanFollowUpPrompt;
   const compactDisabled = compactThreadUnavailable;
   const compactDisabledReason = compactDisabled
-    ? !activeProject
-      ? "Choose a project before compacting"
+    ? !activeWorkspaceRoot
+      ? "The thread workspace is unavailable"
       : !manualCompactionProviderAvailable
         ? "Compaction is unavailable for this provider"
         : "Compacting is unavailable right now"
@@ -7673,7 +7702,7 @@ export default function ChatView(props: ChatViewProps) {
       }
       return;
     }
-    if (!activeProject) {
+    if (!activeProject && activeThread?.projectId !== null) {
       toastManager.add(
         stackedThreadToast({
           type: "warning",
@@ -7952,7 +7981,7 @@ export default function ChatView(props: ChatViewProps) {
         };
       }),
     );
-    if (multipleModelSelections !== null) {
+    if (multipleModelSelections !== null && activeProject) {
       const failedSelections: ModelSelection[] = [];
       let clearedDraft = false;
       let releasedComposer = false;
@@ -8362,7 +8391,7 @@ export default function ChatView(props: ChatViewProps) {
     let backgroundDraftOpened = false;
     if (failure === null && turnAttachmentsResult._tag === "Success") {
       const bootstrap =
-        isLocalDraftThread || baseBranchForWorktree
+        activeProject && (isLocalDraftThread || baseBranchForWorktree)
           ? {
               ...(isLocalDraftThread
                 ? {
@@ -8447,7 +8476,7 @@ export default function ChatView(props: ChatViewProps) {
         try {
           backgroundDraftOpened = Boolean(
             await handleNewThread(
-              scopeProjectRef(activeProject.environmentId, activeProject.id),
+              scopeProjectRef(activeThread.environmentId, activeThread.projectId),
               resolveBackgroundDraftWorkspaceOptions({
                 envMode: sendEnvMode,
                 branch: activeThreadBranch,
@@ -9073,7 +9102,6 @@ export default function ChatView(props: ChatViewProps) {
   const onImplementPlanInNewThread = useCallback(async () => {
     if (
       !activeThread ||
-      !activeProject ||
       !activeProposedPlan ||
       !isServerThread ||
       isSendBusy ||
@@ -9124,7 +9152,7 @@ export default function ChatView(props: ChatViewProps) {
       environmentId,
       input: {
         threadId: nextThreadId,
-        projectId: activeProject.id,
+        projectId: activeThread.projectId,
         title: nextThreadTitle,
         modelSelection: nextThreadModelSelection,
         runtimeMode: defaultRuntimeMode,
@@ -9512,10 +9540,10 @@ export default function ChatView(props: ChatViewProps) {
 
   const panelToggleControls = (
     <PanelLayoutControls
-      terminalAvailable={activeProject !== null}
+      terminalAvailable={activeWorkspaceRoot != null}
       terminalOpen={terminalUiState.terminalOpen}
       terminalShortcutLabel={shortcutLabelForCommand(keybindings, "terminal.toggle")}
-      rightPanelAvailable={activeProject !== null}
+      rightPanelAvailable={activeWorkspaceRoot != null}
       rightPanelOpen={rightPanelOpen}
       rightPanelShortcutLabel={shortcutLabelForCommand(keybindings, "rightPanel.toggle")}
       // Suppressed while the Agents surface is visible: the roster itself is
@@ -9674,7 +9702,7 @@ export default function ChatView(props: ChatViewProps) {
       </Suspense>
     ) : (renderedRightPanelSurface?.kind === "files" ||
         renderedRightPanelSurface?.kind === "file") &&
-      ((activeProject && activeWorkspaceRoot) ||
+      (activeWorkspaceRoot ||
         (renderedRightPanelSurface.kind === "file" && renderedRightPanelSurface.attachment)) ? (
       <Suspense fallback={null}>
         <FilePreviewPanel
@@ -9685,7 +9713,7 @@ export default function ChatView(props: ChatViewProps) {
           }`}
           environmentId={activeThread.environmentId}
           cwd={activeWorkspaceRoot ?? ""}
-          projectName={activeProject?.title ?? ""}
+          projectName={activeProject?.title ?? "Thread workspace"}
           threadRef={activeThreadRef}
           composerDraftTarget={composerDraftTarget}
           keybindings={keybindings}
@@ -9858,7 +9886,7 @@ export default function ChatView(props: ChatViewProps) {
                       agentPanelModel,
                       onOpenAgents: addAgentsSurface,
                       onUseArtifactTemplate: useArtifactTemplate,
-                      ...(activeProject ? { onRunShellCommand: runShellCommand } : {}),
+                      ...(activeWorkspaceRoot ? { onRunShellCommand: runShellCommand } : {}),
                     }
                   : {})}
                 isWorking={!paintOnlyDisplayedTimeline && isWorking}
@@ -10321,9 +10349,9 @@ export default function ChatView(props: ChatViewProps) {
           onAddAgents={addAgentsSurface}
           onAddDevice={addDeviceSurface}
           browserAvailable={isPreviewSupportedInRuntime()}
-          terminalAvailable={activeProject !== null}
+          terminalAvailable={activeWorkspaceRoot != null}
           diffAvailable={isServerThread && isGitRepo}
-          filesAvailable={activeProject !== null}
+          filesAvailable={activeWorkspaceRoot != null}
           pullRequestAvailable={pullRequestSurfaceAvailable}
           pullRequestsAvailable={pullRequestsSurfaceAvailable}
           agentsAvailable
@@ -10378,9 +10406,9 @@ export default function ChatView(props: ChatViewProps) {
             onAddAgents={addAgentsSurface}
             onAddDevice={addDeviceSurface}
             browserAvailable={isPreviewSupportedInRuntime()}
-            terminalAvailable={activeProject !== null}
+            terminalAvailable={activeWorkspaceRoot != null}
             diffAvailable={isServerThread && isGitRepo}
-            filesAvailable={activeProject !== null}
+            filesAvailable={activeWorkspaceRoot != null}
             pullRequestAvailable={pullRequestSurfaceAvailable}
             pullRequestsAvailable={pullRequestsSurfaceAvailable}
             agentsAvailable

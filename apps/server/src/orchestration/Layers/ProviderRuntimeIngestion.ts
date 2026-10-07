@@ -1278,7 +1278,7 @@ const make = Effect.gen(function* () {
       });
     });
 
-  const resolveResponseStreamingMode = (projectId: ProjectId) =>
+  const resolveResponseStreamingMode = (projectId: ProjectId | null) =>
     Effect.map(
       serverSettingsService.getSettings,
       (settings) => resolveProjectSettings(settings, projectId).settings.responseStreamingMode,

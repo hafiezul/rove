@@ -4057,7 +4057,11 @@ export default function Sidebar() {
         if (!thread) return;
         const threadWorkspacePath =
           thread.worktreePath ??
-          projectByKey.get(`${thread.environmentId}:${thread.projectId}`)?.workspaceRoot ??
+          thread.workspacePath ??
+          (thread.projectId === null
+            ? undefined
+            : projectByKey.get(`${thread.environmentId}:${thread.projectId}`)
+          )?.workspaceRoot ??
           null;
         // Un-settle pins the thread active until real activity clears the pin.
         // Environments without
@@ -4093,6 +4097,7 @@ export default function Sidebar() {
           api.contextMenu.show(
             buildThreadActionMenuItems({
               branch: thread.branch ?? null,
+              hasProject: thread.projectId !== null,
               projectFilter: threadProjectGroup
                 ? {
                     label: threadProjectGroup.displayName,
@@ -4591,7 +4596,7 @@ export default function Sidebar() {
               }
               onNewProject={openAddProjectCommandPalette}
               onNewThread={handleNewThreadClick}
-              newThreadDisabled={projects.length === 0}
+              newThreadDisabled={false}
               newThreadShortcutLabel={newThreadShortcutLabel}
               newThreadInProjectShortcutLabel={newThreadInProjectShortcutLabel}
               showNewThreadInProjectHint={projectGroups.length > 1}
@@ -4634,12 +4639,17 @@ export default function Sidebar() {
                         key={threadKey}
                         thread={thread}
                         project={
-                          projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ?? null
+                          (thread.projectId === null
+                            ? undefined
+                            : projectByKey.get(`${thread.environmentId}:${thread.projectId}`)) ??
+                          null
                         }
                         projectDisplayName={
-                          projectDisplayNameByKey.get(
-                            `${thread.environmentId}:${thread.projectId}`,
-                          ) ?? null
+                          (thread.projectId === null
+                            ? "Standalone"
+                            : projectDisplayNameByKey.get(
+                                `${thread.environmentId}:${thread.projectId}`,
+                              )) ?? null
                         }
                         environmentLabel={environmentLabelById.get(thread.environmentId) ?? null}
                         environmentMachine={
@@ -4788,13 +4798,18 @@ export default function Sidebar() {
                               environmentMachineById.get(thread.environmentId) ?? "server"
                             }
                             project={
-                              projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ??
-                              null
+                              (thread.projectId === null
+                                ? undefined
+                                : projectByKey.get(
+                                    `${thread.environmentId}:${thread.projectId}`,
+                                  )) ?? null
                             }
                             projectDisplayName={
-                              projectDisplayNameByKey.get(
-                                `${thread.environmentId}:${thread.projectId}`,
-                              ) ?? null
+                              (thread.projectId === null
+                                ? "Standalone"
+                                : projectDisplayNameByKey.get(
+                                    `${thread.environmentId}:${thread.projectId}`,
+                                  )) ?? null
                             }
                             providerEntryByInstanceId={
                               providerEntriesByEnvironment.get(thread.environmentId) ??

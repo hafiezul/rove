@@ -25,6 +25,7 @@ export function resolveThreadRouteRenderState(input: {
   serverThreadShellExists: boolean;
   serverThreadDetailExists: boolean;
   serverThreadDetailDeleted: boolean;
+  serverThreadDetailPending: boolean;
   draftThreadExists: boolean;
 }): ThreadRouteRenderState {
   if (!input.bootstrapComplete) {
@@ -36,7 +37,9 @@ export function resolveThreadRouteRenderState(input: {
   if (input.serverThreadDetailDeleted) {
     return "missing";
   }
-  return input.serverThreadShellExists ? "loading" : "missing";
+  // A create receipt can arrive before the shell stream. Let the detail
+  // subscription establish whether the thread exists instead of redirecting.
+  return input.serverThreadShellExists || input.serverThreadDetailPending ? "loading" : "missing";
 }
 
 export function buildThreadRouteParams(ref: ScopedThreadRef) {

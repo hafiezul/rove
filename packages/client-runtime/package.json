@@ -235,6 +235,10 @@
       "types": "./src/state/threads.ts",
       "default": "./src/state/threads.ts"
     },
+    "./state/standalone-thread": {
+      "types": "./src/state/standaloneThread.ts",
+      "default": "./src/state/standaloneThread.ts"
+    },
     "./state/subagentRuntime": {
       "types": "./src/state/subagentRuntime.ts",
       "default": "./src/state/subagentRuntime.ts"

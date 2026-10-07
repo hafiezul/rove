@@ -1109,9 +1109,9 @@ function OpenCommandPaletteDialog(props: {
   const currentProjectEnvironmentId =
     activeThread?.environmentId ?? activeDraftThread?.environmentId ?? null;
   const currentProjectId = activeThread?.projectId ?? activeDraftThread?.projectId ?? null;
-  const currentProjectCwd = currentProjectId
-    ? (projectCwdById.get(currentProjectId) ?? null)
-    : null;
+  const currentProjectCwd =
+    activeThread?.workspacePath ??
+    (currentProjectId ? (projectCwdById.get(currentProjectId) ?? null) : null);
   const currentProjectCwdForBrowse =
     browseEnvironmentId && currentProjectEnvironmentId === browseEnvironmentId
       ? currentProjectCwd
@@ -1340,6 +1340,22 @@ function OpenCommandPaletteDialog(props: {
       projectEnvironmentLocationById,
       projectGroupByTargetKey,
     ],
+  );
+
+  const standaloneThreadItems = useMemo<CommandPaletteActionItem[]>(
+    () =>
+      environments.map((environment) => ({
+        kind: "action",
+        value: `new-standalone-thread:${environment.environmentId}`,
+        title: "New thread without a project",
+        description: environment.label,
+        searchTerms: ["new thread", "standalone", "projectless", "no project", environment.label],
+        icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
+        run: async () => {
+          await handleNewThread(null, { environmentId: environment.environmentId });
+        },
+      })),
+    [environments, handleNewThread],
   );
 
   const allThreadItems = useMemo(
@@ -1717,7 +1733,10 @@ function OpenCommandPaletteDialog(props: {
   }, [clearOpenIntent, openAddProjectFlow, openIntent]);
 
   useLayoutEffect(() => {
-    if (openIntent?.kind !== "new-thread-in" || projectThreadItems.length === 0) {
+    if (
+      openIntent?.kind !== "new-thread-in" ||
+      (projectThreadItems.length === 0 && standaloneThreadItems.length === 0)
+    ) {
       return;
     }
     clearOpenIntent();
@@ -1741,7 +1760,7 @@ function OpenCommandPaletteDialog(props: {
         {
           value: "projects",
           label: "Projects",
-          items: enumerateCommandPaletteItems(prioritized),
+          items: enumerateCommandPaletteItems([...prioritized, ...standaloneThreadItems]),
         },
       ],
     });
@@ -1752,10 +1771,13 @@ function OpenCommandPaletteDialog(props: {
     currentProjectId,
     openIntent,
     projectThreadItems,
+    standaloneThreadItems,
     pushPaletteView,
   ]);
 
-  const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+  const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [
+    ...standaloneThreadItems,
+  ];
 
   if (projects.length > 0) {
     const activeProjectTitle =
@@ -1792,7 +1814,13 @@ function OpenCommandPaletteDialog(props: {
       title: "New thread in...",
       icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
-      groups: [{ value: "projects", label: "Projects", items: projectThreadItems }],
+      groups: [
+        {
+          value: "projects",
+          label: "Workspaces",
+          items: [...projectThreadItems, ...standaloneThreadItems],
+        },
+      ],
     });
   }
 

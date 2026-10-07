@@ -207,6 +207,29 @@ function makeHarness(
 }
 
 describe("environment entity projections", () => {
+  it("uses the standalone shell's workspace instead of cached detail metadata", () => {
+    const detail = {
+      ...THREAD_SHELL,
+      environmentId: ENVIRONMENT_ID,
+      projectId: null,
+      workspacePath: "/fixture/stale-workspace",
+      deletedAt: null,
+      messages: [],
+      proposedPlans: [],
+      activities: [],
+      checkpoints: [],
+    };
+    const shell = {
+      ...THREAD_SHELL,
+      environmentId: ENVIRONMENT_ID,
+      projectId: null,
+      workspacePath: "/fixture/current-workspace",
+    };
+    expect(mergeEnvironmentThread(detail, shell)).toMatchObject({
+      projectId: null,
+      workspacePath: "/fixture/current-workspace",
+    });
+  });
   it("composes detail collections with authoritative shell workspace metadata", () => {
     const messages: OrchestrationThread["messages"] = [];
     const detail = {

@@ -1735,7 +1735,7 @@ describe("storage cleanup", () => {
                         ? [
                             {
                               id: thread.id,
-                              projectId: thread.projectId,
+                              projectId: PROJECT_ID,
                               branch: "feature",
                               worktreePath,
                               workspaceRoot:

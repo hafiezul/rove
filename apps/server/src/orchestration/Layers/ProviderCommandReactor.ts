@@ -465,7 +465,7 @@ const make = Effect.gen(function* () {
     });
   });
 
-  const resolveProject = Effect.fnUntraced(function* (projectId: ProjectId) {
+  const resolveProject = Effect.fnUntraced(function* (projectId: ProjectId | null) {
     return yield* projectionSnapshotQuery
       .getProjectShellById(projectId)
       .pipe(Effect.map(Option.getOrUndefined));
@@ -479,10 +479,15 @@ const make = Effect.gen(function* () {
    */
   const ensureThreadWorktree = Effect.fnUntraced(function* (thread: {
     readonly id: ThreadId;
-    readonly projectId: ProjectId;
+    readonly projectId: ProjectId | null;
     readonly branch: string | null;
     readonly worktreePath: string | null;
+    readonly workspacePath?: string | null | undefined;
   }) {
+    if (thread.projectId === null && thread.workspacePath) {
+      yield* fileSystem.makeDirectory(thread.workspacePath, { recursive: true });
+      return;
+    }
     const { worktreePath, branch } = thread;
     if (!worktreePath || !branch) {
       return;

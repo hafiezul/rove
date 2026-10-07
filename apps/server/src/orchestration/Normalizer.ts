@@ -1,4 +1,5 @@
 import * as DateTime from "effect/DateTime";
+import * as Encoding from "effect/Encoding";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -77,11 +78,46 @@ const removeClaimedAttachmentPaths = Effect.fn("Normalizer.removeClaimedAttachme
 export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
   Effect.gen(function* () {
     const receivedAt = DateTime.formatIso(yield* DateTime.now);
-    const canonicalCommand = canonicalizeClientCommandTimestamps(command, receivedAt);
+    let canonicalCommand = canonicalizeClientCommandTimestamps(command, receivedAt);
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const serverConfig = yield* ServerConfig;
     const workspacePaths = yield* WorkspacePaths.WorkspacePaths;
+    const standaloneCreation =
+      canonicalCommand.type === "thread.create"
+        ? canonicalCommand
+        : canonicalCommand.type === "thread.turn.start"
+          ? canonicalCommand.bootstrap?.createThread
+          : undefined;
+    if (standaloneCreation?.projectId === null && "threadId" in canonicalCommand) {
+      const workspacePath = path.join(
+        serverConfig.baseDir,
+        "workspaces",
+        Encoding.encodeBase64Url(canonicalCommand.threadId),
+      );
+      yield* fileSystem.makeDirectory(workspacePath, { recursive: true }).pipe(
+        Effect.mapError(
+          (cause) =>
+            new OrchestrationDispatchCommandError({
+              message: "Could not create the thread workspace.",
+              cause,
+            }),
+        ),
+      );
+      if (canonicalCommand.type === "thread.create") {
+        canonicalCommand = { ...canonicalCommand, workspacePath };
+      } else if (canonicalCommand.type === "thread.turn.start") {
+        canonicalCommand = {
+          ...canonicalCommand,
+          bootstrap: {
+            ...canonicalCommand.bootstrap,
+            createThread: { ...standaloneCreation, workspacePath },
+          },
+        };
+      }
+    } else if (canonicalCommand.type === "thread.create") {
+      canonicalCommand = { ...canonicalCommand, workspacePath: null };
+    }
 
     const normalizeProjectWorkspaceRoot = (workspaceRoot: string) =>
       workspacePaths.normalizeWorkspaceRoot(workspaceRoot).pipe(

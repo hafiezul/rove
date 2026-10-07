@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { standaloneThreadInput } from "@rove-code/client-runtime/state/standalone-thread";
 import {
   scopedProjectKey,
   scopeProjectRef,
@@ -6,6 +7,7 @@ import {
 } from "@rove-code/client-runtime/environment";
 import {
   DEFAULT_SERVER_SETTINGS,
+  type EnvironmentId,
   type ScopedProjectRef,
   type ThreadId,
 } from "@rove-code/contracts";
@@ -38,6 +40,9 @@ import { environmentServerConfigsAtom } from "../state/server";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
 import { useClientSettings } from "./useSettings";
+import { usePrimaryEnvironmentId } from "../state/environments";
+import { useAtomCommand } from "../state/use-atom-command";
+import { threadEnvironment } from "../state/threads";
 
 interface NewThreadWorkspaceOptions {
   branch?: string | null;
@@ -62,6 +67,8 @@ export function useNewThreadHandler() {
   const environmentServerConfigs = useAtomValue(environmentServerConfigsAtom);
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const router = useRouter();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const createThread = useAtomCommand(threadEnvironment.create);
   const getCurrentRouteTarget = useCallback(() => {
     const currentRouteParams = router.state.matches[router.state.matches.length - 1]?.params ?? {};
     return resolveThreadRouteTarget(currentRouteParams);
@@ -69,8 +76,9 @@ export function useNewThreadHandler() {
 
   return useCallback(
     (
-      projectRef: ScopedProjectRef,
+      projectRef: ScopedProjectRef | null,
       options?: {
+        environmentId?: EnvironmentId;
         branch?: string | null;
         worktreePath?: string | null;
         envMode?: DraftThreadEnvMode;
@@ -81,6 +89,35 @@ export function useNewThreadHandler() {
       // prepared checkout, a task to write — addresses that one rather than looking the project
       // up again and finding whichever draft it happens to hold.
     ): Promise<{ draftId: DraftId; threadId: ThreadId } | null> => {
+      if (projectRef === null) {
+        const routeTarget = getCurrentRouteTarget();
+        const environmentId =
+          options?.environmentId ??
+          (routeTarget?.kind === "server" ? routeTarget.threadRef.environmentId : null) ??
+          primaryEnvironmentId ??
+          environmentServerConfigs.keys().next().value;
+        if (!environmentId)
+          return Promise.reject(new Error("Connect an environment to start a thread."));
+        const source =
+          routeTarget?.kind === "server" ? readThreadShell(routeTarget.threadRef) : null;
+        const threadId = newThreadId();
+        return createThread({
+          environmentId,
+          input: standaloneThreadInput(
+            threadId,
+            environmentServerConfigs.get(environmentId),
+            source?.modelSelection,
+          ),
+        }).then(async (result) => {
+          if (result._tag === "Failure") throw new Error("Could not start a standalone thread.");
+          await router.navigate({
+            to: "/$environmentId/$threadId",
+            params: { environmentId, threadId },
+            replace: options?.replace ?? false,
+          });
+          return null;
+        });
+      }
       const projects = readProjects();
       const targetServerSettings =
         environmentServerConfigs.get(projectRef.environmentId)?.settings ?? DEFAULT_SERVER_SETTINGS;
@@ -434,7 +471,14 @@ export function useNewThreadHandler() {
         return { draftId, threadId };
       })();
     },
-    [environmentServerConfigs, getCurrentRouteTarget, projectGroupingSettings, router],
+    [
+      createThread,
+      environmentServerConfigs,
+      getCurrentRouteTarget,
+      primaryEnvironmentId,
+      projectGroupingSettings,
+      router,
+    ],
   );
 }
 

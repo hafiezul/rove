@@ -351,6 +351,8 @@ function ThreadRouteContent(
     };
   }, [selectedThread, selectedThreadDetailState]);
   const { selectedThreadCwd } = useSelectedThreadWorktree();
+  const selectedThreadWorkspaceRoot =
+    selectedThreadProject?.workspaceRoot ?? selectedThread?.workspacePath ?? null;
   const composer = useThreadComposerState();
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
@@ -463,9 +465,9 @@ function ThreadRouteContent(
     () =>
       buildTerminalMenuSessions({
         knownSessions: knownTerminalSessions,
-        workspaceRoot: selectedThreadProject?.workspaceRoot ?? null,
+        workspaceRoot: selectedThreadWorkspaceRoot ?? null,
       }),
-    [knownTerminalSessions, selectedThreadProject?.workspaceRoot],
+    [knownTerminalSessions, selectedThreadWorkspaceRoot],
   );
   const selectedThreadDetailWorktreePath = selectedThreadDetail?.worktreePath ?? null;
   const handleReconnectEnvironment = useCallback(() => {
@@ -653,10 +655,10 @@ function ThreadRouteContent(
       terminalDebugLog("terminal-menu:open-existing", {
         terminalId: nextTerminalId ?? null,
         hasThread: Boolean(selectedThread),
-        hasWorkspaceRoot: Boolean(selectedThreadProject?.workspaceRoot),
+        hasWorkspaceRoot: Boolean(selectedThreadWorkspaceRoot),
       });
 
-      if (!selectedThread || !selectedThreadProject?.workspaceRoot) {
+      if (!selectedThread || !selectedThreadWorkspaceRoot) {
         return;
       }
 
@@ -666,17 +668,17 @@ function ThreadRouteContent(
         ...(nextTerminalId ? { terminalId: nextTerminalId } : undefined),
       });
     },
-    [navigation, selectedThread, selectedThreadProject?.workspaceRoot],
+    [navigation, selectedThread, selectedThreadWorkspaceRoot],
   );
 
   const handleOpenNewTerminal = useCallback(() => {
     terminalDebugLog("terminal-menu:open-new", {
       hasThread: Boolean(selectedThread),
-      hasWorkspaceRoot: Boolean(selectedThreadProject?.workspaceRoot),
+      hasWorkspaceRoot: Boolean(selectedThreadWorkspaceRoot),
       listedTerminalIds: terminalMenuSessions.map((session) => session.terminalId),
     });
 
-    if (!selectedThread || !selectedThreadProject?.workspaceRoot) {
+    if (!selectedThread || !selectedThreadWorkspaceRoot) {
       return;
     }
 
@@ -688,7 +690,7 @@ function ThreadRouteContent(
       threadId: String(selectedThread.id),
       terminalId: nextId,
     });
-  }, [navigation, selectedThread, selectedThreadProject?.workspaceRoot, terminalMenuSessions]);
+  }, [navigation, selectedThread, selectedThreadWorkspaceRoot, terminalMenuSessions]);
 
   const handleRunProjectScript = useCallback(
     async (script: ProjectScript) => {
@@ -696,7 +698,7 @@ function ThreadRouteContent(
         scriptId: script.id,
         command: script.command,
         hasThread: Boolean(selectedThread),
-        hasWorkspaceRoot: Boolean(selectedThreadProject?.workspaceRoot),
+        hasWorkspaceRoot: Boolean(selectedThreadWorkspaceRoot),
       });
 
       if (!selectedThread || !selectedThreadProject?.workspaceRoot) {
@@ -756,6 +758,7 @@ function ThreadRouteContent(
       selectedThread,
       selectedThreadDetailWorktreePath,
       selectedThreadProject,
+      selectedThreadWorkspaceRoot,
       terminalMenuSessions,
     ],
   );
@@ -775,8 +778,8 @@ function ThreadRouteContent(
     currentBranch: selectedThread?.branch ?? null,
     gitStatus: gitStatus.data,
     gitOperationLabel: gitState.gitOperationLabel,
-    canOpenTerminal: Boolean(selectedThreadProject?.workspaceRoot),
-    canOpenFiles: Boolean(selectedThreadProject?.workspaceRoot),
+    canOpenTerminal: Boolean(selectedThreadWorkspaceRoot),
+    canOpenFiles: Boolean(selectedThreadWorkspaceRoot),
     projectScripts: selectedThreadProject
       ? resolveProjectScripts(
           routeEnvironmentRuntime?.serverConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
@@ -1008,7 +1011,7 @@ function ThreadRouteContent(
           threadSyncStatus={selectedThreadDetailState.status}
           loadEarlier={loadEarlierTurns}
           environmentId={selectedThread.environmentId}
-          projectWorkspaceRoot={selectedThreadProject?.workspaceRoot ?? null}
+          projectWorkspaceRoot={selectedThreadWorkspaceRoot ?? null}
           threadCwd={selectedThreadCwd}
           selectedThreadQueueCount={composer.selectedThreadQueueCount}
           queuedMessages={composer.selectedThreadQueuedMessages}
@@ -1049,7 +1052,7 @@ function ThreadRouteContent(
         usesNativeHeaderGlass={usesNativeHeaderGlass}
         gitControls={threadGitControlProps}
         hasThreadCwd={selectedThreadCwd !== null}
-        hasWorkspaceRoot={Boolean(selectedThreadProject?.workspaceRoot)}
+        hasWorkspaceRoot={Boolean(selectedThreadWorkspaceRoot)}
         fileInspectorSupported={fileInspector.supported}
         inspectorMode={inspectorMode}
         onToggleInspector={handleToggleInspector}

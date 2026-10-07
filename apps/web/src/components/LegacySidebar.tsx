@@ -66,7 +66,7 @@ import {
   settlePromise,
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
-import { useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import {
   MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
   MIN_SIDEBAR_THREAD_PREVIEW_COUNT,
@@ -1312,6 +1312,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       project.memberProjects.map((member) => [member.physicalProjectKey, 0] as const),
     );
     for (const thread of projectThreads) {
+      if (thread.projectId === null) continue;
       const member = memberProjectByScopedKey.get(
         scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
       );
@@ -2241,9 +2242,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       const threadKey = scopedThreadKey(threadRef);
       const thread = sidebarThreadByKeyRef.current.get(threadKey) ?? null;
       if (!thread) return;
-      const threadProject = memberProjectByScopedKey.get(
-        scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
-      );
+      const threadProject =
+        thread.projectId === null
+          ? undefined
+          : memberProjectByScopedKey.get(
+              scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
+            );
       const threadWorkspacePath =
         thread.worktreePath ?? threadProject?.workspaceRoot ?? project.workspaceRoot ?? null;
       const clicked = await api.contextMenu.show(
@@ -2888,6 +2892,7 @@ interface SidebarProjectsContentProps {
   archiveThread: ReturnType<typeof useThreadActions>["archiveThread"];
   deleteThread: ReturnType<typeof useThreadActions>["deleteThread"];
   sortedProjects: readonly SidebarProjectSnapshot[];
+  standaloneThreads: readonly SidebarThreadSummary[];
   expandedThreadListsByProject: ReadonlySet<string>;
   activeRouteProjectKey: string | null;
   routeThreadKey: string | null;
@@ -2930,6 +2935,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     archiveThread,
     deleteThread,
     sortedProjects,
+    standaloneThreads,
     expandedThreadListsByProject,
     activeRouteProjectKey,
     routeThreadKey,
@@ -3010,6 +3016,34 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
         </SidebarGroup>
       ) : null}
       <LocalSecondaryStatus />
+      <SidebarGroup>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => void handleNewThread(null)}>
+              <SquarePenIcon />
+              <span>New thread without a project</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          {sortThreads(standaloneThreads, threadSortOrder).map((thread) => (
+            <SidebarMenuItem key={`${thread.environmentId}:${thread.id}`}>
+              <SidebarMenuButton
+                isActive={
+                  routeThreadKey ===
+                  scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id))
+                }
+                render={
+                  <Link
+                    to="/$environmentId/$threadId"
+                    params={{ environmentId: thread.environmentId, threadId: thread.id }}
+                  />
+                }
+              >
+                <span>{thread.title}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
       <SidebarGroup>
         <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
           <span className="text-xs font-medium text-sidebar-muted-foreground/80">Projects</span>
@@ -3274,7 +3308,7 @@ export default function LegacySidebar() {
       return null;
     }
     const activeThread = sidebarThreadByKey.get(routeThreadKey);
-    if (!activeThread) return null;
+    if (!activeThread || activeThread.projectId === null) return null;
     const physicalKey =
       projectPhysicalKeyByScopedRef.get(
         scopedProjectKey(scopeProjectRef(activeThread.environmentId, activeThread.projectId)),
@@ -3287,6 +3321,7 @@ export default function LegacySidebar() {
   const threadsByProjectKey = useMemo(() => {
     const next = new Map<string, SidebarThreadSummary[]>();
     for (const thread of sidebarThreads) {
+      if (thread.projectId === null) continue;
       const physicalKey =
         projectPhysicalKeyByScopedRef.get(
           scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
@@ -3418,6 +3453,7 @@ export default function LegacySidebar() {
       id: project.projectKey,
     }));
     const sortableThreads = visibleThreads.map((thread) => {
+      if (thread.projectId === null) return thread;
       const physicalKey =
         projectPhysicalKeyByScopedRef.get(
           scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
@@ -3445,8 +3481,12 @@ export default function LegacySidebar() {
   ]);
   const isManualProjectSorting = sidebarProjectSortOrder === "manual";
   const visibleSidebarThreadKeys = useMemo(
-    () =>
-      sortedProjects.flatMap((project) => {
+    () => [
+      ...sortThreads(
+        visibleThreads.filter((thread) => thread.projectId === null),
+        sidebarThreadSortOrder,
+      ).map((thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id))),
+      ...sortedProjects.flatMap((project) => {
         const projectThreads = sortThreads(
           (threadsByProjectKey.get(project.projectKey) ?? []).filter(
             (thread) => thread.archivedAt === null,
@@ -3481,7 +3521,9 @@ export default function LegacySidebar() {
           scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
         );
       }),
+    ],
     [
+      visibleThreads,
       sidebarThreadSortOrder,
       sidebarThreadPreviewCount,
       expandedThreadListsByProject,
@@ -3790,6 +3832,7 @@ export default function LegacySidebar() {
         archiveThread={archiveThread}
         deleteThread={deleteThread}
         sortedProjects={sortedProjects}
+        standaloneThreads={visibleThreads.filter((thread) => thread.projectId === null)}
         expandedThreadListsByProject={expandedThreadListsByProject}
         activeRouteProjectKey={activeRouteProjectKey}
         routeThreadKey={routeThreadKey}

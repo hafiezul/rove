@@ -170,6 +170,7 @@ describe("ProviderCommandReactor", () => {
   async function createHarness(input?: {
     readonly baseDir?: string;
     readonly initialTitle?: string;
+    readonly standalone?: boolean;
     readonly deferReactorStart?: boolean;
     readonly threadModelSelection?: ModelSelection;
     readonly sessionModelSwitch?: "unsupported" | "in-session";
@@ -507,23 +508,28 @@ describe("ProviderCommandReactor", () => {
     const reactor = await runtime.runPromise(Effect.service(ProviderCommandReactor));
     const runEffect = <A, E>(effect: Effect.Effect<A, E>) => runtime!.runPromise(effect);
 
-    await Effect.runPromise(
-      engine.dispatch({
-        type: "project.create",
-        commandId: CommandId.make("cmd-project-create"),
-        projectId: asProjectId("project-1"),
-        title: "Provider Project",
-        workspaceRoot: "/tmp/provider-project",
-        defaultModelSelection: modelSelection,
-        createdAt: now,
-      }),
-    );
+    const workspacePath = input?.standalone
+      ? NodePath.join(baseDir, "workspaces", "fixture")
+      : undefined;
+    if (!input?.standalone)
+      await Effect.runPromise(
+        engine.dispatch({
+          type: "project.create",
+          commandId: CommandId.make("cmd-project-create"),
+          projectId: asProjectId("project-1"),
+          title: "Provider Project",
+          workspaceRoot: "/tmp/provider-project",
+          defaultModelSelection: modelSelection,
+          createdAt: now,
+        }),
+      );
     await Effect.runPromise(
       engine.dispatch({
         type: "thread.create",
         commandId: CommandId.make("cmd-thread-create"),
         threadId: ThreadId.make("thread-1"),
-        projectId: asProjectId("project-1"),
+        projectId: input?.standalone ? null : asProjectId("project-1"),
+        workspacePath,
         title: input?.initialTitle ?? "Thread",
         modelSelection: modelSelection,
         interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -631,6 +637,7 @@ describe("ProviderCommandReactor", () => {
       generateBranchName,
       generateThreadTitle,
       runtimeSessions,
+      workspacePath,
       stateDir,
       drain,
       startReactor,
@@ -640,6 +647,42 @@ describe("ProviderCommandReactor", () => {
       },
     };
   }
+
+  effectIt.effect("starts a standalone thread in its workspace using only the mock provider", () =>
+    Effect.gen(function* () {
+      const ready = yield* Deferred.make<void>();
+      const harness = yield* Effect.promise(() =>
+        createHarness({
+          standalone: true,
+          startSessionEffect: (session) =>
+            Deferred.succeed(ready, undefined).pipe(Effect.as(session)),
+        }),
+      );
+      yield* harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.make("standalone-fixture-turn"),
+        threadId: ThreadId.make("thread-1"),
+        message: {
+          messageId: MessageId.make("standalone-fixture-message"),
+          role: "user",
+          text: "fixture only",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      yield* Deferred.await(ready);
+      yield* Effect.promise(() => harness.drain());
+      expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
+        cwd: harness.workspacePath,
+        runtimeMode: "approval-required",
+      });
+      expect(NodeFS.existsSync(harness.workspacePath!)).toBe(true);
+      expect(harness.sendTurn).toHaveBeenCalledOnce();
+      expect((yield* Effect.promise(() => harness.readModel())).projects).toEqual([]);
+    }),
+  );
 
   effectIt.effect.each(["new", "ready", "stopped"] as const)(
     "handles sign-out for a %s thread before worktree repair, text helpers, or startup",

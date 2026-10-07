@@ -3321,7 +3321,8 @@ export function ArchivedThreadsPanel() {
 
     const archivedProjects = Array.from(projectsByEnvironmentAndId.values());
     const groups: Array<{
-      readonly project: (typeof archivedProjects)[number];
+      readonly key: string;
+      readonly project: (typeof archivedProjects)[number] | null;
       readonly threads: Array<(typeof threads)[number]>;
     }> = [];
     for (const project of archivedProjects) {
@@ -3333,12 +3334,31 @@ export function ArchivedThreadsPanel() {
       }
       if (projectThreads.length > 0) {
         groups.push({
+          key: `${project.environmentId}:${project.id}`,
           project,
           threads: projectThreads.toSorted((left, right) => {
             const leftKey = left.archivedAt ?? left.createdAt;
             const rightKey = right.archivedAt ?? right.createdAt;
             return rightKey.localeCompare(leftKey) || right.id.localeCompare(left.id);
           }),
+        });
+      }
+    }
+    if (selectedProjectKeys === null) {
+      for (const { environmentId, snapshot } of archivedSnapshots) {
+        const standaloneThreads = snapshot.threads
+          .filter((thread) => thread.projectId === null)
+          .map((thread) => ({ ...thread, environmentId }));
+        if (standaloneThreads.length === 0) continue;
+        groups.push({
+          key: `${environmentId}:standalone`,
+          project: null,
+          threads: standaloneThreads.toSorted(
+            (left, right) =>
+              (right.archivedAt ?? right.createdAt).localeCompare(
+                left.archivedAt ?? left.createdAt,
+              ) || right.id.localeCompare(left.id),
+          ),
         });
       }
     }
@@ -3423,12 +3443,12 @@ export function ArchivedThreadsPanel() {
           />
         </SettingsSection>
       ) : (
-        archivedGroups.map(({ project, threads: projectThreads }, index) => (
+        archivedGroups.map(({ key, project, threads: projectThreads }, index) => (
           <SettingsSection
-            key={`${project.environmentId}:${project.id}`}
+            key={key}
             id={index === 0 ? searchableSetting("archive").id : undefined}
-            title={project.title}
-            icon={<ProjectFavicon project={project} />}
+            title={project?.title ?? "Standalone threads"}
+            icon={project ? <ProjectFavicon project={project} /> : undefined}
           >
             {projectThreads.map((thread) => (
               <SettingsRow
