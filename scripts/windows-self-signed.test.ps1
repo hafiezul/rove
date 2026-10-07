@@ -19,6 +19,9 @@ try {
     $env:WIN_CSC_LINK = ''
     $env:WIN_CSC_KEY_PASSWORD = ''
     ExpectFailure { & $signingScript -Action Import } 'require WIN_CSC_LINK'
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    Write-Host "Runner administrator token: $($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
     Write-Host 'Creating a temporary Windows signing identity.'
     $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Rove Signing Test $([Guid]::NewGuid())" `
         -CertStoreLocation Cert:\CurrentUser\My -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 `
@@ -29,8 +32,8 @@ try {
     $env:WIN_CSC_LINK = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfx))
     $env:WIN_CSC_KEY_PASSWORD = $password
     & $signingScript -Action Import
-    & certutil.exe -user -grouppolicy -verifystore Root $certificate.Thumbprint
-    if ($LASTEXITCODE -ne 0) { throw 'The runner user policy root store must trust the signing certificate.' }
+    & certutil.exe -verifystore Root $certificate.Thumbprint
+    if ($LASTEXITCODE -ne 0) { throw 'The runner machine root store must trust the signing certificate.' }
     $payload = Join-Path $root 'payload'
     New-Item -ItemType Directory -Path (Join-Path $payload 'resource-monitor') -Force | Out-Null
     $unsignedBytes = [IO.File]::ReadAllBytes("$env:SystemRoot\System32\where.exe")
@@ -58,12 +61,10 @@ try {
     Write-Host 'Windows self-signing passed. Signed payloads verify; changed payloads and wrong identities fail.'
 } finally {
     if ($certificate) {
-        & certutil.exe -user -grouppolicy -delstore Root $certificate.Thumbprint
-        if ($LASTEXITCODE -ne 0) { throw 'Could not remove the temporary signing certificate from the user policy store.' }
-        foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\CurrentUser\TrustedPublisher')) {
-            $path = "$store\$($certificate.Thumbprint)"
-            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
-        }
+        & certutil.exe -delstore Root $certificate.Thumbprint
+        if ($LASTEXITCODE -ne 0) { throw 'Could not remove the temporary signing certificate from the machine root store.' }
+        $path = "Cert:\CurrentUser\My\$($certificate.Thumbprint)"
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
     }
     Remove-Item -LiteralPath $root -Recurse -Force
 }
