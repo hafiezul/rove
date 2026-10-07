@@ -44,7 +44,7 @@ The workflow must be present on the repository's default branch before GitHub of
 
 The hosted build disables fixed backend URLs and inherited cloud settings. It also disables source maps and checks the output against Cloudflare's free asset limits.
 
-Do not enable `ROVE_CLOUD_READY` or `ROVE_HOSTED_RELEASE_READY` for this deployment. Those variables belong to the inherited relay and Vercel release paths. This workflow is independent and manual.
+Do not enable `ROVE_CLOUD_READY` or `ROVE_HOSTED_RELEASE_READY` for this deployment. Those variables belong to the inherited relay and Vercel paths.
 
 ## Publish the browser app
 
@@ -56,7 +56,9 @@ Do not enable `ROVE_CLOUD_READY` or `ROVE_HOSTED_RELEASE_READY` for this deploym
 
 The initial deployment can take time to provision its HTTPS certificate. Opening the website does not start an agent or connect to a backend automatically.
 
-To update the website, repeat the workflow on the desired branch. To stop serving it, remove the `rove-web` Worker and its custom domain in Cloudflare. Saved connections stay in users' browsers.
+After the first deployment works, set the repository variable `ROVE_CLOUDFLARE_WEB_READY=true`. Each published stable release then deploys the browser app from the release commit. Nightly and preview releases do not touch the website. To deploy outside a release, run the workflow manually on the desired branch.
+
+To stop serving it, unset `ROVE_CLOUDFLARE_WEB_READY` and remove the `rove-web` Worker and its custom domain in Cloudflare. Saved connections stay in users' browsers.
 
 ## Connect your own computer
 
