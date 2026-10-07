@@ -1,23 +1,8 @@
 name: Web Preview
 
-# Label a PR `preview:web` to get a hosted-web preview deployment on Vercel for
-# that push and every subsequent push. The deployment is a plain (non-prod,
-# non-aliased) deploy into the existing hosted-web Vercel project, so the
-# latest/nightly channel aliases are never touched.
-#
-# The build intentionally omits the Rove Connect cloud config (Clerk keys, relay
-# URL): previews boot as the hosted-static app with manual pairing only. Pair a
-# server into a preview with `rove pair --tailscale` (or any reachable HTTPS
-# backend) and open the pairing URL against the preview origin.
-#
-# The preview must be opened at the exact deployment URL from the PR comment.
-# Vite bakes that URL in as the hosted origin (via VERCEL_URL), and
-# `isHostedStaticApp` matches on origin, so branch-alias URLs will not
-# self-identify as the hosted app.
-
 on:
-  pull_request:
-    types: [labeled, synchronize, reopened]
+  pull_request_target:
+    types: [labeled, synchronize, reopened, closed, unlabeled]
 
 permissions:
   contents: read
@@ -25,35 +10,88 @@ permissions:
 
 concurrency:
   group: web-preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+  queue: max
 
 jobs:
-  deploy:
-    name: Deploy web preview
-    # Same-repo PRs only: fork PRs do not receive the Vercel secrets, and this
-    # workflow should skip rather than fail for them. On `labeled` events, only
-    # the preview label itself triggers a deploy.
+  resolve:
+    name: Resolve Cloudflare preview origin
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed' &&
       contains(github.event.pull_request.labels.*.name, 'preview:web') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'preview:web')
+      (github.event.action != 'labeled' || github.event.label.name == 'preview:web') &&
+      github.event.action != 'unlabeled'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+    timeout-minutes: 5
+    environment: cloudflare-web
+    outputs:
+      origin: ${{ steps.preview.outputs.origin }}
+      subdomain: ${{ steps.preview.outputs.subdomain }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+      - id: preview
+        name: Resolve preview origin
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/cloudflare-web-preview.mjs resolve "$PR_NUMBER"
+
+  build:
+    name: Build web preview without deployment credentials
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
           sparse-checkout: |
             /*
             !/.repos/
           sparse-checkout-cone-mode: false
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: false
+          run-install: |
+            args:
+              - --filter=@rove-code/scripts...
+              - --filter=@rove-code/web...
+      - name: Build preview
+        env:
+          VITE_HOSTED_APP_URL: ${{ needs.resolve.outputs.origin }}
+        run: vp run build:web:hosted
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-preview
+          path: apps/web/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
+  deploy:
+    name: Deploy isolated Cloudflare preview
+    needs: [resolve, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: cloudflare-web
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
@@ -62,71 +100,81 @@ jobs:
           run-install: |
             args:
               - --filter=@rove-code/scripts...
-              - --filter=@rove-code/web...
-
-      - id: deploy
-        name: Deploy preview
-        shell: bash
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-preview
+          path: apps/web/dist
+      - name: Prepare isolated Worker configuration
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PREVIEW_SUBDOMAIN: ${{ needs.resolve.outputs.subdomain }}
         run: |
-          set -euo pipefail
-
-          if [[ -z "${VERCEL_TOKEN:-}" || -z "${VERCEL_ORG_ID:-}" || -z "${VERCEL_PROJECT_ID:-}" ]]; then
-            echo "Missing one or more required Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
-            exit 1
-          fi
-
-          vercel_scope="${VERCEL_TEAM_SLUG:-$VERCEL_ORG_ID}"
-
-          deployment_url="$(
-            vp dlx vercel@53.1.1 deploy \
-              --archive=tgz \
-              --yes \
-              --token "$VERCEL_TOKEN" \
-              --scope "$vercel_scope"
-          )"
-
-          echo "Deployed $deployment_url"
-          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
-
-      - name: Comment deployment URL
+          node scripts/cloudflare-web-preview.mjs config "$PR_NUMBER" "$RUNNER_TEMP/wrangler-preview.json" "$PREVIEW_SUBDOMAIN"
+          node scripts/check-cloudflare-web.mjs --built-schema
+      - name: Deploy static assets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: vp dlx wrangler@4.147.0 deploy --config "$RUNNER_TEMP/wrangler-preview.json"
+      - name: Verify preview schema
+        env:
+          PREVIEW_ORIGIN: ${{ needs.resolve.outputs.origin }}
+        run: node scripts/check-cloudflare-web.mjs --url "$PREVIEW_ORIGIN" --built-schema
+      - name: Comment preview URL
         uses: actions/github-script@v8
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+          PREVIEW_ORIGIN: ${{ needs.resolve.outputs.origin }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const marker = "<!-- web-preview-deploy -->";
-            const body = [
-              marker,
-              "### Web preview",
-              "",
-              `${process.env.DEPLOYMENT_URL} (for ${process.env.HEAD_SHA.slice(0, 7)})`,
-              "",
-              "Open this exact URL — the hosted-app origin is baked in at build time.",
-              "Pair a server into it with `rove pair --tailscale`, or paste a host + pairing",
-              "code under Settings → Connections.",
-            ].join("\n");
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              per_page: 100,
-            });
-            const existing = comments.find((comment) => comment.body?.includes(marker));
-
+            const marker = '<!-- web-preview-deploy -->';
+            const body = [marker, '### Web preview', '',
+              `${process.env.PREVIEW_ORIGIN} for ${process.env.HEAD_SHA.slice(0, 7)}`,
+              '', 'Pair your own HTTPS Rove environment to use this preview.',
+            ].join('\n');
+            const params = { ...context.repo, issue_number: context.issue.number };
+            const comments = await github.paginate(github.rest.issues.listComments, params);
+            const existing = comments.find(comment => comment.user?.type === 'Bot' && comment.body?.includes(marker));
             if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
             } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body,
+              await github.rest.issues.createComment({ ...params, body });
+            }
+
+  cleanup:
+    name: Remove closed Cloudflare preview
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action == 'closed' ||
+       (github.event.action == 'unlabeled' && github.event.label.name == 'preview:web'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: cloudflare-web
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+      - name: Delete only this PR's Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/cloudflare-web-preview.mjs delete "$PR_NUMBER"
+      - name: Mark preview removed
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- web-preview-deploy -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(comment => comment.user?.type === 'Bot' && comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id,
+                body: `${marker}\n### Web preview\n\nPreview removed.`,
               });
             }

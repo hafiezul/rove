@@ -1,8 +1,7 @@
 # Install Rove Code
 
-Use Rove-owned desktop installers and CLI packages. This fork has not published
-its first release yet. The commands below require a published release or a
-verified staged release candidate. Do not substitute an upstream package.
+Download desktop installers from [Rove Code releases](https://github.com/hafiezul/rove/releases).
+Use Rove-owned CLI packages. Do not substitute an upstream package.
 
 ## Install a CLI host
 
@@ -60,6 +59,27 @@ For a nightly build, use `/Applications/Rove Code (Nightly).app` instead. This
 bypasses Gatekeeper's download check for that app; it does not verify the app is
 safe. Do not disable Gatekeeper system-wide. If you do not trust the artifact,
 do not run this command.
+
+## Trust a self-signed Windows build
+
+Self-signed Windows releases include `rove-windows-signing.cer`. They are not publicly trusted, and SmartScreen warnings can remain.
+
+Only if you trust this repository's release, compare the certificate's SHA256 fingerprint with the release build summary:
+
+```powershell
+certutil -hashfile .\rove-windows-signing.cer SHA256
+```
+
+After confirming the fingerprint, trust the certificate for your Windows account:
+
+```powershell
+Import-Certificate -FilePath .\rove-windows-signing.cer -CertStoreLocation Cert:\CurrentUser\Root
+Import-Certificate -FilePath .\rove-windows-signing.cer -CertStoreLocation Cert:\CurrentUser\TrustedPublisher
+```
+
+This trusts code signed by that certificate. Do not import a certificate from an untrusted download. Rove Code keeps signature verification enabled for updates. An older unsigned installation may need one manual reinstall before following signed updates.
+
+To remove that trust, use `certmgr.msc` to remove the same certificate from **Trusted Root Certification Authorities** and **Trusted Publishers**. Updates signed by it then fail verification.
 
 ## Mobile app (source builds only)
 

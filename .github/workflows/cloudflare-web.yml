@@ -91,17 +91,29 @@ jobs:
     environment: cloudflare-web
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/download-artifact@v8
         with:
           name: cloudflare-web
           path: apps/web/dist
 
-      - uses: actions/setup-node@v6
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: package.json
+          cache: true
+          run-install: |
+            args:
+              - --filter=@rove-code/scripts...
 
       - name: Deploy static assets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4.147.0 deploy --config apps/web/wrangler.json
+        run: vp dlx wrangler@4.147.0 deploy --config apps/web/wrangler.json
+
+      - name: Verify deployed project file schema
+        run: |
+          origin="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const config = JSON.parse(readFileSync("apps/web/wrangler.json", "utf8")); console.log(`https://${config.routes[0].pattern}`);')"
+          node scripts/check-cloudflare-web.mjs --url "$origin"

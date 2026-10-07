@@ -36,6 +36,7 @@ import {
 import { loadRepoEnv } from "./lib/public-config.ts";
 import { selectDesktopRuntimeExternalDependencies } from "./lib/desktop-external-packages.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
+import { WindowsSigningModeConfig } from "./lib/windows-signing.ts";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -2648,7 +2649,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "Rove Code-${version}-${arch}.${ext}",
+    artifactName: "Rove-Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2810,7 +2811,19 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       signAndEditExecutable: true,
     };
     if (signed) {
-      winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
+      buildConfig.forceCodeSigning = true;
+      if ((yield* WindowsSigningModeConfig) === "self-signed") {
+        winConfig.signtoolOptions = {
+          certificateFile: yield* Config.String("WIN_CSC_LINK"),
+          publisherName: yield* Config.String("ROVE_WINDOWS_SIGNING_PUBLISHER_NAME"),
+          signingHashAlgorithms: ["sha256"],
+        };
+        winConfig.verifyUpdateCodeSignature = true;
+      } else {
+        winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
+      }
+    } else {
+      winConfig.signExecutable = false;
     }
     buildConfig.win = winConfig;
   }
@@ -3957,7 +3970,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
   ),
   signed: Flag.Boolean("signed").pipe(
     Flag.withDescription(
-      "Enable signing/notarization discovery; Windows uses Azure Trusted Signing (env: ROVE_DESKTOP_SIGNED).",
+      "Enable signing/notarization discovery; Windows uses ROVE_WINDOWS_SIGNING_MODE (env: ROVE_DESKTOP_SIGNED).",
     ),
     Flag.optional,
   ),

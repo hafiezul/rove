@@ -863,6 +863,10 @@ jobs:
             fi
           done
 
+      - name: Verify updater assets
+        if: needs.preflight.outputs.release_channel != 'preview'
+        run: node scripts/check-release-assets.mjs release-assets
+
       # Updater manifests and blockmaps are what electron-updater consumes.
       # They are only listed for channels an updater is meant to follow.
       - id: release_files
@@ -876,6 +880,9 @@ jobs:
             echo 'release-assets/*.AppImage'
             echo 'release-assets/*.deb'
             echo 'release-assets/*.exe'
+            if compgen -G 'release-assets/*.cer' > /dev/null; then
+              echo 'release-assets/*.cer'
+            fi
             if [[ "${{ needs.preflight.outputs.release_channel }}" != "preview" ]]; then
               echo 'release-assets/*.blockmap'
               echo 'release-assets/*.yml'

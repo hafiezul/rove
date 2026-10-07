@@ -48,6 +48,35 @@ This mode signs desktop and CLI artifacts with your own certificate. It does not
 
 Unsigned or differently signed installations may require a one-time manual reinstall before they can follow the new signing identity. Losing or replacing the certificate can break update continuity.
 
+## Build self-signed Windows artifacts without Azure
+
+Windows self-signing is free. It does not provide public certificate trust or remove SmartScreen warnings. Users must trust the public certificate before signature-checked updates can install. Keep update signature verification enabled.
+
+1. On macOS or Linux with OpenSSL 3, create the identity outside the repository:
+
+   ```sh
+   printf 'Certificate password: '
+   read -r -s ROVE_CERTIFICATE_PASSWORD
+   printf '\n'
+   export ROVE_CERTIFICATE_PASSWORD
+   bash scripts/create-windows-signing.sh "$HOME/.config/rove-release-signing/windows"
+   ```
+
+2. Back up the `.pfx` and its password securely. Reuse this identity for every release. Replacing it requires users to trust the new certificate.
+3. Set separate Windows Actions secrets and enable the mode:
+
+   ```sh
+   base64 < "$HOME/.config/rove-release-signing/windows/rove-windows-signing.pfx" | gh secret set WIN_CSC_LINK
+   printf '%s' "$ROVE_CERTIFICATE_PASSWORD" | gh secret set WIN_CSC_KEY_PASSWORD
+   gh variable set WINDOWS_SIGNING_MODE --body self-signed
+   unset ROVE_CERTIFICATE_PASSWORD
+   ```
+
+4. Run a build-only preview. Check both Windows jobs for successful signing and signature verification. The public `rove-windows-signing.cer` is included with the installers and CLI archives. The private `.pfx` is never published.
+5. Test installation and a two-version update on Windows with the certificate trusted. Confirm that a changed payload or different signing certificate fails verification.
+
+CI runs native signing tests and updater, schema, and preview checks on Windows x64 and arm64. The broader Windows suite remains manual. These checks do not replace an installed-app upgrade test. Leave `WINDOWS_SIGNING_MODE` unset to retain the existing Azure signing path.
+
 ## First npm publication (free)
 
 The `@rove-code` organization must own the launcher and all five platform packages. npm trusted publishers are configured per package, after its initial publication; creating the organization alone does not enable OIDC publishing.

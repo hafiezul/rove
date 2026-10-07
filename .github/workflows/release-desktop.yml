@@ -21,6 +21,10 @@ on:
         required: false
       MACOS_PROVISIONING_PROFILE:
         required: false
+      WIN_CSC_LINK:
+        required: false
+      WIN_CSC_KEY_PASSWORD:
+        required: false
       AZURE_TENANT_ID:
         required: false
       AZURE_CLIENT_ID:
@@ -135,6 +139,11 @@ jobs:
           git fetch --no-tags --depth=1 origin "$CHECKOUT_REF"
           git sparse-checkout set --no-cone '/*' '!/.repos/'
           git checkout --detach FETCH_HEAD
+
+      - name: Test Windows signing
+        if: inputs.platform == 'win'
+        shell: pwsh
+        run: ./scripts/windows-self-signed.test.ps1
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
@@ -297,7 +306,7 @@ jobs:
           fi
 
       - name: Prepare Azure Trusted Signing
-        if: inputs.platform == 'win'
+        if: inputs.platform == 'win' && vars.WINDOWS_SIGNING_MODE != 'self-signed'
         shell: pwsh
         env:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -374,6 +383,14 @@ jobs:
           name: cli-linux-${{ inputs.arch }}
           path: wsl-runtime
 
+      - name: Import self-signed Windows identity
+        if: inputs.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'self-signed'
+        shell: pwsh
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: ./scripts/windows-self-signed.ps1 -Action Import
+
       - name: Import self-signed macOS identity
         if: inputs.platform == 'mac' && vars.MACOS_SIGNING_MODE == 'self-signed'
         shell: bash
@@ -390,6 +407,8 @@ jobs:
           ROVE_DESKTOP_REUSE_RESOURCE_MONITOR: ${{ steps.resource_monitor_cache.outputs.cache-hit == 'true' }}
           ROVE_DESKTOP_REUSE_LINUX_CAPTURE_HELPERS: ${{ steps.capture_helper_cache.outputs.cache-hit == 'true' }}
           ROVE_MACOS_SIGNING_MODE: ${{ vars.MACOS_SIGNING_MODE || 'developer-id' }}
+          ROVE_WINDOWS_SIGNING_MODE: ${{ vars.WINDOWS_SIGNING_MODE || 'azure' }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -465,7 +484,18 @@ jobs:
             # Embed the Linux CLI archive built by the same-arch Linux job as
             # the WSL runtime. Required for a working WSL backend on Windows.
             args+=(--wsl-runtime "$GITHUB_WORKSPACE"/wsl-runtime/rove-*-linux-${{ inputs.arch }}.tar.gz)
-            if has_all \
+            unset CSC_LINK CSC_KEY_PASSWORD
+            if [[ "${ROVE_WINDOWS_SIGNING_MODE:-azure}" == "self-signed" ]]; then
+              if ! has_all "${WIN_CSC_LINK:-}" "$WIN_CSC_KEY_PASSWORD" "${ROVE_WINDOWS_SIGNING_THUMBPRINT:-}"; then
+                echo "Self-signed Windows builds require an imported WIN_CSC_LINK identity and WIN_CSC_KEY_PASSWORD." >&2
+                exit 1
+              fi
+              args+=(--signed)
+              echo "Windows self-signing enabled without Azure Trusted Signing."
+            elif [[ "${ROVE_WINDOWS_SIGNING_MODE:-azure}" != "azure" ]]; then
+              echo "WINDOWS_SIGNING_MODE must be azure or self-signed." >&2
+              exit 1
+            elif has_all \
               "$AZURE_TENANT_ID" \
               "$AZURE_CLIENT_ID" \
               "$AZURE_CLIENT_SECRET" \
@@ -483,6 +513,10 @@ jobs:
           fi
 
           vp run dist:desktop:artifact "${args[@]}"
+
+          if [[ "${{ inputs.platform }}" == "win" && "${ROVE_WINDOWS_SIGNING_MODE:-azure}" == "self-signed" ]]; then
+            pwsh -NoProfile -NonInteractive -File scripts/windows-self-signed.ps1 -Action Verify -Path release
+          fi
 
           if [[ "${mac_unnotarized:-false}" == "true" ]]; then
             found_zip=false
@@ -596,6 +630,8 @@ jobs:
         shell: bash
         env:
           ROVE_MACOS_SIGNING_MODE: ${{ vars.MACOS_SIGNING_MODE || 'developer-id' }}
+          ROVE_WINDOWS_SIGNING_MODE: ${{ vars.WINDOWS_SIGNING_MODE || 'azure' }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -648,6 +684,7 @@ jobs:
             "release/*.AppImage"
             "release/*.deb"
             "release/*.exe"
+            "release/*.cer"
           )
           # Preview builds have no publish config, so electron-builder writes
           # no feed manifest for them, but it still emits blockmaps beside the

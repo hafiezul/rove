@@ -60,6 +60,16 @@ After the first deployment works, set the repository variable `ROVE_CLOUDFLARE_W
 
 To stop serving it, unset `ROVE_CLOUDFLARE_WEB_READY` and remove the `rove-web` Worker and its custom domain in Cloudflare. Saved connections stay in users' browsers.
 
+## Publish pull request previews
+
+Register a free `workers.dev` subdomain in the account's Workers settings. Production keeps its custom domain and does not enable its `workers.dev` route.
+
+Add `preview:web` to a same-repository pull request. The workflow builds the PR without deployment credentials, then uploads its static assets to a separate `rove-web-pr-<number>` Worker. Trusted base-branch jobs use the existing `cloudflare-web` environment, so its `main` branch restriction can stay in place. Fork pull requests do not deploy.
+
+The PR comment links the preview. Pair your own HTTPS Rove environment to use it. Each new push replaces that PR's preview without changing production. Closing the PR or removing `preview:web` deletes its Worker and marks the preview removed.
+
+If deployment fails, check the account's Worker limit and API token permissions. Previews need the same Workers script permissions as production and permission to read the account's `workers.dev` subdomain.
+
 ## Connect your own computer
 
 Keep the Rove backend private until you are ready to expose it. The backend provides access to repositories, terminals, and installed coding agents.

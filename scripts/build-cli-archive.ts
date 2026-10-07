@@ -42,6 +42,7 @@ import {
 } from "./build-desktop-artifact.ts";
 import { selectCliRuntimeExternalDependencies } from "./lib/cli-external-packages.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
+import { WindowsSigningModeConfig } from "./lib/windows-signing.ts";
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64"]);
@@ -468,10 +469,28 @@ const stripStaleAuthenticodeEntry = Effect.fn("stripStaleAuthenticodeEntry")(fun
   );
 });
 
-/** Signs rove.exe through the same Azure Trusted Signing setup the installer uses. */
 const signWindowsExecutable = Effect.fn("signWindowsExecutable")(function* (
   executablePath: string,
 ) {
+  if ((yield* WindowsSigningModeConfig) === "self-signed") {
+    const path = yield* Path.Path;
+    const repoRoot = yield* RepoRoot;
+    yield* stripStaleAuthenticodeEntry(executablePath);
+    yield* runCommand(
+      ChildProcess.make("pwsh", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        path.join(repoRoot, "scripts/windows-self-signed.ps1"),
+        "-Action",
+        "Sign",
+        "-Path",
+        path.dirname(executablePath),
+      ]),
+      "Self-sign Windows CLI archive",
+    );
+    return;
+  }
   const signing = yield* WindowsSigningConfig;
   const endpoint = Option.getOrUndefined(signing.endpoint);
   const accountName = Option.getOrUndefined(signing.accountName);

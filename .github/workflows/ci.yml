@@ -114,7 +114,7 @@ jobs:
   # desktop and script tests or compete with each other's isolated workers.
   test:
     name: Test
-    needs: [test_packages, test_client, test_server]
+    needs: [test_packages, test_client, test_server, windows_release]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -124,10 +124,41 @@ jobs:
           PACKAGES_RESULT: ${{ needs.test_packages.result }}
           CLIENT_RESULT: ${{ needs.test_client.result }}
           SERVER_RESULT: ${{ needs.test_server.result }}
+          WINDOWS_RESULT: ${{ needs.windows_release.result }}
         run: |
           test "$PACKAGES_RESULT" = success
           test "$CLIENT_RESULT" = success
           test "$SERVER_RESULT" = success
+          test "$WINDOWS_RESULT" = success
+
+  windows_release:
+    name: Windows release checks ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - name: Sign and verify Windows test payloads
+        shell: pwsh
+        run: ./scripts/windows-self-signed.test.ps1
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: false
+          run-install: |
+            args:
+              - --filter=@rove-code/scripts...
+      - name: Check release assets and hosted deployments
+        run: vp test run scripts/check-release-assets.test.mjs scripts/check-cloudflare-web.test.mjs scripts/cloudflare-web-preview.test.mjs
 
   test_packages:
     name: Test Packages
