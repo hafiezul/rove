@@ -374,12 +374,22 @@ jobs:
           name: cli-linux-${{ inputs.arch }}
           path: wsl-runtime
 
+      - name: Import self-signed macOS identity
+        if: inputs.platform == 'mac' && vars.MACOS_SIGNING_MODE == 'self-signed'
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_NAME: ${{ vars.MACOS_SIGNING_IDENTITY || 'Rove Code Release Signing' }}
+        run: bash scripts/import-macos-self-signed.sh
+
       - name: Build desktop artifact
         shell: bash
         env:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
           ROVE_DESKTOP_REUSE_RESOURCE_MONITOR: ${{ steps.resource_monitor_cache.outputs.cache-hit == 'true' }}
           ROVE_DESKTOP_REUSE_LINUX_CAPTURE_HELPERS: ${{ steps.capture_helper_cache.outputs.cache-hit == 'true' }}
+          ROVE_MACOS_SIGNING_MODE: ${{ vars.MACOS_SIGNING_MODE || 'developer-id' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -415,7 +425,20 @@ jobs:
           }
 
           if [[ "${{ inputs.platform }}" == "mac" ]]; then
-            if has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER"; then
+            if [[ "$ROVE_MACOS_SIGNING_MODE" == "self-signed" ]]; then
+              if ! has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "${CSC_KEYCHAIN:-}"; then
+                echo "Self-signed macOS releases require an imported CSC_LINK identity and CSC_KEY_PASSWORD." >&2
+                exit 1
+              fi
+              unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID
+              unset ROVE_APPLE_TEAM_ID ROVE_MACOS_PROVISIONING_PROFILE
+              echo "macOS certificate signing enabled without Apple notarization."
+              mac_unnotarized=true
+              args+=(--signed)
+            elif [[ "$ROVE_MACOS_SIGNING_MODE" != "developer-id" ]]; then
+              echo "MACOS_SIGNING_MODE must be developer-id or self-signed." >&2
+              exit 1
+            elif has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER"; then
               if ! has_all "$APPLE_TEAM_ID" "$MACOS_PROVISIONING_PROFILE"; then
                 echo "macOS signing is configured, but APPLE_TEAM_ID or MACOS_PROVISIONING_PROFILE is missing." >&2
                 exit 1
@@ -461,15 +484,44 @@ jobs:
 
           vp run dist:desktop:artifact "${args[@]}"
 
-          if [[ "${mac_unsigned:-false}" == "true" ]]; then
+          if [[ "${mac_unnotarized:-false}" == "true" ]]; then
+            found_zip=false
+            for archive in release/*.zip; do
+              [[ -f "$archive" ]] || continue
+              found_zip=true
+              verification_dir="$(mktemp -d "$RUNNER_TEMP/rove-macos-verify.XXXXXX")"
+              ditto -x -k "$archive" "$verification_dir"
+              found_app=false
+              while IFS= read -r -d '' app; do
+                bash scripts/verify-macos-self-signed.sh "$app"
+                found_app=true
+              done < <(find "$verification_dir" -type d -name '*.app' -prune -print0)
+              if [[ "$found_app" != "true" ]]; then
+                echo "No app was found in the update ZIP for signature verification." >&2
+                exit 1
+              fi
+            done
+            if [[ "$found_zip" != "true" ]]; then
+              echo "No update ZIP was produced for signature verification." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${mac_unsigned:-false}" == "true" || "${mac_unnotarized:-false}" == "true" ]]; then
             app_name="$(node -p "require('./apps/desktop/package.json').productName || 'Rove Code'")"
             if [[ "${{ inputs.release_channel }}" == "nightly" ]]; then
               app_name="Rove Code (Nightly)"
             fi
             {
-              echo "### Installing this unsigned macOS build"
+              echo "### Installing this unnotarized macOS build"
               echo
-              echo "This DMG is not signed or notarized by Apple. Gatekeeper may say the app is **damaged** even when the download is intact."
+              if [[ "${mac_unnotarized:-false}" == "true" ]]; then
+                echo "This app is signed with the project's own certificate, not an Apple Developer ID. It is not notarized."
+                echo "Keep the same signing certificate for future releases. Auto-update compatibility still requires a real two-version Mac test."
+              else
+                echo "This DMG is not signed or notarized by Apple."
+              fi
+              echo "Gatekeeper may block the first launch even when the download is intact."
               echo "After copying the app from the DMG to Applications, **only if you trust the download from this repository**, run:"
               echo
               echo '```sh'
@@ -496,7 +548,7 @@ jobs:
         run: node apps/server/scripts/cli.ts build-exe --verbose
 
       - name: Import macOS signing certificate for the CLI archive
-        if: inputs.cli_archive && inputs.platform == 'mac'
+        if: inputs.cli_archive && inputs.platform == 'mac' && vars.MACOS_SIGNING_MODE != 'self-signed'
         shell: bash
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -543,6 +595,7 @@ jobs:
         if: inputs.cli_archive
         shell: bash
         env:
+          ROVE_MACOS_SIGNING_MODE: ${{ vars.MACOS_SIGNING_MODE || 'developer-id' }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -554,6 +607,9 @@ jobs:
           AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
         run: |
           set -euo pipefail
+          if [[ "${{ inputs.platform }}" == "mac" && "$ROVE_MACOS_SIGNING_MODE" == "self-signed" ]]; then
+            unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER
+          fi
           if [[ "${{ inputs.platform }}" == "mac" && -n "${APPLE_API_KEY:-}" ]]; then
             key_path="$RUNNER_TEMP/AuthKey_cli_${APPLE_API_KEY_ID}.p8"
             printf '%s' "$APPLE_API_KEY" > "$key_path"

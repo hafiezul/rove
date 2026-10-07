@@ -35,6 +35,19 @@ app's HTML fallback. Source-tree generation does not clear this deployment gate.
 
 No credentials or production databases should be copied into a worktree for verification. Use isolated development state. Do not publish to npm or create a GitHub Release while investigating failures.
 
+## Build self-signed macOS artifacts without Apple membership
+
+This mode signs desktop and CLI artifacts with your own certificate. It does not provide Apple notarization or Apple-provisioned native passkeys. Users must approve the initial unnotarized installation. Do not enable `ROVE_MACOS_SIGNING_READY` for this mode. That variable controls the separate Apple-signed PR preview workflow.
+
+1. Create a self-signed Code Signing identity in Keychain Access. Export the certificate and private key as a password-protected `.p12`. Keep an encrypted backup of the identity and its password. Use the same identity for every release.
+2. Add the Base64-encoded `.p12` as the repository Actions secret `CSC_LINK`. Add its export password as `CSC_KEY_PASSWORD`. Do not put either value in source control or logs.
+3. Add the repository Actions variable `MACOS_SIGNING_MODE` with value `self-signed`. The default certificate name is `Rove Code Release Signing`. If you chose another name, set `MACOS_SIGNING_IDENTITY` to that exact name.
+4. Push the workflow and signing scripts to the ref you want to build. Dispatch `release.yml` with `channel=preview` and `build_only=true`. Keep publication disabled during verification.
+5. Check the macOS job for successful identity import and packaged-app signature verification. Download its desktop and CLI artifacts. Follow the job summary's first-install guidance only for artifacts you trust.
+6. Test installation and a two-version auto-update on a Mac that does not have your certificate installed. Use an update feed configured before signing the test builds. Confirm that a same-certificate update installs and relaunches, and that a different-certificate update fails. Do not treat CI signature verification as proof that auto-update works.
+
+Unsigned or differently signed installations may require a one-time manual reinstall before they can follow the new signing identity. Losing or replacing the certificate can break update continuity.
+
 ## First npm publication (free)
 
 The `@rove-code` organization must own the launcher and all five platform packages. npm trusted publishers are configured per package, after its initial publication; creating the organization alone does not enable OIDC publishing.
