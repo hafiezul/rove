@@ -126,6 +126,7 @@ import { useComposerMenuState } from "./useComposerMenuState";
 import { useComposerTriggerState } from "./useComposerTriggerState";
 import { useComposerFocusState } from "./useComposerFocusState";
 import { useComposerMultilinePrompt } from "./useComposerMultilinePrompt";
+import { useArrivedAfterOpen } from "./useArrivedAfterOpen";
 import {
   ComposerTasksBadge,
   ComposerTasksContent,
@@ -139,7 +140,7 @@ import {
   type RetainedAttachmentContextPayloads,
 } from "./composerContextUndo";
 import type { ThreadSyncPhase } from "../../threadSync";
-import { ComposerBanner } from "./ComposerBanner";
+import { ComposerBanner, composerBannerEnterClassName } from "./ComposerBanner";
 import { ComposerSurface } from "./ComposerSurface";
 import {
   ComposerBannerStack,
@@ -2545,6 +2546,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     isComposerApprovalState ||
     pendingUserInputs.length > 0 ||
     (!isComposerCollapsedMobile && showPlanFollowUpPrompt && activeProposedPlan !== null);
+  const composerTopDrawerId = !showComposerTopDrawer
+    ? null
+    : (activePendingApproval?.requestId ??
+      activePendingUserInput?.requestId ??
+      (activeProposedPlan ? `plan:${activeProposedPlan.id}` : null));
+  const composerTopDrawerArrivedAfterOpen = useArrivedAfterOpen(
+    composerTopDrawerId === null ? [] : [composerTopDrawerId],
+    activeThreadId ?? "draft",
+  );
   const showCollapsedMobilePromptRow =
     isComposerCollapsedMobile && !isComposerApprovalState && pendingUserInputs.length === 0;
   const showComposerAttachAction =
@@ -6209,7 +6219,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             </ComposerBanner.Attachment>
           ) : null}
           {showComposerTopDrawer && (!isTasksDrawerOpen || hasBlockingComposerTopDrawer) ? (
-            <ComposerBanner.Attachment>
+            <ComposerBanner.Attachment
+              data-entering={
+                (composerTopDrawerId !== null &&
+                  composerTopDrawerArrivedAfterOpen(composerTopDrawerId)) ||
+                undefined
+              }
+              className={cn(
+                "transition-[opacity,translate] duration-220 ease-(--ease-drawer)",
+                composerBannerEnterClassName,
+              )}
+            >
               <ComposerBanner.Root
                 data-chat-composer-top-drawer="true"
                 variant={activePendingApproval ? "warning" : "info"}

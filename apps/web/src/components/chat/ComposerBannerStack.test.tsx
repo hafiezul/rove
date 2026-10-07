@@ -21,6 +21,7 @@ afterEach(async () => {
 
 it("only offers notice details when the description cannot fit", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("window", { requestAnimationFrame: () => 0, cancelAnimationFrame: () => {} });
   let resize = () => {};
   let mutate = () => {};
   vi.stubGlobal(
