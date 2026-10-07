@@ -15,10 +15,10 @@ beforeEach(() => {
 });
 afterEach(() => NodeFS.rmSync(directory, { recursive: true, force: true }));
 
-function manifest(name, urls) {
+function manifest(name, urls, blockMapSize) {
   NodeFS.writeFileSync(
     NodePath.join(directory, name),
-    `version: 1.2.3\nfiles:\n${urls.map((url) => `  - url: ${url}\n    sha512: ${sha512}\n    size: ${contents.length}\n`).join("")}releaseDate: '2026-10-07T06:00:00Z'\n`,
+    `version: 1.2.3\nfiles:\n${urls.map((url) => `  - url: ${url}\n    sha512: ${sha512}\n    size: ${contents.length}\n${blockMapSize === undefined ? "" : `    blockMapSize: ${blockMapSize}\n`}`).join("")}releaseDate: '2026-10-07T06:00:00Z'\n`,
   );
 }
 
@@ -28,6 +28,16 @@ it("verifies every architecture in merged manifests without treating builder con
   manifest("nightly.yml", urls);
   NodeFS.writeFileSync(NodePath.join(directory, "builder-debug.yml"), "configuration");
   NodeAssert.deepEqual(await checkReleaseAssets(directory), { manifests: 1, files: 2 });
+});
+
+it("verifies AppImage manifests with embedded block map metadata", async () => {
+  const url = "Rove-Code-1.2.3-arm64.AppImage";
+  NodeFS.writeFileSync(NodePath.join(directory, url), contents);
+  manifest("nightly-linux-arm64.yml", [url], 196282);
+  NodeAssert.deepEqual(await checkReleaseAssets(directory), { manifests: 1, files: 1 });
+
+  NodeFS.writeFileSync(NodePath.join(directory, url), contents.toUpperCase());
+  await NodeAssert.rejects(checkReleaseAssets(directory), /wrong sha512/);
 });
 
 it("rejects the published space-to-dot mismatch instead of accepting a green upload", async () => {
@@ -52,7 +62,7 @@ it("rejects an asset whose bytes changed after the manifest was generated", asyn
 
 it("rejects incomplete uploads and incorrect sizes", async () => {
   const url = "Rove-Code-1.2.3-x86_64.AppImage";
-  manifest("latest-linux.yml", [url]);
+  manifest("latest-linux.yml", [url], 196282);
   NodeFS.writeFileSync(NodePath.join(directory, url), "truncated");
   await NodeAssert.rejects(checkReleaseAssets(directory), /wrong size/);
 });
