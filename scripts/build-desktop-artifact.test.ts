@@ -95,6 +95,17 @@ import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 import { HostProcessArchitecture, HostProcessPlatform } from "@rove-code/shared/hostProcess";
 import { symlinksSupported } from "@rove-code/shared/testing/symlinks";
 
+const decodeWindowsSigningOptions = Schema.decodeUnknownEffect(
+  Schema.Struct({
+    verifyUpdateCodeSignature: Schema.Boolean,
+    signtoolOptions: Schema.Struct({
+      certificateFile: Schema.String,
+      publisherName: Schema.String,
+      signingHashAlgorithms: Schema.Array(Schema.String),
+    }),
+  }),
+);
+
 // A minimal stand-in for the Linux CLI release archive: one top-level
 // directory named after the archive stem holding the executable, the web
 // client, and the runtime externals with node-pty built from source.
@@ -2070,6 +2081,74 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       );
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
+
+  it.effect("keeps release filenames portable across GitHub uploads and updater URLs", () =>
+    Effect.gen(function* () {
+      for (const platform of ["mac", "win", "linux"] as const) {
+        const config = yield* createBuildConfig(
+          platform,
+          platform === "mac" ? "dmg" : platform === "win" ? "nsis" : "AppImage",
+          "1.2.3-nightly.20261007.1",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        const filename = String(config.artifactName)
+          .replace("${version}", "1.2.3-nightly.20261007.1")
+          .replace("${arch}", "arm64")
+          .replace("${ext}", "zip");
+        assert.match(filename, /^[a-zA-Z0-9._-]+$/);
+        assert.equal(encodeURIComponent(filename), filename);
+      }
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
+  it.effect("uses a Windows certificate without requiring paid Azure credentials", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig(
+        "win",
+        "nsis",
+        "1.2.3",
+        true,
+        false,
+        undefined,
+        undefined,
+      );
+      const win = yield* decodeWindowsSigningOptions(config.win);
+      assert.equal(config.forceCodeSigning, true);
+      assert.equal(win.verifyUpdateCodeSignature, true);
+      assert.notProperty(config.win, "azureSignOptions");
+    }).pipe(
+      Effect.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromEnv({
+            env: {
+              ROVE_WINDOWS_SIGNING_MODE: "self-signed",
+              WIN_CSC_LINK: "C:\\signing\\rove.pfx",
+              ROVE_WINDOWS_SIGNING_PUBLISHER_NAME: "CN=Rove Code Release Signing",
+            },
+          }),
+        ),
+      ),
+    ),
+  );
+
+  for (const env of [
+    { ROVE_WINDOWS_SIGNING_MODE: "self-signed" },
+    { ROVE_WINDOWS_SIGNING_MODE: "unsupported" },
+  ]) {
+    it.effect(
+      `refuses incomplete Windows signing configuration ${env.ROVE_WINDOWS_SIGNING_MODE}`,
+      () =>
+        Effect.gen(function* () {
+          const result = yield* Effect.result(
+            createBuildConfig("win", "nsis", "1.2.3", true, false, undefined, undefined),
+          );
+          assert.isTrue(result._tag === "Failure");
+        }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env })))),
+    );
+  }
 
   it.effect("keeps executable resource editing enabled for unsigned Windows builds", () =>
     Effect.gen(function* () {
