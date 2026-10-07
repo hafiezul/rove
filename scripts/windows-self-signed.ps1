@@ -32,7 +32,9 @@ if ($Action -eq 'Import') {
     if ($certificate.Subject -match '[\r\n]') { throw 'Certificate subject must be a single line.' }
     $publicPath = Join-Path $env:RUNNER_TEMP 'rove-windows-signing.cer'
     Export-Certificate -Cert $certificate -FilePath $publicPath | Out-Null
-    Import-Certificate -FilePath $publicPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+    Write-Host 'Importing the public certificate into the runner machine root store.'
+    # CurrentUser\Root opens a native trust dialog even with PowerShell confirmation disabled.
+    Import-Certificate -FilePath $publicPath -CertStoreLocation Cert:\LocalMachine\Root -Confirm:$false | Out-Null
     Import-Certificate -FilePath $publicPath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
     $env:WIN_CSC_LINK = $pfxPath
     $env:ROVE_WINDOWS_SIGNING_THUMBPRINT = $certificate.Thumbprint
