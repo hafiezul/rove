@@ -22,7 +22,7 @@ it("reports all public claims but only blocks enabled release surfaces", () => {
   const files = {
     "apps/marketing/src/pages/download.astro": "npx t3@nightly\n",
     "apps/marketing/astro.config.mjs": "site: undefined\n",
-    "apps/marketing/vercel.ts": "redirects: []\n",
+    "apps/marketing/wrangler.json": "{}\n",
     "apps/web/vercel.ts": "host: 'app.t3.codes'\n",
     "apps/mobile/app.config.ts": "relyingParty: 'clerk.t3.codes'\n",
     "apps/mobile/eas.json": '{ "ascAppId": "6787819824" }\n',
