@@ -29,9 +29,8 @@ try {
     $env:WIN_CSC_LINK = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfx))
     $env:WIN_CSC_KEY_PASSWORD = $password
     & $signingScript -Action Import
-    if (!(Test-Path -LiteralPath "Cert:\LocalMachine\Root\$($certificate.Thumbprint)")) {
-        throw 'The runner machine root store must trust the signing certificate.'
-    }
+    & certutil.exe -user -grouppolicy -verifystore Root $certificate.Thumbprint
+    if ($LASTEXITCODE -ne 0) { throw 'The runner user policy root store must trust the signing certificate.' }
     $payload = Join-Path $root 'payload'
     New-Item -ItemType Directory -Path (Join-Path $payload 'resource-monitor') -Force | Out-Null
     $unsignedBytes = [IO.File]::ReadAllBytes("$env:SystemRoot\System32\where.exe")
@@ -59,7 +58,9 @@ try {
     Write-Host 'Windows self-signing passed. Signed payloads verify; changed payloads and wrong identities fail.'
 } finally {
     if ($certificate) {
-        foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\Root', 'Cert:\CurrentUser\TrustedPublisher')) {
+        & certutil.exe -user -grouppolicy -delstore Root $certificate.Thumbprint
+        if ($LASTEXITCODE -ne 0) { throw 'Could not remove the temporary signing certificate from the user policy store.' }
+        foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\CurrentUser\TrustedPublisher')) {
             $path = "$store\$($certificate.Thumbprint)"
             if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
         }
