@@ -2,7 +2,8 @@ import type { DesktopUpdateActionResult, DesktopUpdateState } from "@rove-code/c
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
-const DESKTOP_RELEASE_HISTORY_URL = "https://github.com/hafiezul/rove/releases";
+const DESKTOP_REPOSITORY_URL = "https://github.com/hafiezul/rove";
+const DESKTOP_RELEASE_HISTORY_URL = `${DESKTOP_REPOSITORY_URL}/releases`;
 const DESKTOP_RELEASE_TAG_URL = `${DESKTOP_RELEASE_HISTORY_URL}/tag`;
 
 /**
@@ -23,6 +24,10 @@ export function getDesktopUpdateReleaseUrl(version: string | null): string | nul
 
 export function getDesktopUpdateReleaseHistoryUrl(): string {
   return DESKTOP_RELEASE_HISTORY_URL;
+}
+
+export function getDesktopUpdatePullRequestUrl(pullRequest: number): string {
+  return `${DESKTOP_REPOSITORY_URL}/pull/${pullRequest}`;
 }
 
 export function resolveDesktopUpdateButtonAction(
