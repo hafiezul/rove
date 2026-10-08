@@ -12,6 +12,10 @@ An environment keeps its ID across server restarts and endpoint changes. Saved
 connections are local to a client profile; the server's identity and state are
 not. A repository identity can correlate clones across environments, but never
 routes work between them. A project and its threads belong to one environment.
+Continuing a thread elsewhere therefore copies rather than moves: the client
+opens a new thread on the target from the pushed branch and carries the
+transcript in its composer. Git is the only channel for code, and the two
+servers never contact each other.
 
 [Environment ID initialization](../../apps/server/src/environment/ServerEnvironment.ts)
 must publish a complete ID atomically. Repair of an empty ID file retains a

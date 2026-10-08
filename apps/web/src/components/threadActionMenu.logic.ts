@@ -8,6 +8,8 @@ import type { SnoozePreset } from "@rove-code/client-runtime/state/thread-settle
  */
 export type ThreadActionMenuId =
   | "new-thread-on-branch"
+  | "continue-on"
+  | `continue-on:${string}`
   | "filter-by-project"
   | "project-settings"
   | "pin"
@@ -32,6 +34,11 @@ export type ThreadActionMenuId =
 
 export interface ThreadActionMenuState {
   readonly branch: string | null;
+  /** Other environments holding this repository, keyed by environment id. */
+  readonly continueTargets?: ReadonlyArray<{
+    readonly environmentId: string;
+    readonly label: string;
+  }>;
   readonly hasProject: boolean;
   /**
    * Project scoping for the thread list. Null on surfaces with no scoped
@@ -77,6 +84,22 @@ export function buildThreadActionMenuItems(
             id: "new-thread-on-branch" as const,
             label: `New thread on ${state.branch}`,
             icon: "message-square-plus",
+          },
+        ]
+      : []),
+    // The branch is what travels, so the item needs one. A running turn may
+    // still be changing files that would be left behind.
+    ...(state.branch && state.continueTargets && state.continueTargets.length > 0
+      ? [
+          {
+            id: "continue-on" as const,
+            label: "Continue on",
+            icon: "monitor-up",
+            disabled: state.isRunning,
+            children: state.continueTargets.map((target) => ({
+              id: `continue-on:${target.environmentId}` as const,
+              label: target.label,
+            })),
           },
         ]
       : []),

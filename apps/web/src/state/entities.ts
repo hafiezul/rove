@@ -190,6 +190,38 @@ export function readThreadShell(ref: ScopedThreadRef): EnvironmentThreadShell | 
   return appAtomRegistry.get(environmentThreadShells.threadShellAtom(ref));
 }
 
+/**
+ * The thread's loaded detail, subscribing until it arrives. Resolves null on
+ * timeout so callers can carry on without the conversation.
+ */
+export function waitForThreadDetail(
+  ref: ScopedThreadRef,
+  timeoutMs = 10_000,
+): Promise<EnvironmentThread | null> {
+  const detailAtom = environmentThreadDetails.detailAtom(ref);
+  return new Promise((resolve) => {
+    let unsubscribe: (() => void) | null = null;
+    let settled = false;
+    const finish = (detail: EnvironmentThread | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      unsubscribe?.();
+      resolve(detail);
+    };
+    const timeout = setTimeout(() => finish(null), timeoutMs);
+    unsubscribe = appAtomRegistry.subscribe(detailAtom, (detail) => {
+      if (detail !== null) finish(detail);
+    });
+    if (settled) {
+      unsubscribe();
+      return;
+    }
+    const current = appAtomRegistry.get(detailAtom);
+    if (current !== null) finish(current);
+  });
+}
+
 /** The thread as `useThread` returns it, read outside React. */
 export function readThread(ref: ScopedThreadRef): EnvironmentThread | null {
   return mergeEnvironmentThread(

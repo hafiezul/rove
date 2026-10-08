@@ -180,6 +180,7 @@ import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { subscribeSnapShotComposerFocus } from "../lib/desktopSnapShot";
 import { buildTemporaryWorktreeBranchName } from "@rove-code/shared/git";
+import { useWorktreeCheckoutStore } from "../worktreeCheckoutStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "../rightPanelLayout";
 import {
@@ -1779,11 +1780,6 @@ export default function ChatView(props: ChatViewProps) {
     pendingServerThreadStartFromOriginByThreadId,
     setPendingServerThreadStartFromOriginByThreadId,
   ] = useState<Record<string, boolean>>({});
-  // "Check out branch" is a one-off choice for the next worktree, so it stays
-  // in memory rather than in the persisted draft.
-  const [checkoutBaseBranchByThreadId, setCheckoutBaseBranchByThreadId] = useState<
-    Record<string, boolean>
-  >({});
   const [lastInvokedScriptByProjectId, setLastInvokedScriptByProjectId] = useLocalStorage(
     LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
     {},
@@ -5908,13 +5904,13 @@ export default function ChatView(props: ChatViewProps) {
   const canCheckoutBaseBranch =
     serverConfig?.environment.capabilities.worktreeCheckoutBaseBranch === true &&
     multipleModelSelections === null;
-  const checkoutBaseBranch =
-    canCheckoutBaseBranch && (checkoutBaseBranchByThreadId[activeThread?.id ?? ""] ?? false);
+  const requestedCheckoutBaseBranch = useWorktreeCheckoutStore(
+    (store) => store.checkoutBaseBranchByThreadId[activeThread?.id ?? ""] ?? false,
+  );
+  const checkoutBaseBranch = canCheckoutBaseBranch && requestedCheckoutBaseBranch;
   const onCheckoutBaseBranchChange = (next: boolean) => {
     if (!activeThread) return;
-    setCheckoutBaseBranchByThreadId((current) =>
-      current[activeThread.id] === next ? current : { ...current, [activeThread.id]: next },
-    );
+    useWorktreeCheckoutStore.getState().setCheckoutBaseBranch(activeThread.id, next);
   };
   const localCheckoutBranchMismatch = useMemo(
     () =>
@@ -8432,6 +8428,10 @@ export default function ChatView(props: ChatViewProps) {
                           projectCwd: activeProject.workspaceRoot,
                           baseBranch: baseBranchForWorktree,
                           checkoutBaseBranch: true,
+                          // The user asked for this exact branch, so a
+                          // missing one must fail rather than quietly run
+                          // in the project checkout.
+                          requireWorktree: true,
                         }
                       : {
                           projectCwd: activeProject.workspaceRoot,

@@ -56,6 +56,12 @@ On web and desktop, **Settings → Connections → Load balancing** appears when
 
 Clone the repository and authenticate an eligible provider on each machine before balancing work across them. Project grouping does not synchronize files between machines.
 
+## Continue a thread on another machine
+
+On web and desktop, right-click a project thread (or open its menu in the chat header) and choose **Continue on**, then the machine. Each machine needs its own clone of the repository with the same remote.
+
+The thread's branch must be pushed first. Commit and push any remaining changes from the thread before continuing. Rove Code then opens a new thread on the other machine that checks out the same branch in a new worktree, with the recent conversation in the composer. Review it and send it to continue. The original thread stays where it was; its provider session does not move.
+
 ## Revoke access
 
 On the host, authorized administrators can revoke pairing links and client sessions in **Settings → Connections**. Revoking a link prevents new pairings. Revoking a session removes a client's existing access.

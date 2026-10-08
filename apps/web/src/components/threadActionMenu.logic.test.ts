@@ -36,6 +36,26 @@ function allIds(state: ThreadActionMenuState): string[] {
 }
 
 describe("buildThreadActionMenuItems", () => {
+  it("offers continuing elsewhere only for a branch with somewhere to go", () => {
+    const targets = [{ environmentId: "server", label: "Server" }];
+    expect(allIds({ ...baseState, branch: null, continueTargets: targets })).not.toContain(
+      "continue-on",
+    );
+    expect(allIds({ ...baseState, branch: "feature/x", continueTargets: [] })).not.toContain(
+      "continue-on",
+    );
+    expect(allIds({ ...baseState, branch: "feature/x", continueTargets: targets })).toContain(
+      "continue-on:server",
+    );
+    const running = buildThreadActionMenuItems({
+      ...baseState,
+      branch: "feature/x",
+      continueTargets: targets,
+      isRunning: true,
+    }).find((item) => item.id === "continue-on");
+    expect(running?.disabled).toBe(true);
+  });
+
   it("omits project settings for standalone threads", () => {
     expect(allIds({ ...baseState, hasProject: false })).not.toContain("project-settings");
     expect(allIds({ ...baseState, hasProject: false })).toContain("copy-path");
