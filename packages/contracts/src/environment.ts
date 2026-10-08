@@ -119,6 +119,10 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   /** Server accepts thread.continuation.record. Absent on older servers, which
       would reject the command, so clients skip recording the link there. */
   threadContinuationLinks: Schema.optionalKey(Schema.Boolean),
+  /** Server accepts thread.create with a null projectId and gives the thread
+      its own workspace. Older servers reject the command at decode, so
+      clients only offer standalone threads where this is true. */
+  standaloneThreads: Schema.optionalKey(Schema.Boolean),
   /** Server understands thread.settle / thread.unsettle commands. Absent on
       pre-settlement servers, so clients treat missing as unsupported and
       never send the commands under version skew. */

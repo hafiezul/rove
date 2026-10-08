@@ -128,6 +128,17 @@ describe("chatThreadActions", () => {
     expect(projectRef).toEqual(scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID));
   });
 
+  it("falls back to the default project ref from a standalone thread", () => {
+    const projectRef = resolveThreadActionProjectRef(
+      createContext({
+        activeThread: { environmentId: ENVIRONMENT_ID, projectId: null },
+        defaultProjectRef: scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID),
+      }),
+    );
+
+    expect(projectRef).toEqual(scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID));
+  });
+
   it("falls back to the default project ref when there is no active thread context", () => {
     const projectRef = resolveThreadActionProjectRef(
       createContext({

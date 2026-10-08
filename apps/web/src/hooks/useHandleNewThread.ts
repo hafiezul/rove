@@ -1,5 +1,9 @@
 import { useAtomValue } from "@effect/atom-react";
-import { standaloneThreadInput } from "@rove-code/client-runtime/state/standalone-thread";
+import {
+  STANDALONE_THREADS_UNSUPPORTED_MESSAGE,
+  standaloneThreadInput,
+  supportsStandaloneThreads,
+} from "@rove-code/client-runtime/state/standalone-thread";
 import {
   scopedProjectKey,
   scopeProjectRef,
@@ -12,6 +16,7 @@ import {
   type ThreadId,
 } from "@rove-code/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
+import { Cause } from "effect";
 import { useCallback, useMemo } from "react";
 import {
   composerDraftHasUserContent,
@@ -98,18 +103,26 @@ export function useNewThreadHandler() {
           environmentServerConfigs.keys().next().value;
         if (!environmentId)
           return Promise.reject(new Error("Connect an environment to start a thread."));
+        const config = environmentServerConfigs.get(environmentId);
+        if (!supportsStandaloneThreads(config))
+          return Promise.reject(new Error(STANDALONE_THREADS_UNSUPPORTED_MESSAGE));
+        // Provider instances are per environment, so only carry a model
+        // selection from a thread on the target environment.
         const source =
-          routeTarget?.kind === "server" ? readThreadShell(routeTarget.threadRef) : null;
+          routeTarget?.kind === "server" && routeTarget.threadRef.environmentId === environmentId
+            ? readThreadShell(routeTarget.threadRef)
+            : null;
         const threadId = newThreadId();
         return createThread({
           environmentId,
-          input: standaloneThreadInput(
-            threadId,
-            environmentServerConfigs.get(environmentId),
-            source?.modelSelection,
-          ),
+          input: standaloneThreadInput(threadId, config, source?.modelSelection),
         }).then(async (result) => {
-          if (result._tag === "Failure") throw new Error("Could not start a standalone thread.");
+          if (result._tag === "Failure") {
+            const error = Cause.squash(result.cause);
+            throw error instanceof Error
+              ? error
+              : new Error("Could not start a standalone thread.");
+          }
           await router.navigate({
             to: "/$environmentId/$threadId",
             params: { environmentId, threadId },

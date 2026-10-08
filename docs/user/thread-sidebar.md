@@ -12,7 +12,9 @@ choose **New thread without a project** in the new-task picker.
 Each standalone thread has a persistent working folder for generated files.
 It can run commands and use files elsewhere under your agent's usual permissions.
 Find its outputs in **Files** or its terminal. Deleting the conversation leaves
-those files in place. Git worktrees require a project.
+those files in place. Git worktrees require a project. A standalone thread you
+have not sent a message in can be discarded from its sidebar row. Remote
+environments must run a server version that supports standalone threads.
 
 On web and desktop, a project thread keeps the current project and carries your model
 and mode selections, unless the destination project has its own model default.

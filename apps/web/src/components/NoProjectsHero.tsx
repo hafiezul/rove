@@ -20,8 +20,12 @@ export function NoProjectsHero() {
     setError(null);
     try {
       await handleNewThread(null);
-    } catch {
-      setError("Could not start a thread. Check your environment connection and try again.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not start a thread. Check your environment connection and try again.",
+      );
     } finally {
       setStarting(false);
     }

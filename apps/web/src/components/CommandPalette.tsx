@@ -14,6 +14,7 @@ import {
 } from "@rove-code/client-runtime/operations/projects";
 import { connectionStatusText } from "@rove-code/client-runtime/connection";
 import { threadSearchMatchKey } from "@rove-code/client-runtime/state/thread-search";
+import { supportsStandaloneThreads } from "@rove-code/client-runtime/state/standalone-thread";
 import { resolveThreadReferenceCopyTarget } from "@rove-code/shared/threadReference";
 import {
   canPreloadBrowsePath,
@@ -1349,14 +1350,22 @@ function OpenCommandPaletteDialog(props: {
     const searchTerms = ["new thread", "standalone", "projectless", "no project"];
     const title = "New thread without a project";
     const icon = <SquarePenIcon className={ITEM_ICON_CLASS} />;
+    const supportedEnvironmentIds = new Set(
+      environments
+        .filter((environment) => supportsStandaloneThreads(environment.serverConfig))
+        .map((environment) => environment.environmentId),
+    );
     if (addProjectEnvironmentOptions.length <= 1) {
       const environmentId = addProjectEnvironmentOptions[0]?.environmentId;
+      const unsupported =
+        environmentId !== undefined && !supportedEnvironmentIds.has(environmentId);
       return {
         kind: "action",
         value: "new-standalone-thread",
         title,
         searchTerms,
         icon,
+        ...(unsupported ? { description: "Server update required", disabled: true } : {}),
         run: async () => {
           await handleNewThread(null, environmentId ? { environmentId } : undefined);
         },
@@ -1387,17 +1396,19 @@ function OpenCommandPaletteDialog(props: {
             kind: "action",
             value: `new-standalone-thread:${option.environmentId}`,
             title: option.label,
-            description: option.isConnected
-              ? option.isPrimary
-                ? "This device"
-                : option.environmentId
-              : option.status,
+            description: !option.isConnected
+              ? option.status
+              : !supportedEnvironmentIds.has(option.environmentId)
+                ? "Server update required"
+                : option.isPrimary
+                  ? "This device"
+                  : option.environmentId,
             searchTerms: [
               option.label,
               option.environmentId,
               option.isPrimary ? "this device" : "",
             ],
-            disabled: !option.isConnected,
+            disabled: !option.isConnected || !supportedEnvironmentIds.has(option.environmentId),
             icon: <EnvironmentMachineIcon kind={option.machine} className={ITEM_ICON_CLASS} />,
             run: async () => {
               await handleNewThread(null, { environmentId: option.environmentId });
@@ -1406,7 +1417,7 @@ function OpenCommandPaletteDialog(props: {
         },
       ],
     };
-  }, [addProjectEnvironmentOptions, currentProjectEnvironmentId, handleNewThread]);
+  }, [addProjectEnvironmentOptions, currentProjectEnvironmentId, environments, handleNewThread]);
 
   const allThreadItems = useMemo(
     () =>
@@ -1810,7 +1821,7 @@ function OpenCommandPaletteDialog(props: {
         {
           value: "projects",
           label: "Projects",
-          items: [...enumerateCommandPaletteItems(prioritized), standaloneThreadItem],
+          items: [standaloneThreadItem, ...enumerateCommandPaletteItems(prioritized)],
         },
       ],
     });
@@ -1869,7 +1880,7 @@ function OpenCommandPaletteDialog(props: {
         {
           value: "projects",
           label: "Workspaces",
-          items: [...projectThreadItems, standaloneThreadItem],
+          items: [standaloneThreadItem, ...projectThreadItems],
         },
       ],
     });

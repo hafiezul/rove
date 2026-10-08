@@ -9,6 +9,14 @@ import {
 } from "@rove-code/contracts";
 import type { CreateThreadInput } from "../operations/commands.ts";
 
+/** Servers from before standalone threads reject a null projectId outright. */
+export function supportsStandaloneThreads(config: ServerConfig | null | undefined): boolean {
+  return config?.environment.capabilities.standaloneThreads === true;
+}
+
+export const STANDALONE_THREADS_UNSUPPORTED_MESSAGE =
+  "Update this environment's server to start threads without a project.";
+
 export function standaloneThreadInput(
   threadId: ThreadId,
   config: ServerConfig | null | undefined,
