@@ -66,6 +66,8 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
 
 export interface UsageView {
   readonly merged: MergedUsage;
+  /** Answered, selected summaries; re-merge with `scopeUsage` for focused views. */
+  readonly answered: readonly EnvironmentUsage[];
   readonly environments: readonly EnvironmentUsageStatus[];
   readonly selectedEnvironments: readonly EnvironmentUsageStatus[];
   /** True until at least one selected environment has answered. */
@@ -126,20 +128,22 @@ export function useUsage(
     [selectedEnvironments, windowKey],
   );
 
-  const merged = useMemo(() => {
-    const answered: EnvironmentUsage[] = selectedEnvironments.flatMap((environment) =>
-      environment.summary === null
-        ? []
-        : [
-            {
-              environmentId: environment.environmentId,
-              label: environment.label,
-              summary: environment.summary,
-            },
-          ],
-    );
-    return mergeUsage(answered, USAGE_CONTRACT_VERSION);
-  }, [selectedEnvironments]);
+  const answered = useMemo(
+    (): readonly EnvironmentUsage[] =>
+      selectedEnvironments.flatMap((environment) =>
+        environment.summary === null
+          ? []
+          : [
+              {
+                environmentId: environment.environmentId,
+                label: environment.label,
+                summary: environment.summary,
+              },
+            ],
+      ),
+    [selectedEnvironments],
+  );
+  const merged = useMemo(() => mergeUsage(answered, USAGE_CONTRACT_VERSION), [answered]);
 
   const answeredCount = selectedEnvironments.filter(
     (environment) => environment.summary !== null,
@@ -150,6 +154,7 @@ export function useUsage(
 
   return {
     merged,
+    answered,
     environments,
     selectedEnvironments,
     isPending: answeredCount === 0 && stillReporting > 0,

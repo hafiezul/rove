@@ -10,7 +10,7 @@ import {
 import { describe, expect, it } from "vite-plus/test";
 import * as Schema from "effect/Schema";
 
-import { isModelCostUnknown, mergeUsage, type EnvironmentUsage } from "./usageMerge.ts";
+import { isModelCostUnknown, mergeUsage, scopeUsage, type EnvironmentUsage } from "./usageMerge.ts";
 
 const decodeSummary = Schema.decodeUnknownSync(UsageSummary);
 const encodeSummary = Schema.encodeSync(UsageSummary);
@@ -718,5 +718,69 @@ describe("mergeUsage", () => {
     ]);
     expect(merged.daily).toHaveLength(1);
     expect(merged.daily[0]?.costUsd).toBe(10);
+  });
+});
+
+describe("scopeUsage", () => {
+  const sources = [
+    { provider: "claude" as const, hostId: "mac", homePath: "/claude", distinctSessions: 3 },
+    { provider: "codex" as const, hostId: "mac", homePath: "/codex", distinctSessions: 2 },
+  ];
+  const environments = [
+    environment(
+      "env-a",
+      summary(
+        [
+          bucket({ day: "2026-08-01" as UsageDay, model: "opus" }),
+          bucket({ day: "2026-08-02" as UsageDay, model: "sonnet", costUsd: 4 }),
+          bucket({ day: "2026-08-03" as UsageDay, provider: "codex", model: "gpt", costUsd: 1 }),
+        ],
+        sources,
+      ),
+    ),
+  ];
+  const merge = (scope: Parameters<typeof scopeUsage>[1]) =>
+    mergeUsage(scopeUsage(environments, scope), USAGE_CONTRACT_VERSION);
+
+  it("narrows by provider, including that provider's sessions", () => {
+    const merged = merge({ providers: new Set(["codex"]) });
+    expect(merged.costUsd).toBe(1);
+    expect(merged.sessions).toBe(2);
+    expect(merged.providers.map((entry) => entry.provider)).toEqual(["codex"]);
+  });
+
+  it("narrows by model and an inclusive day range", () => {
+    expect(merge({ model: { provider: "claude", model: "sonnet" } }).costUsd).toBe(4);
+    expect(
+      merge({ period: { resolution: "day", start: "2026-08-02", end: "2026-08-03" } }).costUsd,
+    ).toBe(5);
+  });
+
+  it("narrows hourly buckets by instant", () => {
+    const hourly = [
+      environment(
+        "env-a",
+        summary(
+          [
+            bucket({ hourStart: "2026-08-07T10:00:00.000Z", costUsd: 1 }),
+            bucket({ hourStart: "2026-08-07T11:00:00.000Z", costUsd: 2 }),
+            bucket({ hourStart: "2026-08-07T12:00:00.000Z", costUsd: 4 }),
+          ],
+          [sources[0]!],
+        ),
+      ),
+    ];
+    const scoped = scopeUsage(hourly, {
+      period: {
+        resolution: "hour",
+        start: "2026-08-07T11:00:00Z",
+        end: "2026-08-07T12:00:00Z",
+      },
+    });
+    expect(mergeUsage(scoped, USAGE_CONTRACT_VERSION).costUsd).toBe(6);
+  });
+
+  it("returns the input untouched without a scope", () => {
+    expect(scopeUsage(environments, {})).toBe(environments);
   });
 });

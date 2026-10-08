@@ -44,6 +44,10 @@ export interface ModelTotals {
    */
   readonly unpricedRecords: number;
   readonly costShare: number;
+  readonly uncachedInputTokens: number;
+  readonly cachedInputTokens: number;
+  readonly cacheCreationTokens: number;
+  readonly outputTokens: number;
 }
 
 /**
@@ -283,6 +287,60 @@ function bucketTokens(bucket: UsageBucket): number {
   );
 }
 
+/** Narrows usage to a provider set, one model, and/or an inclusive period range. */
+export interface UsageScope {
+  readonly providers?: ReadonlySet<UsageProviderKind> | null;
+  readonly model?: { readonly provider: UsageProviderKind; readonly model: string } | null;
+  /** `start`/`end` are days for daily windows and `hourStart` instants for hourly ones. */
+  readonly period?: {
+    readonly resolution: "day" | "hour";
+    readonly start: string;
+    readonly end: string;
+  } | null;
+}
+
+/**
+ * Filters summaries before {@link mergeUsage} so a scoped view reuses the same
+ * de-duplication rules. Sources are narrowed by provider only: per-source
+ * session counts are not period- or model-aware, so callers should not present
+ * `sessions` as exact when a period or model is scoped.
+ */
+export function scopeUsage(
+  environments: readonly EnvironmentUsage[],
+  scope: UsageScope,
+): readonly EnvironmentUsage[] {
+  const { providers, model, period } = scope;
+  if (!providers && !model && !period) return environments;
+
+  const keepProvider = (provider: UsageProviderKind) =>
+    (!providers || providers.has(provider)) && (!model || model.provider === provider);
+  const startTime = period?.resolution === "hour" ? Date.parse(period.start) : 0;
+  const endTime = period?.resolution === "hour" ? Date.parse(period.end) : 0;
+  const inPeriod = (bucket: UsageBucket) => {
+    if (!period) return true;
+    if (period.resolution === "day") return bucket.day >= period.start && bucket.day <= period.end;
+    if (bucket.hourStart === undefined) return false;
+    const time = Date.parse(bucket.hourStart);
+    return time >= startTime && time <= endTime;
+  };
+
+  return environments.map((environment) => ({
+    ...environment,
+    summary: {
+      ...environment.summary,
+      sources: environment.summary.sources.filter((source) =>
+        keepProvider(source.fingerprint.provider),
+      ),
+      buckets: environment.summary.buckets.filter(
+        (bucket) =>
+          keepProvider(bucket.provider) &&
+          (!model || bucket.model === model.model) &&
+          inPeriod(bucket),
+      ),
+    },
+  }));
+}
+
 export function isCompatibleUsageContractVersion(version: number, expected: number): boolean {
   return version >= USAGE_MERGE_COMPATIBLE_SINCE && version <= expected;
 }
@@ -377,6 +435,10 @@ export function mergeUsage(
       totalTokens: number;
       records: number;
       unpricedRecords: number;
+      uncachedInputTokens: number;
+      cachedInputTokens: number;
+      cacheCreationTokens: number;
+      outputTokens: number;
     }
   >();
   const dailyAccumulator = new Map<
@@ -453,8 +515,16 @@ export function mergeUsage(
         totalTokens: 0,
         records: 0,
         unpricedRecords: 0,
+        uncachedInputTokens: 0,
+        cachedInputTokens: 0,
+        cacheCreationTokens: 0,
+        outputTokens: 0,
       };
       model.costUsd += bucket.costUsd;
+      model.uncachedInputTokens += bucket.totals.uncachedInputTokens;
+      model.cachedInputTokens += bucket.totals.cachedInputTokens;
+      model.cacheCreationTokens += bucket.totals.cacheCreationTokens;
+      model.outputTokens += bucket.totals.outputTokens;
       model.totalTokens += tokens;
       model.records += bucket.records;
       model.unpricedRecords += bucket.unpricedRecords;
@@ -518,6 +588,10 @@ export function mergeUsage(
       records: totals.records,
       unpricedRecords: totals.unpricedRecords,
       costShare: costUsd === 0 ? 0 : totals.costUsd / costUsd,
+      uncachedInputTokens: totals.uncachedInputTokens,
+      cachedInputTokens: totals.cachedInputTokens,
+      cacheCreationTokens: totals.cacheCreationTokens,
+      outputTokens: totals.outputTokens,
     }))
     .sort((a, b) => b.costUsd - a.costUsd || b.totalTokens - a.totalTokens);
 

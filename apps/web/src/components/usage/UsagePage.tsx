@@ -14,6 +14,7 @@ import {
   CircleDashedIcon,
   InfoIcon,
   SlidersHorizontalIcon,
+  XIcon,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
@@ -23,10 +24,13 @@ import {
 
 import {
   isCompatibleUsageContractVersion,
-  isModelCostUnknown,
+  mergeUsage,
+  scopeUsage,
   type DailyTotals,
+  type EnvironmentUsage,
   type HourlyTotals,
   type MergedUsage,
+  type UsageScope,
 } from "@rove-code/shared/usageMerge";
 
 import { isElectron } from "../../env";
@@ -77,8 +81,10 @@ import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { UsageLimitsSection } from "./UsageLimits";
 import { UsagePriceOverrides } from "./UsagePriceOverrides";
-import { UsageProviderChart } from "./UsageProviderChart";
-import { sortModelsByTokens } from "./usageBreakdown";
+import { UsageModelTable, type UsageModelKey } from "./UsageModelTable";
+import { UsageProviderChart, type UsagePeriodRange } from "./UsageProviderChart";
+import { UsageProviderMark as ProviderMark } from "./UsageProviderMark";
+import { UsageTokenMix } from "./UsageTokenMix";
 import {
   METRIC_OPTIONS,
   WINDOW_OPTIONS,
@@ -101,9 +107,43 @@ function isUsageWindowDays(value: number): value is UsagePagePreferences["window
   return WINDOW_OPTIONS.some((option) => option.days === value);
 }
 
+/** What the user has narrowed the page to. Every part is optional and removable. */
+interface UsageFocus {
+  readonly providers: ReadonlySet<UsageProviderKind> | null;
+  readonly model: UsageModelKey | null;
+  readonly period: UsagePeriodRange | null;
+}
+
+const NO_FOCUS: UsageFocus = { providers: null, model: null, period: null };
+
+/** Re-merges with a scope, reusing the unscoped merge when nothing is narrowed. */
+function mergeScoped(
+  answered: readonly EnvironmentUsage[],
+  merged: MergedUsage,
+  scope: UsageScope,
+): MergedUsage {
+  if (!scope.providers && !scope.model && !scope.period) return merged;
+  return mergeUsage(scopeUsage(answered, scope), USAGE_CONTRACT_VERSION);
+}
+
+/** Toggles one provider, collapsing back to "all" when the set empties or fills. */
+function toggleProvider(
+  current: ReadonlySet<UsageProviderKind> | null,
+  provider: UsageProviderKind,
+  available: readonly UsageProviderKind[],
+): ReadonlySet<UsageProviderKind> | null {
+  const next = new Set(current ?? []);
+  if (next.has(provider)) next.delete(provider);
+  else next.add(provider);
+  return next.size === 0 || available.every((entry) => next.has(entry)) ? null : next;
+}
+
 export function UsagePage() {
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
-  useEscapeToGoBack();
+  const [focus, setFocus] = useState<UsageFocus>(NO_FOCUS);
+  const hasFocus = focus.providers !== null || focus.model !== null || focus.period !== null;
+  // Escape releases the focus before it leaves the page.
+  useEscapeToGoBack(hasFocus ? () => setFocus(NO_FOCUS) : undefined);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const shortcutTitle = (
     option: (typeof METRIC_OPTIONS)[number] | (typeof WINDOW_OPTIONS)[number],
@@ -131,9 +171,35 @@ export function UsagePage() {
     useState<ReadonlySet<EnvironmentId> | null>(null);
   const { days: windowDays, window } = windowSelection;
   const isPast24Hours = windowDays === 1;
-  const { merged, environments, selectedEnvironments, isPending, isPartial, refresh } = useUsage(
-    window,
-    selectedEnvironmentIds,
+  const { merged, answered, environments, selectedEnvironments, isPending, isPartial, refresh } =
+    useUsage(window, selectedEnvironmentIds);
+  const resolution: "hour" | "day" = isPast24Hours ? "hour" : "day";
+  const periodScope = useMemo(
+    () => (focus.period === null ? null : { resolution, ...focus.period }),
+    [focus.period, resolution],
+  );
+  // Each part of the page drops the one filter it controls, so its own
+  // choices stay visible and reversible while the rest narrows.
+  const scoped = useMemo(
+    () =>
+      mergeScoped(answered, merged, {
+        providers: focus.providers,
+        model: focus.model,
+        period: periodScope,
+      }),
+    [answered, merged, focus.providers, focus.model, periodScope],
+  );
+  const chartUsage = useMemo(
+    () => mergeScoped(answered, merged, { providers: focus.providers, model: focus.model }),
+    [answered, merged, focus.providers, focus.model],
+  );
+  const providerUsage = useMemo(
+    () => mergeScoped(answered, merged, { model: focus.model, period: periodScope }),
+    [answered, merged, focus.model, periodScope],
+  );
+  const modelUsage = useMemo(
+    () => mergeScoped(answered, merged, { providers: focus.providers, period: periodScope }),
+    [answered, merged, focus.providers, periodScope],
   );
   const presentations = useAtomValue(environmentPresentations.presentationsAtom);
   const cursorAccessEnvironments = cursorKeychainAccessEnvironments(selectedEnvironments);
@@ -171,17 +237,16 @@ export function UsagePage() {
   // Newest first: the window can run 90 periods, so the interesting end
   // belongs at the top of the table.
   const breakdownPeriods = useMemo<readonly (DailyTotals | HourlyTotals)[]>(
-    () => (isPast24Hours ? merged.hourly : merged.daily).toReversed(),
-    [isPast24Hours, merged.daily, merged.hourly],
+    () => (isPast24Hours ? chartUsage.hourly : chartUsage.daily).toReversed(),
+    [isPast24Hours, chartUsage.daily, chartUsage.hourly],
   );
-  const breakdownModels = useMemo(
-    () =>
-      breakdown === "model" && metric === "tokens"
-        ? sortModelsByTokens(merged.models)
-        : merged.models,
-    [breakdown, merged.models, metric],
-  );
+  // Provider rows list everything active in the window so a filtered-out
+  // provider stays on screen to be toggled back.
   const activeProviders = useMemo(() => providersWithUsage(merged.providers), [merged.providers]);
+  const chartProviders = useMemo(
+    () => providersWithUsage(chartUsage.providers),
+    [chartUsage.providers],
+  );
   const summaryRows: Array<
     | { readonly kind: "usage"; readonly provider: UsageProviderKind }
     | { readonly kind: "enable"; readonly environment: EnvironmentUsageStatus }
@@ -193,13 +258,33 @@ export function UsagePage() {
     0,
     ...cursorAccessEnvironments.map((environment) => ({ kind: "enable" as const, environment })),
   );
-  const timeValueColumnWidth = `${60 / (activeProviders.length + 2)}%`;
+  const timeValueColumnWidth = `${60 / (chartProviders.length + 2)}%`;
+  const periodKey = (period: DailyTotals | HourlyTotals) =>
+    "hourStart" in period ? period.hourStart : period.day;
+  const formatPeriodKey = (key: string) =>
+    isPast24Hours ? formatHourShort(key, window.timeZone) : formatDayShort(key);
+  const isInFocusedPeriod = (key: string) => {
+    if (focus.period === null) return false;
+    if (!isPast24Hours) return key >= focus.period.start && key <= focus.period.end;
+    const time = Date.parse(key);
+    return time >= Date.parse(focus.period.start) && time <= Date.parse(focus.period.end);
+  };
+  const focusedPeriodLabel =
+    focus.period === null
+      ? null
+      : focus.period.start === focus.period.end
+        ? formatPeriodKey(focus.period.start)
+        : `${formatPeriodKey(focus.period.start)} to ${formatPeriodKey(focus.period.end)}`;
+  // Sessions come from whole transcript directories, so they cannot be split
+  // by period or model; responses can.
+  const sessionsExact = focus.period === null && focus.model === null;
 
   const selectWindow = (days: number) => {
     if (!isUsageWindowDays(days)) return;
     const nextPreferences = { metric, windowDays: days };
     setPreferences(nextPreferences);
     saveUsagePagePreferences(nextPreferences);
+    setFocus((current) => ({ ...current, period: null }));
     setWindowSelection({
       days,
       window: makeWindow(days, undefined, days === 1 ? "hour" : "day"),
@@ -276,6 +361,7 @@ export function UsagePage() {
       nextWindow.untilTime !== window.untilTime
     ) {
       setWindowSelection({ days: windowDays, window: nextWindow });
+      setFocus((current) => ({ ...current, period: null }));
     }
     refreshingRef.current = true;
     setIsRefreshing(true);
@@ -486,15 +572,17 @@ export function UsagePage() {
                     <div className="flex flex-col gap-1">
                       <span className="text-4xl font-semibold text-foreground tabular-nums">
                         {metric === "cost"
-                          ? formatUsd(merged.costUsd)
-                          : formatTokens(merged.totalTokens)}
+                          ? formatUsd(scoped.costUsd)
+                          : formatTokens(scoped.totalTokens)}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {formatCount(merged.sessions)} sessions
+                        {sessionsExact ? `${formatCount(scoped.sessions)} sessions · ` : ""}
+                        {formatCount(scoped.records)}{" "}
+                        {scoped.records === 1 ? "response" : "responses"}
                         {metric === "cost" && (
                           <>
                             {" · API estimate"}
-                            {merged.costQuality.unpricedShare > 0 && (
+                            {scoped.costQuality.unpricedShare > 0 && (
                               <>
                                 {" "}
                                 <Popover>
@@ -507,7 +595,7 @@ export function UsagePage() {
                                   </PopoverTrigger>
                                   <PopoverPopup side="top" tooltipStyle>
                                     API estimate excludes{" "}
-                                    {formatPercent(merged.costQuality.unpricedShare)} unpriced
+                                    {formatPercent(scoped.costQuality.unpricedShare)} unpriced
                                     records.
                                   </PopoverPopup>
                                 </Popover>
@@ -545,16 +633,38 @@ export function UsagePage() {
                         );
                       }
                       const provider = row.provider;
-                      const totals = merged.providers.find((entry) => entry.provider === provider);
+                      const totals = providerUsage.providers.find(
+                        (entry) => entry.provider === provider,
+                      );
                       const share =
                         metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
                       const providerSessions = totals?.sessions ?? 0;
                       const sessionLabel = `${formatCount(providerSessions)} ${
                         providerSessions === 1 ? "session" : "sessions"
                       }`;
+                      const included = focus.providers === null || focus.providers.has(provider);
+                      const label = PROVIDER_PRESENTATION[provider].label;
                       return (
-                        <div key={provider} className="flex flex-col gap-1">
-                          <div className="flex items-baseline justify-between gap-4">
+                        <button
+                          key={provider}
+                          type="button"
+                          aria-pressed={focus.providers !== null && included}
+                          onClick={() =>
+                            setFocus((current) => ({
+                              ...current,
+                              providers: toggleProvider(
+                                current.providers,
+                                provider,
+                                activeProviders,
+                              ),
+                            }))
+                          }
+                          className={cn(
+                            "-mx-2 flex flex-col gap-1 rounded-md px-2 py-1.5 text-left outline-none transition-[background-color,opacity] hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
+                            !included && "opacity-45",
+                          )}
+                        >
+                          <span className="flex w-full items-baseline justify-between gap-4">
                             <span className="flex min-w-0 items-center gap-2 text-sm text-foreground">
                               <span
                                 aria-hidden
@@ -565,12 +675,12 @@ export function UsagePage() {
                               />
                               <ProviderMark provider={provider} className="size-4" />
                               <span className="flex min-w-0 items-baseline gap-1.5">
-                                <span className="truncate">
-                                  {PROVIDER_PRESENTATION[provider].label}
-                                </span>
-                                <span className="shrink-0 whitespace-nowrap text-2xs text-muted-foreground tabular-nums">
-                                  {sessionLabel}
-                                </span>
+                                <span className="truncate">{label}</span>
+                                {sessionsExact ? (
+                                  <span className="shrink-0 whitespace-nowrap text-2xs text-muted-foreground tabular-nums">
+                                    {sessionLabel}
+                                  </span>
+                                ) : null}
                               </span>
                             </span>
                             <span className="shrink-0 text-sm font-medium text-foreground tabular-nums">
@@ -578,52 +688,88 @@ export function UsagePage() {
                                 ? formatUsd(totals?.costUsd ?? 0)
                                 : formatTokens(totals?.totalTokens ?? 0)}
                             </span>
-                          </div>
+                          </span>
                           <span className="text-xs text-muted-foreground">
                             {metric === "cost"
                               ? `${formatPercent(share)} of cost · ${formatTokens(totals?.totalTokens ?? 0)} tokens`
                               : `${formatPercent(share)} of tokens · ${formatUsd(totals?.costUsd ?? 0)}`}
                           </span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
 
                   <div className="flex min-w-0 flex-col gap-3">
-                    <h2 className="text-sm font-medium text-foreground">
-                      {isPast24Hours ? "Hourly" : "Daily"}{" "}
-                      {metric === "tokens" ? "processed tokens" : "cost"}
-                    </h2>
+                    <div className="flex min-h-5 flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <h2 className="text-sm font-medium text-foreground">
+                        {isPast24Hours ? "Hourly" : "Daily"}{" "}
+                        {metric === "tokens" ? "processed tokens" : "cost"}
+                      </h2>
+                      {hasFocus ? (
+                        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
+                          {focus.providers === null
+                            ? null
+                            : [...focus.providers].map((provider) => (
+                                <FocusChip
+                                  key={provider}
+                                  label={PROVIDER_PRESENTATION[provider].label}
+                                  onRemove={() =>
+                                    setFocus((current) => ({
+                                      ...current,
+                                      providers: toggleProvider(
+                                        current.providers,
+                                        provider,
+                                        activeProviders,
+                                      ),
+                                    }))
+                                  }
+                                />
+                              ))}
+                          {focus.model === null ? null : (
+                            <FocusChip
+                              label={focus.model.model}
+                              onRemove={() => setFocus((current) => ({ ...current, model: null }))}
+                            />
+                          )}
+                          {focusedPeriodLabel === null ? null : (
+                            <FocusChip
+                              label={focusedPeriodLabel}
+                              onRemove={() => setFocus((current) => ({ ...current, period: null }))}
+                            />
+                          )}
+                          <Button
+                            size="micro"
+                            variant="ghost-muted"
+                            onClick={() => setFocus(NO_FOCUS)}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="hidden text-xs text-muted-foreground sm:block">
+                          Click or drag to focus a period
+                        </span>
+                      )}
+                    </div>
                     <UsageProviderChart
-                      providers={activeProviders}
+                      providers={chartProviders}
                       days={days}
-                      daily={merged.daily}
+                      daily={chartUsage.daily}
                       hours={hours}
-                      hourly={merged.hourly}
+                      hourly={chartUsage.hourly}
                       metric={metric}
                       referenceTime={window.untilTime}
-                      resolution={isPast24Hours ? "hour" : "day"}
+                      resolution={resolution}
                       timeZone={window.timeZone}
+                      selection={focus.period}
+                      onSelectionChange={(period) =>
+                        setFocus((current) => ({ ...current, period }))
+                      }
                     />
                   </div>
                 </section>
 
-                <section className="flex flex-col gap-2">
-                  <h2 className="text-sm font-medium text-foreground">Totals</h2>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-5">
-                    <Metric label="Processed tokens" value={formatTokens(merged.totalTokens)} />
-                    <Metric label="Cached input" value={formatTokens(merged.cachedInputTokens)} />
-                    <Metric
-                      label="Uncached input"
-                      value={formatTokens(merged.uncachedInputTokens)}
-                    />
-                    <Metric label="Output" value={formatTokens(merged.outputTokens)} />
-                    <Metric
-                      label="Cache savings"
-                      value={formatUsd(merged.costQuality.cacheSavingsUsd)}
-                    />
-                  </div>
-                </section>
+                <UsageTokenMix usage={scoped} />
 
                 <section className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
@@ -651,63 +797,17 @@ export function UsagePage() {
                   </div>
 
                   {breakdown === "model" ? (
-                    <table className="w-full table-fixed text-sm">
-                      <colgroup>
-                        <col className="w-2/5" />
-                        <col className="w-1/5" />
-                        <col className="w-1/5" />
-                        <col className="w-1/5" />
-                      </colgroup>
-                      <thead>
-                        <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                          <th className="py-2 font-normal">Model</th>
-                          <th className="py-2 text-right font-normal">Cost</th>
-                          <th className="py-2 text-right font-normal">Share</th>
-                          <th className="py-2 text-right font-normal">Tokens</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {breakdownModels.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-muted-foreground">
-                              No activity in this window.
-                            </td>
-                          </tr>
-                        ) : (
-                          breakdownModels.map((model) => (
-                            <tr
-                              key={`${model.provider}:${model.model}`}
-                              className="border-b border-border/50 transition-colors hover:bg-muted/50"
-                            >
-                              <td className="py-2 text-foreground">
-                                <span className="flex items-center gap-2">
-                                  <ProviderMark provider={model.provider} className="size-3.5" />
-                                  {model.model}
-                                </span>
-                              </td>
-                              <td className="py-2 text-right text-foreground tabular-nums">
-                                {isModelCostUnknown(model) ? (
-                                  <span className="text-muted-foreground">Unpriced</span>
-                                ) : (
-                                  formatUsd(model.costUsd)
-                                )}
-                              </td>
-                              <td className="py-2 text-right text-muted-foreground tabular-nums">
-                                {isModelCostUnknown(model) ? "—" : formatPercent(model.costShare)}
-                              </td>
-                              <td className="py-2 text-right text-muted-foreground tabular-nums">
-                                {formatTokens(model.totalTokens)}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                    <UsageModelTable
+                      models={modelUsage.models}
+                      defaultSort={metric === "tokens" ? "tokens" : "cost"}
+                      selected={focus.model}
+                      onSelect={(model) => setFocus((current) => ({ ...current, model }))}
+                    />
                   ) : (
                     <table className="w-full table-fixed text-sm">
                       <colgroup>
                         <col className="w-2/5" />
-                        {activeProviders.map((provider) => (
+                        {chartProviders.map((provider) => (
                           <col key={provider} style={{ width: timeValueColumnWidth }} />
                         ))}
                         <col style={{ width: timeValueColumnWidth }} />
@@ -716,7 +816,7 @@ export function UsagePage() {
                       <thead>
                         <tr className="border-b border-border text-left text-xs text-muted-foreground">
                           <th className="py-2 font-normal">{isPast24Hours ? "Hour" : "Day"}</th>
-                          {activeProviders.map((provider) => (
+                          {chartProviders.map((provider) => (
                             <th key={provider} className="py-2 text-right font-normal">
                               {PROVIDER_PRESENTATION[provider].label}
                             </th>
@@ -729,39 +829,68 @@ export function UsagePage() {
                         {breakdownPeriods.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={activeProviders.length + 3}
+                              colSpan={chartProviders.length + 3}
                               className="py-6 text-center text-muted-foreground"
                             >
                               No activity in this window.
                             </td>
                           </tr>
                         ) : (
-                          breakdownPeriods.map((period) => (
-                            <tr
-                              key={"hourStart" in period ? period.hourStart : period.day}
-                              className="border-b border-border/50 transition-colors hover:bg-muted/50"
-                            >
-                              <td className="py-2 text-foreground">
-                                {"hourStart" in period
-                                  ? formatHourShort(period.hourStart, window.timeZone)
-                                  : formatDayShort(period.day)}
-                              </td>
-                              {activeProviders.map((provider) => (
-                                <td
-                                  key={provider}
-                                  className="py-2 text-right text-muted-foreground tabular-nums"
-                                >
-                                  {formatUsd(period.byProvider.get(provider)?.costUsd ?? 0)}
+                          breakdownPeriods.map((period) => {
+                            const key = periodKey(period);
+                            const inFocus = isInFocusedPeriod(key);
+                            const label = formatPeriodKey(key);
+                            const selectPeriod = () => {
+                              // Use the chart's own period key so its band lines up.
+                              const chartKey = isPast24Hours
+                                ? (hours.find((hour) => Date.parse(hour) === Date.parse(key)) ??
+                                  key)
+                                : key;
+                              setFocus((current) => ({
+                                ...current,
+                                period:
+                                  current.period?.start === chartKey &&
+                                  current.period.end === chartKey
+                                    ? null
+                                    : { start: chartKey, end: chartKey },
+                              }));
+                            };
+                            return (
+                              <tr
+                                key={key}
+                                onClick={selectPeriod}
+                                className={cn(
+                                  "cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/50",
+                                  inFocus && "bg-muted/60",
+                                  focus.period !== null && !inFocus && "text-muted-foreground",
+                                )}
+                              >
+                                <td className="py-2">
+                                  <button
+                                    type="button"
+                                    aria-pressed={inFocus}
+                                    className="rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  >
+                                    {label}
+                                  </button>
                                 </td>
-                              ))}
-                              <td className="py-2 text-right text-foreground tabular-nums">
-                                {formatUsd(period.costUsd)}
-                              </td>
-                              <td className="py-2 text-right text-muted-foreground tabular-nums">
-                                {formatTokens(period.totalTokens)}
-                              </td>
-                            </tr>
-                          ))
+                                {chartProviders.map((provider) => (
+                                  <td
+                                    key={provider}
+                                    className="py-2 text-right text-muted-foreground tabular-nums"
+                                  >
+                                    {formatUsd(period.byProvider.get(provider)?.costUsd ?? 0)}
+                                  </td>
+                                ))}
+                                <td className="py-2 text-right tabular-nums">
+                                  {formatUsd(period.costUsd)}
+                                </td>
+                                <td className="py-2 text-right text-muted-foreground tabular-nums">
+                                  {formatTokens(period.totalTokens)}
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -907,24 +1036,18 @@ function CursorEnableLimits({
   );
 }
 
-/** Brand mark for the harness a row belongs to. */
-function ProviderMark({
-  provider,
-  className,
-}: {
-  readonly provider: UsageProviderKind;
-  readonly className: string;
-}) {
-  const Mark = PROVIDER_PRESENTATION[provider].mark;
-  return <Mark className={cn("shrink-0", className)} aria-hidden />;
-}
-
-function Metric({ label, value }: { readonly label: string; readonly value: string }) {
+/** One active filter; the X removes just that filter. */
+function FocusChip({ label, onRemove }: { readonly label: string; readonly onRemove: () => void }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-base font-medium text-foreground tabular-nums">{value}</span>
-    </div>
+    <Button
+      size="micro"
+      variant="secondary"
+      onClick={onRemove}
+      aria-label={`Remove ${label} filter`}
+    >
+      <span className="max-w-48 truncate">{label}</span>
+      <XIcon aria-hidden />
+    </Button>
   );
 }
 
@@ -1166,16 +1289,15 @@ function UsageSkeleton() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">Totals</h2>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-5">
-          {["Processed tokens", "Cached input", "Uncached input", "Output", "Cache savings"].map(
-            (label) => (
-              <div key={label} className="flex flex-col gap-0.5">
-                <span className="text-xs text-muted-foreground">{label}</span>
-                <Skeleton className="h-6 w-16" />
-              </div>
-            ),
-          )}
+        <h2 className="text-sm font-medium text-foreground">Tokens</h2>
+        <Skeleton shape="pill" className="h-2" />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-4">
+          {["Cache reads", "Cache writes", "Uncached input", "Output"].map((label) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">{label}</span>
+              <Skeleton className="h-6 w-16" />
+            </div>
+          ))}
         </div>
       </section>
 
