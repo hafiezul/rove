@@ -1,5 +1,6 @@
 import {
   EventId,
+  THREAD_CONTINUED_ACTIVITY_KIND,
   MAX_SCRIPT_ID_LENGTH,
   MAX_LIMIT_RECOVERY_ATTEMPTS,
   type CommandId,
@@ -2465,6 +2466,39 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         },
       };
       return [unsettledEvent, activityAppendedEvent];
+    }
+
+    case "thread.continuation.record": {
+      yield* requireThread({
+        readModel,
+        command,
+        threadId: command.threadId,
+      });
+      const { link } = command;
+      return {
+        ...(yield* withEventBase({
+          aggregateKind: "thread",
+          aggregateId: command.threadId,
+          occurredAt: command.createdAt,
+          commandId: command.commandId,
+        })),
+        type: "thread.activity-appended",
+        payload: {
+          threadId: command.threadId,
+          activity: {
+            id: EventId.make(`continued:${command.commandId}`),
+            tone: "info",
+            kind: THREAD_CONTINUED_ACTIVITY_KIND,
+            summary:
+              link.direction === "to"
+                ? `Continued on ${link.environmentLabel}`
+                : `Continued from ${link.environmentLabel}`,
+            payload: link,
+            turnId: null,
+            createdAt: command.createdAt,
+          },
+        },
+      };
     }
 
     default: {

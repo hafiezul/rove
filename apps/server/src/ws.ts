@@ -1444,6 +1444,40 @@ const makeWsRpcLayer = (
                     ),
                   );
                 }
+              } else if (prepareWorktree.checkoutBaseBranch === true) {
+                // A remote branch is usually being checked out because it was
+                // just pushed from another machine, so refresh it first. A
+                // local branch (no remote prefix) is used as it is.
+                const separator = prepareWorktree.baseBranch.indexOf("/");
+                const remoteName =
+                  separator > 0 ? prepareWorktree.baseBranch.slice(0, separator) : null;
+                const remoteBranch =
+                  separator > 0 ? prepareWorktree.baseBranch.slice(separator + 1) : "";
+                if (
+                  remoteName !== null &&
+                  remoteBranch.length > 0 &&
+                  (yield* gitWorkflow.remoteExists({
+                    cwd: prepareWorktree.projectCwd,
+                    remoteName,
+                  }))
+                ) {
+                  yield* track(worktreeSetupTracker.stageStatus(threadId, "fetch", "running"));
+                  yield* gitWorkflow.fetchRemote({
+                    cwd: prepareWorktree.projectCwd,
+                    remoteName,
+                    refName: remoteBranch,
+                  });
+                  yield* track(
+                    worktreeSetupTracker.stageStatus(
+                      threadId,
+                      "fetch",
+                      "done",
+                      prepareWorktree.baseBranch,
+                    ),
+                  );
+                } else {
+                  yield* track(worktreeSetupTracker.stageStatus(threadId, "fetch", "skipped"));
+                }
               } else {
                 yield* track(worktreeSetupTracker.stageStatus(threadId, "fetch", "skipped"));
               }

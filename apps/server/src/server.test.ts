@@ -11834,9 +11834,14 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         ),
       );
 
-      // The checkout keeps the ref name, so start-from-origin must not swap it
-      // for a commit and no new branch is requested.
-      assert.equal(fetchRemote.mock.calls.length, 0);
+      // The remote branch is refreshed by name, and the checkout keeps the ref
+      // name: start-from-origin must not swap it for a commit and no new
+      // branch is requested.
+      assert.deepEqual(fetchRemote.mock.calls[0]?.[0], {
+        cwd: "/tmp/project",
+        remoteName: "origin",
+        refName: "feature/shared",
+      });
       assert.deepEqual(createWorktree.mock.calls[0]?.[0], {
         cwd: "/tmp/project",
         refName: "origin/feature/shared",

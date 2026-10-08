@@ -155,6 +155,7 @@ import { cn } from "~/lib/utils";
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { ProjectEnvironmentBadge } from "./ProjectEnvironmentBadge";
 import { buildThreadActionMenuItems } from "./threadActionMenu.logic";
+import { useContinueThreadOnEnvironment } from "../hooks/useContinueThreadOnEnvironment";
 import {
   animateSidebarLayoutChanges,
   applySidebarThreadDrop,
@@ -2848,6 +2849,9 @@ export default function Sidebar() {
   // a ref keeps it out of attemptSettle's dependency array.
   const handleNewThreadRef = useRef(newThreadContext.handleNewThread);
   handleNewThreadRef.current = newThreadContext.handleNewThread;
+  const continueThread = useContinueThreadOnEnvironment();
+  const continueThreadRef = useRef(continueThread);
+  continueThreadRef.current = continueThread;
   const settledThreadKeys = useMemo(
     () =>
       new Set(
@@ -4093,10 +4097,12 @@ export default function Sidebar() {
                 projectRef.projectId === thread.projectId,
             ),
           ) ?? null;
+        const continueTargets = continueThreadRef.current.resolveTargets(threadRef);
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
             buildThreadActionMenuItems({
               branch: thread.branch ?? null,
+              continueTargets,
               hasProject: thread.projectId !== null,
               projectFilter: threadProjectGroup
                 ? {
@@ -4125,6 +4131,13 @@ export default function Sidebar() {
           ),
         );
         if (clicked._tag === "Failure") return;
+        if (clicked.value?.startsWith("continue-on:")) {
+          const target = continueTargets.find(
+            (candidate) => `continue-on:${candidate.environmentId}` === clicked.value,
+          );
+          if (target) await continueThreadRef.current.continueOn(threadRef, target);
+          return;
+        }
         if (clicked.value?.startsWith("snooze:")) {
           const preset =
             clicked.value === "snooze:custom"

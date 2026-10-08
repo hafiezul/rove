@@ -11,6 +11,7 @@ import {
   CheckpointRef,
   ClientSurface,
   CommandId,
+  EnvironmentId,
   EventId,
   IsoDateTime,
   MessageId,
@@ -1272,6 +1273,29 @@ const ThreadMetaUpdateCommand = Schema.Struct({
   ),
 );
 
+/**
+ * A thread was continued in another environment, or continues one. Recorded
+ * on both threads as a `thread.continued` activity so each links to the
+ * other; the environments never contact each other, the client records both.
+ */
+export const THREAD_CONTINUED_ACTIVITY_KIND = "thread.continued";
+export const ThreadContinuationLink = Schema.Struct({
+  /** "to": this thread was continued there. "from": this thread continues that one. */
+  direction: Schema.Literals(["to", "from"]),
+  environmentId: EnvironmentId,
+  threadId: ThreadId,
+  environmentLabel: TrimmedNonEmptyString,
+});
+export type ThreadContinuationLink = typeof ThreadContinuationLink.Type;
+
+const ThreadContinuationRecordCommand = Schema.Struct({
+  type: Schema.Literal("thread.continuation.record"),
+  commandId: CommandId,
+  threadId: ThreadId,
+  link: ThreadContinuationLink,
+  createdAt: IsoDateTime,
+});
+
 const ThreadPullRequestLinkCommand = Schema.Struct({
   type: Schema.Literal("thread.pull-request.link"),
   commandId: CommandId,
@@ -1471,6 +1495,7 @@ const DispatchableClientOrchestrationCommand = Schema.Union([
   ThreadMetaUpdateCommand,
   ThreadPullRequestLinkCommand,
   ThreadPullRequestUnlinkCommand,
+  ThreadContinuationRecordCommand,
   ThreadRuntimeModeSetCommand,
   ThreadInteractionModeSetCommand,
   ThreadTurnStartCommand,
@@ -1506,6 +1531,7 @@ export const ClientOrchestrationCommand = Schema.Union([
   ThreadMetaUpdateCommand,
   ThreadPullRequestLinkCommand,
   ThreadPullRequestUnlinkCommand,
+  ThreadContinuationRecordCommand,
   ThreadRuntimeModeSetCommand,
   ThreadInteractionModeSetCommand,
   ClientThreadTurnStartCommand,

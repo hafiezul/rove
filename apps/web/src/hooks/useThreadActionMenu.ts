@@ -37,6 +37,7 @@ import {
 } from "../logicalProject";
 import { buildPhysicalToLogicalProjectKeyMap } from "../sidebarProjectGrouping";
 import { useUiStateStore } from "../uiStateStore";
+import { useContinueThreadOnEnvironment } from "./useContinueThreadOnEnvironment";
 import { useCopyToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useClientSettings } from "./useSettings";
@@ -97,6 +98,7 @@ export function useThreadActionMenu(input: {
     reportFailure: false,
   });
   const handleNewThread = useNewThreadHandler();
+  const continueThread = useContinueThreadOnEnvironment();
   const markThreadUnread = useUiStateStore((s) => s.markThreadUnread);
   const confirmThreadDelete = useClientSettings((s) => s.confirmThreadDelete);
   const confirmThreadArchive = useClientSettings((s) => s.confirmThreadArchive);
@@ -141,8 +143,10 @@ export function useThreadActionMenu(input: {
         };
         const isRegeneratingTitle = thread.titleRegeneration != null;
         const snoozePresets = resolveSnoozePresets(now, timestampFormat);
+        const continueTargets = continueThread.resolveTargets(threadRef);
         const items = buildThreadActionMenuItems({
           branch: thread.branch ?? null,
+          continueTargets,
           hasProject: thread.projectId !== null,
           // The chat header has no project-scoped thread list behind the
           // menu, so the "Filter by project" affordance is sidebar-only.
@@ -160,6 +164,13 @@ export function useThreadActionMenu(input: {
         const clicked = await settlePromise(() => api.contextMenu.show(items, position));
         if (clicked._tag === "Failure" || clicked.value === null) return;
         const action: ThreadActionMenuId = clicked.value;
+        if (action.startsWith("continue-on:")) {
+          const target = continueTargets.find(
+            (candidate) => `continue-on:${candidate.environmentId}` === action,
+          );
+          if (target) await continueThread.continueOn(threadRef, target);
+          return;
+        }
         if (action.startsWith("snooze:")) {
           const preset =
             action === "snooze:custom"
@@ -328,6 +339,7 @@ export function useThreadActionMenu(input: {
       confirmThreadArchive,
       confirmThreadDelete,
       confirmAndUnpinThread,
+      continueThread,
       copyBranchToClipboard,
       copyPathToClipboard,
       copyThreadIdToClipboard,

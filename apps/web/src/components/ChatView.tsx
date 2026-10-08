@@ -180,6 +180,9 @@ import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { subscribeSnapShotComposerFocus } from "../lib/desktopSnapShot";
 import { buildTemporaryWorktreeBranchName } from "@rove-code/shared/git";
+import { useWorktreeCheckoutStore } from "../worktreeCheckoutStore";
+import { useRecordThreadHandoff } from "../hooks/useContinueThreadOnEnvironment";
+import { resolveLatestContinuation } from "../lib/threadHandoff";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "../rightPanelLayout";
 import {
@@ -240,6 +243,7 @@ import {
   DownloadIcon,
   GitBranchIcon,
   Minimize2Icon,
+  MonitorUpIcon,
   PaperclipIcon,
   WifiOffIcon,
 } from "lucide-react";
@@ -1779,11 +1783,6 @@ export default function ChatView(props: ChatViewProps) {
     pendingServerThreadStartFromOriginByThreadId,
     setPendingServerThreadStartFromOriginByThreadId,
   ] = useState<Record<string, boolean>>({});
-  // "Check out branch" is a one-off choice for the next worktree, so it stays
-  // in memory rather than in the persisted draft.
-  const [checkoutBaseBranchByThreadId, setCheckoutBaseBranchByThreadId] = useState<
-    Record<string, boolean>
-  >({});
   const [lastInvokedScriptByProjectId, setLastInvokedScriptByProjectId] = useLocalStorage(
     LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
     {},
@@ -5908,13 +5907,14 @@ export default function ChatView(props: ChatViewProps) {
   const canCheckoutBaseBranch =
     serverConfig?.environment.capabilities.worktreeCheckoutBaseBranch === true &&
     multipleModelSelections === null;
-  const checkoutBaseBranch =
-    canCheckoutBaseBranch && (checkoutBaseBranchByThreadId[activeThread?.id ?? ""] ?? false);
+  const recordThreadHandoff = useRecordThreadHandoff();
+  const requestedCheckoutBaseBranch = useWorktreeCheckoutStore(
+    (store) => store.checkoutBaseBranchByThreadId[activeThread?.id ?? ""] ?? false,
+  );
+  const checkoutBaseBranch = canCheckoutBaseBranch && requestedCheckoutBaseBranch;
   const onCheckoutBaseBranchChange = (next: boolean) => {
     if (!activeThread) return;
-    setCheckoutBaseBranchByThreadId((current) =>
-      current[activeThread.id] === next ? current : { ...current, [activeThread.id]: next },
-    );
+    useWorktreeCheckoutStore.getState().setCheckoutBaseBranch(activeThread.id, next);
   };
   const localCheckoutBranchMismatch = useMemo(
     () =>
@@ -6447,6 +6447,53 @@ export default function ChatView(props: ChatViewProps) {
     isUnsnoozing,
     isUnsettling,
   ]);
+  // "Continued on" stays: the work moved, and this thread is now behind.
+  // "Continued from" is context the user can dismiss for the session.
+  const latestContinuation = useMemo(
+    () => resolveLatestContinuation(activeThread?.activities ?? []),
+    [activeThread?.activities],
+  );
+  const [dismissedContinuationKeys, setDismissedContinuationKeys] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const continuationBannerItem = useMemo<ComposerBannerStackItem | null>(() => {
+    if (!latestContinuation || !activeThread) return null;
+    const key = `${activeThread.id}:${latestContinuation.direction}:${latestContinuation.threadId}`;
+    if (dismissedContinuationKeys.has(key)) return null;
+    const continuedHere = latestContinuation.direction === "from";
+    return {
+      id: `thread-continued:${key}`,
+      variant: "info",
+      icon: <MonitorUpIcon />,
+      title: continuedHere
+        ? `Continued from ${latestContinuation.environmentLabel}`
+        : `Continued on ${latestContinuation.environmentLabel}`,
+      ...(continuedHere ? {} : { description: "Newer work happens in that thread." }),
+      actions: (
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() =>
+            void navigate({
+              to: "/$environmentId/$threadId",
+              params: {
+                environmentId: latestContinuation.environmentId,
+                threadId: latestContinuation.threadId,
+              },
+            })
+          }
+        >
+          {continuedHere ? "Open original" : "Open"}
+        </Button>
+      ),
+      ...(continuedHere
+        ? {
+            dismissLabel: "Dismiss continued-from notice",
+            onDismiss: () => setDismissedContinuationKeys((current) => new Set(current).add(key)),
+          }
+        : {}),
+    };
+  }, [activeThread, dismissedContinuationKeys, latestContinuation, navigate]);
   // Session-scoped dismissals, one key per (thread, snapshot). A set rather
   // than a single slot so dismissing the banner on one thread does not
   // resurface it on another thread dismissed earlier.
@@ -6586,6 +6633,7 @@ export default function ChatView(props: ChatViewProps) {
       resumeCompactionBannerItem === null ? [] : [resumeCompactionBannerItem];
     const wokeThreadItems = wokeThreadBannerItem === null ? [] : [wokeThreadBannerItem];
     const parkedThreadItems = parkedThreadBannerItem === null ? [] : [parkedThreadBannerItem];
+    const continuationItems = continuationBannerItem === null ? [] : [continuationBannerItem];
     // The user asked for this one, so it leads the notice tier instead of trailing it.
     const usageLimitsItems = usageLimitsBanner === null ? [] : [usageLimitsBanner];
     const projectCloneItems = projectCloneBannerItem === null ? [] : [projectCloneBannerItem];
@@ -6599,6 +6647,7 @@ export default function ChatView(props: ChatViewProps) {
         ...backgroundLivenessItems,
         ...resumeCompactionItems,
         ...wokeThreadItems,
+        ...continuationItems,
         ...parkedThreadItems,
       ];
     }
@@ -6649,11 +6698,13 @@ export default function ChatView(props: ChatViewProps) {
           setBranchMismatchDismissTick((tick) => tick + 1);
         },
       },
+      ...continuationItems,
       ...parkedThreadItems,
     ];
   }, [
     activeBranchMismatchKey,
     backgroundLivenessBannerItem,
+    continuationBannerItem,
     feedbackBannerItems,
     handleRestoreThreadBranch,
     isRestoringThreadBranch,
@@ -8432,6 +8483,10 @@ export default function ChatView(props: ChatViewProps) {
                           projectCwd: activeProject.workspaceRoot,
                           baseBranch: baseBranchForWorktree,
                           checkoutBaseBranch: true,
+                          // The user asked for this exact branch, so a
+                          // missing one must fail rather than quietly run
+                          // in the project checkout.
+                          requireWorktree: true,
                         }
                       : {
                           projectCwd: activeProject.workspaceRoot,
@@ -8524,6 +8579,7 @@ export default function ChatView(props: ChatViewProps) {
         failure = startResult;
       } else {
         turnStartSucceeded = true;
+        void recordThreadHandoff({ environmentId, threadId: threadIdForSend });
         // The turn is under way and will spend quota, so that thread's limits
         // snapshot is stale. Uploads may have outlasted a navigation, so only
         // the sending thread's panel clears.

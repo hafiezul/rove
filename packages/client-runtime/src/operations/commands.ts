@@ -48,6 +48,7 @@ export type ReorderActiveThreadInput = CommandInput<"thread.active.reorder">;
 export type UpdateThreadMetadataInput = CommandInput<"thread.meta.update">;
 export type LinkThreadPullRequestInput = CommandInput<"thread.pull-request.link">;
 export type UnlinkThreadPullRequestInput = CommandInput<"thread.pull-request.unlink">;
+export type RecordThreadContinuationInput = CommandInput<"thread.continuation.record">;
 export type SetThreadRuntimeModeInput = CommandInput<"thread.runtime-mode.set">;
 export type SetThreadInteractionModeInput = CommandInput<"thread.interaction-mode.set">;
 export type StartThreadTurnInput = CommandInput<"thread.turn.start">;
@@ -283,6 +284,17 @@ export const linkThreadPullRequest: (input: LinkThreadPullRequestInput) => Comma
       ...input,
       type: "thread.pull-request.link",
       commandId: yield* commandId(input),
+    });
+  });
+
+export const recordThreadContinuation: (input: RecordThreadContinuationInput) => CommandEffect =
+  Effect.fn("EnvironmentCommands.recordThreadContinuation")(function* (input) {
+    const metadata = yield* timestampedCommandMetadata(input);
+    return yield* dispatch({
+      ...input,
+      type: "thread.continuation.record",
+      commandId: metadata.commandId,
+      createdAt: metadata.createdAt,
     });
   });
 

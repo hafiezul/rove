@@ -655,6 +655,7 @@ export function BranchToolbarBranchSelector({
     resolvedActiveBranchIsRemote,
     startFromOrigin,
     checkoutBaseBranch: isSelectingWorktreeBase && checkoutBaseBranch,
+    primaryRemoteName: activeProject?.repositoryIdentity?.locator.remoteName ?? null,
   });
 
   // Branch status is the fallback when this thread has no linked pull requests.

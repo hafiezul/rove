@@ -116,6 +116,9 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   /** Bootstrap worktrees can check out the selected branch itself (`checkoutBaseBranch`).
       Older servers ignore the flag and branch off it, so clients hide the option for them. */
   worktreeCheckoutBaseBranch: Schema.optionalKey(Schema.Boolean),
+  /** Server accepts thread.continuation.record. Absent on older servers, which
+      would reject the command, so clients skip recording the link there. */
+  threadContinuationLinks: Schema.optionalKey(Schema.Boolean),
   /** Server understands thread.settle / thread.unsettle commands. Absent on
       pre-settlement servers, so clients treat missing as unsupported and
       never send the commands under version skew. */
