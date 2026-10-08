@@ -1342,21 +1342,71 @@ function OpenCommandPaletteDialog(props: {
     ],
   );
 
-  const standaloneThreadItems = useMemo<CommandPaletteActionItem[]>(
-    () =>
-      environments.map((environment) => ({
+  // One entry regardless of how many environments are connected. With several,
+  // it opens an environment picker with the current thread's environment first,
+  // so Enter, Enter keeps the common case fast.
+  const standaloneThreadItem = useMemo<CommandPaletteActionItem | CommandPaletteSubmenuItem>(() => {
+    const searchTerms = ["new thread", "standalone", "projectless", "no project"];
+    const title = "New thread without a project";
+    const icon = <SquarePenIcon className={ITEM_ICON_CLASS} />;
+    if (addProjectEnvironmentOptions.length <= 1) {
+      const environmentId = addProjectEnvironmentOptions[0]?.environmentId;
+      return {
         kind: "action",
-        value: `new-standalone-thread:${environment.environmentId}`,
-        title: "New thread without a project",
-        description: environment.label,
-        searchTerms: ["new thread", "standalone", "projectless", "no project", environment.label],
-        icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
+        value: "new-standalone-thread",
+        title,
+        searchTerms,
+        icon,
         run: async () => {
-          await handleNewThread(null, { environmentId: environment.environmentId });
+          await handleNewThread(null, environmentId ? { environmentId } : undefined);
         },
-      })),
-    [environments, handleNewThread],
-  );
+      };
+    }
+    const options = currentProjectEnvironmentId
+      ? [
+          ...addProjectEnvironmentOptions.filter(
+            (option) => option.environmentId === currentProjectEnvironmentId,
+          ),
+          ...addProjectEnvironmentOptions.filter(
+            (option) => option.environmentId !== currentProjectEnvironmentId,
+          ),
+        ]
+      : addProjectEnvironmentOptions;
+    return {
+      kind: "submenu",
+      value: "new-standalone-thread",
+      title: `${title}...`,
+      searchTerms: [...searchTerms, ...options.map((option) => option.label)],
+      icon,
+      addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
+      groups: [
+        {
+          value: "environments",
+          label: "Environments",
+          items: options.map((option) => ({
+            kind: "action",
+            value: `new-standalone-thread:${option.environmentId}`,
+            title: option.label,
+            description: option.isConnected
+              ? option.isPrimary
+                ? "This device"
+                : option.environmentId
+              : option.status,
+            searchTerms: [
+              option.label,
+              option.environmentId,
+              option.isPrimary ? "this device" : "",
+            ],
+            disabled: !option.isConnected,
+            icon: <EnvironmentMachineIcon kind={option.machine} className={ITEM_ICON_CLASS} />,
+            run: async () => {
+              await handleNewThread(null, { environmentId: option.environmentId });
+            },
+          })),
+        },
+      ],
+    };
+  }, [addProjectEnvironmentOptions, currentProjectEnvironmentId, handleNewThread]);
 
   const allThreadItems = useMemo(
     () =>
@@ -1735,7 +1785,7 @@ function OpenCommandPaletteDialog(props: {
   useLayoutEffect(() => {
     if (
       openIntent?.kind !== "new-thread-in" ||
-      (projectThreadItems.length === 0 && standaloneThreadItems.length === 0)
+      (projectThreadItems.length === 0 && environments.length === 0)
     ) {
       return;
     }
@@ -1760,7 +1810,7 @@ function OpenCommandPaletteDialog(props: {
         {
           value: "projects",
           label: "Projects",
-          items: enumerateCommandPaletteItems([...prioritized, ...standaloneThreadItems]),
+          items: [...enumerateCommandPaletteItems(prioritized), standaloneThreadItem],
         },
       ],
     });
@@ -1770,13 +1820,14 @@ function OpenCommandPaletteDialog(props: {
     currentProjectEnvironmentId,
     currentProjectId,
     openIntent,
+    environments.length,
     projectThreadItems,
-    standaloneThreadItems,
+    standaloneThreadItem,
     pushPaletteView,
   ]);
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [
-    ...standaloneThreadItems,
+    standaloneThreadItem,
   ];
 
   if (projects.length > 0) {
@@ -1818,7 +1869,7 @@ function OpenCommandPaletteDialog(props: {
         {
           value: "projects",
           label: "Workspaces",
-          items: [...projectThreadItems, ...standaloneThreadItems],
+          items: [...projectThreadItems, standaloneThreadItem],
         },
       ],
     });
