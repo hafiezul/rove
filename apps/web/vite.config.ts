@@ -11,6 +11,7 @@ import pkg from "./package.json" with { type: "json" };
 
 import { DEV_PROXIED_PATH_PREFIXES } from "@rove-code/shared/devProxy";
 
+import { bunTypecheckTasks } from "../../scripts/lib/bun-typecheck.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
@@ -161,6 +162,7 @@ export default defineConfig(({ command, mode }) => {
   const hostedDefines = isHostedBuild ? hostedBuildDefines(configuredHostedAppUrl) : undefined;
 
   return {
+    run: { tasks: bunTypecheckTasks },
     assetsInclude: ["**/*.wasm"],
     plugins: [
       devCompressionPlugin(),

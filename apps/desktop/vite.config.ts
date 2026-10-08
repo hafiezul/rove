@@ -1,6 +1,7 @@
 import "vite-plus/test/config";
 import { defineConfig } from "vite-plus";
 
+import { bunTypecheckTasks } from "../../scripts/lib/bun-typecheck.ts";
 import { isDesktopRuntimeExternalDependency } from "../../scripts/lib/desktop-external-packages.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 
@@ -23,6 +24,7 @@ const publicConfigDefine = {
 export default defineConfig({
   run: {
     tasks: {
+      ...bunTypecheckTasks,
       build: {
         command:
           "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && vp pack",

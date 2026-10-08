@@ -12,6 +12,7 @@ allowBuilds:
   "@google/genai": false
   browser-tabs-lock: false
   bufferutil: false
+  bun: true
   core-js: false
   electron: true
   electron-winstaller: false
@@ -98,6 +99,19 @@ minimumReleaseAgeExclude:
   - "@distilled.cloud/stripe@1.0.0-rc.12"
   - "@shadcn/lint@0.1.5"
   - cn@0.3.2
+  - "@oven/bun-darwin-aarch64@1.4.2-canary.20261007.1"
+  - "@oven/bun-darwin-x64@1.4.2-canary.20261007.1"
+  - "@oven/bun-freebsd-aarch64@1.4.2-canary.20261007.1"
+  - "@oven/bun-freebsd-x64@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-aarch64-android@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-aarch64-musl@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-aarch64@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-x64-android@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-x64-musl@1.4.2-canary.20261007.1"
+  - "@oven/bun-linux-x64@1.4.2-canary.20261007.1"
+  - "@oven/bun-windows-aarch64@1.4.2-canary.20261007.1"
+  - "@oven/bun-windows-x64@1.4.2-canary.20261007.1"
+  - bun@1.4.2-canary.20261007.1
 
 overrides:
   # Alchemy's optional D1 peer must match the pinned Effect release; a newer

@@ -304,9 +304,9 @@ jobs:
         if: matrix.suite == 'static'
         run: vp check
 
-      - name: Typecheck
+      - name: Typecheck (TypeScript + Effect)
         if: matrix.suite == 'static'
-        run: vp run typecheck
+        run: vp run typecheck:effect
 
       - uses: ./.github/actions/setup-apt-mirrors
         if: matrix.suite == 'packages'

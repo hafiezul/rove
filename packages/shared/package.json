@@ -373,7 +373,8 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun check --threads 2",
+    "typecheck:effect": "tsc --noEmit",
     "test": "vp test run"
   },
   "dependencies": {

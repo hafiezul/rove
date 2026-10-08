@@ -3,7 +3,7 @@
 ## First checkout
 
 Install `vp` using the [root README](../../README.md#install-vp). The checkout requires Node 24;
-Bun is optional. From the repository root:
+`vp i` installs the pinned Bun checker, so a global Bun installation is not needed. From the repository root:
 
 ```sh
 vp i
@@ -106,6 +106,19 @@ vp test run <files>
 vp lint <files>
 vp run --filter <package> typecheck
 ```
+
+`typecheck` (and the root `tc` alias) uses Bun for TypeScript feedback. Web and desktop use four
+threads and cache successful checks with explicit source, config, dependency-pin, and patch inputs;
+other packages use two threads without caching. Use
+`vp run --no-cache --filter <package> typecheck` to force a recheck. A source change invalidates the
+cache and triggers a full check, not an incremental one.
+Do not add `--cache` to other Bun checks: Vite's automatic tracking on the current toolchain can
+replay a stale success after an imported source file changes.
+The checker is pinned to a canary because stable Bun 1.4.2 does not include `bun check`.
+Bun does not run Effect diagnostics. Before finishing a change, run
+`vp run --filter <package> typecheck:effect` for the complete TypeScript + Effect check.
+CI and release verification use `typecheck:effect` without a redundant Bun pass.
+Marketing keeps Astro's checker for both commands.
 
 Use `vp run lint:mobile` for native mobile changes. CI owns the full suite; see
 [ci.yml](../../.github/workflows/ci.yml) for its current jobs.

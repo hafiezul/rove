@@ -71,8 +71,8 @@ jobs:
       - name: Check
         run: vp check
 
-      - name: Typecheck
-        run: vpr typecheck
+      - name: Typecheck (TypeScript + Effect)
+        run: vpr typecheck:effect
 
   desktop_build:
     name: Desktop Build

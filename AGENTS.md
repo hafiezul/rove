@@ -104,6 +104,7 @@ An empty database is a bad test. Seed your worktree's `.rove` with a copy of rea
 ## Verifying
 
 - Smallest proof that the change works. `vp test run <files>` for the tests you touched, targeted lint and typecheck for the scope you changed.
+- `typecheck` / `tc` uses Bun for fast TypeScript feedback and skips Effect diagnostics. Web and desktop cache successful checks with explicit inputs; use `vp run --no-cache --filter <package> typecheck` to force a recheck. Do not enable automatic task caching for the other Bun checks: imported-source edits can replay stale successes on the current toolchain. Before finishing TypeScript changes, run `vp run --filter <package> typecheck:effect` for the complete check. CI and release verification use that command too.
 - Test meaningful logic or observable behavior. Do not render components to static markup to assert props or attributes, or add tests that merely assert callback wiring or mirror the implementation.
 - **Do not run repo-wide checks.** No `vp check`, no `vp run -r test`, no `vp run -r typecheck` unless I ask. CI owns the full suite.
 - Backend behavior changes ship with focused tests for that behavior.
