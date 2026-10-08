@@ -21,6 +21,8 @@ import { uninstallCommand } from "./cli/uninstall.ts";
 import { updateCommand } from "./cli/update.ts";
 import { claudeHistoryCommand } from "./cli/claudeHistory.ts";
 import { piRuntimeCommand } from "./cli/piRuntime.ts";
+import { piCliInvocation } from "./cli/piCli.ts";
+import { requireCliExternal } from "./cli/requireExternal.ts";
 import { serviceLauncherCommand } from "./cli/serviceLauncher.ts";
 import { servicePreflightCommand } from "./cli/servicePreflight.ts";
 import { sshHelperCommand } from "./cli/sshHelper.ts";
@@ -82,7 +84,12 @@ export const makeCli = ({ cloudEnabled = hasCloudPublicConfig } = {}) =>
 
 export const cli = makeCli();
 
-if (
+const piCli = piCliInvocation(process.argv, process.env);
+if (piCli) {
+  // A Pi extension relaunched the executable's Pi worker as `pi` (see PiCliEntry.ts).
+  process.argv.splice(1, 2, piCli.entry);
+  requireCliExternal(piCli.entry);
+} else if (
   isEntrypoint({
     moduleUrl: import.meta.url,
     entryPath: process.argv[1],

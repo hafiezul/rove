@@ -4,11 +4,11 @@ import { PiCatalogHost } from "./provider/Layers/PiCatalogHost.ts";
 import { createPiSession } from "./provider/Layers/PiSessionFactory.ts";
 import { PiExtensionLoadError, type PiSessionLike } from "./provider/Layers/PiAdapter.ts";
 import { registerPiBundledOAuthFlows } from "./provider/Drivers/PiOAuth.ts";
+import { exposePiCliEntry } from "./provider/Layers/PiCliEntry.ts";
 import {
   compactPiMessageUpdate,
   compactPiToolProgress,
 } from "./provider/Layers/PiRuntimeEvents.ts";
-import { piRecord } from "./provider/Layers/PiSubagentDialects.ts";
 import type {
   PiArrayPatch,
   PiRuntimeCalls,
@@ -71,6 +71,7 @@ function sessionUpdates(session: PiSessionLike) {
 
 export async function runPiRuntimeWorker(): Promise<void> {
   if (!process.send) throw new Error("Pi runtime requires a parent IPC channel.");
+  exposePiCliEntry();
   registerPiBundledOAuthFlows();
   let host: PiCatalogHost | undefined;
   let closing = false;
@@ -157,25 +158,9 @@ export async function runPiRuntimeWorker(): Promise<void> {
         }
         const update = sessionUpdates(session);
         let lastProgress = -Infinity;
-        const customMessages = new WeakSet<object>();
         const unsubscribe = session.subscribe((event) => {
-          // Object identities do not survive IPC. Suppress repeated custom transcript
-          // notifications here, before the adapter's identity-based deduplication.
-          const message = piRecord(event.message);
-          if (event.type === "message_end" && message?.role === "custom")
-            customMessages.add(message);
-          if (event.type === "agent_end" && Array.isArray(event.messages)) {
-            event = {
-              ...event,
-              messages: event.messages.filter((entry) => {
-                const custom = piRecord(entry);
-                if (custom?.role !== "custom") return true;
-                if (customMessages.has(custom)) return false;
-                customMessages.add(custom);
-                return true;
-              }),
-            };
-          }
+          // The adapter never reads the run transcript Pi attaches to agent_end.
+          if (event.type === "agent_end") event = { type: event.type };
           if (event.type === "tool_execution_update") {
             const now = performance.now();
             if (now - lastProgress < 500) return;

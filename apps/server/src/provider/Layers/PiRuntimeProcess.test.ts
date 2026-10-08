@@ -157,6 +157,16 @@ describe("isolated Pi instance runtime", () => {
     expect(NodeFS.existsSync(originalEnv!)).toBe(false);
   });
 
+  it("lets extensions relaunch the hosted Pi as a subagent CLI", async () => {
+    const agentDir = directory("relaunch");
+    const runtime = await create(agentDir);
+    const current = await session(runtime, agentDir);
+    const reply = nextEvent(current, (event) => event.type === "rove_ui_notify");
+    await current.prompt("/relaunch-pi");
+    // The child ran the fixture model from the inherited agent directory.
+    expect((await reply).message).toBe("relaunch");
+  });
+
   it("carries UI replies and preflight while a prompt is awaiting input, then mirrors history and resumes", async () => {
     const agentDir = directory("interactive");
     const runtime = await create(agentDir);

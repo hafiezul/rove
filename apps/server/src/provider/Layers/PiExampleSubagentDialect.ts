@@ -13,6 +13,8 @@ import {
 } from "./PiSubagentDialects.ts";
 
 const CHILD_CAP = 64;
+/** Assistant stop reasons after which a `pi -p` child exits. */
+const TERMINAL_STOP_REASONS: ReadonlySet<string> = new Set(["stop", "length", "error", "aborted"]);
 type ExampleDetails = {
   readonly mode: "single" | "parallel" | "chain";
   readonly results: ReadonlyArray<SchemaJson>;
@@ -73,8 +75,6 @@ export const piExampleSubagentDialect: PiSubagentDialect = {
   name: "pi-bundled-subagent-example",
   toolNames: new Set(["subagent"]),
   matchesTool: (input) => exampleDetails(input.result) !== undefined,
-  customMessageTypes: new Set(),
-  parseNotifyContent: () => undefined,
   describeToolTasks(input) {
     const details = exampleDetails(input.result);
     const toolCallId = piTrimmed(input.toolCallId);
@@ -101,7 +101,17 @@ export const piExampleSubagentDialect: PiSubagentDialect = {
         title,
         role: piBounded(agent, 120),
       } as const;
-      if (input.phase === "update") {
+      // Settle children as soon as an update shows them finished, so each one
+      // reports its own duration. Earlier chain steps are done; otherwise a running
+      // child already reports exitCode 0, so only a terminal stop reason counts.
+      const finished =
+        input.phase !== "update" ||
+        (details.mode === "chain" && index < details.results.length - 1) ||
+        (result !== undefined &&
+          result.exitCode !== -1 &&
+          RuntimePredicate.isString(result.stopReason) &&
+          TERMINAL_STOP_REASONS.has(result.stopReason));
+      if (!finished) {
         descriptors.push({ type: "task.started", payload: linkage });
         descriptors.push({
           type: "task.progress",

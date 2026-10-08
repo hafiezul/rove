@@ -62,7 +62,6 @@ describe("headless Pi extensions", () => {
     NodeFS.mkdirSync(agentDir);
     vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
     vi.stubEnv("PI_OFFLINE", "1");
-    vi.stubEnv("PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT", undefined);
     NodeFS.copyFileSync(
       new URL("./fixtures/pi-extension.ts", import.meta.url),
       NodePath.join(cwd, ".pi", "extensions", "fixture.ts"),
@@ -1075,46 +1074,6 @@ describe("headless Pi extensions", () => {
     assert.isFalse(events.some((event) => event.type === "prompt_error"));
   });
 
-  it("preserves notification message identity through SDK transcript replay", async () => {
-    NodeFS.writeFileSync(
-      NodePath.join(cwd, ".pi", "extensions", "notify.ts"),
-      `export default function (pi) {
-        pi.on("before_agent_start", () => ({
-          message: {
-            customType: "subagent-notify",
-            content: "Background task completed: **researcher**",
-            display: false,
-          },
-        }));
-      }`,
-    );
-    const session = await create();
-    const notifications: unknown[] = [];
-    const transcripts: unknown[][] = [];
-    const isNotification = Schema.is(
-      Schema.Struct({
-        customType: Schema.Literal("subagent-notify"),
-      }),
-    );
-    session.subscribe((event) => {
-      if (event.type === "message_end" && isNotification(event.message)) {
-        notifications.push(event.message);
-      }
-      if (event.type === "agent_end" && Array.isArray(event.messages)) {
-        transcripts.push(event.messages);
-      }
-    });
-
-    await session.prompt("First research task");
-    await session.prompt("Second research task");
-
-    assert.strictEqual(notifications.length, 2);
-    assert.notStrictEqual(notifications[0], notifications[1]);
-    assert.strictEqual(transcripts.length, 2);
-    assert.isTrue(transcripts[0]?.includes(notifications[0]));
-    assert.isTrue(transcripts[1]?.includes(notifications[1]));
-  });
-
   it.effect("completes a real extension command through the Rove adapter", () =>
     Effect.gen(function* () {
       const adapter = yield* makePiAdapter(decodePiSettings({}), {
@@ -1299,33 +1258,6 @@ describe("headless Pi extensions", () => {
     const session = await create();
     await session.prompt("/count");
     assert.include(log(), "command:1:false\n");
-  });
-
-  it("loads the host SDK from an external Pi extension and a detached process", async () => {
-    const externalDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-pi-external-"));
-    try {
-      const extensionPath = NodePath.join(externalDir, "index.mjs");
-      NodeFS.copyFileSync(
-        new URL("./fixtures/pi-host-sdk-probe.mjs", import.meta.url),
-        extensionPath,
-      );
-      NodeFS.writeFileSync(
-        NodePath.join(agentDir, "settings.json"),
-        JSON.stringify({ extensions: [extensionPath] }),
-      );
-      const session = await createInteractive();
-      const events: PiSessionEventLike[] = [];
-      session.subscribe((event) => events.push(event));
-      await session.prompt("/probe-host-sdk");
-      expect(events).toContainEqual({
-        type: "rove_ui_notify",
-        level: "info",
-        message: "host SDK loaded in Rove and detached child",
-      });
-      expect(process.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT).toBe(PiSdk.getPackageDir());
-    } finally {
-      NodeFS.rmSync(externalDir, { recursive: true, force: true });
-    }
   });
 
   it("skips extensions listed in disabledExtensions and tells the model about it", async () => {

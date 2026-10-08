@@ -1,9 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import { describeDialectToolTasks } from "./PiSubagentDialects.ts";
 import { piExampleSubagentDialect, compactPiExampleUpdate } from "./PiExampleSubagentDialect.ts";
-import { piSubagentsDialect } from "./PiSubagentsDialect.ts";
 
-const dialects = [piExampleSubagentDialect, piSubagentsDialect];
+const dialects = [piExampleSubagentDialect];
 const child = (agent: string, task: string, exitCode: number) => ({
   agent,
   task,
@@ -65,17 +64,27 @@ describe("Pi bundled example subagent dialect", () => {
         { agent: "b", task: "Second" },
       ],
     };
-    const partial = result("parallel", [child("a", "First", -1), child("b", "Second", 0)]);
+    // Pi reports a running child with exitCode 0; only its stop reason says it finished.
+    const partial = result("parallel", [
+      { ...child("a", "First", 0), stopReason: "toolUse" },
+      { ...child("b", "Second", 0), stopReason: "stop" },
+    ]);
     const update = tasks(args, compactPiExampleUpdate(partial), "update");
     assert.deepStrictEqual(
       update.filter((e) => e.type === "task.started").map((e) => e.payload.taskId),
       ["host:0", "host:1"],
     );
+    // A finished parallel child settles from the update; a running one stays live.
     assert.deepStrictEqual(
-      update.filter((e) => e.type === "task.progress").map((e) => e.payload.status),
-      ["running", "running"],
+      update.filter((e) => e.type === "task.progress").map((e) => e.payload.taskId),
+      ["host:0"],
     );
-    assert.isFalse(update.some((e) => e.type === "task.completed"));
+    assert.deepStrictEqual(
+      update
+        .filter((e) => e.type === "task.completed")
+        .map((e) => [e.payload.taskId, e.payload.status]),
+      [["host:1", "completed"]],
+    );
     assert.notInclude(JSON.stringify(compactPiExampleUpdate(partial)), "private");
     const final = tasks(
       args,
@@ -113,6 +122,10 @@ describe("Pi bundled example subagent dialect", () => {
       ["host:0", "host:1", "host:2"],
     );
     assert.strictEqual(update[2]?.payload.title, "b: Use {previous}");
+    assert.deepStrictEqual(
+      update.filter((e) => e.type === "task.completed").map((e) => e.payload.taskId),
+      ["host:0"],
+    );
     const final = tasks(
       args,
       result("chain", [
@@ -127,6 +140,16 @@ describe("Pi bundled example subagent dialect", () => {
       ["completed", "failed", "stopped"],
     );
     assert.notInclude(JSON.stringify(final), "secret");
+  });
+
+  it("settles a child from an update only once its last message stops", () => {
+    const args = { agent: "a", task: "Work" };
+    const statuses = (stopReason: string) =>
+      tasks(args, result("single", [{ ...child("a", "Work", 0), stopReason }]), "update")
+        .filter((e) => e.type !== "task.started")
+        .map((e) => e.type);
+    assert.deepStrictEqual(statuses("toolUse"), ["task.progress"]);
+    assert.deepStrictEqual(statuses("stop"), ["task.completed"]);
   });
 
   it("settles an identified partial when the tool is interrupted without final details", () => {
@@ -179,22 +202,6 @@ describe("Pi bundled example subagent dialect", () => {
         result: result("single", [child("scout", "Find files", 0)]),
       }),
       [],
-    );
-    const old = describeDialectToolTasks(dialects, {
-      toolName: "subagent",
-      toolCallId: "host",
-      args,
-      result: {
-        details: {
-          mode: "single",
-          toolCallId: "host",
-          results: [{ agent: "scout", task: "Find files", exitCode: 0 }],
-        },
-      },
-    });
-    assert.deepStrictEqual(
-      old.map((event) => event.type),
-      ["task.started", "task.completed"],
     );
   });
 });

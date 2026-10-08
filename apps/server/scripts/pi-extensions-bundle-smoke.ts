@@ -42,8 +42,11 @@ try {
       /start:true:rpc\ncommand:1:true/,
     );
     await session.prompt("/probe-child-runtime");
-    await session.prompt("/probe-host-sdk");
-    NodeAssert.ok(notifications.includes("host SDK loaded in Rove and detached child"));
+    await session.prompt("/probe-relaunch");
+    NodeAssert.ok(
+      notifications.some((message) => /^relaunched pi \d/.test(String(message))),
+      `extensions must relaunch the hosted Pi CLI: ${JSON.stringify(notifications)}`,
+    );
     NodeAssert.deepEqual(errors, [], "child runtime bootstrap must not fail in an extension");
     NodeAssert.match(
       NodeFS.readFileSync(NodePath.join(cwd, "runtime-probe.txt"), "utf8"),
