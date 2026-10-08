@@ -3281,6 +3281,92 @@ it.effect("answers a repeated listing from cache, and concurrent readers share o
   }),
 );
 
+/** A provider read whose first call stalls, then holds its cancellation open until released. */
+const makeStalledFirstRead = Effect.gen(function* () {
+  const started = yield* Deferred.make<void>();
+  const stopping = yield* Deferred.make<void>();
+  const releaseCleanup = yield* Deferred.make<void>();
+  const state = { reads: 0 };
+  return {
+    state,
+    read: <A>(answer: () => A) =>
+      Effect.suspend(() => {
+        state.reads++;
+        if (state.reads > 1) return Effect.succeed(answer());
+        return Deferred.succeed(started, undefined).pipe(
+          Effect.andThen(Effect.never),
+          Effect.ensuring(
+            Deferred.succeed(stopping, undefined).pipe(
+              Effect.andThen(Deferred.await(releaseCleanup)),
+            ),
+          ),
+        );
+      }),
+    /** Cancels the first reader and starts a replacement while the cancellation is cleaning up. */
+    replaceDuringCleanup: <A, E>(read: Effect.Effect<A, E>) =>
+      Effect.gen(function* () {
+        const original = yield* read.pipe(Effect.forkChild({ startImmediately: true }));
+        yield* Deferred.await(started);
+        const cancellation = yield* Fiber.interrupt(original).pipe(
+          Effect.forkChild({ startImmediately: true }),
+        );
+        yield* Deferred.await(stopping);
+        const replacement = yield* read.pipe(Effect.forkChild({ startImmediately: true }));
+        yield* Deferred.succeed(releaseCleanup, undefined);
+        const result = yield* Fiber.await(replacement);
+        yield* Fiber.join(cancellation);
+        assert.strictEqual(
+          result._tag,
+          "Success",
+          Exit.isFailure(result) ? Cause.pretty(result.cause) : undefined,
+        );
+        return result;
+      }),
+  };
+});
+
+it.effect("restarts a detail read that joins a cancelled lookup during provider cleanup", () =>
+  Effect.gen(function* () {
+    const stalled = yield* makeStalledFirstRead;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          getChangeRequest: () => stalled.read(() => hostedChangeRequest("Description")),
+        }),
+      ],
+    });
+    const ref = { projectId: "p1" as ProjectId, repository: "acme/web", number: 1 };
+    yield* stalled.replaceDuringCleanup(service.detail(ref));
+    assert.strictEqual(stalled.state.reads, 2);
+  }),
+);
+
+it.effect("restarts a stack read that joins a cancelled lookup during provider cleanup", () =>
+  Effect.gen(function* () {
+    const stalled = yield* makeStalledFirstRead;
+    const service = yield* makeService({
+      projects: [project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" })],
+      providers: [
+        fakeProvider("github", {
+          getChangeRequestStack: () =>
+            stalled.read(() => ({
+              id: "9",
+              number: 3,
+              url: "https://github.com/acme/web/stacks/3",
+              base: "main",
+              layers: [{ number: 7, headBranch: "a", state: "open" as const }],
+            })),
+        }),
+      ],
+    });
+    const ref = { projectId: "p1" as ProjectId, repository: "acme/web", number: 7 };
+    const result = yield* stalled.replaceDuringCleanup(service.stack(ref));
+    if (Exit.isSuccess(result)) assert.strictEqual(result.value?.number, 3);
+    assert.strictEqual(stalled.state.reads, 2);
+  }),
+);
+
 it.effect("restarts a listing that joins a cancelled lookup during provider cleanup", () =>
   Effect.gen(function* () {
     const started = yield* Deferred.make<void>();

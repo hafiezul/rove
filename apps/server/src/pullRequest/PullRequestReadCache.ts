@@ -1,4 +1,5 @@
 import * as Cache from "effect/Cache";
+import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Equal from "effect/Equal";
 import * as Hash from "effect/Hash";
@@ -20,6 +21,14 @@ import * as Persistence from "effect/unstable/persistence/Persistence";
 import { ServerConfig } from "../config.ts";
 
 const CONCURRENT_READS = 512;
+
+/**
+ * Wraps a read from a cache that shares in-flight lookups. A cancelled lookup stays in the
+ * cache until its cleanup finishes, so a replacement reader can join it and inherit the
+ * cancellation. Ask again once; by then the entry is gone and a fresh lookup starts.
+ */
+export const rejoinCancelledFlight = <A, E, R>(read: Effect.Effect<A, E, R>) =>
+  read.pipe(Effect.catchCauseIf(Cause.hasInterruptsOnly, () => read));
 type ReadError = PullRequestOperationError | PullRequestUnavailableError;
 const revisionCodec = Schema.fromJsonString(
   Schema.Record(
@@ -126,9 +135,11 @@ export const make = Effect.gen(function* () {
           })
           .join(":");
         const request = new Read({ key: yield* digest(key), revision, lookup: read });
-        const stored = yield* cache.get(request);
+        const stored = yield* rejoinCancelledFlight(cache.get(request));
         return (
-          request.matchesRevision(stored.revision) ? stored : yield* Cache.get(refreshes, request)
+          request.matchesRevision(stored.revision)
+            ? stored
+            : yield* rejoinCancelledFlight(Cache.get(refreshes, request))
         ).payload;
       }).pipe(
         Effect.catchTags({
