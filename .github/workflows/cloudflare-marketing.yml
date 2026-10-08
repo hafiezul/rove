@@ -56,7 +56,10 @@ jobs:
           '
 
       - name: Build
-        run: vp run --filter @rove-code/marketing build
+        # vp run loads every workspace's Vite config, including uninstalled server dependencies.
+        # Run the package script directly to keep the marketing-only install isolated.
+        working-directory: apps/marketing
+        run: node --run build
 
       - name: Validate Cloudflare configuration without deploying
         run: vp dlx wrangler@4.147.0 deploy --config apps/marketing/wrangler.json --dry-run
