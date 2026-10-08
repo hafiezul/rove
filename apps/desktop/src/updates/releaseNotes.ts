@@ -109,7 +109,9 @@ function extractReleaseNoteItems(note: string | null | undefined): ExtractedRele
       .replace(/^\d+[.)]\s+/, "")
       .replace(/\s+/g, " ");
     const normalized = normalizeReleaseNoteLine(item);
-    if (normalized === "new contributors" || normalized === "full changelog") break;
+    // GitHub's HTML renders the compare link as `Full Changelog: <a>v1...v2</a>`, so the
+    // URL is gone by now and only the label prefix identifies the line.
+    if (normalized === "new contributors" || normalized.startsWith("full changelog")) break;
     if (/^#{1,6}\s+/.test(item)) continue;
     if (isIgnoredReleaseNoteLine(item)) continue;
     totalItems += 1;

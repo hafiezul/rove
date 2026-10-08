@@ -60,6 +60,23 @@ describe("normalizeDesktopUpdateReleaseNotes", () => {
     });
   });
 
+  it("excludes GitHub's HTML compare link line", () => {
+    const result = normalizeDesktopUpdateReleaseNotes(
+      "<h2>What's Changed</h2><ul><li>feat(usage): add filters by @human in #247</li></ul>" +
+        '<p><strong>Full Changelog</strong>: <a href="https://github.com/rovecode/rove/compare/v1.2.2...v1.2.3"><tt>v1.2.2...v1.2.3</tt></a></p>',
+      "1.2.3",
+      "latest",
+    );
+
+    expect(result.releaseNotes).toEqual([
+      {
+        version: "1.2.3",
+        items: ["feat(usage): add filters by @human in #247"],
+        totalItems: 1,
+      },
+    ]);
+  });
+
   it("does not count Markdown or HTML section headings as changes", () => {
     const changes = Array.from({ length: 8 }, (_, index) => `Change ${index + 1}`);
     const result = normalizeDesktopUpdateReleaseNotes(
