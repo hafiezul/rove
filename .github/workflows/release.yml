@@ -956,6 +956,7 @@ jobs:
     needs: [preflight, release]
     if: ${{ vars.ROVE_CLOUDFLARE_WEB_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'stable' }}
     uses: ./.github/workflows/cloudflare-web.yml
+    secrets: inherit
     with:
       deploy: true
       ref: ${{ needs.preflight.outputs.ref }}
@@ -966,6 +967,7 @@ jobs:
     needs: [preflight, release]
     if: ${{ vars.ROVE_MARKETING_RELEASE_READY == 'true' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
     uses: ./.github/workflows/cloudflare-marketing.yml
+    secrets: inherit
     with:
       deploy: true
       ref: ${{ needs.preflight.outputs.ref }}
