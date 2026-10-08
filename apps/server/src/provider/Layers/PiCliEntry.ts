@@ -13,7 +13,7 @@ const PiPackageManifest = Schema.Struct({
 const decodePiPackageManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PiPackageManifest));
 
 /** The `pi` bin script of the SDK this process hosts. */
-export function resolvePiCliEntry(packageDir = getPackageDir()): string {
+function resolvePiCliEntry(packageDir = getPackageDir()): string {
   const { bin } = decodePiPackageManifest(
     NodeFS.readFileSync(NodePath.join(packageDir, "package.json"), "utf8"),
   );
