@@ -1779,6 +1779,11 @@ export default function ChatView(props: ChatViewProps) {
     pendingServerThreadStartFromOriginByThreadId,
     setPendingServerThreadStartFromOriginByThreadId,
   ] = useState<Record<string, boolean>>({});
+  // "Check out branch" is a one-off choice for the next worktree, so it stays
+  // in memory rather than in the persisted draft.
+  const [checkoutBaseBranchByThreadId, setCheckoutBaseBranchByThreadId] = useState<
+    Record<string, boolean>
+  >({});
   const [lastInvokedScriptByProjectId, setLastInvokedScriptByProjectId] = useLocalStorage(
     LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
     {},
@@ -5898,6 +5903,19 @@ export default function ChatView(props: ChatViewProps) {
     requestedEnvMode: envMode,
     isGitRepo,
   });
+  // Multiple models each need their own worktree, and one branch can only be
+  // checked out once, so the option only applies to single-model sends.
+  const canCheckoutBaseBranch =
+    serverConfig?.environment.capabilities.worktreeCheckoutBaseBranch === true &&
+    multipleModelSelections === null;
+  const checkoutBaseBranch =
+    canCheckoutBaseBranch && (checkoutBaseBranchByThreadId[activeThread?.id ?? ""] ?? false);
+  const onCheckoutBaseBranchChange = (next: boolean) => {
+    if (!activeThread) return;
+    setCheckoutBaseBranchByThreadId((current) =>
+      current[activeThread.id] === next ? current : { ...current, [activeThread.id]: next },
+    );
+  };
   const localCheckoutBranchMismatch = useMemo(
     () =>
       isServerThread
@@ -8409,12 +8427,18 @@ export default function ChatView(props: ChatViewProps) {
                 : {}),
               ...(baseBranchForWorktree
                 ? {
-                    prepareWorktree: {
-                      projectCwd: activeProject.workspaceRoot,
-                      baseBranch: baseBranchForWorktree,
-                      branch: buildTemporaryWorktreeBranchName(randomHex),
-                      ...(startFromOrigin ? { startFromOrigin: true } : {}),
-                    },
+                    prepareWorktree: checkoutBaseBranch
+                      ? {
+                          projectCwd: activeProject.workspaceRoot,
+                          baseBranch: baseBranchForWorktree,
+                          checkoutBaseBranch: true,
+                        }
+                      : {
+                          projectCwd: activeProject.workspaceRoot,
+                          baseBranch: baseBranchForWorktree,
+                          branch: buildTemporaryWorktreeBranchName(randomHex),
+                          ...(startFromOrigin ? { startFromOrigin: true } : {}),
+                        },
                     runSetupScript: true,
                   }
                 : {}),
@@ -10194,6 +10218,9 @@ export default function ChatView(props: ChatViewProps) {
                                 onEnvModeChange={onEnvModeChange}
                                 startFromOrigin={startFromOrigin}
                                 onStartFromOriginChange={onStartFromOriginChange}
+                                {...(canCheckoutBaseBranch
+                                  ? { checkoutBaseBranch, onCheckoutBaseBranchChange }
+                                  : {})}
                                 envMode={envMode}
                                 {...(canOverrideServerThreadEnvMode
                                   ? {

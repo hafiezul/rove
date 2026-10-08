@@ -93,6 +93,9 @@ interface BranchToolbarBranchSelectorProps {
   onActiveThreadBranchOverrideChange?: (refName: string | null) => void;
   startFromOrigin: boolean;
   onStartFromOriginChange: (startFromOrigin: boolean) => void;
+  checkoutBaseBranch?: boolean;
+  /** Omitted when the environment cannot check out the selected branch directly. */
+  onCheckoutBaseBranchChange?: (checkoutBaseBranch: boolean) => void;
   onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest?: () => void;
 }
@@ -114,11 +117,14 @@ export function BranchToolbarBranchSelector({
   onActiveThreadBranchOverrideChange,
   startFromOrigin,
   onStartFromOriginChange,
+  checkoutBaseBranch = false,
+  onCheckoutBaseBranchChange,
   onCheckoutPullRequestRequest,
   onComposerFocusRequest,
 }: BranchToolbarBranchSelectorProps) {
   const composerFloatingLayerProps = useComposerMenuProps();
   const startFromOriginSwitchId = useId();
+  const checkoutBaseBranchSwitchId = useId();
   const stopThreadSession = useAtomCommand(threadEnvironment.stopSession, "thread session stop");
   const updateThreadMetadata = useAtomCommand(
     threadEnvironment.updateMetadata,
@@ -648,6 +654,7 @@ export function BranchToolbarBranchSelector({
     resolvedActiveBranch,
     resolvedActiveBranchIsRemote,
     startFromOrigin,
+    checkoutBaseBranch: isSelectingWorktreeBase && checkoutBaseBranch,
   });
 
   // Branch status is the fallback when this thread has no linked pull requests.
@@ -895,7 +902,35 @@ export function BranchToolbarBranchSelector({
               />
             </ComboboxListVirtualized>
           </div>
-          {isSelectingWorktreeBase ? (
+          {isSelectingWorktreeBase && onCheckoutBaseBranchChange && !forceNewWorktree ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <label
+                    htmlFor={checkoutBaseBranchSwitchId}
+                    className="flex cursor-pointer items-center justify-between gap-3 border-t border-border/60 px-3 py-2 text-xs"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-muted-foreground">
+                      <GitBranchIcon aria-hidden="true" className="size-3 shrink-0" />
+                      <span className="truncate">Check out branch</span>
+                    </span>
+                    <Switch
+                      id={checkoutBaseBranchSwitchId}
+                      checked={checkoutBaseBranch}
+                      size="sm"
+                      aria-label="Check out the selected branch"
+                      onCheckedChange={(checked) => onCheckoutBaseBranchChange(Boolean(checked))}
+                    />
+                  </label>
+                }
+              />
+              <TooltipPopup side="top">
+                Works on the selected branch itself instead of creating a new branch from it, for
+                example to continue a branch pushed from another machine.
+              </TooltipPopup>
+            </Tooltip>
+          ) : null}
+          {isSelectingWorktreeBase && !checkoutBaseBranch ? (
             <Tooltip>
               <TooltipTrigger
                 render={

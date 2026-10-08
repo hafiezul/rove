@@ -1398,7 +1398,10 @@ const makeWsRpcLayer = (
             if (prepareWorktree && shouldPrepareWorktree) {
               // "Start from origin" is a stored default; repos without the
               // requested remote branch fall back to the local base branch.
+              // Checking out the base branch itself keeps the ref name so the
+              // worktree lands on that branch rather than a detached commit.
               const startFromOrigin =
+                prepareWorktree.checkoutBaseBranch !== true &&
                 prepareWorktree.startFromOrigin === true &&
                 (yield* gitWorkflow.remoteExists({
                   cwd: prepareWorktree.projectCwd,
@@ -1559,13 +1562,15 @@ const makeWsRpcLayer = (
                 projectId: targetProjectId ?? null,
               });
               const worktree = yield* gitWorkflow.createWorktree(
-                {
-                  cwd: prepareWorktree.projectCwd,
-                  refName: worktreeBaseRef,
-                  newRefName: prepareWorktree.branch,
-                  baseRefName: prepareWorktree.baseBranch,
-                  path: null,
-                },
+                prepareWorktree.checkoutBaseBranch === true
+                  ? { cwd: prepareWorktree.projectCwd, refName: worktreeBaseRef, path: null }
+                  : {
+                      cwd: prepareWorktree.projectCwd,
+                      refName: worktreeBaseRef,
+                      newRefName: prepareWorktree.branch,
+                      baseRefName: prepareWorktree.baseBranch,
+                      path: null,
+                    },
                 {
                   submodules,
                   progress: {

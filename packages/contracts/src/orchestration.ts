@@ -1322,6 +1322,8 @@ const ThreadTurnStartBootstrapPrepareWorktree = Schema.Struct({
   branch: Schema.optional(TrimmedNonEmptyString),
   startFromOrigin: Schema.optional(Schema.Boolean),
   requireWorktree: Schema.optional(Schema.Boolean),
+  /** Check out `baseBranch` itself instead of creating `branch` from it. */
+  checkoutBaseBranch: Schema.optional(Schema.Boolean),
 });
 
 const ThreadTurnStartBootstrap = Schema.Struct({

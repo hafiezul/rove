@@ -259,6 +259,29 @@ describe("resolveBranchTriggerLabel", () => {
     ).toBe("Select ref");
   });
 
+  it("names the branch the worktree will check out", () => {
+    expect(
+      resolveBranchTriggerLabel({
+        activeWorktreePath: null,
+        effectiveEnvMode: "worktree",
+        resolvedActiveBranch: "origin/feature/demo",
+        resolvedActiveBranchIsRemote: true,
+        startFromOrigin: true,
+        checkoutBaseBranch: true,
+      }),
+    ).toBe("feature/demo");
+    expect(
+      resolveBranchTriggerLabel({
+        activeWorktreePath: null,
+        effectiveEnvMode: "worktree",
+        resolvedActiveBranch: "feature/demo",
+        resolvedActiveBranchIsRemote: false,
+        startFromOrigin: true,
+        checkoutBaseBranch: true,
+      }),
+    ).toBe("feature/demo");
+  });
+
   it("does not fabricate an origin ref while branch metadata is loading", () => {
     expect(
       resolveBranchTriggerLabel({

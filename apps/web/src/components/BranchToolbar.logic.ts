@@ -6,7 +6,7 @@ import type {
   WorktreeSubmodules,
 } from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
-import { sanitizeNewRefName } from "@rove-code/shared/git";
+import { deriveLocalBranchNameFromRemoteRef, sanitizeNewRefName } from "@rove-code/shared/git";
 import { toSortableTimestamp } from "../lib/threadSort";
 export {
   dedupeRemoteBranchesWithLocalMatches,
@@ -215,6 +215,8 @@ export function resolveBranchTriggerLabel(input: {
   resolvedActiveBranch: string | null;
   resolvedActiveBranchIsRemote: boolean | null;
   startFromOrigin: boolean;
+  /** The new worktree checks out the selected branch instead of branching off it. */
+  checkoutBaseBranch?: boolean;
 }): string {
   const {
     activeWorktreePath,
@@ -227,6 +229,12 @@ export function resolveBranchTriggerLabel(input: {
     return "Select ref";
   }
   if (effectiveEnvMode === "worktree" && !activeWorktreePath) {
+    if (input.checkoutBaseBranch) {
+      // A remote ref lands on its local tracking branch, so name that one.
+      return resolvedActiveBranchIsRemote
+        ? deriveLocalBranchNameFromRemoteRef(resolvedActiveBranch)
+        : resolvedActiveBranch;
+    }
     const baseRef =
       startFromOrigin && resolvedActiveBranchIsRemote === false
         ? `origin/${resolvedActiveBranch}`

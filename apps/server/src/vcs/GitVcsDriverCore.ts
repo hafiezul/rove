@@ -3190,26 +3190,65 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     },
   );
 
+  /**
+   * Resolves the branch a worktree checks out when no new ref is requested. A
+   * remote-tracking ref such as `origin/feature` lands on the local `feature`
+   * branch, created to track the remote one when missing, so the worktree is on
+   * a branch that pushes back to where it came from instead of a detached HEAD.
+   * An existing local `feature` is used as is, even when it trails the remote.
+   */
+  const resolveWorktreeCheckoutTarget = Effect.fn("resolveWorktreeCheckoutTarget")(function* (
+    cwd: string,
+    refName: string,
+  ) {
+    const asIs = { refName, trackRef: null };
+    if (yield* branchExists(cwd, refName)) return asIs;
+    const remoteNames = yield* listRemoteNames(cwd).pipe(Effect.orElseSucceed(() => []));
+    const parsed = parseRemoteRefWithRemoteNames(
+      refName,
+      remoteNames.toSorted((left, right) => right.length - left.length),
+    );
+    if (
+      !parsed ||
+      !(yield* remoteBranchExists({
+        cwd,
+        remoteName: parsed.remoteName,
+        refName: parsed.branchName,
+      }))
+    ) {
+      return asIs;
+    }
+    return (yield* branchExists(cwd, parsed.branchName))
+      ? { refName: parsed.branchName, trackRef: null }
+      : { refName: parsed.branchName, trackRef: refName };
+  });
+
   const createWorktree: GitVcsDriver.GitVcsDriver["Service"]["createWorktree"] = Effect.fn(
     "createWorktree",
   )(function* (input, options) {
-    const targetBranch = input.newRefName ?? input.refName;
+    const checkoutTarget = input.newRefName
+      ? null
+      : yield* resolveWorktreeCheckoutTarget(input.cwd, input.refName);
+    const targetBranch = input.newRefName ?? checkoutTarget?.refName ?? input.refName;
     const sanitizedBranch = targetBranch.replace(/\//g, "-");
     const repoName = path.basename(input.cwd);
     const worktreePath = input.path ?? path.join(worktreesDir, repoName, sanitizedBranch);
     const args = input.newRefName
       ? ["worktree", "add", "-b", input.newRefName, worktreePath, input.refName]
-      : ["worktree", "add", worktreePath, input.refName];
+      : checkoutTarget?.trackRef
+        ? ["worktree", "add", "--track", "-b", targetBranch, worktreePath, checkoutTarget.trackRef]
+        : ["worktree", "add", worktreePath, targetBranch];
     const progress = options?.progress;
     const onCheckoutProgress = progress?.onCheckoutProgress;
 
     const checkoutWorkers = (yield* readConfigValue(input.cwd, "checkout.workers")) ?? "0";
-    yield* executeGit(
+    const worktreeAddArgs = ["-c", `checkout.workers=${checkoutWorkers}`, ...args];
+    const worktreeAdd = yield* executeGit(
       "GitVcsDriver.createWorktree",
       input.cwd,
-      ["-c", `checkout.workers=${checkoutWorkers}`, ...args],
+      worktreeAddArgs,
       {
-        fallbackErrorDetail: "git worktree add failed",
+        allowNonZeroExit: true,
         timeoutMs: WORKTREE_ADD_TIMEOUT_MS,
         ...(onCheckoutProgress
           ? {
@@ -3226,6 +3265,21 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           : {}),
       },
     );
+    if (worktreeAdd.exitCode !== 0) {
+      // Checking out an existing branch most often fails because another
+      // worktree already has it, which git reports in a recognizable way.
+      return yield* new GitCommandError({
+        ...gitCommandContext({
+          operation: "GitVcsDriver.createWorktree",
+          cwd: input.cwd,
+          args: worktreeAddArgs,
+        }),
+        detail: describeCheckoutFailure(worktreeAdd.stderr) ?? "git worktree add failed",
+        ...(worktreeAdd.exitCode === null ? {} : { exitCode: worktreeAdd.exitCode }),
+        stdoutLength: worktreeAdd.stdout.length,
+        stderrLength: worktreeAdd.stderr.length,
+      });
+    }
 
     if (progress?.onWorktreeClaimed) {
       yield* progress.onWorktreeClaimed(worktreePath);

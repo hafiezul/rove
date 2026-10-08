@@ -18,6 +18,9 @@ On web and desktop, a project thread keeps the current project and carries your 
 and mode selections, unless the destination project has its own model default.
 Its branch and workspace mode come from your configured defaults. To continue in
 an existing worktree, use **New thread in this worktree** from the branch toolbar.
+To keep working on a branch that already exists, such as one pushed from another
+machine, choose **New worktree**, pick the branch, and turn on **Check out branch**.
+The thread then commits and pushes to that branch instead of a new one.
 
 When you change a new thread's project, Rove Code stays in the current environment
 if that project exists there. Otherwise it selects an environment that has it.
