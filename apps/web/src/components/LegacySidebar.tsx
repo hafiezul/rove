@@ -3048,7 +3048,19 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       <SidebarGroup>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => void handleNewThread(null)}>
+            <SidebarMenuButton
+              onClick={() =>
+                void handleNewThread(null).catch((error: unknown) => {
+                  toastManager.add(
+                    stackedThreadToast({
+                      type: "error",
+                      title: "Could not start a thread",
+                      description: error instanceof Error ? error.message : "Try again.",
+                    }),
+                  );
+                })
+              }
+            >
               <SquarePenIcon />
               <span>New thread without a project</span>
             </SidebarMenuButton>

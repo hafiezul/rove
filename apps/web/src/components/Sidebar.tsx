@@ -1023,6 +1023,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   onUnsnooze: (threadRef: ScopedThreadRef) => void;
   onUnpin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
+  onDiscardEmptyThread: (threadRef: ScopedThreadRef) => void;
   /**
    * External files dropped onto this row. The row highlights while the drag
    * is over it; the callback opens the thread and hands the files to its
@@ -1036,6 +1037,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
     onCommitRename,
     onContextMenu,
     onAcknowledgeWoke,
+    onDiscardEmptyThread,
     onFileDropThreads,
     onRenameTitleChange,
     onSettle,
@@ -1071,15 +1073,25 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   // Unsent composer text on this thread. The open thread shows its own
   // composer, so the marker only decorates rows you have navigated away from.
   const hasUnsentDraft = useThreadHasUnsentDraft(threadRef) && !props.isActive;
+  // A standalone thread exists on the server from the moment it is picked, so
+  // until its first message it is the equivalent of a project draft: it can be
+  // discarded outright, even while open, since there is no history to lose.
+  const isEmptyStandaloneThread =
+    thread.projectId === null && thread.latestTurn === null && thread.latestUserMessageAt === null;
+  const showDiscard = hasUnsentDraft || isEmptyStandaloneThread;
   const clearComposerContent = useComposerDraftStore((store) => store.clearComposerContent);
   const handleDiscardDraftClick = useCallback(
     (event: ReactMouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
+      if (isEmptyStandaloneThread) {
+        onDiscardEmptyThread(threadRef);
+        return;
+      }
       releaseComposerDraftUploads(threadRef);
       clearComposerContent(threadRef);
     },
-    [clearComposerContent, threadRef],
+    [clearComposerContent, isEmptyStandaloneThread, onDiscardEmptyThread, threadRef],
   );
 
   const gitCwd = thread.worktreePath ?? props.project?.workspaceRoot ?? null;
@@ -1887,7 +1899,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                       threadTimeLabel(thread)
                     )}
                   </span>
-                  {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
+                  {props.settlementSupported || showSnoozeButton || showDiscard ? (
                     <span
                       className={cn(
                         // focus-visible, not focus-within: a mouse click leaves
@@ -1899,13 +1911,15 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                         snoozeMenuOpen && "pointer-events-auto static opacity-100",
                       )}
                     >
-                      {hasUnsentDraft ? (
+                      {showDiscard ? (
                         <Tooltip>
                           <TooltipTrigger
                             render={
                               <button
                                 type="button"
-                                aria-label="Discard draft"
+                                aria-label={
+                                  isEmptyStandaloneThread ? "Discard thread" : "Discard draft"
+                                }
                                 onClick={handleDiscardDraftClick}
                                 className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
                               />
@@ -1913,7 +1927,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                           >
                             <XIcon className="size-3.5" />
                           </TooltipTrigger>
-                          <TooltipPopup side="top">Discard draft</TooltipPopup>
+                          <TooltipPopup side="top">
+                            {isEmptyStandaloneThread ? "Discard thread" : "Discard draft"}
+                          </TooltipPopup>
                         </Tooltip>
                       ) : null}
                       {showSnoozeButton ? (
@@ -2283,6 +2299,23 @@ export default function Sidebar() {
       markThreadVisited(scopedThreadKey(threadRef), visitedAt);
     },
     [markThreadVisited],
+  );
+  const discardEmptyThread = useCallback(
+    (threadRef: ScopedThreadRef) => {
+      void deleteThread(threadRef).then((result) => {
+        if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+          const error = squashAtomCommandFailure(result);
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to discard thread",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        }
+      });
+    },
+    [deleteThread],
   );
   const routeTarget = useParams({
     strict: false,
@@ -3080,7 +3113,7 @@ export default function Sidebar() {
   // Parking the thread you're looking at (settle or snooze) moves you
   // forward: the next remaining card (never a settled or snoozed row, never
   // one leaving in the same batch), or a fresh draft in this project when it
-  // was the last active one. Callers snapshot the plan BEFORE the command
+  // was the last active one (home for standalone threads). Callers snapshot the plan BEFORE the command
   // mutates the partition; background parks never navigate (null plan).
   const planForwardNavigation = useCallback(
     (threadKey: string, coParkingKeys?: ReadonlySet<string>): (() => void) | null => {
@@ -3099,10 +3132,12 @@ export default function Sidebar() {
       const nextThread = nextCardKey ? threadByKeyRef.current.get(nextCardKey) : null;
       return nextThread
         ? () => navigateToThread(scopeThreadRef(nextThread.environmentId, nextThread.id))
-        : shell
+        : shell?.projectId
           ? () =>
               void handleNewThreadRef.current(scopeProjectRef(shell.environmentId, shell.projectId))
-          : () => void router.navigate({ to: "/" });
+          : // A standalone thread has no project draft to fall back to, and
+            // minting another standalone thread would leave an empty one behind.
+            () => void router.navigate({ to: "/" });
     },
     [navigateToThread, router],
   );
@@ -4844,6 +4879,7 @@ export default function Sidebar() {
                             onUnsnooze={attemptUnsnooze}
                             onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
+                            onDiscardEmptyThread={discardEmptyThread}
                             onFileDropThreads={handleThreadFileDrop}
                           />
                         );
