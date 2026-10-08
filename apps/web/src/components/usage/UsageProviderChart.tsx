@@ -28,6 +28,31 @@ interface UsageProviderChartProps {
   readonly referenceTime: string | undefined;
   readonly resolution: "day" | "hour";
   readonly timeZone: string;
+  /** Inclusive focused period keys, drawn as a band over the plot. */
+  readonly selection: UsagePeriodRange | null;
+  readonly onSelectionChange: (selection: UsagePeriodRange | null) => void;
+}
+
+export interface UsagePeriodRange {
+  readonly start: string;
+  readonly end: string;
+}
+
+/**
+ * Resolves a click or drag between two period indexes. Clicking the period that
+ * is already the whole selection clears it, so a click is its own way out.
+ */
+export function resolvePeriodSelection(
+  periods: readonly string[],
+  anchor: number,
+  current: number,
+  selection: UsagePeriodRange | null,
+): UsagePeriodRange | null {
+  const start = periods[Math.min(anchor, current)];
+  const end = periods[Math.max(anchor, current)];
+  if (start === undefined || end === undefined) return null;
+  if (start === end && selection?.start === start && selection.end === end) return null;
+  return { start, end };
 }
 
 /** One day's per-provider values, shared by the paths and the hover readout. */
@@ -179,6 +204,8 @@ export function UsageProviderChart({
   referenceTime,
   resolution,
   timeZone,
+  selection,
+  onSelectionChange,
 }: UsageProviderChartProps) {
   const periods = resolution === "hour" ? hours : days;
   const byPeriod = useMemo(
@@ -192,6 +219,7 @@ export function UsageProviderChart({
   const plotRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const hoverPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<{ anchor: number; current: number } | null>(null);
 
   const { paths, ticks, stepX, toY, series } = useMemo(() => {
     if (periods.length === 0) {
@@ -288,22 +316,95 @@ export function UsageProviderChart({
     return () => observer.disconnect();
   }, [hoverIndex, positionTooltip]);
 
-  const handleMove = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
+  const indexAt = useCallback(
+    (clientX: number, clientY: number) => {
       const plot = plotRef.current;
-      if (plot === null || periods.length === 0) return;
+      if (plot === null || periods.length === 0) return null;
       const bounds = plot.getBoundingClientRect();
-      if (bounds.width === 0) return;
-      const localX = Math.min(bounds.width, Math.max(0, event.clientX - bounds.left));
-      const localY = Math.min(bounds.height, Math.max(0, event.clientY - bounds.top));
-      const fraction = localX / bounds.width;
-      const index = Math.round(fraction * (periods.length - 1));
+      if (bounds.width === 0) return null;
+      const localX = Math.min(bounds.width, Math.max(0, clientX - bounds.left));
+      const localY = Math.min(bounds.height, Math.max(0, clientY - bounds.top));
       hoverPositionRef.current = { x: localX, y: localY };
-      positionTooltip();
-      setHoverIndex(Math.min(periods.length - 1, Math.max(0, index)));
+      const index = Math.round((localX / bounds.width) * (periods.length - 1));
+      return Math.min(periods.length - 1, Math.max(0, index));
     },
-    [periods.length, positionTooltip],
+    [periods.length],
   );
+
+  const showIndex = (index: number) => {
+    positionTooltip();
+    setHoverIndex(index);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const index = indexAt(event.clientX, event.clientY);
+    if (index === null) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({ anchor: index, current: index });
+    showIndex(index);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const index = indexAt(event.clientX, event.clientY);
+    if (index === null) return;
+    if (drag !== null && drag.current !== index) setDrag({ anchor: drag.anchor, current: index });
+    showIndex(index);
+  };
+
+  const handlePointerUp = () => {
+    if (drag === null) return;
+    onSelectionChange(resolvePeriodSelection(periods, drag.anchor, drag.current, selection));
+    setDrag(null);
+  };
+
+  /** Arrow keys move the readout; Enter focuses it; Shift extends the focus. */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const plot = plotRef.current;
+    if (plot === null || periods.length === 0) return;
+    const last = periods.length - 1;
+    const from = hoverIndex ?? (selection ? periods.indexOf(selection.end) : last);
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    let next: number | null = null;
+    if (step !== undefined) next = Math.min(last, Math.max(0, from + step));
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+
+    if (next !== null) {
+      event.preventDefault();
+      hoverPositionRef.current = {
+        x: last === 0 ? 0 : (next / last) * plot.clientWidth,
+        y: 0,
+      };
+      showIndex(next);
+      if (event.shiftKey) {
+        // Keep the edge opposite the cursor fixed so Shift+arrows can grow or shrink.
+        const start = selection ? periods.indexOf(selection.start) : -1;
+        const end = selection ? periods.indexOf(selection.end) : -1;
+        const anchor = start < 0 || end < 0 ? from : from === start ? end : start;
+        onSelectionChange(resolvePeriodSelection(periods, anchor, next, null));
+      }
+      return;
+    }
+    if ((event.key === "Enter" || event.key === " ") && hoverIndex !== null) {
+      event.preventDefault();
+      onSelectionChange(resolvePeriodSelection(periods, hoverIndex, hoverIndex, selection));
+    }
+  };
+
+  const band = (() => {
+    const range =
+      drag !== null
+        ? { lo: Math.min(drag.anchor, drag.current), hi: Math.max(drag.anchor, drag.current) }
+        : selection === null
+          ? null
+          : { lo: periods.indexOf(selection.start), hi: periods.indexOf(selection.end) };
+    if (range === null || range.lo < 0 || range.hi < 0) return null;
+    const half = periods.length === 1 ? VIEW_WIDTH / 2 : stepX / 2;
+    const x1 = Math.max(0, range.lo * stepX - half);
+    const x2 = Math.min(VIEW_WIDTH, range.hi * stepX + half);
+    return { x: x1, width: Math.max(0, x2 - x1) };
+  })();
 
   const hoveredPeriod = hoverIndex === null ? undefined : periods[hoverIndex];
   const hoveredColumn = hoverIndex === null ? undefined : series[hoverIndex];
@@ -332,9 +433,21 @@ export function UsageProviderChart({
 
         <div
           ref={plotRef}
-          className="relative h-56 flex-1"
-          onMouseMove={handleMove}
-          onMouseLeave={() => {
+          role="group"
+          tabIndex={0}
+          aria-label="Usage over time. Click or drag to focus a period. Use arrow keys to inspect, Enter to focus, and Shift with arrows to extend."
+          className="relative h-56 flex-1 cursor-crosshair touch-pan-y rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => setDrag(null)}
+          onPointerLeave={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            hoverPositionRef.current = null;
+            setHoverIndex(null);
+          }}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
             hoverPositionRef.current = null;
             setHoverIndex(null);
           }}
@@ -362,6 +475,18 @@ export function UsageProviderChart({
                 />
               );
             })}
+
+            {band === null ? null : (
+              <rect
+                x={band.x}
+                y={0}
+                width={band.width}
+                height={VIEW_HEIGHT}
+                fill="currentColor"
+                className="text-foreground"
+                fillOpacity={0.07}
+              />
+            )}
 
             {/* Fills first, then every stroke, so no series covers another's line. */}
             {paths.map(({ provider, area }) => (

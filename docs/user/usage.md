@@ -44,6 +44,12 @@ On web and desktop, use the environment dropdown to filter costs, tokens, and li
 environments are selected by default. The dropdown shows which environments are still scanning;
 results appear as each one responds.
 
+On web and desktop, click or drag across the chart to focus an hour, day, or range. Click a
+provider or a row in the breakdown to focus it too. Totals, token mix, and the breakdown then
+narrow to your selection. Remove one filter from its chip, or press `Escape` to clear them all.
+Session counts cover whole sessions, so they are hidden while a period or model is focused;
+response counts remain.
+
 If recent work is missing or a new model shows no cost, refresh to rescan session history and
 update model pricing.
 

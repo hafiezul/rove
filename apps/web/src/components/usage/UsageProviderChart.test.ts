@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildPeriodColumns, niceScale } from "./UsageProviderChart";
+import { buildPeriodColumns, niceScale, resolvePeriodSelection } from "./UsageProviderChart";
 import { providersWithUsage } from "./usageProviders";
 
 describe("niceScale", () => {
@@ -139,5 +139,29 @@ describe("hourly chart columns", () => {
         "cost",
       ).map((column) => column.total),
     ).toEqual([0, 4, 0]);
+  });
+});
+
+describe("resolvePeriodSelection", () => {
+  const days = ["2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04"];
+
+  it("orders a drag in either direction", () => {
+    expect(resolvePeriodSelection(days, 3, 1, null)).toEqual({
+      start: "2026-08-02",
+      end: "2026-08-04",
+    });
+  });
+
+  it("toggles a click on the already-focused single period", () => {
+    const single = { start: "2026-08-03", end: "2026-08-03" };
+    expect(resolvePeriodSelection(days, 2, 2, null)).toEqual(single);
+    expect(resolvePeriodSelection(days, 2, 2, single)).toBeNull();
+  });
+
+  it("narrows a range to a clicked period inside it", () => {
+    expect(resolvePeriodSelection(days, 1, 1, { start: "2026-08-01", end: "2026-08-04" })).toEqual({
+      start: "2026-08-02",
+      end: "2026-08-02",
+    });
   });
 });

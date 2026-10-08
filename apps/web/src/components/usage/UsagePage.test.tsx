@@ -70,6 +70,7 @@ const environments = [
 beforeEach(() => {
   testState.useUsage.mockReturnValue({
     merged: mergeUsage([], USAGE_CONTRACT_VERSION),
+    answered: [],
     environments,
     selectedEnvironments: environments,
     isPending: false,
