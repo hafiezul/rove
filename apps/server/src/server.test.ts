@@ -11759,6 +11759,104 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
+  it.effect("checks out the base branch itself when the bootstrap asks for it", () =>
+    Effect.gen(function* () {
+      const dispatchedCommands: Array<OrchestrationCommand> = [];
+      const fetchRemote = vi.fn(
+        (_: Parameters<GitVcsDriver.GitVcsDriver["Service"]["fetchRemote"]>[0]) => Effect.void,
+      );
+      const createWorktree = vi.fn(
+        (_: Parameters<GitVcsDriver.GitVcsDriver["Service"]["createWorktree"]>[0]) =>
+          Effect.succeed({
+            worktree: { refName: "feature/shared", path: "/tmp/bootstrap-worktree" },
+          }),
+      );
+
+      yield* buildAppUnderTest({
+        layers: {
+          vcsDriver: {
+            isInsideWorkTree: () => Effect.succeed(true),
+          },
+          gitVcsDriver: {
+            execute: () => Effect.succeed(SUCCESSFUL_GIT_EXECUTION),
+            remoteExists: () => Effect.succeed(true),
+            fetchRemote,
+            createWorktree,
+          },
+          orchestrationEngine: {
+            dispatch: (command) =>
+              Effect.sync(() => {
+                dispatchedCommands.push(command);
+                return { sequence: dispatchedCommands.length };
+              }),
+            readEvents: () => Stream.empty,
+          },
+        },
+      });
+
+      const createdAt = "2026-01-01T00:00:00.000Z";
+      const wsUrl = yield* getWsServerUrl("/ws");
+      yield* Effect.scoped(
+        withWsRpcClient(wsUrl, (client) =>
+          client[ORCHESTRATION_WS_METHODS.dispatchCommand]({
+            type: "thread.turn.start",
+            commandId: CommandId.make("cmd-bootstrap-checkout-base"),
+            threadId: ThreadId.make("thread-bootstrap-checkout-base"),
+            message: {
+              messageId: MessageId.make("msg-bootstrap-checkout-base"),
+              role: "user",
+              text: "hello",
+              attachments: [],
+            },
+            modelSelection: defaultModelSelection,
+            runtimeMode: "full-access",
+            interactionMode: "default",
+            bootstrap: {
+              createThread: {
+                projectId: defaultProjectId,
+                title: "Bootstrap Thread",
+                modelSelection: defaultModelSelection,
+                runtimeMode: "full-access",
+                interactionMode: "default",
+                branch: "origin/feature/shared",
+                worktreePath: null,
+                createdAt,
+              },
+              prepareWorktree: {
+                projectCwd: "/tmp/project",
+                baseBranch: "origin/feature/shared",
+                checkoutBaseBranch: true,
+                startFromOrigin: true,
+              },
+            },
+            createdAt,
+          }),
+        ),
+      );
+
+      // The remote branch is refreshed by name, and the checkout keeps the ref
+      // name: start-from-origin must not swap it for a commit and no new
+      // branch is requested.
+      assert.deepEqual(fetchRemote.mock.calls[0]?.[0], {
+        cwd: "/tmp/project",
+        remoteName: "origin",
+        refName: "feature/shared",
+      });
+      assert.deepEqual(createWorktree.mock.calls[0]?.[0], {
+        cwd: "/tmp/project",
+        refName: "origin/feature/shared",
+        path: null,
+      });
+      const metaUpdate = dispatchedCommands.find(
+        (command) => command.type === "thread.meta.update",
+      );
+      assert.equal(
+        metaUpdate?.type === "thread.meta.update" ? metaUpdate.branch : null,
+        "feature/shared",
+      );
+    }).pipe(Effect.provide(NodeHttpServer.layerTest)),
+  );
+
   it.effect.each([
     { caseName: "a non-repository", isRepository: false, failFetch: false },
     { caseName: "a base without a commit", isRepository: true, failFetch: false },

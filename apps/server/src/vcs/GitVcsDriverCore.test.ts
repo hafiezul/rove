@@ -3132,6 +3132,63 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
       );
     }
 
+    it.effect("checks out a remote-tracking ref as a local branch tracking it", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const remote = yield* makeTmpDir("git-remote-");
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        yield* git(remote, ["init", "--bare"]);
+        yield* git(cwd, ["remote", "add", "origin", remote]);
+        yield* git(cwd, ["push", "-u", "origin", initialBranch]);
+        yield* git(cwd, ["push", "origin", `${initialBranch}:refs/heads/feature/shared`]);
+        yield* git(cwd, ["fetch", "origin"]);
+        const pathService = yield* Path.Path;
+        const worktreesRoot = yield* makeTmpDir("git-worktrees-");
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+
+        const created = yield* driver.createWorktree({
+          cwd,
+          path: pathService.join(worktreesRoot, "shared"),
+          refName: "origin/feature/shared",
+        });
+
+        assert.equal(created.worktree.refName, "feature/shared");
+        assert.equal(
+          yield* git(created.worktree.path, ["branch", "--show-current"]),
+          "feature/shared",
+        );
+        assert.equal(
+          yield* git(created.worktree.path, ["rev-parse", "--abbrev-ref", "@{upstream}"]),
+          "origin/feature/shared",
+        );
+
+        // With the local branch now present, the same ref reuses it.
+        yield* driver.removeWorktree({ cwd, path: created.worktree.path });
+        const reused = yield* driver.createWorktree({
+          cwd,
+          path: pathService.join(worktreesRoot, "shared-again"),
+          refName: "origin/feature/shared",
+        });
+        assert.equal(reused.worktree.refName, "feature/shared");
+        assert.equal(
+          yield* git(reused.worktree.path, ["branch", "--show-current"]),
+          "feature/shared",
+        );
+
+        const busy = yield* driver
+          .createWorktree({
+            cwd,
+            path: pathService.join(worktreesRoot, "busy"),
+            refName: initialBranch,
+          })
+          .pipe(Effect.result);
+        assert.isTrue(Result.isFailure(busy));
+        if (Result.isFailure(busy)) {
+          assert.include(busy.failure.detail, `Branch ${initialBranch} is already checked out`);
+        }
+      }),
+    );
+
     it.effect("creates a worktree from the latest fetched remote commit", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();

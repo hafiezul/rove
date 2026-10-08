@@ -113,6 +113,7 @@ import { isModelPickerOpen } from "../modelPickerVisibility";
 import { useShortcutModifierState } from "../shortcutModifierState";
 import { ensureLocalApi, readLocalApi } from "../localApi";
 import { useComposerDraftStore } from "../composerDraftStore";
+import { useContinueThreadOnEnvironment } from "../hooks/useContinueThreadOnEnvironment";
 import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 import { useDesktopUpdateState } from "../state/desktopUpdate";
 
@@ -1138,6 +1139,7 @@ interface SidebarProjectItemProps {
   openPullRequestsInRightPanel: boolean;
   newThreadShortcutLabel: string | null;
   handleNewThread: ReturnType<typeof useNewThreadHandler>;
+  continueThread: ReturnType<typeof useContinueThreadOnEnvironment>;
   archiveThread: ReturnType<typeof useThreadActions>["archiveThread"];
   deleteThread: ReturnType<typeof useThreadActions>["deleteThread"];
   threadJumpLabelByKey: ReadonlyMap<string, string>;
@@ -1159,6 +1161,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     openPullRequestsInRightPanel,
     newThreadShortcutLabel,
     handleNewThread,
+    continueThread,
     archiveThread,
     deleteThread,
     threadJumpLabelByKey,
@@ -2250,10 +2253,25 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             );
       const threadWorkspacePath =
         thread.worktreePath ?? threadProject?.workspaceRoot ?? project.workspaceRoot ?? null;
+      const continueTargets = continueThread.resolveTargets(threadRef);
+      const isRunning = thread.session?.status === "running" && thread.session.activeTurnId != null;
       const clicked = await api.contextMenu.show(
         [
           ...(thread.branch
             ? [{ id: "new-thread-on-branch", label: `New thread on ${thread.branch}` }]
+            : []),
+          ...(thread.branch && continueTargets.length > 0
+            ? [
+                {
+                  id: "continue-on",
+                  label: "Continue on",
+                  disabled: isRunning,
+                  children: continueTargets.map((target) => ({
+                    id: `continue-on:${target.environmentId}`,
+                    label: target.label,
+                  })),
+                },
+              ]
             : []),
           { id: "rename", label: "Rename thread" },
           { id: "mark-unread", label: "Mark unread" },
@@ -2264,6 +2282,14 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         ],
         position,
       );
+
+      const continueTarget = continueTargets.find(
+        (target) => clicked === `continue-on:${target.environmentId}`,
+      );
+      if (continueTarget) {
+        await continueThread.continueOn(threadRef, continueTarget);
+        return;
+      }
 
       if (clicked === "project-settings") {
         if (isMobile) setOpenMobile(false);
@@ -2356,6 +2382,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       copyThreadIdToClipboard,
       deleteThread,
       handleNewThread,
+      continueThread,
       isMobile,
       markThreadUnread,
       memberProjectByScopedKey,
@@ -2889,6 +2916,7 @@ interface SidebarProjectsContentProps {
   handleProjectDragEnd: (event: DragEndEvent) => void;
   handleProjectDragCancel: (event: DragCancelEvent) => void;
   handleNewThread: ReturnType<typeof useNewThreadHandler>;
+  continueThread: ReturnType<typeof useContinueThreadOnEnvironment>;
   archiveThread: ReturnType<typeof useThreadActions>["archiveThread"];
   deleteThread: ReturnType<typeof useThreadActions>["deleteThread"];
   sortedProjects: readonly SidebarProjectSnapshot[];
@@ -2932,6 +2960,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     handleProjectDragEnd,
     handleProjectDragCancel,
     handleNewThread,
+    continueThread,
     archiveThread,
     deleteThread,
     sortedProjects,
@@ -3101,6 +3130,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                         openPullRequestsInRightPanel={openPullRequestsInRightPanel}
                         newThreadShortcutLabel={newThreadShortcutLabel}
                         handleNewThread={handleNewThread}
+                        continueThread={continueThread}
                         archiveThread={archiveThread}
                         deleteThread={deleteThread}
                         threadJumpLabelByKey={threadJumpLabelByKey}
@@ -3134,6 +3164,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                 openPullRequestsInRightPanel={openPullRequestsInRightPanel}
                 newThreadShortcutLabel={newThreadShortcutLabel}
                 handleNewThread={handleNewThread}
+                continueThread={continueThread}
                 archiveThread={archiveThread}
                 deleteThread={deleteThread}
                 threadJumpLabelByKey={threadJumpLabelByKey}
@@ -3171,6 +3202,7 @@ export default function LegacySidebar() {
   const sidebarThreadPreviewCount = useClientSettings((s) => s.sidebarThreadPreviewCount);
   const updateSettings = useUpdateClientSettings();
   const handleNewThread = useNewThreadHandler();
+  const continueThread = useContinueThreadOnEnvironment();
   const { archiveThread, deleteThread } = useThreadActions();
   const { isMobile, setOpenMobile } = useSidebar();
   const routeTarget = useParams({
@@ -3829,6 +3861,7 @@ export default function LegacySidebar() {
         handleProjectDragEnd={handleProjectDragEnd}
         handleProjectDragCancel={handleProjectDragCancel}
         handleNewThread={handleNewThread}
+        continueThread={continueThread}
         archiveThread={archiveThread}
         deleteThread={deleteThread}
         sortedProjects={sortedProjects}

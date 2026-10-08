@@ -76,6 +76,13 @@ const ICON_PATHS: Record<string, ReadonlyArray<{ tag: string; attrs: Record<stri
     { tag: "path", attrs: { d: "M12 8v6" } },
     { tag: "path", attrs: { d: "M9 11h6" } },
   ],
+  "monitor-up": [
+    { tag: "path", attrs: { d: "m9 10 3-3 3 3" } },
+    { tag: "path", attrs: { d: "M12 13V7" } },
+    { tag: "rect", attrs: { width: "20", height: "14", x: "2", y: "3", rx: "2" } },
+    { tag: "path", attrs: { d: "M12 17v4" } },
+    { tag: "path", attrs: { d: "M8 21h8" } },
+  ],
   pin: [
     { tag: "path", attrs: { d: "M12 17v5" } },
     {

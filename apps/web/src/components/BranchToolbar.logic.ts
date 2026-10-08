@@ -6,7 +6,7 @@ import type {
   WorktreeSubmodules,
 } from "@rove-code/contracts";
 import * as Schema from "effect/Schema";
-import { sanitizeNewRefName } from "@rove-code/shared/git";
+import { deriveLocalBranchNameFromRemoteRef, sanitizeNewRefName } from "@rove-code/shared/git";
 import { toSortableTimestamp } from "../lib/threadSort";
 export {
   dedupeRemoteBranchesWithLocalMatches,
@@ -215,6 +215,13 @@ export function resolveBranchTriggerLabel(input: {
   resolvedActiveBranch: string | null;
   resolvedActiveBranchIsRemote: boolean | null;
   startFromOrigin: boolean;
+  /** The new worktree checks out the selected branch instead of branching off it. */
+  checkoutBaseBranch?: boolean;
+  /**
+   * The project's primary remote. A ref under it reads as a remote ref even
+   * before this checkout has fetched it, as a branch just pushed elsewhere is.
+   */
+  primaryRemoteName?: string | null;
 }): string {
   const {
     activeWorktreePath,
@@ -227,6 +234,21 @@ export function resolveBranchTriggerLabel(input: {
     return "Select ref";
   }
   if (effectiveEnvMode === "worktree" && !activeWorktreePath) {
+    if (input.checkoutBaseBranch) {
+      // A remote ref lands on its local tracking branch, so name that one.
+      const remotePrefix = input.primaryRemoteName ? `${input.primaryRemoteName}/` : null;
+      if (resolvedActiveBranchIsRemote) {
+        return deriveLocalBranchNameFromRemoteRef(resolvedActiveBranch);
+      }
+      if (
+        resolvedActiveBranchIsRemote === null &&
+        remotePrefix !== null &&
+        resolvedActiveBranch.startsWith(remotePrefix)
+      ) {
+        return resolvedActiveBranch.slice(remotePrefix.length);
+      }
+      return resolvedActiveBranch;
+    }
     const baseRef =
       startFromOrigin && resolvedActiveBranchIsRemote === false
         ? `origin/${resolvedActiveBranch}`
