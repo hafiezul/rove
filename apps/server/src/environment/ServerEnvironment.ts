@@ -220,6 +220,7 @@ export const make = Effect.gen(function* () {
       inlineMessageContext: true,
       requiredWorktreeBootstrap: true,
       worktreeCheckoutBaseBranch: true,
+      threadContinuationLinks: true,
       threadSettlement: true,
       threadAutoSettlement: true,
       threadUsageLimitRecovery: true,

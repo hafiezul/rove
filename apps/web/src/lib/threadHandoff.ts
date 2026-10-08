@@ -1,10 +1,14 @@
-import type {
-  EnvironmentId,
-  OrchestrationMessage,
-  ProjectId,
-  RepositoryIdentity,
-  VcsStatusResult,
+import {
+  THREAD_CONTINUED_ACTIVITY_KIND,
+  ThreadContinuationLink,
+  type EnvironmentId,
+  type OrchestrationMessage,
+  type OrchestrationThreadActivity,
+  type ProjectId,
+  type RepositoryIdentity,
+  type VcsStatusResult,
 } from "@rove-code/contracts";
+import * as Schema from "effect/Schema";
 import { assistantCitationsToPlainText } from "@rove-code/shared/assistantCitations";
 
 import { stripInlineContextReferences } from "./composerContextReferences";
@@ -131,4 +135,22 @@ export function buildHandoffPrompt(input: {
     "",
     "Review the branch and continue where that thread left off.",
   ].join("\n");
+}
+
+const isThreadContinuationLink = Schema.is(ThreadContinuationLink);
+
+/** The most recent continuation recorded on a thread, newest activity last. */
+export function resolveLatestContinuation(
+  activities: ReadonlyArray<Pick<OrchestrationThreadActivity, "kind" | "payload">>,
+): ThreadContinuationLink | null {
+  for (let index = activities.length - 1; index >= 0; index -= 1) {
+    const activity = activities[index]!;
+    if (
+      activity.kind === THREAD_CONTINUED_ACTIVITY_KIND &&
+      isThreadContinuationLink(activity.payload)
+    ) {
+      return activity.payload;
+    }
+  }
+  return null;
 }

@@ -1,6 +1,6 @@
 import { scopeProjectRef } from "@rove-code/client-runtime/environment";
 import { squashAtomCommandFailure } from "@rove-code/client-runtime/state/runtime";
-import type { ScopedThreadRef } from "@rove-code/contracts";
+import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@rove-code/contracts";
 import { useCallback, useMemo } from "react";
 
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
@@ -14,8 +14,10 @@ import {
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { readProject, readProjects, readThreadShell, waitForThreadDetail } from "../state/entities";
 import { environmentServerConfigsAtom } from "../state/server";
+import { threadEnvironment } from "../state/threads";
 import { useAtomCommand } from "../state/use-atom-command";
 import { vcsEnvironment } from "../state/vcs";
+import { useThreadHandoffStore } from "../threadHandoffStore";
 import { useWorktreeCheckoutStore } from "../worktreeCheckoutStore";
 import { useNewThreadHandler } from "./useHandleNewThread";
 
@@ -28,6 +30,7 @@ function readEnvironments() {
         label: config.environment.label,
         supportsCheckoutBaseBranch:
           config.environment.capabilities.worktreeCheckoutBaseBranch === true,
+        supportsContinuationLinks: config.environment.capabilities.threadContinuationLinks === true,
       },
     ]),
   );
@@ -103,10 +106,69 @@ export function useContinueThreadOnEnvironment() {
       );
       if (opened === null) return;
       useWorktreeCheckoutStore.getState().setCheckoutBaseBranch(opened.threadId, true);
+      useThreadHandoffStore.getState().setPending(opened.threadId, {
+        sourceEnvironmentId: threadRef.environmentId,
+        sourceThreadId: threadRef.threadId,
+      });
       useComposerDraftStore.getState().setPrompt(opened.draftId, prompt);
     },
     [handleNewThread, refreshStatus],
   );
 
   return useMemo(() => ({ resolveTargets, continueOn }), [continueOn, resolveTargets]);
+}
+
+/**
+ * Links a thread created from a "Continue on" draft with the thread it came
+ * from, on both environments. Called once the draft's first send succeeds.
+ * Best effort: a missing link never undoes the continued thread.
+ */
+export function useRecordThreadHandoff() {
+  const recordContinuation = useAtomCommand(threadEnvironment.recordContinuation, {
+    reportFailure: false,
+  });
+  return useCallback(
+    async (target: { readonly environmentId: EnvironmentId; readonly threadId: ThreadId }) => {
+      const pending = useThreadHandoffStore.getState().take(target.threadId);
+      if (pending === null) return;
+      const environments = readEnvironments();
+      const source = environments.get(pending.sourceEnvironmentId);
+      const destination = environments.get(target.environmentId);
+      if (!source || !destination) return;
+      const createdAt = new Date().toISOString();
+      await Promise.all([
+        destination.supportsContinuationLinks
+          ? recordContinuation({
+              environmentId: target.environmentId,
+              input: {
+                threadId: target.threadId,
+                link: {
+                  direction: "from",
+                  environmentId: pending.sourceEnvironmentId,
+                  threadId: pending.sourceThreadId,
+                  environmentLabel: source.label,
+                },
+                createdAt,
+              },
+            })
+          : null,
+        source.supportsContinuationLinks
+          ? recordContinuation({
+              environmentId: pending.sourceEnvironmentId,
+              input: {
+                threadId: pending.sourceThreadId,
+                link: {
+                  direction: "to",
+                  environmentId: target.environmentId,
+                  threadId: target.threadId,
+                  environmentLabel: destination.label,
+                },
+                createdAt,
+              },
+            })
+          : null,
+      ]);
+    },
+    [recordContinuation],
+  );
 }

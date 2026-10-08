@@ -282,6 +282,31 @@ describe("resolveBranchTriggerLabel", () => {
     ).toBe("feature/demo");
   });
 
+  it("names a not-yet-fetched branch under the project's remote by its local name", () => {
+    expect(
+      resolveBranchTriggerLabel({
+        activeWorktreePath: null,
+        effectiveEnvMode: "worktree",
+        resolvedActiveBranch: "origin/feature/demo",
+        resolvedActiveBranchIsRemote: null,
+        startFromOrigin: false,
+        checkoutBaseBranch: true,
+        primaryRemoteName: "origin",
+      }),
+    ).toBe("feature/demo");
+    expect(
+      resolveBranchTriggerLabel({
+        activeWorktreePath: null,
+        effectiveEnvMode: "worktree",
+        resolvedActiveBranch: "feature/demo",
+        resolvedActiveBranchIsRemote: null,
+        startFromOrigin: false,
+        checkoutBaseBranch: true,
+        primaryRemoteName: "origin",
+      }),
+    ).toBe("feature/demo");
+  });
+
   it("does not fabricate an origin ref while branch metadata is loading", () => {
     expect(
       resolveBranchTriggerLabel({

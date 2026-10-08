@@ -1,7 +1,12 @@
-import { EnvironmentId, ProjectId, type VcsStatusResult } from "@rove-code/contracts";
+import { EnvironmentId, ProjectId, ThreadId, type VcsStatusResult } from "@rove-code/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildHandoffPrompt, resolveHandoffBlocker, resolveHandoffTargets } from "./threadHandoff";
+import {
+  buildHandoffPrompt,
+  resolveHandoffBlocker,
+  resolveHandoffTargets,
+  resolveLatestContinuation,
+} from "./threadHandoff";
 
 const laptop = EnvironmentId.make("laptop");
 const server = EnvironmentId.make("server");
@@ -147,5 +152,26 @@ describe("buildHandoffPrompt", () => {
     expect(prompt).toContain("message-19");
     expect(prompt).not.toContain("message-0 ");
     expect(prompt.length).toBeLessThan(20_000);
+  });
+});
+
+describe("resolveLatestContinuation", () => {
+  it("returns the newest valid continuation and ignores other activities", () => {
+    const older = {
+      direction: "from" as const,
+      environmentId: laptop,
+      threadId: ThreadId.make("t-old"),
+      environmentLabel: "Laptop",
+    };
+    const newer = { ...older, direction: "to" as const, threadId: ThreadId.make("t-new") };
+    expect(
+      resolveLatestContinuation([
+        { kind: "thread.continued", payload: older },
+        { kind: "thread.continued", payload: newer },
+        { kind: "thread.continued", payload: { direction: "sideways" } },
+        { kind: "tool.completed", payload: newer },
+      ]),
+    ).toEqual(newer);
+    expect(resolveLatestContinuation([{ kind: "tool.completed", payload: {} }])).toBeNull();
   });
 });
