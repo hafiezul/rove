@@ -1,5 +1,5 @@
 /**
- * Anonymous PostHog telemetry service.
+ * Installation-scoped PostHog telemetry service.
  *
  * Persists an installation-scoped anonymous identifier, buffers events in
  * memory, and flushes batches over Effect's HTTP client.
@@ -31,7 +31,7 @@ interface BufferedAnalyticsEvent {
 
 const TelemetryEnvConfig = Config.all({
   posthogKey: Config.String("ROVE_POSTHOG_KEY").pipe(
-    Config.withDefault("phc_XOWci4oZP4VvLiEyrFqkFjP4CZn55mjYYBMREK5Wd6m"),
+    Config.withDefault("phc_yeQwVXeqVTddxs65mQDciB89XFT3VdixFEyPuHdEbR9V"),
   ),
   posthogHost: Config.String("ROVE_POSTHOG_HOST").pipe(
     Config.withDefault("https://us.i.posthog.com"),
@@ -85,6 +85,10 @@ function serverOsFromNodePlatform(platform: string): ClientOs {
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const telemetryConfig = yield* TelemetryEnvConfig;
+  if (!telemetryConfig.enabled) {
+    return AnalyticsService.of({ record: () => Effect.void, flush: Effect.void });
+  }
+
   const httpClient = yield* HttpClient.HttpClient;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const identifier = yield* getTelemetryIdentifier;

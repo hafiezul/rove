@@ -3,7 +3,11 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -47,7 +51,64 @@ interface RecordedBatchBody {
   }>;
 }
 
+const decodeBatchPayload = Schema.decodeEffect(
+  Schema.fromJsonString(
+    Schema.Struct({
+      api_key: Schema.String,
+      batch: Schema.Array(
+        Schema.Struct({
+          event: Schema.String,
+          distinct_id: Schema.String,
+          properties: Schema.Struct({ $process_person_profile: Schema.Boolean }),
+        }),
+      ),
+    }),
+  ),
+);
+
 it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
+  it.effect("uses Rove's project key and US ingestion host by default", () =>
+    Effect.gen(function* () {
+      const requests: Array<{ url: string; body: string }> = [];
+      const httpClient = HttpClient.make((request) =>
+        Effect.sync(() => {
+          requests.push({
+            url: request.url,
+            body:
+              request.body._tag === "Uint8Array" ? new TextDecoder().decode(request.body.body) : "",
+          });
+          return HttpClientResponse.fromWeb(request, new Response(null, { status: 200 }));
+        }),
+      );
+      const runtimeLayer = AnalyticsService.layer.pipe(
+        Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "rove-telemetry-default-" })),
+        Layer.provide(
+          Layer.mergeAll(
+            Layer.succeed(HttpClient.HttpClient, httpClient),
+            Layer.succeed(HostProcessPlatform, "linux"),
+            Layer.succeed(HostProcessArchitecture, "arm64"),
+            ConfigProvider.layer(ConfigProvider.fromUnknown({})),
+          ),
+        ),
+      );
+
+      yield* Effect.gen(function* () {
+        const analytics = yield* AnalyticsService.AnalyticsService;
+        yield* analytics.record("test.default");
+        yield* analytics.flush;
+      }).pipe(Effect.provide(runtimeLayer));
+
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0]?.url, "https://us.i.posthog.com/batch/");
+      const payload = yield* decodeBatchPayload(requests[0]?.body ?? "");
+      assert.equal(payload.api_key, "phc_yeQwVXeqVTddxs65mQDciB89XFT3VdixFEyPuHdEbR9V");
+      assert.equal(payload.batch.length, 1);
+      assert.equal(payload.batch[0]?.event, "test.default");
+      assert.match(payload.batch[0]?.distinct_id ?? "", /^[0-9a-f]{64}$/);
+      assert.isFalse(payload.batch[0]?.properties.$process_person_profile);
+    }),
+  );
+
   it.effect("flush drains all buffered events across multiple batches", () =>
     Effect.gen(function* () {
       const capturedRequests: Array<RecordedBatchRequest> = [];
@@ -151,9 +212,12 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
     }),
   );
 
-  it.effect("does not send batch requests when telemetry is disabled", () =>
+  it.effect("does not access identity files or send requests when telemetry is disabled", () =>
     Effect.gen(function* () {
       const capturedPaths: Array<string> = [];
+      const fileSystem = yield* FileSystem.FileSystem;
+      const identityReads: Array<string> = [];
+      const identityWrites: Array<string> = [];
       const serverConfigLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
         prefix: "rove-telemetry-disabled-",
       });
@@ -188,8 +252,25 @@ it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
         const analytics = yield* AnalyticsService.AnalyticsService;
         yield* analytics.record("test.disabled", { index: 1 });
         yield* analytics.flush;
-      }).pipe(Effect.provide(runtimeLayer));
+        const config = yield* ServerConfig.ServerConfig;
+        assert.isFalse(yield* fileSystem.exists(config.anonymousIdPath));
+      }).pipe(
+        Effect.provide(runtimeLayer),
+        Effect.provideService(FileSystem.FileSystem, {
+          ...fileSystem,
+          readFileString: (filePath, options) => {
+            identityReads.push(filePath);
+            return fileSystem.readFileString(filePath, options);
+          },
+          writeFileString: (filePath, contents, options) => {
+            identityWrites.push(filePath);
+            return fileSystem.writeFileString(filePath, contents, options);
+          },
+        }),
+      );
 
+      assert.deepEqual(identityReads, []);
+      assert.deepEqual(identityWrites, []);
       assert.deepEqual(capturedPaths, []);
     }),
   );
