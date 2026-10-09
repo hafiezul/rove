@@ -37,6 +37,7 @@ import {
 export const ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
   getWorkflowScript: "orchestration.getWorkflowScript",
+  getAgentTranscript: "orchestration.getAgentTranscript",
   getTurnDiff: "orchestration.getTurnDiff",
   getFullThreadDiff: "orchestration.getFullThreadDiff",
   searchThreads: "orchestration.searchThreads",
@@ -2428,6 +2429,67 @@ export class OrchestrationGetWorkflowScriptError extends Schema.TaggedError<Orch
   }
 }
 
+export const OrchestrationGetAgentTranscriptInput = Schema.Struct({
+  threadId: ThreadId,
+  /** Agents-row task id; only rows with `runHandles.hasTranscript` have one. */
+  taskId: TrimmedNonEmptyString,
+});
+export type OrchestrationGetAgentTranscriptInput = typeof OrchestrationGetAgentTranscriptInput.Type;
+
+export const OrchestrationAgentTranscriptEntry = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literals(["task", "user"]),
+    at: Schema.String,
+    text: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("text"),
+    at: Schema.String,
+    text: Schema.optional(Schema.String),
+    error: Schema.optional(Schema.String),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("tool"),
+    at: Schema.String,
+    id: Schema.String,
+    name: Schema.String,
+    target: Schema.optional(Schema.String),
+    status: Schema.Literals(["running", "completed", "failed"]),
+    output: Schema.optional(Schema.String),
+    durationMs: Schema.optional(Schema.Number),
+  }),
+]);
+export type OrchestrationAgentTranscriptEntry = typeof OrchestrationAgentTranscriptEntry.Type;
+
+export const OrchestrationGetAgentTranscriptResult = Schema.Struct({
+  entries: Schema.Array(OrchestrationAgentTranscriptEntry),
+  /** Older entries or long text were dropped to stay within size limits. */
+  truncated: Schema.Boolean,
+  model: Schema.optional(Schema.String),
+  /** The agent's own session file, when it kept one. */
+  sessionFile: Schema.optional(Schema.String),
+  command: Schema.optional(Schema.String),
+  cwd: Schema.optional(Schema.String),
+  costUsd: Schema.optional(Schema.Number),
+});
+export type OrchestrationGetAgentTranscriptResult =
+  typeof OrchestrationGetAgentTranscriptResult.Type;
+
+export class OrchestrationGetAgentTranscriptError extends Schema.TaggedError<OrchestrationGetAgentTranscriptError>()(
+  "OrchestrationGetAgentTranscriptError",
+  {
+    reason: Schema.Literals(["not-found", "read-failed"]),
+    taskId: Schema.String,
+    cause: Schema.optional(Schema.Defect()),
+  },
+) {
+  override get message(): string {
+    return this.reason === "not-found"
+      ? "No transcript was recorded for this agent."
+      : "The agent transcript could not be read.";
+  }
+}
+
 export const OrchestrationRpcSchemas = {
   dispatchCommand: {
     input: ClientOrchestrationCommand,
@@ -2436,6 +2498,10 @@ export const OrchestrationRpcSchemas = {
   getWorkflowScript: {
     input: OrchestrationGetWorkflowScriptInput,
     output: OrchestrationGetWorkflowScriptResult,
+  },
+  getAgentTranscript: {
+    input: OrchestrationGetAgentTranscriptInput,
+    output: OrchestrationGetAgentTranscriptResult,
   },
   getTurnDiff: {
     input: OrchestrationGetTurnDiffInput,

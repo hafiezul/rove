@@ -60,15 +60,8 @@ import { PI_THINKING_DESCRIPTOR_ID } from "./PiProvider.ts";
 import { acquirePiResource, disposePiResource, PI_STARTUP_TIMEOUT_MS } from "./PiLifecycle.ts";
 
 import { ProviderAdapterRequestError } from "../Errors.ts";
-import {
-  describeDialectToolTasks,
-  piBounded,
-  piRecord,
-  piTrimmed,
-  type PiSubagentDialect,
-  type PiSubagentTaskDescriptor,
-} from "./PiSubagentDialects.ts";
-import { piExampleSubagentDialect } from "./PiExampleSubagentDialect.ts";
+import { piBounded, piRecord, piTrimmed } from "./PiValues.ts";
+import type { PiAgentTaskDescriptor } from "./PiAgentRoster.ts";
 import { compactPiToolProgress } from "./PiRuntimeEvents.ts";
 import type {
   ProviderAdapterContract,
@@ -125,12 +118,6 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
 const PROVIDER = ProviderDriverKind.make("pi");
 const decodePiUserInput = Schema.decodeUnknownEffect(UserInputRequestedPayload);
 const decodePiExtensionStatus = Schema.decodeUnknownSync(PiExtensionStatusSnapshot);
-
-/**
- * Registered subagent dialects. Dispatch matches payload shapes without
- * branching on extension identity in the adapter.
- */
-const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [piExampleSubagentDialect];
 
 /**
  * Pi SDK `ImageContent` — a base64-encoded image inlined into a user message
@@ -358,13 +345,10 @@ interface PiSessionContext {
   pendingTurnAborted: boolean;
   /** Resolved tool-call arguments by toolCallId (Pi SDK events omit args). */
   toolCallArgs: Map<string, Record<string, SchemaJson>>;
-  /** Compact example snapshots used only when an interrupted call has no final details. */
-  exampleToolUpdates: Map<string, Record<string, SchemaJson>>;
   /** Progress is sampled before queueing work, so bursts cannot build a fiber backlog. */
   lastToolProgressAt: number;
+  /** Observed agents still running; Stop settles them. */
   readonly liveTaskIds: Set<string>;
-  /** Children settled by a tool update; the final result must not restart them. */
-  readonly settledTaskIds: Set<string>;
   readonly openUiRequestIds: Set<string>;
   readonly stopped: Deferred.Deferred<never, ProviderAdapterRequestError>;
   unsubscribe: () => void;
@@ -959,50 +943,47 @@ export function makePiAdapter(
           return turnId;
         });
 
-        const offerTaskDescriptors = (
-          turnId: TurnId,
-          descriptors: ReadonlyArray<PiSubagentTaskDescriptor>,
+        /** Agents rows from subagent observation (PiAgentObserver); they can outlive the turn. */
+        const offerAgentTask = (
+          descriptor: PiAgentTaskDescriptor,
         ): Effect.Effect<void, ProviderAdapterRequestError> =>
           Effect.gen(function* () {
-            for (const descriptor of descriptors) {
-              if (ctx.settledTaskIds.has(String(descriptor.payload.taskId))) continue;
-              const taskStamp = yield* makeEventStamp();
-              const taskBase = {
-                ...taskStamp,
-                provider: PROVIDER,
-                ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
-                threadId: ctx.threadId,
-                turnId,
-              } as const;
-              if (descriptor.type === "task.started") {
-                if (ctx.liveTaskIds.has(String(descriptor.payload.taskId))) continue;
-                ctx.liveTaskIds.add(String(descriptor.payload.taskId));
-                yield* offerRuntimeEvent({
+            const taskId = String(descriptor.payload.taskId);
+            const taskBase = {
+              ...(yield* makeEventStamp()),
+              provider: PROVIDER,
+              ...(boundInstanceId ? { providerInstanceId: boundInstanceId } : undefined),
+              threadId: ctx.threadId,
+              ...(ctx.activeTurnId ? { turnId: ctx.activeTurnId } : undefined),
+            } as const;
+            switch (descriptor.type) {
+              case "task.started":
+                ctx.liveTaskIds.add(taskId);
+                return yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.started",
                   payload: descriptor.payload,
                 });
-              } else if (descriptor.type === "task.progress") {
-                yield* offerRuntimeEvent({
+              case "task.progress":
+                return yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.progress",
                   payload: descriptor.payload,
                 });
-              } else if (descriptor.type === "task.updated") {
-                yield* offerRuntimeEvent({
+              case "task.updated":
+                if (descriptor.payload.status === "running") ctx.liveTaskIds.add(taskId);
+                return yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.updated",
                   payload: descriptor.payload,
                 });
-              } else {
-                ctx.liveTaskIds.delete(String(descriptor.payload.taskId ?? ""));
-                ctx.settledTaskIds.add(String(descriptor.payload.taskId ?? ""));
-                yield* offerRuntimeEvent({
+              case "task.completed":
+                ctx.liveTaskIds.delete(taskId);
+                return yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.completed",
                   payload: descriptor.payload,
                 });
-              }
             }
           });
 
@@ -1222,22 +1203,6 @@ export function makePiAdapter(
           }
           case "tool_execution_update": {
             if (ctx.activeTurnId === undefined) return;
-            const toolCallId = String(event.toolCallId ?? "");
-            const exampleUpdate = piRecord(event.exampleUpdate);
-            if (exampleUpdate !== undefined && toolCallId) {
-              ctx.exampleToolUpdates.set(toolCallId, exampleUpdate);
-              const toolArgs = piRecord(event.args) ?? resolveCachedPiToolArgs(ctx, toolCallId);
-              yield* offerTaskDescriptors(
-                ctx.activeTurnId,
-                describeDialectToolTasks(PI_SUBAGENT_DIALECTS, {
-                  toolName: String(event.toolName ?? ""),
-                  args: toolArgs,
-                  result: exampleUpdate,
-                  toolCallId,
-                  phase: "update",
-                }),
-              );
-            }
             yield* offerRuntimeEvent({
               ...base,
               type: "item.updated",
@@ -1259,8 +1224,6 @@ export function makePiAdapter(
             const toolArgs = piRecord(event.args) ?? resolveCachedPiToolArgs(ctx, toolCallId);
             const enrichment = describePiToolCall(toolName, toolArgs);
             ctx.toolCallArgs.delete(toolCallId);
-            const priorUpdate = ctx.exampleToolUpdates.get(toolCallId);
-            ctx.exampleToolUpdates.delete(toolCallId);
             const resultRecord = piRecord(event.result);
             yield* offerRuntimeEvent({
               ...base,
@@ -1278,26 +1241,6 @@ export function makePiAdapter(
                     : (enrichment.data ?? event.result),
               },
             });
-            // Feed the Agents roster: Pi subagent runs are otherwise visible
-            // only as parent tool rows. Synthesis rides after the tool row so
-            // a malformed payload can never break the row itself (the
-            // descriptor builder is total), and each task event carries the
-            // turn for timeline correlation.
-            const finalDetails = piRecord(resultRecord?.details);
-            const interrupted =
-              event.isError === true &&
-              priorUpdate !== undefined &&
-              (!finalDetails ||
-                (Array.isArray(finalDetails.results) && finalDetails.results.length === 0));
-            const subagentTasks = describeDialectToolTasks(PI_SUBAGENT_DIALECTS, {
-              toolName: String(event.toolName ?? ""),
-              args: toolArgs ?? event.args,
-              result: interrupted ? priorUpdate : event.result,
-              toolCallId: event.toolCallId,
-              isError: event.isError,
-              interrupted,
-            });
-            yield* offerTaskDescriptors(turnId, subagentTasks);
             return;
           }
           case "agent_end": {
@@ -1362,6 +1305,11 @@ export function makePiAdapter(
                 payload: { state: "compacted" },
               });
             }
+            return;
+          }
+          case "rove_agent_task": {
+            const task = event.task as PiAgentTaskDescriptor | undefined;
+            if (task?.payload?.taskId) yield* offerAgentTask(task);
             return;
           }
           case "rove_ui_request": {
@@ -1453,7 +1401,6 @@ export function makePiAdapter(
             ctx.pendingTurnAborted = false;
             ctx.lastSettledEntryId = ctx.session.getLeafId?.() ?? null;
             ctx.toolCallArgs.clear();
-            ctx.exampleToolUpdates.clear();
             yield* offerRuntimeEvent({
               ...base,
               type: "turn.completed",
@@ -1465,7 +1412,6 @@ export function makePiAdapter(
           case "agent_settled": {
             ctx.lastSettledEntryId = ctx.session.getLeafId?.() ?? null;
             ctx.toolCallArgs.clear();
-            ctx.exampleToolUpdates.clear();
             if (ctx.activeTurnId !== undefined) {
               const turnId = ctx.activeTurnId;
               const errorMessage = ctx.pendingTurnError;
@@ -1680,10 +1626,8 @@ export function makePiAdapter(
             pendingTurnError: undefined,
             pendingTurnAborted: false,
             toolCallArgs: new Map(),
-            exampleToolUpdates: new Map(),
             lastToolProgressAt: -Infinity,
             liveTaskIds: new Set(),
-            settledTaskIds: new Set(),
             openUiRequestIds: new Set(),
             stopped: yield* Deferred.make<never, ProviderAdapterRequestError>(),
             unsubscribe: () => {},
@@ -2264,7 +2208,6 @@ export function makePiAdapter(
         sessions.delete(threadId);
         ctx.unsubscribe();
         ctx.toolCallArgs.clear();
-        ctx.exampleToolUpdates.clear();
         yield* Deferred.fail(
           ctx.stopped,
           new ProviderAdapterRequestError({

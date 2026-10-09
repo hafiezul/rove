@@ -1,7 +1,6 @@
 import * as RuntimePredicate from "effect/Predicate";
 import type { PiSessionEventLike } from "./PiAdapter.ts";
-import { compactPiExampleUpdate } from "./PiExampleSubagentDialect.ts";
-import { piBounded, piRecord } from "./PiSubagentDialects.ts";
+import { piBounded, piRecord } from "./PiValues.ts";
 
 /** Bound cumulative tool output before either the IPC or adapter queue. Final results stay intact. */
 export function compactPiToolProgress(event: PiSessionEventLike): PiSessionEventLike {
@@ -16,16 +15,11 @@ export function compactPiToolProgress(event: PiSessionEventLike): PiSessionEvent
       if (progress.length >= 1024) break;
     }
   }
-  const exampleUpdate =
-    event.toolName === "subagent"
-      ? piRecord(compactPiExampleUpdate(event.partialResult))
-      : undefined;
   return {
     type: event.type,
     toolCallId: String(event.toolCallId ?? ""),
     toolName: piBounded(String(event.toolName ?? "tool"), 120),
     progress: progress.trim() || "Tool running",
-    ...(exampleUpdate !== undefined ? { exampleUpdate } : undefined),
   };
 }
 

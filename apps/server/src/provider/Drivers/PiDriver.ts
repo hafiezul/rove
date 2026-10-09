@@ -29,6 +29,8 @@ import { expandHomePath } from "../../pathExpansion.ts";
 import { mergeProviderInstanceEnvironment } from "../ProviderInstanceEnvironment.ts";
 import { makePiTextGeneration } from "../../textGeneration/PiTextGeneration.ts";
 import { ServerConfig } from "../../config.ts";
+import { agentTranscriptsRoot } from "../../orchestration/agentTranscriptQuery.ts";
+import { PI_AGENT_ENV } from "../Layers/PiAgentHook.ts";
 import { makePiAdapter } from "../Layers/PiAdapter.ts";
 import { LazyPiRuntime, PiRuntimeProcess } from "../Layers/PiRuntimeProcess.ts";
 import { PI_CONFIG_DIR } from "../PiSdkMetadata.ts";
@@ -103,6 +105,7 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
   create: ({ instanceId, displayName, accentColor, environment, enabled, config }) =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsService;
+      const { stateDir } = yield* ServerConfig;
       const processEnv = mergeProviderInstanceEnvironment(environment);
       const effectiveConfig = { ...config, enabled } satisfies PiSettings;
       // Sessions, the catalog host, and discovery all share this directory, so
@@ -141,7 +144,8 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
                   agentDir: effectiveAgentDir,
                 },
                 executable,
-                processEnv,
+                // Subagents the instance's threads start write transcripts here (ADR 0002).
+                { ...processEnv, [PI_AGENT_ENV.transcripts]: agentTranscriptsRoot(stateDir) },
               ),
             PI_RUNTIME_IDLE_MS,
           )

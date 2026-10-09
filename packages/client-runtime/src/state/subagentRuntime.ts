@@ -54,6 +54,8 @@ export interface SubagentRunHandles {
   readonly scriptPath?: string;
   readonly transcriptDir?: string;
   readonly sessionUrl?: string;
+  /** The server recorded a transcript (`orchestration.getAgentTranscript`). */
+  readonly hasTranscript?: boolean;
 }
 
 export interface RuntimeSubagent {
@@ -378,6 +380,7 @@ function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): vo
       scriptPath?: string;
       transcriptDir?: string;
       sessionUrl?: string;
+      hasTranscript?: boolean;
     } = {};
     const runId = asString(record.runId);
     if (runId) runHandles.runId = runId;
@@ -389,6 +392,7 @@ function fillMetadata(agent: MutableAgent, payload: Record<string, unknown>): vo
     // schema-validated on the read path (shipped XSS lesson).
     const sessionUrl = asString(record.sessionUrl);
     if (sessionUrl && /^https?:\/\//i.test(sessionUrl)) runHandles.sessionUrl = sessionUrl;
+    if (record.hasTranscript === true) runHandles.hasTranscript = true;
     if (Object.keys(runHandles).length > 0) {
       agent.runHandles = { ...agent.runHandles, ...runHandles };
     }

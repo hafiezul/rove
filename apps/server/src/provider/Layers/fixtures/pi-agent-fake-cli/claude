@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// Stands in for an agent CLI that streams JSON lines.
+const lines = [
+  {
+    type: "assistant",
+    message: {
+      content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "README.md" } }],
+    },
+  },
+  { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "ok" }] } },
+  { type: "result", result: "Review passed", usage: { input_tokens: 12, output_tokens: 4 } },
+];
+for (const line of lines) process.stdout.write(`${JSON.stringify(line)}\n`);

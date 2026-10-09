@@ -179,7 +179,9 @@ schedule to start another recovery cycle.
 
 ## Inspect agent work
 
-On web and desktop, use **Agents** to follow work delegated to subagents.
+On web and desktop, use **Agents** to follow work delegated to subagents. Select
+an agent to see what it is doing now, each step it has taken, and its result;
+press Escape or **Back** to return to the list.
 
 Expand a tool call in the conversation to see its full command and output.
 Summaries shorten shell wrappers and can still describe the latest call after it

@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeFSP from "node:fs/promises";
+
 import type { OrchestrationEvent } from "@rove-code/contracts";
 import { makeDrainableWorker } from "@rove-code/shared/DrainableWorker";
 import * as Cause from "effect/Cause";
@@ -7,6 +10,8 @@ import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
+import { ServerConfig } from "../../config.ts";
+import { agentTranscriptThreadDir } from "../agentTranscriptQuery.ts";
 import * as TerminalManager from "../../terminal/Manager.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
@@ -41,6 +46,7 @@ const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
   const providerService = yield* ProviderService;
   const terminalManager = yield* TerminalManager.TerminalManager;
+  const { stateDir } = yield* ServerConfig;
 
   const stopProviderSession = (threadId: ThreadDeletedEvent["payload"]["threadId"]) =>
     logCleanupCauseUnlessInterrupted({
@@ -56,12 +62,22 @@ const make = Effect.gen(function* () {
       threadId,
     });
 
+  const removeAgentTranscripts = (threadId: ThreadDeletedEvent["payload"]["threadId"]) =>
+    logCleanupCauseUnlessInterrupted({
+      effect: Effect.tryPromise(() =>
+        NodeFSP.rm(agentTranscriptThreadDir(stateDir, threadId), { recursive: true, force: true }),
+      ),
+      message: "thread deletion cleanup skipped agent transcript removal",
+      threadId,
+    });
+
   const processThreadDeleted = Effect.fn("processThreadDeleted")(function* (
     event: ThreadDeletedEvent,
   ) {
     const { threadId } = event.payload;
     yield* stopProviderSession(threadId);
     yield* closeThreadTerminals(threadId);
+    yield* removeAgentTranscripts(threadId);
   });
 
   const processThreadDeletedSafely = (event: ThreadDeletedEvent) =>
