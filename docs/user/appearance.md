@@ -5,6 +5,12 @@ appearance or stay in light or dark mode. To use different themes for light and 
 the corresponding preview within each theme. Appearance preferences are saved separately on each
 device or browser.
 
+Rove Code's own palette is the default. The palettes from before the redesign are listed under
+**Legacy themes**; choose **Classic** there to return to the neutral gray look that earlier
+versions used. The interface and code text use Atkinson Hyperlegible Next and Atkinson
+Hyperlegible Mono, which ship with the app. To use a font installed on your machine instead, pick
+it under **Settings → Appearance**.
+
 On web and desktop, use **Change theme** in the command palette to select a theme without leaving chat.
 Press **Cmd+Option+A** on macOS or **Ctrl+Alt+A** on Windows/Linux to open the theme picker directly.
 Use **Change appearance** in the command palette to choose System, Light, or Dark independently of

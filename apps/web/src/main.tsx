@@ -2,6 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createHashHistory, createBrowserHistory } from "@tanstack/react-router";
 
+// The interface and code faces ship with the app so every client renders the
+// same type; Settings -> Appearance can still swap in a local family.
+import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
+import "@fontsource-variable/atkinson-hyperlegible-next/wght-italic.css";
+import "@fontsource-variable/atkinson-hyperlegible-mono/wght.css";
 import "./index.css";
 
 import { prepareProviderAuthDelivery } from "./providerAuthDelivery";

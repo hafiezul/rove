@@ -18,13 +18,19 @@ import {
 } from "@rove-code/contracts";
 import * as RuntimePredicate from "effect/Predicate";
 
+/** Faces bundled with the app (see main.tsx), keyed by their CSS family name. */
+const BUNDLED_FONT_LABELS: Readonly<Record<string, string>> = {
+  "Atkinson Hyperlegible Next Variable": "Atkinson Hyperlegible Next",
+  "Atkinson Hyperlegible Mono Variable": "Atkinson Hyperlegible Mono",
+};
+
 export const DEFAULT_SANS_FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  '"Atkinson Hyperlegible Next Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
 
 // Concrete names first: some engines alias `ui-monospace` to the
 // proportional system UI font, which would break every code surface.
 export const DEFAULT_CODE_FONT_STACK =
-  '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+  '"Atkinson Hyperlegible Mono Variable", "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
 export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "rove:typography-advanced";
 
@@ -329,6 +335,9 @@ export function resolveDefaultFamilyLabel(stack: string): string | null {
   for (const raw of stack.split(",")) {
     const family = raw.trim().replace(/^(['"])(.*)\1$/, "$2");
     if (family.length === 0) continue;
+    // Bundled faces always render, but may not have loaded when probed.
+    const bundled = BUNDLED_FONT_LABELS[family];
+    if (bundled !== undefined) return bundled;
     if (
       /^(system-ui|sans-serif|serif|monospace|ui-monospace|-apple-system|BlinkMacSystemFont)$/i.test(
         family,

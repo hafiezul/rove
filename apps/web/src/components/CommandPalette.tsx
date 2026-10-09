@@ -81,7 +81,7 @@ import { useClientSettings } from "../hooks/useSettings";
 import { useTheme } from "../hooks/useTheme";
 import { useCustomThemes } from "../hooks/useCustomThemes";
 import { useEnvironmentThemeDefinitions } from "../hooks/useEnvironmentTheme";
-import { BUILT_IN_THEMES } from "@rove-code/shared/themePalettes";
+import { BUILT_IN_THEMES, isLegacyDesignTheme } from "@rove-code/shared/themePalettes";
 import { getThemeDefinition } from "../themePalette";
 import {
   STANDARD_THEME_CARDS,
@@ -802,15 +802,25 @@ function OpenCommandPaletteDialog(props: {
   const environmentThemes = useEnvironmentThemeDefinitions();
   const themeCards = useMemo(() => {
     const seen = new Set<string>();
+    // Legacy palettes follow everything else so the redesign leads the list.
+    const definitions = [
+      ...BUILT_IN_THEMES.filter((definition) => !isLegacyDesignTheme(definition.id)),
+      ...customThemes,
+      ...environmentThemes,
+      ...BUILT_IN_THEMES.filter((definition) => isLegacyDesignTheme(definition.id)),
+    ];
     return [
-      ...STANDARD_THEME_CARDS.map((card) => ({ ...card, id: null })),
-      ...[...BUILT_IN_THEMES, ...customThemes, ...environmentThemes]
+      ...STANDARD_THEME_CARDS.map((card) => ({ ...card, id: null, legacy: false })),
+      ...definitions
         .filter((definition) => {
           if (seen.has(definition.id)) return false;
           seen.add(definition.id);
           return true;
         })
-        .map(getThemeCardDefinition),
+        .map((definition) => ({
+          ...getThemeCardDefinition(definition),
+          legacy: isLegacyDesignTheme(definition.id),
+        })),
     ];
   }, [customThemes, environmentThemes]);
   const providers = useAtomValue(primaryServerProvidersAtom);
@@ -2013,12 +2023,18 @@ function OpenCommandPaletteDialog(props: {
       {
         value: "themes",
         label: "Change theme",
-        items: themeCards.map(({ id, label, previews }) => ({
+        items: themeCards.map(({ id, label, previews, legacy }) => ({
           kind: "action",
           value: id === null ? "theme:standard" : `theme:palette:${id}`,
           title: label,
-          description: previews.length === 1 ? `For ${previews[0]!.mode} mode` : undefined,
-          searchTerms: [label, "theme", "appearance"],
+          description: legacy
+            ? "Legacy"
+            : previews.length === 1
+              ? `For ${previews[0]!.mode} mode`
+              : undefined,
+          searchTerms: legacy
+            ? [label, "theme", "appearance", "legacy"]
+            : [label, "theme", "appearance"],
           icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
           titleTrailingContent: (
             <span className="flex shrink-0 items-center gap-2">

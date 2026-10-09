@@ -4,6 +4,7 @@ import {
   ROVE_LIGHT_THEME_COLORS,
   ROVE_DARK_THEME_COLORS,
   getThemeColorsForAppearance,
+  isLegacyDesignTheme,
   MOBILE_DEFAULT_THEME_ID,
   MOBILE_THEME_IDS as SHARED_MOBILE_THEME_IDS,
   type MobileThemeId as SharedMobileThemeId,
@@ -25,10 +26,16 @@ export type MobileThemeIds = Readonly<Record<MobileThemeAppearance, MobileThemeI
 export const MOBILE_THEME_OPTIONS: ReadonlyArray<{
   readonly id: MobileThemeId;
   readonly label: string;
+  /** Palettes from before Rove Code's redesign, listed apart under "Legacy". */
+  readonly legacy: boolean;
 }> = [
-  { id: DEFAULT_MOBILE_THEME_ID, label: "Rove Code" },
-  { id: "material-you", label: "Material You" },
-  ...BUILT_IN_THEMES.map((theme) => ({ id: theme.id as MobileThemeId, label: theme.label })),
+  { id: DEFAULT_MOBILE_THEME_ID, label: "Rove Code", legacy: false },
+  { id: "material-you", label: "Material You", legacy: false },
+  ...BUILT_IN_THEMES.map((theme) => ({
+    id: theme.id as MobileThemeId,
+    label: theme.label,
+    legacy: isLegacyDesignTheme(theme.id),
+  })),
 ];
 
 // Closed set: every key `createMobileThemeVariables` writes. Reads of a

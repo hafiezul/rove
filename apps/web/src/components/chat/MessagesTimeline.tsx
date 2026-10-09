@@ -1634,6 +1634,25 @@ function TimelineMinimapNavigationButton({
 type TimelineWorkEntry = Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"][number];
 type TimelineRow = MessagesTimelineRow;
 
+/** Rows that belong to the agent's leg of a turn and sit on the checkpoint rail. */
+function isTimelineRailRow(row: TimelineRow): boolean {
+  switch (row.kind) {
+    case "work":
+    case "work-live":
+    case "work-toggle":
+    case "turn-fold":
+    case "thinking":
+    case "working":
+    case "proposed-plan":
+    case "assistant-meta":
+      return true;
+    case "message":
+      return row.message.role === "assistant";
+    default:
+      return false;
+  }
+}
+
 const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: TimelineRow }) {
   const isExpandedToolGroup = row.kind === "work" && row.isExpandedToolGroup;
   const isExpandedToolGroupHeader =
@@ -1667,6 +1686,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       )}
       data-timeline-row-id={row.id}
       data-timeline-row-kind={row.kind}
+      data-timeline-rail={isTimelineRailRow(row) ? "" : undefined}
       data-message-id={
         row.kind === "message" || row.kind === "assistant-meta" ? row.message.id : undefined
       }
@@ -3098,30 +3118,69 @@ function AssistantChangedFilesSectionInner({
   const onFileContextMenu = useFileContextMenuHandler(ctx.activeThreadEnvironmentId);
 
   return (
-    <ChangedFilesCard
-      turnId={turnSummary.turnId}
-      files={checkpointFiles}
-      allDirectoriesExpanded={allDirectoriesExpanded}
-      resolvedTheme={resolvedTheme}
-      onToggleAllDirectories={() =>
-        setExpanded(routeThreadKey, turnSummary.turnId, !allDirectoriesExpanded)
-      }
-      onOpenTurnDiff={onOpenTurnDiff}
-      onFileContextMenu={(filePath, event) =>
-        onFileContextMenu(
-          {
-            environmentId: ctx.activeThreadEnvironmentId,
-            filePath,
-            workspaceRoot: ctx.workspaceRoot,
-            repositoryRoot:
-              thread?.worktreePath == null
-                ? activeProject?.repositoryIdentity?.rootPath
-                : undefined,
-          },
-          event,
-        )
-      }
-    />
+    <div className="relative">
+      <TimelineCheckpointMarker turnSummary={turnSummary} onOpenTurnDiff={onOpenTurnDiff} />
+      <ChangedFilesCard
+        turnId={turnSummary.turnId}
+        files={checkpointFiles}
+        allDirectoriesExpanded={allDirectoriesExpanded}
+        resolvedTheme={resolvedTheme}
+        onToggleAllDirectories={() =>
+          setExpanded(routeThreadKey, turnSummary.turnId, !allDirectoriesExpanded)
+        }
+        onOpenTurnDiff={onOpenTurnDiff}
+        onFileContextMenu={(filePath, event) =>
+          onFileContextMenu(
+            {
+              environmentId: ctx.activeThreadEnvironmentId,
+              filePath,
+              workspaceRoot: ctx.workspaceRoot,
+              repositoryRoot:
+                thread?.worktreePath == null
+                  ? activeProject?.repositoryIdentity?.rootPath
+                  : undefined,
+            },
+            event,
+          )
+        }
+      />
+    </div>
+  );
+}
+
+/**
+ * Where a turn's leg of the rail folds into its checkpoint: a 45° jog from the
+ * rail into the changed-files card, echoing the slanted cut of the app icon.
+ * Opens the diff captured at that checkpoint.
+ */
+function TimelineCheckpointMarker({
+  turnSummary,
+  onOpenTurnDiff,
+}: {
+  turnSummary: TurnDiffSummary;
+  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
+}) {
+  const label = `View changes at checkpoint ${turnSummary.checkpointTurnCount}`;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            className="timeline-checkpoint"
+            aria-label={label}
+            data-scroll-anchor-ignore
+            onClick={() => onOpenTurnDiff(turnSummary.turnId)}
+          />
+        }
+      >
+        <svg viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M0.75 1L14 14.25" />
+          <rect x="-2.25" y="-2" width="6" height="6" transform="rotate(45 0.75 1)" />
+        </svg>
+      </TooltipTrigger>
+      <TooltipPopup side="left">{label}</TooltipPopup>
+    </Tooltip>
   );
 }
 

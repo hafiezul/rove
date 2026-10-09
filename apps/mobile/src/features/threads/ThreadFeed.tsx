@@ -12,6 +12,7 @@ import type {
   ChatImageAttachment,
   EnvironmentId,
   MessageId,
+  OrchestrationCheckpointSummary,
   OrchestrationMessageContext,
   ThreadId,
   TurnId,
@@ -88,7 +89,16 @@ import {
 } from "react-native";
 import { FilePreviewModal, type FilePreviewSource } from "../../components/FilePreviewModal";
 import { isPdfFile } from "../../lib/filePreview";
-import { flattenThemeColor } from "../../lib/mobileTheme";
+import { flattenThemeColor, themeColorWithAlpha } from "../../lib/mobileTheme";
+import { useThreadDetail } from "../../state/queries";
+import { getReadyReviewCheckpoints, getReviewSectionIdForCheckpoint } from "../review/reviewModel";
+import { setReviewSelectedSectionId } from "../review/reviewState";
+import {
+  isThreadFeedRailEntry,
+  THREAD_FEED_RAIL_GUTTER,
+  ThreadFeedCheckpointMarker,
+  ThreadFeedRail,
+} from "./ThreadFeedRail";
 import { PresentationSource } from "../../components/NativePresentation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, type SharedValue } from "react-native-reanimated";
@@ -1348,6 +1358,16 @@ function useMarkdownStyles(
   ]);
 }
 
+function renderRailedFeedEntry(
+  info: Parameters<typeof renderFeedEntry>[0],
+  railColor: string,
+  props: Parameters<typeof renderFeedEntry>[1],
+) {
+  const content = renderFeedEntry(info, props);
+  if (content === null || !isThreadFeedRailEntry(info.item)) return content;
+  return <ThreadFeedRail color={railColor}>{content}</ThreadFeedRail>;
+}
+
 function renderFeedEntry(
   info: { item: PendingThreadFeedEntry; index: number },
   props: Pick<
@@ -1383,6 +1403,10 @@ function renderFeedEntry(
     readonly userBubbleMaxWidth: number;
     /** Width assistant markdown lays out in, so images can size their frame before layout. */
     readonly markdownContentWidth: number;
+    /** Ready checkpoints with changes, keyed by the turn that produced them. */
+    readonly checkpointByTurnId: ReadonlyMap<TurnId, OrchestrationCheckpointSummary>;
+    readonly railColor: string;
+    readonly onOpenCheckpoint: (checkpoint: OrchestrationCheckpointSummary) => void;
   },
 ) {
   const entry = info.item;
@@ -1695,6 +1719,14 @@ function renderFeedEntry(
             <MessageAttachmentUnknown key={attachment.id} name={attachment.name} />
           );
         })}
+        {showAssistantMeta && message.turnId && props.checkpointByTurnId.has(message.turnId) ? (
+          <ThreadFeedCheckpointMarker
+            checkpoint={props.checkpointByTurnId.get(message.turnId)!}
+            color={props.railColor}
+            surfaceColor={props.screenColor}
+            onPress={props.onOpenCheckpoint}
+          />
+        ) : null}
         {showAssistantMeta ? (
           <View className="mt-1 flex-row items-center gap-1">
             <CopyTextButton
@@ -2003,7 +2035,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   });
   const contentWidth = Math.max(0, viewportWidth - contentHorizontalPadding * 2);
   const userBubbleMaxWidth = contentWidth * 0.85;
-  const markdownContentWidth = Math.max(0, contentWidth - ASSISTANT_ROW_HORIZONTAL_PADDING * 2);
+  // Assistant rows sit on the checkpoint rail, which indents them by its gutter.
+  const markdownContentWidth = Math.max(
+    0,
+    contentWidth - THREAD_FEED_RAIL_GUTTER - ASSISTANT_ROW_HORIZONTAL_PADDING * 2,
+  );
   const reviewCommentBubbleWidth = Math.min(Math.max(280, contentWidth * 0.85), contentWidth);
   const insets = useSafeAreaInsets();
   const topContentInset = props.contentTopInset ?? insets.top + IOS_NAV_BAR_HEIGHT;
@@ -2031,6 +2067,31 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const iconSubtleColor = theme["--color-icon-subtle"];
   const screenColor = theme["--color-screen"];
   const userBubbleColor = theme["--color-user-bubble"];
+  const railColor = themeColorWithAlpha(theme["--color-focus"], 0.38);
+  const checkpoints = useThreadDetail(props.environmentId, props.threadId).data?.checkpoints;
+  const checkpointByTurnId = useMemo(
+    () =>
+      new Map(
+        getReadyReviewCheckpoints(checkpoints ?? [])
+          .filter((checkpoint) => checkpoint.files.length > 0)
+          .map((checkpoint) => [checkpoint.turnId, checkpoint] as const),
+      ),
+    [checkpoints],
+  );
+  const onOpenCheckpoint = useCallback(
+    (checkpoint: OrchestrationCheckpointSummary) => {
+      // Preselect the turn so Review opens on this checkpoint's changes.
+      setReviewSelectedSectionId(
+        scopedThreadKey(props.environmentId, props.threadId),
+        getReviewSectionIdForCheckpoint(checkpoint),
+      );
+      navigation.navigate("ThreadReview", {
+        environmentId: props.environmentId,
+        threadId: props.threadId,
+      });
+    },
+    [navigation, props.environmentId, props.threadId],
+  );
   const onMarkdownLinkPress = useCallback(
     (href: string) => {
       const presentation = resolveMarkdownLinkPresentation(href);
@@ -2682,7 +2743,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         entering={disclosureToggleSettling ? THREAD_FEED_DISCLOSURE_ENTER_TRANSITION : undefined}
       >
         <ThreadMediaVisibility>
-          {renderFeedEntry(info, {
+          {renderRailedFeedEntry(info, railColor, {
             environmentId: props.environmentId,
             dispatchingMessageId: props.dispatchingMessageId,
             onEditPendingMessage: props.onEditPendingMessage,
@@ -2710,6 +2771,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             themeAppearance,
             userBubbleMaxWidth,
             markdownContentWidth,
+            checkpointByTurnId,
+            railColor,
+            onOpenCheckpoint,
             skills: props.skills,
             onUseArtifactTemplate: props.onUseArtifactTemplate,
           })}
@@ -2744,6 +2808,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       themeAppearance,
       userBubbleMaxWidth,
       markdownContentWidth,
+      checkpointByTurnId,
+      railColor,
+      onOpenCheckpoint,
       onCopyWorkRow,
       markdownLinkHandlers,
       onPressPreview,

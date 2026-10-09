@@ -683,7 +683,7 @@ const screenshot = await getImage({
   }
 
   /* ── Harnesses ─────────────────────────────────────────── */
-  .sec-harness { background: #09090b; }
+  .sec-harness { background: var(--bg); }
 
   .harness-grid {
     display: grid;
@@ -802,7 +802,7 @@ const screenshot = await getImage({
   .pr-button {
     display: inline-flex; align-items: center; gap: 10px;
     padding: 12px 20px;
-    background: var(--fg); color: #09090b;
+    background: var(--fg); color: var(--bg);
     font-weight: 600; font-size: 13px;
     line-height: normal;
     border-radius: 10px;

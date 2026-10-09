@@ -19,6 +19,12 @@ import { getMobileUniwindThemeName } from "../../../../lib/mobileThemeRuntime";
 import { cn } from "../../../../lib/cn";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
 
+// Legacy palettes predate Rove Code's redesign; Classic is the previous default.
+const THEME_GROUPS = [
+  { label: "Themes", legacy: false },
+  { label: "Legacy themes", legacy: true },
+] as const;
+
 const APPEARANCE_MODES: ReadonlyArray<{
   readonly id: MobileThemeMode;
   readonly label: string;
@@ -314,25 +320,29 @@ export function ThemeAppearanceSection() {
         </View>
       </View>
 
-      <View className="gap-3">
-        <SectionLabel>Themes</SectionLabel>
-        <View className="flex-row flex-wrap gap-3">
-          {MOBILE_THEME_OPTIONS.filter(
-            (theme) => theme.id !== "material-you" || systemColorsAvailable,
-          ).map((theme) => (
-            <ThemeCard
-              disabled={!isReady}
-              key={theme.id}
-              label={theme.label}
-              darkSelected={theme.id === themeIds.dark}
-              lightSelected={theme.id === themeIds.light}
-              onSelect={(appearance) => setThemeIdForAppearance(appearance, theme.id)}
-              onSelectBoth={() => setThemeIdForBothAppearances(theme.id)}
-              themeId={theme.id}
-            />
-          ))}
+      {THEME_GROUPS.map((group) => (
+        <View className="gap-3" key={group.label}>
+          <SectionLabel>{group.label}</SectionLabel>
+          <View className="flex-row flex-wrap gap-3">
+            {MOBILE_THEME_OPTIONS.filter(
+              (theme) =>
+                theme.legacy === group.legacy &&
+                (theme.id !== "material-you" || systemColorsAvailable),
+            ).map((theme) => (
+              <ThemeCard
+                disabled={!isReady}
+                key={theme.id}
+                label={theme.label}
+                darkSelected={theme.id === themeIds.dark}
+                lightSelected={theme.id === themeIds.light}
+                onSelect={(appearance) => setThemeIdForAppearance(appearance, theme.id)}
+                onSelectBoth={() => setThemeIdForBothAppearances(theme.id)}
+                themeId={theme.id}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      ))}
     </View>
   );
 }

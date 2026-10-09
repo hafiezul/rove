@@ -48,7 +48,7 @@
   "dependencies": {
     "@clerk/expo": "catalog:",
     "@effect/atom-react": "catalog:",
-    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/atkinson-hyperlegible-next": "^0.4.1",
     "@expo/ui": "~57.0.14",
     "@legendapp/list": "catalog:",
     "@material/material-color-utilities": "0.3.0",

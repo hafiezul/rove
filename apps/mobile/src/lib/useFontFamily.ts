@@ -1,7 +1,7 @@
 const FONT_FAMILIES = {
-  regular: "DMSans-Regular",
-  medium: "DMSans-Medium",
-  bold: "DMSans-Bold",
+  regular: "AtkinsonHyperlegibleNext-Regular",
+  medium: "AtkinsonHyperlegibleNext-Medium",
+  bold: "AtkinsonHyperlegibleNext-Bold",
 } as const;
 
 /**
