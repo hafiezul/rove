@@ -26,7 +26,7 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
   );
   const externalExtension = NodePath.join(externalRoot, "index.mjs");
   NodeFS.copyFileSync(
-    new URL("./fixtures/pi-host-sdk-probe.mjs", import.meta.url),
+    new URL("./fixtures/pi-relaunch-probe.mjs", import.meta.url),
     externalExtension,
   );
   const agentDir = NodePath.join(root, "agent");
@@ -63,7 +63,6 @@ it("boots foreground and background Pi runtimes from a relocated Rove installati
           USERPROFILE: root,
           NODE_PATH: "",
           PI_PACKAGE_DIR: "",
-          PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT: "",
           PI_CODING_AGENT_DIR: NodePath.join(root, "agent"),
           PI_CODING_AGENT_SESSION_DIR: NodePath.join(root, "sessions"),
           PI_OFFLINE: "1",

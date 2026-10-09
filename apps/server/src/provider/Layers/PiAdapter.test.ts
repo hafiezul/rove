@@ -474,6 +474,7 @@ it.layer(testLayer)("PiAdapter", (it) => {
           results: codes.map((exitCode, index) => ({
             ...args.tasks[index],
             exitCode,
+            ...(exitCode === -1 ? {} : { stopReason: "stop" }),
             messages: [{ content: "private transcript" }],
             usage: { input: 3, output: 2, cacheRead: 0, cacheWrite: 0, turns: 1 },
           })),
@@ -638,64 +639,6 @@ it.layer(testLayer)("PiAdapter", (it) => {
       }
     }),
   );
-
-  for (const delivery of ["message_end", "agent_end"] as const) {
-    it.effect(
-      `completes repeated same-agent notifications via ${delivery} without replaying them`,
-      () =>
-        Effect.gen(function* () {
-          const fake = new FakePiSession();
-          const adapter = yield* makeAdapter(fake);
-          const drained = yield* Deferred.make<void>();
-          const completedTaskIds: string[] = [];
-          let completedAfterReplay: string[] = [];
-          yield* adapter.streamEvents.pipe(
-            Stream.runForEach((event) => {
-              if (event.type === "task.completed") completedTaskIds.push(event.payload.taskId);
-              if (event.type !== "runtime.warning") return Effect.void;
-              if (event.payload.message.includes("replay marker")) {
-                completedAfterReplay = [...completedTaskIds];
-                return Effect.void;
-              }
-              return Deferred.succeed(drained, undefined);
-            }),
-            Effect.forkChild({ startImmediately: true }),
-          );
-          yield* adapter.startSession({ threadId, runtimeMode: "full-access" });
-          yield* adapter.sendTurn({ threadId, input: "Run two research tasks" });
-
-          const first = {
-            role: "custom",
-            customType: "subagent-notify",
-            content: "Background task completed: **researcher**",
-            timestamp: 1,
-          };
-          const second = { ...first };
-          const launch = (runId: string) =>
-            fake.emit({
-              type: "tool_execution_end",
-              toolName: "subagent",
-              toolCallId: runId,
-              args: { agent: "researcher" },
-              result: { details: { mode: "single", runId } },
-            });
-          launch("first-run");
-          if (delivery === "message_end") fake.emit({ type: "message_end", message: first });
-          fake.emit({ type: "agent_end", messages: [first] });
-          launch("second-run");
-          fake.emit({ type: "agent_end", messages: [first] });
-          fake.emit({ type: "extension_error", error: "replay marker" });
-          if (delivery === "message_end") fake.emit({ type: "message_end", message: second });
-          fake.emit({ type: "agent_end", messages: [first, second] });
-          fake.emit({ type: "agent_end", messages: [first, second] });
-          fake.emit({ type: "extension_error", error: "drain marker" });
-          yield* Deferred.await(drained);
-
-          assert.deepStrictEqual(completedAfterReplay, ["first-run"]);
-          assert.deepStrictEqual(completedTaskIds, ["first-run", "second-run"]);
-        }),
-    );
-  }
 
   it.effect("stopAll waits for asynchronous extension shutdown", () =>
     Effect.gen(function* () {

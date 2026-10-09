@@ -52,6 +52,39 @@ export default function (pi: ExtensionAPI) {
       }
     },
   });
+  pi.registerCommand("relaunch-pi", {
+    handler: async (_args, ctx) => {
+      // Pi's examples/extensions/subagent starts children exactly this way.
+      const child = NodeChildProcess.spawn(
+        process.execPath,
+        [
+          process.argv[1]!,
+          "--mode",
+          "json",
+          "-p",
+          "--no-session",
+          "--model",
+          "instance-fixture/fixture",
+          "Task: hello",
+        ],
+        { cwd: ctx.cwd, stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => (stdout += chunk));
+      child.stderr.on("data", (chunk) => (stderr += chunk));
+      const code = await new Promise((resolve) => child.on("close", resolve));
+      const final = stdout
+        .split("\n")
+        .filter((line) => line.trim().startsWith("{"))
+        .map((line) => JSON.parse(line))
+        .findLast((event) => event.type === "message_end" && event.message?.role === "assistant");
+      ctx.ui.notify(
+        final ? String(final.message.content[0]?.text) : `exit ${code}: ${stderr}`,
+        "info",
+      );
+    },
+  });
   pi.registerCommand("ask-instance", {
     handler: async (_args, ctx) => {
       const answer = await ctx.ui.confirm("Instance question", "Continue?");

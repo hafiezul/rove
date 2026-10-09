@@ -62,17 +62,12 @@ import { acquirePiResource, disposePiResource, PI_STARTUP_TIMEOUT_MS } from "./P
 import { ProviderAdapterRequestError } from "../Errors.ts";
 import {
   describeDialectToolTasks,
-  describeNotifyReading,
-  parseDialectNotify,
   piBounded,
-  piNotifyTerminalStatus,
   piRecord,
   piTrimmed,
-  type PiNotifyReading,
   type PiSubagentDialect,
   type PiSubagentTaskDescriptor,
 } from "./PiSubagentDialects.ts";
-import { piSubagentsDialect } from "./PiSubagentsDialect.ts";
 import { piExampleSubagentDialect } from "./PiExampleSubagentDialect.ts";
 import { compactPiToolProgress } from "./PiRuntimeEvents.ts";
 import type {
@@ -132,14 +127,10 @@ const decodePiUserInput = Schema.decodeUnknownEffect(UserInputRequestedPayload);
 const decodePiExtensionStatus = Schema.decodeUnknownSync(PiExtensionStatusSnapshot);
 
 /**
- * Registered subagent dialects. The bundled example and pi-subagents both
- * register `subagent`. Dispatch matches payload shapes without branching on
- * extension identity in the adapter.
+ * Registered subagent dialects. Dispatch matches payload shapes without
+ * branching on extension identity in the adapter.
  */
-const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [
-  piExampleSubagentDialect,
-  piSubagentsDialect,
-];
+const PI_SUBAGENT_DIALECTS: ReadonlyArray<PiSubagentDialect> = [piExampleSubagentDialect];
 
 /**
  * Pi SDK `ImageContent` — a base64-encoded image inlined into a user message
@@ -371,11 +362,9 @@ interface PiSessionContext {
   exampleToolUpdates: Map<string, Record<string, SchemaJson>>;
   /** Progress is sampled before queueing work, so bursts cannot build a fiber backlog. */
   lastToolProgressAt: number;
-  /** Pi reuses message objects between message_end and agent_end. */
-  seenNotifyMessages: WeakSet<object>;
-  /** Open single subagent runs (no coordinator) for notify correlation. */
-  openSingles: Array<{ agent: string | undefined; taskId: string }>;
   readonly liveTaskIds: Set<string>;
+  /** Children settled by a tool update; the final result must not restart them. */
+  readonly settledTaskIds: Set<string>;
   readonly openUiRequestIds: Set<string>;
   readonly stopped: Deferred.Deferred<never, ProviderAdapterRequestError>;
   unsubscribe: () => void;
@@ -976,6 +965,7 @@ export function makePiAdapter(
         ): Effect.Effect<void, ProviderAdapterRequestError> =>
           Effect.gen(function* () {
             for (const descriptor of descriptors) {
+              if (ctx.settledTaskIds.has(String(descriptor.payload.taskId))) continue;
               const taskStamp = yield* makeEventStamp();
               const taskBase = {
                 ...taskStamp,
@@ -987,14 +977,6 @@ export function makePiAdapter(
               if (descriptor.type === "task.started") {
                 if (ctx.liveTaskIds.has(String(descriptor.payload.taskId))) continue;
                 ctx.liveTaskIds.add(String(descriptor.payload.taskId));
-                // Track open singles for notify correlation: workflow members
-                // carry parentAgentId and settle via their coordinator.
-                const payload = descriptor.payload;
-                if (payload.taskType === "subagent" && payload.parentAgentId === undefined) {
-                  const agent = RuntimePredicate.isString(payload.role) ? payload.role : undefined;
-                  const taskId = String(payload.taskId ?? "");
-                  if (taskId) ctx.openSingles.push({ agent, taskId });
-                }
                 yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.started",
@@ -1013,60 +995,14 @@ export function makePiAdapter(
                   payload: descriptor.payload,
                 });
               } else {
-                const taskId = String(descriptor.payload.taskId ?? "");
-                ctx.liveTaskIds.delete(taskId);
-                if (taskId)
-                  ctx.openSingles = ctx.openSingles.filter((open) => open.taskId !== taskId);
+                ctx.liveTaskIds.delete(String(descriptor.payload.taskId ?? ""));
+                ctx.settledTaskIds.add(String(descriptor.payload.taskId ?? ""));
                 yield* offerRuntimeEvent({
                   ...taskBase,
                   type: "task.completed",
                   payload: descriptor.payload,
                 });
               }
-            }
-          });
-
-        // Settle one open single from a parsed notify (workflows carry their
-        // own identity; singles only name their agent). Most-recent match wins.
-        const settleSingleFromNotify = (
-          turnId: TurnId,
-          parsed: PiNotifyReading,
-        ): Effect.Effect<void, ProviderAdapterRequestError> =>
-          Effect.gen(function* () {
-            const terminal = piNotifyTerminalStatus(parsed.status);
-            if (terminal === undefined) return;
-            const wanted = parsed.agent.trim().toLowerCase();
-            for (let index = ctx.openSingles.length - 1; index >= 0; index -= 1) {
-              const open = ctx.openSingles[index];
-              if (!open || (open.agent !== undefined && open.agent.trim().toLowerCase() !== wanted))
-                continue;
-              ctx.openSingles.splice(index, 1);
-              yield* offerTaskDescriptors(turnId, [
-                {
-                  type: "task.completed",
-                  payload: {
-                    taskId: RuntimeTaskId.make(open.taskId),
-                    status: terminal,
-                    taskType: "subagent",
-                    ...(open.agent
-                      ? { role: open.agent, title: open.agent }
-                      : { title: parsed.agent }),
-                  },
-                },
-              ]);
-              return;
-            }
-          });
-
-        const offerParsedNotify = (
-          turnId: TurnId,
-          parsed: PiNotifyReading,
-        ): Effect.Effect<void, ProviderAdapterRequestError> =>
-          Effect.gen(function* () {
-            if (parsed.workflowRunId !== undefined) {
-              yield* offerTaskDescriptors(turnId, describeNotifyReading(parsed));
-            } else {
-              yield* settleSingleFromNotify(turnId, parsed);
             }
           });
 
@@ -1236,19 +1172,8 @@ export function makePiAdapter(
               customMessage?.role === "custom" &&
               RuntimePredicate.isString(customMessage.customType)
             ) {
-              const parsed = parseDialectNotify(
-                PI_SUBAGENT_DIALECTS,
-                customMessage.customType,
-                customMessage.content,
-              );
-              if (parsed && !ctx.seenNotifyMessages.has(customMessage)) {
-                ctx.seenNotifyMessages.add(customMessage);
-                const turnId = yield* ensureActiveTurn();
-                yield* offerParsedNotify(turnId, parsed);
-              }
-              // Any extension can send visible messages, not just known
-              // subagent dialects. Keep hidden context hidden and show text
-              // without attempting to run an extension's terminal renderer.
+              // Any extension can send visible messages. Keep hidden context
+              // hidden and show text without running an extension's terminal renderer.
               if (customMessage.display === true) {
                 const content = customMessage.content;
                 const text = RuntimePredicate.isString(content)
@@ -1376,31 +1301,6 @@ export function makePiAdapter(
             return;
           }
           case "agent_end": {
-            // Auto-drain completions ride the transcript as text-only customs
-            // (structured details do not survive the session round-trip), so
-            // recover structure through the dialect registry. Dedupe by notify
-            // message identity so separate runs with identical text still settle.
-            const transcript = Array.isArray(event.messages) ? event.messages : [];
-            const freshNotifies: Array<PiNotifyReading> = [];
-            for (const entry of transcript) {
-              const transcriptMessage = piRecord(entry);
-              if (!transcriptMessage || transcriptMessage.role !== "custom") continue;
-              const parsed = parseDialectNotify(
-                PI_SUBAGENT_DIALECTS,
-                transcriptMessage.customType,
-                transcriptMessage.content,
-              );
-              if (!parsed) continue;
-              if (ctx.seenNotifyMessages.has(transcriptMessage)) continue;
-              ctx.seenNotifyMessages.add(transcriptMessage);
-              freshNotifies.push(parsed);
-            }
-            if (freshNotifies.length > 0) {
-              const turnId = yield* ensureActiveTurn();
-              for (const parsed of freshNotifies) {
-                yield* offerParsedNotify(turnId, parsed);
-              }
-            }
             // Only agent_settled closes the Rove turn. Retry or compaction can
             // fail without another agent_end, and extension follow-ups can
             // still continue a run whose willRetry flag was false.
@@ -1782,9 +1682,8 @@ export function makePiAdapter(
             toolCallArgs: new Map(),
             exampleToolUpdates: new Map(),
             lastToolProgressAt: -Infinity,
-            seenNotifyMessages: new WeakSet(),
-            openSingles: [],
             liveTaskIds: new Set(),
+            settledTaskIds: new Set(),
             openUiRequestIds: new Set(),
             stopped: yield* Deferred.make<never, ProviderAdapterRequestError>(),
             unsubscribe: () => {},
