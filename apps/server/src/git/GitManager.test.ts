@@ -5897,6 +5897,59 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
     }),
   );
 
+  it.effect(
+    "reports commit message generation failure before committing and allows a manual retry",
+    () =>
+      Effect.gen(function* () {
+        const repoDir = yield* makeTempDir("rove-git-manager-");
+        yield* initRepo(repoDir);
+        NodeFS.writeFileSync(NodePath.join(repoDir, "README.md"), "retry generation\n");
+        const before = yield* runGit(repoDir, ["rev-parse", "HEAD"]);
+        const { manager } = yield* makeManager({
+          textGeneration: {
+            generateCommitMessage: () =>
+              Effect.fail(
+                new TextGenerationError({
+                  operation: "generateCommitMessage",
+                  detail: "Authentication required",
+                }),
+              ),
+          },
+        });
+        const events: GitActionProgressEvent[] = [];
+        const error = yield* runStackedAction(
+          manager,
+          { cwd: repoDir, action: "commit" },
+          {
+            progressReporter: {
+              publish: (event) =>
+                Effect.sync(() => {
+                  events.push(event);
+                }),
+            },
+          },
+        ).pipe(Effect.flip);
+        expect(error).toBeInstanceOf(TextGenerationError);
+        expect(events.at(-1)).toMatchObject({
+          kind: "action_failed",
+          phase: "commit",
+          message: error.message,
+        });
+        expect(events.some((event) => event.kind === "action_finished")).toBe(false);
+        expect((yield* runGit(repoDir, ["rev-parse", "HEAD"])).stdout).toBe(before.stdout);
+
+        const retried = yield* runStackedAction(manager, {
+          cwd: repoDir,
+          action: "commit",
+          commitMessage: "docs: update readme",
+        });
+        expect(retried.commit.status).toBe("created");
+        expect((yield* runGit(repoDir, ["log", "-1", "--pretty=%s"])).stdout.trim()).toBe(
+          "docs: update readme",
+        );
+      }),
+  );
+
   it.effect("emits action_failed when a commit hook rejects", () =>
     Effect.gen(function* () {
       const repoDir = yield* makeTempDir("rove-git-manager-");

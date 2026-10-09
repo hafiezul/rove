@@ -12,6 +12,7 @@ import {
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { AsyncResult, Atom, type AtomRegistry } from "effect/unstable/reactivity";
@@ -496,15 +497,24 @@ export function createVcsActionManager<R, E>(
           },
         ).pipe(
           Effect.ensuring(invalidateCachedVcsRefs(registry, target)),
-          Effect.tapError((error) =>
+          Effect.onExit((exit) =>
             Effect.sync(() => {
               const current = registry.get(stateAtom);
-              if (current.actionId === input.actionId && current.isRunning) {
-                registry.set(
-                  stateAtom,
-                  failVcsActionState("run_change_request", input.actionId, error),
-                );
+              if (current.actionId !== input.actionId || !current.isRunning) {
+                return;
               }
+              // Terminal progress normally clears this state, but defects and
+              // interruption can end the stream without a terminal event.
+              registry.set(
+                stateAtom,
+                Exit.isSuccess(exit) || Cause.hasInterruptsOnly(exit.cause)
+                  ? EMPTY_VCS_ACTION_STATE
+                  : failVcsActionState(
+                      "run_change_request",
+                      input.actionId,
+                      Cause.squash(exit.cause),
+                    ),
+              );
             }),
           ),
         );

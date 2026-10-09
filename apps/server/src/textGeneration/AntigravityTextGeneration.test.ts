@@ -5,6 +5,7 @@ import {
   ProviderInstanceId,
   ProviderSetupError,
 } from "@rove-code/contracts";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -57,7 +58,7 @@ const makeFixture = Effect.fn("makeAntigravityTextGenerationFixture")(function* 
   options: {
     readonly outputs?: ReadonlyArray<string>;
     readonly prompt?: (context: PromptContext) => Effect.Effect<AcpSchema.PromptResponse, AcpError>;
-    readonly startError?: AcpError;
+    readonly start?: Effect.Effect<void, AcpError>;
     readonly rejectAdmission?: boolean;
     readonly sessionId?: string;
   } = {},
@@ -134,7 +135,7 @@ const makeFixture = Effect.fn("makeAntigravityTextGenerationFixture")(function* 
       return {
         start: () =>
           Effect.gen(function* () {
-            if (options.startError) return yield* options.startError;
+            if (options.start) yield* options.start;
             yield* fs.makeDirectory(brainDirectory, { recursive: true }).pipe(Effect.orDie);
             yield* fs.writeFileString(`${sessionBase}.db`, "helper session").pipe(Effect.orDie);
             yield* fs.writeFileString(`${sessionBase}.db-wal`, "helper journal").pipe(Effect.orDie);
@@ -537,19 +538,50 @@ it.layer(NodeServices.layer)("AntigravityTextGeneration", (it) => {
     }).pipe(Effect.scoped),
   );
 
-  it.effect("does not start another runtime or prompt after authentication fails", () =>
-    Effect.gen(function* () {
-      const fixture = yield* makeFixture({
-        startError: new AcpRequestError({ code: -32000, errorMessage: "Authentication required" }),
-      });
-      const error = yield* fixture.textGeneration
-        .generateThreadTitle(fixture.titleInput)
-        .pipe(Effect.flip);
-      expect(error._tag).toBe("TextGenerationError");
-      expect(fixture.state.workspaces).toHaveLength(1);
-      expect(fixture.state.prompts).toEqual([]);
-      yield* fixture.assertCleaned;
-    }).pipe(Effect.scoped),
+  it.effect.each(["failure", "defect"] as const)(
+    "reports an authentication %s as a typed error and permits an explicit retry",
+    (failure) =>
+      Effect.gen(function* () {
+        const providerError = new AcpRequestError({
+          code: -32000,
+          errorMessage: "Authentication required",
+        });
+        let attempts = 0;
+        const fixture = yield* makeFixture({
+          outputs: ['{"subject":"Repair login","body":"Keep remote callbacks."}'],
+          start: Effect.suspend(() => {
+            attempts += 1;
+            return attempts > 1
+              ? Effect.void
+              : failure === "defect"
+                ? Effect.die(providerError)
+                : Effect.fail(providerError);
+          }),
+        });
+        const input = {
+          cwd: fixture.projectDirectory,
+          modelSelection,
+          branch: "feature/login",
+          stagedSummary: "M login.ts",
+          stagedPatch: "+handleRemoteCallback()",
+        };
+        const error = yield* fixture.textGeneration.generateCommitMessage(input).pipe(Effect.flip);
+        expect(error._tag).toBe("TextGenerationError");
+        expect(error.operation).toBe("generateCommitMessage");
+        expect(error.detail).toContain("Authentication required");
+        expect(error.cause).toBe(providerError);
+        expect(attempts).toBe(1);
+        expect(fixture.state.workspaces).toHaveLength(1);
+        expect(fixture.state.prompts).toEqual([]);
+        yield* fixture.assertCleaned;
+
+        expect(yield* fixture.textGeneration.generateCommitMessage(input)).toEqual({
+          subject: "Repair login",
+          body: "Keep remote callbacks.",
+        });
+        expect(attempts).toBe(2);
+        yield* fixture.assertCleaned;
+      }).pipe(Effect.scoped),
   );
 
   it.effect("does not launch during sign-out or before sign-in", () =>
@@ -593,8 +625,9 @@ it.layer(NodeServices.layer)("AntigravityTextGeneration", (it) => {
         } else {
           if (!fixture.state.stop) return yield* Effect.die("No tracked helper to stop.");
           yield* fixture.state.stop;
-          yield* Fiber.await(child);
         }
+        const exit = yield* Fiber.await(child);
+        expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
         expect(fixture.state.cancellations).toBe(1);
         yield* fixture.assertCleaned;
       }).pipe(Effect.scoped),
