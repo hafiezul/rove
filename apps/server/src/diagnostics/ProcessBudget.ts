@@ -15,7 +15,7 @@ const MemoryMiB = Schema.NumberFromString.check(
   Schema.isBetween({ minimum: 128, maximum: 1_048_576 }),
 );
 
-export const PROVIDER_BUDGET_POOL = "rove-provider-workloads.slice";
+const PROVIDER_BUDGET_POOL = "rove-provider-workloads.slice";
 
 const decodeMemoryMiB = Schema.decodeUnknownSync(MemoryMiB);
 const decodeTimeoutSeconds = Schema.decodeUnknownSync(
