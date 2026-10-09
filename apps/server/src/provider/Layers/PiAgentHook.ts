@@ -142,7 +142,7 @@ export const PI_AGENT_ENV = {
  * as an `-e` extension after `NODE_OPTIONS` already required it) reuse the
  * installed instance.
  */
-export function roveAgentHook(
+function roveAgentHook(
   hookModule: { exports: unknown },
   load: (id: string) => unknown,
   hookPath: string,

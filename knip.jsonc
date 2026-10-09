@@ -32,6 +32,10 @@
         "scripts/pi-oauth-bundle-smoke.ts",
         "scripts/measure-pr-preview.ts",
         "src/provider/testFixtures/*.mjs",
+        // Spawned by filename by the Pi observer regression harness.
+        "src/provider/Layers/fixtures/pi-agent-observer-harness.ts",
+        "src/provider/Layers/fixtures/pi-agent-fake-pi/cli.mjs",
+        "src/provider/Layers/fixtures/pi-agent-fake-sdk/runner.mjs",
       ],
       // Keep the transitive Effect runtime pinned for standalone npm installs.
       // The Vite+ web build prerequisite.
