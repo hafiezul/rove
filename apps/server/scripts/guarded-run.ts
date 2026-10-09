@@ -8,13 +8,13 @@ import {
   parseProcessBudgetMiB,
   parseProcessBudgetTimeout,
   prepareBudgetedProcess,
-} from "../apps/server/src/diagnostics/ProcessBudget.ts";
+} from "../src/diagnostics/ProcessBudget.ts";
 
 async function main() {
   const separator = process.argv.indexOf("--", 2);
   if (separator === -1 || !process.argv[separator + 1]) {
     throw new Error(
-      "Usage: node scripts/guarded-run.ts [--memory-mib 2048] [--timeout-seconds 120] -- <command> [args...]",
+      "Usage: node apps/server/scripts/guarded-run.ts [--memory-mib 2048] [--timeout-seconds 120] -- <command> [args...]",
     );
   }
   const { values } = NodeUtil.parseArgs({
