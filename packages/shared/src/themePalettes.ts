@@ -252,7 +252,7 @@ export const ROVE_DARK_THEME_COLORS: ThemeColors = {
 };
 
 /** The neutral zinc look Rove Code shipped before it had its own palette. */
-export const CLASSIC_THEME: ThemeDefinition = {
+const CLASSIC_THEME: ThemeDefinition = {
   id: "classic",
   label: "Classic",
   appearance: "light",
