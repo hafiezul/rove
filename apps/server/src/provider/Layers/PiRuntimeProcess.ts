@@ -4,6 +4,9 @@
 import * as NodeChildProcess from "node:child_process";
 import * as NodeURL from "node:url";
 import * as NodeSea from "node:sea";
+import * as Effect from "effect/Effect";
+import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
+import { parseProcessBudgetMiB, prepareBudgetedProcess } from "../../diagnostics/ProcessBudget.ts";
 import type { PiCatalogHostOptions } from "./PiCatalogHost.ts";
 import {
   PiExtensionLoadError,
@@ -60,10 +63,14 @@ export class PiRuntimeProcess {
   private failure: Error | undefined;
   private disposal: Promise<void> | undefined;
   private readonly exited: Promise<void>;
+  private readonly budgetCleanup: Promise<void>;
 
   private readonly child: NodeChildProcess.ChildProcess;
 
-  private constructor(child: NodeChildProcess.ChildProcess) {
+  private constructor(
+    child: NodeChildProcess.ChildProcess,
+    cleanupBudget: (() => Promise<void>) | undefined,
+  ) {
     this.child = child;
     this.exited = new Promise((resolve) => {
       child.once("exit", (code, signal) => {
@@ -79,6 +86,11 @@ export class PiRuntimeProcess {
         resolve();
       });
     });
+    this.budgetCleanup = this.exited.then(async () => {
+      await cleanupBudget?.();
+    });
+    // Cleanup starts even after an unexpected exit; dispose still reports a failure.
+    void this.budgetCleanup.catch(() => {});
     child.on("disconnect", () =>
       this.fail(
         new Error(
@@ -101,9 +113,19 @@ export class PiRuntimeProcess {
         import.meta.url,
       ),
     );
+    const args = executable ? ["__pi-runtime"] : [entry];
+    const budgetValue = environment.ROVE_PI_MEMORY_BUDGET_MIB;
+    const budget =
+      budgetValue === undefined
+        ? undefined
+        : await Effect.runPromise(
+            prepareBudgetedProcess(process.execPath, args, parseProcessBudgetMiB(budgetValue)).pipe(
+              Effect.provideService(HostProcessEnvironment, environment),
+            ),
+          );
     const child = NodeChildProcess.spawn(
-      process.execPath,
-      executable ? ["__pi-runtime"] : [entry],
+      budget?.command ?? process.execPath,
+      budget?.args ?? args,
       {
         env: { ...environment, PI_CODING_AGENT_DIR: options.agentDir, ELECTRON_RUN_AS_NODE: "1" },
         stdio: ["ignore", "inherit", "inherit", "ipc"],
@@ -111,7 +133,7 @@ export class PiRuntimeProcess {
         windowsHide: true,
       },
     );
-    const runtime = new PiRuntimeProcess(child);
+    const runtime = new PiRuntimeProcess(child, budget?.cleanup);
     try {
       await runtime.request("initialize", [options]);
       return runtime;
@@ -284,6 +306,7 @@ export class PiRuntimeProcess {
       clearTimeout(timer);
       this.fail(new Error("Pi instance disposed."));
       this.sessions.clear();
+      await this.budgetCleanup;
     }
   }
 }
