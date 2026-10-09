@@ -6,6 +6,7 @@ import {
   GrokSettings,
   OpenCodeSettings,
   PiSettings,
+  PiDurableSettings,
   ProviderDriverKind,
 } from "@rove-code/contracts";
 import type * as Schema from "effect/Schema";
@@ -90,6 +91,13 @@ const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = [
     icon: PiAgentIcon,
     badgeLabel: "Early Access",
     settingsSchema: PiSettings,
+  },
+  {
+    value: ProviderDriverKind.make("piDurable"),
+    label: "Pi Durable",
+    icon: PiAgentIcon,
+    badgeLabel: "Experimental",
+    settingsSchema: PiDurableSettings,
   },
 ];
 

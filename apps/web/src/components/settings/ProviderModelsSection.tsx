@@ -534,7 +534,7 @@ export function ProviderModelsSection({
             {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
           </span>
         </div>
-        {driverKind !== "antigravity" && !isAdding ? (
+        {driverKind !== "antigravity" && driverKind !== "piDurable" && !isAdding ? (
           <Button
             type="button"
             size="xs"

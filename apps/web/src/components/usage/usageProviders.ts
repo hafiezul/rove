@@ -43,6 +43,7 @@ export const PROVIDER_PRESENTATION = {
   opencode: { label: "OpenCode", color: "#5b9bbd", mark: OpenCodeIcon },
   antigravity: { label: "Antigravity", color: "#8c7bd1", mark: AntigravityIcon },
   pi: { label: "Pi", color: "light-dark(#8a692d, #c9a86a)", mark: PiAgentIcon },
+  piDurable: { label: "Pi Durable", color: "light-dark(#8a692d, #c9a86a)", mark: PiAgentIcon },
 } satisfies Record<UsageProviderKind, UsageProviderPresentation>;
 
 /** Stable provider reading order across charts, summaries, tables, and hover rows. */

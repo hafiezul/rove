@@ -25,8 +25,10 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.276",
+    "@earendil-works/chord": "1.1.0",
     "@earendil-works/pi-ai": "^1.0.2",
     "@earendil-works/pi-coding-agent": "^1.0.2",
+    "@earendil-works/pi-durable": "1.1.0",
     "@effect/platform-node": "catalog:",
     "@effect/platform-node-shared": "catalog:",
     "@ff-labs/fff-node": "0.9.4",
@@ -38,6 +40,7 @@
     "effect": "catalog:",
     "jose": "catalog:",
     "node-pty": "^1.2.0-beta.15",
+    "pi-durable-ai": "npm:@earendil-works/pi-ai@1.1.0",
     "proper-lockfile": "4.1.2",
     "stream-chain": "^4.2.5",
     "stream-json": "3.6.0",

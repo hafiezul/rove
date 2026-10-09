@@ -1,4 +1,14 @@
-# Pi extensions
+# Pi providers
+
+## Pi Durable (experimental)
+
+Pi Durable is a separate provider, not an upgrade to Pi. Add it from **Settings → Providers → Add provider**, then configure model API keys in the instance's environment. Select a model and start a new thread; existing Pi threads keep using Pi.
+
+Pi Durable saves conversation and execution state separately. After a server restart, sending another message resumes pending work before processing the new message. It does not start model work just because the server starts or you open the thread. **Stop** cancels work rather than saving it for later execution. An interrupted side-effecting tool is reported to the model, not blindly replayed.
+
+This first version includes read, write, edit, and shell tools with full filesystem access. It does not load Pi CLI extensions, subscriptions, custom model configuration, or session files. Attachments, plan mode, rollback, Rove browser/MCP tools, and helper text generation are not supported yet. Configure and select the instance on web or desktop; configured instances are also selectable on mobile.
+
+## Pi extensions
 
 Pi threads load extensions from the Pi installation on the machine running the Rove server. Remote clients use that server's extensions, not extensions installed on the client device.
 

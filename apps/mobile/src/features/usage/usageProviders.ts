@@ -23,6 +23,7 @@ export const PROVIDER_LABEL: Record<UsageProviderKind, string> = {
   opencode: "OpenCode",
   antigravity: "Antigravity",
   pi: "Pi",
+  piDurable: "Pi Durable",
 };
 
 /**
@@ -39,5 +40,6 @@ export function useProviderColors(): Record<UsageProviderKind, string> {
     opencode: "#5b9bbd",
     antigravity: "#8c7bd1",
     pi: scheme === "dark" ? "#c9a86a" : "#8a692d",
+    piDurable: scheme === "dark" ? "#c9a86a" : "#8a692d",
   };
 }

@@ -834,6 +834,33 @@ export const PiSettings = makeProviderSettingsSchema(
 );
 export type PiSettings = typeof PiSettings.Type;
 
+export const PiDurableSettings = makeProviderSettingsSchema(
+  {
+    enabled: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
+    ),
+    model: TrimmedString.pipe(
+      Schema.withDecodingDefault(Effect.succeed("")),
+      Schema.annotateKey({
+        title: "Default model",
+        description: "provider/model-id. Leave blank to use the first available API-key model.",
+        providerSettingsForm: {
+          placeholder: "e.g. anthropic/claude-sonnet-5",
+          clearWhenEmpty: "omit",
+        },
+      }),
+    ),
+  },
+  { order: ["model"] },
+).pipe(
+  Schema.annotate({
+    description:
+      "Experimental crash-resumable harness with separate sessions. Configure API keys in this instance's environment. Pi CLI extensions, subscriptions, and session files are not loaded. Pending work resumes when you next send a message; Stop cancels it permanently. Full filesystem access; no plan mode, attachments, or rollback yet.",
+  }),
+);
+export type PiDurableSettings = typeof PiDurableSettings.Type;
+
 /**
  * Antigravity ACP auth methods. Personal and Enterprise open a Google sign-in
  * in the browser. The API key and Agent Platform methods take credentials from

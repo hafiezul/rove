@@ -974,8 +974,10 @@ export function ProviderInstanceCard({
         >
           <div className="px-3 py-3 sm:px-4">
             <p className="mb-3 text-xs text-muted-foreground">
-              Favorites, visibility, and ordering are saved on this device. Custom models are saved
-              on the selected environment.
+              Favorites, visibility, and ordering are saved on this device.
+              {driverKind !== "piDurable"
+                ? " Custom models are saved on the selected environment."
+                : null}
             </p>
             <ProviderModelsSection
               instanceId={instanceId}

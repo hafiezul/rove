@@ -225,5 +225,6 @@ export const PROVIDER_DISPLAY_NAMES: Partial<Record<ProviderDriverKind, string>>
   [CURSOR_DRIVER_KIND]: "Cursor",
   [GROK_DRIVER_KIND]: "Grok",
   [PI_DRIVER_KIND]: "Pi",
+  [ProviderDriverKind.make("piDurable")]: "Pi Durable",
   [OPENCODE_DRIVER_KIND]: "OpenCode",
 };

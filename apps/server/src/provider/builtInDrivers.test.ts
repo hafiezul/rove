@@ -14,6 +14,13 @@ it("registers the Pi driver", () => {
   assert.deepEqual(pi?.defaultConfig().disabledExtensions, []);
 });
 
+it("registers Pi Durable separately and leaves it opt-in", () => {
+  const durable = BUILT_IN_DRIVERS.find((driver) => driver.driverKind === "piDurable");
+  assert.isDefined(durable);
+  assert.strictEqual(durable?.metadata.displayName, "Pi Durable");
+  assert.strictEqual(durable?.defaultConfig().enabled, false);
+});
+
 it("every built-in driver kind is unique", () => {
   const kinds = BUILT_IN_DRIVERS.map((driver) => driver.driverKind);
   assert.strictEqual(new Set(kinds).size, kinds.length);

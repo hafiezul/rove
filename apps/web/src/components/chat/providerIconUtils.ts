@@ -18,6 +18,7 @@ export const PROVIDER_ICON_BY_PROVIDER = {
   [ProviderDriverKind.make("grok")]: GrokIcon,
   [ProviderDriverKind.make("antigravity")]: AntigravityIcon,
   [ProviderDriverKind.make("pi")]: PiAgentIcon,
+  [ProviderDriverKind.make("piDurable")]: PiAgentIcon,
 } satisfies Partial<Record<ProviderDriverKind, Icon>>;
 
 export type ModelEsque = {

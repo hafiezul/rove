@@ -73,7 +73,7 @@ export function ProviderIcon(props: ProviderIconProps) {
     );
   }
 
-  if (props.provider === "pi") {
+  if (props.provider === "pi" || props.provider === "piDurable") {
     return (
       <Svg width={size} height={size} viewBox="0 0 800 800" fill="none">
         <Path
