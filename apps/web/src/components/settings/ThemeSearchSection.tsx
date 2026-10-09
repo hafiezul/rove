@@ -1,5 +1,10 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { ExternalLinkIcon, PackagePlusIcon, PaletteIcon, SearchIcon } from "lucide-react";
+import {
+  ArrowSquareOutIcon,
+  MagnifyingGlassIcon,
+  PackageIcon,
+  PaletteIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   importOpenVsxThemeExtension,
@@ -52,7 +57,7 @@ function SourceLinkIcon({ url }: { url: string }) {
   } catch {
     // Fall through to the generic external-link icon.
   }
-  return <ExternalLinkIcon className="size-3.5" />;
+  return <ArrowSquareOutIcon className="size-3.5" />;
 }
 
 function ThemeExtensionIcon({ extension }: { extension: OpenVsxThemeExtension }) {
@@ -267,7 +272,7 @@ export function ThemeSearchSection({
       </div>
       <InputGroup>
         <InputGroupAddon>
-          {isSearching ? <Spinner aria-hidden /> : <SearchIcon aria-hidden />}
+          {isSearching ? <Spinner aria-hidden /> : <MagnifyingGlassIcon aria-hidden />}
         </InputGroupAddon>
         <InputGroupInput
           aria-label="Search Open VSX themes"
@@ -409,13 +414,7 @@ export function ThemeSearchSection({
                       variant="outline"
                       onClick={() => void handleInstall(extension, false)}
                     >
-                      {isInstalling ? (
-                        <Spinner />
-                      ) : isInstalled ? (
-                        <RefreshIcon />
-                      ) : (
-                        <PackagePlusIcon />
-                      )}
+                      {isInstalling ? <Spinner /> : isInstalled ? <RefreshIcon /> : <PackageIcon />}
                       {isInstalling ? `${progressAction}...` : action}
                     </Button>
                   </div>

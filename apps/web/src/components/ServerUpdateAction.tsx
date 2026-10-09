@@ -4,7 +4,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
-import { CircleArrowUpIcon } from "lucide-react";
+import { ArrowCircleUpIcon } from "@phosphor-icons/react";
 import { type ComponentProps, useRef, useState } from "react";
 
 import { requestConfirmDialog } from "~/confirmDialog";
@@ -257,7 +257,7 @@ export function ServerUpdateAction({
             />
           }
         >
-          <CircleArrowUpIcon className="size-3.5" />
+          <ArrowCircleUpIcon className="size-3.5" />
         </TooltipTrigger>
         <TooltipPopup side="top">{actionLabel}</TooltipPopup>
       </Tooltip>

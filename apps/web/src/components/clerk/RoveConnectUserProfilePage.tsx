@@ -5,7 +5,7 @@ import {
 } from "@rove-code/client-runtime/state/runtime";
 import type { EnvironmentId } from "@rove-code/contracts";
 import type { RelayClientEnvironmentRecord } from "@rove-code/contracts/relay";
-import { ServerIcon } from "lucide-react";
+import { HardDrivesIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
 import {
@@ -47,7 +47,7 @@ export function RoveConnectEnvironmentRow(props: {
 }) {
   const { environment } = props;
   return (
-    <ClerkUserProfileRow icon={<ServerIcon className="size-4" />}>
+    <ClerkUserProfileRow icon={<HardDrivesIcon className="size-4" />}>
       <Collapsible open={props.confirmationOpen} onOpenChange={props.onConfirmationChange}>
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
@@ -236,7 +236,7 @@ export function RoveConnectUserProfilePage() {
           <div className="border-t">
             <Empty size="compact">
               <EmptyMedia variant="icon">
-                <ServerIcon />
+                <HardDrivesIcon />
               </EmptyMedia>
               <EmptyHeader>
                 <EmptyTitle>No Rove Connect environments</EmptyTitle>

@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { DownloadIcon } from "lucide-react";
+import { DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useEnvironments } from "~/state/environments";
@@ -179,7 +179,7 @@ function ProviderUpdateEnvironmentsNotification() {
         actionVariant: "outline",
         data: {
           hideCopyButton: true,
-          leadingIcon: <DownloadIcon aria-hidden="true" className="size-4 text-success" />,
+          leadingIcon: <DownloadSimpleIcon aria-hidden="true" className="size-4 text-success" />,
           onClose: dismissPrompt,
         },
       }),

@@ -6,7 +6,7 @@ import {
   type ServerSettings,
   type WorktreeSubmodules,
 } from "@rove-code/contracts";
-import { CheckIcon, LayersIcon } from "lucide-react";
+import { CheckIcon, StackIcon } from "@phosphor-icons/react";
 import * as Equal from "effect/Equal";
 
 import { cn } from "../../lib/utils";
@@ -221,7 +221,7 @@ export function SettingInheritance({
             />
           }
         >
-          <LayersIcon
+          <StackIcon
             className={cn(
               "size-3",
               state === "overridden" && "text-primary",

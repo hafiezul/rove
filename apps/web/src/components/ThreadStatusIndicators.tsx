@@ -14,7 +14,7 @@ import {
   visibleThreadPullRequests,
   type ThreadPullRequestBadge,
 } from "@rove-code/shared/threadPullRequests";
-import { ClockIcon, FolderGit2Icon, TerminalIcon } from "lucide-react";
+import { ClockIcon, GitForkIcon, TerminalIcon } from "@phosphor-icons/react";
 import { useRender } from "@base-ui/react/use-render";
 import { useMemo, type AnimationEvent, type MouseEvent, type ReactElement } from "react";
 import { cn } from "../lib/utils";
@@ -434,7 +434,7 @@ export function ThreadWorktreeIndicator({
           />
         }
       >
-        <FolderGit2Icon className="size-3 text-muted-foreground/40" />
+        <GitForkIcon className="size-3 text-muted-foreground/40" />
       </TooltipTrigger>
       <TooltipPopup side="top">{tooltip}</TooltipPopup>
     </Tooltip>

@@ -1,11 +1,11 @@
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  MousePointer2Icon,
-  PaintbrushIcon,
+  CaretDownIcon,
+  CaretUpIcon,
+  CursorIcon,
+  PaintBrushIcon,
   PlusIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -1211,7 +1211,7 @@ export function ThemeEditorPanel({
                   setIsInspecting(true);
                 }}
               >
-                <MousePointer2Icon />
+                <CursorIcon />
                 {isInspecting ? "Cancel" : "Inspect"}
               </Button>
             }
@@ -1226,7 +1226,7 @@ export function ThemeEditorPanel({
           variant="ghost"
           onClick={() => setIsMinimized(!isMinimized)}
         >
-          {isMinimized ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          {isMinimized ? <CaretUpIcon /> : <CaretDownIcon />}
         </Button>
         <Button
           aria-label="Close the theme editor"
@@ -1273,7 +1273,7 @@ export function ThemeEditorPanel({
                 </>
               ) : (
                 <>
-                  <PaintbrushIcon />
+                  <PaintBrushIcon />
                   Create theme
                 </>
               )}

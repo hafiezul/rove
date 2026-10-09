@@ -1,7 +1,7 @@
 import { Toolbar } from "@base-ui/react/toolbar";
 import { type ProviderInstanceId } from "@rove-code/contracts";
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { SparklesIcon, StarIcon } from "lucide-react";
+import { SparkleIcon, StarIcon } from "@phosphor-icons/react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
@@ -130,7 +130,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                         aria-label="Favorites"
                         aria-pressed={props.selectedInstanceId === "favorites"}
                       >
-                        <StarIcon className="size-5 fill-current shrink-0" aria-hidden />
+                        <StarIcon className="size-5 shrink-0" weight="fill" aria-hidden />
                       </Toolbar.Button>
                     }
                   />
@@ -214,7 +214,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 />
                 {showNewBadge ? (
                   <span className={NEW_BADGE_CLASS} aria-hidden>
-                    <SparklesIcon className="size-2" />
+                    <SparkleIcon className="size-2" />
                   </span>
                 ) : null}
               </Toolbar.Button>

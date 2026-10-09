@@ -1,6 +1,6 @@
 import type { EnvironmentId, UsageLimitsReport } from "@rove-code/contracts";
 import { limitsNotice } from "@rove-code/shared/usageLimits";
-import { GaugeIcon } from "lucide-react";
+import { GaugeIcon } from "@phosphor-icons/react";
 
 import { ensureLocalApi } from "../../localApi";
 import { Button } from "../ui/button";

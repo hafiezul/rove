@@ -10,17 +10,17 @@ import { safeErrorLogAttributes } from "@rove-code/client-runtime/errors";
 import type { ScopedThreadRef, TurnId } from "@rove-code/contracts";
 import {
   ArrowRightIcon,
+  ArrowsInLineVerticalIcon,
+  ArrowUDownLeftIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  CaretUpDownIcon,
   CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  Columns2Icon,
-  FolderTreeIcon,
-  PilcrowIcon,
-  Rows3Icon,
-  TextWrapIcon,
-} from "lucide-react";
+  ColumnsIcon,
+  ParagraphIcon,
+  RowsIcon,
+  TreeStructureIcon,
+} from "@phosphor-icons/react";
 import * as Schema from "effect/Schema";
 import * as DateTime from "effect/DateTime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -677,7 +677,7 @@ export default function DiffPanel({
             aria-label={`Diff scope: ${selectedScopeLabel}`}
           >
             <span className="truncate">{selectedScopeLabel}</span>
-            <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
+            <CaretDownIcon className="size-3.5 shrink-0 opacity-70" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuRadioGroup value={selectedScopeValue} onValueChange={selectScopeValue}>
@@ -754,7 +754,7 @@ export default function DiffPanel({
                 aria-label={`Change comparison target. Currently ${selectedGitSource.baseRef}`}
               >
                 <span className="min-w-0 truncate">{selectedGitSource.baseRef}</span>
-                <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
+                <CaretDownIcon className="size-3.5 shrink-0 opacity-70" />
               </ComboboxTrigger>
               <ComboboxPopup
                 align="start"
@@ -879,9 +879,9 @@ export default function DiffPanel({
               }
             >
               {allDiffFilesCollapsed ? (
-                <ChevronsUpDownIcon className="size-3.5" />
+                <CaretUpDownIcon className="size-3.5" />
               ) : (
-                <ChevronsDownUpIcon className="size-3.5" />
+                <ArrowsInLineVerticalIcon className="size-3.5" />
               )}
             </TooltipTrigger>
             <TooltipPopup side="top">
@@ -902,10 +902,10 @@ export default function DiffPanel({
           }}
         >
           <Toggle aria-label="Stacked diff view" value="stacked">
-            <Rows3Icon className="size-3.5" />
+            <RowsIcon className="size-3.5" />
           </Toggle>
           <Toggle aria-label="Split diff view" value="split">
-            <Columns2Icon className="size-3.5" />
+            <ColumnsIcon className="size-3.5" />
           </Toggle>
         </ToggleGroup>
         <Tooltip>
@@ -922,7 +922,7 @@ export default function DiffPanel({
               />
             }
           >
-            <TextWrapIcon className="size-3.5" />
+            <ArrowUDownLeftIcon className="size-3.5" />
           </TooltipTrigger>
           <TooltipPopup side="top">
             {wordWrap ? "Disable line wrapping" : "Enable line wrapping"}
@@ -944,7 +944,7 @@ export default function DiffPanel({
               />
             }
           >
-            <PilcrowIcon className="size-3.5" />
+            <ParagraphIcon className="size-3.5" />
           </TooltipTrigger>
           <TooltipPopup side="top">
             {diffIgnoreWhitespace ? "Show whitespace changes" : "Hide whitespace changes"}
@@ -963,7 +963,7 @@ export default function DiffPanel({
                 />
               }
             >
-              <FolderTreeIcon className="size-3.5" />
+              <TreeStructureIcon className="size-3.5" />
             </TooltipTrigger>
             <TooltipPopup side="top">
               {fileTreeOpen ? "Hide file tree" : "Show file tree"}
@@ -1139,11 +1139,11 @@ export default function DiffPanel({
                             }
                           >
                             {collapsed ? (
-                              <ChevronRightIcon
+                              <CaretRightIcon
                                 className={cn("size-4", getDiffCollapseIconClassName(fileDiff))}
                               />
                             ) : (
-                              <ChevronDownIcon
+                              <CaretDownIcon
                                 className={cn("size-4", getDiffCollapseIconClassName(fileDiff))}
                               />
                             )}

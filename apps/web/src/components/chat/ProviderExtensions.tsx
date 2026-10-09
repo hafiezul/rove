@@ -1,12 +1,12 @@
 import type { PiCatalogSnapshot } from "@rove-code/contracts";
 import {
-  ChevronDownIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  PuzzleIcon,
-  RefreshCwIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+  ArrowClockwiseIcon,
+  CaretDownIcon,
+  CheckCircleIcon,
+  PuzzlePieceIcon,
+  WarningCircleIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -65,7 +65,7 @@ function ExtensionRow({
     <Collapsible>
       <div className="flex w-full items-center gap-2 rounded-md py-1.5">
         <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left hover:bg-accent/50">
-          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
+          <CaretDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform data-open:rotate-180" />
           <span
             className={cn(
               "min-w-0 flex-1 truncate font-medium",
@@ -159,7 +159,7 @@ function ProviderExtensionsContent({
 
       {data && compatibilityWarnings.length > 0 && (
         <section aria-label="Compatibility" className="flex gap-2 border-s-2 border-warning ps-3">
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+          <WarningIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
           <div className="space-y-1">
             <h3 className="font-medium">Needs Pi's terminal</h3>
             {compatibilityWarnings.map((warning) => (
@@ -183,12 +183,12 @@ function ProviderExtensionsContent({
             {data.modelProviders.map((provider) => (
               <div key={provider.id} className="flex items-center gap-2 py-1">
                 {provider.authenticated ? (
-                  <CircleCheckIcon
+                  <CheckCircleIcon
                     aria-label="Authenticated"
                     className="size-4 shrink-0 text-success"
                   />
                 ) : (
-                  <CircleAlertIcon
+                  <WarningCircleIcon
                     aria-label="Not authenticated"
                     className="size-4 shrink-0 text-warning"
                   />
@@ -233,7 +233,7 @@ function ProviderExtensionsContent({
 
       <div className="space-y-2 pt-1">
         <Button size="sm" variant="outline" disabled={isPending} onClick={() => void refresh()}>
-          <RefreshCwIcon className={cn(isPending && "motion-safe:animate-spin")} />
+          <ArrowClockwiseIcon className={cn(isPending && "motion-safe:animate-spin")} />
           {error ? "Retry" : "Refresh"}
         </Button>
         <ul className="space-y-1 text-xs text-muted-foreground">
@@ -262,9 +262,9 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
               aria-label={`Extensions${issueCount > 0 ? `, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}` : ""}`}
             >
               {issueCount > 0 ? (
-                <TriangleAlertIcon className="size-3.5 text-warning" />
+                <WarningIcon className="size-3.5 text-warning" />
               ) : (
-                <PuzzleIcon className="size-3.5" />
+                <PuzzlePieceIcon className="size-3.5" />
               )}
               <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
                 Extensions
@@ -296,7 +296,7 @@ export function ProviderExtensions(props: ProviderExtensionsProps) {
       )}
       {props.error && (
         <Button size="xs" variant="outline" onClick={() => void props.refresh()}>
-          <RefreshCwIcon className="size-3.5" />
+          <ArrowClockwiseIcon className="size-3.5" />
           Retry
         </Button>
       )}

@@ -1,4 +1,4 @@
-import { SearchIcon } from "lucide-react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { PullRequestStackPopover } from "./PullRequestStackPopover";
 import { memo, type RefCallback } from "react";
 
@@ -208,7 +208,7 @@ function PullRequestRowImpl({
                   }
                 >
                   <span className="sr-only">matched in the description</span>
-                  <SearchIcon aria-hidden className="size-3 shrink-0" />
+                  <MagnifyingGlassIcon aria-hidden className="size-3 shrink-0" />
                   <span aria-hidden className="hidden truncate @xs/pr-row-meta:block">
                     matched in the description
                   </span>

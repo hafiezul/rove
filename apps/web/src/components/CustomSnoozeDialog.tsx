@@ -7,7 +7,7 @@ import {
   type CustomSnoozeInput,
 } from "@rove-code/client-runtime/state/thread-settled";
 import { Button } from "./ui/button";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "@phosphor-icons/react";
 import { Calendar } from "./ui/calendar";
 import { weekStartsOn } from "../timestampFormat";
 import { Popover, PopoverTrigger, PopoverPopup } from "./ui/popover";

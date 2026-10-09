@@ -1,4 +1,4 @@
-import { DownloadIcon, PlusIcon } from "lucide-react";
+import { DownloadSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../../lib/utils";
@@ -474,7 +474,7 @@ export function ThemeImportDialog({
             );
             const chooseButton = (label = "Choose files") => (
               <Button disabled={isReading} size="sm" variant="outline" onClick={openFilePicker}>
-                <DownloadIcon />
+                <DownloadSimpleIcon />
                 {isReading ? "Reading…" : label}
               </Button>
             );

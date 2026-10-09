@@ -1,5 +1,5 @@
 import type { BitbucketSettings, EnvironmentId } from "@rove-code/contracts";
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { useEnvironmentSettings } from "../../hooks/useSettings";
@@ -155,7 +155,7 @@ export function BitbucketCredentialsSettings({
           {info.description}{" "}
           <InlineButton render={<a href={info.link} target="_blank" rel="noreferrer noopener" />}>
             {info.linkLabel}
-            <ExternalLinkIcon aria-hidden className="size-3" />
+            <ArrowSquareOutIcon aria-hidden className="size-3" />
           </InlineButton>
         </p>
         {method === "access-token" ? (

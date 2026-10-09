@@ -1,5 +1,5 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { ChevronDownIcon } from "lucide-react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import * as Duration from "effect/Duration";
 import * as Option from "effect/Option";
 import { useEffect, useState, type ReactNode } from "react";
@@ -344,7 +344,7 @@ function DiscoveryItemRow({
                 aria-expanded={isExpanded}
                 aria-label={`Toggle ${item.label} details`}
               >
-                <ChevronDownIcon
+                <CaretDownIcon
                   className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
                 />
               </Button>

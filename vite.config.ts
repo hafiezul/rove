@@ -30,25 +30,10 @@ const RESTRICTED_UI_VARIANT_PATTERNS = [
   },
 ];
 
-/** Lucide's pull-request glyphs, which only `pullRequestIcons.tsx` may name. */
+/** Phosphor's pull-request glyphs, which only `pullRequestIcons.tsx` may name. */
 const RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS = {
-  name: "lucide-react",
-  importNames: [
-    "GitMerge",
-    "GitMergeIcon",
-    "GitPullRequest",
-    "GitPullRequestIcon",
-    "GitPullRequestArrow",
-    "GitPullRequestArrowIcon",
-    "GitPullRequestClosed",
-    "GitPullRequestClosedIcon",
-    "GitPullRequestDraft",
-    "GitPullRequestDraftIcon",
-    "GitPullRequestCreate",
-    "GitPullRequestCreateIcon",
-    "GitPullRequestCreateArrow",
-    "GitPullRequestCreateArrowIcon",
-  ],
+  name: "@phosphor-icons/react",
+  importNames: ["GitMerge", "GitMergeIcon", "GitPullRequest", "GitPullRequestIcon"],
   message:
     "Pick a glyph by meaning from PullRequestGlyph in apps/web/src/components/pullRequest/pullRequestIcons.tsx so every surface draws the same pull request the same way.",
 };
@@ -217,7 +202,7 @@ export default defineConfig({
         },
       },
       {
-        // The one module allowed to name lucide's pull-request glyphs; everything else picks
+        // The one module allowed to name Phosphor's pull-request glyphs; everything else picks
         // from its vocabulary. The other import restrictions still apply here.
         files: ["apps/web/src/components/pullRequest/pullRequestIcons.tsx"],
         rules: { "eslint/no-restricted-imports": ["error", { paths: RESTRICTED_IMPORT_PATHS }] },

@@ -1,4 +1,4 @@
-import { CheckIcon, CircleDotIcon, CircleIcon, ListTodoIcon } from "lucide-react";
+import { CheckIcon, CircleIcon, ListChecksIcon, RecordIcon } from "@phosphor-icons/react";
 import { memo, type ComponentProps } from "react";
 
 import { formatDuration } from "../../session-logic";
@@ -74,7 +74,7 @@ function TaskSummary({
   return (
     <>
       <ComposerBanner.Icon>
-        <ListTodoIcon />
+        <ListChecksIcon />
       </ComposerBanner.Icon>
       <ComposerBanner.Content>
         <span className="shrink-0 text-muted-foreground">Tasks</span>
@@ -180,7 +180,7 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
                   {step.status === "completed" ? (
                     <CheckIcon />
                   ) : step.status === "inProgress" ? (
-                    <CircleDotIcon />
+                    <RecordIcon />
                   ) : (
                     <CircleIcon />
                   )}

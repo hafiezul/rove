@@ -1,4 +1,30 @@
-import { ArrowUpIcon, ClockIcon } from "lucide-react";
+import {
+  ArrowsInIcon,
+  ArrowUpIcon,
+  ArrowUUpLeftIcon,
+  BrainIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  CaretUpIcon,
+  ChatCircleIcon,
+  CheckIcon,
+  ClockIcon,
+  CursorClickIcon,
+  DeviceMobileIcon,
+  DownloadSimpleIcon,
+  EyeIcon,
+  GlobeIcon,
+  HammerIcon,
+  LightningIcon,
+  MagnifyingGlassIcon,
+  NotePencilIcon,
+  PaintBrushIcon,
+  RobotIcon,
+  TerminalIcon,
+  WarningCircleIcon,
+  WrenchIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import {
@@ -100,31 +126,7 @@ import {
 } from "../../lib/diffRendering";
 import { PREFERRED_HIGHLIGHTER } from "../../lib/syntaxHighlighting";
 import ChatMarkdown, { ChatMarkdownAssetImage } from "../ChatMarkdown";
-import {
-  BotIcon,
-  BrainIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronUpIcon,
-  CircleAlertIcon,
-  DownloadIcon,
-  EyeIcon,
-  GlobeIcon,
-  HammerIcon,
-  MessageCircleIcon,
-  Minimize2Icon,
-  MousePointerClickIcon,
-  PaintbrushIcon,
-  SearchIcon,
-  SmartphoneIcon,
-  SquarePenIcon,
-  TerminalIcon,
-  Undo2Icon,
-  WrenchIcon,
-  XIcon,
-  ZapIcon,
-} from "lucide-react";
+
 import type {
   ComposerContextId,
   ComposerContextRecord,
@@ -1596,7 +1598,7 @@ function TimelineMinimapNavigationButton({
 }) {
   const previous = direction === "previous";
   const label = previous ? "Previous turn" : "Next turn";
-  const Icon = previous ? ChevronUpIcon : ChevronDownIcon;
+  const Icon = previous ? CaretUpIcon : CaretDownIcon;
 
   return (
     <Tooltip>
@@ -1839,7 +1841,7 @@ function ContextCompactionTimelineRow({
     >
       <span className="h-px flex-1 bg-border/70" />
       <span className="flex shrink-0 items-center gap-1.5">
-        <Minimize2Icon aria-hidden="true" className="size-3" />
+        <ArrowsInIcon aria-hidden="true" className="size-3" />
         {row.label}
       </span>
       <span className="h-px flex-1 bg-border/70" />
@@ -2136,7 +2138,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                           />
                         }
                       >
-                        <DownloadIcon />
+                        <DownloadSimpleIcon />
                       </TooltipTrigger>
                       <TooltipPopup side="top">Download {file.name}</TooltipPopup>
                     </Tooltip>
@@ -2257,7 +2259,7 @@ function RevertUserMessageButton({
           />
         }
       >
-        <Undo2Icon className="size-3" />
+        <ArrowUUpLeftIcon className="size-3" />
       </TooltipTrigger>
       <TooltipPopup side="top">Edit from here</TooltipPopup>
     </Tooltip>
@@ -2303,7 +2305,7 @@ function TimelineRowTimestamp({
 
 function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-fold" }> }) {
   const ctx = use(TimelineRowCtx);
-  const Icon = row.expanded ? ChevronDownIcon : ChevronRightIcon;
+  const Icon = row.expanded ? CaretDownIcon : CaretRightIcon;
 
   return (
     <div className="group/timeline-row relative flex items-center gap-1 border-b border-border/60 pb-2 pe-0.5 pt-1">
@@ -2569,7 +2571,7 @@ function ThinkingTimelineRow() {
 function CompactingLabel() {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Minimize2Icon aria-hidden="true" className="size-3" />
+      <ArrowsInIcon aria-hidden="true" className="size-3" />
       Compacting…
     </span>
   );
@@ -2905,7 +2907,7 @@ function LiveActivityContent({
           <ToolActivityIconView
             icon={toolIcon}
             fallbackName={iconName}
-            className="block size-4 shrink-0 stroke-2"
+            className="block size-4 shrink-0"
             muted={!highlighted}
           />
         </span>
@@ -3026,7 +3028,7 @@ function WorkGroupToggleTimelineRow({
           fallbackName={
             row.summaryToolIcon ?? row.toolSurface ?? toolGroupSummaryIconName(row.summaryKind)
           }
-          className="size-4 shrink-0 stroke-2"
+          className="size-4 shrink-0"
           muted
         />
       </span>
@@ -3248,7 +3250,7 @@ function UserMessagePreviewAnnotationDetails(props: {
           ) : null}
           {(props.record.styleChanges?.length ?? 0) > 0 ? (
             <span className="inline-flex shrink-0 items-center gap-1">
-              <PaintbrushIcon className="size-3" />
+              <PaintBrushIcon className="size-3" />
               {props.record.styleChanges?.length ?? 0}
             </span>
           ) : null}
@@ -3479,7 +3481,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
             copyMarkdown={context.copyMarkdown}
             accessibleLabel={`Browser element, ${record.label}`}
             kind="element"
-            icon={<MousePointerClickIcon />}
+            icon={<CursorClickIcon />}
             label={record.label}
           >
             <UserMessageElementDetails record={record} />
@@ -3513,7 +3515,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
             copyMarkdown={context.copyMarkdown}
             accessibleLabel={`${kindLabel}, ${label}${record.pullRequest ? `, ${record.pullRequest.title}` : ""}`}
             kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
-            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
+            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <ChatCircleIcon />}
             label={label}
           >
             <UserMessageReviewCommentCard
@@ -3546,7 +3548,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
             copyMarkdown={context.copyMarkdown}
             accessibleLabel={`Preview annotation, ${record.label}`}
             kind="preview-annotation"
-            icon={<MousePointerClickIcon />}
+            icon={<CursorClickIcon />}
             label={record.label}
           >
             <UserMessagePreviewAnnotationDetails record={record} image={context.annotationImage} />
@@ -4001,7 +4003,7 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
     case "pull-request":
       return <PullRequestGlyph.pullRequest className={className} aria-hidden />;
     case "bot":
-      return <BotIcon className={className} aria-hidden />;
+      return <RobotIcon className={className} aria-hidden />;
     case "brain":
       return <BrainIcon className={className} aria-hidden />;
     case "browser":
@@ -4009,13 +4011,13 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
     case "computer":
       return <ComputerUseAppIcon className={className} />;
     case "device":
-      return <SmartphoneIcon className={className} aria-hidden />;
+      return <DeviceMobileIcon className={className} aria-hidden />;
     case "rove":
       return <img src="/favicon-32x32.png" className={className} alt="" aria-hidden />;
     case "check":
       return <CheckIcon className={className} aria-hidden />;
     case "circle-alert":
-      return <CircleAlertIcon className={className} aria-hidden />;
+      return <WarningCircleIcon className={className} aria-hidden />;
     case "eye":
       return <EyeIcon className={className} aria-hidden />;
     case "globe":
@@ -4023,11 +4025,11 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
     case "hammer":
       return <HammerIcon className={className} aria-hidden />;
     case "message-circle":
-      return <MessageCircleIcon className={className} aria-hidden />;
+      return <ChatCircleIcon className={className} aria-hidden />;
     case "search":
-      return <SearchIcon className={className} aria-hidden />;
+      return <MagnifyingGlassIcon className={className} aria-hidden />;
     case "square-pen":
-      return <SquarePenIcon className={className} aria-hidden />;
+      return <NotePencilIcon className={className} aria-hidden />;
     case "terminal":
       return <TerminalIcon className={className} aria-hidden />;
     case "wrench":
@@ -4035,7 +4037,7 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
     case "x":
       return <XIcon className={className} aria-hidden />;
     case "zap":
-      return <ZapIcon className={className} aria-hidden />;
+      return <LightningIcon className={className} aria-hidden />;
   }
 }
 
@@ -4518,7 +4520,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
           <ToolActivityIconView
             icon={entryToolIcon}
             fallbackName={entryIconName}
-            className="block size-4 shrink-0 stroke-2"
+            className="block size-4 shrink-0"
             muted
           />
         </span>
@@ -4565,7 +4567,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
             )}
             aria-hidden
           >
-            <ChevronRightIcon
+            <CaretRightIcon
               className={cn(
                 "size-3 shrink-0 text-icon-muted opacity-70 transition-transform duration-200",
                 expanded && "rotate-90",

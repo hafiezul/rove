@@ -1,6 +1,6 @@
 import type { GitStatusEntry } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelector } from "@pierre/trees/react";
-import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import { ArrowsInLineVerticalIcon, CaretUpDownIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useTheme } from "~/hooks/useTheme";
@@ -190,9 +190,9 @@ export function DiffFileTree({
               }
             >
               {allDirectoriesExpanded ? (
-                <ChevronsDownUpIcon className="size-3.5" />
+                <ArrowsInLineVerticalIcon className="size-3.5" />
               ) : (
-                <ChevronsUpDownIcon className="size-3.5" />
+                <CaretUpDownIcon className="size-3.5" />
               )}
             </TooltipTrigger>
             <TooltipPopup>

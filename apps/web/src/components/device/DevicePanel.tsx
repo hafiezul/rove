@@ -5,7 +5,7 @@ import type {
   DeviceSummary,
   ScopedThreadRef,
 } from "@rove-code/contracts";
-import { Smartphone, X } from "lucide-react";
+import { DeviceMobileIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
@@ -193,7 +193,7 @@ export function DevicePanel(props: {
             aria-label="Dismiss device error"
             onClick={() => setOperationError(null)}
           >
-            <X className="size-3" />
+            <XIcon className="size-3" />
           </Button>
         </div>
       ) : null}
@@ -241,7 +241,7 @@ export function DevicePanel(props: {
             >
               {grouped.length === 0 ? (
                 <>
-                  <Smartphone className="size-6 opacity-60" />
+                  <DeviceMobileIcon className="size-6 opacity-60" />
                   <p className="max-w-sm">
                     {state.hostStatus === "failed"
                       ? (state.hostStatusDetail ?? "The device hub failed to start.")
@@ -254,7 +254,7 @@ export function DevicePanel(props: {
                   {grouped.map((group) => (
                     <section key={group.platform} className="space-y-3">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Smartphone className="size-4 shrink-0" />
+                        <DeviceMobileIcon className="size-4 shrink-0" />
                         <h3 className="font-medium">{platformLabel(group.platform)}</h3>
                       </div>
                       <DiscoveryList>
@@ -263,7 +263,7 @@ export function DevicePanel(props: {
                             key={deviceKey(device)}
                             icon={
                               <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border/60">
-                                <Smartphone className="size-4" />
+                                <DeviceMobileIcon className="size-4" />
                               </span>
                             }
                             title={device.name}

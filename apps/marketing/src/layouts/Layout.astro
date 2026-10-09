@@ -2,7 +2,7 @@
 import { getImage, Image } from "astro:assets";
 import appIcon from "../assets/icon.webp";
 import desktopScreenshot from "../assets/app-desktop.webp";
-import dmSansLatinUrl from "../assets/fonts/dm-sans-latin.woff2?url";
+import interfaceFontLatinUrl from "../assets/fonts/atkinson-hyperlegible-next-latin.woff2?url";
 import "../styles/fonts.css";
 import { GITHUB_REPOSITORY_URL, MOBILE_SOURCE_GUIDE_URL } from "../lib/site";
 
@@ -55,7 +55,7 @@ const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null
     {socialImageUrl && <meta name="twitter:image" content={socialImageUrl} />}
     <link
       rel="preload"
-      href={dmSansLatinUrl}
+      href={interfaceFontLatinUrl}
       as="font"
       type="font/woff2"
       crossorigin="anonymous"
@@ -136,22 +136,24 @@ const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null
 
 <style is:global>
   :root {
-    --bg: #09090b;
-    --bg-elev: #0c0c0e;
-    --bg-card: #111113;
-    --fg: #fafafa;
-    --fg-muted: #a1a1aa;
-    --fg-dim: #71717a;
-    --fg-faint: #52525b;
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --accent-h: 250;
-    --accent: oklch(0.68 0.17 var(--accent-h));
-    --accent-dim: oklch(0.68 0.17 var(--accent-h) / 0.15);
+    /* The app's palette: Ink surfaces, Fold (#6e8bea) accent, Signal amber. */
+    --bg: #0e1019;
+    --bg-elev: #11131e;
+    --bg-card: #141725;
+    --fg: #e9ecf5;
+    --fg-muted: #a3aac2;
+    --fg-dim: #8a91ab;
+    --fg-faint: #5d647c;
+    --border: rgba(169, 184, 240, 0.08);
+    --border-strong: rgba(169, 184, 240, 0.15);
+    --accent: #6e8bea;
+    --accent-dim: rgba(110, 139, 234, 0.15);
     --ok: oklch(0.72 0.16 150);
-    --warn: oklch(0.76 0.15 75);
-    --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    --warn: #e8a33d;
+    --font-sans:
+      "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono:
+      "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
     --radius: 12px;
     --radius-sm: 8px;
     --radius-lg: 16px;
@@ -172,7 +174,6 @@ const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null
     background: var(--bg);
     color: var(--fg);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "ss02";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
@@ -249,7 +250,7 @@ const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null
 
   .btn-primary {
     background: var(--fg);
-    color: #09090b;
+    color: var(--bg);
     font-weight: 600;
   }
 

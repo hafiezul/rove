@@ -1,6 +1,6 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
-import { ChevronDownIcon, XIcon } from "lucide-react";
+import { CaretDownIcon, XIcon } from "@phosphor-icons/react";
 import type { ComponentProps } from "react";
 
 import { cn } from "~/lib/utils";
@@ -333,7 +333,7 @@ function ToggleIcon({ expanded }: { expanded: boolean }) {
       tabIndex={-1}
       className="pointer-events-none"
     >
-      <ChevronDownIcon className={cn("size-3.5", !expanded && "rotate-180")} />
+      <CaretDownIcon className={cn("size-3.5", !expanded && "rotate-180")} />
     </Button>
   );
 }

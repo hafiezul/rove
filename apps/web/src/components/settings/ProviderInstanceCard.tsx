@@ -3,16 +3,16 @@
 import { Spinner } from "~/components/ui/spinner";
 
 import {
-  AlertTriangleIcon,
-  ArrowUpCircleIcon,
+  ArrowCircleUpIcon,
   CopyIcon,
-  DownloadIcon,
+  DownloadSimpleIcon,
   LockIcon,
   LockOpenIcon,
   PlusIcon,
-  Trash2Icon,
+  TrashIcon,
+  WarningIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import * as Arr from "effect/Array";
 import * as Result from "effect/Result";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
@@ -472,7 +472,7 @@ export function ProviderInstanceCard({
     compatibility !== undefined &&
     compatibility.status !== "supported" &&
     compatibility.status !== "unknown";
-  const VersionAdvisoryIcon = hasCompatibilityWarning ? AlertTriangleIcon : ArrowUpCircleIcon;
+  const VersionAdvisoryIcon = hasCompatibilityWarning ? WarningIcon : ArrowCircleUpIcon;
   const onRunVersionAction = versionAdvisory?.targetVersion ? onInstallRecommended : onRunUpdate;
   const FallbackIconComponent = driverOption?.icon;
   const displayName =
@@ -694,7 +694,7 @@ export function ProviderInstanceCard({
                             copyToClipboard(updateCommand, { providerName: displayName })
                           }
                         >
-                          <ArrowUpCircleIcon className="size-3.5" />
+                          <ArrowCircleUpIcon className="size-3.5" />
                         </Button>
                       }
                     />
@@ -702,7 +702,7 @@ export function ProviderInstanceCard({
                   </Tooltip>
                 ) : (
                   <span role="img" aria-label="Update available" className="inline-flex shrink-0">
-                    <ArrowUpCircleIcon className="size-3.5 text-muted-foreground" />
+                    <ArrowCircleUpIcon className="size-3.5 text-muted-foreground" />
                   </span>
                 )
               ) : null}
@@ -797,7 +797,7 @@ export function ProviderInstanceCard({
                     disabled={isUpdating}
                     onClick={onRunVersionAction}
                   >
-                    {isUpdating ? <Spinner /> : <DownloadIcon />}
+                    {isUpdating ? <Spinner /> : <DownloadSimpleIcon />}
                     {isUpdating
                       ? "Updating"
                       : versionAdvisory.targetVersion
@@ -852,7 +852,7 @@ export function ProviderInstanceCard({
             onClick={onDelete}
             aria-label={`Delete instance ${instanceId}`}
           >
-            <Trash2Icon />
+            <TrashIcon />
           </Button>
         ) : null}
       </span>

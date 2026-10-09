@@ -1,5 +1,5 @@
 import { SettingsGroup } from "./SettingsGroup";
-import { ChevronRightIcon } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -48,7 +48,7 @@ export function FoldedSettingsSection({
               <h2>
                 <CollapsibleTrigger className="flex min-h-7 items-center gap-2 rounded-md text-sm font-normal text-foreground/70 outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {title}
-                  <ChevronRightIcon
+                  <CaretRightIcon
                     aria-hidden
                     className={cn(
                       "size-4 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
@@ -73,7 +73,7 @@ export function FoldedSettingsSection({
       <Collapsible open={open} onOpenChange={setOpen} render={<SettingsGroup divided={false} />}>
         <div className="flex items-center gap-4 px-3 sm:px-4">
           <CollapsibleTrigger className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
-            <ChevronRightIcon
+            <CaretRightIcon
               aria-hidden
               className={cn(
                 "size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",

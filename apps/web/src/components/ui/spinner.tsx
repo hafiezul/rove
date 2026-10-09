@@ -1,4 +1,4 @@
-import { LoaderCircleIcon } from "lucide-react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { observeVisibleAnimation } from "~/lib/visibleAnimation";
 import { cn } from "~/lib/utils";
@@ -25,9 +25,9 @@ function Spinner({
   size,
   tone,
   ...props
-}: React.ComponentPropsWithoutRef<typeof LoaderCircleIcon> & VariantProps<typeof spinnerVariants>) {
+}: React.ComponentPropsWithoutRef<typeof CircleNotchIcon> & VariantProps<typeof spinnerVariants>) {
   return (
-    <LoaderCircleIcon
+    <CircleNotchIcon
       aria-label="Loading"
       ref={observeVisibleAnimation}
       className={cn(spinnerVariants({ size, tone }), className)}

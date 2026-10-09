@@ -1,5 +1,5 @@
 import type { SnapShotSource } from "@rove-code/contracts";
-import { ImageIcon, TextIcon } from "lucide-react";
+import { ImageIcon, TextAlignLeftIcon } from "@phosphor-icons/react";
 import { Suspense, use, useMemo, type CSSProperties } from "react";
 
 import { useTheme } from "../../hooks/useTheme";
@@ -135,7 +135,7 @@ export function SnapShotContentsButton({
   side?: "top" | "right" | "bottom" | "left";
 }) {
   const includesAccessibility = snapShotIncludesAccessibility(source);
-  const ContentsIcon = includesAccessibility ? TextIcon : ImageIcon;
+  const ContentsIcon = includesAccessibility ? TextAlignLeftIcon : ImageIcon;
   const accessibilityDetails = snapShotAccessibilityDetails(source);
   const tooltip = includesAccessibility ? "Accessibility data" : "No accessibility data";
 

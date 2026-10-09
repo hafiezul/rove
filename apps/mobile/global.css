@@ -14,9 +14,9 @@
 /* ─── Typography ────────────────────────────────────────────────────── */
 @theme {
   /* Keep these native family names aligned with app.config.ts. */
-  --font-sans: "DMSans-Regular";
-  --font-medium: "DMSans-Medium";
-  --font-bold: "DMSans-Bold";
+  --font-sans: "AtkinsonHyperlegibleNext-Regular";
+  --font-medium: "AtkinsonHyperlegibleNext-Medium";
+  --font-bold: "AtkinsonHyperlegibleNext-Bold";
 
   /* Keep this scale aligned with src/lib/typography.ts for native style props. */
   --text-3xs: 11px;

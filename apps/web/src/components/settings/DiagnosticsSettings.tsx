@@ -1,13 +1,13 @@
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import {
-  AlertTriangleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   CopyIcon,
   FolderOpenIcon,
   InfoIcon,
-} from "lucide-react";
+  WarningIcon,
+} from "@phosphor-icons/react";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -269,7 +269,7 @@ function ProcessNameCell({
 }) {
   const name = formatProcessName(process.command);
   const hasChildren = process.childPids.length > 0;
-  const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
+  const ChevronIcon = isExpanded ? CaretDownIcon : CaretRightIcon;
 
   return (
     <div
@@ -949,13 +949,13 @@ export function DiagnosticsSettingsPanel() {
           <div className="space-y-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:px-5">
             {processDiagnosticsError ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{processDiagnosticsError.message}</span>
               </div>
             ) : null}
             {processError ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{processError}</span>
               </div>
             ) : null}
@@ -1014,13 +1014,13 @@ export function DiagnosticsSettingsPanel() {
           <div className="space-y-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:px-5">
             {processResourceError ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{processResourceError.message}</span>
               </div>
             ) : null}
             {resourceError ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{resourceError}</span>
               </div>
             ) : null}
@@ -1093,7 +1093,7 @@ export function DiagnosticsSettingsPanel() {
           <div className="space-y-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:px-5">
             {openLogsDirectoryError ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{openLogsDirectoryError}</span>
               </div>
             ) : null}
@@ -1104,7 +1104,7 @@ export function DiagnosticsSettingsPanel() {
                   traceDiagnosticsPartialFailure ? "text-warning-foreground" : "text-destructive",
                 )}
               >
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>
                   {traceDiagnosticsPartialFailure
                     ? `Some trace files could not be read, so diagnostics may be incomplete. ${traceDiagnosticsError.message}`
@@ -1114,7 +1114,7 @@ export function DiagnosticsSettingsPanel() {
             ) : null}
             {error ? (
               <div className="flex items-start gap-2 text-destructive">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>{error}</span>
               </div>
             ) : null}

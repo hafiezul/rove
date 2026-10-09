@@ -4,17 +4,17 @@ import { formatAttachmentSize } from "@rove-code/client-runtime/state/attachment
 import { readFilePreviewResponse } from "@rove-code/client-runtime/file-preview";
 import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@rove-code/shared/filePreview";
 import {
+  ArrowUDownLeftIcon,
+  CaretRightIcon,
   CheckIcon,
-  ChevronRightIcon,
-  Code2,
+  CodeIcon,
   CopyIcon,
-  DownloadIcon,
-  Eye,
-  Table2,
-  Trash2Icon,
-  WrapTextIcon,
+  DownloadSimpleIcon,
+  EyeIcon,
+  TableIcon,
+  TrashIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAssetUrlRefresh } from "~/assets/assetUrls";
@@ -291,7 +291,7 @@ export function AttachmentFilePreview(props: {
           <span className="shrink-0 px-0.5 text-muted-foreground">
             {props.origin ?? "Attachment"}
           </span>
-          <ChevronRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
+          <CaretRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
           <span aria-current="page" className="min-w-0 truncate px-0.5 font-medium text-foreground">
             {props.name}
           </span>
@@ -306,11 +306,11 @@ export function AttachmentFilePreview(props: {
             onPress={() => setRendered((value) => !value)}
           >
             {rendered ? (
-              <Code2 className="size-3.5" />
+              <CodeIcon className="size-3.5" />
             ) : renderedMode === "table" ? (
-              <Table2 className="size-3.5" />
+              <TableIcon className="size-3.5" />
             ) : (
-              <Eye className="size-3.5" />
+              <EyeIcon className="size-3.5" />
             )}
           </FileSurfaceAction>
         ) : null}
@@ -320,7 +320,7 @@ export function AttachmentFilePreview(props: {
             pressed={wordWrap}
             onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
           >
-            <WrapTextIcon className="size-3.5" />
+            <ArrowUDownLeftIcon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
         {content ? (
@@ -337,12 +337,12 @@ export function AttachmentFilePreview(props: {
             disabled={saving}
             onPress={save}
           >
-            <DownloadIcon className="size-3.5" />
+            <DownloadSimpleIcon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
         {props.onRemove ? (
           <FileSurfaceAction label="Remove from draft" onPress={props.onRemove}>
-            <Trash2Icon className="size-3.5" />
+            <TrashIcon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
         {props.onClose ? (

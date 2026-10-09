@@ -2,13 +2,13 @@ import {
   CheckIcon,
   CopyIcon,
   MoonIcon,
-  PaintbrushIcon,
-  PenLineIcon,
+  PaintBrushIcon,
+  PencilLineIcon,
   PlusIcon,
   SunIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "lucide-react";
+  TrashIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { useEnvironmentThemeDefinitions } from "../../hooks/useEnvironmentTheme";
 import { readThemeHalvesRaw } from "../../hooks/useTheme";
@@ -22,12 +22,8 @@ import {
   type ThemeAppearance,
   type ThemeDefinition,
   type ThemeHalves,
-  PLUM_THEME,
-  EMBER_THEME,
-  GROVE_THEME,
-  IRIS_THEME,
-  OCEAN_THEME,
 } from "../../themePalette";
+import { BUILT_IN_THEMES, isLegacyDesignTheme } from "@rove-code/shared/themePalettes";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -54,13 +50,12 @@ import {
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
 
-const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
-  PLUM_THEME,
-  GROVE_THEME,
-  OCEAN_THEME,
-  EMBER_THEME,
-  IRIS_THEME,
-];
+const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEMES.filter(
+  (theme) => !isLegacyDesignTheme(theme.id),
+);
+const LEGACY_THEMES: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEMES.filter((theme) =>
+  isLegacyDesignTheme(theme.id),
+);
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {
   if (themes.length === 0) return [];
@@ -349,7 +344,7 @@ function ThemeLibraryCard({
                               onEdit();
                             }}
                           >
-                            <PenLineIcon />
+                            <PencilLineIcon />
                           </Button>
                         }
                       />
@@ -369,7 +364,7 @@ function ThemeLibraryCard({
                               onDownload();
                             }}
                           >
-                            <UploadIcon />
+                            <UploadSimpleIcon />
                           </Button>
                         }
                       />
@@ -393,7 +388,7 @@ function ThemeLibraryCard({
                               onRemove();
                             }}
                           >
-                            <Trash2Icon />
+                            <TrashIcon />
                           </Button>
                         }
                       />
@@ -765,6 +760,25 @@ export function ThemeLibrary({
       .entries(),
   ];
 
+  const renderBuiltInThemeCard = (builtInTheme: ThemeDefinition) => (
+    <ThemeLibraryCard
+      activeModes={pickedModesFor(builtInTheme.id)}
+      isActive={false}
+      key={builtInTheme.id}
+      onDuplicate={() =>
+        openThemeEditor({
+          editingThemeId: null,
+          seedThemeId: builtInTheme.id,
+          seedName: `${builtInTheme.label} copy`,
+          initialAppearance,
+        })
+      }
+      onUse={() => persistTheme(builtInTheme.id)}
+      onUseMode={handlePairPick(builtInTheme.id)}
+      theme={getThemeCardDefinition(builtInTheme)}
+    />
+  );
+
   const renderPairGrid = () => (
     // One shared provider so every tooltip in the grid hands off instantly to
     // the next hovered trigger instead of stacking on top of it. The card
@@ -793,27 +807,7 @@ export function ThemeLibrary({
             theme={standardTheme}
           />
         ))}
-        {MAINTAINER_THEMES.map((maintainerTheme) => {
-          const card = getThemeCardDefinition(maintainerTheme);
-          return (
-            <ThemeLibraryCard
-              activeModes={pickedModesFor(maintainerTheme.id)}
-              isActive={false}
-              key={maintainerTheme.id}
-              onDuplicate={() =>
-                openThemeEditor({
-                  editingThemeId: null,
-                  seedThemeId: maintainerTheme.id,
-                  seedName: `${maintainerTheme.label} copy`,
-                  initialAppearance,
-                })
-              }
-              onUse={() => persistTheme(maintainerTheme.id)}
-              onUseMode={handlePairPick(maintainerTheme.id)}
-              theme={card}
-            />
-          );
-        })}
+        {MAINTAINER_THEMES.map(renderBuiltInThemeCard)}
         {environmentThemes
           .filter(
             // A saved theme with the same id wins resolution, so its card is
@@ -905,7 +899,7 @@ export function ThemeLibrary({
               })
             }
           >
-            <PaintbrushIcon />
+            <PaintBrushIcon />
             Create theme
           </Button>
           <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>
@@ -915,6 +909,24 @@ export function ThemeLibrary({
         </div>
       </div>
       {renderPairGrid()}
+      {LEGACY_THEMES.length > 0 ? (
+        <>
+          <div className="space-y-0.5 px-3 pt-2 sm:px-4">
+            <h3 className="text-sm font-normal text-foreground/70">Legacy themes</h3>
+            <p className="text-xs text-muted-foreground">
+              Palettes from before Rove Code's redesign. Classic is the previous default look.
+            </p>
+          </div>
+          <TooltipProvider>
+            <div
+              className="grid w-full gap-2"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))" }}
+            >
+              {LEGACY_THEMES.map(renderBuiltInThemeCard)}
+            </div>
+          </TooltipProvider>
+        </>
+      ) : null}
       <ThemeImportDialog
         onImportedMany={(importedThemes, { updated }) => {
           // Re-apply after collection updates. The update may remove the

@@ -40,7 +40,7 @@ import {
   type PreviewViewportSetting,
 } from "@rove-code/contracts";
 import { PREVIEW_VIEWPORT_PRESETS } from "@rove-code/shared/previewViewport";
-import { MoreVertical, Plus as PlusIcon } from "lucide-react";
+import { DotsThreeVerticalIcon, PlusIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 
 import { ScreenRotationIcon } from "~/browser/ScreenRotationIcon";
@@ -1297,7 +1297,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
                     />
                   }
                 >
-                  <MoreVertical />
+                  <DotsThreeVerticalIcon />
                 </MenuTrigger>
                 <MenuPopup align="end">
                   <MenuItem

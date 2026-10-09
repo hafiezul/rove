@@ -935,14 +935,14 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import {
   FileIcon,
-  BotIcon,
-  CircleAlertIcon,
   PaperclipIcon,
   PencilRulerIcon,
   PlayIcon,
+  RobotIcon,
   ShieldIcon,
+  WarningCircleIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { proposedPlanTitle } from "../../proposedPlan";
 import { hasProviderSetup } from "./ProviderStatusBanner";
 import {
@@ -1120,7 +1120,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
             />
           ) : (
             <ComposerControlIcon
-              icon={BotIcon}
+              icon={RobotIcon}
               size={size}
               opticalSize={size === "xs" ? "default" : "large"}
             />
@@ -5022,7 +5022,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       data-chat-provider-unavailable="true"
       className="shrink-0"
     >
-      <CircleAlertIcon className="size-4" />
+      <WarningCircleIcon className="size-4" />
       {providerSetupInstanceId ? "Open provider settings" : "No provider available"}
     </ComposerControl>
   ) : (
@@ -6592,7 +6592,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                                       aria-label="Draft attachment may not persist"
                                       className="absolute left-1 top-1 inline-flex items-center justify-center rounded bg-background/85 p-0.5 text-warning-foreground"
                                     >
-                                      <CircleAlertIcon className="size-3" />
+                                      <WarningCircleIcon className="size-3" />
                                     </span>
                                   }
                                 />
@@ -6699,7 +6699,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                                 <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/10" />
                               </>
                             )}
-                            <PlayIcon className="relative z-10 size-4 fill-current drop-shadow-md" />
+                            <PlayIcon
+                              className="relative z-10 size-4 drop-shadow-md"
+                              weight="fill"
+                            />
                           </button>
                           {upload?.status === "uploading" && (
                             <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-background/85 px-1 text-center text-3xs text-foreground">

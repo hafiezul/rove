@@ -1,7 +1,7 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { Spinner } from "~/components/ui/spinner";
 import type { EnvironmentId } from "@rove-code/contracts";
-import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { PierreEntryIcon } from "~/components/chat/PierreEntryIcon";
@@ -178,7 +178,7 @@ function BreadcrumbMenuContent(props: {
                   onClick={() => props.onDirectoryChange(entry.path)}
                 >
                   {row}
-                  <ChevronRightIcon />
+                  <CaretRightIcon />
                 </MenuItem>
               ) : (
                 <MenuRadioItem
@@ -279,7 +279,7 @@ export function FileBreadcrumbs(props: FileBreadcrumbsProps) {
       data-current-file-crumb={crumb.kind === "file"}
     >
       {index > 0 ? (
-        <ChevronRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
+        <CaretRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
       ) : null}
       {crumb.kind === "file" ? (
         <span aria-current="page">

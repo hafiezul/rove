@@ -13,7 +13,7 @@ import {
   stripDisplayedPlanMarkdown,
 } from "../../proposedPlan";
 import ChatMarkdown from "../ChatMarkdown";
-import { EllipsisIcon } from "lucide-react";
+import { DotsThreeIcon } from "@phosphor-icons/react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
@@ -158,7 +158,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
           <MenuTrigger
             render={<Button aria-label="Plan actions" size="icon-xs" variant="outline" />}
           >
-            <EllipsisIcon aria-hidden="true" className="size-4" />
+            <DotsThreeIcon aria-hidden="true" className="size-4" />
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuItem onClick={handleCopyPlan}>

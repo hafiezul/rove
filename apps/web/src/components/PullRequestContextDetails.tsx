@@ -1,5 +1,5 @@
 import type { PullRequestContextMetadata } from "@rove-code/contracts";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 
 import { cn } from "~/lib/utils";
 

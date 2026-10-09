@@ -1,6 +1,6 @@
 import { ProviderInteractionMode, RuntimeMode } from "@rove-code/contracts";
 import { memo, type ReactNode } from "react";
-import { EllipsisIcon } from "lucide-react";
+import { DotsThreeIcon } from "@phosphor-icons/react";
 import {
   Menu,
   MenuPopup,
@@ -48,7 +48,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           />
         }
       >
-        <ComposerControlIcon icon={EllipsisIcon} size={size} />
+        <ComposerControlIcon icon={DotsThreeIcon} size={size} />
       </MenuTrigger>
       <MenuPopup align="start" {...composerFloatingLayerProps}>
         {props.traitsMenuContent ? (

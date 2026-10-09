@@ -6,7 +6,7 @@ import type {
 import type { EnvironmentId, ProjectEntry } from "@rove-code/contracts";
 import { FileTree, useFileTree, useFileTreeSearch, useFileTreeSelector } from "@pierre/trees/react";
 import { serializeComposerFileLink } from "@rove-code/shared/composerTrigger";
-import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import { ArrowsInLineVerticalIcon, CaretUpDownIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -517,9 +517,9 @@ export default function FileBrowserPanel({
               }
             >
               {allDirectoriesExpanded ? (
-                <ChevronsDownUpIcon className="size-3.5" />
+                <ArrowsInLineVerticalIcon className="size-3.5" />
               ) : (
-                <ChevronsUpDownIcon className="size-3.5" />
+                <CaretUpDownIcon className="size-3.5" />
               )}
             </TooltipTrigger>
             <TooltipPopup>

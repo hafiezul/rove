@@ -3,15 +3,15 @@ import { resolveThreadCurrentPullRequestLink } from "@rove-code/shared/threadPul
 import { Spinner } from "~/components/ui/spinner";
 import {
   ArchiveIcon,
-  ArrowUpDownIcon,
-  ChevronRightIcon,
+  ArrowsDownUpIcon,
+  CaretRightIcon,
   FolderPlusIcon,
-  Globe2Icon,
-  SearchIcon,
-  SquarePenIcon,
+  GlobeHemisphereWestIcon,
+  MagnifyingGlassIcon,
+  NotePencilIcon,
   TerminalIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+  WarningIcon,
+} from "@phosphor-icons/react";
 import {
   ChangeRequestStatusIcon,
   prStatusIndicator,
@@ -813,7 +813,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   />
                 }
               >
-                <Globe2Icon className="size-3" />
+                <GlobeHemisphereWestIcon className="size-3" />
               </TooltipTrigger>
               <TooltipPopup side="top">
                 Open localhost:{discoveredPorts[0]?.port}
@@ -2424,12 +2424,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                     }`}
                   />
                 </span>
-                <ChevronRightIcon className="absolute inset-0 m-auto size-3.5 text-icon-muted opacity-0 transition-opacity duration-150 group-hover/project-header:opacity-100" />
+                <CaretRightIcon className="absolute inset-0 m-auto size-3.5 text-icon-muted opacity-0 transition-opacity duration-150 group-hover/project-header:opacity-100" />
               </TooltipTrigger>
               <TooltipPopup side="top">{projectStatus.label}</TooltipPopup>
             </Tooltip>
           ) : (
-            <ChevronRightIcon
+            <CaretRightIcon
               className={`-ml-0.5 size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-150 ${
                 projectExpanded ? "rotate-90" : ""
               }`}
@@ -2489,7 +2489,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                   className={SIDEBAR_ICON_ACTION_BUTTON_CLASS}
                   onClick={handleCreateThreadClick}
                 >
-                  <SquarePenIcon className="size-3.5" />
+                  <NotePencilIcon className="size-3.5" />
                 </button>
               </div>
             }
@@ -2723,7 +2723,7 @@ function LocalSecondaryStatus() {
       ) : null}
       {failed.length > 0 ? (
         <Alert variant="warning">
-          <TriangleAlertIcon />
+          <WarningIcon />
           <AlertTitle>Couldn't connect {failed.map((entry) => entry.label).join(", ")}</AlertTitle>
           <AlertDescription>
             {failed
@@ -2777,7 +2777,7 @@ function ProjectSortMenu({
         <TooltipTrigger
           render={<MenuTrigger render={<Button size="icon-xs" variant="ghost-muted" />} />}
         >
-          <ArrowUpDownIcon className="size-3.5" />
+          <ArrowsDownUpIcon className="size-3.5" />
         </TooltipTrigger>
         <TooltipPopup side="right">Sidebar options</TooltipPopup>
       </Tooltip>
@@ -3012,7 +3012,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
               <CommandDialogTrigger
                 render={<SidebarMenuButton data-testid="command-palette-trigger" />}
               >
-                <SearchIcon />
+                <MagnifyingGlassIcon />
                 <span className="flex-1 truncate">Search</span>
                 {commandPaletteShortcutLabel ? <Kbd>{commandPaletteShortcutLabel}</Kbd> : null}
               </CommandDialogTrigger>
@@ -3024,7 +3024,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
         <SidebarGroup>
           <Alert variant="warning">
-            <TriangleAlertIcon />
+            <WarningIcon />
             <AlertTitle>Intel build on Apple Silicon</AlertTitle>
             <AlertDescription>{arm64IntelBuildWarningDescription}</AlertDescription>
             {desktopUpdateButtonAction !== "none" ? (
@@ -3061,7 +3061,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                 })
               }
             >
-              <SquarePenIcon />
+              <NotePencilIcon />
               <span>New thread without a project</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

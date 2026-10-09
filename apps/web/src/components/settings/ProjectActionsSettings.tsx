@@ -4,7 +4,7 @@ import {
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@rove-code/shared/keybindings";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { CaretDownIcon, PlusIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { useRoveProjectFileState } from "../../hooks/useRoveProjectFileScripts";
 import { useEnvironments } from "../../state/environments";
@@ -154,7 +154,7 @@ export function ProjectActionsSettings() {
                   }
                 >
                   Import scripts
-                  <ChevronDownIcon className="size-3.5" />
+                  <CaretDownIcon className="size-3.5" />
                 </MenuTrigger>
                 <MenuPopup align="end">
                   <MenuGroup>

@@ -3,7 +3,7 @@ import {
   resolveThreadPullRequestChains,
   visibleThreadPullRequests,
 } from "@rove-code/shared/threadPullRequests";
-import { ArrowUpRightIcon, LinkIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import { ArrowUpRightIcon, DotsThreeIcon, LinkIcon, PlusIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo } from "react";
 
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
@@ -207,7 +207,7 @@ function LinkRow({
                 aria-label={`Actions for #${link.number}`}
                 className="relative"
               >
-                <MoreHorizontalIcon className="size-3.5" />
+                <DotsThreeIcon className="size-3.5" />
               </Button>
             }
           />

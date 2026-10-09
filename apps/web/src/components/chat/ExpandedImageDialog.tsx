@@ -7,7 +7,13 @@ import {
   type ReactNode,
   type KeyboardEvent,
 } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, TextIcon, XIcon } from "lucide-react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  ImageIcon,
+  TextAlignLeftIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { Button } from "../ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import type { ExpandedImageItem, ExpandedImagePreview } from "./ExpandedImagePreview";
@@ -165,7 +171,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
     : accessibilityDetails?.format === "json"
       ? "Show accessibility JSON"
       : "Show extracted text";
-  const ContentsIcon = showingAccessibilityDetails ? ImageIcon : TextIcon;
+  const ContentsIcon = showingAccessibilityDetails ? ImageIcon : TextAlignLeftIcon;
 
   return (
     <Dialog
@@ -197,7 +203,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
             aria-label="Previous media"
             onClick={() => navigateImage(-1)}
           >
-            <ChevronLeftIcon className="size-5" />
+            <CaretLeftIcon className="size-5" />
           </Button>
         )}
         <MediaActions source={actionsSource}>
@@ -279,7 +285,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
             aria-label="Next media"
             onClick={() => navigateImage(1)}
           >
-            <ChevronRightIcon className="size-5" />
+            <CaretRightIcon className="size-5" />
           </Button>
         )}
       </DialogPopup>

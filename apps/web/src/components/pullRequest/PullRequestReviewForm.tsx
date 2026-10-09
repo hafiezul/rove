@@ -5,7 +5,7 @@
  * repeated here. The popover around it belongs to PullRequestComposer.
  */
 import type { EnvironmentId, PullRequestRef, PullRequestReviewVerdict } from "@rove-code/contracts";
-import { CheckIcon, MessageSquareIcon, XCircleIcon } from "lucide-react";
+import { ChatIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useState, type ReactNode, type RefObject } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";
@@ -31,7 +31,7 @@ const VERDICTS: ReadonlyArray<{
     value: "comment",
     label: "Comment",
     sent: "Review submitted",
-    icon: <MessageSquareIcon className="size-3" />,
+    icon: <ChatIcon className="size-3" />,
   },
   {
     value: "approve",

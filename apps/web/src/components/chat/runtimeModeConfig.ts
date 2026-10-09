@@ -1,9 +1,15 @@
 import type { RuntimeMode } from "@rove-code/contracts";
-import { type LucideIcon, LockIcon, LockOpenIcon, PenLineIcon, SparklesIcon } from "lucide-react";
+import {
+  type Icon as PhosphorIcon,
+  LockIcon,
+  LockOpenIcon,
+  PencilLineIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react";
 
 export const runtimeModeConfig: Record<
   RuntimeMode,
-  { label: string; description: string; icon: LucideIcon }
+  { label: string; description: string; icon: PhosphorIcon }
 > = {
   "approval-required": {
     label: "Supervised",
@@ -13,12 +19,12 @@ export const runtimeModeConfig: Record<
   "auto-accept-edits": {
     label: "Auto-accept edits",
     description: "Auto-approve edits, ask before other actions.",
-    icon: PenLineIcon,
+    icon: PencilLineIcon,
   },
   auto: {
     label: "Auto",
     description: "Supported providers approve routine actions; others still ask.",
-    icon: SparklesIcon,
+    icon: SparkleIcon,
   },
   "full-access": {
     label: "Full access",

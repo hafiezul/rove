@@ -1,4 +1,4 @@
-import { PencilIcon } from "lucide-react";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import type { ComponentProps } from "react";
 
 import { cn } from "../../lib/utils";
@@ -19,7 +19,7 @@ export function PullRequestEditButton({
       )}
     >
       <Button {...props} size="icon-xs" variant="ghost-muted">
-        <PencilIcon aria-hidden className="size-3" />
+        <PencilSimpleIcon aria-hidden className="size-3" />
       </Button>
     </span>
   );

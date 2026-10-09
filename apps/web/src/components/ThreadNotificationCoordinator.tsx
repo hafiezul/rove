@@ -3,11 +3,11 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import type { EnvironmentId, ThreadId } from "@rove-code/contracts";
 import * as Option from "effect/Option";
 import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  MessageCircleQuestionIcon,
-  ShieldQuestionIcon,
-} from "lucide-react";
+  CheckCircleIcon,
+  QuestionIcon,
+  ShieldWarningIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 
 import { getClientSettings, useClientSettings } from "../hooks/useSettings";
@@ -164,13 +164,13 @@ function EnvironmentNotifications({
             hideCopyButton: true,
             leadingIcon:
               kind === "completion" ? (
-                <CircleCheckIcon aria-hidden className="size-4 text-success-foreground" />
+                <CheckCircleIcon aria-hidden className="size-4 text-success-foreground" />
               ) : status === "approval" ? (
-                <ShieldQuestionIcon aria-hidden className="size-4 text-warning-foreground" />
+                <ShieldWarningIcon aria-hidden className="size-4 text-warning-foreground" />
               ) : status === "failed" ? (
-                <CircleAlertIcon aria-hidden className="size-4 text-destructive-foreground" />
+                <WarningCircleIcon aria-hidden className="size-4 text-destructive-foreground" />
               ) : (
-                <MessageCircleQuestionIcon aria-hidden className="size-4 text-info-foreground" />
+                <QuestionIcon aria-hidden className="size-4 text-info-foreground" />
               ),
           },
           actionProps: {

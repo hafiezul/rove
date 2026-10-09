@@ -1,7 +1,7 @@
 "use client";
 
 import { FILL_PREVIEW_VIEWPORT, type ScopedThreadRef } from "@rove-code/contracts";
-import { PanelRightIcon, PictureInPicture2, XIcon } from "lucide-react";
+import { PictureInPictureIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -217,7 +217,7 @@ function BrowserMiniPlayer({
               />
             }
           >
-            <PictureInPicture2 />
+            <PictureInPictureIcon />
           </TooltipTrigger>
           <TooltipPopup side="top">
             {desktopOverlay?.pictureInPicture
@@ -492,7 +492,7 @@ function MiniPlayerShell({
                     />
                   }
                 >
-                  <PanelRightIcon />
+                  <SidebarSimpleIcon mirrored />
                 </TooltipTrigger>
                 <TooltipPopup side="top">Open in right panel</TooltipPopup>
               </Tooltip>

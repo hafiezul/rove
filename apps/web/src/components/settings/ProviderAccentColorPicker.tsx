@@ -1,6 +1,6 @@
 "use client";
 
-import { PipetteIcon, XIcon } from "lucide-react";
+import { EyedropperIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { hexToHsv, hsvToHex, type HsvColor } from "../../lib/color";
@@ -86,7 +86,7 @@ function ProviderCustomColorPicker(props: {
             style={{ backgroundColor: normalized }}
             aria-label={`Choose accent color for ${props.displayName}`}
           >
-            <PipetteIcon className="size-3 text-white/70 drop-shadow-sm" aria-hidden />
+            <EyedropperIcon className="size-3 text-white/70 drop-shadow-sm" aria-hidden />
           </button>
         }
       />

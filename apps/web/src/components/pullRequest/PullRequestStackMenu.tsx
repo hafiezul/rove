@@ -6,7 +6,7 @@ import type {
   PullRequestMergeMethod,
 } from "@rove-code/contracts";
 import { squashAtomCommandFailure } from "@rove-code/client-runtime/state/runtime";
-import { RefreshCwIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowClockwiseIcon, WarningIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { pullRequestEnvironment } from "~/state/pullRequests";
@@ -136,7 +136,7 @@ export function PullRequestStackMenu({
               >
                 <PullRequestGlyph.stack aria-hidden className="size-3.5" /> {position}/
                 {stack.layers.length}
-                {onRetry ? <TriangleAlertIcon aria-hidden className="size-3 text-warning" /> : null}
+                {onRetry ? <WarningIcon aria-hidden className="size-3 text-warning" /> : null}
               </MenuTrigger>
             }
           />
@@ -177,7 +177,7 @@ export function PullRequestStackMenu({
                   disabled={rebaseDisabled}
                   onClick={() => setConfirmation("update-branch")}
                 >
-                  <RefreshCwIcon aria-hidden />
+                  <ArrowClockwiseIcon aria-hidden />
                   Rebase stack
                 </MenuItem>
               ) : null}

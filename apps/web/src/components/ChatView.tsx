@@ -237,16 +237,16 @@ import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings"
 import { isEditableFocused } from "../lib/editableFocus";
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import {
-  AlarmClockIcon,
-  CheckCircle2Icon,
-  ChevronDownIcon,
-  DownloadIcon,
+  AlarmIcon,
+  ArrowsInIcon,
+  CaretDownIcon,
+  CheckCircleIcon,
+  DownloadSimpleIcon,
   GitBranchIcon,
-  Minimize2Icon,
-  MonitorUpIcon,
+  MonitorArrowUpIcon,
   PaperclipIcon,
-  WifiOffIcon,
-} from "lucide-react";
+  WifiSlashIcon,
+} from "@phosphor-icons/react";
 import { cn, randomHex, randomUUID } from "~/lib/utils";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { decodeProjectScriptKeybindingRule } from "~/lib/projectScriptKeybindings";
@@ -2226,7 +2226,7 @@ export default function ChatView(props: ChatViewProps) {
         variant: "info",
         compact: true,
         priority: "activity",
-        icon: <DownloadIcon />,
+        icon: <DownloadSimpleIcon />,
         title: `Cloning ${name}`,
         description: projectCloneProgressSummary(activeProjectClone),
         actions: (
@@ -2249,7 +2249,7 @@ export default function ChatView(props: ChatViewProps) {
       id: `project-clone:${projectId}`,
       variant: cancelled ? "warning" : "error",
       compact: true,
-      icon: <DownloadIcon />,
+      icon: <DownloadSimpleIcon />,
       title: cancelled ? `Cancelled cloning ${name}` : `Failed to clone ${name}`,
       description: cancelled ? "Retry to bring in the repository." : activeProjectClone.error,
       actions: (
@@ -2735,7 +2735,7 @@ export default function ChatView(props: ChatViewProps) {
       items.push({
         id: `environment-unavailable:${activeEnvironmentUnavailableState.environmentId}`,
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
-        icon: <WifiOffIcon />,
+        icon: <WifiSlashIcon />,
         title: `${activeEnvironmentUnavailableState.label} is ${environmentReconnecting ? "reconnecting" : "offline"}`,
         actions: (
           <>
@@ -6401,7 +6401,7 @@ export default function ChatView(props: ChatViewProps) {
     return {
       id: `thread-woke:${activeThread?.id ?? "unknown"}`,
       variant: "info",
-      icon: <AlarmClockIcon />,
+      icon: <AlarmIcon />,
       title: "Thread woke from snooze",
       description: "Send a message to continue",
       dismissLabel: "Dismiss Woke notification",
@@ -6416,7 +6416,7 @@ export default function ChatView(props: ChatViewProps) {
     return {
       id: `thread-${isSnoozed ? "snoozed" : "settled"}:${activeThread?.id ?? "unknown"}`,
       variant: "info",
-      icon: isSnoozed ? <AlarmClockIcon /> : <CheckCircle2Icon />,
+      icon: isSnoozed ? <AlarmIcon /> : <CheckCircleIcon />,
       title: `This thread is ${isSnoozed ? "snoozed" : "settled"}`,
       description: `Send a message to ${isSnoozed ? "wake" : "unsettle"}`,
       actions: (
@@ -6464,7 +6464,7 @@ export default function ChatView(props: ChatViewProps) {
     return {
       id: `thread-continued:${key}`,
       variant: "info",
-      icon: <MonitorUpIcon />,
+      icon: <MonitorArrowUpIcon />,
       title: continuedHere
         ? `Continued from ${latestContinuation.environmentLabel}`
         : `Continued on ${latestContinuation.environmentLabel}`,
@@ -6568,7 +6568,7 @@ export default function ChatView(props: ChatViewProps) {
     return {
       id: `resume-compaction:${resumeCompactionKey}`,
       variant: "info",
-      icon: <Minimize2Icon />,
+      icon: <ArrowsInIcon />,
       title: "Resume with less context",
       description: `${formatContextWindowTokens(activeContextWindow.usedTokens)} tokens from earlier`,
       actions: compactDisabledReason ? (
@@ -10060,7 +10060,7 @@ export default function ChatView(props: ChatViewProps) {
                     size="xs"
                     variant="glass"
                   >
-                    <ChevronDownIcon className="size-3.5" />
+                    <CaretDownIcon className="size-3.5" />
                     Scroll to end
                   </Button>
                 </div>

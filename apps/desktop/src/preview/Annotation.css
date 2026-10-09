@@ -25,24 +25,24 @@
 
 :host {
   --rove-font-sans:
-    "DM Sans Variable", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     sans-serif;
   --rove-font-mono:
     "SF Mono", "SFMono-Regular", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
   --rove-radius: 0.625rem;
   --rove-background: white;
-  --rove-foreground: oklch(0.269 0 0);
+  --rove-foreground: #1c2033;
   --rove-popover: white;
-  --rove-popover-foreground: oklch(0.269 0 0);
-  --rove-primary: oklch(0.488 0.217 264);
+  --rove-popover-foreground: #1c2033;
+  --rove-primary: #3a52b4;
   --rove-primary-foreground: white;
   --rove-muted: rgb(0 0 0 / 4%);
-  --rove-muted-foreground: oklch(0.556 0 0);
-  --rove-accent: rgb(0 0 0 / 4%);
-  --rove-accent-foreground: oklch(0.269 0 0);
+  --rove-muted-foreground: #5f6680;
+  --rove-accent: rgb(28 32 51 / 5%);
+  --rove-accent-foreground: #1c2033;
   --rove-border: rgb(0 0 0 / 8%);
   --rove-input: rgb(0 0 0 / 10%);
-  --rove-ring: oklch(0.488 0.217 264);
+  --rove-ring: #3a52b4;
   color: var(--rove-foreground);
   font-family: var(--rove-font-sans);
 }

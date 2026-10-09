@@ -7,7 +7,7 @@ import type {
 import { MAX_LIMIT_RECOVERY_ATTEMPTS } from "@rove-code/contracts";
 import { visibleLimitRecovery, scheduledLimitResumeAt } from "@rove-code/shared/limitRecovery";
 import { canSnooze, effectiveSnoozed } from "@rove-code/client-runtime/state/thread-settled";
-import { ClockIcon } from "lucide-react";
+import { ClockIcon } from "@phosphor-icons/react";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";

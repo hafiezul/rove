@@ -1,12 +1,6 @@
 import { scopeProjectRef, scopeThreadRef } from "@rove-code/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@rove-code/contracts";
-import {
-  ChevronDownIcon,
-  FolderGit2Icon,
-  FolderGitIcon,
-  FolderIcon,
-  ScaleIcon,
-} from "lucide-react";
+import { CaretDownIcon, FolderIcon, GitForkIcon, ScalesIcon } from "@phosphor-icons/react";
 import {
   type Ref,
   memo,
@@ -135,11 +129,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
     [availableEnvironments, environmentId],
   );
   const WorkspaceIcon =
-    effectiveEnvMode === "worktree"
-      ? FolderGit2Icon
-      : activeWorktreePath
-        ? FolderGitIcon
-        : FolderIcon;
+    effectiveEnvMode === "worktree" ? GitForkIcon : activeWorktreePath ? GitForkIcon : FolderIcon;
   const workspaceLabel = forceNewWorktree
     ? resolveEnvModeLabel("worktree")
     : envModeLocked
@@ -163,7 +153,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
       <Tooltip>
         <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
           {autoEnvironmentLabel ? (
-            <ScaleIcon className="size-3 shrink-0 mx-0!" aria-hidden="true" />
+            <ScalesIcon className="size-3 shrink-0 mx-0!" aria-hidden="true" />
           ) : (
             <EnvironmentMachineIcon
               kind={activeEnvironment?.machine ?? "server"}
@@ -220,7 +210,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
         ].join(" ")}
       >
         {triggerContent}
-        <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
+        <CaretDownIcon className="size-3 shrink-0 opacity-50" />
       </MenuTrigger>
       <MenuPopup
         align="start"
@@ -250,7 +240,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
                     }}
                   >
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <ScaleIcon className="size-3" aria-hidden="true" />
+                      <ScalesIcon className="size-3" aria-hidden="true" />
                       <span className="min-w-0 truncate">
                         {autoEnvironmentLabel ?? "Auto balance"}
                       </span>
@@ -291,7 +281,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
             <MenuRadioItem disabled={envModeLocked || forceNewWorktree} value="local" closeOnClick>
               <span className="flex min-w-0 items-center gap-1.5">
                 {activeWorktreePath ? (
-                  <FolderGitIcon className="size-3" />
+                  <GitForkIcon className="size-3" />
                 ) : (
                   <FolderIcon className="size-3" />
                 )}
@@ -300,7 +290,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
             </MenuRadioItem>
             <MenuRadioItem disabled={envModeLocked} value="worktree" closeOnClick>
               <span className="flex min-w-0 items-center gap-1.5">
-                <FolderGit2Icon className="size-3" />
+                <GitForkIcon className="size-3" />
                 <span className="min-w-0 truncate">{resolveEnvModeLabel("worktree")}</span>
               </span>
             </MenuRadioItem>

@@ -9,28 +9,28 @@ import {
   encodeComposerContextClipboardHtml,
 } from "@rove-code/shared/composerContextClipboard";
 import {
+  ArrowsInIcon,
+  ArrowsOutIcon,
+  ArrowUDownLeftIcon,
+  CaretRightIcon,
+  ChatCircleDotsIcon,
+  ChatIcon,
   CheckIcon,
-  ChevronRightIcon,
   CopyIcon,
-  FileSpreadsheetIcon,
+  EnvelopeIcon,
   FileTextIcon,
+  FileXlsIcon,
   GlobeIcon,
+  type Icon as PhosphorIcon,
   ImageIcon,
   InfoIcon,
   LightbulbIcon,
-  MailIcon,
-  Maximize2Icon,
-  MessageSquareIcon,
-  MessageSquareWarningIcon,
-  Minimize2Icon,
-  OctagonAlertIcon,
   PlayIcon,
   PresentationIcon,
-  SparklesIcon,
-  TriangleAlertIcon,
-  WrapTextIcon,
-  type LucideIcon,
-} from "lucide-react";
+  SparkleIcon,
+  WarningIcon,
+  WarningOctagonIcon,
+} from "@phosphor-icons/react";
 import type {
   AssetResource,
   EnvironmentId,
@@ -284,15 +284,15 @@ const EMPTY_REMARK_PLUGINS: NonNullable<ReactMarkdownOptions["remarkPlugins"]> =
 const ARTIFACT_TEMPLATE_ICON_BY_KIND = {
   document: FileTextIcon,
   presentation: PresentationIcon,
-  spreadsheet: FileSpreadsheetIcon,
+  spreadsheet: FileXlsIcon,
   site: GlobeIcon,
   "google-docs": FileTextIcon,
   "google-slides": PresentationIcon,
-  "google-sheets": FileSpreadsheetIcon,
+  "google-sheets": FileXlsIcon,
   image: ImageIcon,
-  email: MailIcon,
-  slack: MessageSquareIcon,
-} satisfies Record<CodexArtifactTemplateKind, LucideIcon>;
+  email: EnvelopeIcon,
+  slack: ChatIcon,
+} satisfies Record<CodexArtifactTemplateKind, PhosphorIcon>;
 
 function CodexArtifactTemplateCard(props: {
   readonly template: CodexArtifactTemplate;
@@ -315,7 +315,7 @@ function CodexArtifactTemplateCard(props: {
         <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-xs">
           <Icon aria-hidden className="size-5" />
           <span className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-xs">
-            <SparklesIcon aria-hidden className="size-2.5" />
+            <SparkleIcon aria-hidden className="size-2.5" />
           </span>
         </span>
         <span className="min-w-0">
@@ -541,19 +541,19 @@ const GITHUB_ALERT_PRESENTATIONS: Record<
   },
   important: {
     label: "Important",
-    Icon: MessageSquareWarningIcon,
+    Icon: ChatCircleDotsIcon,
     borderClassName: "border-purple-500/70",
     titleClassName: "text-purple-600 dark:text-purple-400",
   },
   warning: {
     label: "Warning",
-    Icon: TriangleAlertIcon,
+    Icon: WarningIcon,
     borderClassName: "border-amber-500/70",
     titleClassName: "text-amber-600 dark:text-amber-500",
   },
   caution: {
     label: "Caution",
-    Icon: OctagonAlertIcon,
+    Icon: WarningOctagonIcon,
     borderClassName: "border-red-500/70",
     titleClassName: "text-red-600 dark:text-red-400",
   },
@@ -821,7 +821,7 @@ function MarkdownTable({ children, ...props }: React.ComponentProps<"table">) {
               />
             }
           >
-            {expanded ? <Minimize2Icon className="size-3" /> : <Maximize2Icon className="size-3" />}
+            {expanded ? <ArrowsInIcon className="size-3" /> : <ArrowsOutIcon className="size-3" />}
           </TooltipTrigger>
           <TooltipPopup side="top">{expandLabel}</TooltipPopup>
         </Tooltip>
@@ -883,7 +883,7 @@ function MarkdownDetails({
           className="flex w-full items-center gap-2 py-2 text-left text-sm font-medium text-foreground data-panel-open:[&_svg]:rotate-90"
           data-markdown-details-summary=""
         >
-          <ChevronRightIcon
+          <CaretRightIcon
             className="size-4 shrink-0 text-muted-foreground transition-transform"
             aria-hidden
           />
@@ -1043,7 +1043,7 @@ function MarkdownCodeBlock({
                 />
               }
             >
-              <WrapTextIcon className="size-3" />
+              <ArrowUDownLeftIcon className="size-3" />
             </TooltipTrigger>
             <TooltipPopup side="top">{wrapLabel}</TooltipPopup>
           </Tooltip>
@@ -1425,7 +1425,7 @@ function ChatMarkdownMediaUnavailableLabel(props: {
   const label = props.kind === "video" ? "Video unavailable" : "Image unavailable";
   return (
     <span className="inline-flex items-center gap-1.5">
-      <TriangleAlertIcon aria-hidden className="size-3.5 shrink-0" />
+      <WarningIcon aria-hidden className="size-3.5 shrink-0" />
       {props.alt.length > 0 ? `${label} · ${props.alt}` : label}
     </span>
   );

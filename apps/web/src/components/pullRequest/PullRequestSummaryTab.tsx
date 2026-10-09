@@ -7,13 +7,13 @@ import type {
   ScopedThreadRef,
 } from "@rove-code/contracts";
 import {
-  ArrowDownUpIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
+  ArrowsDownUpIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   HammerIcon,
   TagIcon,
   UsersIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useRef, useState, type ReactNode } from "react";
 
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -221,7 +221,7 @@ function CollapsedComment({
               className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {label}
-              <ChevronDownIcon
+              <CaretDownIcon
                 aria-hidden
                 className={cn("size-3.5 transition-transform", open && "rotate-180")}
               />
@@ -332,7 +332,7 @@ function Section({
       >
         <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground hover:text-foreground">
           <span>{title}</span>
-          <ChevronRightIcon
+          <CaretRightIcon
             aria-hidden
             className={cn(
               "size-3.5 text-muted-foreground/60 transition-transform",
@@ -434,7 +434,7 @@ function CommentGroup({
                 ) : null}
               </span>
             </span>
-            <ChevronRightIcon
+            <CaretRightIcon
               aria-hidden
               className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90"
             />
@@ -931,7 +931,7 @@ export function PullRequestSummaryTab({
             }
             onClick={() => setCommentOrder((value) => (value === "newest" ? "oldest" : "newest"))}
           >
-            <ArrowDownUpIcon aria-hidden className="size-3" />
+            <ArrowsDownUpIcon aria-hidden className="size-3" />
             {commentOrder === "newest" ? "Newest first" : "Oldest first"}
           </Button>
         }

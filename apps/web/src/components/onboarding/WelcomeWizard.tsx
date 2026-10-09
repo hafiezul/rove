@@ -23,14 +23,14 @@ import {
 import * as Schema from "effect/Schema";
 import {
   ArrowRightIcon,
+  CaretRightIcon,
   CheckIcon,
-  ChevronRightIcon,
   CloudIcon,
   CopyIcon,
   LinkIcon,
   MonitorIcon,
   TerminalIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
@@ -392,7 +392,7 @@ function ConnectionStep({
             >
               <LinkIcon className="size-4 text-muted-foreground" />
               <span className="flex-1 text-left">Add a computer</span>
-              <ChevronRightIcon
+              <CaretRightIcon
                 className={cn("size-4 text-muted-foreground", pairingOpen && "rotate-90")}
               />
             </CollapsibleTrigger>
@@ -472,7 +472,7 @@ function ConnectAccountOption({
                   ? "Loading computers…"
                   : null}
           </span>
-          <ChevronRightIcon
+          <CaretRightIcon
             className={cn("size-4 text-muted-foreground", expanded && isSignedIn && "rotate-90")}
           />
         </CollapsibleTrigger>
@@ -603,7 +603,7 @@ function PairingForm({
               type="button"
               className="group flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
-              <ChevronRightIcon className="size-3.5 group-data-panel-open:rotate-90" />
+              <CaretRightIcon className="size-3.5 group-data-panel-open:rotate-90" />
               Need a pairing link?
             </CollapsibleTrigger>
             <Button type="submit" disabled={isPairing || pairingUrl.trim().length === 0}>
@@ -1514,7 +1514,7 @@ function ImportCandidateList({
               }
             />
             <CollapsibleTrigger className="group flex min-w-0 flex-1 items-center gap-1.5 text-left">
-              <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
+              <CaretRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
               <span className="truncate text-sm text-muted-foreground">Other folders</span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
                 {other.length} {other.length === 1 ? "folder" : "folders"}
@@ -1572,7 +1572,7 @@ function ImportRepositoryGroup({
           onCheckedChange={(checked) => onToggle(keys, checked === true)}
         />
         <CollapsibleTrigger className="group flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
+          <CaretRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
           <span className="truncate text-sm font-medium">{group.label}</span>
           <ImportRowMeta
             sources={[...new Set(group.candidates.flatMap((c) => c.sources))]}

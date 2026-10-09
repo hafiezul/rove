@@ -16,23 +16,23 @@ import type {
 import { useAtomValue } from "@effect/atom-react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowDownUpIcon,
-  CalendarArrowDownIcon,
-  CalendarArrowUpIcon,
-  ChevronDownIcon,
+  ArrowsDownUpIcon,
+  ArrowsInIcon,
+  ArrowsOutIcon,
+  CaretDownIcon,
   ClockIcon,
   EyeIcon,
-  LayersIcon,
+  type Icon as PhosphorIcon,
   ListChecksIcon,
-  PenLineIcon,
+  LockKeyIcon,
+  MagnifyingGlassIcon,
+  PencilLineIcon,
+  PlugIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  StackIcon,
   UsersIcon,
-  Plug2Icon,
-  Maximize2Icon,
-  Minimize2Icon,
-  SearchIcon,
-  UserLockIcon,
-  type LucideIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -202,8 +202,8 @@ export interface PullRequestsSearch extends PullRequestListPreferences {
  * A group reads like the sidebar's shelves: its glyph, its name, how many, then a rule out
  * to the edge. The glyph is the one the involvement filter uses for the same idea.
  */
-const GROUP_ICONS: Record<string, LucideIcon> = {
-  authored: PenLineIcon,
+const GROUP_ICONS: Record<string, PhosphorIcon> = {
+  authored: PencilLineIcon,
   reviewRequested: EyeIcon,
   others: UsersIcon,
 };
@@ -213,7 +213,7 @@ function PullRequestGroupHeader({
 }: {
   group: { key: string; label: string; entries: ReadonlyArray<unknown> };
 }) {
-  const Icon = GROUP_ICONS[group.key] ?? LayersIcon;
+  const Icon = GROUP_ICONS[group.key] ?? StackIcon;
   return (
     <div className="flex items-center gap-2 px-3 pb-1 text-xs font-medium text-muted-foreground/70">
       <Icon aria-hidden className="size-3.5 shrink-0" />
@@ -226,13 +226,13 @@ function PullRequestGroupHeader({
 
 // The state filters wear the same glyphs the rows do, so the two read as one vocabulary.
 const INVOLVEMENT_TABS = [
-  { value: "all", label: "All", Icon: LayersIcon },
+  { value: "all", label: "All", Icon: StackIcon },
   { value: "reviewing", label: "Reviewing", Icon: EyeIcon },
-  { value: "authored", label: "Authored", Icon: PenLineIcon },
+  { value: "authored", label: "Authored", Icon: PencilLineIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<PullRequestInvolvement>>;
 
 const STATE_TABS = [
-  { value: "all", label: "All", Icon: LayersIcon },
+  { value: "all", label: "All", Icon: StackIcon },
   { value: "open", label: "Open", Icon: PullRequestGlyph.pullRequest },
   { value: "closed", label: "Closed", Icon: PullRequestGlyph.closed },
   { value: "merged", label: "Merged", Icon: PullRequestGlyph.merged },
@@ -240,12 +240,12 @@ const STATE_TABS = [
 
 const SORT_OPTIONS = [
   { value: "ready", label: "Merge readiness", Icon: ListChecksIcon },
-  { value: "blocked", label: "Blocked on me", Icon: UserLockIcon },
+  { value: "blocked", label: "Blocked on me", Icon: LockKeyIcon },
   { value: "updated", label: "Recently updated", Icon: ClockIcon },
-  { value: "newest", label: "Newest shown", Icon: CalendarArrowDownIcon },
-  { value: "oldest", label: "Oldest shown", Icon: CalendarArrowUpIcon },
-  { value: "largest", label: "Largest shown", Icon: Maximize2Icon },
-  { value: "smallest", label: "Smallest shown", Icon: Minimize2Icon },
+  { value: "newest", label: "Newest shown", Icon: SortDescendingIcon },
+  { value: "oldest", label: "Oldest shown", Icon: SortAscendingIcon },
+  { value: "largest", label: "Largest shown", Icon: ArrowsOutIcon },
+  { value: "smallest", label: "Smallest shown", Icon: ArrowsInIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<PullRequestListSort>>;
 
 /** Long enough that a keystroke does not become a request, short enough to feel answered. */
@@ -1856,7 +1856,7 @@ function PullRequestsRouteView() {
   // kind force the hostname to tell them apart.
   const hostEntries = hosts.length > 0 ? hosts : expectedHosts;
   const hostMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: "All", Icon: Plug2Icon },
+    { value: "", label: "All", Icon: PlugIcon },
     ...hostEntries.map((entry) => {
       // `expectedHosts` stands in before the server has answered, and nothing is known to be
       // unreadable yet; once the summaries arrive they carry whether each one could be read.
@@ -1874,7 +1874,7 @@ function PullRequestsRouteView() {
   // The same shape the host pills take, so the two groups read as one control. Each server
   // wears the machine it runs on.
   const serverMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: "All servers", Icon: LayersIcon },
+    { value: "", label: "All servers", Icon: StackIcon },
     ...capableEnvironments.map((environment) => ({
       value: environment.environmentId,
       label: environment.label,
@@ -1884,7 +1884,7 @@ function PullRequestsRouteView() {
   const sortMenu = (
     <CompactFilterMenu
       label="Sort pull requests"
-      triggerIcon={<ArrowDownUpIcon aria-hidden className="size-4" />}
+      triggerIcon={<ArrowsDownUpIcon aria-hidden className="size-4" />}
       triggerLabel="Sort"
       outlined
       value={sort}
@@ -2255,7 +2255,7 @@ function CompactFilterMenu<Value extends string>({
         ) : (
           <>
             <span className="truncate">{current.label}</span>
-            <ChevronDownIcon aria-hidden className="size-3 shrink-0 text-muted-foreground/70" />
+            <CaretDownIcon aria-hidden className="size-3 shrink-0 text-muted-foreground/70" />
           </>
         )}
       </MenuTrigger>
@@ -2351,7 +2351,7 @@ function ExpandableSearch({
       aria-label="Search pull requests"
       onClick={() => onOpenChange(true)}
     >
-      <SearchIcon className="size-4" />
+      <MagnifyingGlassIcon className="size-4" />
     </Button>
   );
 }
@@ -2552,7 +2552,7 @@ function PullRequestsColumn({
                 label="Filter by provider"
                 outlined
                 iconOnly={host !== undefined}
-                triggerIcon={<Plug2Icon aria-hidden className="size-4" />}
+                triggerIcon={<PlugIcon aria-hidden className="size-4" />}
                 triggerLabel="All"
                 value={host ?? ""}
                 options={hostMenuOptions}

@@ -1,4 +1,4 @@
-import { BookmarkIcon } from "lucide-react";
+import { BookmarkSimpleIcon } from "@phosphor-icons/react";
 import { memo } from "react";
 
 import { cn } from "~/lib/utils";
@@ -56,7 +56,7 @@ export const ComposerStashBadge = memo(function ComposerStashBadge(props: {
         onClick={props.onToggleMenu}
       >
         <ComposerBanner.Icon>
-          <BookmarkIcon />
+          <BookmarkSimpleIcon />
         </ComposerBanner.Icon>
         <ComposerBanner.Content>Stash</ComposerBanner.Content>
         <ComposerBanner.Actions>{count}</ComposerBanner.Actions>

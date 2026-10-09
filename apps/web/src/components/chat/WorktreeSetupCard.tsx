@@ -5,16 +5,16 @@ import {
 } from "@rove-code/contracts";
 import { formatDuration } from "@rove-code/shared/orchestrationTiming";
 import {
+  CaretDownIcon,
+  CaretRightIcon,
   CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CircleAlertIcon,
   CircleIcon,
   LaptopIcon,
   MinusIcon,
   TerminalIcon,
+  WarningCircleIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -56,7 +56,7 @@ function useNowWhile(active: boolean): number {
 }
 
 function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
-  const className = "size-4 shrink-0 stroke-2";
+  const className = "size-4 shrink-0";
   switch (status) {
     case "done":
       return <CheckIcon aria-hidden className={className} />;
@@ -65,7 +65,7 @@ function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
     case "failed":
       return <XIcon aria-hidden className={className} />;
     case "warning":
-      return <CircleAlertIcon aria-hidden className={className} />;
+      return <WarningCircleIcon aria-hidden className={className} />;
     case "skipped":
       return <MinusIcon aria-hidden className={className} />;
     case "pending":
@@ -408,7 +408,7 @@ export function WorktreeSetupCard({
           aria-expanded={detailsOpen}
           onClick={() => setDetailsOpen((open) => !open)}
         >
-          {detailsOpen ? <ChevronDownIcon aria-hidden /> : <ChevronRightIcon aria-hidden />}
+          {detailsOpen ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
           Details
         </Button>
         {showTerminal ? (

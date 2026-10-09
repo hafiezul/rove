@@ -39,12 +39,12 @@ type TerminalPalette = readonly [
 
 const PIERRE_LIGHT_THEME: TerminalTheme = {
   // Pierre terminal palette with the app's shared screen background.
-  background: "#fcfcfc",
+  background: "#f6f7fb",
   foreground: "#6C6C71",
   mutedForeground: "#8E8E95",
   border: "#eeeeef",
   cursorForeground: "#009fff",
-  cursorBackground: "#fcfcfc",
+  cursorBackground: "#f6f7fb",
   palette: [
     "#1F1F21",
     "#ff2e3f",
@@ -67,12 +67,12 @@ const PIERRE_LIGHT_THEME: TerminalTheme = {
 
 const PIERRE_DARK_THEME: TerminalTheme = {
   // Pierre terminal palette with the app's shared screen background.
-  background: "#0a0a0a",
+  background: "#0e1019",
   foreground: "#adadb1",
   mutedForeground: "#8E8E95",
   border: "#2e2e30",
   cursorForeground: "#009fff",
-  cursorBackground: "#0a0a0a",
+  cursorBackground: "#0e1019",
   palette: [
     "#141415",
     "#ff2e3f",

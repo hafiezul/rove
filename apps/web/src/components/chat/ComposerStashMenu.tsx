@@ -1,4 +1,4 @@
-import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
+import { BookmarkSimpleIcon, FileIcon, FileTextIcon } from "@phosphor-icons/react";
 import { memo, useEffect, useRef, useState } from "react";
 import { assistantCitationsToPlainText } from "@rove-code/shared/assistantCitations";
 
@@ -122,7 +122,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
         onClick={onClose}
       >
         <ComposerBanner.Icon>
-          <BookmarkIcon />
+          <BookmarkSimpleIcon />
         </ComposerBanner.Icon>
         <ComposerBanner.Content className="text-muted-foreground">Stash</ComposerBanner.Content>
         <ComposerBanner.Actions>

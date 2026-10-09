@@ -1,5 +1,5 @@
 import { UserButton, useAuth } from "@clerk/react";
-import { LogInIcon } from "lucide-react";
+import { SignInIcon } from "@phosphor-icons/react";
 
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
@@ -57,7 +57,7 @@ function ConfiguredRoveConnectSidebarSignIn() {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton onClick={openAuthPrompt}>
-            <LogInIcon />
+            <SignInIcon />
             <span>Sign in to Rove Connect</span>
           </SidebarMenuButton>
         </SidebarMenuItem>

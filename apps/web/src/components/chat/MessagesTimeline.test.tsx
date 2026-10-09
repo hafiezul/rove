@@ -8,6 +8,14 @@ import {
 } from "@rove-code/contracts";
 import { act, createRef, useLayoutEffect, type ReactNode, type Ref } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  BrainIcon,
+  ChatCircleIcon,
+  TerminalIcon,
+  WarningCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { iconPath } from "../../test/iconPath";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { LegendListRef, MaintainScrollAtEndOptions } from "@legendapp/list/react";
@@ -1298,7 +1306,7 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain("Terminal 1 lines 1-5");
-    expect(markup).toContain("lucide-terminal");
+    expect(markup).toContain(iconPath(TerminalIcon));
     expect(markup).toContain("yoo what&#x27;s");
     expect(markup).not.toContain("terminal_context");
     expect(markup).toContain("Show full message");
@@ -1524,8 +1532,8 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain("Ran 2 commands");
-    expect(markup).toContain("lucide-terminal");
-    expect(markup).not.toContain("lucide-x");
+    expect(markup).toContain(iconPath(TerminalIcon));
+    expect(markup).not.toContain(iconPath(XIcon));
     expect(markup).not.toContain("text-destructive");
     // The failure stays discoverable for screen readers.
     expect(markup).toContain("tool call failed");
@@ -1750,7 +1758,7 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain("Thinking");
-    expect(markup).toContain("lucide-brain");
+    expect(markup).toContain(iconPath(BrainIcon));
     expect(markup).toContain('data-timeline-row-id="live-activity-row"');
   });
 
@@ -1790,7 +1798,7 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain("Running pnpm");
-    expect(markup).toContain("lucide-terminal");
+    expect(markup).toContain(iconPath(TerminalIcon));
     expect(markup).not.toContain("Ran pnpm");
     expect(markup).not.toContain("Thinking");
     expect(markup).not.toContain('data-timeline-row-kind="thinking"');
@@ -1829,7 +1837,7 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain("contextWindow.test.ts +47 to +58");
-    expect(markup).toContain("lucide-message-circle");
+    expect(markup).toContain(iconPath(ChatCircleIcon));
     expect(markup).not.toContain(">Review comment<");
     expect(markup).not.toContain("&lt;review_comment");
     expect(markup).not.toContain("&lt;/review_comment&gt;");
@@ -2065,7 +2073,7 @@ describe("MessagesTimeline", () => {
       />,
     );
 
-    expect(markup).toContain("lucide-terminal");
+    expect(markup).toContain(iconPath(TerminalIcon));
     expect(markup).toContain("Terminal 1 line 4");
     expect(markup).toContain('data-context-unresolved="true"');
     expect(markup).toContain(">gone<");
@@ -2142,7 +2150,7 @@ describe("MessagesTimeline", () => {
       />,
     );
 
-    expect(markup).toContain("lucide-circle-alert");
+    expect(markup).toContain(iconPath(WarningCircleIcon));
     expect(markup).toContain("text-destructive");
   });
 

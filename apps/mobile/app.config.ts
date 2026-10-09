@@ -121,10 +121,12 @@ const iosBundleIdentifier = isIosPersonalTeamBuild
   ? personalTeamBundleIdentifier!
   : variant.iosBundleIdentifier;
 
-const dmSansFonts = {
-  regular: "@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf",
-  medium: "@expo-google-fonts/dm-sans/500Medium/DMSans_500Medium.ttf",
-  bold: "@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf",
+const interfaceFonts = {
+  regular:
+    "@expo-google-fonts/atkinson-hyperlegible-next/400Regular/AtkinsonHyperlegibleNext_400Regular.ttf",
+  medium:
+    "@expo-google-fonts/atkinson-hyperlegible-next/500Medium/AtkinsonHyperlegibleNext_500Medium.ttf",
+  bold: "@expo-google-fonts/atkinson-hyperlegible-next/700Bold/AtkinsonHyperlegibleNext_700Bold.ttf",
 } as const;
 
 const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
@@ -304,21 +306,21 @@ const config: ExpoConfig = {
       "expo-font",
       {
         ios: {
-          fonts: [dmSansFonts.regular, dmSansFonts.medium, dmSansFonts.bold],
+          fonts: [interfaceFonts.regular, interfaceFonts.medium, interfaceFonts.bold],
         },
         android: {
           fonts: [
             {
-              fontFamily: "DMSans-Regular",
-              fontDefinitions: [{ path: dmSansFonts.regular, weight: 400 }],
+              fontFamily: "AtkinsonHyperlegibleNext-Regular",
+              fontDefinitions: [{ path: interfaceFonts.regular, weight: 400 }],
             },
             {
-              fontFamily: "DMSans-Medium",
-              fontDefinitions: [{ path: dmSansFonts.medium, weight: 500 }],
+              fontFamily: "AtkinsonHyperlegibleNext-Medium",
+              fontDefinitions: [{ path: interfaceFonts.medium, weight: 500 }],
             },
             {
-              fontFamily: "DMSans-Bold",
-              fontDefinitions: [{ path: dmSansFonts.bold, weight: 700 }],
+              fontFamily: "AtkinsonHyperlegibleNext-Bold",
+              fontDefinitions: [{ path: interfaceFonts.bold, weight: 700 }],
             },
           ],
         },
@@ -381,11 +383,11 @@ const config: ExpoConfig = {
       {
         image: variant.assets.splashIcon,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#f6f7fb",
         imageWidth: 220,
         dark: {
           image: variant.assets.splashIcon,
-          backgroundColor: "#0a0a0a",
+          backgroundColor: "#0e1019",
         },
         android: {
           // Android 12+ masks the splash icon to a circle over the central two thirds of

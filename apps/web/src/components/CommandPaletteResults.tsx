@@ -1,5 +1,5 @@
 import { type ResolvedKeybindingsConfig } from "@rove-code/contracts";
-import { ChevronRightIcon } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { shortcutLabelForCommand } from "../keybindings";
 import {
   type CommandPaletteActionItem,
@@ -146,7 +146,7 @@ function CommandPaletteResultRow(props: {
       ) : null}
       {shortcutLabel ? <CommandShortcut>{shortcutLabel}</CommandShortcut> : null}
       {props.item.kind === "submenu" ? (
-        <ChevronRightIcon className="-me-0.5 ms-auto size-4 shrink-0 text-muted-foreground/70" />
+        <CaretRightIcon className="-me-0.5 ms-auto size-4 shrink-0 text-muted-foreground/70" />
       ) : null}
     </CommandItem>
   );

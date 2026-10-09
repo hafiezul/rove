@@ -3,7 +3,7 @@
  * the one that closes or reopens it. The popover around it belongs to PullRequestComposer.
  */
 import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@rove-code/contracts";
-import { SendIcon } from "lucide-react";
+import { PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useState, type RefObject } from "react";
 
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -135,7 +135,7 @@ export function PullRequestCommentForm({
           disabled={body.trim().length === 0 || submitting !== null || actionPending}
           onClick={() => void submit("comment")}
         >
-          <SendIcon className="size-3.5" />
+          <PaperPlaneTiltIcon className="size-3.5" />
           {submitting === "comment" ? "Posting..." : "Comment"}
         </Button>
       </div>

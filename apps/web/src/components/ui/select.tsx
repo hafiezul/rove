@@ -3,7 +3,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import { cn } from "~/lib/utils";
@@ -53,7 +53,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon data-slot="select-icon">
-        {icon ?? <ChevronDownIcon className="-me-1 size-3 opacity-50" />}
+        {icon ?? <CaretDownIcon className="-me-1 size-3 opacity-50" />}
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -82,7 +82,7 @@ function SelectButton({
       children: (
         <>
           <span className="min-w-0 flex-1 truncate text-left">{children}</span>
-          <ChevronDownIcon aria-hidden className="-me-1 size-3 shrink-0 opacity-50" />
+          <CaretDownIcon aria-hidden className="-me-1 size-3 shrink-0 opacity-50" />
         </>
       ),
     },
@@ -141,7 +141,7 @@ function SelectPopup({
             className="top-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:top-px before:h-[200%] before:rounded-t-[calc(var(--radius-lg)-1px)] before:bg-linear-to-b before:from-50% before:from-popover"
             data-slot="select-scroll-up-arrow"
           >
-            <ChevronUpIcon className="relative size-4.5 sm:size-4" />
+            <CaretUpIcon className="relative size-4.5 sm:size-4" />
           </SelectPrimitive.ScrollUpArrow>
           <div
             className={cn(
@@ -160,7 +160,7 @@ function SelectPopup({
             className="bottom-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:bottom-px before:h-[200%] before:rounded-b-[calc(var(--radius-lg)-1px)] before:bg-linear-to-t before:from-50% before:from-popover"
             data-slot="select-scroll-down-arrow"
           >
-            <ChevronDownIcon className="relative size-4.5 sm:size-4" />
+            <CaretDownIcon className="relative size-4.5 sm:size-4" />
           </SelectPrimitive.ScrollDownArrow>
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>

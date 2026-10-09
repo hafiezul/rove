@@ -45,28 +45,28 @@ import {
 } from "@rove-code/contracts";
 import type { TimestampFormat } from "@rove-code/contracts/settings";
 import {
-  AlarmClockIcon,
-  AlarmClockOffIcon,
+  AlarmIcon,
+  ArrowUUpLeftIcon,
+  BellSlashIcon,
+  CaretDownIcon,
+  CheckCircleIcon,
   CheckIcon,
-  ChevronDownIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
   CircleDashedIcon,
   ClockIcon,
   EyeIcon,
   FolderIcon,
+  GearIcon,
   GitBranchIcon,
-  MessageCircleQuestionIcon,
-  PinIcon,
-  PinOffIcon,
+  NotePencilIcon,
   PlusIcon,
-  SettingsIcon,
-  ShieldQuestionIcon,
-  SquarePenIcon,
+  PushPinIcon,
+  PushPinSlashIcon,
+  QuestionIcon,
+  ShieldWarningIcon,
   TerminalIcon,
-  Undo2Icon,
+  WarningCircleIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import {
   memo,
   useCallback,
@@ -380,7 +380,7 @@ function SidebarThreadTooltip({
           ) : null}
           {branchMismatch ? (
             <div className="flex min-w-0 items-start gap-2 text-warning">
-              <CircleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
+              <WarningCircleIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
               <div className="min-w-0 flex-1 wrap-break-word leading-5">
                 You're currently checked out on another branch.
               </div>
@@ -420,7 +420,7 @@ function SidebarThreadTooltip({
           ) : null}
           {thread.session?.lastError ? (
             <div className="flex min-w-0 items-center gap-2 text-destructive-foreground">
-              <CircleAlertIcon className="size-3 shrink-0 stroke-current" />
+              <WarningCircleIcon className="size-3 shrink-0 stroke-current" />
               <div className="min-w-0 truncate">Error occurred</div>
             </div>
           ) : null}
@@ -668,7 +668,7 @@ function SidebarSectionHeader(props: {
           props.isDropTarget && "bg-primary/50",
         )}
       />
-      <ChevronDownIcon
+      <CaretDownIcon
         aria-hidden
         className={cn(
           "size-3 shrink-0 transition-transform",
@@ -776,7 +776,7 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         <span className="sr-only">{preview}</span>
         <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
           <div className="flex h-5 min-w-0 items-center gap-1.5">
-            <SquarePenIcon aria-hidden className={draftPenClassName} />
+            <NotePencilIcon aria-hidden className={draftPenClassName} />
             {props.project ? (
               <ProjectFavicon project={props.project} className="size-4 shrink-0" />
             ) : null}
@@ -939,31 +939,31 @@ const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
 const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
   pin: (
     <>
-      <PinIcon aria-hidden className="size-3" />
+      <PushPinIcon aria-hidden className="size-3" />
       Pin
     </>
   ),
   unpin: (
     <>
-      <PinOffIcon aria-hidden className="size-3" />
+      <PushPinSlashIcon aria-hidden className="size-3" />
       Unpin
     </>
   ),
   settle: (
     <>
-      <CircleCheckIcon aria-hidden className="size-3" />
+      <CheckCircleIcon aria-hidden className="size-3" />
       Settle
     </>
   ),
   unsettle: (
     <>
-      <Undo2Icon aria-hidden className="size-3" />
+      <ArrowUUpLeftIcon aria-hidden className="size-3" />
       Un-settle
     </>
   ),
   wake: (
     <>
-      <AlarmClockOffIcon aria-hidden className="size-3" />
+      <BellSlashIcon aria-hidden className="size-3" />
       Wake
     </>
   ),
@@ -1581,7 +1581,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
           />
         }
       >
-        <SquarePenIcon aria-hidden className={draftPenClassName} />
+        <NotePencilIcon aria-hidden className={draftPenClassName} />
       </TooltipTrigger>
       <TooltipPopup side="top">Unsent draft</TooltipPopup>
     </Tooltip>
@@ -1601,12 +1601,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
             />
           }
         >
-          <PinIcon aria-hidden className="size-3 shrink-0" />
+          <PushPinIcon aria-hidden className="size-3 shrink-0" />
         </TooltipTrigger>
         <TooltipPopup>Unpin thread</TooltipPopup>
       </Tooltip>
     ) : (
-      <PinIcon
+      <PushPinIcon
         aria-label="Pinned"
         role="img"
         className="size-3 shrink-0 text-muted-foreground/65"
@@ -1698,7 +1698,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                             onClick={handleAcknowledgeWokeClick}
                             className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-xs font-medium text-warning-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <AlarmClockIcon aria-hidden className="size-3" />
+                            <AlarmIcon aria-hidden className="size-3" />
                             <span role="status">Woke</span>
                           </button>
                         }
@@ -1724,7 +1724,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                         isWoke && "group-hover/sidebar-row:static",
                       )}
                     >
-                      <AlarmClockOffIcon className="mb-px size-3" />
+                      <BellSlashIcon className="mb-px size-3" />
                     </button>
                   )
                 ) : !props.settlementSupported ? null : variantAction === "unsettle" ? (
@@ -1742,7 +1742,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                         />
                       }
                     >
-                      <Undo2Icon className="mb-px size-3.5" />
+                      <ArrowUUpLeftIcon className="mb-px size-3.5" />
                     </TooltipTrigger>
                     <TooltipPopup side="top">Un-settle thread</TooltipPopup>
                   </Tooltip>
@@ -1855,7 +1855,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                                   topStatus.className,
                                 )}
                               >
-                                <AlarmClockIcon aria-hidden className="size-4 shrink-0" />
+                                <AlarmIcon aria-hidden className="size-4 shrink-0" />
                                 <span role="status">{topStatus.label}</span>
                               </button>
                             }
@@ -1872,17 +1872,17 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                           {topStatus.icon === "working" ? (
                             <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "input" ? (
-                            <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
+                            <QuestionIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "approval" ? (
-                            <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
+                            <ShieldWarningIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "auto-resume" ? (
                             <ClockIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "failed" ? (
-                            <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
+                            <WarningCircleIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "monitoring" ? (
                             <EyeIcon aria-hidden className="size-4 shrink-0" />
                           ) : topStatus.icon === "done" ? (
-                            <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
+                            <CheckCircleIcon aria-hidden className="size-4 shrink-0" />
                           ) : null}
                           {/* The label alone is the live region: a role="status"
                             wrapper around the ticking duration would make
@@ -4632,7 +4632,7 @@ export default function Sidebar() {
                                   void handleProjectSettings(event, project);
                                 }}
                               >
-                                <SettingsIcon className="size-3.5" />
+                                <GearIcon className="size-3.5" />
                               </Button>
                             ) : null}
                           </ComboboxItem>

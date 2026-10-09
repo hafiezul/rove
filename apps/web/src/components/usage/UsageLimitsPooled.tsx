@@ -13,7 +13,7 @@ import {
   type LimitPoolWindow,
   remainingPercent,
 } from "@rove-code/shared/usageLimits";
-import { AlertTriangleIcon, ExternalLinkIcon, TicketIcon } from "lucide-react";
+import { ArrowSquareOutIcon, TicketIcon, WarningIcon } from "@phosphor-icons/react";
 import { Fragment, type ReactNode, useState } from "react";
 
 import { ensureLocalApi } from "../../localApi";
@@ -623,7 +623,7 @@ export function UsageLimitsPooled({
             onClick={() => void ensureLocalApi().shell.openExternal(link.url)}
           >
             Manage usage
-            <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
+            <ArrowSquareOutIcon className="size-3.5" aria-hidden="true" />
           </Button>
         </section>
       ))}
@@ -637,7 +637,7 @@ function LimitNotices({ notices }: { readonly notices: readonly string[] }) {
   if (notices.length === 0) return null;
   return (
     <Alert variant="warning" controlAlignment="first-line">
-      <AlertTriangleIcon />
+      <WarningIcon />
       {notices.map((notice) => (
         <AlertTitle key={notice} className="break-words">
           {notice}

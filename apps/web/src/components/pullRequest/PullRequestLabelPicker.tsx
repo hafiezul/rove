@@ -10,7 +10,7 @@ import type {
   PullRequestLabelCandidate,
   PullRequestRef,
 } from "@rove-code/contracts";
-import { CheckIcon, TagIcon } from "lucide-react";
+import { CheckIcon, TagIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";

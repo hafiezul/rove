@@ -10,15 +10,15 @@
 import type { PullRequestListEntry, PullRequestSummary } from "@rove-code/contracts";
 import {
   ArrowLeftIcon,
-  ChevronRightIcon,
-  EllipsisIcon,
-  ExternalLinkIcon,
-  FileDiffIcon,
-  PanelRightIcon,
+  ArrowSquareOutIcon,
+  CaretRightIcon,
+  DotsThreeIcon,
+  GitDiffIcon,
+  SidebarSimpleIcon,
   TagIcon,
   UserPlusIcon,
   UsersIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import { readLocalApi } from "~/localApi";
@@ -172,7 +172,7 @@ export function PullRequestDetailGhost({
                   aria-label={`Open pull request #${seed.number} on host`}
                 >
                   <span className={statePresentation?.toneClassName}>#{seed.number}</span>
-                  <ExternalLinkIcon aria-hidden className="size-2.5" />
+                  <ArrowSquareOutIcon aria-hidden className="size-2.5" />
                 </InlineButton>
               </>
             ) : (
@@ -186,7 +186,7 @@ export function PullRequestDetailGhost({
         <div className="mr-4 flex h-7 shrink-0 items-center justify-end gap-1">
           {actions ?? <GhostBar className="h-6 w-16 rounded-md" />}
           <Button size="icon-xs" variant="ghost" disabled aria-label="Pull request actions loading">
-            <EllipsisIcon aria-hidden className="size-4" />
+            <DotsThreeIcon aria-hidden className="size-4" />
           </Button>
           {onClose ? (
             <Button
@@ -195,7 +195,7 @@ export function PullRequestDetailGhost({
               aria-label="Collapse pull request panel"
               onClick={onClose}
             >
-              <PanelRightIcon aria-hidden className="size-3.5" />
+              <SidebarSimpleIcon mirrored aria-hidden className="size-3.5" />
             </Button>
           ) : null}
         </div>
@@ -273,7 +273,7 @@ export function PullRequestDetailGhost({
                 </span>
                 <span className="ml-auto inline-flex shrink-0 items-center justify-end gap-2">
                   <span className="inline-flex min-w-16 items-center justify-end gap-1.5 tabular-nums">
-                    <FileDiffIcon aria-hidden className="size-3.5" />
+                    <GitDiffIcon aria-hidden className="size-3.5" />
                     {changedFiles === null ? (
                       <GhostBar className="h-3 w-10" />
                     ) : (
@@ -380,10 +380,7 @@ export function PullRequestDetailGhost({
           <div className="sticky top-0 z-10 flex w-full items-center bg-background pr-4">
             <div className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
               <span>Description</span>
-              <ChevronRightIcon
-                aria-hidden
-                className="size-3.5 rotate-90 text-muted-foreground/60"
-              />
+              <CaretRightIcon aria-hidden className="size-3.5 rotate-90 text-muted-foreground/60" />
             </div>
           </div>
           <div className="space-y-3 px-4 pb-4">

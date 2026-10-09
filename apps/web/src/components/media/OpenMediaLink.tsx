@@ -1,4 +1,4 @@
-import { DownloadIcon, ExternalLinkIcon } from "lucide-react";
+import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 
 import { resolveExternalWebLinkHost } from "../chat/externalLinkContextMenu";
 import { Button } from "../ui/button";
@@ -38,7 +38,7 @@ export function OpenMediaLink(props: {
         />
       }
     >
-      {isBlob ? <DownloadIcon /> : <ExternalLinkIcon />}
+      {isBlob ? <DownloadSimpleIcon /> : <ArrowSquareOutIcon />}
       {originalUrl ? "Open original" : isBlob ? "Download video" : "Open in browser"}
     </Button>
   );

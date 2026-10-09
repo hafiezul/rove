@@ -1,4 +1,4 @@
-import { CircleCheckIcon } from "lucide-react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import type { ComponentProps, ReactNode } from "react";
 import { Button } from "../ui/button";
 
@@ -29,7 +29,7 @@ export function PermissionChecklist({
           </div>
           {permission.granted ? (
             <span role="status" className="flex items-center gap-1 text-xs text-success">
-              <CircleCheckIcon className="size-4" aria-hidden="true" />
+              <CheckCircleIcon className="size-4" aria-hidden="true" />
               Allowed
             </span>
           ) : (

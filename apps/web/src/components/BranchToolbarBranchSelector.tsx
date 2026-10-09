@@ -9,7 +9,7 @@ import {
 } from "@rove-code/client-runtime/state/runtime";
 import type { ContextMenuItem, EnvironmentId, VcsRef, ThreadId } from "@rove-code/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import { ChevronDownIcon, GitBranchIcon } from "lucide-react";
+import { CaretDownIcon, GitBranchIcon } from "@phosphor-icons/react";
 import {
   useCallback,
   useDeferredValue,
@@ -832,7 +832,7 @@ export function BranchToolbarBranchSelector({
                 <MiddleTruncate value={triggerLabel} />
               </span>
             </span>
-            <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
+            <CaretDownIcon className="size-3 shrink-0 opacity-50" />
           </ComboboxTrigger>
         </span>
       </div>

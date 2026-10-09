@@ -1,7 +1,7 @@
 "use client";
 
 import { DayPicker } from "@daypicker/react";
-import { ChevronLeftIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
+import { CaretLeftIcon, CaretRightIcon, CaretUpDownIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 import { cn } from "~/lib/utils";
 
@@ -19,25 +19,17 @@ const defaultComponents = {
   }): React.ReactElement => {
     if (orientation === "left") {
       return (
-        <ChevronLeftIcon
-          className={cn(className, "rtl:rotate-180")}
-          {...props}
-          aria-hidden="true"
-        />
+        <CaretLeftIcon className={cn(className, "rtl:rotate-180")} {...props} aria-hidden="true" />
       );
     }
 
     if (orientation === "right") {
       return (
-        <ChevronRightIcon
-          className={cn(className, "rtl:rotate-180")}
-          {...props}
-          aria-hidden="true"
-        />
+        <CaretRightIcon className={cn(className, "rtl:rotate-180")} {...props} aria-hidden="true" />
       );
     }
 
-    return <ChevronsUpDownIcon className={className} {...props} aria-hidden="true" />;
+    return <CaretUpDownIcon className={className} {...props} aria-hidden="true" />;
   },
 };
 
