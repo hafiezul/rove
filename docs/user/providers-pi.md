@@ -97,7 +97,7 @@ Rove reads these capabilities from the server's loaded Pi catalog. This adds no 
 ## Supported behavior
 
 - Extension tools run through Pi and appear as tool calls in Rove. Extensions can start subagents by relaunching Pi the way Pi's `examples/extensions/subagent` does; the child runs the same Pi that Rove hosts, with the instance's agent directory. Extensions that start a separate Node process to load Pi's SDK themselves are not supported in the desktop app.
-- Subagents that report results in the shape used by `examples/extensions/subagent` show their single, parallel, and chain children in **Agents** on web and desktop, and in the thread work log on mobile. Each child shows identity and available usage while it runs and settles as soon as it finishes. Other subagent extensions appear as ordinary tool calls.
+- Subagents appear in **Agents** on web and desktop, and in the thread work log on mobile, whichever extension starts them. See [Subagents](#subagents).
 - Image attachments are inlined into Pi prompts, so the model sees the image itself. Models without image input reject image attachments with a clear error instead of answering without the image.
 - Other file attachments reach Pi as saved-file paths in the message text, like the other providers; open them with file tools.
 - Stopping a thread discards queued steering and follow-up messages, dismisses extension questions, aborts the live response, and retires the session. Background agent work reported before Stop is marked stopped, and late events cannot revive the stopped session. The next message starts a fresh runtime from the saved history; it does not automatically replay unfinished work.
@@ -126,3 +126,22 @@ Thread extensions receive `ctx.mode === "rpc"` and `ctx.hasUI === true`. This do
 Session replacement, tree navigation, and reload requested by extension commands are rejected. Rove owns thread navigation and session identity. The panel's Refresh is not Pi's `/reload`: it re-reads the server's catalog and never restarts an active thread's session.
 
 Background text generation, including thread titles, does not load extensions or expose tools, and keeps no session history. Other providers are unchanged.
+
+## Subagents
+
+Rove shows a subagent for each agent a tool starts, without needing support from the extension. This covers:
+
+- Pi agents an extension starts as separate processes, including ones started in the background that finish after the turn.
+- Agents an extension runs inside Pi itself.
+- Model calls a tool makes directly, grouped into one entry per tool call.
+- Agent CLIs a tool starts, such as `claude`, `codex`, or `gemini`, including through the agent's own shell commands.
+
+Open an agent in **Agents** to see its task, each step with its output, token use, and the full result. When one tool call starts several agents, they appear together under that tool. Entries are named from the agent's session name or first prompt, not from the extension's own agent names.
+
+Rove cannot show:
+
+- Agents running on another machine.
+- Agents that are neither Node programs nor known agent CLIs, or agent CLIs started from a script file.
+- Agents an extension starts after removing `NODE_OPTIONS` from their environment.
+
+If Rove restarts while agents run, their entries show as interrupted, but opening one still shows its steps as they are recorded.

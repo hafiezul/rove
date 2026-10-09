@@ -5,6 +5,8 @@ import { createPiSession } from "./provider/Layers/PiSessionFactory.ts";
 import { PiExtensionLoadError, type PiSessionLike } from "./provider/Layers/PiAdapter.ts";
 import { registerPiBundledOAuthFlows } from "./provider/Drivers/PiOAuth.ts";
 import { exposePiCliEntry } from "./provider/Layers/PiCliEntry.ts";
+import { startPiAgentObserver } from "./provider/Layers/PiAgentObserver.ts";
+import { PI_AGENT_ENV } from "./provider/Layers/PiAgentHook.ts";
 import {
   compactPiMessageUpdate,
   compactPiToolProgress,
@@ -80,6 +82,17 @@ export async function runPiRuntimeWorker(): Promise<void> {
     number,
     { session: PiSessionLike; update: ReturnType<typeof sessionUpdates>; unsubscribe: () => void }
   >();
+  // Agents a thread starts report to its newest session, even after a re-create.
+  const threadKeys = new Map<string, number>();
+  const agentObserver = startPiAgentObserver({
+    transcriptsRoot: process.env[PI_AGENT_ENV.transcripts],
+    emit: (threadId, task) => {
+      const key = threadKeys.get(threadId);
+      if (key !== undefined && sessions.has(key))
+        // SAFETY: Task payloads are schema-typed JSON; optional fields are omitted, never undefined.
+        post({ type: "event", key, event: { type: "rove_agent_task", task: task as never } });
+    },
+  });
   const initializing = new Set<Promise<unknown>>();
   const post = (message: PiRuntimeMessage) => {
     if (!process.connected) return;
@@ -111,6 +124,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
         }),
       );
       sessions.clear();
+      agentObserver.dispose();
       await host?.dispose();
     })());
 
@@ -150,7 +164,16 @@ export async function runPiRuntimeWorker(): Promise<void> {
                   textGeneration: true,
                   modelRuntime: getHost().getModelRuntime(),
                 }
-              : { compatibility, mcpProviderSession: mcp },
+              : {
+                  compatibility,
+                  mcpProviderSession: mcp,
+                  ...(input.threadId !== undefined
+                    ? {
+                        observeAgent: (agent: object) =>
+                          agentObserver.registerThreadAgent(input.threadId!, agent),
+                      }
+                    : undefined),
+                },
           );
         } catch (error) {
           compatibility.dispose();
@@ -182,6 +205,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
           post({ type: "event", key, event });
         });
         sessions.set(key, { session, update, unsubscribe });
+        if (!textGeneration && input.threadId !== undefined) threadKeys.set(input.threadId, key);
         post({ type: "state", key, update: update(true) });
         return;
       }
@@ -223,6 +247,8 @@ export async function runPiRuntimeWorker(): Promise<void> {
             case "dispose": {
               unsubscribe();
               sessions.delete(key);
+              for (const [threadId, threadKey] of threadKeys)
+                if (threadKey === key) threadKeys.delete(threadId);
               return await session.dispose();
             }
           }

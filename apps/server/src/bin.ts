@@ -1,3 +1,5 @@
+// @effect-diagnostics nodeBuiltinImport:off - The Pi CLI relaunch path runs before any Effect runtime.
+import * as NodeModule from "node:module";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Effect from "effect/Effect";
@@ -22,6 +24,7 @@ import { updateCommand } from "./cli/update.ts";
 import { claudeHistoryCommand } from "./cli/claudeHistory.ts";
 import { piRuntimeCommand } from "./cli/piRuntime.ts";
 import { piCliInvocation } from "./cli/piCli.ts";
+import { PI_AGENT_ENV } from "./provider/Layers/PiAgentHook.ts";
 import { requireCliExternal } from "./cli/requireExternal.ts";
 import { serviceLauncherCommand } from "./cli/serviceLauncher.ts";
 import { servicePreflightCommand } from "./cli/servicePreflight.ts";
@@ -88,6 +91,15 @@ const piCli = piCliInvocation(process.argv, process.env);
 if (piCli) {
   // A Pi extension relaunched the executable's Pi worker as `pi` (see PiCliEntry.ts).
   process.argv.splice(1, 2, piCli.entry);
+  // Single executables may skip NODE_OPTIONS, so load the agent hook explicitly (ADR 0002).
+  const agentHook = process.env[PI_AGENT_ENV.hook];
+  if (agentHook && process.env[PI_AGENT_ENV.parent]) {
+    try {
+      NodeModule.createRequire(agentHook)(agentHook);
+    } catch {
+      // A missing hook only costs observability.
+    }
+  }
   requireCliExternal(piCli.entry);
 } else if (
   isEntrypoint({

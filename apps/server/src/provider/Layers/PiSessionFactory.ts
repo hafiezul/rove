@@ -854,6 +854,8 @@ export async function createPiSession(
     compatibility?: PiUiCompatibility;
     /** Thread authorization passed over the isolated runtime's private IPC channel. */
     mcpProviderSession?: McpProviderSessionConfig | undefined;
+    /** Receives the session's agent so subagent observation can attribute its tool calls. */
+    observeAgent?: (agent: object) => void;
   } = {},
 ): Promise<PiSessionLike> {
   const cwd = input.cwd;
@@ -1002,6 +1004,7 @@ export async function createPiSession(
       throw error;
     });
   usageLimits.observe(session.agent);
+  options.observeAgent?.(session.agent);
 
   // Collect every way the effective model/reasoning selection differs from the
   // requested one: fuzzy-match warnings, the SDK's restore fallback, and

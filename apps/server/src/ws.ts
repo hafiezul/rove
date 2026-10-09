@@ -149,6 +149,7 @@ import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
 import * as WorkspaceFileSystem from "./workspace/WorkspaceFileSystem.ts";
 import { makeWorktreeInventory } from "./project/worktreeInventory.ts";
 import { readWorkflowScript } from "./orchestration/workflowScriptQuery.ts";
+import { readAgentTranscript } from "./orchestration/agentTranscriptQuery.ts";
 import * as WorkspacePaths from "./workspace/WorkspacePaths.ts";
 import * as VcsStatusBroadcaster from "./vcs/VcsStatusBroadcaster.ts";
 import * as VcsProvisioningService from "./vcs/VcsProvisioningService.ts";
@@ -2064,6 +2065,16 @@ const makeWsRpcLayer = (
           observeRpcEffect(
             ORCHESTRATION_WS_METHODS.getWorkflowScript,
             readWorkflowScript({ scriptPath: input.scriptPath }),
+            { "rpc.aggregate": "orchestration" },
+          ),
+        [ORCHESTRATION_WS_METHODS.getAgentTranscript]: (input) =>
+          observeRpcEffect(
+            ORCHESTRATION_WS_METHODS.getAgentTranscript,
+            readAgentTranscript({
+              stateDir: config.stateDir,
+              threadId: input.threadId,
+              taskId: input.taskId,
+            }),
             { "rpc.aggregate": "orchestration" },
           ),
         [ORCHESTRATION_WS_METHODS.getTurnDiff]: (input) =>

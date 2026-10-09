@@ -21,253 +21,29 @@ import {
   formatSubagentTokenCount,
 } from "@rove-code/client-runtime/state/subagentRuntime";
 import type { EnvironmentId, ThreadId } from "@rove-code/contracts";
-import { Bot, Braces, Check, ChevronDown, ChevronRight, ExternalLink, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Bot, Braces, Check, ChevronDown, ChevronRight, X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { orchestrationEnvironment } from "~/state/orchestration";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
-/**
- * In-flight states all present as Working (one steady state, per the
- * monitoring-pill design: detail belongs in the activity sub-line, and a
- * stalled/waiting/queued subagent is still the fleet doing its job, not a
- * user problem). Only settled states differentiate.
- */
-const STATUS_VISUALS = {
-  pending: { dotClass: "bg-info", label: "Working" },
-  running: { dotClass: "bg-info", label: "Working" },
-  waiting: { dotClass: "bg-info", label: "Working" },
-  // Idle reads as settled (muted, not sky): a resting Codex child looks done
-  // unless resumed — live-test: sky idle dots read as stuck in-progress.
-  idle: { dotClass: "bg-muted-foreground/50", label: "Idle · resumable" },
-  completed: { dotClass: "bg-success", label: "Completed" },
-  failed: { dotClass: "bg-destructive", label: "Failed" },
-  cancelled: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-  interrupted: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-} satisfies Record<RuntimeSubagent["status"], { dotClass: string; label: string }>;
+import { AgentDetailView } from "./agents/AgentDetailView";
+import {
+  AgentElapsed,
+  STATUS_VISUALS,
+  StatusDot,
+  agentActivityText,
+  elapsedBetween,
+} from "./agents/AgentStatus";
 
-function StatusDot({ status }: { status: RuntimeSubagent["status"] }) {
-  return (
-    <span
-      aria-hidden
-      className={cn("size-1.5 shrink-0 rounded-full", STATUS_VISUALS[status].dotClass)}
-    />
-  );
-}
+/** Opens an agent's detail view in place of the list. */
+const OpenAgentContext = createContext<(agentId: string) => void>(() => undefined);
 
-function formatElapsedSeconds(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.floor(totalSeconds));
-  const minutes = Math.floor(seconds / 60);
-  if (minutes === 0) {
-    return `${seconds}s`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours === 0) {
-    return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
-  }
-  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
-}
-
-function elapsedBetween(startedAt: string, endIso: string | null): string {
-  const start = Date.parse(startedAt);
-  const end = endIso ? Date.parse(endIso) : Date.now();
-  if (Number.isNaN(start) || Number.isNaN(end)) {
-    return "";
-  }
-  return formatElapsedSeconds((end - start) / 1000);
-}
-
-/**
- * Elapsed time for the current activation. Live agents self-tick via DOM
- * writes (zero React commits per tick); settled agents freeze at completedAt.
- */
-function AgentElapsed({ agent }: { agent: RuntimeSubagent }) {
-  const textRef = useRef<HTMLSpanElement>(null);
-  const live = agent.status === "running" || agent.status === "waiting";
-  const startedAt = agent.startedAt;
-
-  useEffect(() => {
-    if (!live || !startedAt) {
-      return;
-    }
-    const update = () => {
-      if (textRef.current) {
-        textRef.current.textContent = elapsedBetween(startedAt, null);
-      }
-    };
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [live, startedAt]);
-
-  if (!startedAt) {
-    return null;
-  }
-  return (
-    <span ref={textRef} className="tabular-nums">
-      {elapsedBetween(startedAt, live ? null : agent.completedAt)}
-    </span>
-  );
-}
-
-/**
- * Status-dependent activity line. Live rows lead with what is happening now;
- * settled rows lead with the outcome. Errors are the only inline previews on
- * failed rows because they explain a red row at a glance.
- */
-function agentActivityText(agent: RuntimeSubagent): string | null {
-  const live =
-    agent.status === "running" || agent.status === "pending" || agent.status === "waiting";
-  if (live) {
-    return (
-      agent.progress ??
-      (agent.lastToolName ? `▸ ${agent.lastToolName}` : null) ??
-      agent.result ??
-      agent.error
-    );
-  }
-  return (
-    agent.error ??
-    agent.result ??
-    agent.progress ??
-    (agent.lastToolName ? `▸ ${agent.lastToolName}` : null)
-  );
-}
-
-function AgentDetailsDialog({
-  agent,
-  open,
-  onOpenChange,
-}: {
-  agent: RuntimeSubagent;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const visuals = STATUS_VISUALS[agent.status];
-  const modelLabel = formatSubagentModelLabel(agent.model, agent.effort);
-  const outcome = agent.error ?? agent.result;
-  const handles = agent.runHandles;
-  const metrics = [
-    modelLabel,
-    agent.usage ? `${formatSubagentTokenCount(agent.usage.totalTokens)} tokens` : null,
-    agent.usage?.toolUses !== undefined ? `${agent.usage.toolUses} tools` : null,
-    agent.startedAt ? elapsedBetween(agent.startedAt, agent.completedAt) : null,
-  ].filter((value): value is string => value !== null && value.length > 0);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <DialogHeader>
-          <div className="flex items-center gap-2 pr-8">
-            <StatusDot status={agent.status} />
-            <DialogTitle>
-              <span className="block truncate">{agent.title}</span>
-            </DialogTitle>
-          </div>
-          <DialogDescription>
-            {[agent.role, visuals.label, ...metrics].filter(Boolean).join(" · ")}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <div className="space-y-5">
-            {outcome ? (
-              <section>
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {agent.error ? "Error" : "Result"}
-                </h3>
-                <p
-                  className={cn(
-                    "whitespace-pre-wrap break-words text-sm",
-                    agent.error && "text-destructive-foreground",
-                  )}
-                >
-                  {outcome}
-                </p>
-              </section>
-            ) : null}
-
-            <section>
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Recent activity
-              </h3>
-              {agent.recentActivity.length > 0 ? (
-                <ol className="space-y-2 border-l border-border/60 pl-3">
-                  {agent.recentActivity.map((entry) => (
-                    <li key={`${entry.at}:${entry.summary}`} className="min-w-0">
-                      <p className="whitespace-pre-wrap break-words text-sm">{entry.summary}</p>
-                      <time
-                        dateTime={entry.at}
-                        className="font-mono text-3xs text-muted-foreground"
-                      >
-                        {entry.at}
-                      </time>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {agentActivityText(agent) ?? "No detailed activity was reported."}
-                </p>
-              )}
-            </section>
-
-            {handles ? (
-              <section>
-                <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Run
-                </h3>
-                <dl className="space-y-2 text-xs">
-                  {handles.runId ? (
-                    <div>
-                      <dt className="text-muted-foreground">Run ID</dt>
-                      <dd className="break-all font-mono">{handles.runId}</dd>
-                    </div>
-                  ) : null}
-                  {handles.transcriptDir ? (
-                    <div>
-                      <dt className="text-muted-foreground">Transcript location</dt>
-                      <dd className="break-all font-mono">{handles.transcriptDir}</dd>
-                    </div>
-                  ) : null}
-                  {handles.sessionUrl ? (
-                    <div>
-                      <dt className="text-muted-foreground">Session</dt>
-                      <dd>
-                        <a
-                          href={handles.sessionUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
-                        >
-                          Open session
-                          <ExternalLink aria-hidden className="size-3" />
-                        </a>
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </section>
-            ) : null}
-          </div>
-        </DialogPanel>
-      </DialogPopup>
-    </Dialog>
-  );
-}
-
-/** Fixed-height agent status row; clicking opens the details dialog. */
+/** Fixed-height agent status row; clicking opens the agent's detail view. */
 function AgentRow({ agent }: { agent: RuntimeSubagent }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const openAgent = useContext(OpenAgentContext);
   const visuals = STATUS_VISUALS[agent.status];
   const statusLabel =
     agent.kind === "subagent_batch" && agent.status === "idle" ? "Idle" : visuals.label;
@@ -288,7 +64,7 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
     <>
       <button
         type="button"
-        onClick={() => setDetailsOpen(true)}
+        onClick={() => openAgent(agent.id)}
         aria-label={`Open details for ${agent.title}`}
         className="group grid h-[3.875rem] w-full cursor-pointer grid-cols-[0.375rem_minmax(0,1fr)_auto] grid-rows-[1.25rem_1.125rem_1rem] items-center gap-x-2 rounded-md px-1.5 py-1 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
@@ -328,7 +104,6 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
         </span>
         <span className="sr-only">{statusLabel}</span>
       </button>
-      <AgentDetailsDialog agent={agent} open={detailsOpen} onOpenChange={setDetailsOpen} />
     </>
   );
 }
@@ -665,6 +440,15 @@ function WorkflowSection({
   );
 }
 
+function findAgent(model: AgentPanelModel, agentId: string): RuntimeSubagent | undefined {
+  for (const group of model.workflows) {
+    if (group.workflow.id === agentId) return group.workflow;
+    const member = workflowMembers(group).find((agent) => agent.id === agentId);
+    if (member) return member;
+  }
+  return model.directAgents.find((agent) => agent.id === agentId);
+}
+
 export function AgentsPanel({
   model,
   environmentId = null,
@@ -674,6 +458,12 @@ export function AgentsPanel({
   environmentId?: EnvironmentId | null;
   threadId?: ThreadId | null;
 }) {
+  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
+  const closeAgent = useCallback(() => setOpenAgentId(null), []);
+  // Switching threads swaps the roster; an open agent from another thread must close.
+  useEffect(() => setOpenAgentId(null), [threadId]);
+  const openAgent = openAgentId === null ? undefined : findAgent(model, openAgentId);
+
   if (!model.hasAgents) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
@@ -688,41 +478,53 @@ export function AgentsPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-2 p-2">
-          {model.workflows.map((group) => (
-            <WorkflowSection
-              key={group.workflow.id}
-              group={group}
-              environmentId={environmentId}
-              threadId={threadId}
-            />
-          ))}
-          {model.directAgents.length > 0 ? (
-            <section>
-              <div className="px-1.5 pt-1 text-3xs font-medium uppercase tracking-wider text-muted-foreground">
-                Direct spawns
-              </div>
-              {model.directAgents.map((agent) => (
-                <AgentRow key={agent.id} agent={agent} />
-              ))}
-            </section>
-          ) : null}
-        </div>
-      </ScrollArea>
-      <footer className="flex items-center justify-between border-t border-border/60 px-3 py-1.5 font-mono text-2xs text-muted-foreground">
-        <span className="flex items-center gap-2">
-          {model.runningCount + model.waitingCount > 0 ? (
-            <span className="text-info-foreground">
-              ● {model.runningCount + model.waitingCount} working
-            </span>
-          ) : null}
-          {model.idleCount > 0 ? <span>{model.idleCount} idle</span> : null}
-          {model.settledCount > 0 ? <span>{model.settledCount} settled</span> : null}
-        </span>
-        <span className="tabular-nums">Σ {formatSubagentTokenCount(model.totalTokens)} tok</span>
-      </footer>
-    </div>
+    <OpenAgentContext.Provider value={setOpenAgentId}>
+      {openAgent ? (
+        <AgentDetailView
+          key={openAgent.id}
+          agent={openAgent}
+          environmentId={environmentId}
+          threadId={threadId}
+          onBack={closeAgent}
+        />
+      ) : null}
+      {/* The list stays mounted under an open agent so it keeps its scroll and expansion state. */}
+      <div className={cn("flex h-full min-h-0 flex-col", openAgent && "hidden")}>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex flex-col gap-2 p-2">
+            {model.workflows.map((group) => (
+              <WorkflowSection
+                key={group.workflow.id}
+                group={group}
+                environmentId={environmentId}
+                threadId={threadId}
+              />
+            ))}
+            {model.directAgents.length > 0 ? (
+              <section>
+                <div className="px-1.5 pt-1 text-3xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Direct spawns
+                </div>
+                {model.directAgents.map((agent) => (
+                  <AgentRow key={agent.id} agent={agent} />
+                ))}
+              </section>
+            ) : null}
+          </div>
+        </ScrollArea>
+        <footer className="flex items-center justify-between border-t border-border/60 px-3 py-1.5 font-mono text-2xs text-muted-foreground">
+          <span className="flex items-center gap-2">
+            {model.runningCount + model.waitingCount > 0 ? (
+              <span className="text-info-foreground">
+                ● {model.runningCount + model.waitingCount} working
+              </span>
+            ) : null}
+            {model.idleCount > 0 ? <span>{model.idleCount} idle</span> : null}
+            {model.settledCount > 0 ? <span>{model.settledCount} settled</span> : null}
+          </span>
+          <span className="tabular-nums">Σ {formatSubagentTokenCount(model.totalTokens)} tok</span>
+        </footer>
+      </div>
+    </OpenAgentContext.Provider>
   );
 }

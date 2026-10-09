@@ -5,6 +5,7 @@ import {
   type OrchestrationEvent,
   ThreadId,
 } from "@rove-code/contracts";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it as effectIt } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
@@ -20,6 +21,7 @@ import {
   ProviderService,
   type ProviderServiceContract,
 } from "../../provider/Services/ProviderService.ts";
+import * as ServerConfig from "../../config.ts";
 import * as TerminalManager from "../../terminal/Manager.ts";
 import {
   OrchestrationEngineService,
@@ -112,6 +114,11 @@ describe("ThreadDeletionReactor drain", () => {
         Layer.provide(Layer.succeed(ProviderService, providerService)),
         Layer.provide(Layer.succeed(TerminalManager.TerminalManager, terminalManager)),
         Layer.provide(Layer.succeed(OrchestrationEngineService, engine)),
+        Layer.provide(
+          ServerConfig.layerTest(process.cwd(), { prefix: "rove-thread-deletion-" }).pipe(
+            Layer.provide(NodeServices.layer),
+          ),
+        ),
       );
 
       yield* Effect.scoped(

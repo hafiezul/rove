@@ -586,6 +586,8 @@ export const TaskRunHandles = Schema.Struct({
   transcriptDir: Schema.optional(TrimmedNonEmptyStringSchema),
   /** Only http/https URLs may be stored here — sanitized at the adapter. */
   sessionUrl: Schema.optional(TrimmedNonEmptyStringSchema),
+  /** Rove recorded this agent's transcript; fetch it with `orchestration.getAgentTranscript`. */
+  hasTranscript: Schema.optional(Schema.Boolean),
 });
 export type TaskRunHandles = typeof TaskRunHandles.Type;
 
