@@ -1,5 +1,5 @@
 import type { UsageProviderKind } from "@rove-code/contracts";
-import { ChevronDownIcon } from "lucide-react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { formatCount, formatPercent, formatTokens, formatUsd } from "@rove-code/shared/usageFormat";
@@ -74,7 +74,7 @@ export function UsageModelTable({
                 )}
               >
                 {column.label}
-                <ChevronDownIcon
+                <CaretDownIcon
                   aria-hidden
                   className={cn("size-3", activeSort !== column.key && "invisible")}
                 />

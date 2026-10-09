@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { RotateCcwIcon } from "lucide-react";
+import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { Button } from "../components/ui/button";
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
 
@@ -37,7 +37,7 @@ function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void })
       disabled={changedSettingLabels.length === 0}
       onClick={() => void restoreDefaults()}
     >
-      <RotateCcwIcon className="mx-1 size-3.5" />
+      <ArrowCounterClockwiseIcon className="mx-1 size-3.5" />
       Restore device defaults
     </Button>
   );

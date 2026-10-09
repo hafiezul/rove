@@ -1,4 +1,4 @@
-import { RefreshCwIcon } from "lucide-react";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "~/lib/utils";
@@ -22,10 +22,10 @@ export function RefreshIcon({
   className,
   size,
   ...props
-}: React.ComponentPropsWithoutRef<typeof RefreshCwIcon> &
+}: React.ComponentPropsWithoutRef<typeof ArrowClockwiseIcon> &
   VariantProps<typeof refreshIconVariants> & { refreshing?: boolean }) {
   return (
-    <RefreshCwIcon
+    <ArrowClockwiseIcon
       aria-hidden
       ref={refreshing ? observeVisibleAnimation : undefined}
       className={cn(

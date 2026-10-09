@@ -1,5 +1,5 @@
 import type { PullRequestRef, PullRequestStack } from "@rove-code/contracts";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon } from "@phosphor-icons/react";
 import { MenuItem, MenuGroupLabel } from "../ui/menu";
 import { PullRequestStackLayerContent } from "./PullRequestStackLayerContent";
 

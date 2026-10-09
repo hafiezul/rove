@@ -13,7 +13,7 @@ import type {
 import { codexAuthHandoffUrl } from "@rove-code/shared/codexAuthHandoff";
 import { providerAuthReturnUrl } from "@rove-code/shared/providerAuthReturnUrl";
 import { isLoopbackHost } from "@rove-code/shared/preview";
-import { CheckIcon, ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
+import { ArrowSquareOutIcon, CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { Children, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { ensureLocalApi } from "../../localApi";
@@ -699,7 +699,7 @@ function ManagedCodexSetup({
               onClick={() => void ensureLocalApi().shell.openExternal(url)}
             >
               Try sign-in in your browser
-              <ExternalLinkIcon className="size-3.5" />
+              <ArrowSquareOutIcon className="size-3.5" />
             </Button>
           </div>
         ) : null}
@@ -1101,7 +1101,7 @@ function CodexSignInDescription({
       onClick={onToggle}
     >
       {label}
-      <ChevronRightIcon aria-hidden className={`size-3 shrink-0 ${expanded ? "rotate-90" : ""}`} />
+      <CaretRightIcon aria-hidden className={`size-3 shrink-0 ${expanded ? "rotate-90" : ""}`} />
     </button>
   );
 }

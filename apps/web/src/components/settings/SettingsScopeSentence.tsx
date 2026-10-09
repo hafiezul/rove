@@ -1,6 +1,6 @@
 import { resolveEnvironmentMachineKind } from "@rove-code/contracts";
 import { useLocation } from "@tanstack/react-router";
-import { ChevronDownIcon, LayersIcon } from "lucide-react";
+import { CaretDownIcon, StackIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
@@ -100,7 +100,7 @@ function ScopeMenu({
       >
         {icon}
         <span className="min-w-0 truncate">{label}</span>
-        <ChevronDownIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        <CaretDownIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
       </MenuTrigger>
       <MenuPopup align="start">{children}</MenuPopup>
     </Menu>
@@ -154,7 +154,7 @@ function EnvironmentScopeMenu({
           <>
             <MenuRadioItem value={ALL_ENVIRONMENTS_VALUE}>
               <span className="flex min-w-0 items-center gap-2">
-                <LayersIcon aria-hidden className="size-3.5" />
+                <StackIcon aria-hidden className="size-3.5" />
                 <span className="min-w-0 flex-1 truncate">All environments</span>
                 <MenuRadioItemIndicator />
               </span>

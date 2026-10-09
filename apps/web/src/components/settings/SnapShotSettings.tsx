@@ -7,7 +7,7 @@ import {
   type DesktopSnapShotSetupAction,
   type SnapShotShortcut,
 } from "@rove-code/contracts";
-import { PlayIcon } from "lucide-react";
+import { PlayIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useClientSettings, useUpdateClientSettings } from "../../hooks/useSettings";

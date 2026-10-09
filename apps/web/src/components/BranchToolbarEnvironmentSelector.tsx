@@ -1,5 +1,5 @@
 import type { EnvironmentId } from "@rove-code/contracts";
-import { ScaleIcon } from "lucide-react";
+import { ScalesIcon } from "@phosphor-icons/react";
 import { memo, useMemo } from "react";
 
 import type { EnvironmentOption } from "./BranchToolbar.logic";
@@ -111,7 +111,7 @@ export const BranchToolbarEnvironmentSelector = memo(function BranchToolbarEnvir
           }
         >
           {autoEnvironmentLabel ? (
-            <ScaleIcon className="size-3 shrink-0" aria-hidden="true" />
+            <ScalesIcon className="size-3 shrink-0" aria-hidden="true" />
           ) : (
             <EnvironmentMachineIcon
               kind={activeEnvironment?.machine ?? "server"}
@@ -143,7 +143,7 @@ export const BranchToolbarEnvironmentSelector = memo(function BranchToolbarEnvir
               }}
             >
               <span className="inline-flex items-center gap-1.5">
-                <ScaleIcon className="size-3" aria-hidden="true" />
+                <ScalesIcon className="size-3" aria-hidden="true" />
                 {autoEnvironmentLabel ?? "Auto balance"}
               </span>
             </SelectItem>

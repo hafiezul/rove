@@ -1,6 +1,6 @@
 import { type ProviderDriverKind, type ProviderInstanceId } from "@rove-code/contracts";
 import { memo } from "react";
-import { CheckIcon, StarIcon } from "lucide-react";
+import { CheckIcon, StarIcon } from "@phosphor-icons/react";
 import {
   getDisplayModelName,
   getTriggerDisplayModelLabel,
@@ -115,10 +115,8 @@ export const ModelListRow = memo(function ModelListRow(props: {
                 aria-label={props.isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <StarIcon
-                  className={cn(
-                    "size-3.5 sm:size-3",
-                    props.isFavorite && "fill-current text-warning",
-                  )}
+                  className={cn("size-3.5 sm:size-3", props.isFavorite && "text-warning")}
+                  weight={props.isFavorite ? "fill" : "regular"}
                 />
               </Button>
             }

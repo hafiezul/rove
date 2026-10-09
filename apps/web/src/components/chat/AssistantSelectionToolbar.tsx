@@ -4,7 +4,7 @@ import {
   type AssistantCitation,
   type ScopedThreadRef,
 } from "@rove-code/contracts";
-import { QuoteIcon } from "lucide-react";
+import { QuotesIcon } from "@phosphor-icons/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -146,7 +146,7 @@ export function AssistantSelectionToolbar({
         }
       }}
     >
-      <QuoteIcon aria-hidden="true" className="size-3.5" />
+      <QuotesIcon aria-hidden="true" className="size-3.5" />
       {tooLong ? "Shorten selection" : "Cite"}
     </Button>,
     document.body,

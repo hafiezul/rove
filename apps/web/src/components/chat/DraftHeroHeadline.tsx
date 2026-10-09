@@ -2,7 +2,7 @@ import type { DraftId } from "~/composerDraftStore";
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@rove-code/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@rove-code/client-runtime/environment";
-import { FolderPlusIcon } from "lucide-react";
+import { FolderPlusIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";

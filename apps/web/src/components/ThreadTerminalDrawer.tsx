@@ -11,13 +11,13 @@ import {
   type TerminalSessionState,
 } from "@rove-code/client-runtime/state/terminal";
 import {
-  Plus,
-  Square,
-  SquareSplitHorizontal,
-  SquareSplitVertical,
-  TerminalSquare,
-  Trash2,
-} from "lucide-react";
+  PlusIcon,
+  SquareIcon,
+  SquareSplitHorizontalIcon,
+  SquareSplitVerticalIcon,
+  TerminalWindowIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import {
   type ContextMenuItem,
   type ProviderInstanceId,
@@ -1485,7 +1485,7 @@ export default function ThreadTerminalDrawer({
               onClick={onSplitTerminalAction}
               label={splitTerminalActionLabel}
             >
-              <SquareSplitHorizontal className="size-3.25" />
+              <SquareSplitHorizontalIcon className="size-3.25" />
             </TerminalActionButton>
             <div className="h-4 w-px bg-border/80" />
             <TerminalActionButton
@@ -1497,7 +1497,7 @@ export default function ThreadTerminalDrawer({
               onClick={onSplitTerminalVerticalAction}
               label={splitTerminalVerticalActionLabel}
             >
-              <SquareSplitVertical className="size-3.25" />
+              <SquareSplitVerticalIcon className="size-3.25" />
             </TerminalActionButton>
             <div className="h-4 w-px bg-border/80" />
             <TerminalActionButton
@@ -1505,7 +1505,7 @@ export default function ThreadTerminalDrawer({
               onClick={onNewTerminalAction}
               label={newTerminalActionLabel}
             >
-              <Plus className="size-3.25" />
+              <PlusIcon className="size-3.25" />
             </TerminalActionButton>
             <div className="h-4 w-px bg-border/80" />
             <TerminalActionButton
@@ -1513,7 +1513,7 @@ export default function ThreadTerminalDrawer({
               onClick={() => confirmCloseTerminal(resolvedActiveTerminalId)}
               label={closeTerminalActionLabel}
             >
-              <Trash2 className="size-3.25" />
+              <TrashIcon className="size-3.25" />
             </TerminalActionButton>
           </div>
         </div>
@@ -1630,7 +1630,7 @@ export default function ThreadTerminalDrawer({
                     onClick={onSplitTerminalAction}
                     label={splitTerminalActionLabel}
                   >
-                    <SquareSplitHorizontal className="size-3.25" />
+                    <SquareSplitHorizontalIcon className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
                     className={`inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors ${
@@ -1641,21 +1641,21 @@ export default function ThreadTerminalDrawer({
                     onClick={onSplitTerminalVerticalAction}
                     label={splitTerminalVerticalActionLabel}
                   >
-                    <SquareSplitVertical className="size-3.25" />
+                    <SquareSplitVerticalIcon className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
                     className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
                     onClick={onNewTerminalAction}
                     label={newTerminalActionLabel}
                   >
-                    <Plus className="size-3.25" />
+                    <PlusIcon className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
                     className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
                     onClick={() => confirmCloseTerminal(resolvedActiveTerminalId)}
                     label={closeTerminalActionLabel}
                   >
-                    <Trash2 className="size-3.25" />
+                    <TrashIcon className="size-3.25" />
                   </TerminalActionButton>
                 </div>
               </div>
@@ -1675,10 +1675,10 @@ export default function ThreadTerminalDrawer({
                       ? "Stacked"
                       : "Side by side";
                   const GroupIcon = !isSplitGroup
-                    ? Square
+                    ? SquareIcon
                     : terminalGroup.splitDirection === "vertical"
-                      ? SquareSplitVertical
-                      : SquareSplitHorizontal;
+                      ? SquareSplitVerticalIcon
+                      : SquareSplitHorizontalIcon;
 
                   return (
                     <div key={terminalGroup.id} className="pb-0.5">
@@ -1722,7 +1722,7 @@ export default function ThreadTerminalDrawer({
                                 onClick={() => confirmCloseTerminal(terminalId)}
                                 tooltip={closeTerminalLabel}
                               >
-                                <TerminalSquare className="size-3 shrink-0" />
+                                <TerminalWindowIcon className="size-3 shrink-0" />
                               </PanelTabCloseButton>
                               <button
                                 type="button"

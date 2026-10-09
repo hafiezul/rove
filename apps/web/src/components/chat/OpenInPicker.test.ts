@@ -1,4 +1,4 @@
-import { FolderClosedIcon } from "lucide-react";
+import { FolderIcon } from "@phosphor-icons/react";
 import { describe, expect, it } from "vite-plus/test";
 
 import { FileExplorerIcon, FinderIcon } from "../Icons";
@@ -8,7 +8,7 @@ describe("resolveOpenInOptions", () => {
   it.each([
     ["MacIntel", "Finder", FinderIcon],
     ["Win32", "File Explorer", FileExplorerIcon],
-    ["Linux x86_64", "Files", FolderClosedIcon],
+    ["Linux x86_64", "Files", FolderIcon],
   ] as const)("includes the file manager with its icon on %s", (platform, label, Icon) => {
     expect(resolveOpenInOptions(platform, ["cursor", "vscode", "file-manager"])).toEqual([
       expect.objectContaining({ value: "cursor", label: "Cursor" }),

@@ -2,7 +2,7 @@ import { PermissionChecklist, PermissionContinueButton } from "../permissions/Pe
 import { usePermissionStatus } from "../permissions/usePermissionStatus";
 import type { BrowserImportSource } from "@rove-code/contracts";
 import { BROWSER_IMPORT_FAILURE_COPY } from "@rove-code/contracts";
-import { ArrowDownIcon, ArrowRightIcon, CheckIcon, HardDriveIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowRightIcon, CheckIcon, HardDriveIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
 import { cn, randomUUID } from "~/lib/utils";

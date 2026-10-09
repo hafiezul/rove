@@ -15,7 +15,12 @@ import {
   useRemoteOpenState,
 } from "../../remoteOpen";
 import { useEnvironment } from "../../state/environments";
-import { ChevronDownIcon, FolderClosedIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import {
+  ArrowSquareOutIcon,
+  CaretDownIcon,
+  FolderIcon,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { Button } from "../ui/button";
 import { Group, GroupSeparator } from "../ui/group";
 import {
@@ -62,7 +67,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 
 type OpenInOption = {
   label: string;
-  Icon: Icon;
+  Icon: Icon | PhosphorIcon;
   value: EditorId;
   kind: "brand" | "generic";
 };
@@ -177,7 +182,7 @@ export const resolveOpenInOptions = (
         ? FinderIcon
         : isWindowsPlatform(platform)
           ? FileExplorerIcon
-          : FolderClosedIcon,
+          : FolderIcon,
       value: "file-manager",
       kind: isMacPlatform(platform) || isWindowsPlatform(platform) ? "brand" : "generic",
     },
@@ -340,7 +345,7 @@ export const OpenInPicker = memo(function OpenInPicker({
         )}
         <MenuSub>
           <MenuSubTrigger density="touch">
-            <SquareArrowOutUpRightIcon className="size-4" />
+            <ArrowSquareOutIcon className="size-4" />
             <MenuItemLabel>Open in…</MenuItemLabel>
           </MenuSubTrigger>
           <MenuSubPopup>{editorItems}</MenuSubPopup>
@@ -379,7 +384,7 @@ export const OpenInPicker = memo(function OpenInPicker({
         <MenuTrigger
           render={<Button aria-label="Choose editor" size="icon-xs" variant="outline" />}
         >
-          <ChevronDownIcon aria-hidden="true" className="size-4" />
+          <CaretDownIcon aria-hidden="true" className="size-4" />
         </MenuTrigger>
         <MenuPopup align="end">{editorItems}</MenuPopup>
       </Menu>

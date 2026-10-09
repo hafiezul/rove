@@ -1,7 +1,7 @@
 import type { AssistantCitation } from "@rove-code/contracts";
 import { serializeAssistantCitation } from "@rove-code/shared/assistantCitations";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { PencilIcon, QuoteIcon } from "lucide-react";
+import { PencilSimpleIcon, QuotesIcon } from "@phosphor-icons/react";
 import {
   useEffect,
   useEffectEvent,
@@ -116,7 +116,7 @@ export function AssistantCitationChip({
       className="inline-flex h-full min-w-0 items-center gap-[0.33em] rounded-sm text-inherit no-underline focus-visible:outline-2 focus-visible:outline-foreground"
       aria-label={`View cited assistant text: ${label}`}
     >
-      <QuoteIcon aria-hidden="true" />
+      <QuotesIcon aria-hidden="true" />
       <ContextChipLabel className="max-w-[16em]">{label}</ContextChipLabel>
     </Link>
   );
@@ -126,7 +126,7 @@ export function AssistantCitationChip({
       className="inline-flex h-full min-w-0 items-center gap-[0.33em] rounded-sm text-inherit no-underline hover:bg-(--context-chip-accent)/17 focus-visible:outline-2 focus-visible:outline-foreground"
       aria-label={`View cited assistant text: ${label}`}
     >
-      <QuoteIcon aria-hidden="true" />
+      <QuotesIcon aria-hidden="true" />
       <ContextChipLabel className="max-w-[16em]">{label}</ContextChipLabel>
     </Link>
   );
@@ -161,7 +161,7 @@ export function AssistantCitationChip({
             data-citation-comment-trigger="true"
             render={<ContextChipAction />}
           >
-            <PencilIcon aria-hidden="true" />
+            <PencilSimpleIcon aria-hidden="true" />
           </PopoverTrigger>
           {commentEditor.open ? (
             <PopoverPopup

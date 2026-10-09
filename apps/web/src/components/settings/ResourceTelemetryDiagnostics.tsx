@@ -1,17 +1,17 @@
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import {
-  ActivityIcon,
-  AlertTriangleIcon,
-  BatteryIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
+  BatteryFullIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   CpuIcon,
   DatabaseIcon,
   GaugeIcon,
   HardDriveIcon,
-  MemoryStickIcon,
-} from "lucide-react";
+  MemoryIcon,
+  PulseIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import type {
   BackgroundBooleanState,
   EnvironmentId,
@@ -481,7 +481,7 @@ function ProcessTreeName({
 }) {
   const name = formatProcessName(process);
   const hasChildren = process.childPids.length > 0;
-  const ChevronIcon = collapsed ? ChevronRightIcon : ChevronDownIcon;
+  const ChevronIcon = collapsed ? CaretRightIcon : CaretDownIcon;
   return (
     <div
       className="grid min-w-0 grid-cols-[1.25rem_0.375rem_minmax(0,1fr)] items-center gap-2"
@@ -958,7 +958,7 @@ export function ResourceTelemetryDiagnostics({
     <>
       <SettingsSection
         title="Resource monitor"
-        icon={<ActivityIcon className="size-4 text-muted-foreground" />}
+        icon={<PulseIcon className="size-4 text-muted-foreground" />}
         headerAction={
           <div className="flex items-center gap-2">
             {snapshot ? (
@@ -1008,7 +1008,7 @@ export function ResourceTelemetryDiagnostics({
               detail={allRove ? `${formatCpuTime(allRove.cpuTimeMs)} observed CPU time` : undefined}
             />
             <IconStat
-              icon={<MemoryStickIcon className="size-3.5" />}
+              icon={<MemoryIcon className="size-3.5" />}
               label="Resident memory"
               value={allRove ? formatBytes(allRove.currentRssBytes) : "..."}
               detail={
@@ -1016,7 +1016,7 @@ export function ResourceTelemetryDiagnostics({
               }
             />
             <IconStat
-              icon={<ActivityIcon className="size-3.5" />}
+              icon={<PulseIcon className="size-3.5" />}
               label="Process count"
               value={allRove ? String(allRove.processCount) : "..."}
               detail={
@@ -1056,7 +1056,7 @@ export function ResourceTelemetryDiagnostics({
           </div>
           {telemetry.error ? (
             <div className="flex items-start gap-2 border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
-              <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+              <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
               <span>{telemetry.error}</span>
             </div>
           ) : null}
@@ -1098,7 +1098,7 @@ export function ResourceTelemetryDiagnostics({
           <div className="px-4 py-4 sm:px-5">
             <div className="mb-3 flex items-center gap-2 text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
               <span className="flex size-6 items-center justify-center rounded-md bg-muted/60">
-                <BatteryIcon className="size-3.5" />
+                <BatteryFullIcon className="size-3.5" />
               </span>
               Host state
             </div>
@@ -1234,7 +1234,7 @@ export function ResourceTelemetryDiagnostics({
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5">
           {history.error ? (
             <div className="flex items-start gap-2 border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
-              <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+              <WarningIcon className="mt-0.5 size-3.5 shrink-0" />
               <span>{history.error}</span>
             </div>
           ) : null}

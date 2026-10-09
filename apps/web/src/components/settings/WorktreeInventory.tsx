@@ -10,7 +10,7 @@ import {
   type WorktreeSizeState,
 } from "@rove-code/client-runtime/worktree-inventory";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, GitBranchIcon, RefreshCwIcon } from "lucide-react";
+import { ArrowClockwiseIcon, CaretRightIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { formatEnvironmentQueryError, useEnvironmentQuery } from "../../state/query";
@@ -104,7 +104,7 @@ function EnvironmentWorktrees(props: {
           disabled={!props.supported || inventory.isPending}
           onClick={inventory.refresh}
         >
-          <RefreshCwIcon /> {inventory.isPending ? "Refreshing…" : "Refresh"}
+          <ArrowClockwiseIcon /> {inventory.isPending ? "Refreshing…" : "Refresh"}
         </Button>
       }
     >
@@ -230,7 +230,7 @@ function WorktreeRow({
   return (
     <details className="group" onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-        <ChevronRightIcon
+        <CaretRightIcon
           aria-hidden="true"
           className="size-3.5 shrink-0 text-muted-foreground group-open:rotate-90"
         />

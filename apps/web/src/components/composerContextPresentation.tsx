@@ -3,7 +3,7 @@ import { ReadOnlySourcePreview } from "./files/AttachmentFilePreview";
 import type { PreviewAnnotationPayload } from "@rove-code/contracts";
 import { formatAttachmentSize } from "@rove-code/client-runtime/state/attachments";
 import { videoMimeType } from "@rove-code/shared/video";
-import { MessageCircleIcon, MousePointerClickIcon } from "lucide-react";
+import { ChatCircleIcon, CursorClickIcon } from "@phosphor-icons/react";
 import { createContext, type MouseEvent, type ReactElement, type ReactNode, use } from "react";
 import type { EnvironmentId } from "@rove-code/contracts";
 
@@ -381,7 +381,7 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
         }
         return (
           <ContextChip
-            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
+            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <ChatCircleIcon />}
             label={reviewCommentContextLabel(entry.record)}
             kindLabel={isPullRequest ? pullRequestContextKindLabel(entry.record) : "Review comment"}
             details={<ComposerReviewCommentDetails comment={entry.record} />}
@@ -397,7 +397,7 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
       render: (entry, context, definition) =>
         entry.kind === "preview-annotation" ? (
           <ContextChip
-            icon={<MousePointerClickIcon />}
+            icon={<CursorClickIcon />}
             label={previewAnnotationContextLabel(entry.record)}
             kindLabel="Preview annotation"
             details={<ComposerPreviewAnnotationDetails annotation={entry.record} />}

@@ -1,5 +1,5 @@
 import type { ProviderDriverKind } from "@rove-code/contracts";
-import { FolderGit2Icon, FolderIcon, GitBranchIcon } from "lucide-react";
+import { FolderIcon, GitBranchIcon, GitForkIcon } from "@phosphor-icons/react";
 import { ProjectFavicon, type ProjectFaviconProject } from "./ProjectFavicon";
 import { ProviderInstanceIcon } from "./chat/ProviderInstanceIcon";
 import { cn } from "~/lib/utils";
@@ -27,7 +27,7 @@ export function CommandPaletteMetaDot() {
 
 function WorkspaceIcon(props: { variant: ThreadCommandSubtitleVariant; isWorktree: boolean }) {
   if (props.isWorktree) {
-    return <FolderGit2Icon className={COMMAND_PALETTE_META_ICON_CLASS} aria-hidden />;
+    return <GitForkIcon className={COMMAND_PALETTE_META_ICON_CLASS} aria-hidden />;
   }
   if (props.variant === "favicon-branch-harness") {
     return <GitBranchIcon className={COMMAND_PALETTE_META_ICON_CLASS} aria-hidden />;

@@ -2,7 +2,7 @@ import {
   codexFeedbackNotice,
   type CodexFeedbackSubmission,
 } from "@rove-code/client-runtime/state/threads";
-import { MessageSquareIcon } from "lucide-react";
+import { ChatIcon } from "@phosphor-icons/react";
 
 import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { Button } from "../ui/button";
@@ -20,7 +20,7 @@ export function feedbackBannerItem(
     variant:
       submission.status === "failed" ? "error" : submission.status === "sent" ? "success" : "info",
     priority: submission.status === "uploading" ? "activity" : "notice",
-    icon: <MessageSquareIcon />,
+    icon: <ChatIcon />,
     ...notice,
     actions:
       submission.status === "sent" ? (

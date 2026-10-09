@@ -1,7 +1,12 @@
 "use client";
 
 import type { DesktopPreviewColorScheme, EnvironmentId } from "@rove-code/contracts";
-import { Minus, MoreVertical, Plus as PlusIcon, RotateCcw } from "lucide-react";
+import {
+  ArrowCounterClockwiseIcon,
+  DotsThreeVerticalIcon,
+  MinusIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -104,7 +109,7 @@ export function PreviewMoreMenu({
             />
           }
         >
-          <MoreVertical />
+          <DotsThreeVerticalIcon />
         </TooltipTrigger>
         <TooltipPopup>More</TooltipPopup>
       </Tooltip>
@@ -165,7 +170,7 @@ export function PreviewMoreMenu({
               aria-label="Zoom out"
               disabled={tabDisabled}
             >
-              <Minus />
+              <MinusIcon />
             </Button>
             <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground">
               {zoomLabel}
@@ -188,7 +193,7 @@ export function PreviewMoreMenu({
               aria-label="Reset zoom"
               disabled={tabDisabled}
             >
-              <RotateCcw />
+              <ArrowCounterClockwiseIcon />
             </Button>
           </span>
         </MenuItem>

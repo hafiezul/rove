@@ -15,16 +15,16 @@ import {
 import { useParams } from "@tanstack/react-router";
 import { type ScopedThreadRef, type ThreadId } from "@rove-code/contracts";
 import {
+  CaretDownIcon,
+  CaretUpIcon,
+  CheckCircleIcon,
   CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
   CopyIcon,
   InfoIcon,
-  TriangleAlertIcon,
+  WarningCircleIcon,
+  WarningIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 import { cn } from "~/lib/utils";
 import { Button, buttonVariants } from "~/components/ui/button";
@@ -83,11 +83,11 @@ type ToastId = ReturnType<typeof toastManager.add>;
 const threadToastVisibleTimeoutRemainingMs = new Map<ToastId, number>();
 
 const TOAST_ICONS = {
-  error: CircleAlertIcon,
+  error: WarningCircleIcon,
   info: InfoIcon,
   loading: Spinner,
-  success: CircleCheckIcon,
-  warning: TriangleAlertIcon,
+  success: CheckCircleIcon,
+  warning: WarningIcon,
 } as const;
 
 /** Visually shorten long error bodies; clipboard copy still uses the full `description` string. */
@@ -167,9 +167,9 @@ function ToastExpandableSection({
         type="button"
       >
         {open ? (
-          <ChevronUpIcon className="size-3.5 shrink-0 opacity-80" strokeWidth={2.25} />
+          <CaretUpIcon className="size-3.5 shrink-0 opacity-80" weight="bold" />
         ) : (
-          <ChevronDownIcon className="size-3.5 shrink-0 opacity-80" strokeWidth={2.25} />
+          <CaretDownIcon className="size-3.5 shrink-0 opacity-80" weight="bold" />
         )}
         {open ? collapseLabel : expandLabel}
       </button>
@@ -251,16 +251,16 @@ function ToastDescriptionAndExpandable({
             />
           </div>
           {open ? (
-            <ChevronUpIcon
+            <CaretUpIcon
               aria-hidden
               className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-80"
-              strokeWidth={2.25}
+              weight="bold"
             />
           ) : (
-            <ChevronDownIcon
+            <CaretDownIcon
               aria-hidden
               className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-80"
-              strokeWidth={2.25}
+              weight="bold"
             />
           )}
         </TooltipTrigger>
@@ -675,7 +675,7 @@ function Toasts({ position }: { position: ToastPosition }) {
                   }
                   type="button"
                 >
-                  <XIcon className="size-3" strokeWidth={2.25} />
+                  <XIcon className="size-3" weight="bold" />
                 </button>
               </div>
               <Toast.Content
@@ -770,7 +770,7 @@ function AnchoredToasts() {
                           }
                           type="button"
                         >
-                          <XIcon className="size-3" strokeWidth={2.25} />
+                          <XIcon className="size-3" weight="bold" />
                         </button>
                       </div>
                       <Toast.Content

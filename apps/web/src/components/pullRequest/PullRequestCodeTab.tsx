@@ -11,19 +11,19 @@ import type {
   PullRequestThreadCommentsResult,
 } from "@rove-code/contracts";
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  Columns2Icon,
-  FolderTreeIcon,
+  ArrowsInLineVerticalIcon,
+  ArrowUDownLeftIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  CaretUpDownIcon,
+  ChatSlashIcon,
+  ColumnsIcon,
   InfoIcon,
-  MessageSquareOffIcon,
-  PilcrowIcon,
-  Rows3Icon,
-  TextWrapIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+  ParagraphIcon,
+  RowsIcon,
+  TreeStructureIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import { useAtomRefresh } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -791,11 +791,7 @@ function PullRequestCodeTab({
             toggleFile(item.id);
           }}
         >
-          {collapsed ? (
-            <ChevronRightIcon className="size-4" />
-          ) : (
-            <ChevronDownIcon className="size-4" />
-          )}
+          {collapsed ? <CaretRightIcon className="size-4" /> : <CaretDownIcon className="size-4" />}
         </Button>
       );
     },
@@ -1076,7 +1072,7 @@ function PullRequestCodeTab({
               aria-label={`Diff scope: ${scopeLabel}`}
             >
               <span className="truncate">{scopeLabel}</span>
-              <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
+              <CaretDownIcon className="size-3.5 shrink-0 opacity-70" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuRadioGroup
@@ -1155,7 +1151,7 @@ function PullRequestCodeTab({
               {filesViewed.error !== null ? (
                 <Tooltip>
                   <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
-                    <TriangleAlertIcon
+                    <WarningIcon
                       aria-label="Your ticks could not be read"
                       className="size-3.5 text-warning-foreground"
                     />
@@ -1169,7 +1165,7 @@ function PullRequestCodeTab({
               {filesViewed.truncated ? (
                 <Tooltip>
                   <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
-                    <TriangleAlertIcon
+                    <WarningIcon
                       aria-label="This count covers only part of the change"
                       className="size-3.5 text-warning-foreground"
                     />
@@ -1185,7 +1181,7 @@ function PullRequestCodeTab({
           {withheldContent ? (
             <Tooltip>
               <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
-                <TriangleAlertIcon
+                <WarningIcon
                   aria-label="Some of this diff was not shown"
                   className="size-3.5 text-warning-foreground"
                 />
@@ -1199,7 +1195,7 @@ function PullRequestCodeTab({
           {commit !== null && review.inlineComment ? (
             <Tooltip>
               <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
-                <MessageSquareOffIcon
+                <ChatSlashIcon
                   aria-label="Line comments are written from the whole change"
                   className="size-3.5"
                 />
@@ -1230,7 +1226,7 @@ function PullRequestCodeTab({
               />
             }
           >
-            <PilcrowIcon className="size-3.5" />
+            <ParagraphIcon className="size-3.5" />
           </TooltipTrigger>
           <TooltipPopup side="top">
             {ignoreWhitespace ? "Show whitespace changes" : "Hide whitespace changes"}
@@ -1250,9 +1246,9 @@ function PullRequestCodeTab({
               }
             >
               {allFilesCollapsed ? (
-                <ChevronsUpDownIcon className="size-3.5" />
+                <CaretUpDownIcon className="size-3.5" />
               ) : (
-                <ChevronsDownUpIcon className="size-3.5" />
+                <ArrowsInLineVerticalIcon className="size-3.5" />
               )}
             </TooltipTrigger>
             <TooltipPopup side="top">
@@ -1273,10 +1269,10 @@ function PullRequestCodeTab({
           }}
         >
           <Toggle aria-label="Stacked diff view" value="stacked">
-            <Rows3Icon className="size-3.5" />
+            <RowsIcon className="size-3.5" />
           </Toggle>
           <Toggle aria-label="Split diff view" value="split">
-            <Columns2Icon className="size-3.5" />
+            <ColumnsIcon className="size-3.5" />
           </Toggle>
         </ToggleGroup>
         <Tooltip>
@@ -1293,7 +1289,7 @@ function PullRequestCodeTab({
               />
             }
           >
-            <TextWrapIcon className="size-3.5" />
+            <ArrowUDownLeftIcon className="size-3.5" />
           </TooltipTrigger>
           <TooltipPopup side="top">
             {wordWrap ? "Disable line wrapping" : "Enable line wrapping"}
@@ -1312,7 +1308,7 @@ function PullRequestCodeTab({
                 />
               }
             >
-              <FolderTreeIcon className="size-3.5" />
+              <TreeStructureIcon className="size-3.5" />
             </TooltipTrigger>
             <TooltipPopup side="top">
               {fileTreeOpen ? "Hide file tree" : "Show file tree"}
@@ -1420,7 +1416,7 @@ function PullRequestCodeTab({
                     ? "Conversations not on the current diff"
                     : "Conversations not on the diff loaded so far"}
                 </span>
-                <ChevronRightIcon
+                <CaretRightIcon
                   aria-hidden
                   className={cn("size-3.5 transition-transform", orphansOpen && "rotate-90")}
                 />

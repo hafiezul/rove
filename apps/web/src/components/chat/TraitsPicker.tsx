@@ -16,7 +16,7 @@ import {
   normalizeModelSlug,
 } from "@rove-code/shared/model";
 import { memo, useCallback } from "react";
-import { BrainIcon, ZapIcon } from "lucide-react";
+import { BrainIcon, LightningIcon } from "@phosphor-icons/react";
 import {
   Menu,
   MenuGroup,
@@ -587,10 +587,11 @@ export const TraitsPicker = memo(function TraitsPicker({
   const fastModeIcon = showFastModeIcon ? (
     <>
       <ComposerControlIcon
-        icon={ZapIcon}
+        icon={LightningIcon}
         size={size}
+        weight="fill"
         className={cn(
-          "fill-current opacity-80",
+          "opacity-80",
           size === "xs"
             ? "text-current"
             : provider === "claudeAgent"

@@ -1,5 +1,5 @@
 import { SettingsGroup } from "./SettingsGroup";
-import { InfoIcon, Undo2Icon } from "lucide-react";
+import { ArrowUUpLeftIcon, InfoIcon } from "@phosphor-icons/react";
 import { DEFAULT_SERVER_SETTINGS, type ServerSettings } from "@rove-code/contracts";
 import * as Equal from "effect/Equal";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -484,7 +484,7 @@ export function SettingResetButton({
               onClick();
             }}
           >
-            <Undo2Icon className="size-3" />
+            <ArrowUUpLeftIcon className="size-3" />
           </Button>
         }
       />

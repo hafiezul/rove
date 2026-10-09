@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import type { ProviderDriverKind, ServerProviderModel } from "@rove-code/contracts";
 import type { CustomModelDefinition } from "@rove-code/shared/model";

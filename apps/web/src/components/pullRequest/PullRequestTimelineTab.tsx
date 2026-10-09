@@ -7,12 +7,12 @@ import type {
   ScopedThreadRef,
 } from "@rove-code/contracts";
 import {
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  FileCode2Icon,
-  GitCommitHorizontalIcon,
-  MessageSquareIcon,
-} from "lucide-react";
+  ArrowSquareOutIcon,
+  CaretDownIcon,
+  ChatIcon,
+  FileCodeIcon,
+  GitCommitIcon,
+} from "@phosphor-icons/react";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
@@ -169,7 +169,7 @@ function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: s
       aria-label="Open activity on host"
       onClick={() => onOpen(url)}
     >
-      <ExternalLinkIcon className="size-3" />
+      <ArrowSquareOutIcon className="size-3" />
     </Button>
   );
 }
@@ -226,7 +226,7 @@ function ConversationCard({
               <span>{formatRelativeTimeLabel(event.at)}</span>
               {event.path ? (
                 <span className="inline-flex min-w-0 items-center gap-1">
-                  <FileCode2Icon aria-hidden className="size-3 shrink-0" />
+                  <FileCodeIcon aria-hidden className="size-3 shrink-0" />
                   <span className="truncate">{event.path}</span>
                 </span>
               ) : null}
@@ -313,7 +313,7 @@ function ConversationGroup({
       <ActorTimelineMarker
         actors={actors}
         className="top-6"
-        fallback={<MessageSquareIcon className="size-3.5" />}
+        fallback={<ChatIcon className="size-3.5" />}
         muted={!open}
       />
       <Collapsible open={open} onOpenChange={setOpen}>
@@ -333,7 +333,7 @@ function ConversationGroup({
                 {formatRelativeTimeLabel(first.at)}
               </span>
             </span>
-            <ChevronDownIcon
+            <CaretDownIcon
               aria-hidden
               className={cn(
                 "size-3.5 shrink-0 text-muted-foreground transition-transform",
@@ -382,7 +382,7 @@ function CommitEvent({
     >
       <ActorTimelineMarker
         actors={event.commitAuthors}
-        fallback={<GitCommitHorizontalIcon className="size-3.5" />}
+        fallback={<GitCommitIcon className="size-3.5" />}
       />
       <div className="flex min-w-0 items-center gap-2.5 py-1.5">
         <div className="min-w-0 flex-1">
@@ -502,7 +502,7 @@ function ReviewVerdictEvent({
               <span>{formatRelativeTimeLabel(event.at)}</span>
               {event.path ? (
                 <span className="inline-flex min-w-0 items-center gap-1">
-                  <FileCode2Icon aria-hidden className="size-3 shrink-0" />
+                  <FileCodeIcon aria-hidden className="size-3 shrink-0" />
                   <span className="truncate">{event.path}</span>
                 </span>
               ) : null}

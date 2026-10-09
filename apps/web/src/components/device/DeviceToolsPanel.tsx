@@ -1,6 +1,6 @@
 import type { DeviceHubAccess } from "@rove-code/client-runtime/state/deviceHubAccess";
 import type { DevicePermission, DeviceSummary, DeviceTextSize } from "@rove-code/contracts";
-import { ChevronDown, X } from "lucide-react";
+import { CaretDownIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -110,7 +110,7 @@ export function DeviceToolsPanel(props: {
           className="ml-auto"
           onClick={props.onClose}
         >
-          <X />
+          <XIcon />
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -635,7 +635,7 @@ function EventLogSection(props: {
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="flex w-full items-center gap-1.5 border-b px-3 py-2.5 text-left text-xs font-medium text-muted-foreground">
         Event log
-        <ChevronDown
+        <CaretDownIcon
           className={cn("ml-auto size-3.5 transition-transform", open && "rotate-180")}
         />
       </CollapsibleTrigger>

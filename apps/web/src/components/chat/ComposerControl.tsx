@@ -2,7 +2,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { useRender } from "@base-ui/react/use-render";
 import type { ComponentProps } from "react";
-import { ChevronDownIcon, type LucideIcon } from "lucide-react";
+import { CaretDownIcon, type Icon as PhosphorIcon, type IconWeight } from "@phosphor-icons/react";
 
 import { cn } from "~/lib/utils";
 import { Separator } from "../ui/separator";
@@ -51,15 +51,18 @@ export function ComposerControlIcon({
   className,
   opticalSize = "default",
   size = "sm",
+  weight,
 }: {
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   className?: string | undefined;
   opticalSize?: "default" | "large";
   size?: ComposerControlSize;
+  weight?: IconWeight;
 }) {
   return (
     <Icon
       aria-hidden="true"
+      {...(weight === undefined ? {} : { weight })}
       className={cn(
         "shrink-0",
         size === "xs" ? "size-3" : opticalSize === "large" ? "size-4.5" : "size-4",
@@ -78,7 +81,7 @@ export function ComposerControlChevron({
   size?: ComposerControlSize;
 } = {}) {
   return (
-    <ChevronDownIcon
+    <CaretDownIcon
       aria-hidden="true"
       className={cn(
         "shrink-0",
@@ -86,7 +89,7 @@ export function ComposerControlChevron({
         className,
       )}
       data-composer-control-chevron
-      strokeWidth={2.25}
+      weight="bold"
     />
   );
 }

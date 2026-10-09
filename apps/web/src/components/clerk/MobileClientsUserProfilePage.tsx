@@ -1,5 +1,5 @@
 import type { RelayClientDeviceRecord } from "@rove-code/contracts/relay";
-import { SmartphoneIcon } from "lucide-react";
+import { DeviceMobileIcon } from "@phosphor-icons/react";
 
 import { useManagedRelayDevices } from "../../cloud/managedRelayState";
 import { Badge } from "../ui/badge";
@@ -35,7 +35,7 @@ function MobileClientStatusBadge({
 
 function MobileClientRow({ device }: { readonly device: RelayClientDeviceRecord }) {
   return (
-    <ClerkUserProfileRow icon={<SmartphoneIcon className="size-4" />}>
+    <ClerkUserProfileRow icon={<DeviceMobileIcon className="size-4" />}>
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-sm leading-4.5 font-medium text-foreground">
@@ -89,7 +89,7 @@ function EmptyMobileClients() {
   return (
     <Empty size="compact">
       <EmptyMedia variant="icon">
-        <SmartphoneIcon />
+        <DeviceMobileIcon />
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>No mobile clients</EmptyTitle>

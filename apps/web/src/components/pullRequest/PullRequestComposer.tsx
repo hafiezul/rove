@@ -9,7 +9,7 @@
  * summary as a comment or the reverse.
  */
 import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@rove-code/contracts";
-import { MessageSquareIcon, Trash2Icon, XIcon } from "lucide-react";
+import { ChatIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
 import { Button } from "../ui/button";
@@ -89,7 +89,7 @@ export function PullRequestComposer({
               : "Comment on pull request"
         }
       >
-        <MessageSquareIcon className="size-4" />
+        <ChatIcon className="size-4" />
         {pendingComments.length > 0 ? (
           <span
             aria-hidden
@@ -139,7 +139,7 @@ export function PullRequestComposer({
                 disabled={reviewPending}
                 onClick={() => clearComments(reviewKey)}
               >
-                <Trash2Icon className="size-3.5" />
+                <TrashIcon className="size-3.5" />
               </Button>
             ) : null}
             <PopoverClose

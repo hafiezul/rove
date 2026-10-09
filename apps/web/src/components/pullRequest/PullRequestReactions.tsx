@@ -4,7 +4,7 @@ import type {
   PullRequestReactionContent,
   PullRequestRef,
 } from "@rove-code/contracts";
-import { SmilePlusIcon } from "lucide-react";
+import { SmileyIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -132,7 +132,7 @@ export function PullRequestReactionBar({
               />
             }
           >
-            <SmilePlusIcon aria-hidden className="size-3.5" />
+            <SmileyIcon aria-hidden className="size-3.5" />
           </PopoverTrigger>
           <PopoverPopup align="start" side="top" padding="compact">
             <div className="flex items-center gap-0.5">

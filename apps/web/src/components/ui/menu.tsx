@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import { cn } from "~/lib/utils";
@@ -293,7 +293,7 @@ function MenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="-me-0.5 ms-auto opacity-80" />
+      <CaretRightIcon className="-me-0.5 ms-auto opacity-80" />
     </MenuPrimitive.SubmenuTrigger>
   );
 }

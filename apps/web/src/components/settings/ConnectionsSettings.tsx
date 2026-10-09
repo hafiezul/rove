@@ -1,10 +1,10 @@
 import {
-  ChevronsLeftRightEllipsisIcon,
-  EllipsisIcon,
+  DotsThreeIcon,
+  DotsThreeOutlineIcon,
   PlusIcon,
   QrCodeIcon,
   TerminalIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useAtomValue } from "@effect/atom-react";
 import { Atom } from "effect/unstable/reactivity";
 import {
@@ -1633,7 +1633,7 @@ function SavedBackendListRow({
             />
           }
         >
-          <EllipsisIcon className="size-3.5" />
+          <DotsThreeIcon className="size-3.5" />
         </MenuTrigger>
         <MenuPopup align="end">
           <EnvironmentIconMenu
@@ -1787,7 +1787,7 @@ function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnable
   return (
     <Empty className="min-h-52">
       <EmptyMedia variant="icon">
-        <ChevronsLeftRightEllipsisIcon />
+        <DotsThreeOutlineIcon />
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>No saved remote environments</EmptyTitle>
@@ -3309,7 +3309,7 @@ export function ConnectionsSettings() {
                       />
                     }
                   >
-                    <EllipsisIcon className="size-3.5" />
+                    <DotsThreeIcon className="size-3.5" />
                   </MenuTrigger>
                   <MenuPopup align="end">
                     <EnvironmentIconMenu
@@ -3735,7 +3735,7 @@ export function ConnectionsSettings() {
                         mode: "remote",
                         title: "Remote link",
                         description: "Enter a backend host and pairing code.",
-                        icon: <ChevronsLeftRightEllipsisIcon aria-hidden className="size-4" />,
+                        icon: <DotsThreeOutlineIcon aria-hidden className="size-4" />,
                       })}
                       {desktopBridge
                         ? renderConnectionModeCard({

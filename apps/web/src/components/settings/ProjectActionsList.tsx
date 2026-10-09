@@ -1,5 +1,5 @@
 import type { ProjectScript, ResolvedKeybindingsConfig } from "@rove-code/contracts";
-import { SettingsIcon } from "lucide-react";
+import { GearIcon } from "@phosphor-icons/react";
 import { shortcutLabelForCommand } from "../../keybindings";
 import { commandForProjectScript } from "../../projectScripts";
 import { ScriptIcon } from "../projectScriptEditor";
@@ -59,7 +59,7 @@ export function ProjectActionsList({
                 disabled={disabled}
                 onClick={() => onEdit(script)}
               >
-                <SettingsIcon className="size-3.5" />
+                <GearIcon className="size-3.5" />
               </Button>
             </span>
           </>

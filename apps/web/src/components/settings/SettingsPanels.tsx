@@ -1,7 +1,13 @@
 import { SettingsGroup } from "./SettingsGroup";
 import { Spinner } from "~/components/ui/spinner";
 import { NotificationSettings } from "./NotificationSettings";
-import { ArchiveIcon, ArchiveX, CheckIcon, ChevronRightIcon, SettingsIcon } from "lucide-react";
+import {
+  ArchiveIcon,
+  CaretRightIcon,
+  CheckIcon,
+  GearIcon,
+  TrayArrowUpIcon,
+} from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -2064,7 +2070,7 @@ function LegacyFeaturesSection() {
           <h2 className="text-sm font-normal text-foreground/70 transition-colors group-hover:text-foreground">
             Legacy features
           </h2>
-          <ChevronRightIcon className="size-4 text-muted-foreground transition-transform duration-200 group-data-panel-open:rotate-90" />
+          <CaretRightIcon className="size-4 text-muted-foreground transition-transform duration-200 group-data-panel-open:rotate-90" />
         </CollapsibleTrigger>
         <CollapsiblePanel>
           <SettingsGroup>
@@ -2922,7 +2928,7 @@ export function GeneralSettingsPanel() {
                         aria-label="Configure advanced background activity"
                         onClick={() => setBackgroundActivityDialogOpen(true)}
                       >
-                        <SettingsIcon className="size-4" />
+                        <GearIcon className="size-4" />
                       </Button>
                     }
                   />
@@ -3514,7 +3520,7 @@ export function ArchivedThreadsPanel() {
                       })();
                     }}
                   >
-                    <ArchiveX className="size-3.5" />
+                    <TrayArrowUpIcon className="size-3.5" />
                     <span>Unarchive</span>
                   </Button>
                 }

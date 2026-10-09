@@ -1,4 +1,4 @@
-import { ExternalLinkIcon, PaperclipIcon } from "lucide-react";
+import { ArrowSquareOutIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { markdownImageSourceFragment } from "@rove-code/client-runtime/markdown-images";
 import { githubMediaFetchUrl } from "@rove-code/shared/githubMedia";
 import type { AssetResource, EnvironmentId, ScopedThreadRef } from "@rove-code/contracts";
@@ -141,7 +141,7 @@ export function PullRequestMarkdown({
           >
             <PaperclipIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">Open attachment on GitHub</span>
-            <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+            <ArrowSquareOutIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
           </a>
         );
       })}

@@ -1,5 +1,5 @@
 import { useAuth, useClerk } from "@clerk/react";
-import { ServerIcon, SmartphoneIcon } from "lucide-react";
+import { DeviceMobileIcon, HardDrivesIcon } from "@phosphor-icons/react";
 import { type ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -11,13 +11,13 @@ export const ROVE_CONNECT_ACCOUNT_PAGES = [
   {
     label: "Mobile clients",
     url: "mobile-clients",
-    icon: <SmartphoneIcon className="size-4" />,
+    icon: <DeviceMobileIcon className="size-4" />,
     content: <MobileClientsUserProfilePage />,
   },
   {
     label: "Rove Connect",
     url: "rove-connect",
-    icon: <ServerIcon className="size-4" />,
+    icon: <HardDrivesIcon className="size-4" />,
     content: <RoveConnectUserProfilePage />,
   },
 ] as const;

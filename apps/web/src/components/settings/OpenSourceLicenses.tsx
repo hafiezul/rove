@@ -1,4 +1,4 @@
-import { ChevronRightIcon, ExternalLinkIcon, SearchIcon } from "lucide-react";
+import { ArrowSquareOutIcon, CaretRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -46,7 +46,7 @@ function LicenseNoticeRow({
       <article>
         <div className="flex min-h-10 items-center hover:bg-muted/35 sm:min-h-9">
           <CollapsibleTrigger className="group flex min-h-10 min-w-0 flex-1 items-center gap-2.5 px-3 text-left sm:min-h-9 sm:px-4">
-            <ChevronRightIcon
+            <CaretRightIcon
               aria-hidden
               className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-panel-open:rotate-90"
             />
@@ -69,7 +69,7 @@ function LicenseNoticeRow({
               title="Project source"
               variant="ghost-muted"
             >
-              <ExternalLinkIcon aria-hidden className="size-3" />
+              <ArrowSquareOutIcon aria-hidden className="size-3" />
             </Button>
           ) : null}
         </div>
@@ -132,7 +132,7 @@ function LicenseHeaderAction({
                 type="button"
                 variant="ghost-muted"
               >
-                <SearchIcon className="size-3" />
+                <MagnifyingGlassIcon className="size-3" />
               </Button>
             }
           />
@@ -149,7 +149,7 @@ function LicenseHeaderAction({
       </div>
       <InputGroup className="w-36 sm:w-44">
         <InputGroupAddon>
-          <SearchIcon aria-hidden className="size-3" />
+          <MagnifyingGlassIcon aria-hidden className="size-3" />
         </InputGroupAddon>
         <InputGroupInput
           aria-label="Search open-source licenses"

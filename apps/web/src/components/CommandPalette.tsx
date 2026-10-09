@@ -42,22 +42,22 @@ import {
 import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import * as Option from "effect/Option";
 import {
+  ArrowElbowLeftUpIcon,
   ArrowLeftIcon,
-  ChartNoAxesColumnIcon,
-  CornerLeftUpIcon,
-  FileSearchIcon,
+  ChartBarIcon,
+  ChatIcon,
+  FileMagnifyingGlassIcon,
   FolderIcon,
   FolderPlusIcon,
+  GearIcon,
   LinkIcon,
-  MessageSquareIcon,
+  MagnifyingGlassIcon,
   MonitorIcon,
   MoonIcon,
+  NotePencilIcon,
   PaletteIcon,
-  SettingsIcon,
-  SquarePenIcon,
   SunIcon,
-  TextSearchIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import {
   useCallback,
   useDeferredValue,
@@ -1359,7 +1359,7 @@ function OpenCommandPaletteDialog(props: {
   const standaloneThreadItem = useMemo<CommandPaletteActionItem | CommandPaletteSubmenuItem>(() => {
     const searchTerms = ["new thread", "standalone", "projectless", "no project"];
     const title = "New thread without a project";
-    const icon = <SquarePenIcon className={ITEM_ICON_CLASS} />;
+    const icon = <NotePencilIcon className={ITEM_ICON_CLASS} />;
     const supportedEnvironmentIds = new Set(
       environments
         .filter((environment) => supportsStandaloneThreads(environment.serverConfig))
@@ -1397,7 +1397,7 @@ function OpenCommandPaletteDialog(props: {
       title: `${title}...`,
       searchTerms: [...searchTerms, ...options.map((option) => option.label)],
       icon,
-      addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
+      addonIcon: <NotePencilIcon className={ADDON_ICON_CLASS} />,
       groups: [
         {
           value: "environments",
@@ -1436,7 +1436,7 @@ function OpenCommandPaletteDialog(props: {
         ...(activeThreadId ? { activeThreadId } : undefined),
         projectTitleById,
         sortOrder: clientSettings.sidebarThreadSortOrder,
-        icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+        icon: <ChatIcon className={ITEM_ICON_CLASS} />,
         renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
         renderTrailingContent: (thread) => <ThreadRowTrailingStatus thread={thread} />,
         renderDescription: (thread, { projectTitle }) => {
@@ -1826,7 +1826,7 @@ function OpenCommandPaletteDialog(props: {
         ]
       : projectThreadItems;
     pushPaletteView({
-      addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
+      addonIcon: <NotePencilIcon className={ADDON_ICON_CLASS} />,
       groups: [
         {
           value: "projects",
@@ -1866,7 +1866,7 @@ function OpenCommandPaletteDialog(props: {
             New thread in <span className="font-semibold">{activeProjectTitle}</span>
           </>
         ),
-        icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
+        icon: <NotePencilIcon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "chat.new",
         run: async () => {
           await startNewThreadFromContext({
@@ -1884,8 +1884,8 @@ function OpenCommandPaletteDialog(props: {
       value: "action:new-thread-in",
       searchTerms: ["new thread", "project", "pick", "choose", "select"],
       title: "New thread in...",
-      icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
-      addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
+      icon: <NotePencilIcon className={ITEM_ICON_CLASS} />,
+      addonIcon: <NotePencilIcon className={ADDON_ICON_CLASS} />,
       groups: [
         {
           value: "projects",
@@ -1945,7 +1945,7 @@ function OpenCommandPaletteDialog(props: {
     value: "action:open-file-picker",
     searchTerms: ["go to file", "open file", "file picker", "find file", "quick open"],
     title: "Go to file",
-    icon: <FileSearchIcon className={ITEM_ICON_CLASS} />,
+    icon: <FileMagnifyingGlassIcon className={ITEM_ICON_CLASS} />,
     keepOpen: true,
     shortcutCommand: "filePicker.toggle",
     run: async () => {
@@ -1958,7 +1958,7 @@ function OpenCommandPaletteDialog(props: {
     value: "action:search-project-contents",
     searchTerms: ["search project", "find in files", "grep", "content search", "text search"],
     title: "Search project contents",
-    icon: <TextSearchIcon className={ITEM_ICON_CLASS} />,
+    icon: <MagnifyingGlassIcon className={ITEM_ICON_CLASS} />,
     keepOpen: true,
     shortcutCommand: "projectSearch.toggle",
     run: async () => {
@@ -2149,7 +2149,7 @@ function OpenCommandPaletteDialog(props: {
     value: "action:usage",
     searchTerms: ["usage", "use", "tokens", "cost", "spend", "limits", "stats", "analytics"],
     title: "Open usage",
-    icon: <ChartNoAxesColumnIcon className={ITEM_ICON_CLASS} />,
+    icon: <ChartBarIcon className={ITEM_ICON_CLASS} />,
     shortcutCommand: "usage.open",
     run: async () => {
       await navigate({ to: "/usage" });
@@ -2161,7 +2161,7 @@ function OpenCommandPaletteDialog(props: {
     value: "action:settings",
     searchTerms: ["settings", "preferences", "configuration", "keybindings"],
     title: "Open settings",
-    icon: <SettingsIcon className={ITEM_ICON_CLASS} />,
+    icon: <GearIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       await navigate({ to: "/settings" });
     },
@@ -2216,7 +2216,7 @@ function OpenCommandPaletteDialog(props: {
     title: item.title,
     description: `Settings · ${SETTINGS_SECTION_LABELS[item.to]}`,
     ...(item.secondary ? { secondary: true } : {}),
-    icon: <SettingsIcon className={ITEM_ICON_CLASS} />,
+    icon: <GearIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       await navigate({
         to: item.to,
@@ -2253,7 +2253,7 @@ function OpenCommandPaletteDialog(props: {
         ? buildLinkedThreadActionItems({
             ...linkedThreadSearch.linkedThreads,
             query: linkedThreadSearch.query,
-            icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+            icon: <ChatIcon className={ITEM_ICON_CLASS} />,
             runThread: async (thread) => {
               await navigate({
                 to: "/$environmentId/$threadId",
@@ -2679,7 +2679,7 @@ function OpenCommandPaletteDialog(props: {
     browseEntries: visibleBrowseEntries,
     browseQuery: query,
     canBrowseUp,
-    upIcon: <CornerLeftUpIcon className={ITEM_ICON_CLASS} />,
+    upIcon: <ArrowElbowLeftUpIcon className={ITEM_ICON_CLASS} />,
     directoryIcon: <FolderIcon className={ITEM_ICON_CLASS} />,
     browseUp,
     browseTo,

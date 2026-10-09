@@ -1,5 +1,5 @@
 import type { PiExtensionStatusSnapshot } from "@rove-code/contracts";
-import { ChevronDownIcon } from "lucide-react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
 import { composerFloatingLayerProps } from "./composerEventScope";
 
@@ -37,7 +37,7 @@ export function PiExtensionStatus({
               {statuses.length - 1} more
             </span>
           ) : null}
-          <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0" />
+          <CaretDownIcon aria-hidden="true" className="size-3 shrink-0" />
         </PopoverTrigger>
         <PopoverPopup
           {...composerFloatingLayerProps}

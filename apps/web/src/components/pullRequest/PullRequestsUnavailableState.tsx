@@ -1,5 +1,5 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
@@ -49,7 +49,7 @@ export function PullRequestsUnavailableState({
               variant="outline"
               render={<a href={gitHubUrl} target="_blank" rel="noopener noreferrer" />}
             >
-              <ExternalLinkIcon aria-hidden className="size-3.5" />
+              <ArrowSquareOutIcon aria-hidden className="size-3.5" />
               Open on GitHub
             </Button>
           ) : null}

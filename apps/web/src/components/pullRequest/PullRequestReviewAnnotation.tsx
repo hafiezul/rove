@@ -10,12 +10,12 @@ import type {
   PullRequestThreadComment,
 } from "@rove-code/contracts";
 import {
-  CheckCircle2Icon,
+  ChatIcon,
+  CheckCircleIcon,
   CircleIcon,
   HammerIcon,
-  MessageSquareIcon,
-  Trash2Icon,
-} from "lucide-react";
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
 import { formatRelativeTimeLabel } from "~/timestampFormat";
@@ -72,7 +72,7 @@ export function PendingReviewCommentCard({
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <MessageSquareIcon className="size-3.5" />
+        <ChatIcon className="size-3.5" />
         <span>Pending — sent when you submit the review</span>
         <Button
           size="icon-xs"
@@ -81,7 +81,7 @@ export function PendingReviewCommentCard({
           aria-label="Discard this comment"
           onClick={onRemove}
         >
-          <Trash2Icon className="size-3.5" />
+          <TrashIcon className="size-3.5" />
         </Button>
       </div>
       <p className="mt-2 whitespace-pre-wrap leading-relaxed">{comment.body}</p>
@@ -220,7 +220,7 @@ export function ReviewThreadCard({
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {thread.isResolved ? (
-          <CheckCircle2Icon className="size-3.5 text-success-foreground" />
+          <CheckCircleIcon className="size-3.5 text-success-foreground" />
         ) : (
           <CircleIcon className="size-3.5" />
         )}

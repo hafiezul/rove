@@ -1,4 +1,4 @@
-import { InfoIcon, RotateCwIcon } from "lucide-react";
+import { ArrowClockwiseIcon, InfoIcon } from "@phosphor-icons/react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
@@ -27,7 +27,7 @@ export function DiffFileStatus({
           />
         }
       >
-        {error ? <RotateCwIcon className="size-3" /> : <InfoIcon className="size-3" />}
+        {error ? <ArrowClockwiseIcon className="size-3" /> : <InfoIcon className="size-3" />}
       </TooltipTrigger>
       <TooltipPopup>
         {error

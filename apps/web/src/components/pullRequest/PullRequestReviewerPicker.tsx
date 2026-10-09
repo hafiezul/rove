@@ -10,7 +10,7 @@ import type {
   PullRequestRef,
   PullRequestReviewerCandidate,
 } from "@rove-code/contracts";
-import { CheckIcon, UserPlusIcon } from "lucide-react";
+import { CheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";

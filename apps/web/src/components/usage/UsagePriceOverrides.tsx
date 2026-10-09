@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@rove-code/contracts";
-import { ChevronDownIcon, PlusIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { ArrowCounterClockwiseIcon, CaretDownIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
 import { useRef, useState } from "react";
@@ -267,7 +267,7 @@ export function UsagePriceOverrides({
                   <span id="usage-prices-selection" className="truncate">
                     {selectionLabel}
                   </span>
-                  <ChevronDownIcon className="size-3.5 shrink-0" aria-hidden />
+                  <CaretDownIcon className="size-3.5 shrink-0" aria-hidden />
                 </MenuTrigger>
                 <MenuPopup align="start">
                   <MenuCheckboxItem
@@ -461,7 +461,11 @@ export function UsagePriceOverrides({
                                   } else updateDraft({ ...row, removed: true });
                                 }}
                               >
-                                {row.isNew ? <XIcon aria-hidden /> : <RotateCcwIcon aria-hidden />}
+                                {row.isNew ? (
+                                  <XIcon aria-hidden />
+                                ) : (
+                                  <ArrowCounterClockwiseIcon aria-hidden />
+                                )}
                               </TooltipTrigger>
                               <TooltipPopup>
                                 {row.removed

@@ -6,7 +6,7 @@ import type {
   ScopedThreadRef,
   ThreadId,
 } from "@rove-code/contracts";
-import { CheckIcon, MessageSquareIcon } from "lucide-react";
+import { ChatIcon, CheckIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { threadPullRequestLinkMode } from "@rove-code/client-runtime/thread-pull-request-compatibility";
 import { usePullRequestLinking } from "~/hooks/usePullRequestLinking";
@@ -130,7 +130,7 @@ function EnabledPullRequestThreadLinks({
                   })
                 }
               >
-                <MessageSquareIcon aria-hidden className="size-3.5" />
+                <ChatIcon aria-hidden className="size-3.5" />
                 <span aria-hidden>{linkedThreads.length || "?"}</span>
               </Button>
             }
@@ -227,7 +227,7 @@ function ThreadPicker({
                 disabled={pending || linked}
                 onClick={() => onSelect(thread.id)}
               >
-                <MessageSquareIcon aria-hidden className="size-4 shrink-0" />
+                <ChatIcon aria-hidden className="size-4 shrink-0" />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{thread.title || "Untitled thread"}</span>
                   <span className="truncate text-xs text-muted-foreground">

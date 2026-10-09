@@ -1,4 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { ChatCircleIcon } from "@phosphor-icons/react";
+import { iconPath } from "../../test/iconPath";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { DiffCommentAnnotation } from "./DiffCommentAnnotation";
@@ -67,7 +69,7 @@ describe("DiffCommentAnnotation", () => {
     expect(markup).toContain('aria-label="Delete comment"');
     expect(markup).toContain("border-s-2");
     expect(markup).toContain("bg-primary/[0.045]");
-    expect(markup).toContain("lucide-message-circle");
+    expect(markup).toContain(iconPath(ChatCircleIcon));
   });
 
   it("renders draft text owned by the annotation wrapper", () => {

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Alert, AlertAction, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
-import { CircleAlertIcon, XIcon } from "lucide-react";
+import { WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { OpenAI } from "../Icons";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
@@ -51,7 +51,7 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
         {chatGptUsageLimit ? (
           <OpenAI className="size-4 text-foreground!" aria-hidden="true" />
         ) : (
-          <CircleAlertIcon />
+          <WarningCircleIcon />
         )}
         <AlertDescription>
           {chatGptUsageLimit ? (

@@ -12,7 +12,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
-import { ChevronDownIcon, EllipsisIcon } from "lucide-react";
+import { CaretDownIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import {
   memo,
   useCallback,
@@ -501,7 +501,7 @@ export const ChatHeader = memo(function ChatHeader({
                 <h2 className="min-w-0">
                   <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
                 </h2>
-                <ChevronDownIcon
+                <CaretDownIcon
                   aria-hidden
                   data-thread-title-chevron
                   className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
@@ -550,7 +550,7 @@ export const ChatHeader = memo(function ChatHeader({
             }
             render={<Button size="icon-sm" variant="ghost" aria-label="More header actions" />}
           >
-            <EllipsisIcon className="size-4" />
+            <DotsThreeIcon className="size-4" />
           </MenuTrigger>
           <div ref={mountInlineActions} className="contents" />
           <MenuPopup

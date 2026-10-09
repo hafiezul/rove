@@ -1,6 +1,6 @@
 import { type ProviderInstanceId, type ServerProvider } from "@rove-code/contracts";
 import { memo } from "react";
-import { InfoIcon, XIcon } from "lucide-react";
+import { InfoIcon, XIcon } from "@phosphor-icons/react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button, InlineButton } from "../ui/button";
 import { formatProviderDriverKindLabel } from "../../providerModels";

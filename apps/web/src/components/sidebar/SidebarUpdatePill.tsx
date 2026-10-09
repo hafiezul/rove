@@ -1,5 +1,5 @@
 import type { DesktopUpdateState } from "@rove-code/contracts";
-import { TriangleAlertIcon } from "lucide-react";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { isElectron } from "../../env";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -78,7 +78,7 @@ function SidebarUpdateArchitectureWarningContent() {
 
   return (
     <Alert variant="warning">
-      <TriangleAlertIcon />
+      <WarningIcon />
       <AlertTitle>Intel build on Apple Silicon</AlertTitle>
       <AlertDescription>{description}</AlertDescription>
     </Alert>

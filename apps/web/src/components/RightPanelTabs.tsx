@@ -14,19 +14,19 @@ import type {
 } from "@rove-code/contracts";
 import { getTerminalLabel } from "@rove-code/shared/terminalLabels";
 import {
-  Bot,
-  Smartphone,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileDiff,
-  Files,
-  Globe2,
-  Plus,
-  TerminalSquare,
-  Volume2,
-  VolumeOff,
-} from "lucide-react";
+  CaretDownIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  DeviceMobileIcon,
+  FilesIcon,
+  GitDiffIcon,
+  GlobeHemisphereWestIcon,
+  PlusIcon,
+  RobotIcon,
+  SpeakerHighIcon,
+  SpeakerSlashIcon,
+  TerminalWindowIcon,
+} from "@phosphor-icons/react";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -342,7 +342,7 @@ function RightPanelEmptyState(props: {
   const actions = [
     {
       label: "Browser",
-      icon: Globe2,
+      icon: GlobeHemisphereWestIcon,
       shortcut: "B",
       available: props.browserAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.browser,
@@ -351,7 +351,7 @@ function RightPanelEmptyState(props: {
     },
     {
       label: "Terminal",
-      icon: TerminalSquare,
+      icon: TerminalWindowIcon,
       shortcut: "T",
       available: props.terminalAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.terminal,
@@ -360,7 +360,7 @@ function RightPanelEmptyState(props: {
     },
     {
       label: "Files",
-      icon: Files,
+      icon: FilesIcon,
       shortcut: "F",
       available: props.filesAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.files,
@@ -369,7 +369,7 @@ function RightPanelEmptyState(props: {
     },
     {
       label: "Diff",
-      icon: FileDiff,
+      icon: GitDiffIcon,
       shortcut: "D",
       available: props.diffAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.diff,
@@ -396,7 +396,7 @@ function RightPanelEmptyState(props: {
     },
     {
       label: "Agents",
-      icon: Bot,
+      icon: RobotIcon,
       shortcut: "A",
       available: props.agentsAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.agents,
@@ -406,7 +406,7 @@ function RightPanelEmptyState(props: {
     {
       label: "Device",
       description: "Watch an iOS Simulator or Android Emulator.",
-      icon: Smartphone,
+      icon: DeviceMobileIcon,
       shortcut: "M",
       available: props.deviceAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.device,
@@ -566,7 +566,7 @@ function RightPanelEmptyState(props: {
                         />
                       }
                     >
-                      <ChevronDown className="size-3.5" />
+                      <CaretDownIcon className="size-3.5" />
                     </MenuTrigger>
                     <MenuPopup align="end" side="bottom" sideOffset={6} className="max-w-56">
                       {props.browserProfiles.map((profile) => (
@@ -650,7 +650,7 @@ function PreviewFavicon({ capturedUrl, url }: { capturedUrl: string | null; url:
   return (
     <FaviconImage
       sources={[capturedUrl, publicProviderUrl]}
-      fallback={<Globe2 className="size-3 shrink-0" />}
+      fallback={<GlobeHemisphereWestIcon className="size-3 shrink-0" />}
       className="size-3 shrink-0 rounded-sm object-contain"
     />
   );
@@ -689,9 +689,9 @@ function SurfaceIcon({
       return <PreviewFavicon capturedUrl={capturedUrl} url={url} />;
     }
     case "diff":
-      return <FileDiff className="size-3 shrink-0" />;
+      return <GitDiffIcon className="size-3 shrink-0" />;
     case "files":
-      return <Files className="size-3 shrink-0" />;
+      return <FilesIcon className="size-3 shrink-0" />;
     case "file":
       return (
         <PierreEntryIcon
@@ -702,7 +702,7 @@ function SurfaceIcon({
         />
       );
     case "terminal":
-      return <TerminalSquare className="size-3 shrink-0" />;
+      return <TerminalWindowIcon className="size-3 shrink-0" />;
     case "pull-request":
       return (
         <PullRequestSurfaceIcon
@@ -714,14 +714,14 @@ function SurfaceIcon({
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
     case "agents":
-      return <Bot className="size-3 shrink-0" />;
+      return <RobotIcon className="size-3 shrink-0" />;
     case "device":
       return surface.target?.platform === "ios" ? (
         <AppleIcon className="size-3 shrink-0" />
       ) : surface.target?.platform === "android" ? (
         <AndroidIcon className="size-3 shrink-0" />
       ) : (
-        <Smartphone className="size-3 shrink-0" />
+        <DeviceMobileIcon className="size-3 shrink-0" />
       );
   }
 }
@@ -871,7 +871,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   const addSurfaceActions = [
     {
       label: "Browser",
-      icon: Globe2,
+      icon: GlobeHemisphereWestIcon,
       shortcut: "B",
       available: props.browserAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.browser,
@@ -879,7 +879,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     },
     {
       label: "Terminal",
-      icon: TerminalSquare,
+      icon: TerminalWindowIcon,
       shortcut: "T",
       available: props.terminalAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.terminal,
@@ -887,7 +887,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     },
     {
       label: "Files",
-      icon: Files,
+      icon: FilesIcon,
       shortcut: "F",
       available: props.filesAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.files,
@@ -895,7 +895,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     },
     {
       label: "Diff",
-      icon: FileDiff,
+      icon: GitDiffIcon,
       shortcut: "D",
       available: props.diffAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.diff,
@@ -919,7 +919,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     },
     {
       label: "Agents",
-      icon: Bot,
+      icon: RobotIcon,
       shortcut: "A",
       available: props.agentsAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.agents,
@@ -927,7 +927,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     },
     {
       label: "Device",
-      icon: Smartphone,
+      icon: DeviceMobileIcon,
       shortcut: "M",
       available: props.deviceAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.device,
@@ -1193,9 +1193,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                             }}
                           >
                             {audio === "muted" ? (
-                              <VolumeOff className="size-3" />
+                              <SpeakerSlashIcon className="size-3" />
                             ) : (
-                              <Volume2 className="size-3" />
+                              <SpeakerHighIcon className="size-3" />
                             )}
                           </button>
                         }
@@ -1270,7 +1270,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                     />
                   }
                 >
-                  <Plus className="size-3.5" />
+                  <PlusIcon className="size-3.5" />
                 </MenuTrigger>
                 <MenuPopup
                   align="start"
@@ -1364,7 +1364,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                       size="icon-xs"
                       variant="ghost"
                     >
-                      <ChevronLeft />
+                      <CaretLeftIcon />
                     </Button>
                   </span>
                 }
@@ -1382,7 +1382,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                       size="icon-xs"
                       variant="ghost"
                     >
-                      <ChevronRight />
+                      <CaretRightIcon />
                     </Button>
                   </span>
                 }

@@ -1,5 +1,5 @@
 import type { EnvironmentId, PullRequestContextMetadata } from "@rove-code/contracts";
-import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
+import { CircleDashedIcon, FilmStripIcon, ImageIcon } from "@phosphor-icons/react";
 import {
   useState,
   type ComponentProps,
@@ -277,7 +277,7 @@ function FileChipContent(props: {
   return (
     <>
       {props.isVideo ? (
-        <FilmIcon />
+        <FilmStripIcon />
       ) : (
         <PierreEntryIcon pathValue={props.name} kind="file" theme={props.theme} />
       )}

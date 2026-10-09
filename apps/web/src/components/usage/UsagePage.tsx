@@ -9,13 +9,13 @@ import {
   type UsageProviderKind,
 } from "@rove-code/contracts";
 import {
-  CircleAlertIcon,
-  ChevronDownIcon,
+  CaretDownIcon,
   CircleDashedIcon,
   InfoIcon,
   SlidersHorizontalIcon,
+  WarningCircleIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   cursorKeychainAccessEnvironments,
@@ -1150,12 +1150,12 @@ function UsageEnvironmentFilter({
                 </span>
               </>
             ) : showUsageStatus && hasIssue ? (
-              <CircleAlertIcon
+              <WarningCircleIcon
                 className="size-3.5 text-warning-foreground"
                 aria-label="Some environments could not report usage"
               />
             ) : (
-              <ChevronDownIcon
+              <CaretDownIcon
                 className="size-3.5 opacity-0 transition-opacity group-hover/usage-environment:opacity-100 group-focus-visible/usage-environment:opacity-100 group-data-popup-open/usage-environment:opacity-100"
                 aria-hidden
               />

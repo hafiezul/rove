@@ -7,13 +7,12 @@ import {
   type TurnDiffTreeNode,
 } from "../../lib/turnDiffTree";
 import {
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  ChevronRightIcon,
-  FileDiffIcon,
+  ArrowsInLineVerticalIcon,
+  CaretRightIcon,
+  CaretUpDownIcon,
   FolderIcon,
-  FolderClosedIcon,
-} from "lucide-react";
+  GitDiffIcon,
+} from "@phosphor-icons/react";
 import { cn } from "~/lib/utils";
 import { DiffStatLabel, hasNonZeroStat } from "./DiffStatLabel";
 import { PierreEntryIcon } from "./PierreEntryIcon";
@@ -87,9 +86,9 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
                 }
               >
                 {allDirectoriesExpanded ? (
-                  <ChevronsDownUpIcon className="size-3" />
+                  <ArrowsInLineVerticalIcon className="size-3" />
                 ) : (
-                  <ChevronsUpDownIcon className="size-3" />
+                  <CaretUpDownIcon className="size-3" />
                 )}
               </TooltipTrigger>
               <TooltipPopup side="top">
@@ -109,7 +108,7 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
                 />
               }
             >
-              <FileDiffIcon className="size-3" />
+              <GitDiffIcon className="size-3" />
               <span className="hidden @[24rem]/changed-files:inline">Open diff</span>
             </TooltipTrigger>
             <TooltipPopup side="top">Open the full diff</TooltipPopup>
@@ -194,7 +193,7 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
             style={{ paddingLeft: `${leftPadding}px` }}
             onClick={() => toggleDirectory(node.path)}
           >
-            <ChevronRightIcon
+            <CaretRightIcon
               aria-hidden="true"
               className={cn(
                 "size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:text-foreground/80",
@@ -204,7 +203,7 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
             {isExpanded ? (
               <FolderIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
             ) : (
-              <FolderClosedIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
+              <FolderIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
             )}
             <span className="truncate font-mono text-2xs text-muted-foreground/90 group-hover:text-foreground/90">
               {node.name}

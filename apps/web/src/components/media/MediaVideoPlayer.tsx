@@ -1,4 +1,4 @@
-import { PlayIcon, RotateCwIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowClockwiseIcon, PlayIcon, WarningIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { cn } from "../../lib/utils";
@@ -145,7 +145,7 @@ export function MediaVideoPlayer({
           )}
         >
           <span className="inline-flex items-center gap-1.5">
-            <TriangleAlertIcon aria-hidden className="size-3.5 shrink-0" />
+            <WarningIcon aria-hidden className="size-3.5 shrink-0" />
             Video unavailable{label ? ` · ${label}` : ""}
           </span>
           <span className="flex flex-wrap items-center justify-center gap-2">
@@ -156,7 +156,7 @@ export function MediaVideoPlayer({
                 disabled={retrying}
                 onClick={() => void retry()}
               >
-                <RotateCwIcon />
+                <ArrowClockwiseIcon />
                 {retrying ? "Retrying…" : "Retry video"}
               </Button>
             ) : null}
@@ -206,7 +206,7 @@ export function MediaVideoPlayer({
           className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <span className="flex size-8 items-center justify-center rounded-full bg-black/50 text-white">
-            <PlayIcon aria-hidden className="size-4 fill-current" />
+            <PlayIcon aria-hidden className="size-4" weight="fill" />
           </span>
         </button>
       ) : null}

@@ -2,13 +2,13 @@ import {
   CheckIcon,
   CopyIcon,
   MoonIcon,
-  PaintbrushIcon,
-  PenLineIcon,
+  PaintBrushIcon,
+  PencilLineIcon,
   PlusIcon,
   SunIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "lucide-react";
+  TrashIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { useEnvironmentThemeDefinitions } from "../../hooks/useEnvironmentTheme";
 import { readThemeHalvesRaw } from "../../hooks/useTheme";
@@ -344,7 +344,7 @@ function ThemeLibraryCard({
                               onEdit();
                             }}
                           >
-                            <PenLineIcon />
+                            <PencilLineIcon />
                           </Button>
                         }
                       />
@@ -364,7 +364,7 @@ function ThemeLibraryCard({
                               onDownload();
                             }}
                           >
-                            <UploadIcon />
+                            <UploadSimpleIcon />
                           </Button>
                         }
                       />
@@ -388,7 +388,7 @@ function ThemeLibraryCard({
                               onRemove();
                             }}
                           >
-                            <Trash2Icon />
+                            <TrashIcon />
                           </Button>
                         }
                       />
@@ -899,7 +899,7 @@ export function ThemeLibrary({
               })
             }
           >
-            <PaintbrushIcon />
+            <PaintBrushIcon />
             Create theme
           </Button>
           <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>

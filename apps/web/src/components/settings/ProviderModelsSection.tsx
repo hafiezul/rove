@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowDownIcon, ArrowUpIcon, PencilIcon, PlusIcon, StarIcon, XIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  StarIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ProviderDriverKind,
@@ -320,7 +327,10 @@ export function ProviderModelsSection({
           />
         }
       >
-        <StarIcon className={cn("size-3", isFavorite && "fill-current text-warning")} />
+        <StarIcon
+          className={cn("size-3", isFavorite && "text-warning")}
+          weight={isFavorite ? "fill" : "regular"}
+        />
       </TooltipTrigger>
       <TooltipPopup side="top">
         {isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -390,7 +400,7 @@ export function ProviderModelsSection({
                 />
               }
             >
-              <PencilIcon className="size-3" />
+              <PencilSimpleIcon className="size-3" />
             </TooltipTrigger>
             <TooltipPopup side="top">Edit name and options</TooltipPopup>
           </Tooltip>

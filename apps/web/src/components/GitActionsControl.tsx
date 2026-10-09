@@ -28,16 +28,16 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import {
+  CaretDownIcon,
   CheckIcon,
-  ChevronDownIcon,
-  CloudDownloadIcon,
-  CloudUploadIcon,
-  GitBranchPlusIcon,
+  CloudArrowDownIcon,
+  CloudArrowUpIcon,
+  GitBranchIcon,
   GitCommitIcon,
+  GlobeIcon,
   InfoIcon,
   LockIcon,
-  GlobeIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import {
   AzureDevOpsIcon,
@@ -377,7 +377,7 @@ function GitActionItemIcon({
   SourceControlIcon: ReturnType<typeof getSourceControlPresentation>["Icon"];
 }) {
   if (icon === "commit") return <GitCommitIcon />;
-  if (icon === "push") return <CloudUploadIcon />;
+  if (icon === "push") return <CloudArrowUpIcon />;
   return <SourceControlIcon />;
 }
 
@@ -391,17 +391,17 @@ function GitQuickActionIcon({
   SourceControlIcon: ReturnType<typeof getSourceControlPresentation>["Icon"];
 }) {
   if (quickAction.kind === "open_pr") return <SourceControlIcon className={className} />;
-  if (quickAction.kind === "open_publish") return <CloudUploadIcon className={className} />;
-  if (quickAction.kind === "run_pull") return <CloudDownloadIcon className={className} />;
+  if (quickAction.kind === "open_publish") return <CloudArrowUpIcon className={className} />;
+  if (quickAction.kind === "run_pull") return <CloudArrowDownIcon className={className} />;
   if (quickAction.kind === "run_action") {
     if (quickAction.action === "commit") return <GitCommitIcon className={className} />;
     if (quickAction.action === "push" || quickAction.action === "commit_push") {
-      return <CloudUploadIcon className={className} />;
+      return <CloudArrowUpIcon className={className} />;
     }
     return <SourceControlIcon className={className} />;
   }
   if (quickAction.label === "Commit") return <GitCommitIcon className={className} />;
-  if (quickAction.label === "Push") return <CloudUploadIcon className={className} />;
+  if (quickAction.label === "Push") return <CloudArrowUpIcon className={className} />;
   return <InfoIcon className={className} />;
 }
 
@@ -787,7 +787,7 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
                 aria-expanded={publishAdvancedOpen}
                 className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                <ChevronDownIcon
+                <CaretDownIcon
                   className={cn(
                     "size-3.5 transition-transform",
                     publishAdvancedOpen ? "" : "-rotate-90",
@@ -1718,7 +1718,7 @@ export default function GitActionsControl({
             setIsPublishDialogOpen(true);
           }}
         >
-          <CloudUploadIcon />
+          <CloudArrowUpIcon />
           <MenuItemLabel>Publish repository...</MenuItemLabel>
         </MenuItem>
       ) : null}
@@ -1750,7 +1750,7 @@ export default function GitActionsControl({
             disabled={initAction.isPending}
             onClick={initializeGit}
           >
-            <GitBranchPlusIcon className="size-4" />
+            <GitBranchIcon className="size-4" />
             <MenuItemLabel>
               {initAction.isPending ? "Initializing..." : "Initialize Git"}
             </MenuItemLabel>
@@ -1790,7 +1790,7 @@ export default function GitActionsControl({
         )
       ) : !isRepo ? (
         <Button variant="outline" size="xs" disabled={initAction.isPending} onClick={initializeGit}>
-          <GitBranchPlusIcon className="size-3.5" aria-hidden />
+          <GitBranchIcon className="size-3.5" aria-hidden />
           <span className="ml-0.5">
             {initAction.isPending ? "Initializing..." : "Initialize Git"}
           </span>
@@ -1840,7 +1840,7 @@ export default function GitActionsControl({
               render={<Button aria-label="Git action options" size="icon-xs" variant="outline" />}
               disabled={isGitActionRunning}
             >
-              <ChevronDownIcon aria-hidden="true" className="size-4" />
+              <CaretDownIcon aria-hidden="true" className="size-4" />
             </MenuTrigger>
             <MenuPopup align="end">{gitItems}</MenuPopup>
           </Menu>

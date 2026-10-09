@@ -17,28 +17,28 @@ import {
 } from "@rove-code/contracts";
 import { resolveProjectSettings } from "@rove-code/shared/projectSettings";
 import {
-  ArrowDownUpIcon,
+  ArrowCounterClockwiseIcon,
   ArrowLeftIcon,
+  ArrowsDownUpIcon,
+  ArrowSquareOutIcon,
   ArrowUpRightIcon,
   BookOpenIcon,
-  CircleDotIcon,
+  CaretDownIcon,
+  ChatIcon,
   CopyIcon,
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  FileDiffIcon,
-  FolderGit2Icon,
+  DotsThreeIcon,
   GitBranchIcon,
-  GitCommitHorizontalIcon,
+  GitCommitIcon,
+  GitDiffIcon,
+  GitForkIcon,
   HammerIcon,
-  MessageCircleQuestionIcon,
-  MessageSquareIcon,
   LinkIcon,
-  MoreHorizontalIcon,
-  PanelRightIcon,
   PlayIcon,
-  RotateCcwIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+  QuestionIcon,
+  RecordIcon,
+  SidebarSimpleIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import {
   lazy,
   Suspense,
@@ -386,7 +386,7 @@ function PullRequestBaseFreshnessWarning({
         }
       >
         {children}
-        <TriangleAlertIcon aria-hidden className={cn("size-3.5 shrink-0", iconClassName)} />
+        <WarningIcon aria-hidden className={cn("size-3.5 shrink-0", iconClassName)} />
       </PopoverTrigger>
       <PopoverPopup align="start" side="bottom" className="max-w-80" padding="compact">
         <p className="text-xs text-foreground">{summary}</p>
@@ -1556,7 +1556,7 @@ export function PullRequestDetailPanel({
                     <span className="@max-[35rem]/pr-header:hidden">
                       {handoff?.startsWith("checkout") ? "Checking out..." : "Check out"}
                     </span>
-                    <ChevronDownIcon aria-hidden className="size-3.5 text-muted-foreground" />
+                    <CaretDownIcon aria-hidden className="size-3.5 text-muted-foreground" />
                   </Button>
                 }
               />
@@ -1575,7 +1575,7 @@ export function PullRequestDetailPanel({
             </span>
           </MenuItem>
           <MenuItem onClick={() => startCheckout("local")}>
-            <FolderGit2Icon className="mt-1 size-3.5 shrink-0 self-start" />
+            <GitForkIcon className="mt-1 size-3.5 shrink-0 self-start" />
             <span className="flex min-w-0 flex-col">
               <span>In this repository</span>
               <span className="text-xs text-muted-foreground">
@@ -1736,7 +1736,7 @@ export function PullRequestDetailPanel({
                         aria-label={`Open pull request #${detail.number} on host`}
                       >
                         #{detail.number}
-                        <ExternalLinkIcon aria-hidden className="size-2.5" />
+                        <ArrowSquareOutIcon aria-hidden className="size-2.5" />
                       </button>
                     }
                   />
@@ -1791,7 +1791,7 @@ export function PullRequestDetailPanel({
                         aria-label={`Open pull request #${detail.number} on host`}
                       >
                         #{detail.number}
-                        <ExternalLinkIcon aria-hidden className="size-2.5" />
+                        <ArrowSquareOutIcon aria-hidden className="size-2.5" />
                       </button>
                     }
                   />
@@ -2008,7 +2008,7 @@ export function PullRequestDetailPanel({
                         {refreshing ? (
                           <RefreshIcon refreshing size="md" />
                         ) : (
-                          <MoreHorizontalIcon className="size-4" />
+                          <DotsThreeIcon className="size-4" />
                         )}
                       </MenuTrigger>
                     }
@@ -2034,7 +2034,7 @@ export function PullRequestDetailPanel({
                     Refresh
                   </MenuItem>
                   <MenuItem disabled={handoff !== null} onClick={askAboutPullRequest}>
-                    <MessageCircleQuestionIcon className="mt-1 size-3.5 shrink-0 self-start" />
+                    <QuestionIcon className="mt-1 size-3.5 shrink-0 self-start" />
                     <span className="flex min-w-0 flex-col">
                       <span>{handoff === "ask" ? "Opening..." : "Ask a question"}</span>
                       <span className="text-xs text-muted-foreground">
@@ -2208,7 +2208,7 @@ export function PullRequestDetailPanel({
                         disabled={actionPending}
                         onClick={() => setConfirmation({ open: true, action: "revert" })}
                       >
-                        <RotateCcwIcon className="size-3.5" />
+                        <ArrowCounterClockwiseIcon className="size-3.5" />
                         Revert changes
                       </MenuItem>
                     </>
@@ -2224,7 +2224,7 @@ export function PullRequestDetailPanel({
               aria-label="Collapse pull request panel"
               onClick={onClose}
             >
-              <PanelRightIcon className="size-3.5" />
+              <SidebarSimpleIcon mirrored className="size-3.5" />
             </Button>
           ) : null}
         </div>
@@ -2329,7 +2329,7 @@ export function PullRequestDetailPanel({
                         detail.changedFiles === 1 ? "file" : "files"
                       }`}
                     >
-                      <FileDiffIcon aria-hidden className="size-3" />
+                      <GitDiffIcon aria-hidden className="size-3" />
                       {detail.changedFiles.toLocaleString()}
                     </span>
                     <PullRequestDiffStat
@@ -2508,7 +2508,7 @@ export function PullRequestDetailPanel({
                   </span>
                   <span className="ml-auto inline-flex shrink-0 items-center justify-end gap-2">
                     <span className="inline-flex min-w-16 items-center justify-end gap-1.5 tabular-nums">
-                      <FileDiffIcon className="size-3.5" />
+                      <GitDiffIcon className="size-3.5" />
                       {detail.changedFiles.toLocaleString()}{" "}
                       {detail.changedFiles === 1 ? "file" : "files"}
                     </span>
@@ -2599,7 +2599,7 @@ export function PullRequestDetailPanel({
                         threadRef={threadRef}
                       />
                     ) : (
-                      <CircleDotIcon aria-hidden className="size-3.5" />
+                      <RecordIcon aria-hidden className="size-3.5" />
                     )}
                     {checksSummary}
                   </span>
@@ -2623,7 +2623,7 @@ export function PullRequestDetailPanel({
                           }`
                     }
                   >
-                    <MessageSquareIcon aria-hidden className="size-3" />
+                    <ChatIcon aria-hidden className="size-3" />
                     {activityError
                       ? "—"
                       : activityPending
@@ -2640,7 +2640,7 @@ export function PullRequestDetailPanel({
                           }`
                     }
                   >
-                    <GitCommitHorizontalIcon aria-hidden className="size-3" />
+                    <GitCommitIcon aria-hidden className="size-3" />
                     {activityError
                       ? "—"
                       : activityPending
@@ -2674,7 +2674,7 @@ export function PullRequestDetailPanel({
                     setTimelineOrder((value) => (value === "newest" ? "oldest" : "newest"))
                   }
                 >
-                  <ArrowDownUpIcon aria-hidden className="size-3" />
+                  <ArrowsDownUpIcon aria-hidden className="size-3" />
                   {timelineOrder === "newest" ? "Newest first" : "Oldest first"}
                 </Button>
               </div>

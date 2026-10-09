@@ -7,7 +7,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
-import { ChevronDownIcon, DownloadIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { CaretDownIcon, DownloadSimpleIcon, GearIcon, PlusIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 
 import { commandForProjectScript, primaryProjectScript } from "~/projectScripts";
@@ -156,7 +156,7 @@ export default function ProjectScriptsControl({
             <ScriptIcon icon={fileScript.icon ?? "play"} className="size-4" />
             <MenuItemLabel>{fileScript.name}</MenuItemLabel>
             <MenuShortcut>
-              <DownloadIcon className="size-3.5" aria-label="Import" />
+              <DownloadSimpleIcon className="size-3.5" aria-label="Import" />
             </MenuShortcut>
           </MenuItem>
         ))}
@@ -211,7 +211,7 @@ export default function ProjectScriptsControl({
                     openEditDialog(script);
                   }}
                 >
-                  <SettingsIcon className="size-3.5" />
+                  <GearIcon className="size-3.5" />
                 </Button>
               </span>
             </span>
@@ -299,7 +299,7 @@ export default function ProjectScriptsControl({
             <MenuTrigger
               render={<Button size="icon-xs" variant="outline" aria-label="Script actions" />}
             >
-              <ChevronDownIcon className="size-4" />
+              <CaretDownIcon className="size-4" />
             </MenuTrigger>
             <MenuPopup align="end">{scriptItems}</MenuPopup>
           </Menu>
@@ -316,7 +316,7 @@ export default function ProjectScriptsControl({
             <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
               Add action
             </span>
-            <ChevronDownIcon className="size-3.5" />
+            <CaretDownIcon className="size-3.5" />
           </MenuTrigger>
           <MenuPopup align="end">
             {importMenuItems}

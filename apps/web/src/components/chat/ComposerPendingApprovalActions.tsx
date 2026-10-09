@@ -4,7 +4,7 @@ import {
   type ProviderApprovalOption,
 } from "@rove-code/contracts";
 import { memo } from "react";
-import { EllipsisIcon, TriangleAlertIcon } from "lucide-react";
+import { DotsThreeIcon, WarningIcon } from "@phosphor-icons/react";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -52,7 +52,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
             aria-description={option.warning}
             onClick={() => void onRespondToApproval(requestId, option.decision)}
           >
-            {option.warning ? <TriangleAlertIcon className="size-3 shrink-0" /> : null}
+            {option.warning ? <WarningIcon className="size-3 shrink-0" /> : null}
             <span className="max-w-40 truncate">{option.label}</span>
           </Button>
         );
@@ -71,7 +71,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
             disabled={isResponding}
             render={<Button size="icon-xs" variant="outline" aria-label="More approval options" />}
           >
-            <EllipsisIcon />
+            <DotsThreeIcon />
           </MenuTrigger>
           <MenuPopup {...composerFloatingLayerProps} side="top" align="end">
             {moreOptions.map((option) => {
@@ -84,7 +84,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
                   variant="ghost"
                   className="mb-1 last:mb-0"
                 >
-                  {option.warning ? <TriangleAlertIcon className="size-3 text-warning" /> : null}
+                  {option.warning ? <WarningIcon className="size-3 text-warning" /> : null}
                   <span className="min-w-0 whitespace-normal wrap-break-word">{option.label}</span>
                 </MenuItem>
               );

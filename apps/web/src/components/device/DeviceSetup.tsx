@@ -1,6 +1,6 @@
 import { DeviceHostUpdates } from "./DeviceHostUpdates";
 import type { DevicePlatform, DeviceServiceState, EnvironmentId } from "@rove-code/contracts";
-import { Check, CircleAlert } from "lucide-react";
+import { CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -203,7 +203,7 @@ export function DeviceHubSetupStatus({
   if (!pending && state.hostStatus !== "ready") return null;
   return (
     <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-      {pending ? <Spinner size="xs" /> : <Check className="size-3 text-success" />}
+      {pending ? <Spinner size="xs" /> : <CheckIcon className="size-3 text-success" />}
       {pending
         ? state.hostStatus === "installing"
           ? compact
@@ -274,7 +274,7 @@ export function AgentDeviceSetupStatus(props: {
   ) {
     return (
       <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Check className="size-3 text-success" />
+        <CheckIcon className="size-3 text-success" />
         Agent tools are ready.
       </p>
     );
@@ -287,7 +287,7 @@ export function PlatformStatus(props: {
   readonly status: { readonly ready: boolean; readonly message: string };
   readonly compact?: boolean;
 }) {
-  const Icon = props.status.ready ? Check : CircleAlert;
+  const Icon = props.status.ready ? CheckIcon : WarningCircleIcon;
   return (
     <div
       className={cn("flex gap-2", !props.compact && "rounded-md border border-border/60 px-3 py-2")}

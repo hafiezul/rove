@@ -1,5 +1,5 @@
 import { memo, type PointerEventHandler } from "react";
-import { ChevronDownIcon, ChevronLeftIcon } from "lucide-react";
+import { CaretDownIcon, CaretLeftIcon } from "@phosphor-icons/react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import { cn } from "~/lib/utils";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
@@ -122,7 +122,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               disabled={pendingAction.isResponding}
               aria-label="Previous question"
             >
-              <ChevronLeftIcon className="size-3.5" />
+              <CaretLeftIcon className="size-3.5" />
             </Button>
           ) : (
             <Button
@@ -196,7 +196,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               />
             }
           >
-            <ChevronDownIcon className="size-3.5" />
+            <CaretDownIcon className="size-3.5" />
           </MenuTrigger>
           <MenuPopup align="end" side="top" {...composerFloatingLayerProps}>
             <MenuItem

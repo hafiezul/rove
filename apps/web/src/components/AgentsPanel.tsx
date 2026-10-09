@@ -21,7 +21,15 @@ import {
   formatSubagentTokenCount,
 } from "@rove-code/client-runtime/state/subagentRuntime";
 import type { EnvironmentId, ThreadId } from "@rove-code/contracts";
-import { Bot, Braces, Check, ChevronDown, ChevronRight, ExternalLink, X } from "lucide-react";
+import {
+  ArrowSquareOutIcon,
+  BracketsCurlyIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  CheckIcon,
+  RobotIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -250,7 +258,7 @@ function AgentDetailsDialog({
                           className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
                         >
                           Open session
-                          <ExternalLink aria-hidden className="size-3" />
+                          <ArrowSquareOutIcon aria-hidden className="size-3" />
                         </a>
                       </dd>
                     </div>
@@ -307,9 +315,9 @@ function AgentRow({ agent }: { agent: RuntimeSubagent }) {
           <span className="inline-flex items-center gap-1">
             <AgentElapsed agent={agent} />
             {agent.status === "completed" ? (
-              <Check aria-hidden className="size-3 text-success" />
+              <CheckIcon aria-hidden className="size-3 text-success" />
             ) : null}
-            <ChevronRight
+            <CaretRightIcon
               aria-hidden
               className="size-3 text-muted-foreground/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
             />
@@ -362,7 +370,7 @@ function PhaseRail({ group }: { group: AgentPanelWorkflowGroup }) {
       {group.phases.map((phase, index) => (
         <div key={phase.index} className="flex items-center gap-1">
           {index > 0 ? (
-            <ChevronRight aria-hidden className="size-3 text-muted-foreground/40" />
+            <CaretRightIcon aria-hidden className="size-3 text-muted-foreground/40" />
           ) : null}
           <div
             className={cn(
@@ -422,7 +430,7 @@ function WorkflowScriptView({
   return (
     <div className="mx-1.5 mb-1 rounded-md border border-border/60 bg-background/60">
       <div className="flex items-center gap-2 border-b border-border/50 px-2 py-1">
-        <Braces aria-hidden className="size-3 text-muted-foreground" />
+        <BracketsCurlyIcon aria-hidden className="size-3 text-muted-foreground" />
         <span className="truncate font-mono text-3xs text-muted-foreground">
           {scriptPath.split("/").at(-1)}
         </span>
@@ -433,7 +441,7 @@ function WorkflowScriptView({
           aria-label="Close script"
           className="ml-auto cursor-pointer"
         >
-          <X aria-hidden className="size-3" />
+          <XIcon aria-hidden className="size-3" />
         </Button>
       </div>
       <div className="max-h-72 overflow-auto p-2">
@@ -490,11 +498,11 @@ function PhaseSection({
         )}
       >
         {open ? (
-          <ChevronDown aria-hidden className="size-3 shrink-0" />
+          <CaretDownIcon aria-hidden className="size-3 shrink-0" />
         ) : (
-          <ChevronRight aria-hidden className="size-3 shrink-0" />
+          <CaretRightIcon aria-hidden className="size-3 shrink-0" />
         )}
-        {phase.state === "done" ? <Check aria-hidden className="size-3" /> : null}
+        {phase.state === "done" ? <CheckIcon aria-hidden className="size-3" /> : null}
         <span>{phase.title}</span>
         <span className="font-normal normal-case text-muted-foreground/70">
           {phase.state === "pending" && phase.members.length === 0
@@ -569,7 +577,7 @@ function ExpandedWorkflowSection({
           aria-label="Collapse workflow"
           className="cursor-pointer"
         >
-          <ChevronDown aria-hidden className="size-3" />
+          <CaretDownIcon aria-hidden className="size-3" />
         </Button>
       </div>
       <PhaseRail group={group} />
@@ -635,7 +643,7 @@ function CollapsedWorkflowSection({
           <span>{members.length} agents</span>
           <span className="tabular-nums">· {formatSubagentTokenCount(totalTokens)} tok</span>
           {elapsed ? <span className="tabular-nums">· {elapsed}</span> : null}
-          <ChevronRight aria-hidden className="size-3" />
+          <CaretRightIcon aria-hidden className="size-3" />
         </span>
       </button>
     </section>
@@ -677,7 +685,7 @@ export function AgentsPanel({
   if (!model.hasAgents) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-        <Bot aria-hidden className="size-6 text-muted-foreground/60" />
+        <RobotIcon aria-hidden className="size-6 text-muted-foreground/60" />
         <p className="text-sm font-medium">No agents yet</p>
         <p className="max-w-56 text-xs text-muted-foreground">
           When this thread spawns subagents or runs a workflow, they show up here with live status,

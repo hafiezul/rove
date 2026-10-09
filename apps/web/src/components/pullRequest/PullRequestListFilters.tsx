@@ -9,18 +9,18 @@ import type {
   SourceControlProviderKind,
 } from "@rove-code/contracts";
 import {
-  CircleCheckIcon,
+  CheckCircleIcon,
   CircleDashedIcon,
-  CircleSlashIcon,
-  CircleXIcon,
-  EyeOffIcon,
-  FolderGit2Icon,
-  LayersIcon,
-  ListFilterIcon,
-  SearchIcon,
+  EyeSlashIcon,
+  FunnelSimpleIcon,
+  GitForkIcon,
+  MagnifyingGlassIcon,
+  ProhibitIcon,
+  StackIcon,
   TagIcon,
-  UserRoundIcon,
-} from "lucide-react";
+  UserIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 import { type ElementType, useState } from "react";
 
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
@@ -108,7 +108,7 @@ export function PullRequestSearchInput({
   return (
     <InputGroup className="min-w-0 flex-1 **:[input]:h-9 sm:**:[input]:h-8">
       <InputGroupAddon>
-        {busy ? <Spinner aria-hidden /> : <SearchIcon aria-hidden />}
+        {busy ? <Spinner aria-hidden /> : <MagnifyingGlassIcon aria-hidden />}
       </InputGroupAddon>
       <InputGroupInput
         type="search"
@@ -142,23 +142,23 @@ export const pullRequestProjectKey = (project: {
 }) => JSON.stringify([project.environmentId, project.id]);
 
 const DRAFT_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
+  { value: UNFILTERED_VALUE, label: "All", Icon: StackIcon },
   { value: "only", label: "Drafts only", Icon: PullRequestGlyph.draft },
-  { value: "hide", label: "Hide drafts", Icon: EyeOffIcon },
+  { value: "hide", label: "Hide drafts", Icon: EyeSlashIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 const REVIEW_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "approved", label: "Approved", Icon: CircleCheckIcon },
-  { value: "changes-requested", label: "Changes requested", Icon: CircleXIcon },
+  { value: UNFILTERED_VALUE, label: "All", Icon: StackIcon },
+  { value: "approved", label: "Approved", Icon: CheckCircleIcon },
+  { value: "changes-requested", label: "Changes requested", Icon: XCircleIcon },
   { value: "review-required", label: "Review required", Icon: CircleDashedIcon },
-  { value: "none", label: "No reviews", Icon: CircleSlashIcon },
+  { value: "none", label: "No reviews", Icon: ProhibitIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 const CHECKS_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "passing", label: "Passing", Icon: CircleCheckIcon },
-  { value: "failing", label: "Failing", Icon: CircleXIcon },
+  { value: UNFILTERED_VALUE, label: "All", Icon: StackIcon },
+  { value: "passing", label: "Passing", Icon: CheckCircleIcon },
+  { value: "failing", label: "Failing", Icon: XCircleIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 function PullRequestFilterRadioGroup<Value extends string>({
@@ -271,7 +271,7 @@ function PullRequestAuthorFilter({
   return (
     <MenuSub>
       <MenuSubTrigger>
-        <UserRoundIcon aria-hidden className="size-3.5" />
+        <UserIcon aria-hidden className="size-3.5" />
         <span className="flex-1">Author</span>
         <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground">
           {value ?? "Anyone"}
@@ -281,7 +281,7 @@ function PullRequestAuthorFilter({
         <div className="p-1 pb-2">
           <InputGroup>
             <InputGroupAddon>
-              <SearchIcon aria-hidden />
+              <MagnifyingGlassIcon aria-hidden />
             </InputGroupAddon>
             <InputGroupInput
               autoFocus
@@ -299,7 +299,7 @@ function PullRequestAuthorFilter({
         <MenuRadioGroup value={selected?.actor.login ?? value ?? ""} onValueChange={select}>
           <MenuRadioItem value="">
             <span className="flex min-w-0 items-center gap-2">
-              <LayersIcon aria-hidden className="size-3.5" />
+              <StackIcon aria-hidden className="size-3.5" />
               Anyone
             </span>
           </MenuRadioItem>
@@ -481,7 +481,7 @@ export function PullRequestFiltersMenu({
       ? ALL_PROJECTS_VALUE
       : pullRequestProjectKey({ id: projectId, environmentId: projectEnvironmentId });
   const projectOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: ALL_PROJECTS_VALUE, label: "All projects", Icon: LayersIcon },
+    { value: ALL_PROJECTS_VALUE, label: "All projects", Icon: StackIcon },
     ...projects
       .toSorted(
         (left, right) =>
@@ -491,7 +491,7 @@ export function PullRequestFiltersMenu({
       .map((project) => ({
         value: pullRequestProjectKey(project),
         label: project.title,
-        Icon: FolderGit2Icon,
+        Icon: GitForkIcon,
         project,
         ...(unavailable.has(pullRequestProjectKey(project))
           ? { unavailable: unavailable.get(pullRequestProjectKey(project)) }
@@ -501,7 +501,7 @@ export function PullRequestFiltersMenu({
   return (
     <Menu onOpenChange={onOpenChange}>
       <MenuTrigger render={<Button variant="outline" />}>
-        <ListFilterIcon className="size-4" />
+        <FunnelSimpleIcon className="size-4" />
         <span>Filters</span>
         {filterCount > 0 ? (
           <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">

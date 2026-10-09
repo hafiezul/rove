@@ -1,14 +1,14 @@
 import {
-  ChevronDownIcon,
-  CircleXIcon,
-  EllipsisIcon,
-  FileJsonIcon,
+  CaretDownIcon,
+  DotsThreeIcon,
+  FileCodeIcon,
+  MagnifyingGlassIcon,
   MinusIcon,
   PlusIcon,
-  SearchIcon,
-  TriangleAlertIcon,
+  WarningIcon,
+  XCircleIcon,
   XIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocation } from "@tanstack/react-router";
 import {
   type KeyboardEvent,
@@ -133,7 +133,7 @@ function ExpandableHeaderSearch({
                 onClick={() => onOpenChange(true)}
                 aria-label="Search keybindings"
               >
-                <SearchIcon />
+                <MagnifyingGlassIcon />
               </Button>
             }
           />
@@ -146,7 +146,7 @@ function ExpandableHeaderSearch({
   return (
     <InputGroup className="w-44">
       <InputGroupAddon>
-        <SearchIcon aria-hidden className="size-3" />
+        <MagnifyingGlassIcon aria-hidden className="size-3" />
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
@@ -261,7 +261,7 @@ function WarningTooltipIcon({
           />
         }
       >
-        <TriangleAlertIcon className="size-3.5" />
+        <WarningIcon className="size-3.5" />
       </TooltipTrigger>
       <TooltipPopup side="top">{children}</TooltipPopup>
     </Tooltip>
@@ -669,7 +669,7 @@ function WhenExpressionBuilder({
         </InputGroup>
         {parseError ? (
           <div className="flex items-center gap-1.5 text-2xs text-destructive">
-            <CircleXIcon className="size-3.5" />
+            <XCircleIcon className="size-3.5" />
             {parseError}
           </div>
         ) : null}
@@ -897,7 +897,7 @@ function WhenClauseControl({
         aria-label={`Edit when clause for ${label}`}
       >
         <span className="truncate font-mono">{expression || "Always"}</span>
-        <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
+        <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={6}>
         <WhenExpressionBuilder
@@ -939,7 +939,7 @@ function KeybindingRowMenu({
           />
         }
       >
-        <EllipsisIcon className="size-3.5" />
+        <DotsThreeIcon className="size-3.5" />
       </MenuTrigger>
       <MenuPopup align="end">
         {canReset ? (
@@ -1313,7 +1313,7 @@ function KeybindingsList(props: KeybindingsListProps) {
 function BrowserKeybindingNotice() {
   return (
     <div className="flex items-center gap-2 px-3 py-2.5 text-xs leading-normal text-muted-foreground sm:px-4">
-      <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" aria-hidden />
+      <WarningIcon className="size-3.5 shrink-0 text-warning" aria-hidden />
       <span>
         Some shortcuts may be claimed by the browser before Rove Code sees them. Use the desktop app
         for better keybinding support.
@@ -1548,7 +1548,7 @@ export function KeybindingsSettingsPanel() {
                     onClick={openKeybindingsFile}
                     aria-label="Open keybindings.json"
                   >
-                    <FileJsonIcon />
+                    <FileCodeIcon />
                   </Button>
                 }
               />

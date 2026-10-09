@@ -21,7 +21,14 @@ import {
   squashAtomCommandFailure,
 } from "@rove-code/client-runtime/state/runtime";
 import { mediaFileReference } from "@rove-code/client-runtime/media-reference";
-import { Code2, Eye, FolderTree, Globe2, Table2, WrapTextIcon } from "lucide-react";
+import {
+  ArrowUDownLeftIcon,
+  CodeIcon,
+  EyeIcon,
+  GlobeHemisphereWestIcon,
+  TableIcon,
+  TreeStructureIcon,
+} from "@phosphor-icons/react";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1135,11 +1142,11 @@ export default function FilePreviewPanel({
               }}
             >
               {rendered ? (
-                <Code2 className="size-3.5" />
+                <CodeIcon className="size-3.5" />
               ) : renderedMode === "table" ? (
-                <Table2 className="size-3.5" />
+                <TableIcon className="size-3.5" />
               ) : (
-                <Eye className="size-3.5" />
+                <EyeIcon className="size-3.5" />
               )}
             </FileSurfaceAction>
           ) : null}
@@ -1149,12 +1156,12 @@ export default function FilePreviewPanel({
               pressed={wordWrap}
               onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
             >
-              <WrapTextIcon className="size-3.5" />
+              <ArrowUDownLeftIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
           {canOpenInBrowser ? (
             <FileSurfaceAction label="Open file in preview browser" onPress={handleOpenInBrowser}>
-              <Globe2 className="size-3.5" />
+              <GlobeHemisphereWestIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
           {!isHostFile && previewPath !== null ? (
@@ -1163,7 +1170,7 @@ export default function FilePreviewPanel({
               pressed={explorerOpen}
               onPress={toggleExplorer}
             >
-              <FolderTree className="size-3.5" />
+              <TreeStructureIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
         </div>

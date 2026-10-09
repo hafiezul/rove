@@ -1,4 +1,9 @@
-import { Maximize2Icon, Minimize2Icon, PanelBottomIcon, PanelRightIcon } from "lucide-react";
+import {
+  ArrowsInIcon,
+  ArrowsOutIcon,
+  SidebarSimpleIcon,
+  SquareSplitVerticalIcon,
+} from "@phosphor-icons/react";
 import { memo } from "react";
 
 import { Toggle } from "../ui/toggle";
@@ -49,7 +54,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               size="sm"
               disabled={!terminalAvailable}
             >
-              <PanelBottomIcon className="size-4" />
+              <SquareSplitVerticalIcon className="size-4" />
             </Toggle>
           </TooltipTrigger>
           <TooltipPopup side="bottom">
@@ -74,7 +79,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
             size="sm"
             disabled={!rightPanelAvailable}
           >
-            <PanelRightIcon className="size-4" />
+            <SidebarSimpleIcon mirrored className="size-4" />
             {liveAgentCount > 0 ? (
               <span
                 aria-hidden
@@ -119,11 +124,7 @@ export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl
             variant="ghost"
             size="sm"
           >
-            {maximized ? (
-              <Minimize2Icon className="size-4" />
-            ) : (
-              <Maximize2Icon className="size-4" />
-            )}
+            {maximized ? <ArrowsInIcon className="size-4" /> : <ArrowsOutIcon className="size-4" />}
           </Toggle>
         }
       />

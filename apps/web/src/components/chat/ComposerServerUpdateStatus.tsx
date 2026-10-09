@@ -1,6 +1,6 @@
 import { Spinner } from "~/components/ui/spinner";
 import type { ServerUpdateState } from "@rove-code/client-runtime/state/server";
-import { CircleAlertIcon, DownloadIcon } from "lucide-react";
+import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 
 import { serverUpdateStageLabel } from "../ServerUpdateAction";
@@ -16,9 +16,9 @@ export function ComposerServerUpdateIcon({
     return <Spinner aria-hidden />;
   }
   if (status === "failed") {
-    return <CircleAlertIcon aria-hidden className="text-error" />;
+    return <WarningCircleIcon aria-hidden className="text-error" />;
   }
-  return <DownloadIcon aria-hidden />;
+  return <DownloadSimpleIcon aria-hidden />;
 }
 
 /** One text line, clipped at the end so the error detail never squeezes its title. */

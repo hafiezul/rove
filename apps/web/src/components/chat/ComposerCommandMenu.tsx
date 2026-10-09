@@ -11,13 +11,13 @@ import {
   type ServerProviderSlashCommand,
 } from "@rove-code/contracts";
 import {
-  BlocksIcon,
   FolderIcon,
+  GearIcon,
+  type Icon as PhosphorIcon,
   PackageIcon,
-  SettingsIcon,
-  UserRoundIcon,
-  type LucideIcon,
-} from "lucide-react";
+  SquaresFourIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
 import { memo, useLayoutEffect, useRef } from "react";
 
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
@@ -211,12 +211,12 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
   );
 });
 
-const SKILL_SOURCE_ICON_BY_KIND: Record<ProviderSkillSourceKind, LucideIcon> = {
-  app: BlocksIcon,
+const SKILL_SOURCE_ICON_BY_KIND: Record<ProviderSkillSourceKind, PhosphorIcon> = {
+  app: SquaresFourIcon,
   repo: FolderIcon,
   project: FolderIcon,
-  personal: UserRoundIcon,
-  system: SettingsIcon,
+  personal: UserIcon,
+  system: GearIcon,
   other: PackageIcon,
 };
 

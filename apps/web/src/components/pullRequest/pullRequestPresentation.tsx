@@ -10,14 +10,15 @@ import type {
   PullRequestState,
 } from "@rove-code/contracts";
 import {
-  CircleCheckIcon,
+  CheckCircleIcon,
   CircleDashedIcon,
-  CircleDotIcon,
-  CircleXIcon,
+  RecordIcon,
   UserCheckIcon,
-  UserRoundIcon,
-  UserRoundXIcon,
-} from "lucide-react";
+  UserIcon,
+  UserMinusIcon,
+  XCircleIcon,
+  type IconWeight,
+} from "@phosphor-icons/react";
 import { Children, type CSSProperties, isValidElement, type ReactNode, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -83,13 +84,13 @@ function reviewDecisionPresentation(decision: PullRequestReviewDecision) {
       };
     case "changes-requested":
       return {
-        Icon: UserRoundXIcon,
+        Icon: UserMinusIcon,
         label: "Changes requested",
         toneClassName: "text-amber-600/90 dark:text-amber-400/80",
       };
     case "review-required":
       return {
-        Icon: UserRoundIcon,
+        Icon: UserIcon,
         label: "Awaiting review",
         toneClassName: "text-muted-foreground/60",
       };
@@ -182,12 +183,14 @@ export function PullRequestConflictGlyph({
   mergeability,
   baseBranch,
   className,
+  weight,
 }: {
   state: PullRequestState;
   isDraft: boolean;
   mergeability?: PullRequestMergeability;
   baseBranch?: string;
   className?: string;
+  weight?: IconWeight;
 }) {
   const presentation = resolvePullRequestConflict({
     state,
@@ -203,6 +206,7 @@ export function PullRequestConflictGlyph({
           role="img"
           aria-label={presentation.label}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
+          {...(weight === undefined ? {} : { weight })}
         />
       </TooltipTrigger>
       <TooltipPopup>{presentation.label}</TooltipPopup>
@@ -214,21 +218,21 @@ const CHECK_STATUS_PRESENTATION = {
   pending: { label: "Running", Icon: Spinner, toneClassName: "text-amber-500" },
   "action-required": {
     label: "Awaiting action",
-    Icon: CircleDotIcon,
+    Icon: RecordIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
   success: {
     label: "Passed",
-    Icon: CircleCheckIcon,
+    Icon: CheckCircleIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
   },
-  failure: { label: "Failed", Icon: CircleXIcon, toneClassName: "text-destructive" },
-  cancelled: { label: "Cancelled", Icon: CircleXIcon, toneClassName: "text-destructive" },
+  failure: { label: "Failed", Icon: XCircleIcon, toneClassName: "text-destructive" },
+  cancelled: { label: "Cancelled", Icon: XCircleIcon, toneClassName: "text-destructive" },
   skipped: { label: "Skipped", Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
   neutral: { label: "Neutral", Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
 } as const satisfies Record<
   PullRequestCheckStatus,
-  { label: string; Icon: typeof CircleCheckIcon | typeof Spinner; toneClassName: string }
+  { label: string; Icon: typeof CheckCircleIcon | typeof Spinner; toneClassName: string }
 >;
 
 function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">): boolean {
@@ -264,22 +268,22 @@ export function PullRequestCheckStatusIcon({ status }: { status: PullRequestChec
 const CHECKS_STATE_PRESENTATION = {
   passing: {
     label: "All checks have passed",
-    Icon: CircleCheckIcon,
+    Icon: CheckCircleIcon,
     toneClassName: CHECK_STATUS_PRESENTATION.success.toneClassName,
   },
   failing: {
     label: "Some checks were not successful",
-    Icon: CircleXIcon,
+    Icon: XCircleIcon,
     toneClassName: "text-destructive",
   },
   pending: {
     label: "Some checks haven't completed yet",
-    Icon: CircleDotIcon,
+    Icon: RecordIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
 } as const satisfies Record<
   PullRequestChecksState,
-  { label: string; Icon: typeof CircleCheckIcon; toneClassName: string }
+  { label: string; Icon: typeof CheckCircleIcon; toneClassName: string }
 >;
 
 export function pullRequestChecksStatePresentation(state: PullRequestChecksState) {
@@ -313,7 +317,7 @@ export function pullRequestChecksState(
 const REVIEW_OUTCOME_PRESENTATION = {
   approved: {
     label: "Approved",
-    Icon: CircleCheckIcon,
+    Icon: CheckCircleIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
     ringClassName: "ring-2 ring-emerald-500 dark:ring-emerald-400",
     staleRingClassName:
@@ -322,7 +326,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
   },
   "changes-requested": {
     label: "Changes requested",
-    Icon: CircleXIcon,
+    Icon: XCircleIcon,
     toneClassName: "text-destructive",
     ringClassName: "ring-2 ring-destructive",
     staleRingClassName: "ring-2 ring-[color-mix(in_srgb,var(--destructive)_35%,var(--background))]",
@@ -341,7 +345,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
   PullRequestReviewOutcome,
   {
     label: string;
-    Icon: typeof CircleCheckIcon;
+    Icon: typeof CheckCircleIcon;
     toneClassName: string;
     ringClassName: string;
     staleRingClassName: string;

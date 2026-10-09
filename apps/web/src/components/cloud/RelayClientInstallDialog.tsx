@@ -1,4 +1,4 @@
-import { DownloadIcon } from "lucide-react";
+import { DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useSyncExternalStore } from "react";
 import type { RelayClientInstallProgressStage } from "@rove-code/contracts";
 
@@ -62,7 +62,7 @@ export function RelayClientInstallDialog() {
       <DialogPopup className="max-w-md" showCloseButton={isConfirming}>
         <DialogHeader>
           <div className="flex size-9 items-center justify-center rounded-lg border border-border/70 bg-muted/60">
-            <DownloadIcon aria-hidden className="size-4.5 text-muted-foreground" />
+            <DownloadSimpleIcon aria-hidden className="size-4.5 text-muted-foreground" />
           </div>
           <DialogTitle>
             {isInstalling ? "Installing relay client" : "Install relay client?"}

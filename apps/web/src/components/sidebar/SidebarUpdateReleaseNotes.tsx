@@ -1,5 +1,5 @@
 import type { DesktopBridge, DesktopUpdateState } from "@rove-code/contracts";
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
@@ -184,7 +184,7 @@ export function SidebarUpdateReleaseNotes({
             shell={shell}
           >
             {footer.label}
-            <ExternalLinkIcon aria-hidden className="size-3 shrink-0" strokeWidth={2.25} />
+            <ArrowSquareOutIcon aria-hidden className="size-3 shrink-0" weight="bold" />
           </ExternalLink>
         </div>
       ) : null}

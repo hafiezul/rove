@@ -16,7 +16,7 @@ import {
   paceOf,
   remainingPercent,
 } from "@rove-code/shared/usageLimits";
-import { GaugeIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
+import { GaugeIcon, TrendDownIcon, TrendUpIcon } from "@phosphor-icons/react";
 import { Fragment, type ReactNode, useState } from "react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
@@ -39,9 +39,9 @@ import { UsageLimitsPooled } from "./UsageLimitsPooled";
 import { PROVIDER_PRESENTATION } from "./usageProviders";
 
 const PACE: Record<LimitPace, { readonly label: string; readonly icon: typeof GaugeIcon }> = {
-  ahead: { label: "Ahead of pace: spending faster than the window elapses", icon: TrendingUpIcon },
+  ahead: { label: "Ahead of pace: spending faster than the window elapses", icon: TrendUpIcon },
   on: { label: "On pace with the window", icon: GaugeIcon },
-  under: { label: "Under pace: headroom left for the rest of the window", icon: TrendingDownIcon },
+  under: { label: "Under pace: headroom left for the rest of the window", icon: TrendDownIcon },
 };
 
 /** The series colour the cost chart uses for this driver, so the two views read as one. */

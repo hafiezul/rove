@@ -8,7 +8,7 @@ import { resolveSelectableModel } from "@rove-code/shared/model";
 import { useAtomValue } from "@effect/atom-react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { memo, useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { ChevronRightIcon } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { ModelListRow } from "./ModelListRow";
 import { ModelPickerSidebar } from "./ModelPickerSidebar";
 import { getProviderStatusMessage, hasProviderSetup } from "./ProviderStatusBanner";
@@ -963,7 +963,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                               {legacySection.legacyModels.length} models
                             </div>
                           </div>
-                          <ChevronRightIcon
+                          <CaretRightIcon
                             className={cn(
                               "size-4 transition-transform",
                               legacySection.isExpanded && "rotate-90",

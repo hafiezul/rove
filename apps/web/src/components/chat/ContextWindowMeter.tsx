@@ -6,7 +6,7 @@ import {
 } from "~/lib/contextWindow";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { formatContextWindowCompactionMessage } from "./ContextWindowMeter.logic";
-import { Minimize2Icon } from "lucide-react";
+import { ArrowsInIcon } from "@phosphor-icons/react";
 import { composerFloatingLayerProps } from "./composerEventScope";
 
 function formatPercentage(value: number | null): string | null {
@@ -215,7 +215,7 @@ export function ContextWindowMeter(props: {
                 disabled={compactDisabled}
                 onClick={onCompact}
               >
-                <Minimize2Icon aria-hidden="true" />
+                <ArrowsInIcon aria-hidden="true" />
                 Compact context
               </Button>
               {compactDisabled && compactDisabledReason ? (

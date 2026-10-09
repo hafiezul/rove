@@ -2,7 +2,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { useNavigate } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerProvider } from "@rove-code/contracts";
-import { CircleCheckIcon, DownloadIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { CheckCircleIcon, DownloadSimpleIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import { primaryServerProvidersAtom } from "../../state/server";
@@ -176,11 +176,11 @@ export function SidebarProviderUpdatePill() {
               {displayedView.tone === "loading" ? (
                 <Spinner size="sm" className="shrink-0" />
               ) : displayedView.tone === "success" ? (
-                <CircleCheckIcon className="size-3.5 shrink-0" />
+                <CheckCircleIcon className="size-3.5 shrink-0" />
               ) : displayedView.tone === "error" ? (
-                <TriangleAlertIcon className="size-3.5 shrink-0" />
+                <WarningIcon className="size-3.5 shrink-0" />
               ) : (
-                <DownloadIcon className="size-3.5 shrink-0" />
+                <DownloadSimpleIcon className="size-3.5 shrink-0" />
               )}
               <span className="min-w-0 wrap-break-word">{displayedView.title}</span>
             </button>
