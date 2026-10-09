@@ -93,21 +93,21 @@ const SEEN_LIMIT = 4_096;
 /** Settled agents kept for late entries and reactivation; older ones are forgotten. */
 const SETTLED_RETENTION = 500;
 
+/** Lines worth showing at a glance: not blank, not a bare code fence. */
+function meaningfulLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0 && !/^(`{3,}|~{3,})[\w-]*$/.test(part));
+}
+
 function firstLine(value: string, limit: number): string {
-  const line =
-    value
-      .split("\n")
-      .map((part) => part.trim())
-      .find((part) => part.length > 0) ?? "";
+  const line = meaningfulLines(value)[0] ?? "";
   return line.length <= limit ? line : `${line.slice(0, limit - 1)}…`;
 }
 
 function lastLine(value: string, limit: number): string {
-  const lines = value
-    .split("\n")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-  const line = lines.at(-1) ?? "";
+  const line = meaningfulLines(value).at(-1) ?? "";
   return line.length <= limit ? line : `${line.slice(0, limit - 1)}…`;
 }
 

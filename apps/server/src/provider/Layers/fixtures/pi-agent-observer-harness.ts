@@ -15,7 +15,8 @@ import { startPiAgentObserver } from "../PiAgentObserver.ts";
 const [transcriptsRoot, fixtures] = process.argv.slice(2) as [string, string];
 const fakePi = NodePath.join(fixtures, "pi-agent-fake-pi", "cli.mjs");
 const fakeClaude = NodePath.join(fixtures, "pi-agent-fake-cli", "claude");
-const expectedAgents = 7;
+const fakeRunner = NodePath.join(fixtures, "pi-agent-fake-sdk", "runner.mjs");
+const expectedAgents = 8;
 
 let settled = 0;
 const observer = startPiAgentObserver({
@@ -99,6 +100,12 @@ const tools: Tool[] = [
           ),
         ),
       ),
+  },
+  {
+    name: "runner",
+    // A detached runner drives the SDK in its own process; no Pi CLI is involved.
+    execute: () =>
+      exited(NodeChildProcess.spawn(process.execPath, [fakeRunner], { stdio: "inherit" })),
   },
   {
     name: "inproc",

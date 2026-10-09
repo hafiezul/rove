@@ -257,6 +257,11 @@ export function AgentDetailView({
         ? lastText.text
         : agent.result
       : null;
+  // A settled agent's final reply moves to Result instead of repeating as a step.
+  const visibleSteps =
+    !live && !agent.error && outcome !== null && lastText !== undefined
+      ? steps.filter((entry) => entry !== lastText)
+      : steps;
   const role =
     agent.role?.trim().toLocaleLowerCase() === agent.title.trim().toLocaleLowerCase()
       ? null
@@ -385,7 +390,7 @@ export function AgentDetailView({
             </section>
           ) : null}
 
-          {steps.length > 0 ? (
+          {visibleSteps.length > 0 ? (
             <section>
               <SectionLabel>Steps</SectionLabel>
               {data?.truncated ? (
@@ -394,11 +399,13 @@ export function AgentDetailView({
                 </p>
               ) : null}
               <ol className="flex flex-col gap-1">
-                {steps.map((entry, index) => (
+                {visibleSteps.map((entry, index) => (
                   <TranscriptStep key={`${entry.at}:${index}`} entry={entry} />
                 ))}
               </ol>
             </section>
+          ) : agent.runHandles?.hasTranscript === true && data === null && !transcript.error ? (
+            <p className="text-xs text-muted-foreground">Loading transcript…</p>
           ) : agent.recentActivity.length > 0 ? (
             <section>
               <SectionLabel>Recent activity</SectionLabel>
@@ -410,8 +417,6 @@ export function AgentDetailView({
                 ))}
               </ol>
             </section>
-          ) : transcript.isPending ? (
-            <p className="text-xs text-muted-foreground">Loading transcript…</p>
           ) : !outcome ? (
             <p className="text-xs text-muted-foreground">
               {agentActivityText(agent) ?? "No detailed activity was reported."}

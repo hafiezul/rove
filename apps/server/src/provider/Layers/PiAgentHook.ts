@@ -780,6 +780,153 @@ export function roveAgentHook(
   };
   adoptPiProcess();
 
+  const modelId = (model: AnyRecord | undefined) =>
+    model && typeof model.id === "string"
+      ? typeof model.provider === "string"
+        ? `${model.provider}/${model.id}`
+        : model.id
+      : undefined;
+
+  /** Maps agent events (Pi extension events share their shape) to transcript entries. */
+  const agentEventReporter = (
+    report: (kind: PiAgentEntryKind, fields?: Partial<PiAgentEntry>) => void,
+  ) => {
+    let sawTask = false;
+    return (event: AnyRecord) => {
+      switch (event?.type) {
+        case "agent_start":
+          report("busy");
+          return;
+        case "agent_end":
+          report("idle");
+          return;
+        case "message_end": {
+          const message = event.message as AnyRecord | undefined;
+          const text = messageText(message).trim();
+          if (message?.role === "user") {
+            if (text) report(sawTask ? "user" : "task", { text: bounded(text, TEXT_LIMIT) });
+            sawTask = true;
+          } else if (message?.role === "assistant") {
+            const usage = usageFields(message.usage);
+            report("text", {
+              ...(text ? { text: bounded(text, TEXT_LIMIT) } : {}),
+              ...(typeof message.stopReason === "string" ? { stop: message.stopReason } : {}),
+              ...(typeof message.errorMessage === "string"
+                ? { error: bounded(message.errorMessage, 1_000) }
+                : {}),
+              ...(typeof message.provider === "string" && typeof message.model === "string"
+                ? { model: `${message.provider}/${message.model}` }
+                : {}),
+            });
+            if (usage) report("usage", usage);
+          }
+          return;
+        }
+        case "tool_execution_start": {
+          const target = toolTarget(event.args);
+          report("tool", {
+            id: String(event.toolCallId ?? newId()),
+            name: String(event.toolName ?? "tool"),
+            ...(target ? { target } : {}),
+          });
+          return;
+        }
+        case "tool_execution_end": {
+          const out = toolResultText(event.result);
+          report("toolEnd", {
+            id: String(event.toolCallId ?? ""),
+            ...(event.isError === true ? { isError: true } : {}),
+            ...(out ? { out } : {}),
+          });
+          return;
+        }
+      }
+    };
+  };
+
+  /**
+   * SDK role: a marked Node process that drives Pi's SDK itself (a background
+   * runner, a script) reports each agent run. The process's first agent takes
+   * the id its spawner assigned, and later processes it starts nest under it.
+   */
+  const observedAgents = new WeakSet<object>();
+  const observeSdkAgent = (agent: AnyRecord) => {
+    if (!inheritedParent || observedAgents.has(agent)) return;
+    observedAgents.add(agent);
+    const store = storage.getStore();
+    const parent: PiAgentParent = store
+      ? { th: store.th, t: store.t, n: store.n, p: store.p }
+      : selfAgent
+        ? { th: selfAgent.parent.th, p: selfAgent.id }
+        : inheritedParent;
+    const id = !selfAgent && assignedId ? assignedId : newId();
+    if (!selfAgent) selfAgent = { id, parent };
+    const report = (kind: PiAgentEntryKind, fields?: Partial<PiAgentEntry>) =>
+      emit(id, parent.th, kind, fields);
+    report("start", { src: "agent", parent, pid: process.pid, cwd: process.cwd() });
+    const model = modelId(agent.state?.model);
+    const thinking = agent.state?.thinkingLevel;
+    if (model || typeof thinking === "string")
+      report("meta", {
+        ...(model ? { model } : {}),
+        ...(typeof thinking === "string" ? { thinking } : {}),
+      });
+    const forward = agentEventReporter(report);
+    agent.subscribe?.((event: AnyRecord) => {
+      try {
+        forward(event);
+      } catch {
+        // Never interfere with the agent.
+      }
+    });
+  };
+  const agentClassMarker = Symbol.for("rove.agentHook.agentClass");
+  const adoptAgentClass = (AgentClass: AnyRecord | undefined) => {
+    const proto = AgentClass?.prototype as Record<PropertyKey, any> | undefined;
+    if (!proto || proto[agentClassMarker] || typeof proto.runWithLifecycle !== "function") return;
+    proto[agentClassMarker] = true;
+    const original = proto.runWithLifecycle;
+    proto.runWithLifecycle = function (this: AnyRecord, ...args: unknown[]) {
+      try {
+        observeSdkAgent(this);
+      } catch {
+        // Never interfere with the agent.
+      }
+      return original.apply(this, args);
+    };
+  };
+  // Only marked processes that are not the Pi CLI itself: a Pi CLI child reports
+  // through the extension role, and the worker observes its own agents.
+  if (
+    inheritedParent &&
+    !isPiCli(process.argv[1]) &&
+    typeof (nodeModule as AnyRecord).registerHooks === "function"
+  ) {
+    try {
+      (nodeModule as AnyRecord).registerHooks({
+        load(
+          url: string,
+          context: unknown,
+          nextLoad: (url: string, context: unknown) => AnyRecord,
+        ) {
+          const result = nextLoad(url, context);
+          if (!/[\\/]pi-agent-core[\\/]dist[\\/]agent\.js$/.test(url) || result?.source == null)
+            return result;
+          const source =
+            typeof result.source === "string"
+              ? result.source
+              : Buffer.from(result.source).toString("utf8");
+          return {
+            ...result,
+            source: `${source}\n;globalThis[Symbol.for("rove.agentHook.v1")]?.adoptAgentClass?.(Agent);\n`,
+          };
+        },
+      });
+    } catch {
+      // Older runtimes cannot observe SDK-driven agents.
+    }
+  }
+
   /** Extension role: the child Pi reports itself through public extension events. */
   const extension = (pi: AnyRecord) => {
     if (!inheritedParent || selfAgent || typeof pi?.on !== "function") return;
@@ -787,14 +934,7 @@ export function roveAgentHook(
     selfAgent = agent;
     const report = (kind: PiAgentEntryKind, fields?: Partial<PiAgentEntry>) =>
       emit(agent.id, agent.parent.th, kind, fields);
-    const modelId = (model: AnyRecord | undefined) =>
-      model && typeof model.id === "string"
-        ? typeof model.provider === "string"
-          ? `${model.provider}/${model.id}`
-          : model.id
-        : undefined;
     report("start", { src: "pi", parent: agent.parent, pid: process.pid, cwd: process.cwd() });
-    let sawTask = false;
     pi.on("session_start", (_event: unknown, ctx: AnyRecord) => {
       const model = modelId(ctx?.model);
       let session: string | undefined;
@@ -818,51 +958,21 @@ export function roveAgentHook(
     pi.on("thinking_level_select", (event: AnyRecord) => {
       if (typeof event?.level === "string") report("meta", { thinking: event.level });
     });
-    pi.on("agent_start", () => report("busy"));
-    pi.on("agent_end", () => report("idle"));
-    pi.on("message_end", (event: AnyRecord) => {
-      const message = event?.message as AnyRecord | undefined;
-      if (message?.role === "user") {
-        const text = messageText(message).trim();
-        if (text) report(sawTask ? "user" : "task", { text: bounded(text, TEXT_LIMIT) });
-        sawTask = true;
-      } else if (message?.role === "assistant") {
-        const text = messageText(message).trim();
-        const usage = usageFields(message.usage);
-        report("text", {
-          ...(text ? { text: bounded(text, TEXT_LIMIT) } : {}),
-          ...(typeof message.stopReason === "string" ? { stop: message.stopReason } : {}),
-          ...(typeof message.errorMessage === "string"
-            ? { error: bounded(message.errorMessage, 1_000) }
-            : {}),
-          ...(typeof message.provider === "string" && typeof message.model === "string"
-            ? { model: `${message.provider}/${message.model}` }
-            : {}),
-        });
-        if (usage) report("usage", usage);
-      }
-    });
-    pi.on("tool_execution_start", (event: AnyRecord) => {
-      const target = toolTarget(event?.args);
-      report("tool", {
-        id: String(event?.toolCallId ?? newId()),
-        name: String(event?.toolName ?? "tool"),
-        ...(target ? { target } : {}),
-      });
-    });
-    pi.on("tool_execution_end", (event: AnyRecord) => {
-      const out = toolResultText(event?.result);
-      report("toolEnd", {
-        id: String(event?.toolCallId ?? ""),
-        ...(event?.isError === true ? { isError: true } : {}),
-        ...(out ? { out } : {}),
-      });
-    });
+    const forward = agentEventReporter(report);
+    for (const name of [
+      "agent_start",
+      "agent_end",
+      "message_end",
+      "tool_execution_start",
+      "tool_execution_end",
+    ])
+      pi.on(name, (event: AnyRecord) => forward({ ...event, type: name }));
   };
 
   const api: PiAgentHookApi & {
     extension: typeof extension;
     adoptPiProcess: typeof adoptPiProcess;
+    adoptAgentClass: typeof adoptAgentClass;
   } = {
     hookPath,
     run: (store, fn) => storage.run(store, fn),
@@ -876,6 +986,7 @@ export function roveAgentHook(
     messageText,
     extension,
     adoptPiProcess,
+    adoptAgentClass,
   };
   shared[globalKey] = api;
   hookModule.exports = extension;

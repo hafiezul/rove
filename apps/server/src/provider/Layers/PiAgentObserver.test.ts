@@ -54,6 +54,7 @@ describe.skipIf(NodeOS.platform() === "win32")("PiAgentObserver", () => {
         "fanout:Left half",
         "fanout:Right half",
         "inproc:Plan the work",
+        "runner:Audit the runner",
         "subagent:Inspect the repo",
         "summarize:summarize model calls",
       ].toSorted(),
@@ -72,6 +73,11 @@ describe.skipIf(NodeOS.platform() === "win32")("PiAgentObserver", () => {
       typedUsage: { totalTokens: 16, toolUses: 1 },
     });
     expect(byRole["inproc:Plan the work"]).toMatchObject({ summary: "Plan ready" });
+    expect(byRole["runner:Audit the runner"]).toMatchObject({
+      status: "completed",
+      summary: "Runner audited",
+      model: "test/runner-model",
+    });
     expect(byRole["summarize:summarize model calls"]).toMatchObject({
       summary: "Short summary",
       model: "test/summary-model",
