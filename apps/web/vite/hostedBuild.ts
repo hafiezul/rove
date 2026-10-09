@@ -11,7 +11,10 @@ const DISABLED_HOSTED_SETTINGS = [
   "VITE_RELAY_OTLP_TRACES_TOKEN",
 ] as const;
 
-export function hostedBuildDefines(appUrl: string | undefined) {
+export function hostedBuildDefines(appUrl: string | undefined, channel = "latest") {
+  if (channel !== "latest" && channel !== "nightly") {
+    throw new Error("VITE_HOSTED_APP_CHANNEL must be latest or nightly.");
+  }
   if (!appUrl) {
     throw new Error(
       "Set VITE_HOSTED_APP_URL to the public HTTPS origin before building hosted web.",
@@ -37,6 +40,6 @@ export function hostedBuildDefines(appUrl: string | undefined) {
       DISABLED_HOSTED_SETTINGS.map((name) => [`import.meta.env.${name}`, JSON.stringify("")]),
     ),
     "import.meta.env.VITE_HOSTED_APP_URL": JSON.stringify(url.origin),
-    "import.meta.env.VITE_HOSTED_APP_CHANNEL": JSON.stringify("latest"),
+    "import.meta.env.VITE_HOSTED_APP_CHANNEL": JSON.stringify(channel),
   };
 }

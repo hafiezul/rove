@@ -7,11 +7,20 @@ on:
         description: Deploy the browser app to Cloudflare after building
         type: boolean
         default: false
+      channel:
+        description: Hosted release channel to build and deploy
+        type: choice
+        options: [stable, nightly]
+        default: stable
   workflow_call:
     inputs:
       deploy:
         type: boolean
         default: false
+      channel:
+        description: Hosted release channel (stable or nightly).
+        type: string
+        default: stable
       ref:
         description: Commit to build. Defaults to the triggering ref.
         type: string
@@ -25,8 +34,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-web
+  group: cloudflare-web-${{ inputs.channel }}
   cancel-in-progress: false
+
+env:
+  CLOUDFLARE_WEB_CONFIG: ${{ inputs.channel == 'nightly' && 'apps/web/wrangler.nightly.json' || 'apps/web/wrangler.json' }}
+  VITE_HOSTED_APP_CHANNEL: ${{ inputs.channel == 'nightly' && 'nightly' || 'latest' }}
 
 jobs:
   build:
@@ -53,10 +66,16 @@ jobs:
               - --filter=@rove-code/web...
 
       - name: Set hosted origin
+        env:
+          RELEASE_CHANNEL: ${{ inputs.channel }}
         run: |
+          case "$RELEASE_CHANNEL" in
+            stable|nightly) ;;
+            *) echo "Unsupported hosted channel: $RELEASE_CHANNEL" >&2; exit 1 ;;
+          esac
           node --input-type=module -e '
             import { readFileSync, appendFileSync } from "node:fs";
-            const config = JSON.parse(readFileSync("apps/web/wrangler.json", "utf8"));
+            const config = JSON.parse(readFileSync(process.env.CLOUDFLARE_WEB_CONFIG, "utf8"));
             appendFileSync(process.env.GITHUB_ENV, `VITE_HOSTED_APP_URL=https://${config.routes[0].pattern}\n`);
           '
 
@@ -68,15 +87,18 @@ jobs:
       - name: Build
         env:
           APP_VERSION: ${{ inputs.version }}
-        run: vp run build:web:hosted
+        run: |
+          vp run --filter @rove-code/web build --mode hosted
+          node scripts/apply-web-brand-assets.ts --channel "$VITE_HOSTED_APP_CHANNEL"
+          node scripts/check-cloudflare-web.mjs
 
       - name: Validate Cloudflare configuration without deploying
-        run: vp dlx wrangler@4.147.0 deploy --config apps/web/wrangler.json --dry-run
+        run: vp dlx wrangler@4.147.0 deploy --config "$CLOUDFLARE_WEB_CONFIG" --dry-run
 
       - name: Save deployable assets
         uses: actions/upload-artifact@v7
         with:
-          name: cloudflare-web
+          name: cloudflare-web-${{ inputs.channel }}
           path: apps/web/dist
           include-hidden-files: true
           if-no-files-found: error
@@ -95,7 +117,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/download-artifact@v8
         with:
-          name: cloudflare-web
+          name: cloudflare-web-${{ inputs.channel }}
           path: apps/web/dist
 
       - name: Setup Vite+
@@ -114,9 +136,9 @@ jobs:
         run: |
           : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN. Check cloudflare-web environment secrets and caller secret forwarding.}"
           : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID. Check cloudflare-web environment secrets and caller secret forwarding.}"
-          vp dlx wrangler@4.147.0 deploy --config apps/web/wrangler.json
+          vp dlx wrangler@4.147.0 deploy --config "$CLOUDFLARE_WEB_CONFIG"
 
       - name: Verify deployed project file schema
         run: |
-          origin="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const config = JSON.parse(readFileSync("apps/web/wrangler.json", "utf8")); console.log(`https://${config.routes[0].pattern}`);')"
+          origin="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const config = JSON.parse(readFileSync(process.env.CLOUDFLARE_WEB_CONFIG, "utf8")); console.log(`https://${config.routes[0].pattern}`);')"
           node scripts/check-cloudflare-web.mjs --url "$origin"
