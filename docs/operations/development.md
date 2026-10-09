@@ -2,7 +2,7 @@
 
 ## First checkout
 
-Install `vp` using the [root README](../../README.md#install-vp). The checkout requires Node 24;
+Install [Vite+](https://viteplus.dev/guide/) (`vp`). The checkout requires Node 24;
 Bun is optional. From the repository root:
 
 ```sh
@@ -27,8 +27,8 @@ Add `--browser` to open a browser automatically.
 ### State and ports
 
 Linked worktrees default to their own `.rove/userdata`, even when `ROVE_HOME` is set.
-The main checkout defaults to `~/.rove/dev/userdata`. An explicit `--home-dir` wins in both cases.
-Never run a development server against the live `~/.rove/userdata`.
+The main checkout defaults to `~/.rove-code/dev/userdata`. An explicit `--home-dir` wins in both cases.
+Never run a development server against the live `~/.rove-code/userdata`.
 See [test data](../../AGENTS.md#test-data) for copying a consistent database snapshot.
 
 Read ports from the `[dev-runner]` output. Worktrees derive stable preferences from their paths,

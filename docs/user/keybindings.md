@@ -53,7 +53,7 @@ behavior in Settings → Keyboard.
 ## Edit the configuration file
 
 Keybindings live on the environment's machine, in
-`~/.rove/userdata/keybindings.json` by default. You can edit this file directly.
+`~/.rove-code/userdata/keybindings.json` by default. You can edit this file directly.
 It is a JSON array of rules:
 
 ```json
