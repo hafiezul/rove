@@ -294,7 +294,7 @@ export function AgentDetailView({
     data?.costUsd !== undefined
       ? {
           label: "Cost",
-          value: `$${data.costUsd < 0.01 ? data.costUsd.toFixed(4) : data.costUsd.toFixed(2)}`,
+          value: data.costUsd < 0.01 ? "<$0.01" : `$${data.costUsd.toFixed(2)}`,
         }
       : null,
     agent.activationCount > 1 ? { label: "Runs", value: String(agent.activationCount) } : null,
