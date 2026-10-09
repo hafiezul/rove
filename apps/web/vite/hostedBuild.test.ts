@@ -26,6 +26,23 @@ describe("hostedBuildDefines", () => {
     }
   });
 
+  it("builds a nightly client with its own public origin and channel", () => {
+    const defines = hostedBuildDefines("https://rove-nightly.hafiezulzikry.com", "nightly");
+
+    expect(JSON.parse(defines["import.meta.env.VITE_HOSTED_APP_URL"])).toBe(
+      "https://rove-nightly.hafiezulzikry.com",
+    );
+    expect(JSON.parse(defines["import.meta.env.VITE_HOSTED_APP_CHANNEL"])).toBe("nightly");
+    expect(defines).toHaveProperty(["import.meta.env.VITE_HTTP_URL"], JSON.stringify(""));
+    expect(defines).toHaveProperty(["import.meta.env.VITE_WS_URL"], JSON.stringify(""));
+  });
+
+  it.each(["stable", "preview", "unknown"])("rejects an unsupported app channel %s", (channel) => {
+    expect(() => hostedBuildDefines("https://rove.hafiezulzikry.com", channel)).toThrow(
+      /VITE_HOSTED_APP_CHANNEL/,
+    );
+  });
+
   it.each([
     undefined,
     "",

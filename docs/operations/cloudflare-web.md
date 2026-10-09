@@ -1,6 +1,6 @@
 # Deploy the Rove browser app for free
 
-Deploy the browser app at `https://rove.hafiezulzikry.com` with Cloudflare Workers Static Assets. This deployment contains no Worker server code or agent backend. Users pair their own running Rove environments.
+Deploy the stable browser app at `https://rove.hafiezulzikry.com` and the nightly app at `https://rove-nightly.hafiezulzikry.com` with Cloudflare Workers Static Assets. These deployments contain no Worker server code or agent backend. Users pair their own running Rove environments. The two origins keep separate browser connections and settings.
 
 Use Cloudflare's free plan. Static asset requests are [free and unlimited](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/). You still pay for domain renewal and any coding-agent subscriptions or API usage.
 
@@ -14,9 +14,9 @@ Use Cloudflare's free plan. Static asset requests are [free and unlimited](https
 
 The deployment uses only your custom domain. You do not need to register a `workers.dev` subdomain.
 
-The deployment creates the `rove.hafiezulzikry.com` DNS record and HTTPS certificate. Do not create a separate CNAME for that hostname. If the hostname already has a DNS record, resolve the conflict before deploying. Cloudflare requires an active zone for [Workers custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+Each deployment creates its hostname's DNS record and HTTPS certificate. Do not create separate CNAMEs for `rove.hafiezulzikry.com` or `rove-nightly.hafiezulzikry.com`. If a hostname already has a DNS record, resolve the conflict before deploying. Cloudflare requires an active zone for [Workers custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
-To use another hostname, change the custom-domain `pattern` in `apps/web/wrangler.json`. The workflow reads the browser app's public origin from that configuration.
+To use another hostname, change the custom-domain `pattern` in `apps/web/wrangler.json` (stable) or `apps/web/wrangler.nightly.json` (nightly). The separate Workers are `rove-web` and `rove-web-nightly`. The workflow reads the browser app's public origin from the selected configuration.
 
 ## Configure GitHub deployment credentials
 
@@ -36,11 +36,11 @@ Keep the token in GitHub secrets. Do not commit it or paste it into a thread. No
 The workflow must be present on the repository's default branch before GitHub offers manual dispatch.
 
 1. Open **Actions → Cloudflare web → Run workflow**.
-2. Select the branch containing the deployment changes.
+2. Select the branch containing the deployment changes and choose the `stable` or `nightly` channel.
 3. Leave **Deploy the browser app to Cloudflare after building** unchecked.
 4. Run the workflow.
 5. Confirm that the build and Wrangler dry run pass.
-6. Download the `cloudflare-web` artifact if you want to inspect the deployable files.
+6. Download the `cloudflare-web-stable` or `cloudflare-web-nightly` artifact if you want to inspect the deployable files.
 
 The hosted build disables fixed backend URLs and inherited cloud settings. It also disables source maps and checks the output against Cloudflare's free asset limits.
 
@@ -51,14 +51,14 @@ Do not enable `ROVE_CLOUD_READY` or `ROVE_HOSTED_RELEASE_READY` for this deploym
 1. Run **Cloudflare web** again with the deployment checkbox enabled.
 2. Approve the `cloudflare-web` environment if approval is configured.
 3. Wait for the deployment job to pass.
-4. Open `https://rove.hafiezulzikry.com`.
+4. Open `https://rove.hafiezulzikry.com` for stable or `https://rove-nightly.hafiezulzikry.com` for nightly.
 5. Confirm that the app opens without requesting an account on an inherited cloud service.
 
 The initial deployment can take time to provision its HTTPS certificate. Opening the website does not start an agent or connect to a backend automatically.
 
-After the first deployment works, set the repository variable `ROVE_CLOUDFLARE_WEB_READY=true`. Each published stable release then deploys the browser app from the release commit. Nightly and preview releases do not touch the website. To deploy outside a release, run the workflow manually on the desired branch.
+After the first deployment works, set the repository variable `ROVE_CLOUDFLARE_WEB_READY=true`. Published stable releases deploy the stable app; published nightlies deploy only the nightly app, without changing stable. Preview releases deploy neither. To deploy outside a release, run the workflow manually on an allowed deployment branch and select the channel.
 
-To stop serving it, unset `ROVE_CLOUDFLARE_WEB_READY` and remove the `rove-web` Worker and its custom domain in Cloudflare. Saved connections stay in users' browsers.
+To stop automatic deployments, unset `ROVE_CLOUDFLARE_WEB_READY`. To stop serving either app, remove its Worker and custom domain in Cloudflare. Saved connections stay in users' browsers.
 
 ## Publish the marketing site
 
@@ -70,7 +70,7 @@ The workflow reuses the `cloudflare-web` environment and its secrets.
 2. Run it again with the deployment checkbox enabled.
 3. Open the site and confirm that `curl -fsSL https://rove-code.hafiezulzikry.com/install.sh` prints the install script.
 
-After the first deployment works, set the repository variable `ROVE_MARKETING_RELEASE_READY=true`. Each published nightly release then redeploys the site from the release commit. That variable also makes the release refuse to publish while `apps/marketing` still carries upstream branding; run `node scripts/check-release-identity.mjs` to check. Download links fetch the latest release in the browser, so a new release does not need a redeploy to show up.
+After the first deployment works, set the repository variable `ROVE_MARKETING_RELEASE_READY=true`. Each published stable release then redeploys the site from the release commit. Nightly and preview releases do not redeploy marketing. That variable also makes the release refuse to publish while `apps/marketing` still carries upstream branding; run `node scripts/check-release-identity.mjs` to check. Download links fetch the latest release in the browser, so a new release does not need a redeploy to show up.
 
 ## Publish pull request previews
 

@@ -10,7 +10,7 @@ Manual runs support stable, nightly, and preview, and default to `build_only=tru
 
 The first release is **self-hosted desktop and persistent CLI hosts, with local, LAN, Tailscale, and desktop SSH connections**. Leave `ROVE_CLOUD_READY` unset: relay deployment and configuration are skipped, and desktop/CLI builds omit Rove Connect. Apple and Azure signing credentials may be omitted for unsigned builds. Signed macOS previews require `ROVE_MACOS_SIGNING_READY=true`; mobile production requires `ROVE_MOBILE_STORES_READY=true` because store distribution needs paid developer accounts. Hosted web, AUR, and marketing retain separate readiness controls; those controls indicate release readiness, not necessarily a paid service.
 
-The static browser app deploys to Cloudflare. See the [Cloudflare deployment procedure](./cloudflare-web.md). Stable releases deploy it when `ROVE_CLOUDFLARE_WEB_READY=true`. It does not require the relay gate.
+The static browser app deploys to Cloudflare. See the [Cloudflare deployment procedure](./cloudflare-web.md). When `ROVE_CLOUDFLARE_WEB_READY=true`, stable releases deploy to `rove.hafiezulzikry.com` and nightlies deploy to the separate `rove-nightly.hafiezulzikry.com` origin. Preview releases deploy neither. Marketing deploys only on stable releases when `ROVE_MARKETING_RELEASE_READY=true`. These deployments do not require the relay gate.
 
 For the identity migration, stage protocol version 2 clients and servers together. If Connect is enabled,
 stage the matching relay before connecting those clients. Native module names changed, so mobile requires

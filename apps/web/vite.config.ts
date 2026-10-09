@@ -158,7 +158,9 @@ const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 export default defineConfig(({ command, mode }) => {
   const isHostedBuild = command === "build" && mode === "hosted";
   const sourcemap = isHostedBuild ? false : buildSourcemap;
-  const hostedDefines = isHostedBuild ? hostedBuildDefines(configuredHostedAppUrl) : undefined;
+  const hostedDefines = isHostedBuild
+    ? hostedBuildDefines(configuredHostedAppUrl, configuredHostedAppChannel || "latest")
+    : undefined;
 
   return {
     assetsInclude: ["**/*.wasm"],
