@@ -676,84 +676,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mob
 }
 
 @layer components {
-  /* The checkpoint rail. Agent rows of a turn indent by the gutter and draw
-     one segment each; adjacent segments abut (row spacing is padding inside
-     the row) so a turn reads as one continuous path. Static: it repaints only
-     when rows change. */
-  [data-timeline-rail] {
-    --timeline-rail-x: 0.25rem;
-    --timeline-rail-gutter: 0.875rem;
-    position: relative;
-    padding-inline-start: var(--timeline-rail-gutter);
-  }
-
-  [data-timeline-rail]::before {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    inset-inline-start: var(--timeline-rail-x);
-    width: 1.5px;
-    background: var(--timeline-rail);
-    pointer-events: none;
-  }
-
-  /* Placed inside the assistant row's px-1 content box, so it reaches back
-     across the gutter and that padding to land on the rail. */
-  .timeline-checkpoint {
-    --timeline-checkpoint-reach: calc(
-      var(--timeline-rail-gutter) + 0.25rem - var(--timeline-rail-x)
-    );
-    position: absolute;
-    top: 0.625rem;
-    left: calc(-1 * var(--timeline-checkpoint-reach));
-    z-index: 1;
-    width: var(--timeline-checkpoint-reach);
-    height: var(--timeline-checkpoint-reach);
-    padding: 0;
-    border: 0;
-    background: none;
-    color: color-mix(in srgb, var(--ring) 70%, transparent);
-    cursor: pointer;
-    transition: color 120ms ease;
-
-    & svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-    }
-
-    & path {
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-    }
-
-    & rect {
-      fill: var(--background);
-      stroke: currentColor;
-      stroke-width: 1.5;
-      transition: fill 120ms ease;
-    }
-
-    &:hover,
-    &:focus-visible {
-      color: var(--ring);
-    }
-
-    &:hover rect,
-    &:focus-visible rect {
-      fill: currentColor;
-    }
-
-    &:focus-visible {
-      outline: 2px solid color-mix(in srgb, var(--ring) 60%, transparent);
-      outline-offset: 2px;
-      border-radius: 2px;
-    }
-  }
-
   /* AnimatedHeight owns resizing for its contents. Nested collapsibles must
      expose their final layout immediately, otherwise each animation frame
      restarts the parent's transition and the dialog trails behind its content. */
@@ -1183,8 +1105,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mob
   --terminal-foreground: var(--foreground);
   --terminal-cursor: #3a52b4;
   --terminal-selection-background: rgb(58 82 180 / 18%);
-  /* The checkpoint rail: the agent's path down the timeline through a turn. */
-  --timeline-rail: color-mix(in srgb, var(--ring) 38%, transparent);
 
   @variant dark {
     color-scheme: dark;
@@ -1197,7 +1117,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mob
     --card-foreground: var(--foreground);
     --popover: #161a29;
     --popover-foreground: var(--foreground);
-    /* Fold carries focus and the rail; buttons use a deeper step of it so
+    /* Fold carries focus; buttons use a deeper step of it so
        white labels keep their contrast. */
     --primary: #4f6bd8;
     --ring: #6e8bea;
@@ -1231,7 +1151,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(rove-mob
     --sidebar-stage-fade: var(--sidebar);
     --terminal-cursor: #6e8bea;
     --terminal-selection-background: rgb(110 139 234 / 28%);
-    --timeline-rail: color-mix(in srgb, var(--ring) 34%, transparent);
   }
 }
 
