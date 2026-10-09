@@ -578,6 +578,143 @@ describe("vcsActionState", () => {
     registry.dispose();
   });
 
+  it.effect.each([
+    "failure",
+    "defect",
+    "interruption",
+    "missing-terminal",
+    "remote-failure",
+  ] as const)("unblocks a stacked action after %s and allows a retry", (failure) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const targetKey = { environmentId, cwd };
+        const message = "Authentication failed";
+        let requests = 0;
+        const client = {
+          [WS_METHODS.gitRunStackedAction]: (input: GitRunStackedActionInput) => {
+            requests += 1;
+            if (requests > 1) {
+              return Stream.make(
+                progress({
+                  kind: "action_finished",
+                  actionId: input.actionId,
+                  cwd,
+                  action,
+                  result,
+                }),
+              );
+            }
+            const start = Stream.make(
+              progress({
+                kind: "phase_started",
+                actionId: input.actionId,
+                cwd,
+                action,
+                phase: "commit",
+                label: "Generating commit message...",
+              }),
+            );
+            switch (failure) {
+              case "failure":
+                return Stream.concat(start, Stream.fail(new Error(message)));
+              case "defect":
+                return Stream.concat(start, Stream.die(new Error(message)));
+              case "interruption":
+                return Stream.concat(start, Stream.fromEffect(Effect.interrupt));
+              case "missing-terminal":
+                return start;
+              case "remote-failure":
+                return Stream.concat(
+                  start,
+                  Stream.make(
+                    progress({
+                      kind: "action_failed",
+                      actionId: input.actionId,
+                      cwd,
+                      action,
+                      phase: "commit",
+                      message,
+                    }),
+                  ),
+                );
+            }
+          },
+        };
+        const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
+          target,
+          state: yield* SubscriptionRef.make<SupervisorConnectionState>({
+            ...AVAILABLE_CONNECTION_STATE,
+            desired: true,
+            network: "online",
+            phase: "connected",
+            attempt: 1,
+            generation: 1,
+          }),
+          session: yield* SubscriptionRef.make(Option.some(session(client))),
+          prepared: yield* SubscriptionRef.make(Option.none<PreparedConnection>()),
+          connect: Effect.void,
+          disconnect: Effect.void,
+          retryNow: Effect.void,
+        });
+        const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
+          run: (_environmentId, effect) =>
+            Effect.provideService(effect, EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+          runStream: (_environmentId, stream) =>
+            Stream.provideService(stream, EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+        } as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+        const manager = createVcsActionManager(
+          Atom.runtime(
+            Layer.merge(
+              Layer.succeed(EnvironmentRegistry.EnvironmentRegistry, environmentRegistry),
+              Layer.succeed(
+                Persistence.EnvironmentCacheStore,
+                cacheStore(() => {}),
+              ),
+            ),
+          ),
+        );
+        const registry = yield* Effect.acquireRelease(Effect.sync(AtomRegistry.make), (registry) =>
+          Effect.sync(() => registry.dispose()),
+        );
+        const command = manager.runStackedAction(targetKey);
+        let wasRunning = false;
+        const failed = yield* Effect.promise(() =>
+          command.run(registry, {
+            actionId: "failed-action",
+            action,
+            onProgress: (event) => {
+              if (event.kind === "phase_started") {
+                wasRunning = registry.get(manager.stateAtom(targetKey)).isRunning;
+              }
+            },
+          }),
+        );
+        expect(AsyncResult.isFailure(failed)).toBe(true);
+        expect(wasRunning).toBe(true);
+        const state = registry.get(manager.stateAtom(targetKey));
+        expect(state.isRunning).toBe(false);
+        if (failure === "interruption") {
+          expect(state).toEqual(EMPTY_VCS_ACTION_STATE);
+        } else if (failure === "missing-terminal") {
+          expect(state.error).toContain("ended without a terminal result");
+        } else {
+          expect(state.error).toBe(message);
+        }
+
+        const retried = yield* Effect.promise(() =>
+          command.run(registry, { actionId: "retry-action", action }),
+        );
+        expect(AsyncResult.isSuccess(retried)).toBe(true);
+        expect(requests).toBe(2);
+        expect(registry.get(manager.stateAtom(targetKey))).toMatchObject({
+          isRunning: false,
+          error: null,
+          actionId: "retry-action",
+        });
+      }),
+    ),
+  );
+
   it.effect("invalidates persisted refs after successful and failed stacked actions", () =>
     Effect.scoped(
       Effect.gen(function* () {

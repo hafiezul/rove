@@ -5,6 +5,7 @@ import {
 } from "@rove-code/contracts";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@rove-code/shared/git";
 import { extractJsonObject } from "@rove-code/shared/schemaJson";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -324,15 +325,26 @@ export const makeAntigravityTextGeneration = Effect.fn("makeAntigravityTextGener
     },
     (effect, input) =>
       effect.pipe(
-        Effect.mapError((cause) =>
-          isTextGenerationError(cause)
-            ? cause
-            : new TextGenerationError({
-                operation: input.operation,
-                detail: "Antigravity text generation failed.",
-                cause,
-              }),
-        ),
+        Effect.catchCause((cause) => {
+          if (Cause.hasInterruptsOnly(cause)) {
+            return Effect.interrupt;
+          }
+          // ACP can surface authentication failures as RPC defects. Normalize
+          // those at the provider boundary so Git can report a retryable failure.
+          const error = Cause.squash(cause);
+          return Effect.fail(
+            isTextGenerationError(error)
+              ? error
+              : new TextGenerationError({
+                  operation: input.operation,
+                  detail:
+                    error instanceof Error && error.message.trim().length > 0
+                      ? `Antigravity text generation failed: ${error.message}`
+                      : "Antigravity text generation failed.",
+                  cause: error,
+                }),
+          );
+        }),
         Effect.scoped,
       ),
   );
