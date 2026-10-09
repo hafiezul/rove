@@ -35,6 +35,7 @@ import { parseRoveProjectFile } from "@rove-code/shared/roveProjectFile";
 import { resolveProjectFileBackedSetting } from "@rove-code/shared/projectSettings";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
 import * as GitVcsDriver from "./GitVcsDriver.ts";
+import { stopWorktreeProcesses } from "./worktreeProcesses.ts";
 import {
   parseRemoteNames,
   parseRemoteNamesInGitOrder,
@@ -3636,6 +3637,16 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       cwd: input.cwd,
       args,
     });
+    // Resolve before removal; a deleted checkout can no longer be resolved.
+    const realWorktreePath = yield* fileSystem.realPath(input.path).pipe(Effect.option);
+    const worktreeRoots = [
+      ...new Set([path.resolve(input.path), ...Option.toArray(realWorktreePath)]),
+    ];
+    // Agent-launched dev servers otherwise outlive their checkout on Linux.
+    const stopLeftoverProcesses = stopWorktreeProcesses(worktreeRoots).pipe(
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.ignoreCause({ log: true }),
+    );
     const verifyRemoved = Effect.gen(function* () {
       const stillExists = yield* fileSystem.exists(input.path).pipe(
         Effect.mapError(
@@ -3668,7 +3679,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       },
     );
     if (result.exitCode === 0) {
-      return yield* verifyRemoved;
+      yield* verifyRemoved;
+      return yield* stopLeftoverProcesses;
     }
     // Threads can share a worktree path, and worktrees get removed or pruned
     // outside the app, so a worktree that is already gone is a no-op rather
@@ -3679,7 +3691,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       !(yield* fileSystem.exists(input.path).pipe(Effect.orElseSucceed(() => false)));
     if (alreadyGone) {
       yield* pruneWorktrees({ cwd: input.cwd });
-      return;
+      return yield* stopLeftoverProcesses;
     }
     const unregistered = result.stderr.toLowerCase().includes("is not a working tree");
     if (unregistered && input.force && options?.recoverPartialManagedWorktree) {
@@ -3716,7 +3728,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
                 }),
             ),
           );
-          return yield* verifyRemoved;
+          yield* verifyRemoved;
+          return yield* stopLeftoverProcesses;
         }
       }
     }

@@ -4,6 +4,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeHttp from "node:http";
 import * as NodeStreamConsumers from "node:stream/consumers";
+import * as NodeChildProcess from "node:child_process";
 import * as Schema from "effect/Schema";
 import * as RuntimePredicate from "effect/Predicate";
 import { EnvironmentId, ProviderInstanceId, ThreadId } from "@rove-code/contracts";
@@ -103,6 +104,27 @@ describe("isolated Pi instance runtime", () => {
       await current.getTurnUsageLimit?.("Request failed", "2026-10-03T00:00:00.000Z"),
     ).toBeNull();
     expect(current.messages).toEqual(before);
+  });
+
+  it.skipIf(
+    NodeChildProcess.spawnSync("systemctl", ["--user", "show-environment"], { stdio: "ignore" })
+      .status !== 0,
+  )("keeps catalog, prompt IPC and shutdown working inside a shared process budget", async () => {
+    const agentDir = directory("guarded-instance");
+    const runtime = await PiRuntimeProcess.create({ agentDir }, false, {
+      ...process.env,
+      ROVE_PI_MEMORY_BUDGET_MIB: "2048",
+    });
+    runtimes.push(runtime);
+    expect(
+      (await runtime.getCatalogModels()).some((model) => model.slug === "local/guarded-instance"),
+    ).toBe(true);
+    const current = await session(runtime, agentDir);
+    const probe = nextEvent(current, (event) => event.type === "rove_ui_notify");
+    await current.prompt("/probe-instance");
+    expect(JSON.parse(String((await probe).message))).toMatchObject({ directoryNow: agentDir });
+    await current.dispose();
+    await runtime.dispose();
   });
 
   it("reports idle only once its sessions are disposed", async () => {

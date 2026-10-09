@@ -107,6 +107,28 @@ vp lint <files>
 vp run --filter <package> typecheck
 ```
 
+#### Guard expensive workloads on small Linux environments
+
+On Linux with a systemd user manager and `flock`, run verification inside a shared resource budget:
+
+```sh
+vp run guarded -- vp run --filter @rove-code/server typecheck
+```
+
+Guarded commands share 2048 MiB of memory and two CPU cores across worktrees and environments for the same OS user, with no workload swap. Commands have a 120-second deadline; set `--timeout-seconds` before the separator to change it (up to 86400 seconds). A job can be killed for running out of memory or time; the purpose is to keep the environment reachable, not to make a large typecheck fit. Background descendants are stopped when their owning command exits. This is opt-in; ordinary commands and other users' processes are unaffected.
+
+For automatic containment of **Pi** runtimes and their tool descendants, set `ROVE_PI_MEMORY_BUDGET_MIB=2048` before starting the server, then recreate any already-running Pi instances. The server and launcher remain outside the workload pool. Pi instances have no whole-instance deadline; use the guarded wrapper for time-bounded tool commands. Other providers are not automatically contained by this setting. Unset it and recreate the instances to opt out. Background servers launched by a guarded Pi instance stop when that instance exits; launch them outside the guard if they must survive. Unsupported hosts fail the guarded launch rather than silently running without limits.
+
+Use `--memory-mib` before the command separator to request another budget. A pool already configured with a different budget refuses the launch. After stopping all guarded commands and Pi instances, reconfigure it explicitly:
+
+```sh
+systemctl --user set-property --runtime rove-provider-workloads.slice \
+  MemoryMax=3072M MemorySwapMax=0 CPUQuota=200%
+vp run guarded --memory-mib 3072 -- <command>
+```
+
+The pool configuration is runtime-only and disappears with the user manager. Do not increase it without reserving RAM for the server, the OS, and other applications.
+
 Use `vp run lint:mobile` for native mobile changes. CI owns the full suite; see
 [ci.yml](../../.github/workflows/ci.yml) for its current jobs.
 The [manual Windows lane](../../.github/workflows/windows-tests.yml) is available for focused
