@@ -82,6 +82,10 @@ to Rove-managed worktrees. Stop active sessions and terminals, and save local ch
 files other than `node_modules`, before removing a checkout. Shared worktrees, project workspaces,
 locked worktrees, and detached checkouts cannot be removed here.
 
+On Linux, background processes Rove started inside a removed checkout, such as dev servers an
+agent left running, are stopped so they don't keep holding memory. Processes started outside Rove
+are left alone.
+
 ## Storage cleanup
 
 Open **Settings → Storage** to enable automatic cleanup on one machine or all connected
