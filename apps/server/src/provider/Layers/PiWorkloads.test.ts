@@ -1,18 +1,19 @@
 // @effect-diagnostics nodeBuiltinImport:off
-import * as ChildProcess from "node:child_process";
-import * as Crypto from "node:crypto";
-import * as Net from "node:net";
-import * as FS from "node:fs/promises";
-import * as OS from "node:os";
-import * as Path from "node:path";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "node:crypto";
+import * as NodeNet from "node:net";
+import * as NodeFSP from "node:fs/promises";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { executeProcessControl, makeManagedProcess } from "../../diagnostics/ProcessBudget.ts";
 import { resolvePiWorkloadMemory } from "../../diagnostics/PiWorkloadPolicy.ts";
 import { PiWorkloads } from "./PiWorkloads.ts";
 
 const supported =
+  // oxlint-disable-next-line rove/no-global-process-runtime -- This integration-test skip requires the real host platform, outside an Effect runtime.
   process.platform === "linux" &&
-  ChildProcess.spawnSync("systemctl", ["--user", "show-environment"]).status === 0;
+  NodeChildProcess.spawnSync("systemctl", ["--user", "show-environment"]).status === 0;
 const quote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
 const node = (source: string) => `${quote(process.execPath)} -e ${quote(source)}`;
 
@@ -34,12 +35,12 @@ describe.skipIf(!supported)("Pi command isolation on Linux", () => {
   let directory: string;
   const managers: PiWorkloads[] = [];
   const owners: Array<ReturnType<typeof makeManagedProcess>> = [];
-  const sockets: Net.Socket[] = [];
-  const servers: Net.Server[] = [];
+  const sockets: NodeNet.Socket[] = [];
+  const servers: NodeNet.Server[] = [];
 
   beforeEach(async () => {
-    pool = `rove-workload-test-${Crypto.randomUUID()}.slice`;
-    directory = await FS.mkdtemp(Path.join(OS.tmpdir(), "rove-workload-test-"));
+    pool = `rove-workload-test-${NodeCrypto.randomUUID()}.slice`;
+    directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "rove-workload-test-"));
   });
   afterEach(async () => {
     await Promise.all(managers.splice(0).map((manager) => manager.dispose()));
@@ -51,7 +52,7 @@ describe.skipIf(!supported)("Pi command isolation on Linux", () => {
         .map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
     );
     await executeProcessControl("systemctl", ["--user", "stop", pool]);
-    await FS.rm(directory, { recursive: true, force: true });
+    await NodeFSP.rm(directory, { recursive: true, force: true });
   });
 
   async function manager() {
@@ -60,7 +61,7 @@ describe.skipIf(!supported)("Pi command isolation on Linux", () => {
       "process.send('ready'); process.on('message',()=>{})",
     ]);
     owners.push(owner);
-    const child = ChildProcess.spawn(owner.command, owner.args, {
+    const child = NodeChildProcess.spawn(owner.command, owner.args, {
       stdio: ["ignore", "ignore", "ignore", "ipc"],
     });
     await new Promise<void>((resolve, reject) => {
@@ -73,12 +74,12 @@ describe.skipIf(!supported)("Pi command isolation on Linux", () => {
   }
 
   async function gate() {
-    const address = Path.join(directory, Crypto.randomUUID());
-    let accept!: (socket: Net.Socket) => void;
-    const ready = new Promise<Net.Socket>((resolve) => {
+    const address = NodePath.join(directory, NodeCrypto.randomUUID());
+    let accept!: (socket: NodeNet.Socket) => void;
+    const ready = new Promise<NodeNet.Socket>((resolve) => {
       accept = resolve;
     });
-    const server = Net.createServer((socket) => {
+    const server = NodeNet.createServer((socket) => {
       sockets.push(socket);
       socket.once("data", () => accept(socket));
     });
@@ -218,7 +219,7 @@ describe.skipIf(!supported)("Pi command isolation on Linux", () => {
       },
     });
     expect(pid).toBeGreaterThan(0);
-    const status = await FS.readFile(`/proc/${pid}/status`, "utf8").catch(() => "");
+    const status = await NodeFSP.readFile(`/proc/${pid}/status`, "utf8").catch(() => "");
     expect(status === "" || /^State:\s+Z/m.test(status)).toBe(true);
     expect(await workloads.exec("echo free-slot", directory, { onData: () => {} })).toEqual({
       exitCode: 0,

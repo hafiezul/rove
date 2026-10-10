@@ -1,5 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off
-import * as OS from "node:os";
+import * as NodeOS from "node:os";
 import { executeProcessControl, parseProcessBudgetMiB } from "./ProcessBudget.ts";
 
 export interface PiWorkloadConfig {
@@ -14,8 +14,9 @@ export async function resolvePiWorkloadMemory(
   mode: "auto" | "on" | "off",
   configured: string,
   environment: NodeJS.ProcessEnv,
+  // oxlint-disable-next-line rove/no-global-process-runtime -- Pi runtime creation is SDK-native, outside Effect; tests inject this argument.
   platform = process.platform,
-  totalMemory = OS.totalmem(),
+  totalMemory = NodeOS.totalmem(),
 ): Promise<number | undefined> {
   const override = environment.ROVE_PI_MEMORY_BUDGET_MIB;
   if (mode === "off" && override === undefined) return undefined;

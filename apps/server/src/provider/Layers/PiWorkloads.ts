@@ -1,9 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off
 // @effect-diagnostics globalTimers:off - Shell deadlines must survive a stalled SDK.
-import * as ChildProcess from "node:child_process";
-import * as Crypto from "node:crypto";
-import * as Path from "node:path";
-import * as OS from "node:os";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "node:crypto";
+import * as NodePath from "node:path";
+import * as NodeOS from "node:os";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
@@ -89,8 +89,8 @@ export class PiWorkloads {
     signal: AbortSignal,
   ): Promise<Lease> {
     signal.throwIfAborted();
-    const lock = Path.join(this.runtimeDirectory, `${this.pool}.${kind}.lock`);
-    const holder = ChildProcess.spawn(
+    const lock = NodePath.join(this.runtimeDirectory, `${this.pool}.${kind}.lock`);
+    const holder = NodeChildProcess.spawn(
       "flock",
       [
         "--exclusive",
@@ -191,12 +191,12 @@ export class PiWorkloads {
       );
       signal.throwIfAborted();
       const ownedBudget = budget;
-      const child = ChildProcess.spawn(budget.command, budget.args, {
+      const child = NodeChildProcess.spawn(budget.command, budget.args, {
         cwd,
         env: options.env ?? process.env,
         stdio: ["ignore", "pipe", "pipe"],
       });
-      const id = Crypto.randomUUID();
+      const id = NodeCrypto.randomUUID();
       let cleanup: Promise<void> | undefined;
       const stop = () => (cleanup ??= ownedBudget.cleanup());
       const job: Job = {
@@ -235,7 +235,7 @@ export class PiWorkloads {
             "--value",
           ]).catch(() => "");
           let exitCode =
-            exit.code ?? (exit.signal ? 128 + (OS.constants.signals[exit.signal] ?? 1) : 1);
+            exit.code ?? (exit.signal ? 128 + (NodeOS.constants.signals[exit.signal] ?? 1) : 1);
           if (result === "oom-kill") {
             exitCode = 137;
             data(
