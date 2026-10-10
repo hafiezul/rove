@@ -7,6 +7,9 @@ const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.
 const upstreamPublicIdentity =
   /t3\.codes|T3 Tools|@t3dotgg|\bnpx\s+t3(?:@|\b)|\bpingdotgg\b|d763fcb8-d37c-41ea-a773-b54a0ab4a454|ARK85ZXQ4Z|\b6787819824\b/i;
 
+// This exact link credits the upstream project; it is not Rove's public identity.
+const upstreamAttributionLink = '<a href="https://github.com/pingdotgg/t3code">T3 Code</a>';
+
 const surfaces = [
   {
     name: "marketing",
@@ -49,7 +52,9 @@ export function findUpstreamPublicIdentity(source) {
   return source
     .split(/\r?\n/)
     .flatMap((line, index) =>
-      upstreamPublicIdentity.test(line) ? [{ line: index + 1, text: line.trim() }] : [],
+      upstreamPublicIdentity.test(line.replaceAll(upstreamAttributionLink, ""))
+        ? [{ line: index + 1, text: line.trim() }]
+        : [],
     );
 }
 

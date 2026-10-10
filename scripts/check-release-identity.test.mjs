@@ -17,6 +17,19 @@ it("flags public upstream identities, not compatibility names or attribution", (
   ]);
 });
 
+it("allows the upstream credit without hiding other identities on the same line", () => {
+  const attribution =
+    '<p>Built on <a href="https://github.com/pingdotgg/t3code">T3 Code</a>. Taking our own path.</p>';
+  expect(findUpstreamPublicIdentity(attribution)).toEqual([]);
+  for (const identity of ["npx t3@nightly", "https://t3.codes", "owner: 'pingdotgg'"]) {
+    const line = `${attribution} ${identity}`;
+    expect(findUpstreamPublicIdentity(line)).toEqual([{ line: 1, text: line }]);
+  }
+  expect(
+    findUpstreamPublicIdentity('<a href="https://github.com/pingdotgg/other">T3 Code</a>'),
+  ).toHaveLength(1);
+});
+
 it("reports all public claims but only blocks enabled release surfaces", () => {
   const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "rove-release-identity-"));
   const files = {
