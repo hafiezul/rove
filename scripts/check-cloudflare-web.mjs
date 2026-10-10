@@ -20,21 +20,63 @@ export function readBuiltProjectFileSchema(directory = defaultDirectory) {
   return schema;
 }
 
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+const DEPLOY_CHECK_ATTEMPTS = 6;
+
 export async function checkDeployedProjectFileSchema(
   origin,
   expectedSchema = buildRoveProjectFileJsonSchema(),
 ) {
   const url = new URL("/schema/rove.json", origin);
-  const response = await fetch(url);
-  if (
-    !response.ok ||
-    !/application\/(?:schema\+)?json\b/i.test(response.headers.get("content-type") ?? "")
-  ) {
-    throw new Error(
-      `${url} must return JSON Schema, received HTTP ${response.status} ${response.headers.get("content-type")}`,
+  // A new custom domain can take time to resolve after Wrangler reports success.
+  for (let attempt = 1; attempt <= DEPLOY_CHECK_ATTEMPTS; attempt++) {
+    let failure;
+    const signal = AbortSignal.timeout(10_000);
+    try {
+      const response = await fetch(url, { signal });
+      if (response.status === 429 || response.status >= 500) {
+        await response.body?.cancel();
+        failure = new Error(`${url} returned HTTP ${response.status}`);
+      } else {
+        if (
+          !response.ok ||
+          !/application\/(?:schema\+)?json\b/i.test(response.headers.get("content-type") ?? "")
+        ) {
+          await response.body?.cancel();
+          throw new Error(
+            `${url} must return JSON Schema, received HTTP ${response.status} ${response.headers.get("content-type")}`,
+          );
+        }
+        checkProjectFileSchema(await response.text(), expectedSchema);
+        return;
+      }
+    } catch (error) {
+      if (
+        error.name !== "TimeoutError" &&
+        !(signal.aborted && signal.reason?.name === "TimeoutError") &&
+        !RETRYABLE_NETWORK_CODES.has(error.cause?.code)
+      ) {
+        throw error;
+      }
+      failure = error;
+    }
+    if (attempt === DEPLOY_CHECK_ATTEMPTS) throw failure;
+    const retryDelay = Math.min(5_000 * 2 ** (attempt - 1), 30_000);
+    console.warn(
+      `Schema check attempt ${attempt}/${DEPLOY_CHECK_ATTEMPTS} failed: ${failure.cause?.code ?? failure.message}. Retrying in ${retryDelay / 1_000}s.`,
     );
+    await new Promise((resolve) => setTimeout(resolve, retryDelay));
   }
-  checkProjectFileSchema(await response.text(), expectedSchema);
 }
 
 const defaultDirectory = NodeURL.fileURLToPath(new URL("../apps/web/dist", import.meta.url));
