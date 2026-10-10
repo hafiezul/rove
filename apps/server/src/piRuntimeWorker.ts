@@ -2,6 +2,7 @@
 // @effect-diagnostics globalTimers:off - Orphan cleanup bounds extension shutdown outside the server runtime.
 import { PiCatalogHost } from "./provider/Layers/PiCatalogHost.ts";
 import { createPiSession } from "./provider/Layers/PiSessionFactory.ts";
+import { PiWorkloads } from "./provider/Layers/PiWorkloads.ts";
 import { PiExtensionLoadError, type PiSessionLike } from "./provider/Layers/PiAdapter.ts";
 import { registerPiBundledOAuthFlows } from "./provider/Drivers/PiOAuth.ts";
 import { exposePiCliEntry } from "./provider/Layers/PiCliEntry.ts";
@@ -76,6 +77,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
   exposePiCliEntry();
   registerPiBundledOAuthFlows();
   let host: PiCatalogHost | undefined;
+  let workloads: PiWorkloads | undefined;
   let closing = false;
   let pendingSends = 0;
   const sessions = new Map<
@@ -117,6 +119,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
     (shutdownPromise ??= (async () => {
       closing = true;
       await Promise.allSettled(initializing);
+      await workloads?.dispose();
       await Promise.allSettled(
         [...sessions.values()].map(async ({ session, unsubscribe }) => {
           unsubscribe();
@@ -135,6 +138,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
     switch (request.method) {
       case "initialize": {
         if (host) throw new Error("Pi instance is already initialized.");
+        if (request.args[1]) workloads = await PiWorkloads.create(request.args[1]);
         host = await PiCatalogHost.create(request.args[0]);
         host.onChange(() => post({ type: "catalogChanged" }));
         return;
@@ -167,6 +171,7 @@ export async function runPiRuntimeWorker(): Promise<void> {
               : {
                   compatibility,
                   mcpProviderSession: mcp,
+                  workloads,
                   ...(input.threadId !== undefined
                     ? {
                         observeAgent: (agent: object) =>

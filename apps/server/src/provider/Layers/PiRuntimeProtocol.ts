@@ -1,3 +1,4 @@
+import type { PiWorkloadConfig } from "../../diagnostics/PiWorkloadPolicy.ts";
 import type { PiCatalogHost, PiCatalogHostOptions } from "./PiCatalogHost.ts";
 import type { PiCreateSessionInput, PiSessionEventLike, PiSessionLike } from "./PiAdapter.ts";
 import type { McpProviderSessionConfig } from "../../mcp/McpProviderSession.ts";
@@ -37,7 +38,7 @@ type CatalogCalls = {
 };
 export type PiRuntimeCalls = SessionCalls &
   CatalogCalls & {
-    initialize: { args: [PiCatalogHostOptions]; result: void };
+    initialize: { args: [PiCatalogHostOptions, PiWorkloadConfig | undefined]; result: void };
     createSession: {
       args: [
         key: number,

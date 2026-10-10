@@ -4,9 +4,11 @@
 import * as NodeChildProcess from "node:child_process";
 import * as NodeURL from "node:url";
 import * as NodeSea from "node:sea";
-import * as Effect from "effect/Effect";
-import { HostProcessEnvironment } from "@rove-code/shared/hostProcess";
-import { parseProcessBudgetMiB, prepareBudgetedProcess } from "../../diagnostics/ProcessBudget.ts";
+import { makeManagedProcess } from "../../diagnostics/ProcessBudget.ts";
+import {
+  resolvePiWorkloadMemory,
+  type PiWorkloadConfig,
+} from "../../diagnostics/PiWorkloadPolicy.ts";
 import type { PiCatalogHostOptions } from "./PiCatalogHost.ts";
 import {
   PiExtensionLoadError,
@@ -103,7 +105,12 @@ export class PiRuntimeProcess {
   }
 
   static async create(
-    options: PiCatalogHostOptions & { agentDir: string },
+    options: PiCatalogHostOptions & {
+      agentDir: string;
+      workloadProtection?: "auto" | "on" | "off";
+      workloadMemoryMiB?: string;
+      workloadPool?: string;
+    },
     executable = NodeSea.isSea(),
     environment: NodeJS.ProcessEnv = process.env,
   ): Promise<PiRuntimeProcess> {
@@ -114,15 +121,22 @@ export class PiRuntimeProcess {
       ),
     );
     const args = executable ? ["__pi-runtime"] : [entry];
-    const budgetValue = environment.ROVE_PI_MEMORY_BUDGET_MIB;
-    const budget =
-      budgetValue === undefined
+    const memoryMiB = await resolvePiWorkloadMemory(
+      options.workloadProtection ?? "off",
+      options.workloadMemoryMiB ?? "2048",
+      environment,
+    );
+    // Pi is the control plane, never a candidate for a command-pool OOM. The owner scope
+    // still lets systemd clean up separately scoped tools after a worker/server crash.
+    const budget = memoryMiB === undefined ? undefined : makeManagedProcess(process.execPath, args);
+    const workload: PiWorkloadConfig | undefined =
+      budget === undefined || memoryMiB === undefined
         ? undefined
-        : await Effect.runPromise(
-            prepareBudgetedProcess(process.execPath, args, parseProcessBudgetMiB(budgetValue)).pipe(
-              Effect.provideService(HostProcessEnvironment, environment),
-            ),
-          );
+        : {
+            memoryMiB,
+            ownerUnit: budget.unit,
+            ...(options.workloadPool ? { pool: options.workloadPool } : {}),
+          };
     const child = NodeChildProcess.spawn(
       budget?.command ?? process.execPath,
       budget?.args ?? args,
@@ -135,7 +149,7 @@ export class PiRuntimeProcess {
     );
     const runtime = new PiRuntimeProcess(child, budget?.cleanup);
     try {
-      await runtime.request("initialize", [options]);
+      await runtime.request("initialize", [options, workload]);
       return runtime;
     } catch (error) {
       await runtime.dispose();

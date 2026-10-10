@@ -142,6 +142,8 @@ export const PiDriver: ProviderDriver<PiSettings, PiDriverEnv> = {
                 {
                   disabledExtensions: effectiveConfig.disabledExtensions,
                   agentDir: effectiveAgentDir,
+                  workloadProtection: effectiveConfig.workloadProtection,
+                  workloadMemoryMiB: effectiveConfig.workloadMemoryMiB,
                 },
                 executable,
                 // Subagents the instance's threads start write transcripts here (ADR 0002).

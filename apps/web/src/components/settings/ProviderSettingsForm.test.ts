@@ -7,8 +7,6 @@ import { DRIVER_OPTION_BY_VALUE } from "./providerDriverMeta";
 import {
   deriveProviderSettingsFields,
   nextProviderConfigWithFieldValue,
-  readProviderConfigBoolean,
-  readProviderConfigString,
   resolvePiThinkingSetting,
   ProviderSettingsForm,
 } from "./ProviderSettingsForm";
@@ -88,6 +86,24 @@ describe("ProviderSettingsForm helpers", () => {
     );
     expect(next).toEqual({ model: "local/plain" });
     expect(resolvePiThinkingSetting(next, piModels).selected).toBe("");
+  });
+
+  it("hides unsupported workload controls without discarding saved policy when another field changes", () => {
+    const pi = DRIVER_OPTION_BY_VALUE[ProviderDriverKind.make("pi")]!;
+    expect(deriveProviderSettingsFields(pi, true).map((field) => field.key)).toContain(
+      "workloadProtection",
+    );
+    const legacyFields = deriveProviderSettingsFields(pi, false);
+    expect(legacyFields.map((field) => field.key)).not.toContain("workloadProtection");
+    expect(legacyFields.map((field) => field.key)).not.toContain("workloadMemoryMiB");
+    const model = legacyFields.find((field) => field.key === "model")!;
+    expect(
+      nextProviderConfigWithFieldValue(
+        { workloadProtection: "on", workloadMemoryMiB: "3072" },
+        model,
+        "local/fixture",
+      ),
+    ).toEqual({ workloadProtection: "on", workloadMemoryMiB: "3072", model: "local/fixture" });
   });
 
   it("renders Pi thinking as a labeled selector in both Settings entry points", () => {

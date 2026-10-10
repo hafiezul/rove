@@ -42,7 +42,10 @@ export class ProcessBudgetError extends Schema.TaggedError<ProcessBudgetError>()
   }
 }
 
-function execute(command: string, args: ReadonlyArray<string>): Promise<string> {
+export function executeProcessControl(
+  command: string,
+  args: ReadonlyArray<string>,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     NodeChildProcess.execFile(command, args, { timeout: 10_000 }, (error, stdout, stderr) => {
       if (error)
@@ -85,6 +88,7 @@ export const prepareBudgetedProcess = Effect.fn("prepareBudgetedProcess")(functi
   memoryMiB: number,
   pool = PROVIDER_BUDGET_POOL,
   timeoutSeconds?: number,
+  scopeOptions?: { readonly properties?: ReadonlyArray<string>; readonly collect?: boolean },
 ) {
   const platform = yield* HostProcessPlatform;
   const uid = yield* HostProcessUserId;
@@ -108,7 +112,7 @@ export const prepareBudgetedProcess = Effect.fn("prepareBudgetedProcess")(functi
   const runtimeDirectory = environment.XDG_RUNTIME_DIR ?? `/run/user/${uid}`;
   yield* Effect.tryPromise({
     try: () =>
-      execute("flock", [
+      executeProcessControl("flock", [
         "--exclusive",
         "--close",
         NodePath.join(runtimeDirectory, `${pool}.lock`),
@@ -122,21 +126,35 @@ export const prepareBudgetedProcess = Effect.fn("prepareBudgetedProcess")(functi
     catch: (cause) =>
       new ProcessBudgetError({ detail: `Workload pool setup failed: ${String(cause)}`, cause }),
   });
+  return makeManagedProcess(command, args, pool, deadline, scopeOptions);
+});
+
+/** An uncapped control-plane scope gives separately contained tools a durable owner. */
+export function makeManagedProcess(
+  command: string,
+  args: ReadonlyArray<string>,
+  pool = "app.slice",
+  deadline: ReadonlyArray<string> = [],
+  options?: { readonly properties?: ReadonlyArray<string>; readonly collect?: boolean },
+) {
   const unit = `rove-budget-${NodeCrypto.randomUUID()}.scope`;
   let cleanupTask: Promise<void> | undefined;
   const stopScope = async () => {
     try {
-      await execute("systemctl", ["--user", "stop", unit]);
+      await executeProcessControl("systemctl", ["--user", "stop", unit]);
     } catch (cause) {
       // The scope can be collected before our stop reaches the manager.
-      const state = await execute("systemctl", [
+      const state = await executeProcessControl("systemctl", [
         "--user",
         "show",
         unit,
         "--property=ActiveState",
         "--value",
       ]);
-      if (state !== "inactive") throw cause;
+      if (state !== "inactive" && state !== "failed") throw cause;
+    }
+    if (options?.collect === false) {
+      await executeProcessControl("systemctl", ["--user", "reset-failed", unit]).catch(() => {});
     }
   };
   return {
@@ -145,11 +163,12 @@ export const prepareBudgetedProcess = Effect.fn("prepareBudgetedProcess")(functi
       "--user",
       "--scope",
       "--quiet",
-      "--collect",
+      ...(options?.collect === false ? [] : ["--collect"]),
       `--slice=${pool}`,
       `--unit=${unit}`,
       "--property=TimeoutStopSec=5s",
       ...deadline,
+      ...(options?.properties ?? []).map((property) => `--property=${property}`),
       "--",
       command,
       ...args,
@@ -161,4 +180,4 @@ export const prepareBudgetedProcess = Effect.fn("prepareBudgetedProcess")(functi
       return (cleanupTask ??= stopScope());
     },
   };
-});
+}

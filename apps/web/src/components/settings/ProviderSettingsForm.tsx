@@ -77,6 +77,7 @@ function readFieldBooleanDefault(
 
 export function deriveProviderSettingsFields(
   definition: ProviderClientDefinition,
+  supportsPiWorkloadProtection = true,
 ): ReadonlyArray<ProviderSettingsFieldModel> {
   const schemaAnnotation = readProviderSettingsFormSchemaAnnotation(definition);
   const orderedKeys = new Map(
@@ -96,6 +97,12 @@ export function deriveProviderSettingsFields(
       const fieldSchema = definition.settingsSchema.fields[key]!;
       const formAnnotation = readProviderSettingsFormAnnotation(fieldSchema);
       if (formAnnotation.hidden) return [];
+      if (
+        definition.value === "pi" &&
+        !supportsPiWorkloadProtection &&
+        (key === "workloadProtection" || key === "workloadMemoryMiB")
+      )
+        return [];
 
       const annotatedTitle = readFieldAnnotationString(fieldSchema, "title");
       const annotatedDescription = readFieldAnnotationString(fieldSchema, "description");
@@ -167,6 +174,7 @@ interface ProviderSettingsFormProps {
   readonly definition: ProviderClientDefinition;
   readonly value: unknown;
   readonly models?: ReadonlyArray<ServerProviderModel> | undefined;
+  readonly supportsPiWorkloadProtection?: boolean | undefined;
   readonly idPrefix: string;
   /**
    * `card` stacks label over control, `dialog` is the compact wizard layout,
@@ -493,11 +501,15 @@ export function ProviderSettingsForm({
   definition,
   value,
   models,
+  supportsPiWorkloadProtection = false,
   idPrefix,
   variant,
   onChange,
 }: ProviderSettingsFormProps) {
-  const fields = useMemo(() => deriveProviderSettingsFields(definition), [definition]);
+  const fields = useMemo(
+    () => deriveProviderSettingsFields(definition, supportsPiWorkloadProtection),
+    [definition, supportsPiWorkloadProtection],
+  );
 
   if (fields.length === 0) {
     return null;

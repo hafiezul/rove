@@ -774,6 +774,19 @@ export const PI_THINKING_LEVELS = [
 export const PiThinkingLevel = Schema.Literals(PI_THINKING_LEVELS);
 export type PiThinkingLevel = typeof PiThinkingLevel.Type;
 
+const PiWorkloadMemoryMiB = Schema.NumberFromString.check(
+  Schema.isInt(),
+  Schema.isBetween({ minimum: 384, maximum: 1_048_576 }),
+).pipe(
+  Schema.decodeTo(
+    Schema.String,
+    SchemaTransformation.transform({
+      decode: (value) => String(value),
+      encode: (value) => Number(value),
+    }),
+  ),
+);
+
 export const PiSettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -812,6 +825,31 @@ export const PiSettings = makeProviderSettingsSchema(
         },
       }),
     ),
+    workloadProtection: Schema.Literals(["auto", "on", "off"]).pipe(
+      Schema.withDecodingDefault(Effect.succeed("auto")),
+      Schema.annotateKey({
+        title: "Workload protection",
+        description:
+          "Queue shell commands and isolate their memory on Linux/WSL with user systemd. Auto enables on hosts with 768 MiB–8 GiB RAM. Other providers and extension-spawned commands are not protected. ROVE_PI_MEMORY_BUDGET_MIB overrides this setting.",
+        providerSettingsForm: {
+          control: "select",
+          options: [
+            { value: "auto", label: "Auto (small Linux hosts)" },
+            { value: "on", label: "On" },
+            { value: "off", label: "Off" },
+          ],
+        },
+      }),
+    ),
+    workloadMemoryMiB: PiWorkloadMemoryMiB.pipe(
+      Schema.withDecodingDefault(Effect.succeed("2048")),
+      Schema.annotateKey({
+        title: "Workload memory (MiB)",
+        description:
+          "Shared across protected Pi instances for this OS user, not per thread. Two thirds is reserved for one foreground command, one third for one managed background service. Commands that exceed their share fail without disconnecting Pi. Minimum 384 MiB; leave RAM for the OS and server. Auto caps this at half host RAM. All instances must resolve to the same budget. A configured pool must be stopped before resizing. ROVE_PI_MEMORY_BUDGET_MIB takes precedence.",
+        providerSettingsForm: { placeholder: "2048", clearWhenEmpty: "omit" },
+      }),
+    ),
     // Extension paths blocked from loading in new Pi sessions. Toggled from
     // the provider extensions panel and applied at session creation.
     disabledExtensions: Schema.Array(Schema.String).pipe(
@@ -824,7 +862,7 @@ export const PiSettings = makeProviderSettingsSchema(
     ),
   },
   {
-    order: ["model", "thinkingLevel", "agentDir"],
+    order: ["model", "thinkingLevel", "agentDir", "workloadProtection", "workloadMemoryMiB"],
   },
 ).pipe(
   Schema.annotate({
@@ -1570,6 +1608,8 @@ const AntigravitySettingsPatch = Schema.Struct({
 
 const PiSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
+  workloadProtection: Schema.optionalKey(Schema.Literals(["auto", "on", "off"])),
+  workloadMemoryMiB: Schema.optionalKey(PiWorkloadMemoryMiB),
   model: Schema.optionalKey(TrimmedString),
   thinkingLevel: Schema.optionalKey(Schema.NullOr(PiThinkingLevel)),
   disabledExtensions: Schema.optionalKey(Schema.Array(Schema.String)),

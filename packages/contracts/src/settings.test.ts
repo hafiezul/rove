@@ -1021,6 +1021,21 @@ describe("PiSettings", () => {
     expect(settings.model).toBe("");
     expect(settings.thinkingLevel).toBeNull();
     expect(settings.customModels).toEqual([]);
+    expect(settings.workloadProtection).toBe("auto");
+    expect(settings.workloadMemoryMiB).toBe("2048");
+  });
+
+  it("persists workload policy and rejects memory limits that cannot reserve both slots", () => {
+    const settings = decodePiSettings({ workloadProtection: "on", workloadMemoryMiB: "3072" });
+    expect(decodePiSettings(Schema.encodeSync(PiSettings)(settings))).toMatchObject({
+      workloadProtection: "on",
+      workloadMemoryMiB: "3072",
+    });
+    expect(decodePiSettings({ workloadProtection: "off" }).workloadProtection).toBe("off");
+    for (const value of ["128", "383", "NaN", "2048.5", "1048577"]) {
+      expect(() => decodePiSettings({ workloadMemoryMiB: value })).toThrow();
+    }
+    expect(() => decodePiSettings({ workloadProtection: "sometimes" })).toThrow();
   });
 
   it("round-trips disabled and re-enabled extension paths", () => {

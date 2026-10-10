@@ -153,7 +153,24 @@ export default function (pi: ExtensionAPI) {
         lastUser !== undefined &&
         text(lastUser) === "hang-tool" &&
         context.messages.at(-1)?.role === "user";
+      const workloadTool =
+        lastUser !== undefined &&
+        text(lastUser).startsWith("workload-") &&
+        context.messages.at(-1)?.role === "user";
+      const workloadName = lastUser === undefined ? "" : text(lastUser);
+      const workloadArgs =
+        workloadName === "workload-oom"
+          ? {
+              command:
+                "node -e 'const b=[];for(let i=0;i<512;i++)b.push(Buffer.alloc(1024*1024,1));'",
+            }
+          : workloadName === "workload-service"
+            ? { command: "node -e 'console.log(\"service ready\");setInterval(()=>{},1000)'" }
+            : workloadName === "workload-services"
+              ? {}
+              : { command: "printf 'Pi survived and next command completed\\n'" };
       const callTool =
+        workloadTool ||
         hangTool ||
         (getCurrentTools(context.messages).some(
           (tool) => tool.name === "mcp__rove__preview_status",
@@ -172,8 +189,16 @@ export default function (pi: ExtensionAPI) {
               {
                 type: "toolCall",
                 id: "rove-call",
-                name: hangTool ? "fixture_hang" : "mcp__rove__preview_status",
-                arguments: {},
+                name: workloadTool
+                  ? workloadName === "workload-service"
+                    ? "workload_start"
+                    : workloadName === "workload-services"
+                      ? "workload_list"
+                      : "bash"
+                  : hangTool
+                    ? "fixture_hang"
+                    : "mcp__rove__preview_status",
+                arguments: workloadTool ? workloadArgs : {},
               },
             ]
           : [{ type: "text", text: NodePath.basename(directoryAtLoad) }],

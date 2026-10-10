@@ -57,6 +57,7 @@ import {
   type McpProviderSessionConfig,
 } from "../../mcp/McpProviderSession.ts";
 import { createPiRoveTools } from "./PiRoveTools.ts";
+import type { PiWorkloads } from "./PiWorkloads.ts";
 import { createPiExtensionUI } from "./PiExtensionUI.ts";
 import { disposePiResource } from "./PiLifecycle.ts";
 import { buildRuntimeInstructions } from "../RuntimeInstructions.ts";
@@ -842,6 +843,7 @@ export async function createPiSession(
   input: PiCreateSessionInput,
   options: {
     extensions?: boolean;
+    workloads?: PiWorkloads | undefined;
     /** Metadata helpers must not persist history or execute tools. */
     textGeneration?: boolean;
     /**
@@ -993,7 +995,10 @@ export async function createPiSession(
     await createAgentSessionFromServices({
       services,
       sessionManager,
-      customTools: roveTools.tools,
+      customTools: [
+        ...roveTools.tools,
+        ...(options.workloads?.tools(cwd, input.threadId ?? sessionManager.getSessionId()) ?? []),
+      ],
       ...(options.textGeneration ? { noTools: "all" as const } : {}),
       ...(resolved?.model !== undefined ? { model: resolved.model } : undefined),
       ...(requestedThinkingLevel !== undefined
@@ -1029,7 +1034,10 @@ export async function createPiSession(
     outcome,
     startupErrors,
     modelFallbackMessage.length > 0 ? modelFallbackMessage : undefined,
-    roveTools.dispose,
+    async () => {
+      await options.workloads?.disposeOwner(input.threadId ?? sessionManager.getSessionId());
+      await roveTools.dispose();
+    },
     input.interactive === true && !options.textGeneration,
     options.compatibility,
     usageLimits.take,
