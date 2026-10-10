@@ -127,6 +127,59 @@ describe("isolated Pi instance runtime", () => {
     await runtime.dispose();
   });
 
+  it.skipIf(
+    NodeChildProcess.spawnSync("systemctl", ["--user", "show-environment"], { stdio: "ignore" })
+      .status !== 0,
+  )(
+    "survives a built-in shell OOM and executes the next tool through the isolated SDK",
+    async () => {
+      const agentDir = directory("workload-recovery");
+      const options = {
+        agentDir,
+        workloadProtection: "on" as const,
+        workloadMemoryMiB: "384",
+        workloadPool: `rove-sdk-workload-test-${NodePath.basename(root)}.slice`,
+      };
+      const environment = { ...process.env, ROVE_PI_MEMORY_BUDGET_MIB: "384" };
+      const runtime = await PiRuntimeProcess.create(options, false, environment);
+      runtimes.push(runtime);
+      try {
+        const current = await session(runtime, agentDir);
+        await current.prompt("workload-oom");
+        expect(JSON.stringify(current.messages)).toContain("memory budget");
+        await current.prompt("workload-recovered");
+        expect(JSON.stringify(current.messages)).toContain(
+          "Pi survived and next command completed",
+        );
+        expect(
+          (await runtime.getCatalogModels()).some(
+            (model) => model.slug === "local/workload-recovery",
+          ),
+        ).toBe(true);
+        await current.dispose();
+        await runtime.dispose();
+        const restarted = await PiRuntimeProcess.create(options, false, environment);
+        runtimes.push(restarted);
+        const resumed = await session(restarted, agentDir);
+        await resumed.prompt("workload-recovered");
+        expect(JSON.stringify(resumed.messages)).toContain(
+          "Pi survived and next command completed",
+        );
+        await resumed.dispose();
+        await restarted.dispose();
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          NodeChildProcess.execFile(
+            "systemctl",
+            ["--user", "stop", options.workloadPool],
+            (error) => (error ? reject(error) : resolve()),
+          ),
+        );
+      }
+    },
+    40_000,
+  );
+
   it("reports idle only once its sessions are disposed", async () => {
     const agentDir = directory("idle-tracking");
     const runtime = await create(agentDir);

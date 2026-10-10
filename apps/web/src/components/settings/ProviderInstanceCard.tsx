@@ -368,6 +368,7 @@ interface ProviderInstanceCardProps {
   readonly instance: ProviderInstanceConfig;
   readonly driverOption: DriverOption | undefined;
   readonly liveProvider: ServerProvider | undefined;
+  readonly supportsPiWorkloadProtection?: boolean | undefined;
   readonly mode: "list" | "editor";
   readonly selected?: boolean | undefined;
   readonly onSelect?: (() => void) | undefined;
@@ -425,6 +426,7 @@ export function ProviderInstanceCard({
   instance,
   driverOption,
   liveProvider,
+  supportsPiWorkloadProtection,
   mode,
   selected = false,
   onSelect,
@@ -863,6 +865,7 @@ export function ProviderInstanceCard({
     <ProviderSettingsForm
       definition={driverOption}
       models={liveProvider?.models}
+      supportsPiWorkloadProtection={supportsPiWorkloadProtection}
       value={instance.config}
       idPrefix={`provider-instance-${instanceId}`}
       variant="settings"

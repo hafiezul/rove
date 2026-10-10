@@ -597,6 +597,9 @@ export function EnvironmentProviderSettings({
   // page always edits exactly the environment it displays.
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const updateClientSettings = useUpdateClientSettings();
+  const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
+  const supportsPiWorkloadProtection =
+    serverConfig?.environment.capabilities.piWorkloadProtection === true;
   const serverProviders =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const refreshServerProviders = useAtomCommand(serverEnvironment.refreshProviders, {
@@ -939,6 +942,7 @@ export function EnvironmentProviderSettings({
         instance={row.instance}
         driverOption={driverOption}
         liveProvider={liveProvider}
+        supportsPiWorkloadProtection={supportsPiWorkloadProtection}
         mode={mode}
         selected={mode === "list" && selectedRow?.instanceId === row.instanceId}
         onSelect={mode === "list" ? () => setSelectedInstanceId(row.instanceId) : undefined}
@@ -1252,6 +1256,7 @@ export function EnvironmentProviderSettings({
           open
           environmentId={environmentId}
           environmentLabel={environmentLabel}
+          supportsPiWorkloadProtection={supportsPiWorkloadProtection}
           onOpenChange={setIsAddInstanceDialogOpen}
         />
       ) : null}

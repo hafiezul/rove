@@ -115,6 +115,7 @@ interface AddProviderInstanceDialogProps {
   readonly open: boolean;
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
+  readonly supportsPiWorkloadProtection?: boolean | undefined;
   readonly onOpenChange: (open: boolean) => void;
 }
 
@@ -122,6 +123,7 @@ export function AddProviderInstanceDialog({
   open,
   environmentId,
   environmentLabel,
+  supportsPiWorkloadProtection = false,
   onOpenChange,
 }: AddProviderInstanceDialogProps) {
   const settings = useEnvironmentSettings(environmentId);
@@ -148,8 +150,8 @@ export function AddProviderInstanceDialog({
   const driverOption = DRIVER_OPTION_BY_VALUE[driver] ?? DEFAULT_DRIVER_OPTION;
   const instanceId = instanceIdOverride ?? deriveInstanceId(driver, label);
   const driverSettingsFields = useMemo(
-    () => deriveProviderSettingsFields(driverOption),
-    [driverOption],
+    () => deriveProviderSettingsFields(driverOption, supportsPiWorkloadProtection),
+    [driverOption, supportsPiWorkloadProtection],
   );
   const instanceIdError = validateInstanceId(instanceId, existingIds);
   const showInstanceIdError = hasAttemptedSubmit && instanceIdError !== null;
@@ -393,6 +395,7 @@ export function AddProviderInstanceDialog({
             <div className={cn("grid gap-4", wizardStep !== 2 && "hidden")}>
               <ProviderSettingsForm
                 definition={driverOption}
+                supportsPiWorkloadProtection={supportsPiWorkloadProtection}
                 value={configDraft}
                 idPrefix={`add-provider-${driver}`}
                 variant="dialog"

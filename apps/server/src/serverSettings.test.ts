@@ -383,6 +383,33 @@ it.layer(NodeServices.layer)("server settings", (it) => {
     }).pipe(Effect.provide(makeServerSettingsLayer())),
   );
 
+  it.effect("persists Pi workload policy and its off switch in the environment settings file", () =>
+    Effect.gen(function* () {
+      const service = yield* ServerSettingsModule.ServerSettingsService;
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const id = ProviderInstanceId.make("pi_resource_test");
+      for (const workloadProtection of ["on", "off"] as const) {
+        yield* service.updateSettings({
+          providerInstances: {
+            [id]: {
+              driver: ProviderDriverKind.make("pi"),
+              enabled: false,
+              config: { workloadProtection, workloadMemoryMiB: "3072" },
+            },
+          },
+        });
+        const raw = yield* fs.readFileString(config.settingsPath);
+        // @effect-diagnostics-next-line preferSchemaOverJson:off
+        const restored = yield* decodeServerSettings(JSON.parse(raw));
+        assert.deepEqual(restored.providerInstances[id]?.config, {
+          workloadProtection,
+          workloadMemoryMiB: "3072",
+        });
+      }
+    }).pipe(Effect.provide(makeServerSettingsLayer())),
+  );
+
   it.effect("preserves custom provider instance text generation selections", () =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsModule.ServerSettingsService;

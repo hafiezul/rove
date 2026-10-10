@@ -15,6 +15,7 @@ import { reactHookHarness as hooks } from "../../test/reactHookHarness";
 const atoms = vi.hoisted(() => ({
   providers: null as ReadonlyArray<ServerProvider> | null,
   providersAtom: Symbol("providers"),
+  configAtom: Symbol("config"),
   refreshProviders: Symbol("refreshProviders"),
   updateProvider: Symbol("updateProvider"),
 }));
@@ -65,13 +66,18 @@ vi.mock("react/compiler-runtime", async () => {
 });
 
 vi.mock("@effect/atom-react", () => ({
-  useAtomValue: () => atoms.providers,
+  useAtomValue: (atom: symbol) => {
+    if (atom === atoms.providersAtom) return atoms.providers;
+    if (atom === atoms.configAtom) return null;
+    throw new Error("Unexpected server atom");
+  },
 }));
 
 vi.mock("../../state/server", () => ({
   EMPTY_SERVER_PROVIDERS: [],
   serverEnvironment: {
     providersValueAtom: () => atoms.providersAtom,
+    configValueAtom: () => atoms.configAtom,
     refreshProviders: atoms.refreshProviders,
     updateProvider: atoms.updateProvider,
   },
