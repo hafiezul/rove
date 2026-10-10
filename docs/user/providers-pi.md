@@ -39,6 +39,16 @@ instance runs separately from the server. If its runtime exits or becomes
 unresponsive, disable and re-enable the instance in provider settings, then resume
 the thread. Unfinished prompts are not replayed automatically.
 
+## Resource limits on Linux and WSL
+
+Heavy tools such as concurrent builds and typechecks can exhaust RAM and cause disk saturation from swapping, making the server unreachable. On Linux or WSL with a systemd user manager and `flock`, opt into Pi resource limits in **Settings → Providers → Pi → Environment** by adding `ROVE_PI_MEMORY_BUDGET_MIB=2048`. Apply this to each Pi instance you want contained. If an existing instance has not picked up the change, disable and re-enable it when no threads are running. Removing the variable opts that instance out unless the server also supplies it.
+
+Guarded Pi instances and their ordinary tool descendants share one 2048 MiB memory budget and two CPU cores, with no workload swap. The budget is shared across threads, instances, and Rove environments running as the same OS user, not allocated per thread. The Rove server stays outside this pool; other providers are not automatically limited.
+
+CPU-heavy work may run slower, but this is not a guarantee that work completes: exceeding the memory budget can kill a tool or the Pi runtime. A runtime exit interrupts the active threads in that instance; re-enable the instance and resume from saved history. Run expensive checks sequentially and leave RAM available for the OS and server. Background tools stop when their owning Pi runtime exits. Hosts without the required support reject a guarded launch.
+
+All guarded instances must request the same budget. Changing the limit after the shared pool has been configured requires stopping guarded workloads and reconfiguring the pool; changing one instance's variable alone does not resize it. See [resource-budget configuration](../operations/development.md#guard-expensive-workloads-on-small-linux-environments).
+
 ## Extension sources
 
 Rove uses Pi's standard resource loader for these sources:
